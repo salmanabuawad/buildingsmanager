@@ -34,10 +34,16 @@ Before running this project locally, ensure you have:
 
 ```bash
 git clone <your-repository-url>
-cd project
+cd buildings-manager
 ```
 
 ### 2. Database Setup
+
+**Option A: Use Supabase (Recommended)**
+
+The project is configured to use Supabase. The migrations in `supabase/migrations/` are automatically applied to the Supabase database.
+
+**Option B: Use Local PostgreSQL**
 
 Create a PostgreSQL database:
 
@@ -55,12 +61,11 @@ CREATE DATABASE buildings_db;
 Run the migration files to set up the schema:
 
 ```bash
-# Run each migration file in supabase/migrations/ in order
+# Run each migration file in supabase/migrations/ in chronological order
+psql -U postgres -d buildings_db -f supabase/migrations/20251107215003_rebuild_database.sql
 psql -U postgres -d buildings_db -f supabase/migrations/20251108075335_add_dwg_file_to_apartments.sql
-# Continue with other migration files...
+psql -U postgres -d buildings_db -f supabase/migrations/20251108075351_create_storage_bucket_for_dwg_files.sql
 ```
-
-Or manually execute the SQL from the migration files in your PostgreSQL client.
 
 ### 3. Backend Setup
 
@@ -94,18 +99,22 @@ You can access:
 
 ### 4. Frontend Setup
 
-Install frontend dependencies:
+Navigate back to project root and install frontend dependencies:
 
 ```bash
-cd ..  # Back to project root
+cd ..  # Back to project root (if you're in backend/)
 npm install
 ```
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (if not exists):
 
 ```env
 VITE_API_URL=http://localhost:8000
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+Note: The frontend primarily uses the Python GraphQL API (`VITE_API_URL`). Supabase credentials are for file storage features.
 
 Start the development server:
 
@@ -128,11 +137,13 @@ The built files will be in the `dist/` directory.
 ## Project Structure
 
 ```
-project/
+buildings-manager/
 ├── backend/                # Python FastAPI backend
-│   ├── main.py            # FastAPI application
+│   ├── main.py            # FastAPI + GraphQL application
+│   ├── schema.py          # GraphQL schema and types
+│   ├── resolvers.py       # GraphQL resolvers
 │   ├── database.py        # Database connection
-│   ├── models.py          # Pydantic models
+│   ├── models.py          # Pydantic models (legacy)
 │   ├── requirements.txt   # Python dependencies
 │   └── .env.example       # Environment variables template
 ├── src/                   # React frontend
@@ -147,7 +158,8 @@ project/
 │   │   ├── i18n.ts
 │   │   └── translations.ts
 │   ├── lib/              # Utilities and configurations
-│   │   └── api.ts        # API client
+│   │   ├── api.ts        # GraphQL API client
+│   │   └── supabase.ts   # Supabase client (for file storage)
 │   ├── App.tsx           # Main application component
 │   ├── main.tsx          # Application entry point
 │   └── index.css         # Global styles

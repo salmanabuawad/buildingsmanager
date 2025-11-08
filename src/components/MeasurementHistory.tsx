@@ -213,6 +213,52 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
         <div className="mb-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
           <h3 className="font-semibold text-slate-900 mb-3">{t('addMeasurement')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-slate-700 block mb-2">
+                {t('dwgFile')}
+              </label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => handleFileUpload(e, 'new')}
+                className="hidden"
+                ref={fileInputRef}
+              />
+              {!newMeasurement.drawing_file_url ? (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading && uploadingFor === 'new'}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  {isUploading && uploadingFor === 'new' ? t('loading') : t('uploadDwgFile')}
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading && uploadingFor === 'new'}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {t('changeFile')}
+                  </button>
+                  <button
+                    onClick={() => handleFileRemove('new', newMeasurement.drawing_file_url!)}
+                    disabled={isUploading && uploadingFor === 'new'}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t('removeFile')}
+                  </button>
+                </div>
+              )}
+              {newMeasurement.drawing_file_url && (
+                <div className="mt-3">
+                  <PDFViewer fileUrl={newMeasurement.drawing_file_url} fileName="measurement-drawing.pdf" />
+                </div>
+              )}
+            </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">
                 {t('measurementDate')}
@@ -291,52 +337,6 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                 rows={2}
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="text-sm font-medium text-slate-700 block mb-2">
-                {t('dwgFile')}
-              </label>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => handleFileUpload(e, 'new')}
-                className="hidden"
-                ref={fileInputRef}
-              />
-              {!newMeasurement.drawing_file_url ? (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading && uploadingFor === 'new'}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
-                >
-                  <Upload className="h-4 w-4" />
-                  {isUploading && uploadingFor === 'new' ? t('loading') : t('uploadDwgFile')}
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading && uploadingFor === 'new'}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
-                  >
-                    <Upload className="h-4 w-4" />
-                    {t('changeFile')}
-                  </button>
-                  <button
-                    onClick={() => handleFileRemove('new', newMeasurement.drawing_file_url!)}
-                    disabled={isUploading && uploadingFor === 'new'}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t('removeFile')}
-                  </button>
-                </div>
-              )}
-              {newMeasurement.drawing_file_url && (
-                <div className="mt-3">
-                  <PDFViewer fileUrl={newMeasurement.drawing_file_url} fileName="measurement-drawing.pdf" />
-                </div>
-              )}
-            </div>
           </div>
           <div className="flex gap-2 mt-3">
             <button
@@ -372,6 +372,52 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
               {editingId === measurement.id ? (
                 <div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="text-sm font-medium text-slate-700 block mb-2">
+                        {t('dwgFile')}
+                      </label>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => handleFileUpload(e, measurement.id)}
+                        className="hidden"
+                        id={`file-edit-${measurement.id}`}
+                      />
+                      {!editValues.drawing_file_url ? (
+                        <button
+                          onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
+                          disabled={isUploading && uploadingFor === measurement.id}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                        >
+                          <Upload className="h-4 w-4" />
+                          {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
+                            disabled={isUploading && uploadingFor === measurement.id}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                          >
+                            <Upload className="h-4 w-4" />
+                            {t('changeFile')}
+                          </button>
+                          <button
+                            onClick={() => handleFileRemove(measurement.id, editValues.drawing_file_url!)}
+                            disabled={isUploading && uploadingFor === measurement.id}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {t('removeFile')}
+                          </button>
+                        </div>
+                      )}
+                      {editValues.drawing_file_url && (
+                        <div className="mt-3">
+                          <PDFViewer fileUrl={editValues.drawing_file_url} fileName="measurement-drawing.pdf" />
+                        </div>
+                      )}
+                    </div>
                     <div>
                       <label className="text-sm font-medium text-slate-700 block mb-1">
                         {t('measurementDate')}
@@ -449,52 +495,6 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                         rows={2}
                       />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-sm font-medium text-slate-700 block mb-2">
-                        {t('dwgFile')}
-                      </label>
-                      <input
-                        type="file"
-                        accept="application/pdf"
-                        onChange={(e) => handleFileUpload(e, measurement.id)}
-                        className="hidden"
-                        id={`file-edit-${measurement.id}`}
-                      />
-                      {!editValues.drawing_file_url ? (
-                        <button
-                          onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
-                          disabled={isUploading && uploadingFor === measurement.id}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
-                        >
-                          <Upload className="h-4 w-4" />
-                          {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}
-                        </button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
-                            disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
-                          >
-                            <Upload className="h-4 w-4" />
-                            {t('changeFile')}
-                          </button>
-                          <button
-                            onClick={() => handleFileRemove(measurement.id, editValues.drawing_file_url!)}
-                            disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {t('removeFile')}
-                          </button>
-                        </div>
-                      )}
-                      {editValues.drawing_file_url && (
-                        <div className="mt-3">
-                          <PDFViewer fileUrl={editValues.drawing_file_url} fileName="measurement-drawing.pdf" />
-                        </div>
-                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 mt-3">

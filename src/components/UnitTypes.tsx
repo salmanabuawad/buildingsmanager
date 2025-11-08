@@ -64,6 +64,16 @@ export function UnitTypes() {
       return;
     }
 
+    if (formData.name.length !== 3) {
+      showMessage('error', t('typeName') + ' must be exactly 3 digits');
+      return;
+    }
+
+    if (!/^\d{3}$/.test(formData.name)) {
+      showMessage('error', t('typeName') + ' must contain only digits');
+      return;
+    }
+
     try {
       if (editingId) {
         await api.unitTypes.update(editingId, formData);
@@ -150,9 +160,15 @@ export function UnitTypes() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d{0,3}$/.test(value)) {
+                      setFormData({ ...formData, name: value });
+                    }
+                  }}
+                  maxLength={3}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder={t('typeName')}
+                  placeholder="123"
                 />
               </div>
               <div>

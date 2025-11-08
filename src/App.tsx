@@ -4,11 +4,12 @@ import { ApartmentsList } from './components/ApartmentsList';
 import { ApartmentDetails } from './components/ApartmentDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
 import { UnitTypes } from './components/UnitTypes';
-import { X, Settings, Building, Home, Tag } from 'lucide-react';
+import { UnitSearch } from './components/UnitSearch';
+import { X, Settings, Building, Home, Tag, Search } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'apartments' | 'details' | 'admin' | 'unit-types';
+  type: 'buildings' | 'apartments' | 'details' | 'admin' | 'unit-types' | 'unit-search';
   buildingId?: string;
   apartmentId?: string;
   label: string;
@@ -109,6 +110,25 @@ function App() {
     setActiveTabId(unitTypesTabId);
   }
 
+  function openUnitSearch() {
+    const unitSearchTabId = 'unit-search-panel';
+    const existingTab = tabs.find(tab => tab.id === unitSearchTabId);
+
+    if (existingTab) {
+      setActiveTabId(unitSearchTabId);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: unitSearchTabId,
+      type: 'unit-search',
+      label: 'Unit Search'
+    };
+
+    setTabs([...tabs, newTab]);
+    setActiveTabId(unitSearchTabId);
+  }
+
   function handleCloseTab(tabId: string) {
     if (tabId === 'buildings') return;
 
@@ -144,6 +164,8 @@ function App() {
                     <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'unit-types' ? (
                     <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                  ) : tab.type === 'unit-search' ? (
+                    <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'buildings' ? (
                     <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
                   ) : tab.type === 'apartments' ? (
@@ -180,6 +202,7 @@ function App() {
             key={activeTab.refreshKey}
             onSelectBuilding={handleSelectBuilding}
             onOpenUnitTypes={openUnitTypes}
+            onOpenUnitSearch={openUnitSearch}
           />
         )}
         {activeTab?.type === 'apartments' && activeTab.buildingId && (
@@ -197,6 +220,9 @@ function App() {
         )}
         {activeTab?.type === 'unit-types' && (
           <UnitTypes />
+        )}
+        {activeTab?.type === 'unit-search' && (
+          <UnitSearch />
         )}
       </div>
     </div>

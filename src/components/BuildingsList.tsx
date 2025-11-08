@@ -3,16 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag } from 'lucide-react';
+import { Tag, Search } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingId: string, buildingName: string) => void;
   onOpenUnitTypes?: () => void;
+  onOpenUnitSearch?: () => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenUnitTypes }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSearch }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,15 +147,26 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes }: BuildingsLi
               </div>
               <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
             </div>
-            {onOpenUnitTypes && (
-              <button
-                onClick={onOpenUnitTypes}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-              >
-                <Tag className="h-5 w-5" />
-                <span className="hidden sm:inline">{t('unitTypes')}</span>
-              </button>
-            )}
+            <div className="flex gap-2">
+              {onOpenUnitSearch && (
+                <button
+                  onClick={onOpenUnitSearch}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+                >
+                  <Search className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('unitSearch') || 'Search'}</span>
+                </button>
+              )}
+              {onOpenUnitTypes && (
+                <button
+                  onClick={onOpenUnitTypes}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+                >
+                  <Tag className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('unitTypes')}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>יצירת משתמשי דוגמה</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(to bottom right, #eff6ff, #ffffff, #f0fdfa);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #0d9488;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        button {
+            background: linear-gradient(to right, #0d9488, #2563eb);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .output {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #059669; }
+        .error { color: #dc2626; }
+        .info { color: #2563eb; }
+        .user-info {
+            background: #f0fdfa;
+            border: 2px solid #0d9488;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .user-info h3 {
+            margin-top: 0;
+            color: #0d9488;
+        }
+        .credentials {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 יצירת משתמשי דוגמה</h1>
+        <p class="subtitle">כלי ליצירת משתמשי Viewer ו-Editor למערכת</p>
+
+        <div class="user-info">
+            <h3>📋 פרטי משתמשים שייווצרו:</h3>
+            <div>
+                <strong>משתמש צופה (Viewer):</strong>
+                <div class="credentials">
+                    Email: viewer@example.com<br>
+                    Password: viewer123<br>
+                    Role: viewer (קריאה בלבד)
+                </div>
+            </div>
+            <div style="margin-top: 10px;">
+                <strong>משתמש עורך (Editor):</strong>
+                <div class="credentials">
+                    Email: editor@example.com<br>
+                    Password: editor123<br>
+                    Role: editor (קריאה וכתיבה)
+                </div>
+            </div>
+        </div>
+
+        <button onclick="createSampleUsers()" id="createBtn">צור משתמשי דוגמה</button>
+        <button onclick="clearOutput()">נקה תצוגה</button>
+
+        <div id="output" class="output"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || window.location.origin.replace(':5173', '');
+        const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString('he-IL');
+            const className = type;
+            output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        async function createSampleUsers() {
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            clearOutput();
+
+            log('🚀 מתחיל יצירת משתמשים...', 'info');
+            log('====================================', 'info');
+
+            // Read environment variables from .env file instructions
+            log('📝 שים לב: עליך להריץ קובץ זה מתוך הפרויקט', 'info');
+            log('או להגדיר את משתני הסביבה VITE_SUPABASE_URL ו-VITE_SUPABASE_ANON_KEY', 'info');
+            log('====================================\n', 'info');
+
+            // For demo purposes, show instructions
+            log('📌 הוראות שימוש:', 'info');
+            log('1. פתח את הקונסול של הדפדפן (F12)', 'info');
+            log('2. העתק והדבק את הקוד הבא:', 'info');
+            log('====================================', 'info');
+            log(`
+// קוד ליצירת משתמשים
+const { createClient } = supabase;
+
+// קרא את הערכים מקובץ .env שלך
+const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function createUsers() {
+    console.log('Creating viewer user...');
+    const { data: viewer, error: viewerError } = await supabaseClient.auth.signUp({
+        email: 'viewer@example.com',
+        password: 'viewer123',
+    });
+
+    if (viewerError) {
+        console.error('Viewer error:', viewerError);
+    } else {
+        console.log('✓ Viewer created:', viewer.user?.email);
+    }
+
+    // Sign out before creating next user
+    await supabaseClient.auth.signOut();
+
+    console.log('Creating editor user...');
+    const { data: editor, error: editorError } = await supabaseClient.auth.signUp({
+        email: 'editor@example.com',
+        password: 'editor123',
+    });
+
+    if (editorError) {
+        console.error('Editor error:', editorError);
+    } else {
+        console.log('✓ Editor user created:', editor.user?.email);
+
+        // Update to editor role
+        const { error: updateError } = await supabaseClient
+            .from('user_profiles')
+            .update({ role: 'editor' })
+            .eq('id', editor.user.id);
+
+        if (updateError) {
+            console.error('Update error:', updateError);
+        } else {
+            console.log('✓ Editor role updated successfully');
+        }
+    }
+
+    await supabaseClient.auth.signOut();
+    console.log('✓ All users created successfully!');
+}
+
+createUsers();
+`, 'info');
+            log('====================================\n', 'info');
+
+            log('💡 חלופה: השתמש במסך ההרשמה באפליקציה', 'info');
+            log('ולאחר מכן הפעל SQL לשינוי התפקיד:', 'info');
+            log(`UPDATE user_profiles SET role = 'editor' WHERE email = 'editor@example.com';`, 'info');
+
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>

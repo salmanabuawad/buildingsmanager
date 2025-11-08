@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.ag-theme-alpine {
+  --ag-header-background-color: linear-gradient(to right, #0d9488, #2563eb);
+  --ag-header-foreground-color: white;
+  --ag-font-family: inherit;
+  --ag-font-size: 14px;
+  --ag-row-hover-color: #f0fdfa;
+  --ag-selected-row-background-color: #ccfbf1;
+  --ag-odd-row-background-color: #f0f9ff;
+  --ag-background-color: #ffffff;
+  --ag-border-color: #e0f2fe;
+  --ag-header-cell-hover-background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ag-theme-alpine .ag-header {
+  background: linear-gradient(to right, #0d9488, #2563eb);
+  color: white;
+  font-weight: 600;
+}
+
+.ag-theme-alpine .ag-header-cell-label {
+  color: white;
+}
+
+.ag-theme-alpine .ag-icon {
+  color: white;
+}
+
+.ag-theme-alpine .ag-row {
+  transition: background-color 0.2s;
+}
+
+.ag-theme-alpine .ag-row-hover {
+  background-color: #f0fdfa !important;
+}
+
+.ag-theme-alpine .ag-cell {
+  border-color: #e0f2fe;
+}

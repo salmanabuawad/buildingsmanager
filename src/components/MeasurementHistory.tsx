@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApartmentMeasurement, api } from '../lib/api';
-import { Plus, Edit2, Trash2, Calendar, Save, X, Upload, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, Save, X, Upload, FileText, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PDFViewer } from './PDFViewer';
 
@@ -19,7 +19,7 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeFileUpload, setActiveFileUpload] = useState<string | null>(null);
+  const [previewingDrawing, setPreviewingDrawing] = useState<string | null>(null);
 
   const emptyMeasurement = {
     apartment_id: apartmentId,
@@ -253,8 +253,24 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                   </button>
                 </div>
               )}
-              {newMeasurement.drawing_file_url && (
+              {newMeasurement.drawing_file_url && previewingDrawing !== 'new' && (
+                <button
+                  onClick={() => setPreviewingDrawing('new')}
+                  className="mt-3 flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
+                >
+                  <Eye className="h-4 w-4" />
+                  {t('previewDrawing')}
+                </button>
+              )}
+              {newMeasurement.drawing_file_url && previewingDrawing === 'new' && (
                 <div className="mt-3">
+                  <button
+                    onClick={() => setPreviewingDrawing(null)}
+                    className="mb-2 flex items-center gap-2 px-3 py-1 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+                  >
+                    <X className="h-4 w-4" />
+                    {t('closePreview')}
+                  </button>
                   <PDFViewer fileUrl={newMeasurement.drawing_file_url} fileName="measurement-drawing.pdf" />
                 </div>
               )}
@@ -412,8 +428,24 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                           </button>
                         </div>
                       )}
-                      {editValues.drawing_file_url && (
+                      {editValues.drawing_file_url && previewingDrawing !== measurement.id && (
+                        <button
+                          onClick={() => setPreviewingDrawing(measurement.id)}
+                          className="mt-3 flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm"
+                        >
+                          <Eye className="h-4 w-4" />
+                          {t('previewDrawing')}
+                        </button>
+                      )}
+                      {editValues.drawing_file_url && previewingDrawing === measurement.id && (
                         <div className="mt-3">
+                          <button
+                            onClick={() => setPreviewingDrawing(null)}
+                            className="mb-2 flex items-center gap-2 px-3 py-1 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+                          >
+                            <X className="h-4 w-4" />
+                            {t('closePreview')}
+                          </button>
                           <PDFViewer fileUrl={editValues.drawing_file_url} fileName="measurement-drawing.pdf" />
                         </div>
                       )}
@@ -592,6 +624,13 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                             id={`file-view-${measurement.id}`}
                           />
                           <button
+                            onClick={() => setPreviewingDrawing(previewingDrawing === measurement.id ? null : measurement.id)}
+                            className="flex items-center gap-1 px-3 py-1 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-xs"
+                          >
+                            <Eye className="h-3 w-3" />
+                            {previewingDrawing === measurement.id ? t('closePreview') : t('previewDrawing')}
+                          </button>
+                          <button
                             onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
                             className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50"
@@ -609,7 +648,9 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                           </button>
                         </div>
                       </div>
-                      <PDFViewer fileUrl={measurement.drawing_file_url} fileName={`measurement-${measurement.measurement_date}.pdf`} />
+                      {previewingDrawing === measurement.id && (
+                        <PDFViewer fileUrl={measurement.drawing_file_url} fileName={`measurement-${measurement.measurement_date}.pdf`} />
+                      )}
                     </div>
                   ) : (
                     <div className="mt-3 pt-3 border-t border-slate-200">

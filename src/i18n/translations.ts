@@ -63,7 +63,9 @@ export const translations = {
       measurementDeleteSuccess: 'Measurement deleted successfully',
       measurementDeleteError: 'Error deleting measurement',
       measurementSaveSuccess: 'Measurement saved successfully',
-      measurementSaveError: 'Error saving measurement'
+      measurementSaveError: 'Error saving measurement',
+      previewDrawing: 'Preview Drawing',
+      closePreview: 'Close Preview'
     }
   },
   he: {
@@ -130,7 +132,9 @@ export const translations = {
       measurementDeleteSuccess: 'המדידה נמחקה בהצלחה',
       measurementDeleteError: 'שגיאה במחיקת המדידה',
       measurementSaveSuccess: 'המדידה נשמרה בהצלחה',
-      measurementSaveError: 'שגיאה בשמירת המדידה'
+      measurementSaveError: 'שגיאה בשמירת המדידה',
+      previewDrawing: 'תצוגה מקדימה',
+      closePreview: 'סגור תצוגה'
     }
   }
 };

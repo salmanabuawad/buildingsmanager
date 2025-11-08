@@ -3,12 +3,11 @@ import { BuildingsList } from './components/BuildingsList';
 import { ApartmentsList } from './components/ApartmentsList';
 import { ApartmentDetails } from './components/ApartmentDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
-import { UserManagement } from './components/UserManagement';
-import { X, Settings, Building, Home, Users } from 'lucide-react';
+import { X, Settings, Building, Home } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'apartments' | 'details' | 'admin' | 'users';
+  type: 'buildings' | 'apartments' | 'details' | 'admin';
   buildingId?: string;
   apartmentId?: string;
   label: string;
@@ -90,25 +89,6 @@ function App() {
     setActiveTabId(adminTabId);
   }
 
-  function openUserManagement() {
-    const usersTabId = 'users-management';
-    const existingTab = tabs.find(tab => tab.id === usersTabId);
-
-    if (existingTab) {
-      setActiveTabId(usersTabId);
-      return;
-    }
-
-    const newTab: Tab = {
-      id: usersTabId,
-      type: 'users',
-      label: 'User Management'
-    };
-
-    setTabs([...tabs, newTab]);
-    setActiveTabId(usersTabId);
-  }
-
   function handleCloseTab(tabId: string) {
     if (tabId === 'buildings') return;
 
@@ -140,9 +120,7 @@ function App() {
                   onClick={() => setActiveTabId(tab.id)}
                   className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
                 >
-                  {tab.type === 'users' ? (
-                    <Users className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'admin' ? (
+                  {tab.type === 'admin' ? (
                     <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'buildings' ? (
                     <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -190,9 +168,6 @@ function App() {
         )}
         {activeTab?.type === 'admin' && (
           <AdminPDFManager />
-        )}
-        {activeTab?.type === 'users' && (
-          <UserManagement />
         )}
       </div>
     </div>

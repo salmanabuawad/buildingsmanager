@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Apartment, Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon } from 'lucide-react';
+import { Building as BuildingIcon, Upload } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -18,7 +18,10 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const gridRef = useRef<AgGridReact<Apartment>>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -41,6 +44,96 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
       setLoading(false);
+    }
+  }
+
+  function showMessage(type: 'success' | 'error', text: string) {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 5000);
+  }
+
+  async function handleCSVImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',').map(s => s.trim());
+
+        if (parts.length < 6) {
+          errors.push(`Line ${i + 1}: Missing required fields (need at least 6: apartment_number,floor,apartment_area,storage_area,pergola_area,balcony_area)`);
+          errorCount++;
+          continue;
+        }
+
+        const [apartment_number, floorStr, apartment_area_str, storage_area_str, pergola_area_str, balcony_area_str, garden_area_str = '0'] = parts;
+
+        if (!apartment_number) {
+          errors.push(`Line ${i + 1}: Missing apartment number`);
+          errorCount++;
+          continue;
+        }
+
+        const floor = parseInt(floorStr);
+        const apartment_area = parseFloat(apartment_area_str);
+        const storage_area = parseFloat(storage_area_str);
+        const pergola_area = parseFloat(pergola_area_str);
+        const balcony_area = parseFloat(balcony_area_str);
+        const garden_area = parseFloat(garden_area_str);
+
+        if (isNaN(floor) || isNaN(apartment_area) || isNaN(storage_area) || isNaN(pergola_area) || isNaN(balcony_area)) {
+          errors.push(`Line ${i + 1}: Invalid number format`);
+          errorCount++;
+          continue;
+        }
+
+        const total_apartment_area = apartment_area + storage_area + pergola_area + balcony_area + garden_area;
+
+        try {
+          await api.apartments.create({
+            building_id: buildingId,
+            apartment_number,
+            floor,
+            apartment_area,
+            storage_area,
+            pergola_area,
+            balcony_area,
+            garden_area: garden_area || undefined,
+            total_apartment_area
+          });
+          successCount++;
+        } catch (error) {
+          errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errorCount++;
+        }
+      }
+
+      await fetchData();
+
+      if (errors.length > 0) {
+        showMessage('error', `Imported ${successCount} apartments. ${errorCount} errors: ${errors.slice(0, 2).join('; ')}${errors.length > 2 ? '...' : ''}`);
+      } else {
+        showMessage('success', `Successfully imported ${successCount} apartments`);
+      }
+    } catch (error) {
+      showMessage('error', 'Error reading CSV file');
+      console.error('Error importing CSV:', error);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   }
 
@@ -134,14 +227,50 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
   return (
     <>
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
+        {message && (
+          <div
+            className={`mb-6 p-4 rounded-lg ${
+              message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
         {building && (
           <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-3 mb-1 sm:mb-2">
-              <BuildingIcon className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{building.name}</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BuildingIcon className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{building.name}</h1>
+              </div>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm disabled:opacity-50"
+                >
+                  <Upload className="h-5 w-5" />
+                  <span className="hidden sm:inline">{isImporting ? t('loading') : 'Import CSV'}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
+
+        <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-600">
+          <p className="font-semibold mb-1">CSV Format:</p>
+          <p className="font-mono text-xs">apartment_number,floor,apartment_area,storage_area,pergola_area,balcony_area,garden_area</p>
+          <p className="font-mono text-xs">101,1,85.5,12.3,15.0,8.2,0</p>
+          <p className="mt-1 text-xs">Required: apartment_number, floor, apartment_area, storage_area, pergola_area, balcony_area. Optional: garden_area</p>
+        </div>
 
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '500px', width: '100%' }}>
           <AgGridReact

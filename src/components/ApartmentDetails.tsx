@@ -325,7 +325,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
                 {t('totalArea')}
               </label>
               <p className="text-xl sm:text-2xl font-bold text-slate-900">
-                {isEditing ? totalArea.toLocaleString() : apartment.total_area.toLocaleString()}
+                {isEditing ? totalArea.toLocaleString() : apartment.total_apartment_area.toLocaleString()}
               </p>
             </div>
           </div>

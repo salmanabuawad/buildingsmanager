@@ -62,7 +62,7 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
       }
     },
     {
-      field: 'total_area',
+      field: 'total_apartment_area',
       headerName: t('totalArea'),
       flex: 1,
       sortable: true,

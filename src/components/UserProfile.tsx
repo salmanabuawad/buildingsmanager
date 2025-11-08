@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, User, Shield } from 'lucide-react';
+import { LogOut, User, Shield, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface UserProfileProps {
   onLogout: () => void;
+  onOpenUserManagement?: () => void;
 }
 
 interface UserProfile {
@@ -12,7 +13,7 @@ interface UserProfile {
   role: 'viewer' | 'editor';
 }
 
-export function UserProfile({ onLogout }: UserProfileProps) {
+export function UserProfile({ onLogout, onOpenUserManagement }: UserProfileProps) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,13 +68,24 @@ export function UserProfile({ onLogout }: UserProfileProps) {
             </div>
           </div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          {t('logout')}
-        </button>
+        <div className="flex items-center gap-2">
+          {profile?.role === 'editor' && onOpenUserManagement && (
+            <button
+              onClick={onOpenUserManagement}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Users className="w-4 h-4" />
+              {t('userManagement')}
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            {t('logout')}
+          </button>
+        </div>
       </div>
     </div>
   );

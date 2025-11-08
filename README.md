@@ -1,6 +1,6 @@
 # Buildings Manager
 
-A modern web application for managing buildings and apartments, built with React, TypeScript, Vite frontend and Python FastAPI backend with PostgreSQL database.
+A modern web application for managing buildings and apartments, built with React, TypeScript, Vite frontend and Python FastAPI backend with PostgreSQL database and GraphQL API.
 
 ## Features
 
@@ -10,12 +10,12 @@ A modern web application for managing buildings and apartments, built with React
 - 📱 Responsive design with Tailwind CSS
 - 🐍 Python FastAPI backend
 - 🗄️ PostgreSQL database
-- 🔐 RESTful API architecture
+- 🔷 GraphQL API with Strawberry
 
 ## Architecture
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Python FastAPI
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + GraphQL Client
+- **Backend**: Python FastAPI + Strawberry GraphQL
 - **Database**: PostgreSQL
 - **Data Grid**: AG Grid
 
@@ -88,9 +88,9 @@ python main.py
 
 The API will be available at `http://localhost:8000`
 
-You can view the API documentation at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+You can access:
+- GraphQL Playground: `http://localhost:8000/graphql`
+- API Root: `http://localhost:8000/`
 
 ### 4. Frontend Setup
 
@@ -157,23 +157,95 @@ project/
 └── package.json          # Project dependencies
 ```
 
-## API Endpoints
+## GraphQL API
 
-### Buildings
+The application uses GraphQL for data fetching and mutations. Access the GraphQL Playground at `http://localhost:8000/graphql` to explore the schema and test queries.
 
-- `GET /api/buildings` - Get all buildings
-- `GET /api/buildings/{id}` - Get a specific building
-- `POST /api/buildings` - Create a new building
-- `PUT /api/buildings/{id}` - Update a building
-- `DELETE /api/buildings/{id}` - Delete a building
+### Queries
 
-### Apartments
+```graphql
+# Get all buildings
+query {
+  buildings {
+    id
+    name
+    totalUnits
+    apartmentArea
+    totalBuildingArea
+  }
+}
 
-- `GET /api/apartments` - Get all apartments (optional `?building_id={id}`)
-- `GET /api/apartments/{id}` - Get a specific apartment
-- `POST /api/apartments` - Create a new apartment
-- `PUT /api/apartments/{id}` - Update an apartment
-- `DELETE /api/apartments/{id}` - Delete an apartment
+# Get a specific building
+query {
+  building(id: "building-id") {
+    id
+    name
+    totalUnits
+  }
+}
+
+# Get apartments (optionally filtered by building)
+query {
+  apartments(buildingId: "building-id") {
+    id
+    apartmentNumber
+    apartmentArea
+    totalApartmentArea
+  }
+}
+
+# Get a specific apartment
+query {
+  apartment(id: "apartment-id") {
+    id
+    apartmentNumber
+    apartmentArea
+  }
+}
+```
+
+### Mutations
+
+```graphql
+# Update an apartment
+mutation {
+  updateApartment(
+    id: "apartment-id"
+    input: {
+      apartmentArea: 100.5
+      storageArea: 10.0
+    }
+  ) {
+    id
+    apartmentArea
+    storageArea
+  }
+}
+
+# Create a building
+mutation {
+  createBuilding(input: {
+    name: "Building A"
+    totalUnits: 10
+    apartmentArea: 1000.0
+    storageArea: 100.0
+    pergolaArea: 50.0
+    balconyArea: 200.0
+    totalBuildingArea: 1350.0
+  }) {
+    id
+    name
+  }
+}
+
+# Delete a building
+mutation {
+  deleteBuilding(id: "building-id") {
+    success
+    message
+  }
+}
+```
 
 ## Available Scripts
 
@@ -229,9 +301,11 @@ project/
 - **i18next** - Internationalization
 - **React PDF** - PDF viewing
 - **Lucide React** - Icons
+- **graphql-request** - GraphQL client
 
 ### Backend
 - **FastAPI** - Python web framework
+- **Strawberry GraphQL** - GraphQL library for Python
 - **PostgreSQL** - Database
 - **psycopg2** - PostgreSQL adapter
 - **Pydantic** - Data validation

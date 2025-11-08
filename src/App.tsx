@@ -222,7 +222,7 @@ function App() {
           <UnitTypes />
         )}
         {activeTab?.type === 'unit-search' && (
-          <UnitSearch />
+          <UnitSearch onSelectApartment={handleSelectApartment} />
         )}
       </div>
     </div>

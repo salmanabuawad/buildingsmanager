@@ -1,0 +1,416 @@
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ApartmentMeasurement, api } from '../lib/api';
+import { Plus, Edit2, Trash2, Calendar, Save, X } from 'lucide-react';
+
+interface MeasurementHistoryProps {
+  apartmentId: string;
+}
+
+export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
+  const { t } = useTranslation();
+  const [measurements, setMeasurements] = useState<ApartmentMeasurement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const emptyMeasurement = {
+    apartment_id: apartmentId,
+    measurement_date: new Date().toISOString().split('T')[0],
+    apartment_area: 0,
+    storage_area: 0,
+    pergola_area: 0,
+    balcony_area: 0,
+    garden_area: 0,
+    notes: '',
+  };
+
+  const [newMeasurement, setNewMeasurement] = useState(emptyMeasurement);
+  const [editValues, setEditValues] = useState<Partial<ApartmentMeasurement>>({});
+
+  useEffect(() => {
+    fetchMeasurements();
+  }, [apartmentId]);
+
+  async function fetchMeasurements() {
+    try {
+      setLoading(true);
+      const data = await api.measurements.getAll(apartmentId);
+      setMeasurements(data);
+    } catch (error) {
+      console.error('Error fetching measurements:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddMeasurement() {
+    try {
+      await api.measurements.create(newMeasurement);
+      setMessage({ type: 'success', text: t('measurementSaveSuccess') });
+      setIsAdding(false);
+      setNewMeasurement(emptyMeasurement);
+      fetchMeasurements();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({ type: 'error', text: t('measurementSaveError') });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  }
+
+  async function handleUpdateMeasurement(id: string) {
+    try {
+      await api.measurements.update(id, editValues);
+      setMessage({ type: 'success', text: t('measurementSaveSuccess') });
+      setEditingId(null);
+      setEditValues({});
+      fetchMeasurements();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({ type: 'error', text: t('measurementSaveError') });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  }
+
+  async function handleDeleteMeasurement(id: string) {
+    if (!confirm(t('deleteMeasurement') + '?')) return;
+
+    try {
+      await api.measurements.delete(id);
+      setMessage({ type: 'success', text: t('measurementDeleteSuccess') });
+      fetchMeasurements();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({ type: 'error', text: t('measurementDeleteError') });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  }
+
+  function startEdit(measurement: ApartmentMeasurement) {
+    setEditingId(measurement.id);
+    setEditValues({
+      measurement_date: measurement.measurement_date,
+      apartment_area: measurement.apartment_area,
+      storage_area: measurement.storage_area,
+      pergola_area: measurement.pergola_area,
+      balcony_area: measurement.balcony_area,
+      garden_area: measurement.garden_area,
+      notes: measurement.notes,
+    });
+  }
+
+  if (loading) {
+    return <div className="text-center py-4">{t('loading')}</div>;
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t('measurementHistory')}</h2>
+        <button
+          onClick={() => setIsAdding(true)}
+          className="flex items-center gap-2 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          {t('addMeasurement')}
+        </button>
+      </div>
+
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded-lg ${
+            message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {isAdding && (
+        <div className="mb-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
+          <h3 className="font-semibold text-slate-900 mb-3">{t('addMeasurement')}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1">
+                {t('measurementDate')}
+              </label>
+              <input
+                type="date"
+                value={newMeasurement.measurement_date}
+                onChange={(e) =>
+                  setNewMeasurement({ ...newMeasurement, measurement_date: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1">
+                {t('apartmentArea')}
+              </label>
+              <input
+                type="number"
+                value={newMeasurement.apartment_area}
+                onChange={(e) =>
+                  setNewMeasurement({ ...newMeasurement, apartment_area: parseFloat(e.target.value) || 0 })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1">
+                {t('storageArea')}
+              </label>
+              <input
+                type="number"
+                value={newMeasurement.storage_area}
+                onChange={(e) =>
+                  setNewMeasurement({ ...newMeasurement, storage_area: parseFloat(e.target.value) || 0 })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1">
+                {t('pergolaArea')}
+              </label>
+              <input
+                type="number"
+                value={newMeasurement.pergola_area}
+                onChange={(e) =>
+                  setNewMeasurement({ ...newMeasurement, pergola_area: parseFloat(e.target.value) || 0 })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1">
+                {t('balconyArea')}
+              </label>
+              <input
+                type="number"
+                value={newMeasurement.balcony_area}
+                onChange={(e) =>
+                  setNewMeasurement({ ...newMeasurement, balcony_area: parseFloat(e.target.value) || 0 })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-slate-700 block mb-1">
+                {t('notes')}
+              </label>
+              <textarea
+                value={newMeasurement.notes}
+                onChange={(e) =>
+                  setNewMeasurement({ ...newMeasurement, notes: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                rows={2}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleAddMeasurement}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+            >
+              <Save className="h-4 w-4" />
+              {t('save')}
+            </button>
+            <button
+              onClick={() => {
+                setIsAdding(false);
+                setNewMeasurement(emptyMeasurement);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+            >
+              <X className="h-4 w-4" />
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {measurements.length === 0 ? (
+        <div className="text-center py-8 text-slate-500">{t('noMeasurements')}</div>
+      ) : (
+        <div className="space-y-3">
+          {measurements.map((measurement) => (
+            <div
+              key={measurement.id}
+              className="border border-slate-200 rounded-lg p-4 hover:border-teal-300 transition-colors"
+            >
+              {editingId === measurement.id ? (
+                <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {t('measurementDate')}
+                      </label>
+                      <input
+                        type="date"
+                        value={editValues.measurement_date || ''}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, measurement_date: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {t('apartmentArea')}
+                      </label>
+                      <input
+                        type="number"
+                        value={editValues.apartment_area || 0}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, apartment_area: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {t('storageArea')}
+                      </label>
+                      <input
+                        type="number"
+                        value={editValues.storage_area || 0}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, storage_area: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {t('pergolaArea')}
+                      </label>
+                      <input
+                        type="number"
+                        value={editValues.pergola_area || 0}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, pergola_area: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {t('balconyArea')}
+                      </label>
+                      <input
+                        type="number"
+                        value={editValues.balcony_area || 0}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, balcony_area: parseFloat(e.target.value) || 0 })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {t('notes')}
+                      </label>
+                      <textarea
+                        value={editValues.notes || ''}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, notes: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleUpdateMeasurement(measurement.id)}
+                      className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+                    >
+                      <Save className="h-4 w-4" />
+                      {t('save')}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditValues({});
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm"
+                    >
+                      <X className="h-4 w-4" />
+                      {t('cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-teal-600" />
+                      <span className="font-semibold text-slate-900">
+                        {new Date(measurement.measurement_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEdit(measurement)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMeasurement(measurement.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <span className="text-slate-600">{t('apartmentArea')}:</span>
+                      <span className="font-medium text-slate-900 mr-2">
+                        {measurement.apartment_area.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">{t('storageArea')}:</span>
+                      <span className="font-medium text-slate-900 mr-2">
+                        {measurement.storage_area.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">{t('pergolaArea')}:</span>
+                      <span className="font-medium text-slate-900 mr-2">
+                        {measurement.pergola_area.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">{t('balconyArea')}:</span>
+                      <span className="font-medium text-slate-900 mr-2">
+                        {measurement.balcony_area.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-600">{t('totalArea')}:</span>
+                      <span className="font-bold text-teal-600 mr-2 text-base">
+                        {measurement.total_area.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                  {measurement.notes && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <span className="text-sm text-slate-600">{t('notes')}: </span>
+                      <span className="text-sm text-slate-900">{measurement.notes}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

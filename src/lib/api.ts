@@ -28,6 +28,21 @@ export interface Apartment {
   created_at: string;
 }
 
+export interface ApartmentMeasurement {
+  id: string;
+  apartment_id: string;
+  measurement_date: string;
+  apartment_area: number;
+  storage_area: number;
+  pergola_area: number;
+  balcony_area: number;
+  garden_area?: number;
+  total_area: number;
+  notes?: string;
+  created_at: string;
+  created_by?: string;
+}
+
 
 export const api = {
   buildings: {
@@ -138,6 +153,59 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Apartment deleted successfully' };
+    },
+  },
+  measurements: {
+    getAll: async (apartmentId: string): Promise<ApartmentMeasurement[]> => {
+      const { data, error } = await supabase
+        .from('apartment_measurements')
+        .select('*')
+        .eq('apartment_id', apartmentId)
+        .order('measurement_date', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: string): Promise<ApartmentMeasurement> => {
+      const { data, error } = await supabase
+        .from('apartment_measurements')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) throw new Error('Measurement not found');
+      return data;
+    },
+    create: async (input: Omit<ApartmentMeasurement, 'id' | 'created_at' | 'total_area'>): Promise<ApartmentMeasurement> => {
+      const { data, error } = await supabase
+        .from('apartment_measurements')
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    update: async (id: string, input: Partial<ApartmentMeasurement>): Promise<ApartmentMeasurement> => {
+      const { data, error } = await supabase
+        .from('apartment_measurements')
+        .update(input)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: string): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('apartment_measurements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { message: 'Measurement deleted successfully' };
     },
   },
 };

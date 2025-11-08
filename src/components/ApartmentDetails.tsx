@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Apartment, Building, api } from '../lib/api';
 import { Edit2, Save, X, Upload, Trash2, Home } from 'lucide-react';
 import { PDFViewer } from './PDFViewer';
+import { MeasurementHistory } from './MeasurementHistory';
 
 interface ApartmentDetailsProps {
   apartmentId: string;
@@ -383,6 +384,10 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
               </div>
             )}
           </div>
+        </div>
+
+        <div className="border-t border-slate-200 p-4 sm:p-6">
+          <MeasurementHistory apartmentId={apartmentId} />
         </div>
       </div>
     </div>

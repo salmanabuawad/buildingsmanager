@@ -52,7 +52,18 @@ export const translations = {
       uploadSuccess: 'File uploaded successfully',
       uploadError: 'Error uploading file',
       removeSuccess: 'File removed successfully',
-      removeError: 'Error removing file'
+      removeError: 'Error removing file',
+      measurementHistory: 'Measurement History',
+      measurementDate: 'Measurement Date',
+      addMeasurement: 'Add Measurement',
+      editMeasurement: 'Edit Measurement',
+      deleteMeasurement: 'Delete Measurement',
+      noMeasurements: 'No measurements recorded yet',
+      notes: 'Notes',
+      measurementDeleteSuccess: 'Measurement deleted successfully',
+      measurementDeleteError: 'Error deleting measurement',
+      measurementSaveSuccess: 'Measurement saved successfully',
+      measurementSaveError: 'Error saving measurement'
     }
   },
   he: {
@@ -108,7 +119,18 @@ export const translations = {
       uploadSuccess: 'הקובץ הועלה בהצלחה',
       uploadError: 'שגיאה בהעלאת הקובץ',
       removeSuccess: 'הקובץ הוסר בהצלחה',
-      removeError: 'שגיאה בהסרת הקובץ'
+      removeError: 'שגיאה בהסרת הקובץ',
+      measurementHistory: 'היסטוריית מדידות',
+      measurementDate: 'תאריך מדידה',
+      addMeasurement: 'הוסף מדידה',
+      editMeasurement: 'ערוך מדידה',
+      deleteMeasurement: 'מחק מדידה',
+      noMeasurements: 'אין מדידות שנרשמו עדיין',
+      notes: 'הערות',
+      measurementDeleteSuccess: 'המדידה נמחקה בהצלחה',
+      measurementDeleteError: 'שגיאה במחיקת המדידה',
+      measurementSaveSuccess: 'המדידה נשמרה בהצלחה',
+      measurementSaveError: 'שגיאה בשמירת המדידה'
     }
   }
 };

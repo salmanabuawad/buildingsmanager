@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Apartment, Building, api } from '../lib/api';
-import { Edit2, Save, X, Home } from 'lucide-react';
+import { Edit2, Save, X, Home, Eye } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
+import { useUserRole } from '../hooks/useUserRole';
 
 interface ApartmentDetailsProps {
   apartmentId: string;
@@ -11,6 +12,7 @@ interface ApartmentDetailsProps {
 
 export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetailsProps) {
   const { t } = useTranslation();
+  const { isEditor } = useUserRole();
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,7 +141,13 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
           )}
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          {!isEditing ? (
+          {!isEditor && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-xs sm:text-sm">
+              <Eye className="h-4 w-4" />
+              {t('readOnlyMode')}
+            </div>
+          )}
+          {isEditor && !isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
               className="flex items-center justify-center gap-2 px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold flex-1 sm:flex-none"
@@ -202,7 +210,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
               <label className="text-xs sm:text-sm font-medium text-slate-600 block mb-1 sm:mb-2">
                 {t('apartmentArea')}
               </label>
-              {isEditing ? (
+              {isEditing && isEditor ? (
                 <input
                   type="number"
                   step="0.01"
@@ -219,7 +227,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
               <label className="text-xs sm:text-sm font-medium text-slate-600 block mb-1 sm:mb-2">
                 {t('storageArea')}
               </label>
-              {isEditing ? (
+              {isEditing && isEditor ? (
                 <input
                   type="number"
                   step="0.01"
@@ -236,7 +244,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
               <label className="text-xs sm:text-sm font-medium text-slate-600 block mb-1 sm:mb-2">
                 {t('pergolaArea')}
               </label>
-              {isEditing ? (
+              {isEditing && isEditor ? (
                 <input
                   type="number"
                   step="0.01"
@@ -253,7 +261,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
               <label className="text-xs sm:text-sm font-medium text-slate-600 block mb-1 sm:mb-2">
                 {t('balconyArea')}
               </label>
-              {isEditing ? (
+              {isEditing && isEditor ? (
                 <input
                   type="number"
                   step="0.01"

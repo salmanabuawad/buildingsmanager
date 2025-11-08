@@ -4,6 +4,7 @@ import { ApartmentMeasurement, api } from '../lib/api';
 import { Plus, Edit2, Trash2, Calendar, Save, X, Upload, FileText, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PDFViewer } from './PDFViewer';
+import { useUserRole } from '../hooks/useUserRole';
 
 interface MeasurementHistoryProps {
   apartmentId: string;
@@ -11,6 +12,7 @@ interface MeasurementHistoryProps {
 
 export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
   const { t } = useTranslation();
+  const { isEditor } = useUserRole();
   const [measurements, setMeasurements] = useState<ApartmentMeasurement[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -190,13 +192,15 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t('measurementHistory')}</h2>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
-        >
-          <Plus className="h-4 w-4" />
-          {t('addMeasurement')}
-        </button>
+        {isEditor && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            {t('addMeasurement')}
+          </button>
+        )}
       </div>
 
       {message && (
@@ -558,20 +562,22 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                         {new Date(measurement.measurement_date).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => startEdit(measurement)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMeasurement(measurement.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {isEditor && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEdit(measurement)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMeasurement(measurement.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     <div>

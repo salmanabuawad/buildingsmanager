@@ -65,7 +65,22 @@ export const translations = {
       measurementSaveSuccess: 'Measurement saved successfully',
       measurementSaveError: 'Error saving measurement',
       previewDrawing: 'Preview Drawing',
-      closePreview: 'Close Preview'
+      closePreview: 'Close Preview',
+      login: 'Login',
+      register: 'Register',
+      welcomeMessage: 'Welcome to Area Management System',
+      email: 'Email',
+      password: 'Password',
+      emailPlaceholder: 'Enter your email',
+      passwordPlaceholder: 'Enter your password',
+      loginButton: 'Login',
+      registerButton: 'Create Account',
+      switchToRegister: 'Don\'t have an account? Register',
+      switchToLogin: 'Already have an account? Login',
+      logout: 'Logout',
+      viewerRole: 'Viewer (Read-only)',
+      editorRole: 'Editor (Read & Write)',
+      readOnlyMode: 'You are in read-only mode'
     }
   },
   he: {
@@ -134,7 +149,22 @@ export const translations = {
       measurementSaveSuccess: 'המדידה נשמרה בהצלחה',
       measurementSaveError: 'שגיאה בשמירת המדידה',
       previewDrawing: 'תצוגה מקדימה',
-      closePreview: 'סגור תצוגה'
+      closePreview: 'סגור תצוגה',
+      login: 'כניסה',
+      register: 'הרשמה',
+      welcomeMessage: 'ברוכים הבאים למערכת ניהול שטחים',
+      email: 'אימייל',
+      password: 'סיסמה',
+      emailPlaceholder: 'הזן את האימייל שלך',
+      passwordPlaceholder: 'הזן את הסיסמה שלך',
+      loginButton: 'התחבר',
+      registerButton: 'צור חשבון',
+      switchToRegister: 'אין לך חשבון? הירשם',
+      switchToLogin: 'יש לך כבר חשבון? התחבר',
+      logout: 'התנתק',
+      viewerRole: 'צופה (קריאה בלבד)',
+      editorRole: 'עורך (קריאה וכתיבה)',
+      readOnlyMode: 'אתה במצב קריאה בלבד'
     }
   }
 };

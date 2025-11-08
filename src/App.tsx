@@ -1,14 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BuildingsList } from './components/BuildingsList';
 import { ApartmentsList } from './components/ApartmentsList';
 import { ApartmentDetails } from './components/ApartmentDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
-import { Auth } from './components/Auth';
-import { UserProfile } from './components/UserProfile';
 import { UserManagement } from './components/UserManagement';
 import { X, Settings, Building, Home, Users } from 'lucide-react';
-import { supabase } from './lib/supabase';
-import { useUserRole } from './hooks/useUserRole';
 
 interface Tab {
   id: string;
@@ -20,39 +16,10 @@ interface Tab {
 }
 
 function App() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const { role, isEditor } = useUserRole();
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 'buildings', type: 'buildings', label: 'Buildings' }
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
-
-  useEffect(() => {
-    checkAuth();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      (() => {
-        checkAuth();
-      })();
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
-    setAuthenticated(!!session);
-  }
-
-  function handleAuthSuccess() {
-    setAuthenticated(true);
-  }
-
-  function handleLogout() {
-    setAuthenticated(false);
-  }
 
   function handleSelectBuilding(buildingId: string, buildingName: string) {
     const newTabId = `apartments-${buildingId}`;
@@ -155,21 +122,8 @@ function App() {
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
-  if (authenticated === null) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex items-center justify-center">
-        <div className="text-teal-600">טוען...</div>
-      </div>
-    );
-  }
-
-  if (!authenticated) {
-    return <Auth onAuthSuccess={handleAuthSuccess} />;
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50" dir="rtl">
-      <UserProfile onLogout={handleLogout} onOpenUserManagement={openUserManagement} />
       <div className="bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Apartment, Building, supabase } from '../lib/supabase';
+import { Apartment, Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon } from 'lucide-react';
@@ -24,46 +24,19 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
     fetchData();
   }, [buildingId]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`apartments-changes-${buildingId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'apartments', filter: `building_id=eq.${buildingId}` },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [buildingId]);
 
 
   async function fetchData() {
     try {
       setLoading(true);
 
-      const [buildingResult, apartmentsResult] = await Promise.all([
-        supabase
-          .from('buildings')
-          .select('*')
-          .eq('id', buildingId)
-          .maybeSingle(),
-        supabase
-          .from('apartments')
-          .select('*')
-          .eq('building_id', buildingId)
-          .order('apartment_number')
+      const [buildingData, apartmentsData] = await Promise.all([
+        api.buildings.getOne(buildingId),
+        api.apartments.getAll(buildingId)
       ]);
 
-      if (buildingResult.error) throw buildingResult.error;
-      if (apartmentsResult.error) throw apartmentsResult.error;
-
-      setBuilding(buildingResult.data);
-      setApartments(apartmentsResult.data || []);
+      setBuilding(buildingData);
+      setApartments(apartmentsData || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {

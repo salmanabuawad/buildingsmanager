@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building, supabase } from '../lib/supabase';
+import { Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -21,12 +21,7 @@ export function BuildingsList({ onSelectBuilding }: BuildingsListProps) {
     try {
       if (showLoading) setLoading(true);
       console.log('[BuildingsList] Fetching buildings at', new Date().toISOString());
-      const { data, error } = await supabase
-        .from('buildings')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
+      const data = await api.buildings.getAll();
       console.log('[BuildingsList] Received buildings:', data);
       setBuildings(data || []);
     } catch (err) {
@@ -40,25 +35,6 @@ export function BuildingsList({ onSelectBuilding }: BuildingsListProps) {
     fetchBuildings(true);
   }, [fetchBuildings]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('buildings-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'buildings' },
-        (payload) => {
-          console.log('Buildings table changed:', payload);
-          fetchBuildings(false);
-        }
-      )
-      .subscribe((status) => {
-        console.log('Buildings subscription status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchBuildings]);
 
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [

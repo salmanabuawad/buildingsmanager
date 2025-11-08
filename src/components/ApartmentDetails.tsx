@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Apartment, Building, supabase } from '../lib/supabase';
+import { Apartment, Building, api } from '../lib/api';
 import { Edit2, Save, X, Upload, Trash2, Home } from 'lucide-react';
 import { PDFViewer } from './PDFViewer';
 
@@ -36,30 +36,18 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
     try {
       setLoading(true);
 
-      const { data: apartmentData, error: apartmentError } = await supabase
-        .from('apartments')
-        .select('*')
-        .eq('id', apartmentId)
-        .maybeSingle();
-
-      if (apartmentError) throw apartmentError;
+      const apartmentData = await api.apartments.getOne(apartmentId);
       if (!apartmentData) throw new Error('Apartment not found');
 
       setApartment(apartmentData);
       setEditValues({
-        apartment_area: parseFloat(apartmentData.apartment_area),
-        storage_area: parseFloat(apartmentData.storage_area),
-        pergola_area: parseFloat(apartmentData.pergola_area),
-        balcony_area: parseFloat(apartmentData.balcony_area),
+        apartment_area: parseFloat(apartmentData.apartment_area.toString()),
+        storage_area: parseFloat(apartmentData.storage_area.toString()),
+        pergola_area: parseFloat(apartmentData.pergola_area.toString()),
+        balcony_area: parseFloat(apartmentData.balcony_area.toString()),
       });
 
-      const { data: buildingData, error: buildingError } = await supabase
-        .from('buildings')
-        .select('*')
-        .eq('id', apartmentData.building_id)
-        .maybeSingle();
-
-      if (buildingError) throw buildingError;
+      const buildingData = await api.buildings.getOne(apartmentData.building_id);
       setBuilding(buildingData);
 
     } catch (err) {
@@ -76,17 +64,12 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
       setIsSaving(true);
       setSaveMessage(null);
 
-      const { error: updateError } = await supabase
-        .from('apartments')
-        .update({
-          apartment_area: editValues.apartment_area,
-          storage_area: editValues.storage_area,
-          pergola_area: editValues.pergola_area,
-          balcony_area: editValues.balcony_area,
-        })
-        .eq('id', apartmentId);
-
-      if (updateError) throw updateError;
+      await api.apartments.update(apartmentId, {
+        apartment_area: editValues.apartment_area,
+        storage_area: editValues.storage_area,
+        pergola_area: editValues.pergola_area,
+        balcony_area: editValues.balcony_area,
+      });
 
       await fetchData();
       setIsEditing(false);
@@ -110,10 +93,10 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
   function handleCancel() {
     if (!apartment) return;
     setEditValues({
-      apartment_area: parseFloat(apartment.apartment_area),
-      storage_area: parseFloat(apartment.storage_area),
-      pergola_area: parseFloat(apartment.pergola_area),
-      balcony_area: parseFloat(apartment.balcony_area),
+      apartment_area: parseFloat(apartment.apartment_area.toString()),
+      storage_area: parseFloat(apartment.storage_area.toString()),
+      pergola_area: parseFloat(apartment.pergola_area.toString()),
+      balcony_area: parseFloat(apartment.balcony_area.toString()),
     });
     setIsEditing(false);
     setSaveMessage(null);
@@ -128,52 +111,9 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
       return;
     }
 
-    try {
-      setIsUploading(true);
-      setSaveMessage(null);
-
-      const fileExt = 'pdf';
-      const fileName = `${apartment.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      if (apartment.dwg_file_url) {
-        const oldFileName = apartment.dwg_file_url.split('/').pop();
-        if (oldFileName) {
-          await supabase.storage.from('dwg-files').remove([oldFileName]);
-        }
-      }
-
-      const { error: uploadError } = await supabase.storage
-        .from('dwg-files')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('dwg-files')
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from('apartments')
-        .update({ dwg_file_url: publicUrl })
-        .eq('id', apartmentId);
-
-      if (updateError) throw updateError;
-
-      await fetchData();
-      setSaveMessage({ type: 'success', text: t('uploadSuccess') });
-      setTimeout(() => setSaveMessage(null), 3000);
-
-    } catch (err) {
-      setSaveMessage({
-        type: 'error',
-        text: `${t('uploadError')}: ${err instanceof Error ? err.message : 'Unknown error'}`
-      });
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    setSaveMessage({ type: 'error', text: 'File upload not available with self-hosted backend. Use cloud storage integration.' });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   }
 

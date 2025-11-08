@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { supabase, Apartment } from '../lib/supabase';
+import { Apartment, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Upload, FileCheck, FileX, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
@@ -28,19 +28,8 @@ export function AdminPDFManager() {
     try {
       setLoading(true);
 
-      const { data: buildingsData, error: buildingsError } = await supabase
-        .from('buildings')
-        .select('*')
-        .order('name');
-
-      if (buildingsError) throw buildingsError;
-
-      const { data: apartmentsData, error: apartmentsError } = await supabase
-        .from('apartments')
-        .select('*')
-        .order('apartment_number');
-
-      if (apartmentsError) throw apartmentsError;
+      const buildingsData = await api.buildings.getAll();
+      const apartmentsData = await api.apartments.getAll();
 
       const buildingsMap = new Map(buildingsData.map(b => [b.id, b.name]));
 
@@ -63,82 +52,13 @@ export function AdminPDFManager() {
       return;
     }
 
-    try {
-      setUploadingIds(prev => new Set(prev).add(apartmentId));
-
-      const apartment = apartments.find(a => a.id === apartmentId);
-      if (!apartment) return;
-
-      if (apartment.dwg_file_url) {
-        const oldFileName = apartment.dwg_file_url.split('/').pop();
-        if (oldFileName) {
-          await supabase.storage.from('dwg-files').remove([oldFileName]);
-        }
-      }
-
-      const fileExt = 'pdf';
-      const fileName = `${apartmentId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('dwg-files')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('dwg-files')
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from('apartments')
-        .update({ dwg_file_url: publicUrl })
-        .eq('id', apartmentId);
-
-      if (updateError) throw updateError;
-
-      await fetchApartments();
-
-    } catch (err) {
-      alert(`${t('uploadError')}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setUploadingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(apartmentId);
-        return newSet;
-      });
-    }
+    alert('File upload not available with self-hosted backend. Use cloud storage integration.');
   }
 
   async function handleFileRemove(apartmentId: string, fileUrl: string) {
     if (!confirm('Are you sure you want to remove this file?')) return;
 
-    try {
-      setUploadingIds(prev => new Set(prev).add(apartmentId));
-
-      const fileName = fileUrl.split('/').pop();
-      if (fileName) {
-        await supabase.storage.from('dwg-files').remove([fileName]);
-      }
-
-      const { error: updateError } = await supabase
-        .from('apartments')
-        .update({ dwg_file_url: null })
-        .eq('id', apartmentId);
-
-      if (updateError) throw updateError;
-
-      await fetchApartments();
-
-    } catch (err) {
-      alert(`${t('removeError')}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setUploadingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(apartmentId);
-        return newSet;
-      });
-    }
+    alert('File removal not available with self-hosted backend. Use cloud storage integration.');
   }
 
   const StatusCellRenderer = (props: ICellRendererParams<ApartmentWithBuilding>) => {

@@ -1,16 +1,23 @@
 # Buildings Manager
 
-A modern web application for managing buildings and apartments with real-time updates, built with React, TypeScript, Vite, and Supabase.
+A modern web application for managing buildings and apartments, built with React, TypeScript, Vite frontend and Python FastAPI backend with PostgreSQL database.
 
 ## Features
 
 - 📊 Interactive data grid for buildings and apartments management
 - 🌐 Bilingual support (English/Hebrew)
 - 📄 PDF viewer for apartment floor plans
-- 📁 DWG file upload and management
-- 🔄 Real-time updates using Supabase
 - 📱 Responsive design with Tailwind CSS
-- 🔐 Secure data storage with Row Level Security
+- 🐍 Python FastAPI backend
+- 🗄️ PostgreSQL database
+- 🔐 RESTful API architecture
+
+## Architecture
+
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS
+- **Backend**: Python FastAPI
+- **Database**: PostgreSQL
+- **Data Grid**: AG Grid
 
 ## Prerequisites
 
@@ -18,7 +25,8 @@ Before running this project locally, ensure you have:
 
 - **Node.js** (v18 or higher)
 - **npm** (v9 or higher)
-- A **Supabase account** and project
+- **Python** (v3.9 or higher)
+- **PostgreSQL** (v12 or higher)
 
 ## Local Setup Instructions
 
@@ -29,57 +37,77 @@ git clone <your-repository-url>
 cd project
 ```
 
-### 2. Install Dependencies
+### 2. Database Setup
+
+Create a PostgreSQL database:
 
 ```bash
+# Login to PostgreSQL
+psql -U postgres
+
+# Create database
+CREATE DATABASE buildings_db;
+
+# Exit psql
+\q
+```
+
+Run the migration files to set up the schema:
+
+```bash
+# Run each migration file in supabase/migrations/ in order
+psql -U postgres -d buildings_db -f supabase/migrations/20251108075335_add_dwg_file_to_apartments.sql
+# Continue with other migration files...
+```
+
+Or manually execute the SQL from the migration files in your PostgreSQL client.
+
+### 3. Backend Setup
+
+Install Python dependencies:
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/buildings_db
+FRONTEND_URL=http://localhost:5173
+```
+
+Replace `postgres:password` with your PostgreSQL username and password.
+
+Start the backend server:
+
+```bash
+python main.py
+```
+
+The API will be available at `http://localhost:8000`
+
+You can view the API documentation at:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+### 4. Frontend Setup
+
+Install frontend dependencies:
+
+```bash
+cd ..  # Back to project root
 npm install
 ```
 
-### 3. Configure Environment Variables
-
-Create a `.env` file in the root directory with your Supabase credentials:
+Create a `.env` file in the root directory:
 
 ```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_API_URL=http://localhost:8000
 ```
 
-**To get your Supabase credentials:**
-1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Select your project
-3. Go to Settings → API
-4. Copy the Project URL and anon/public key
-
-### 4. Set Up Database
-
-The project includes migration files in `supabase/migrations/`. You have two options:
-
-**Option A: Using Supabase CLI (Recommended)**
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Link to your project
-supabase link --project-ref your-project-ref
-
-# Push migrations
-supabase db push
-```
-
-**Option B: Manual Setup**
-
-1. Go to your Supabase Dashboard
-2. Navigate to SQL Editor
-3. Run each migration file in order (sorted by timestamp)
-
-### 5. Set Up Storage Bucket
-
-1. Go to your Supabase Dashboard → Storage
-2. Create a new bucket named `dwg-files`
-3. Set it as a public bucket or configure appropriate policies
-
-### 6. Run Development Server
+Start the development server:
 
 ```bash
 npm run dev
@@ -87,7 +115,9 @@ npm run dev
 
 The application will be available at `http://localhost:5173`
 
-### 7. Build for Production
+### 5. Build for Production
+
+Build the frontend:
 
 ```bash
 npm run build
@@ -99,35 +129,66 @@ The built files will be in the `dist/` directory.
 
 ```
 project/
-├── src/
-│   ├── components/         # React components
+├── backend/                # Python FastAPI backend
+│   ├── main.py            # FastAPI application
+│   ├── database.py        # Database connection
+│   ├── models.py          # Pydantic models
+│   ├── requirements.txt   # Python dependencies
+│   └── .env.example       # Environment variables template
+├── src/                   # React frontend
+│   ├── components/        # React components
 │   │   ├── AdminPDFManager.tsx
 │   │   ├── ApartmentDetails.tsx
 │   │   ├── ApartmentsList.tsx
 │   │   ├── BuildingsList.tsx
 │   │   ├── LanguageSwitcher.tsx
 │   │   └── PDFViewer.tsx
-│   ├── i18n/              # Internationalization
+│   ├── i18n/             # Internationalization
 │   │   ├── i18n.ts
 │   │   └── translations.ts
-│   ├── lib/               # Utilities and configurations
-│   │   └── supabase.ts
-│   ├── App.tsx            # Main application component
-│   ├── main.tsx           # Application entry point
-│   └── index.css          # Global styles
+│   ├── lib/              # Utilities and configurations
+│   │   └── api.ts        # API client
+│   ├── App.tsx           # Main application component
+│   ├── main.tsx          # Application entry point
+│   └── index.css         # Global styles
 ├── supabase/
-│   └── migrations/        # Database migration files
-├── public/                # Static assets
-└── package.json           # Project dependencies
+│   └── migrations/       # Database migration files
+├── public/               # Static assets
+└── package.json          # Project dependencies
 ```
 
+## API Endpoints
+
+### Buildings
+
+- `GET /api/buildings` - Get all buildings
+- `GET /api/buildings/{id}` - Get a specific building
+- `POST /api/buildings` - Create a new building
+- `PUT /api/buildings/{id}` - Update a building
+- `DELETE /api/buildings/{id}` - Delete a building
+
+### Apartments
+
+- `GET /api/apartments` - Get all apartments (optional `?building_id={id}`)
+- `GET /api/apartments/{id}` - Get a specific apartment
+- `POST /api/apartments` - Create a new apartment
+- `PUT /api/apartments/{id}` - Update an apartment
+- `DELETE /api/apartments/{id}` - Delete an apartment
+
 ## Available Scripts
+
+### Frontend
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
 - `npm run typecheck` - Run TypeScript type checking
+
+### Backend
+
+- `python main.py` - Start FastAPI server
+- `uvicorn main:app --reload` - Start with auto-reload
 
 ## Database Schema
 
@@ -159,32 +220,57 @@ project/
 
 ## Technologies Used
 
+### Frontend
 - **React 18** - UI library
 - **TypeScript** - Type safety
 - **Vite** - Build tool
 - **Tailwind CSS** - Styling
 - **AG Grid** - Data grid component
-- **Supabase** - Backend and database
 - **i18next** - Internationalization
 - **React PDF** - PDF viewing
 - **Lucide React** - Icons
 
+### Backend
+- **FastAPI** - Python web framework
+- **PostgreSQL** - Database
+- **psycopg2** - PostgreSQL adapter
+- **Pydantic** - Data validation
+- **Uvicorn** - ASGI server
+
 ## Troubleshooting
 
 ### Database Connection Issues
-- Verify your `.env` file has correct Supabase credentials
-- Check if your Supabase project is active
-- Ensure RLS policies are properly configured
+- Verify PostgreSQL is running: `pg_isready`
+- Check your `.env` file has correct database credentials
+- Ensure the database exists: `psql -U postgres -l`
 
-### Build Errors
+### Backend Errors
+- Check Python version: `python --version` (should be 3.9+)
+- Verify all dependencies are installed: `pip list`
+- Check the backend logs for detailed error messages
+
+### Frontend Build Errors
 - Clear `node_modules` and reinstall: `rm -rf node_modules package-lock.json && npm install`
 - Check Node.js version: `node --version`
 - Run type checking: `npm run typecheck`
 
-### Real-time Updates Not Working
-- Ensure Realtime is enabled in your Supabase project
-- Check that tables have `REPLICA IDENTITY FULL` set
-- Verify network connection
+### CORS Issues
+- Ensure the backend CORS middleware includes your frontend URL
+- Check that `FRONTEND_URL` in backend `.env` matches your frontend URL
+
+## Production Deployment
+
+### Backend Deployment
+
+1. Set environment variables on your hosting platform
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run with production ASGI server: `uvicorn main:app --host 0.0.0.0 --port 8000`
+
+### Frontend Deployment
+
+1. Update `VITE_API_URL` in `.env` to your production API URL
+2. Build: `npm run build`
+3. Deploy the `dist/` directory to your static hosting service
 
 ## Contributing
 

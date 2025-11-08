@@ -69,7 +69,7 @@ export function UserProfile({ onLogout, onOpenUserManagement }: UserProfileProps
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {profile?.role === 'editor' && onOpenUserManagement && (
+          {onOpenUserManagement && (
             <button
               onClick={onOpenUserManagement}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"

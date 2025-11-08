@@ -39,6 +39,7 @@ export interface ApartmentMeasurement {
   garden_area?: number;
   total_area: number;
   notes?: string;
+  drawing_file_url?: string;
   created_at: string;
   created_by?: string;
 }

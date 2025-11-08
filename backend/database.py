@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Determine which database to use based on DB_TYPE environment variable
-DB_TYPE = os.getenv('DB_TYPE', 'local')  # Default to 'local' if not set
+DB_TYPE = os.getenv('DB_TYPE', 'bolt')  # Default to 'bolt' if not set
 
 if DB_TYPE == 'bolt':
     # Use Bolt's Supabase database

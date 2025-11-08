@@ -8,7 +8,11 @@ interface SearchResult extends Apartment {
   building_name: string;
 }
 
-export function UnitSearch() {
+interface UnitSearchProps {
+  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingId: string) => void;
+}
+
+export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
   const { t } = useTranslation();
   const [fromNumber, setFromNumber] = useState('');
   const [toNumber, setToNumber] = useState('');
@@ -139,6 +143,9 @@ export function UnitSearch() {
                 <thead>
                   <tr className="border-b-2 border-slate-200">
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
+                      {t('actions') || 'Actions'}
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
                       {t('unitNumber') || 'Unit Number'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
@@ -173,6 +180,14 @@ export function UnitSearch() {
                       key={unit.id}
                       className="border-b border-slate-100 hover:bg-blue-50/50 transition-colors"
                     >
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => onSelectApartment(unit.id, unit.apartment_number, unit.building_id)}
+                          className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
+                        >
+                          {t('viewDetails') || 'View Details'}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-slate-900 font-medium">
                         {unit.apartment_number}
                       </td>

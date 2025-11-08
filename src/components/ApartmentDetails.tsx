@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Apartment, Building, api } from '../lib/api';
-import { Edit2, Save, X, Upload, Trash2, Home } from 'lucide-react';
-import { PDFViewer } from './PDFViewer';
+import { Edit2, Save, X, Home } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
 
 interface ApartmentDetailsProps {
@@ -19,8 +18,6 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editValues, setEditValues] = useState({
     apartment_area: 0,
@@ -101,56 +98,6 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
     });
     setIsEditing(false);
     setSaveMessage(null);
-  }
-
-  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !apartment) return;
-
-    if (file.type !== 'application/pdf') {
-      setSaveMessage({ type: 'error', text: 'Please upload a PDF file' });
-      return;
-    }
-
-    setSaveMessage({ type: 'error', text: 'File upload not available with self-hosted backend. Use cloud storage integration.' });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }
-
-  async function handleFileRemove() {
-    if (!apartment?.dwg_file_url) return;
-
-    if (!confirm('Are you sure you want to remove this file?')) return;
-
-    try {
-      setIsUploading(true);
-      setSaveMessage(null);
-
-      const fileName = apartment.dwg_file_url.split('/').pop();
-      if (fileName) {
-        await supabase.storage.from('dwg-files').remove([fileName]);
-      }
-
-      const { error: updateError } = await supabase
-        .from('apartments')
-        .update({ dwg_file_url: null })
-        .eq('id', apartmentId);
-
-      if (updateError) throw updateError;
-
-      await fetchData();
-      setSaveMessage({ type: 'success', text: t('removeSuccess') });
-      setTimeout(() => setSaveMessage(null), 3000);
-
-    } catch (err) {
-      setSaveMessage({
-        type: 'error',
-        text: `${t('removeError')}: ${err instanceof Error ? err.message : 'Unknown error'}`
-      });
-    } finally {
-      setIsUploading(false);
-    }
   }
 
   if (loading) {
@@ -329,60 +276,6 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
                 {isEditing ? totalArea.toLocaleString() : apartment.total_apartment_area.toLocaleString()}
               </p>
             </div>
-          </div>
-        </div>
-
-        <div className="border-t border-slate-200 p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 sm:mb-4">{t('dwgFile')}</h2>
-
-          <div className="mb-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-
-            {!apartment.dwg_file_url ? (
-              <div className="text-center py-6 sm:py-8 bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg">
-                <Upload className="h-10 w-10 sm:h-12 sm:w-12 text-slate-400 mx-auto mb-2 sm:mb-3" />
-                <p className="text-sm sm:text-base text-slate-600 mb-3 sm:mb-4 px-4">{t('noDwgFile')}</p>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="inline-flex items-center gap-2 px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 disabled:opacity-50 text-sm font-semibold"
-                >
-                  <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="text-xs sm:text-sm">{isUploading ? t('loading') : t('uploadDwgFile')}</span>
-                </button>
-              </div>
-            ) : (
-              <div>
-                <div className="flex flex-col sm:flex-row gap-2 mb-3 sm:mb-4">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="flex items-center justify-center gap-2 px-6 py-0.5 bg-white text-teal-700 border-2 border-teal-300 rounded-lg hover:bg-teal-50 hover:border-teal-400 transition-all shadow-sm hover:shadow-md disabled:opacity-50 text-sm font-semibold"
-                  >
-                    <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-xs sm:text-sm">{t('changeFile')}</span>
-                  </button>
-                  <button
-                    onClick={handleFileRemove}
-                    disabled={isUploading}
-                    className="flex items-center justify-center gap-2 px-6 py-0.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-lg hover:from-red-700 hover:to-rose-700 transition-all shadow-md hover:shadow-lg hover:scale-105 disabled:opacity-50 text-sm font-semibold"
-                  >
-                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="text-xs sm:text-sm">{t('removeFile')}</span>
-                  </button>
-                </div>
-                <PDFViewer
-                  fileUrl={apartment.dwg_file_url}
-                  fileName={`${apartment.apartment_number}-dwg.pdf`}
-                />
-              </div>
-            )}
           </div>
         </div>
 

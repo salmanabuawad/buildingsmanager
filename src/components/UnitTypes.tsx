@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UnitType, api } from '../lib/api';
-import { Plus, Edit2, Trash2, Save, X, Tag } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Tag, Upload } from 'lucide-react';
 
 export function UnitTypes() {
   const { t } = useTranslation();
@@ -10,6 +10,8 @@ export function UnitTypes() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -103,6 +105,70 @@ export function UnitTypes() {
     }
   }
 
+  async function handleCSVImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const [name, description = ''] = line.split(',').map(s => s.trim());
+
+        if (!name) {
+          errors.push(`Line ${i + 1}: Missing name`);
+          errorCount++;
+          continue;
+        }
+
+        if (name.length !== 3) {
+          errors.push(`Line ${i + 1}: Name "${name}" must be exactly 3 digits`);
+          errorCount++;
+          continue;
+        }
+
+        if (!/^\d{3}$/.test(name)) {
+          errors.push(`Line ${i + 1}: Name "${name}" must contain only digits`);
+          errorCount++;
+          continue;
+        }
+
+        try {
+          await api.unitTypes.create({ name, description });
+          successCount++;
+        } catch (error) {
+          errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errorCount++;
+        }
+      }
+
+      await fetchUnitTypes();
+
+      if (errors.length > 0) {
+        showMessage('error', `Imported ${successCount} types. ${errorCount} errors: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+      } else {
+        showMessage('success', `Successfully imported ${successCount} unit types`);
+      }
+    } catch (error) {
+      showMessage('error', 'Error reading CSV file');
+      console.error('Error importing CSV:', error);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -137,13 +203,30 @@ export function UnitTypes() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-slate-900">{t('unitTypes')}</h2>
           {!isAdding && !editingId && (
-            <button
-              onClick={startAdd}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-            >
-              <Plus className="h-5 w-5" />
-              {t('addUnitType')}
-            </button>
+            <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleCSVImport}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                <Upload className="h-5 w-5" />
+                {isImporting ? t('loading') : 'Import CSV'}
+              </button>
+              <button
+                onClick={startAdd}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+                {t('addUnitType')}
+              </button>
+            </div>
           )}
         </div>
 
@@ -200,6 +283,15 @@ export function UnitTypes() {
                 {t('cancel')}
               </button>
             </div>
+          </div>
+        )}
+
+        {!isAdding && !editingId && (
+          <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-600">
+            <p className="font-semibold mb-1">CSV Format:</p>
+            <p className="font-mono">123,Description for type 123</p>
+            <p className="font-mono">456,Description for type 456</p>
+            <p className="mt-1 text-xs">Each line: 3-digit number, optional description (comma-separated)</p>
           </div>
         )}
 

@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
+import { Tag } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingId: string, buildingName: string) => void;
+  onOpenUnitTypes?: () => void;
 }
 
-export function BuildingsList({ onSelectBuilding }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenUnitTypes }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,11 +138,24 @@ export function BuildingsList({ onSelectBuilding }: BuildingsListProps) {
     <>
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
-          <div className="flex items-center gap-3 mb-1 sm:mb-2">
-            <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-1 sm:mb-2">
+                <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
+              </div>
+              <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
+            </div>
+            {onOpenUnitTypes && (
+              <button
+                onClick={onOpenUnitTypes}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+              >
+                <Tag className="h-5 w-5" />
+                <span className="hidden sm:inline">{t('unitTypes')}</span>
+              </button>
+            )}
           </div>
-          <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
         </div>
 
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '500px', width: '100%' }}>

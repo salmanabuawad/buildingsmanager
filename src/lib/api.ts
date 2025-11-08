@@ -44,6 +44,14 @@ export interface ApartmentMeasurement {
   created_by?: string;
 }
 
+export interface UnitType {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export const api = {
   buildings: {
@@ -207,6 +215,58 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Measurement deleted successfully' };
+    },
+  },
+  unitTypes: {
+    getAll: async (): Promise<UnitType[]> => {
+      const { data, error } = await supabase
+        .from('unit_types')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: string): Promise<UnitType> => {
+      const { data, error } = await supabase
+        .from('unit_types')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) throw new Error('Unit type not found');
+      return data;
+    },
+    create: async (input: Omit<UnitType, 'id' | 'created_at' | 'updated_at'>): Promise<UnitType> => {
+      const { data, error } = await supabase
+        .from('unit_types')
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    update: async (id: string, input: Partial<UnitType>): Promise<UnitType> => {
+      const { data, error } = await supabase
+        .from('unit_types')
+        .update(input)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: string): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('unit_types')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { message: 'Unit type deleted successfully' };
     },
   },
 };

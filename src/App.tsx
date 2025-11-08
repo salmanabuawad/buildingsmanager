@@ -3,11 +3,12 @@ import { BuildingsList } from './components/BuildingsList';
 import { ApartmentsList } from './components/ApartmentsList';
 import { ApartmentDetails } from './components/ApartmentDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
-import { X, Settings, Building, Home } from 'lucide-react';
+import { UnitTypes } from './components/UnitTypes';
+import { X, Settings, Building, Home, Tag } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'apartments' | 'details' | 'admin';
+  type: 'buildings' | 'apartments' | 'details' | 'admin' | 'unit-types';
   buildingId?: string;
   apartmentId?: string;
   label: string;
@@ -89,6 +90,25 @@ function App() {
     setActiveTabId(adminTabId);
   }
 
+  function openUnitTypes() {
+    const unitTypesTabId = 'unit-types-panel';
+    const existingTab = tabs.find(tab => tab.id === unitTypesTabId);
+
+    if (existingTab) {
+      setActiveTabId(unitTypesTabId);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: unitTypesTabId,
+      type: 'unit-types',
+      label: 'Unit Types'
+    };
+
+    setTabs([...tabs, newTab]);
+    setActiveTabId(unitTypesTabId);
+  }
+
   function handleCloseTab(tabId: string) {
     if (tabId === 'buildings') return;
 
@@ -122,6 +142,8 @@ function App() {
                 >
                   {tab.type === 'admin' ? (
                     <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                  ) : tab.type === 'unit-types' ? (
+                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'buildings' ? (
                     <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
                   ) : tab.type === 'apartments' ? (
@@ -154,7 +176,11 @@ function App() {
 
       <div>
         {activeTab?.type === 'buildings' && (
-          <BuildingsList key={activeTab.refreshKey} onSelectBuilding={handleSelectBuilding} />
+          <BuildingsList
+            key={activeTab.refreshKey}
+            onSelectBuilding={handleSelectBuilding}
+            onOpenUnitTypes={openUnitTypes}
+          />
         )}
         {activeTab?.type === 'apartments' && activeTab.buildingId && (
           <ApartmentsList
@@ -168,6 +194,9 @@ function App() {
         )}
         {activeTab?.type === 'admin' && (
           <AdminPDFManager />
+        )}
+        {activeTab?.type === 'unit-types' && (
+          <UnitTypes />
         )}
       </div>
     </div>

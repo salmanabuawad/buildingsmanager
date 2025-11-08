@@ -104,7 +104,19 @@ export const translations = {
       userDeleted: 'User {{email}} deleted successfully',
       errorDeletingUser: 'Error deleting user',
       confirmDeleteUser: 'Are you sure you want to delete user {{email}}?',
-      minimumChars: 'Minimum {{count}} characters'
+      minimumChars: 'Minimum {{count}} characters',
+      unitTypes: 'Unit Types',
+      unitType: 'Unit Type',
+      typeName: 'Type Name',
+      typeDescription: 'Description',
+      addUnitType: 'Add Unit Type',
+      editUnitType: 'Edit Unit Type',
+      deleteUnitType: 'Delete Unit Type',
+      noUnitTypes: 'No unit types found',
+      unitTypeCreated: 'Unit type created successfully',
+      unitTypeUpdated: 'Unit type updated successfully',
+      unitTypeDeleted: 'Unit type deleted successfully',
+      confirmDeleteUnitType: 'Are you sure you want to delete this unit type?'
     }
   },
   he: {
@@ -212,7 +224,19 @@ export const translations = {
       userDeleted: 'משתמש {{email}} נמחק בהצלחה',
       errorDeletingUser: 'שגיאה במחיקת משתמש',
       confirmDeleteUser: 'האם אתה בטוח שברצונך למחוק את המשתמש {{email}}?',
-      minimumChars: 'מינימום {{count}} תווים'
+      minimumChars: 'מינימום {{count}} תווים',
+      unitTypes: 'סוגי יחידות',
+      unitType: 'סוג יחידה',
+      typeName: 'שם הסוג',
+      typeDescription: 'תיאור',
+      addUnitType: 'הוסף סוג יחידה',
+      editUnitType: 'ערוך סוג יחידה',
+      deleteUnitType: 'מחק סוג יחידה',
+      noUnitTypes: 'לא נמצאו סוגי יחידות',
+      unitTypeCreated: 'סוג היחידה נוצר בהצלחה',
+      unitTypeUpdated: 'סוג היחידה עודכן בהצלחה',
+      unitTypeDeleted: 'סוג היחידה נמחק בהצלחה',
+      confirmDeleteUnitType: 'האם אתה בטוח שברצונך למחוק סוג יחידה זה?'
     }
   }
 };

@@ -78,7 +78,16 @@ pip install -r requirements.txt
 
 Create a `.env` file in the `backend/` directory:
 
+**For Bolt/Supabase database:**
 ```env
+DB_TYPE=bolt
+SUPABASE_DB_URL=your-supabase-connection-string
+FRONTEND_URL=http://localhost:5173
+```
+
+**For local PostgreSQL database:**
+```env
+DB_TYPE=local
 DATABASE_URL=postgresql://postgres:password@localhost:5432/buildings_db
 FRONTEND_URL=http://localhost:5173
 ```

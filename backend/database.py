@@ -6,7 +6,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+# Determine which database to use based on DB_TYPE environment variable
+DB_TYPE = os.getenv('DB_TYPE', 'local')  # Default to 'local' if not set
+
+if DB_TYPE == 'bolt':
+    # Use Bolt's Supabase database
+    DATABASE_URL = os.getenv('SUPABASE_DB_URL')
+    if not DATABASE_URL:
+        raise ValueError("SUPABASE_DB_URL must be set when DB_TYPE=bolt")
+else:
+    # Use local PostgreSQL database
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL must be set when DB_TYPE=local")
 
 @contextmanager
 def get_db_connection():

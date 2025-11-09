@@ -73,7 +73,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
 
         if (hasDiscrepancy) {
           return (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full" title="Data mismatch">
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
           );

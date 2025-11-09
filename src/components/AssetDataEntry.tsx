@@ -244,12 +244,14 @@ export function AssetDataEntry() {
 
             switch (header) {
               case 'building_number':
+              case 'מבנה':
                 row.building_number = value ? parseInt(value) : null;
                 break;
               case 'payer_id':
                 row.payer_id = value;
                 break;
               case 'asset_id':
+              case 'נכס':
                 row.asset_id = value;
                 break;
               case 'main_asset_type':
@@ -550,7 +552,7 @@ export function AssetDataEntry() {
           Total Size is calculated automatically. Use Tab or Enter to navigate between cells.
         </p>
         <p className="text-sm text-blue-700 mt-2">
-          <strong>CSV Format:</strong> Headers should match: building_number, payer_id, asset_id, main_asset_type, main_asset_size,
+          <strong>CSV Format:</strong> Headers should match: building_number (or מבנה), payer_id, asset_id (or נכס), main_asset_type, main_asset_size,
           sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
           sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6
         </p>

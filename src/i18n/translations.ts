@@ -133,7 +133,19 @@ export const translations = {
       searchResults: 'Search Results',
       noUnitsFound: 'No assets found in this range',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      subAssetType1: 'Sub-Asset Type 1',
+      subAssetSize1: 'Sub-Asset Size 1',
+      subAssetType2: 'Sub-Asset Type 2',
+      subAssetSize2: 'Sub-Asset Size 2',
+      subAssetType3: 'Sub-Asset Type 3',
+      subAssetSize3: 'Sub-Asset Size 3',
+      subAssetType4: 'Sub-Asset Type 4',
+      subAssetSize4: 'Sub-Asset Size 4',
+      subAssetType5: 'Sub-Asset Type 5',
+      subAssetSize5: 'Sub-Asset Size 5',
+      subAssetType6: 'Sub-Asset Type 6',
+      subAssetSize6: 'Sub-Asset Size 6'
     }
   },
   he: {
@@ -270,7 +282,19 @@ export const translations = {
       searchResults: 'תוצאות חיפוש',
       noUnitsFound: 'לא נמצאו נכסים בטווח זה',
       search: 'חיפוש',
-      reset: 'איפוס'
+      reset: 'איפוס',
+      subAssetType1: 'סוג נכס משנה 1',
+      subAssetSize1: 'גודל נכס משנה 1',
+      subAssetType2: 'סוג נכס משנה 2',
+      subAssetSize2: 'גודל נכס משנה 2',
+      subAssetType3: 'סוג נכס משנה 3',
+      subAssetSize3: 'גודל נכס משנה 3',
+      subAssetType4: 'סוג נכס משנה 4',
+      subAssetSize4: 'גודל נכס משנה 4',
+      subAssetType5: 'סוג נכס משנה 5',
+      subAssetSize5: 'גודל נכס משנה 5',
+      subAssetType6: 'סוג נכס משנה 6',
+      subAssetSize6: 'גודל נכס משנה 6'
     }
   }
 };

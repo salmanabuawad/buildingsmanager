@@ -64,14 +64,14 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      flex: 1.5,
+      flex: 1.2,
       sortable: true,
       filter: true
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      flex: 1.5,
+      flex: 1.2,
       sortable: true,
       filter: true
     },
@@ -91,9 +91,91 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
-      field: 'total_size',
-      headerName: t('totalSize'),
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
       flex: 1,
+      sortable: true,
+      filter: true
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      flex: 1,
+      sortable: true,
+      filter: true
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: t('subAssetType3'),
+      flex: 1,
+      sortable: true,
+      filter: true
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: t('subAssetSize3'),
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: t('subAssetType4'),
+      flex: 1,
+      sortable: true,
+      filter: true
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: t('subAssetSize4'),
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: t('subAssetType5'),
+      flex: 1,
+      sortable: true,
+      filter: true
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: t('subAssetSize5'),
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: t('subAssetType6'),
+      flex: 1,
+      sortable: true,
+      filter: true
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: t('subAssetSize6'),
+      flex: 0.8,
       sortable: true,
       filter: true,
       valueFormatter: (params) => params.value?.toLocaleString()

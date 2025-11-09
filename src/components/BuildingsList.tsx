@@ -70,7 +70,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
-      flex: 2,
+      flex: 1.5,
       sortable: true,
       filter: true,
       editable: false
@@ -85,45 +85,9 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
-      field: 'apartment_area',
-      headerName: t('apartmentArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'storage_area',
-      headerName: t('storageArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'pergola_area',
-      headerName: t('pergolaArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'balcony_area',
-      headerName: t('balconyArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
       field: 'total_building_area',
       headerName: t('totalBuildingArea'),
-      flex: 1,
+      flex: 1.5,
       sortable: true,
       filter: true,
       editable: false,

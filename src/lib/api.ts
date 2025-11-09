@@ -4,10 +4,6 @@ export interface Building {
   building_number: number;
   tax_region?: string;
   total_units: number;
-  asset_area: number;
-  storage_area: number;
-  pergola_area: number;
-  balcony_area: number;
   total_building_area: number;
   created_at: string;
 }
@@ -83,7 +79,7 @@ export const api = {
       if (!data) throw new Error('Building not found');
       return data;
     },
-    create: async (input: Omit<Building, 'created_at' | 'total_units' | 'apartment_area' | 'storage_area' | 'pergola_area' | 'balcony_area' | 'total_building_area'>): Promise<Building> => {
+    create: async (input: Omit<Building, 'created_at' | 'total_units' | 'total_building_area'>): Promise<Building> => {
       const { data, error } = await supabase
         .from('buildings')
         .insert(input)

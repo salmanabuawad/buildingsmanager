@@ -113,11 +113,11 @@ export function AssetDataEntry() {
 
     try {
       const rowsToSave = rowData.filter(row =>
-        row._isNew && row.building_number && row.payer_id && row.asset_id
+        row._isNew && row.building_number && row.asset_id
       );
 
       if (rowsToSave.length === 0) {
-        throw new Error('No valid rows to save. Building Number, Payer ID, and Asset ID are required.');
+        throw new Error('No valid rows to save. Building Number and Asset ID are required.');
       }
 
       let savedCount = 0;
@@ -460,8 +460,7 @@ export function AssetDataEntry() {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 150,
-      editable: true,
-      cellStyle: { backgroundColor: '#fff9e6' }
+      editable: true
     },
     {
       field: 'building_number',
@@ -548,7 +547,7 @@ export function AssetDataEntry() {
 
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Tips:</strong> Click any cell to edit. Yellow-highlighted fields (Building Number, Payer ID, Asset ID) are required.
+          <strong>Tips:</strong> Click any cell to edit. Yellow-highlighted fields (Building Number and Asset ID) are required. Payer ID is optional.
           Total Size is calculated automatically. Use Tab or Enter to navigate between cells.
         </p>
         <p className="text-sm text-blue-700 mt-2">

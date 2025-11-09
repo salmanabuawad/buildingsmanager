@@ -117,7 +117,23 @@ export const translations = {
       unitTypeUpdated: 'Unit type updated successfully',
       unitTypeDeleted: 'Unit type deleted successfully',
       confirmDeleteUnitType: 'Are you sure you want to delete this unit type?',
-      taxRegion: 'Tax Region'
+      taxRegion: 'Tax Region',
+      assetId: 'Asset ID',
+      payerId: 'Payer ID',
+      mainAsset: 'Main Asset',
+      mainAssetType: 'Main Asset Type',
+      mainAssetSize: 'Main Asset Size',
+      subAssets: 'Sub-Assets',
+      type: 'Type',
+      size: 'Size',
+      totalSize: 'Total Size',
+      fromUnitNumber: 'From Asset ID',
+      toUnitNumber: 'To Asset ID',
+      unitSearch: 'Asset Search',
+      searchResults: 'Search Results',
+      noUnitsFound: 'No assets found in this range',
+      search: 'Search',
+      reset: 'Reset'
     }
   },
   he: {
@@ -238,7 +254,23 @@ export const translations = {
       unitTypeUpdated: 'סוג היחידה עודכן בהצלחה',
       unitTypeDeleted: 'סוג היחידה נמחק בהצלחה',
       confirmDeleteUnitType: 'האם אתה בטוח שברצונך למחוק סוג יחידה זה?',
-      taxRegion: 'אזור מיסים'
+      taxRegion: 'אזור מיסים',
+      assetId: 'זיהוי נכס',
+      payerId: 'זיהוי משלם',
+      mainAsset: 'נכס ראשי',
+      mainAssetType: 'סוג נכס ראשי',
+      mainAssetSize: 'גודל נכס ראשי',
+      subAssets: 'נכסי משנה',
+      type: 'סוג',
+      size: 'גודל',
+      totalSize: 'סה"כ גודל',
+      fromUnitNumber: 'מזיהוי נכס',
+      toUnitNumber: 'עד זיהוי נכס',
+      unitSearch: 'חיפוש נכסים',
+      searchResults: 'תוצאות חיפוש',
+      noUnitsFound: 'לא נמצאו נכסים בטווח זה',
+      search: 'חיפוש',
+      reset: 'איפוס'
     }
   }
 };

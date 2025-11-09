@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Home, Building as BuildingIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Asset, Building } from '../lib/api';
+import { Asset } from '../lib/api';
 
 interface SearchResult extends Asset {
-  building_number_display: number;
 }
 
 interface UnitSearchProps {
-  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingNumber: number) => void;
+  onSelectApartment: (apartmentId: string, assetId: string, buildingNumber: number) => void;
 }
 
 export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
@@ -32,20 +31,15 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
       const { data, error } = await supabase
         .from('assets')
         .select('*')
-        .gte('apartment_number', fromNumber)
-        .lte('apartment_number', toNumber)
-        .order('apartment_number');
+        .gte('asset_id', fromNumber)
+        .lte('asset_id', toNumber)
+        .order('asset_id');
 
       if (error) throw error;
 
-      const formattedResults: SearchResult[] = (data || []).map((item: any) => ({
-        ...item,
-        building_number_display: item.building_number
-      }));
-
-      setResults(formattedResults);
+      setResults(data || []);
     } catch (error) {
-      console.error('Error searching apartments:', error);
+      console.error('Error searching assets:', error);
       setResults([]);
     } finally {
       setLoading(false);
@@ -75,26 +69,26 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                {t('fromUnitNumber') || 'From Unit Number'}
+                {t('fromUnitNumber') || 'From Asset ID'}
               </label>
               <input
                 type="text"
                 value={fromNumber}
                 onChange={(e) => setFromNumber(e.target.value)}
-                placeholder="101"
+                placeholder="826812801"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                {t('toUnitNumber') || 'To Unit Number'}
+                {t('toUnitNumber') || 'To Asset ID'}
               </label>
               <input
                 type="text"
                 value={toNumber}
                 onChange={(e) => setToNumber(e.target.value)}
-                placeholder="999"
+                placeholder="826812899"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
               />
@@ -130,7 +124,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
           {results.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <Home className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-lg">{t('noUnitsFound') || 'No units found in this range'}</p>
+              <p className="text-lg">{t('noUnitsFound') || 'No assets found in this range'}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -141,31 +135,22 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
                       {t('actions') || 'Actions'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('unitNumber') || 'Unit Number'}
+                      {t('assetId') || 'Asset ID'}
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
+                      {t('payerId') || 'Payer ID'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
                       {t('building') || 'Building'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('floor') || 'Floor'}
+                      {t('mainAssetType') || 'Main Type'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('apartmentArea') || 'Apartment Area'}
+                      {t('mainAssetSize') || 'Main Size'}
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('storageArea') || 'Storage Area'}
-                    </th>
-                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('pergolaArea') || 'Pergola Area'}
-                    </th>
-                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('balconyArea') || 'Balcony Area'}
-                    </th>
-                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('gardenArea') || 'Garden Area'}
-                    </th>
-                    <th className="text-right px-4 py-3 text-sm font-semibold text-slate-700">
-                      {t('totalArea') || 'Total Area'}
+                      {t('totalSize') || 'Total Size'}
                     </th>
                   </tr>
                 </thead>
@@ -177,41 +162,32 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => onSelectApartment(unit.id, unit.apartment_number, unit.building_number)}
+                          onClick={() => onSelectApartment(unit.id, unit.asset_id, unit.building_number)}
                           className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}
                         </button>
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-medium">
-                        {unit.apartment_number}
+                        {unit.asset_id}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {unit.payer_id}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
                           <BuildingIcon className="h-4 w-4 text-teal-600" />
-                          {unit.building_number_display}
+                          {unit.building_number}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {unit.floor || '-'}
+                        {unit.main_asset_type || '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {unit.apartment_area.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {unit.storage_area.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {unit.pergola_area.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {unit.balcony_area.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {unit.garden_area?.toFixed(2) || '0.00'}
+                        {unit.main_asset_size.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
-                        {unit.total_apartment_area.toFixed(2)}
+                        {unit.total_size.toFixed(2)}
                       </td>
                     </tr>
                   ))}

@@ -9,7 +9,7 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface ApartmentsListProps {
   buildingNumber: number;
-  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingNumber: number) => void;
+  onSelectApartment: (apartmentId: string, assetId: string, buildingNumber: number) => void;
 }
 
 export function ApartmentsList({ buildingNumber, onSelectApartment }: ApartmentsListProps) {
@@ -53,7 +53,7 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => onSelectApartment(params.data.id, params.data.apartment_number, buildingNumber)}
+            onClick={() => onSelectApartment(params.data.id, params.data.asset_id, buildingNumber)}
             className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
           >
             {t('viewDetails')}
@@ -62,51 +62,41 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
       }
     },
     {
-      field: 'total_apartment_area',
-      headerName: t('totalArea'),
-      flex: 1,
+      field: 'asset_id',
+      headerName: t('assetId'),
+      flex: 1.5,
       sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      filter: true
     },
     {
-      field: 'balcony_area',
-      headerName: t('balconyArea'),
-      flex: 1,
+      field: 'payer_id',
+      headerName: t('payerId'),
+      flex: 1.5,
       sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      filter: true
     },
     {
-      field: 'pergola_area',
-      headerName: t('pergolaArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'storage_area',
-      headerName: t('storageArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'apartment_area',
-      headerName: t('apartmentArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'apartment_number',
-      headerName: t('unit'),
+      field: 'main_asset_type',
+      headerName: t('mainAssetType'),
       flex: 1,
       sortable: true,
       filter: true
+    },
+    {
+      field: 'main_asset_size',
+      headerName: t('mainAssetSize'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'total_size',
+      headerName: t('totalSize'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
     }
   ], [buildingNumber, onSelectApartment, t]);
 

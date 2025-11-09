@@ -111,6 +111,13 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 2,
       sortable: true,
       filter: true
+    },
+    {
+      field: 'tax_region',
+      headerName: t('taxRegion'),
+      flex: 1,
+      sortable: true,
+      filter: true
     }
   ], [onSelectBuilding, t]);
 

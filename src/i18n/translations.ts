@@ -116,7 +116,8 @@ export const translations = {
       unitTypeCreated: 'Unit type created successfully',
       unitTypeUpdated: 'Unit type updated successfully',
       unitTypeDeleted: 'Unit type deleted successfully',
-      confirmDeleteUnitType: 'Are you sure you want to delete this unit type?'
+      confirmDeleteUnitType: 'Are you sure you want to delete this unit type?',
+      taxRegion: 'Tax Region'
     }
   },
   he: {
@@ -236,7 +237,8 @@ export const translations = {
       unitTypeCreated: 'סוג היחידה נוצר בהצלחה',
       unitTypeUpdated: 'סוג היחידה עודכן בהצלחה',
       unitTypeDeleted: 'סוג היחידה נמחק בהצלחה',
-      confirmDeleteUnitType: 'האם אתה בטוח שברצונך למחוק סוג יחידה זה?'
+      confirmDeleteUnitType: 'האם אתה בטוח שברצונך למחוק סוג יחידה זה?',
+      taxRegion: 'אזור מיסים'
     }
   }
 };

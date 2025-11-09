@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 
 export interface Building {
   building_number: number;
+  tax_region?: string;
   total_units: number;
   apartment_area: number;
   storage_area: number;

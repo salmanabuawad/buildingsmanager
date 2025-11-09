@@ -15,16 +15,23 @@ export interface Building {
 export interface Asset {
   id: string;
   building_number: number;
-  apartment_number: string;
-  floor?: string;
-  apartment_area: number;
-  storage_area: number;
-  pergola_area: number;
-  balcony_area: number;
-  garden_area?: number;
-  total_apartment_area: number;
-  pdf_file_url?: string;
-  dwg_file_url?: string;
+  payer_id: string;
+  asset_id: string;
+  main_asset_type?: string;
+  main_asset_size: number;
+  sub_asset_type_1?: string;
+  sub_asset_size_1: number;
+  sub_asset_type_2?: string;
+  sub_asset_size_2: number;
+  sub_asset_type_3?: string;
+  sub_asset_size_3: number;
+  sub_asset_type_4?: string;
+  sub_asset_size_4: number;
+  sub_asset_type_5?: string;
+  sub_asset_size_5: number;
+  sub_asset_type_6?: string;
+  sub_asset_size_6: number;
+  total_size: number;
   created_at: string;
 }
 
@@ -112,7 +119,7 @@ export const api = {
       let query = supabase
         .from('assets')
         .select('*')
-        .order('apartment_number');
+        .order('asset_id');
 
       if (buildingNumber) {
         query = query.eq('building_number', buildingNumber);

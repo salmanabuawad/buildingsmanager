@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building } from '../lib/api';
-import { Save, Plus, Trash2 } from 'lucide-react';
+import { Save, Plus, Trash2, Upload } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -33,6 +33,7 @@ interface AssetRow {
 export function AssetDataEntry() {
   const { t } = useTranslation();
   const gridRef = useRef<AgGridReact>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -161,6 +162,166 @@ export function AssetDataEntry() {
       return filtered.length > 0 ? filtered : [createEmptyRow()];
     });
   }, []);
+
+  const parseCSV = (text: string): string[][] => {
+    const lines = text.split('\n');
+    const result: string[][] = [];
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+      result.push(values);
+    }
+
+    return result;
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setSuccess(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = parseCSV(text);
+
+        if (lines.length === 0) {
+          throw new Error('CSV file is empty');
+        }
+
+        const headers = lines[0].map(h => h.toLowerCase().trim());
+        const newRows: AssetRow[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i];
+          if (values.length === 0 || values.every(v => !v)) continue;
+
+          const row: AssetRow = {
+            id: `new_${Date.now()}_${Math.random()}_${i}`,
+            building_number: null,
+            payer_id: '',
+            asset_id: '',
+            main_asset_type: '',
+            main_asset_size: 0,
+            sub_asset_type_1: '',
+            sub_asset_size_1: 0,
+            sub_asset_type_2: '',
+            sub_asset_size_2: 0,
+            sub_asset_type_3: '',
+            sub_asset_size_3: 0,
+            sub_asset_type_4: '',
+            sub_asset_size_4: 0,
+            sub_asset_type_5: '',
+            sub_asset_size_5: 0,
+            sub_asset_type_6: '',
+            sub_asset_size_6: 0,
+            total_size: 0,
+            _isNew: true
+          };
+
+          headers.forEach((header, index) => {
+            const value = values[index] || '';
+
+            switch (header) {
+              case 'building_number':
+                row.building_number = value ? parseInt(value) : null;
+                break;
+              case 'payer_id':
+                row.payer_id = value;
+                break;
+              case 'asset_id':
+                row.asset_id = value;
+                break;
+              case 'main_asset_type':
+                row.main_asset_type = value;
+                break;
+              case 'main_asset_size':
+                row.main_asset_size = value ? parseFloat(value) : 0;
+                break;
+              case 'sub_asset_type_1':
+                row.sub_asset_type_1 = value;
+                break;
+              case 'sub_asset_size_1':
+                row.sub_asset_size_1 = value ? parseFloat(value) : 0;
+                break;
+              case 'sub_asset_type_2':
+                row.sub_asset_type_2 = value;
+                break;
+              case 'sub_asset_size_2':
+                row.sub_asset_size_2 = value ? parseFloat(value) : 0;
+                break;
+              case 'sub_asset_type_3':
+                row.sub_asset_type_3 = value;
+                break;
+              case 'sub_asset_size_3':
+                row.sub_asset_size_3 = value ? parseFloat(value) : 0;
+                break;
+              case 'sub_asset_type_4':
+                row.sub_asset_type_4 = value;
+                break;
+              case 'sub_asset_size_4':
+                row.sub_asset_size_4 = value ? parseFloat(value) : 0;
+                break;
+              case 'sub_asset_type_5':
+                row.sub_asset_type_5 = value;
+                break;
+              case 'sub_asset_size_5':
+                row.sub_asset_size_5 = value ? parseFloat(value) : 0;
+                break;
+              case 'sub_asset_type_6':
+                row.sub_asset_type_6 = value;
+                break;
+              case 'sub_asset_size_6':
+                row.sub_asset_size_6 = value ? parseFloat(value) : 0;
+                break;
+            }
+          });
+
+          row.total_size = calculateTotalSize(row);
+          newRows.push(row);
+        }
+
+        if (newRows.length === 0) {
+          throw new Error('No valid data rows found in CSV');
+        }
+
+        setRowData(newRows);
+        setSuccess(`Imported ${newRows.length} row(s) from CSV`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to parse CSV file');
+      }
+    };
+
+    reader.onerror = () => {
+      setError('Failed to read file');
+    };
+
+    reader.readAsText(file);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
@@ -326,6 +487,13 @@ export function AssetDataEntry() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
+            >
+              <Upload className="h-5 w-5" />
+              Import CSV
+            </button>
+            <button
               onClick={addEmptyRow}
               className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
             >
@@ -381,7 +549,20 @@ export function AssetDataEntry() {
           <strong>Tips:</strong> Click any cell to edit. Yellow-highlighted fields (Building Number, Payer ID, Asset ID) are required.
           Total Size is calculated automatically. Use Tab or Enter to navigate between cells.
         </p>
+        <p className="text-sm text-blue-700 mt-2">
+          <strong>CSV Format:</strong> Headers should match: building_number, payer_id, asset_id, main_asset_type, main_asset_size,
+          sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
+          sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6
+        </p>
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
     </div>
   );
 }

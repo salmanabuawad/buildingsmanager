@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag, Search, AlertCircle } from 'lucide-react';
+import { Tag, Search, AlertCircle, Plus } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -11,9 +11,10 @@ interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number) => void;
   onOpenUnitTypes?: () => void;
   onOpenUnitSearch?: () => void;
+  onOpenDataEntry?: () => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSearch }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSearch, onOpenDataEntry }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,6 +183,15 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
               <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
             </div>
             <div className="flex gap-2">
+              {onOpenDataEntry && (
+                <button
+                  onClick={onOpenDataEntry}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('addNewAsset')}</span>
+                </button>
+              )}
               {onOpenUnitSearch && (
                 <button
                   onClick={onOpenUnitSearch}

@@ -5,11 +5,12 @@ import { AssetDetails } from './components/AssetDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
 import { UnitTypes } from './components/UnitTypes';
 import { UnitSearch } from './components/UnitSearch';
-import { X, Settings, Building, Home, Tag, Search } from 'lucide-react';
+import { AssetDataEntry } from './components/AssetDataEntry';
+import { X, Settings, Building, Home, Tag, Search, Plus } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'details' | 'admin' | 'unit-types' | 'unit-search';
+  type: 'buildings' | 'assets' | 'details' | 'admin' | 'unit-types' | 'unit-search' | 'data-entry';
   buildingNumber?: number;
   assetId?: string;
   label: string;
@@ -129,6 +130,25 @@ function App() {
     setActiveTabId(unitSearchTabId);
   }
 
+  function openDataEntry() {
+    const dataEntryTabId = 'data-entry-panel';
+    const existingTab = tabs.find(tab => tab.id === dataEntryTabId);
+
+    if (existingTab) {
+      setActiveTabId(dataEntryTabId);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: dataEntryTabId,
+      type: 'data-entry',
+      label: 'Asset Data Entry'
+    };
+
+    setTabs([...tabs, newTab]);
+    setActiveTabId(dataEntryTabId);
+  }
+
   function handleCloseTab(tabId: string) {
     if (tabId === 'buildings') return;
 
@@ -166,6 +186,8 @@ function App() {
                     <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'unit-search' ? (
                     <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                  ) : tab.type === 'data-entry' ? (
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'buildings' ? (
                     <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
                   ) : tab.type === 'assets' ? (
@@ -203,6 +225,7 @@ function App() {
             onSelectBuilding={handleSelectBuilding}
             onOpenUnitTypes={openUnitTypes}
             onOpenUnitSearch={openUnitSearch}
+            onOpenDataEntry={openDataEntry}
           />
         )}
         {activeTab?.type === 'assets' && activeTab.buildingNumber && (
@@ -223,6 +246,9 @@ function App() {
         )}
         {activeTab?.type === 'unit-search' && (
           <UnitSearch onSelectAsset={handleSelectAsset} />
+        )}
+        {activeTab?.type === 'data-entry' && (
+          <AssetDataEntry />
         )}
       </div>
     </div>

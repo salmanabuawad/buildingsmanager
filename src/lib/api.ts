@@ -1,8 +1,7 @@
 import { supabase } from './supabase';
 
 export interface Building {
-  id: string;
-  name: string;
+  building_number: number;
   total_units: number;
   apartment_area: number;
   storage_area: number;
@@ -14,9 +13,9 @@ export interface Building {
 
 export interface Apartment {
   id: string;
-  building_id: string;
+  building_number: number;
   apartment_number: string;
-  floor?: number;
+  floor?: string;
   apartment_area: number;
   storage_area: number;
   pergola_area: number;
@@ -59,23 +58,23 @@ export const api = {
       const { data, error } = await supabase
         .from('buildings')
         .select('*')
-        .order('name');
+        .order('building_number');
 
       if (error) throw error;
       return data || [];
     },
-    getOne: async (id: string): Promise<Building> => {
+    getOne: async (buildingNumber: number): Promise<Building> => {
       const { data, error } = await supabase
         .from('buildings')
         .select('*')
-        .eq('id', id)
+        .eq('building_number', buildingNumber)
         .maybeSingle();
 
       if (error) throw error;
       if (!data) throw new Error('Building not found');
       return data;
     },
-    create: async (input: Omit<Building, 'id' | 'created_at'>): Promise<Building> => {
+    create: async (input: Omit<Building, 'created_at' | 'total_units' | 'apartment_area' | 'storage_area' | 'pergola_area' | 'balcony_area' | 'total_building_area'>): Promise<Building> => {
       const { data, error } = await supabase
         .from('buildings')
         .insert(input)
@@ -85,36 +84,36 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (id: string, input: Partial<Building>): Promise<Building> => {
+    update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
       const { data, error } = await supabase
         .from('buildings')
         .update(input)
-        .eq('id', id)
+        .eq('building_number', buildingNumber)
         .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    delete: async (id: string): Promise<{ message: string }> => {
+    delete: async (buildingNumber: number): Promise<{ message: string }> => {
       const { error } = await supabase
         .from('buildings')
         .delete()
-        .eq('id', id);
+        .eq('building_number', buildingNumber);
 
       if (error) throw error;
       return { message: 'Building deleted successfully' };
     },
   },
   apartments: {
-    getAll: async (buildingId?: string): Promise<Apartment[]> => {
+    getAll: async (buildingNumber?: number): Promise<Apartment[]> => {
       let query = supabase
         .from('apartments')
         .select('*')
         .order('apartment_number');
 
-      if (buildingId) {
-        query = query.eq('building_id', buildingId);
+      if (buildingNumber) {
+        query = query.eq('building_number', buildingNumber);
       }
 
       const { data, error } = await query;

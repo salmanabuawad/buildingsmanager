@@ -10,7 +10,7 @@ import { X, Settings, Building, Home, Tag, Search } from 'lucide-react';
 interface Tab {
   id: string;
   type: 'buildings' | 'apartments' | 'details' | 'admin' | 'unit-types' | 'unit-search';
-  buildingId?: string;
+  buildingNumber?: number;
   apartmentId?: string;
   label: string;
   refreshKey?: number;
@@ -22,8 +22,8 @@ function App() {
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
 
-  function handleSelectBuilding(buildingId: string, buildingName: string) {
-    const newTabId = `apartments-${buildingId}`;
+  function handleSelectBuilding(buildingNumber: number) {
+    const newTabId = `apartments-${buildingNumber}`;
 
     const existingTab = tabs.find(tab => tab.id === newTabId);
     if (existingTab) {
@@ -34,15 +34,15 @@ function App() {
     const newTab: Tab = {
       id: newTabId,
       type: 'apartments',
-      buildingId,
-      label: buildingName
+      buildingNumber,
+      label: `Building ${buildingNumber}`
     };
 
     setTabs([...tabs, newTab]);
     setActiveTabId(newTabId);
   }
 
-  function handleSelectApartment(apartmentId: string, apartmentNumber: string, buildingId: string) {
+  function handleSelectApartment(apartmentId: string, apartmentNumber: string, buildingNumber: number) {
     const newTabId = `details-${apartmentId}`;
 
     const existingTab = tabs.find(tab => tab.id === newTabId);
@@ -54,7 +54,7 @@ function App() {
     const newTab: Tab = {
       id: newTabId,
       type: 'details',
-      buildingId,
+      buildingNumber,
       apartmentId,
       label: `Unit ${apartmentNumber}`
     };
@@ -205,10 +205,10 @@ function App() {
             onOpenUnitSearch={openUnitSearch}
           />
         )}
-        {activeTab?.type === 'apartments' && activeTab.buildingId && (
+        {activeTab?.type === 'apartments' && activeTab.buildingNumber && (
           <ApartmentsList
             key={activeTab.refreshKey}
-            buildingId={activeTab.buildingId}
+            buildingNumber={activeTab.buildingNumber}
             onSelectApartment={handleSelectApartment}
           />
         )}

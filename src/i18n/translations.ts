@@ -3,7 +3,7 @@ export const translations = {
     translation: {
       propertyListings: 'Area Management',
       browseBuildings: 'Manage building and apartment areas in square meters',
-      buildingName: 'Building Name',
+      buildingNumber: 'Building Number',
       address: 'Address',
       city: 'City',
       yearBuilt: 'Year Built',
@@ -123,7 +123,7 @@ export const translations = {
     translation: {
       propertyListings: 'ניהול מבנים',
       browseBuildings: 'ניהול שטחי מבנים ונכסים במטרים רבועים',
-      buildingName: 'שם הבניין',
+      buildingNumber: 'מספר בניין',
       address: 'כתובת',
       city: 'עיר',
       yearBuilt: 'שנת בנייה',

@@ -8,7 +8,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface BuildingsListProps {
-  onSelectBuilding: (buildingId: string, buildingName: string) => void;
+  onSelectBuilding: (buildingNumber: number) => void;
   onOpenUnitTypes?: () => void;
   onOpenUnitSearch?: () => void;
 }
@@ -49,7 +49,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => onSelectBuilding(params.data.id, params.data.name)}
+            onClick={() => onSelectBuilding(params.data.building_number)}
             className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
           >
             {t('viewApartments')}
@@ -106,8 +106,8 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
-      field: 'name',
-      headerName: t('buildingName'),
+      field: 'building_number',
+      headerName: t('buildingNumber'),
       flex: 2,
       sortable: true,
       filter: true

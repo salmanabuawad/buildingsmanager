@@ -8,11 +8,11 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface ApartmentsListProps {
-  buildingId: string;
-  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingId: string) => void;
+  buildingNumber: number;
+  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingNumber: number) => void;
 }
 
-export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsListProps) {
+export function ApartmentsList({ buildingNumber, onSelectApartment }: ApartmentsListProps) {
   const { t } = useTranslation();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -22,7 +22,7 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
 
   useEffect(() => {
     fetchData();
-  }, [buildingId]);
+  }, [buildingNumber]);
 
 
 
@@ -31,8 +31,8 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
       setLoading(true);
 
       const [buildingData, apartmentsData] = await Promise.all([
-        api.buildings.getOne(buildingId),
-        api.apartments.getAll(buildingId)
+        api.buildings.getOne(buildingNumber),
+        api.apartments.getAll(buildingNumber)
       ]);
 
       setBuilding(buildingData);
@@ -53,7 +53,7 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => onSelectApartment(params.data.id, params.data.apartment_number, buildingId)}
+            onClick={() => onSelectApartment(params.data.id, params.data.apartment_number, buildingNumber)}
             className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
           >
             {t('viewDetails')}
@@ -138,7 +138,7 @@ export function ApartmentsList({ buildingId, onSelectApartment }: ApartmentsList
           <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
             <div className="flex items-center gap-3 mb-1 sm:mb-2">
               <BuildingIcon className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{building.name}</h1>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('building')} {building.building_number}</h1>
             </div>
           </div>
         )}

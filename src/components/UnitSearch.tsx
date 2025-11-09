@@ -5,11 +5,11 @@ import { supabase } from '../lib/supabase';
 import { Apartment, Building } from '../lib/api';
 
 interface SearchResult extends Apartment {
-  building_name: string;
+  building_number_display: number;
 }
 
 interface UnitSearchProps {
-  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingId: string) => void;
+  onSelectApartment: (apartmentId: string, apartmentNumber: string, buildingNumber: number) => void;
 }
 
 export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
@@ -31,12 +31,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
     try {
       const { data, error } = await supabase
         .from('apartments')
-        .select(`
-          *,
-          buildings (
-            name
-          )
-        `)
+        .select('*')
         .gte('apartment_number', fromNumber)
         .lte('apartment_number', toNumber)
         .order('apartment_number');
@@ -45,7 +40,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
 
       const formattedResults: SearchResult[] = (data || []).map((item: any) => ({
         ...item,
-        building_name: item.buildings?.name || 'Unknown Building'
+        building_number_display: item.building_number
       }));
 
       setResults(formattedResults);
@@ -182,7 +177,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => onSelectApartment(unit.id, unit.apartment_number, unit.building_id)}
+                          onClick={() => onSelectApartment(unit.id, unit.apartment_number, unit.building_number)}
                           className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}
@@ -194,7 +189,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
                           <BuildingIcon className="h-4 w-4 text-teal-600" />
-                          {unit.building_name}
+                          {unit.building_number_display}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-700">

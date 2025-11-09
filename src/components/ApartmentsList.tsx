@@ -108,7 +108,7 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
       sortable: true,
       filter: true
     }
-  ], [buildingId, onSelectApartment, t]);
+  ], [buildingNumber, onSelectApartment, t]);
 
   if (loading) {
     return (

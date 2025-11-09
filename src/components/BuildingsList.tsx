@@ -200,6 +200,15 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
             suppressHorizontalScroll={false}
             rowClass="ag-row"
             getRowStyle={(params) => {
+              const building = params.data as Building;
+              const hasControlArea = building.total_area_for_control != null;
+              const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
+              const hasDiscrepancy = hasControlArea && !areasMatch;
+
+              if (hasDiscrepancy) {
+                return { background: '#fee2e2' };
+              }
+
               if (params.node.rowIndex % 2 === 0) {
                 return { background: '#ffffff' };
               }

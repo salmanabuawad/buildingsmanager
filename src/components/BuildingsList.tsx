@@ -42,48 +42,22 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
-      headerName: t('actions'),
-      width: 130,
-      filter: false,
-      sortable: false,
-      cellRenderer: (params: any) => {
-        return (
-          <button
-            onClick={() => onSelectBuilding(params.data.building_number)}
-            className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
-          >
-            {t('viewAssets')}
-          </button>
-        );
-      }
-    },
-    {
-      field: 'total_building_area',
-      headerName: t('totalBuildingArea'),
+      field: 'tax_region',
+      headerName: t('taxRegion'),
       flex: 1,
       sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      filter: true
     },
     {
-      field: 'balcony_area',
-      headerName: t('balconyArea'),
-      flex: 1,
+      field: 'building_number',
+      headerName: t('buildingNumber'),
+      flex: 2,
       sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      filter: true
     },
     {
-      field: 'pergola_area',
-      headerName: t('pergolaArea'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'storage_area',
-      headerName: t('storageArea'),
+      field: 'total_units',
+      headerName: t('totalUnits'),
       flex: 1,
       sortable: true,
       filter: true,
@@ -98,26 +72,52 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
-      field: 'total_units',
-      headerName: t('totalUnits'),
+      field: 'storage_area',
+      headerName: t('storageArea'),
       flex: 1,
       sortable: true,
       filter: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
-      field: 'building_number',
-      headerName: t('buildingNumber'),
-      flex: 2,
-      sortable: true,
-      filter: true
-    },
-    {
-      field: 'tax_region',
-      headerName: t('taxRegion'),
+      field: 'pergola_area',
+      headerName: t('pergolaArea'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'balcony_area',
+      headerName: t('balconyArea'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'total_building_area',
+      headerName: t('totalBuildingArea'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      headerName: t('actions'),
+      width: 130,
+      filter: false,
+      sortable: false,
+      cellRenderer: (params: any) => {
+        return (
+          <button
+            onClick={() => onSelectBuilding(params.data.building_number)}
+            className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
+          >
+            {t('viewAssets')}
+          </button>
+        );
+      }
     }
   ], [onSelectBuilding, t]);
 

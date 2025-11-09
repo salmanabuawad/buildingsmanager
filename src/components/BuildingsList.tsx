@@ -60,40 +60,6 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
-      field: 'building_number',
-      headerName: t('buildingNumber'),
-      flex: 1.5,
-      sortable: true,
-      filter: true,
-      editable: false
-    },
-    {
-      field: 'tax_region',
-      headerName: t('taxRegion'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: true
-    },
-    {
-      field: 'total_units',
-      headerName: t('totalUnits'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
-      field: 'total_building_area',
-      headerName: t('totalBuildingArea'),
-      flex: 1.5,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
-    },
-    {
       headerName: t('actions'),
       width: 130,
       filter: false,
@@ -109,6 +75,40 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
           </button>
         );
       }
+    },
+    {
+      field: 'total_building_area',
+      headerName: t('totalBuildingArea'),
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      editable: false,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'total_units',
+      headerName: t('totalUnits'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      editable: false,
+      valueFormatter: (params) => params.value?.toLocaleString()
+    },
+    {
+      field: 'tax_region',
+      headerName: t('taxRegion'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      editable: true
+    },
+    {
+      field: 'building_number',
+      headerName: t('buildingNumber'),
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      editable: false
     }
   ], [onSelectBuilding, t]);
 

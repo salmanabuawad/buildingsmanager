@@ -16,6 +16,7 @@ export function UnitTypes() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    tax_region: '',
   });
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function UnitTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', tax_region: '' });
     setIsAdding(false);
     setEditingId(null);
   }
@@ -55,6 +56,7 @@ export function UnitTypes() {
     setFormData({
       name: unitType.name,
       description: unitType.description,
+      tax_region: unitType.tax_region?.toString() || '',
     });
     setEditingId(unitType.id);
     setIsAdding(false);
@@ -77,11 +79,17 @@ export function UnitTypes() {
     }
 
     try {
+      const dataToSave = {
+        name: formData.name,
+        description: formData.description,
+        tax_region: formData.tax_region ? parseFloat(formData.tax_region) : undefined,
+      };
+
       if (editingId) {
-        await api.unitTypes.update(editingId, formData);
+        await api.unitTypes.update(editingId, dataToSave);
         showMessage('success', t('unitTypeUpdated'));
       } else {
-        await api.unitTypes.create(formData);
+        await api.unitTypes.create(dataToSave);
         showMessage('success', t('unitTypeCreated'));
       }
       await fetchUnitTypes();
@@ -236,7 +244,7 @@ export function UnitTypes() {
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               {editingId ? t('editUnitType') : t('addUnitType')}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {t('typeName')} *
@@ -265,6 +273,19 @@ export function UnitTypes() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder={t('typeDescription')}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {t('taxRegion')}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.tax_region}
+                  onChange={(e) => setFormData({ ...formData, tax_region: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  placeholder="0.00"
                 />
               </div>
             </div>
@@ -313,6 +334,9 @@ export function UnitTypes() {
                     {t('typeDescription')}
                   </th>
                   <th className="text-right py-3 px-4 text-sm font-bold text-slate-700">
+                    {t('taxRegion')}
+                  </th>
+                  <th className="text-right py-3 px-4 text-sm font-bold text-slate-700">
                     {t('actions')}
                   </th>
                 </tr>
@@ -327,6 +351,7 @@ export function UnitTypes() {
                       <span className="font-semibold text-slate-900">{unitType.name}</span>
                     </td>
                     <td className="py-4 px-4 text-slate-600">{unitType.description || '-'}</td>
+                    <td className="py-4 px-4 text-slate-600">{unitType.tax_region?.toFixed(2) || '-'}</td>
                     <td className="py-4 px-4">
                       <div className="flex gap-2 justify-end">
                         <button

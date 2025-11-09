@@ -48,6 +48,7 @@ export interface UnitType {
   id: string;
   name: string;
   description: string;
+  tax_region?: number;
   created_at: string;
   updated_at: string;
 }

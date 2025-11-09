@@ -126,7 +126,8 @@ export function UnitTypes() {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'description',
@@ -134,7 +135,8 @@ export function UnitTypes() {
       flex: 2,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'tax_region',
@@ -143,7 +145,8 @@ export function UnitTypes() {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value || '-'
+      valueFormatter: (params) => params.value || '-',
+      cellStyle: { textAlign: 'right' }
     },
     {
       headerName: t('actions'),

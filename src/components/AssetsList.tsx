@@ -86,7 +86,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1.2,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'payer_id',
@@ -94,7 +95,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1.2,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'main_asset_type',
@@ -102,7 +104,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'main_asset_size',
@@ -111,7 +114,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_1',
@@ -119,7 +123,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_1',
@@ -128,7 +133,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_2',
@@ -136,7 +142,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_2',
@@ -145,7 +152,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_3',
@@ -153,7 +161,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_3',
@@ -162,7 +171,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_4',
@@ -170,7 +180,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_4',
@@ -179,7 +190,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_5',
@@ -187,7 +199,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_5',
@@ -196,7 +209,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_6',
@@ -204,7 +218,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_6',
@@ -213,7 +228,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     }
   ], [buildingNumber, onSelectAsset, t]);
 

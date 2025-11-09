@@ -83,7 +83,8 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'total_units',
@@ -92,7 +93,8 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString()
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'tax_region',
@@ -100,7 +102,8 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
-      editable: true
+      editable: true,
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'building_number',
@@ -108,7 +111,8 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1.5,
       sortable: true,
       filter: true,
-      editable: false
+      editable: false,
+      cellStyle: { textAlign: 'right' }
     }
   ], [onSelectBuilding, t]);
 

@@ -1,17 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UnitType, api } from '../lib/api';
-import { Plus, Edit2, Trash2, Save, X, Tag, Upload } from 'lucide-react';
+import { Plus, Tag, Upload, Trash2 } from 'lucide-react';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 export function UnitTypes() {
   const { t } = useTranslation();
   const [unitTypes, setUnitTypes] = useState<UnitType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<AgGridReact<UnitType>>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -23,16 +27,16 @@ export function UnitTypes() {
     fetchUnitTypes();
   }, []);
 
-  async function fetchUnitTypes() {
+  async function fetchUnitTypes(showLoading = true) {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const data = await api.unitTypes.getAll();
       setUnitTypes(data);
     } catch (error) {
       console.error('Error fetching unit types:', error);
       showMessage('error', t('error'));
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }
 
@@ -44,22 +48,11 @@ export function UnitTypes() {
   function resetForm() {
     setFormData({ name: '', description: '', tax_region: '' });
     setIsAdding(false);
-    setEditingId(null);
   }
 
   function startAdd() {
     resetForm();
     setIsAdding(true);
-  }
-
-  function startEdit(unitType: UnitType) {
-    setFormData({
-      name: unitType.name,
-      description: unitType.description,
-      tax_region: unitType.tax_region?.toString() || '',
-    });
-    setEditingId(unitType.id);
-    setIsAdding(false);
   }
 
   async function handleSave() {
@@ -85,13 +78,8 @@ export function UnitTypes() {
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
       };
 
-      if (editingId) {
-        await api.unitTypes.update(editingId, dataToSave);
-        showMessage('success', t('unitTypeUpdated'));
-      } else {
-        await api.unitTypes.create(dataToSave);
-        showMessage('success', t('unitTypeCreated'));
-      }
+      await api.unitTypes.create(dataToSave);
+      showMessage('success', t('unitTypeCreated'));
       await fetchUnitTypes();
       resetForm();
     } catch (error) {
@@ -99,6 +87,24 @@ export function UnitTypes() {
       console.error('Error saving unit type:', error);
     }
   }
+
+  const onCellValueChanged = useCallback(async (event: any) => {
+    try {
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const unitTypeId = data.id;
+
+      const updateData: Partial<UnitType> = {
+        [field]: event.newValue
+      };
+
+      await api.unitTypes.update(unitTypeId, updateData);
+      await fetchUnitTypes(false);
+    } catch (error) {
+      console.error('Error updating unit type:', error);
+      await fetchUnitTypes(false);
+    }
+  }, []);
 
   async function handleDelete(id: string) {
     if (!confirm(t('confirmDeleteUnitType'))) return;
@@ -112,6 +118,51 @@ export function UnitTypes() {
       console.error('Error deleting unit type:', error);
     }
   }
+
+  const columnDefs: ColDef<UnitType>[] = useMemo(() => [
+    {
+      field: 'name',
+      headerName: t('typeName'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      editable: true
+    },
+    {
+      field: 'description',
+      headerName: t('typeDescription'),
+      flex: 2,
+      sortable: true,
+      filter: true,
+      editable: true
+    },
+    {
+      field: 'tax_region',
+      headerName: t('taxRegion'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      editable: true,
+      valueFormatter: (params) => params.value || '-'
+    },
+    {
+      headerName: t('actions'),
+      width: 100,
+      filter: false,
+      sortable: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        return (
+          <button
+            onClick={() => handleDelete(params.data.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        );
+      }
+    }
+  ], [t]);
 
   async function handleCSVImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -211,7 +262,7 @@ export function UnitTypes() {
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-slate-900">{t('unitTypes')}</h2>
-          {!isAdding && !editingId && (
+          {!isAdding && (
             <div className="flex gap-2">
               <input
                 ref={fileInputRef}
@@ -239,10 +290,10 @@ export function UnitTypes() {
           )}
         </div>
 
-        {(isAdding || editingId) && (
+        {isAdding && (
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
-              {editingId ? t('editUnitType') : t('addUnitType')}
+              {t('addUnitType')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
@@ -294,21 +345,20 @@ export function UnitTypes() {
                 onClick={handleSave}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                <Save className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 {t('save')}
               </button>
               <button
                 onClick={resetForm}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
               >
-                <X className="h-4 w-4" />
                 {t('cancel')}
               </button>
             </div>
           </div>
         )}
 
-        {!isAdding && !editingId && (
+        {!isAdding && (
           <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-600">
             <p className="font-semibold mb-1">CSV Format:</p>
             <p className="font-mono text-xs">123,Description for type 123</p>
@@ -323,55 +373,30 @@ export function UnitTypes() {
             <p className="text-lg">{t('noUnitTypes')}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-slate-200">
-                  <th className="text-right py-3 px-4 text-sm font-bold text-slate-700">
-                    {t('typeName')}
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-bold text-slate-700">
-                    {t('typeDescription')}
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-bold text-slate-700">
-                    {t('taxRegion')}
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-bold text-slate-700">
-                    {t('actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {unitTypes.map((unitType) => (
-                  <tr
-                    key={unitType.id}
-                    className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="py-4 px-4">
-                      <span className="font-semibold text-slate-900">{unitType.name}</span>
-                    </td>
-                    <td className="py-4 px-4 text-slate-600">{unitType.description || '-'}</td>
-                    <td className="py-4 px-4 text-slate-600">{unitType.tax_region || '-'}</td>
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => startEdit(unitType)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(unitType.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '400px', width: '100%' }}>
+            <AgGridReact
+              ref={gridRef}
+              rowData={unitTypes}
+              columnDefs={columnDefs}
+              defaultColDef={{
+                resizable: true,
+                sortable: true,
+                filter: true,
+                minWidth: 100
+              }}
+              onCellValueChanged={onCellValueChanged}
+              pagination={true}
+              paginationPageSize={20}
+              domLayout="normal"
+              suppressHorizontalScroll={false}
+              rowClass="ag-row"
+              getRowStyle={(params) => {
+                if (params.node.rowIndex % 2 === 0) {
+                  return { background: '#ffffff' };
+                }
+                return { background: '#f0f9ff' };
+              }}
+            />
           </div>
         )}
       </div>

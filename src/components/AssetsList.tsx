@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
@@ -26,9 +26,9 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
 
 
 
-  async function fetchData() {
+  async function fetchData(showLoading = true) {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
 
       const [buildingData, assetsData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
@@ -40,9 +40,27 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }
+
+  const onCellValueChanged = useCallback(async (event: any) => {
+    try {
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const assetId = data.id;
+
+      const updateData: Partial<Asset> = {
+        [field]: event.newValue
+      };
+
+      await api.assets.update(assetId, updateData);
+      await fetchData(false);
+    } catch (error) {
+      console.error('Error updating asset:', error);
+      await fetchData(false);
+    }
+  }, []);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -50,6 +68,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       width: 130,
       filter: false,
       sortable: false,
+      editable: false,
       cellRenderer: (params: any) => {
         return (
           <button
@@ -66,21 +85,24 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('assetId'),
       flex: 1.2,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
       flex: 1.2,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'main_asset_size',
@@ -88,6 +110,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 1,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -95,7 +118,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType1'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'sub_asset_size_1',
@@ -103,6 +127,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 0.8,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -110,7 +135,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType2'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'sub_asset_size_2',
@@ -118,6 +144,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 0.8,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -125,7 +152,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType3'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'sub_asset_size_3',
@@ -133,6 +161,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 0.8,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -140,7 +169,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType4'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'sub_asset_size_4',
@@ -148,6 +178,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 0.8,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -155,7 +186,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType5'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'sub_asset_size_5',
@@ -163,6 +195,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 0.8,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -170,7 +203,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType6'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'sub_asset_size_6',
@@ -178,6 +212,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       flex: 0.8,
       sortable: true,
       filter: true,
+      editable: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     }
   ], [buildingNumber, onSelectAsset, t]);
@@ -226,6 +261,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
               filter: true,
               minWidth: 100
             }}
+            onCellValueChanged={onCellValueChanged}
             pagination={true}
             paginationPageSize={20}
             domLayout="normal"

@@ -40,20 +40,40 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
 
 
 
+  const onCellValueChanged = useCallback(async (event: any) => {
+    try {
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const buildingNumber = data.building_number;
+
+      const updateData: Partial<Building> = {
+        [field]: event.newValue
+      };
+
+      await api.buildings.update(buildingNumber, updateData);
+      await fetchBuildings(false);
+    } catch (error) {
+      console.error('Error updating building:', error);
+      await fetchBuildings(false);
+    }
+  }, [fetchBuildings]);
+
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
       field: 'tax_region',
       headerName: t('taxRegion'),
       flex: 1,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: true
     },
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
       flex: 2,
       sortable: true,
-      filter: true
+      filter: true,
+      editable: false
     },
     {
       field: 'total_units',
@@ -61,6 +81,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
+      editable: false,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -69,6 +90,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
+      editable: false,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -77,6 +99,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
+      editable: false,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -85,6 +108,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
+      editable: false,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -93,6 +117,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
+      editable: false,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -101,6 +126,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       flex: 1,
       sortable: true,
       filter: true,
+      editable: false,
       valueFormatter: (params) => params.value?.toLocaleString()
     },
     {
@@ -108,6 +134,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       width: 130,
       filter: false,
       sortable: false,
+      editable: false,
       cellRenderer: (params: any) => {
         return (
           <button
@@ -188,6 +215,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
               filter: true,
               minWidth: 100
             }}
+            onCellValueChanged={onCellValueChanged}
             pagination={true}
             paginationPageSize={20}
             domLayout="normal"

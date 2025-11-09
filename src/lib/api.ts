@@ -5,6 +5,7 @@ export interface Building {
   tax_region?: string;
   total_units: number;
   total_building_area: number;
+  total_area_for_control?: number;
   created_at: string;
 }
 

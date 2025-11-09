@@ -77,6 +77,16 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       }
     },
     {
+      field: 'total_area_for_control',
+      headerName: t('totalAreaForControl'),
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      editable: true,
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'total_building_area',
       headerName: t('totalBuildingArea'),
       flex: 1.5,

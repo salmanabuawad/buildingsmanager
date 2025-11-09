@@ -145,7 +145,8 @@ export const translations = {
       subAssetType5: 'Sub-Asset Type 5',
       subAssetSize5: 'Sub-Asset Size 5',
       subAssetType6: 'Sub-Asset Type 6',
-      subAssetSize6: 'Sub-Asset Size 6'
+      subAssetSize6: 'Sub-Asset Size 6',
+      totalAreaForControl: 'Total Area for Control'
     }
   },
   he: {
@@ -294,7 +295,8 @@ export const translations = {
       subAssetType5: 'סוג נכס משנה 5',
       subAssetSize5: 'גודל נכס משנה 5',
       subAssetType6: 'סוג נכס משנה 6',
-      subAssetSize6: 'גודל נכס משנה 6'
+      subAssetSize6: 'גודל נכס משנה 6',
+      totalAreaForControl: 'סה"כ שטח לבקרה'
     }
   }
 };

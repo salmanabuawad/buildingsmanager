@@ -121,36 +121,53 @@ export function AssetDataEntry() {
       }
 
       let savedCount = 0;
-      for (const row of rowsToSave) {
-        const assetData: Omit<Asset, 'id' | 'created_at'> = {
-          building_number: row.building_number!,
-          payer_id: row.payer_id,
-          asset_id: row.asset_id,
-          main_asset_type: row.main_asset_type || undefined,
-          main_asset_size: row.main_asset_size || 0,
-          sub_asset_type_1: row.sub_asset_type_1 || undefined,
-          sub_asset_size_1: row.sub_asset_size_1 || 0,
-          sub_asset_type_2: row.sub_asset_type_2 || undefined,
-          sub_asset_size_2: row.sub_asset_size_2 || 0,
-          sub_asset_type_3: row.sub_asset_type_3 || undefined,
-          sub_asset_size_3: row.sub_asset_size_3 || 0,
-          sub_asset_type_4: row.sub_asset_type_4 || undefined,
-          sub_asset_size_4: row.sub_asset_size_4 || 0,
-          sub_asset_type_5: row.sub_asset_type_5 || undefined,
-          sub_asset_size_5: row.sub_asset_size_5 || 0,
-          sub_asset_type_6: row.sub_asset_type_6 || undefined,
-          sub_asset_size_6: row.sub_asset_size_6 || 0,
-          total_size: row.total_size
-        };
+      const errors: string[] = [];
 
-        await api.assets.create(assetData);
-        savedCount++;
+      for (const row of rowsToSave) {
+        try {
+          const assetData: Omit<Asset, 'id' | 'created_at'> = {
+            building_number: row.building_number!,
+            payer_id: row.payer_id || null,
+            asset_id: row.asset_id,
+            main_asset_type: row.main_asset_type || undefined,
+            main_asset_size: row.main_asset_size || 0,
+            sub_asset_type_1: row.sub_asset_type_1 || undefined,
+            sub_asset_size_1: row.sub_asset_size_1 || 0,
+            sub_asset_type_2: row.sub_asset_type_2 || undefined,
+            sub_asset_size_2: row.sub_asset_size_2 || 0,
+            sub_asset_type_3: row.sub_asset_type_3 || undefined,
+            sub_asset_size_3: row.sub_asset_size_3 || 0,
+            sub_asset_type_4: row.sub_asset_type_4 || undefined,
+            sub_asset_size_4: row.sub_asset_size_4 || 0,
+            sub_asset_type_5: row.sub_asset_type_5 || undefined,
+            sub_asset_size_5: row.sub_asset_size_5 || 0,
+            sub_asset_type_6: row.sub_asset_type_6 || undefined,
+            sub_asset_size_6: row.sub_asset_size_6 || 0,
+            total_size: row.total_size
+          };
+
+          await api.assets.create(assetData);
+          savedCount++;
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          errors.push(`Asset ${row.asset_id} (Building ${row.building_number}): ${errorMsg}`);
+        }
       }
 
-      setSuccess(`${savedCount} asset(s) created successfully!`);
-      setRowData([createEmptyRow()]);
+      if (errors.length > 0) {
+        const errorDetails = errors.join('\n');
+        if (savedCount > 0) {
+          setError(`Partially saved: ${savedCount} succeeded, ${errors.length} failed:\n${errorDetails}`);
+        } else {
+          setError(`All saves failed:\n${errorDetails}`);
+        }
+      } else {
+        setSuccess(`${savedCount} asset(s) created successfully!`);
+        setRowData([createEmptyRow()]);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save assets');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save assets';
+      setError(`Critical error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -515,7 +532,7 @@ export function AssetDataEntry() {
 
       {error && (
         <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
-          <p className="text-red-800 font-medium">{error}</p>
+          <p className="text-red-800 font-medium whitespace-pre-line">{error}</p>
         </div>
       )}
 

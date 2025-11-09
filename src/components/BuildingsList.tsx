@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag, Search } from 'lucide-react';
+import { Tag, Search, AlertCircle } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -59,6 +59,28 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
   }, [fetchBuildings]);
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
+    {
+      headerName: '',
+      width: 50,
+      filter: false,
+      sortable: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const hasControlArea = building.total_area_for_control != null;
+        const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
+        const hasDiscrepancy = hasControlArea && !areasMatch;
+
+        if (hasDiscrepancy) {
+          return (
+            <div className="flex items-center justify-center h-full">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+          );
+        }
+        return null;
+      }
+    },
     {
       headerName: t('actions'),
       width: 130,

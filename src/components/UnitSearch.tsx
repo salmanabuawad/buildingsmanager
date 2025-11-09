@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Home, Building as BuildingIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Apartment, Building } from '../lib/api';
+import { Asset, Building } from '../lib/api';
 
-interface SearchResult extends Apartment {
+interface SearchResult extends Asset {
   building_number_display: number;
 }
 
@@ -30,7 +30,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
 
     try {
       const { data, error } = await supabase
-        .from('apartments')
+        .from('assets')
         .select('*')
         .gte('apartment_number', fromNumber)
         .lte('apartment_number', toNumber)

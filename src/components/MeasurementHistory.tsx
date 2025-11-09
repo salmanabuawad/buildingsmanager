@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ApartmentMeasurement, api } from '../lib/api';
+import { AssetMeasurement, api } from '../lib/api';
 import { Plus, Edit2, Trash2, Calendar, Save, X, Upload, FileText, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PDFViewer } from './PDFViewer';
@@ -11,7 +11,7 @@ interface MeasurementHistoryProps {
 
 export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
   const { t } = useTranslation();
-  const [measurements, setMeasurements] = useState<ApartmentMeasurement[]>([]);
+  const [measurements, setMeasurements] = useState<AssetMeasurement[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -22,9 +22,9 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
   const [previewingDrawing, setPreviewingDrawing] = useState<string | null>(null);
 
   const emptyMeasurement = {
-    apartment_id: apartmentId,
+    asset_id: apartmentId,
     measurement_date: new Date().toISOString().split('T')[0],
-    apartment_area: 0,
+    asset_area: 0,
     storage_area: 0,
     pergola_area: 0,
     balcony_area: 0,
@@ -34,7 +34,7 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
   };
 
   const [newMeasurement, setNewMeasurement] = useState(emptyMeasurement);
-  const [editValues, setEditValues] = useState<Partial<ApartmentMeasurement>>({});
+  const [editValues, setEditValues] = useState<Partial<AssetMeasurement>>({});
 
   useEffect(() => {
     fetchMeasurements();
@@ -94,11 +94,11 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
     }
   }
 
-  function startEdit(measurement: ApartmentMeasurement) {
+  function startEdit(measurement: AssetMeasurement) {
     setEditingId(measurement.id);
     setEditValues({
       measurement_date: measurement.measurement_date,
-      apartment_area: measurement.apartment_area,
+      asset_area: measurement.asset_area,
       storage_area: measurement.storage_area,
       pergola_area: measurement.pergola_area,
       balcony_area: measurement.balcony_area,
@@ -294,9 +294,9 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
               </label>
               <input
                 type="number"
-                value={newMeasurement.apartment_area}
+                value={newMeasurement.asset_area}
                 onChange={(e) =>
-                  setNewMeasurement({ ...newMeasurement, apartment_area: parseFloat(e.target.value) || 0 })
+                  setNewMeasurement({ ...newMeasurement, asset_area: parseFloat(e.target.value) || 0 })
                 }
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
               />
@@ -469,9 +469,9 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                       </label>
                       <input
                         type="number"
-                        value={editValues.apartment_area || 0}
+                        value={editValues.asset_area || 0}
                         onChange={(e) =>
-                          setEditValues({ ...editValues, apartment_area: parseFloat(e.target.value) || 0 })
+                          setEditValues({ ...editValues, asset_area: parseFloat(e.target.value) || 0 })
                         }
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                       />
@@ -577,7 +577,7 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
                     <div>
                       <span className="text-slate-600">{t('apartmentArea')}:</span>
                       <span className="font-medium text-slate-900 mr-2">
-                        {measurement.apartment_area.toLocaleString()}
+                        {measurement.asset_area.toLocaleString()}
                       </span>
                     </div>
                     <div>

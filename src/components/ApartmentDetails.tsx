@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Apartment, Building, api } from '../lib/api';
+import { Asset, Building, api } from '../lib/api';
 import { Edit2, Save, X, Home } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
 
@@ -11,7 +11,7 @@ interface ApartmentDetailsProps {
 
 export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetailsProps) {
   const { t } = useTranslation();
-  const [apartment, setApartment] = useState<Apartment | null>(null);
+  const [apartment, setApartment] = useState<Asset | null>(null);
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
     try {
       setLoading(true);
 
-      const apartmentData = await api.apartments.getOne(apartmentId);
+      const apartmentData = await api.assets.getOne(apartmentId);
       if (!apartmentData) throw new Error('Apartment not found');
 
       setApartment(apartmentData);
@@ -62,7 +62,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
       setIsSaving(true);
       setSaveMessage(null);
 
-      await api.apartments.update(apartmentId, {
+      await api.assets.update(apartmentId, {
         apartment_area: editValues.apartment_area,
         storage_area: editValues.storage_area,
         pergola_area: editValues.pergola_area,

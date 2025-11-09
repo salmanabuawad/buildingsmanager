@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Apartment, Building, api } from '../lib/api';
+import { Asset, Building, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon } from 'lucide-react';
@@ -14,11 +14,11 @@ interface ApartmentsListProps {
 
 export function ApartmentsList({ buildingNumber, onSelectApartment }: ApartmentsListProps) {
   const { t } = useTranslation();
-  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [apartments, setApartments] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const gridRef = useRef<AgGridReact<Apartment>>(null);
+  const gridRef = useRef<AgGridReact<Asset>>(null);
 
   useEffect(() => {
     fetchData();
@@ -32,7 +32,7 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
 
       const [buildingData, apartmentsData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
-        api.apartments.getAll(buildingNumber)
+        api.assets.getAll(buildingNumber)
       ]);
 
       setBuilding(buildingData);
@@ -44,7 +44,7 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
     }
   }
 
-  const columnDefs: ColDef<Apartment>[] = useMemo(() => [
+  const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: t('actions'),
       width: 130,

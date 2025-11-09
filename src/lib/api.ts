@@ -12,7 +12,7 @@ export interface Building {
   created_at: string;
 }
 
-export interface Apartment {
+export interface Asset {
   id: string;
   building_number: number;
   apartment_number: string;
@@ -28,11 +28,11 @@ export interface Apartment {
   created_at: string;
 }
 
-export interface ApartmentMeasurement {
+export interface AssetMeasurement {
   id: string;
-  apartment_id: string;
+  asset_id: string;
   measurement_date: string;
-  apartment_area: number;
+  asset_area: number;
   storage_area: number;
   pergola_area: number;
   balcony_area: number;
@@ -107,10 +107,10 @@ export const api = {
       return { message: 'Building deleted successfully' };
     },
   },
-  apartments: {
-    getAll: async (buildingNumber?: number): Promise<Apartment[]> => {
+  assets: {
+    getAll: async (buildingNumber?: number): Promise<Asset[]> => {
       let query = supabase
-        .from('apartments')
+        .from('assets')
         .select('*')
         .order('apartment_number');
 
@@ -123,20 +123,20 @@ export const api = {
       if (error) throw error;
       return data || [];
     },
-    getOne: async (id: string): Promise<Apartment> => {
+    getOne: async (id: string): Promise<Asset> => {
       const { data, error } = await supabase
-        .from('apartments')
+        .from('assets')
         .select('*')
         .eq('id', id)
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Apartment not found');
+      if (!data) throw new Error('Asset not found');
       return data;
     },
-    create: async (input: Omit<Apartment, 'id' | 'created_at'>): Promise<Apartment> => {
+    create: async (input: Omit<Asset, 'id' | 'created_at'>): Promise<Asset> => {
       const { data, error } = await supabase
-        .from('apartments')
+        .from('assets')
         .insert(input)
         .select()
         .single();
@@ -144,9 +144,9 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (id: string, input: Partial<Apartment>): Promise<Apartment> => {
+    update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
       const { data, error } = await supabase
-        .from('apartments')
+        .from('assets')
         .update(input)
         .eq('id', id)
         .select()
@@ -157,26 +157,26 @@ export const api = {
     },
     delete: async (id: string): Promise<{ message: string }> => {
       const { error } = await supabase
-        .from('apartments')
+        .from('assets')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      return { message: 'Apartment deleted successfully' };
+      return { message: 'Asset deleted successfully' };
     },
   },
   measurements: {
-    getAll: async (apartmentId: string): Promise<ApartmentMeasurement[]> => {
+    getAll: async (assetId: string): Promise<AssetMeasurement[]> => {
       const { data, error } = await supabase
         .from('apartment_measurements')
         .select('*')
-        .eq('apartment_id', apartmentId)
+        .eq('asset_id', assetId)
         .order('measurement_date', { ascending: false });
 
       if (error) throw error;
       return data || [];
     },
-    getOne: async (id: string): Promise<ApartmentMeasurement> => {
+    getOne: async (id: string): Promise<AssetMeasurement> => {
       const { data, error } = await supabase
         .from('apartment_measurements')
         .select('*')
@@ -187,7 +187,7 @@ export const api = {
       if (!data) throw new Error('Measurement not found');
       return data;
     },
-    create: async (input: Omit<ApartmentMeasurement, 'id' | 'created_at' | 'total_area'>): Promise<ApartmentMeasurement> => {
+    create: async (input: Omit<AssetMeasurement, 'id' | 'created_at' | 'total_area'>): Promise<AssetMeasurement> => {
       const { data, error } = await supabase
         .from('apartment_measurements')
         .insert(input)
@@ -197,7 +197,7 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (id: string, input: Partial<ApartmentMeasurement>): Promise<ApartmentMeasurement> => {
+    update: async (id: string, input: Partial<AssetMeasurement>): Promise<AssetMeasurement> => {
       const { data, error } = await supabase
         .from('apartment_measurements')
         .update(input)

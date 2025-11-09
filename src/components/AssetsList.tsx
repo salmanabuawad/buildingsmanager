@@ -7,14 +7,14 @@ import { Building as BuildingIcon } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
-interface ApartmentsListProps {
+interface AssetsListProps {
   buildingNumber: number;
-  onSelectApartment: (apartmentId: string, assetId: string, buildingNumber: number) => void;
+  onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
 }
 
-export function ApartmentsList({ buildingNumber, onSelectApartment }: ApartmentsListProps) {
+export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
-  const [apartments, setApartments] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,13 +30,13 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
     try {
       setLoading(true);
 
-      const [buildingData, apartmentsData] = await Promise.all([
+      const [buildingData, assetsData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
         api.assets.getAll(buildingNumber)
       ]);
 
       setBuilding(buildingData);
-      setApartments(apartmentsData || []);
+      setAssets(assetsData || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
@@ -53,7 +53,7 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => onSelectApartment(params.data.id, params.data.asset_id, buildingNumber)}
+            onClick={() => onSelectAsset(params.data.id, params.data.asset_id, buildingNumber)}
             className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
           >
             {t('viewDetails')}
@@ -98,14 +98,14 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
       filter: true,
       valueFormatter: (params) => params.value?.toLocaleString()
     }
-  ], [buildingNumber, onSelectApartment, t]);
+  ], [buildingNumber, onSelectAsset, t]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-slate-700 font-medium">{t('loadingApartments')}</p>
+          <p className="mt-4 text-slate-700 font-medium">{t('loadingAssets')}</p>
         </div>
       </div>
     );
@@ -136,7 +136,7 @@ export function ApartmentsList({ buildingNumber, onSelectApartment }: Apartments
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '500px', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={apartments}
+            rowData={assets}
             columnDefs={columnDefs}
             defaultColDef={{
               resizable: true,

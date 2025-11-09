@@ -6,10 +6,10 @@ import { supabase } from '../lib/supabase';
 import { PDFViewer } from './PDFViewer';
 
 interface MeasurementHistoryProps {
-  apartmentId: string;
+  assetId: string;
 }
 
-export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
+export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
   const { t } = useTranslation();
   const [measurements, setMeasurements] = useState<AssetMeasurement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
   const [previewingDrawing, setPreviewingDrawing] = useState<string | null>(null);
 
   const emptyMeasurement = {
-    asset_id: apartmentId,
+    asset_id: assetId,
     measurement_date: new Date().toISOString().split('T')[0],
     asset_area: 0,
     storage_area: 0,
@@ -38,12 +38,12 @@ export function MeasurementHistory({ apartmentId }: MeasurementHistoryProps) {
 
   useEffect(() => {
     fetchMeasurements();
-  }, [apartmentId]);
+  }, [assetId]);
 
   async function fetchMeasurements() {
     try {
       setLoading(true);
-      const data = await api.measurements.getAll(apartmentId);
+      const data = await api.measurements.getAll(assetId);
       setMeasurements(data);
     } catch (error) {
       console.error('Error fetching measurements:', error);

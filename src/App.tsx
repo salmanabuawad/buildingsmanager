@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BuildingsList } from './components/BuildingsList';
-import { ApartmentsList } from './components/ApartmentsList';
-import { ApartmentDetails } from './components/ApartmentDetails';
+import { AssetsList } from './components/AssetsList';
+import { AssetDetails } from './components/AssetDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
 import { UnitTypes } from './components/UnitTypes';
 import { UnitSearch } from './components/UnitSearch';
@@ -9,9 +9,9 @@ import { X, Settings, Building, Home, Tag, Search } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'apartments' | 'details' | 'admin' | 'unit-types' | 'unit-search';
+  type: 'buildings' | 'assets' | 'details' | 'admin' | 'unit-types' | 'unit-search';
   buildingNumber?: number;
-  apartmentId?: string;
+  assetId?: string;
   label: string;
   refreshKey?: number;
 }
@@ -23,7 +23,7 @@ function App() {
   const [activeTabId, setActiveTabId] = useState('buildings');
 
   function handleSelectBuilding(buildingNumber: number) {
-    const newTabId = `apartments-${buildingNumber}`;
+    const newTabId = `assets-${buildingNumber}`;
 
     const existingTab = tabs.find(tab => tab.id === newTabId);
     if (existingTab) {
@@ -33,7 +33,7 @@ function App() {
 
     const newTab: Tab = {
       id: newTabId,
-      type: 'apartments',
+      type: 'assets',
       buildingNumber,
       label: `Building ${buildingNumber}`
     };
@@ -42,8 +42,8 @@ function App() {
     setActiveTabId(newTabId);
   }
 
-  function handleSelectApartment(apartmentId: string, apartmentNumber: string, buildingNumber: number) {
-    const newTabId = `details-${apartmentId}`;
+  function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {
+    const newTabId = `details-${assetDbId}`;
 
     const existingTab = tabs.find(tab => tab.id === newTabId);
     if (existingTab) {
@@ -55,8 +55,8 @@ function App() {
       id: newTabId,
       type: 'details',
       buildingNumber,
-      apartmentId,
-      label: `Unit ${apartmentNumber}`
+      assetId: assetDbId,
+      label: `Asset ${assetId}`
     };
 
     setTabs([...tabs, newTab]);
@@ -65,7 +65,7 @@ function App() {
 
   function handleDataUpdate() {
     setTabs(prevTabs => prevTabs.map(tab => {
-      if (tab.type === 'buildings' || tab.type === 'apartments') {
+      if (tab.type === 'buildings' || tab.type === 'assets') {
         return { ...tab, refreshKey: Date.now() };
       }
       return tab;
@@ -168,7 +168,7 @@ function App() {
                     <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'buildings' ? (
                     <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
-                  ) : tab.type === 'apartments' ? (
+                  ) : tab.type === 'assets' ? (
                     <Building className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : (
                     <Home className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
@@ -205,15 +205,15 @@ function App() {
             onOpenUnitSearch={openUnitSearch}
           />
         )}
-        {activeTab?.type === 'apartments' && activeTab.buildingNumber && (
-          <ApartmentsList
+        {activeTab?.type === 'assets' && activeTab.buildingNumber && (
+          <AssetsList
             key={activeTab.refreshKey}
             buildingNumber={activeTab.buildingNumber}
-            onSelectApartment={handleSelectApartment}
+            onSelectAsset={handleSelectAsset}
           />
         )}
-        {activeTab?.type === 'details' && activeTab.apartmentId && (
-          <ApartmentDetails apartmentId={activeTab.apartmentId} onDataUpdate={handleDataUpdate} />
+        {activeTab?.type === 'details' && activeTab.assetId && (
+          <AssetDetails assetId={activeTab.assetId} onDataUpdate={handleDataUpdate} />
         )}
         {activeTab?.type === 'admin' && (
           <AdminPDFManager />
@@ -222,7 +222,7 @@ function App() {
           <UnitTypes />
         )}
         {activeTab?.type === 'unit-search' && (
-          <UnitSearch onSelectApartment={handleSelectApartment} />
+          <UnitSearch onSelectAsset={handleSelectAsset} />
         )}
       </div>
     </div>

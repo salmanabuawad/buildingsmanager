@@ -52,7 +52,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
             onClick={() => onSelectBuilding(params.data.building_number)}
             className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
           >
-            {t('viewApartments')}
+            {t('viewAssets')}
           </button>
         );
       }

@@ -4,12 +4,12 @@ import { Asset, Building, api } from '../lib/api';
 import { Home, Package } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
 
-interface ApartmentDetailsProps {
-  apartmentId: string;
+interface AssetDetailsProps {
+  assetId: string;
   onDataUpdate?: () => void;
 }
 
-export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetailsProps) {
+export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -18,13 +18,13 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
 
   useEffect(() => {
     fetchData();
-  }, [apartmentId]);
+  }, [assetId]);
 
   async function fetchData() {
     try {
       setLoading(true);
 
-      const assetData = await api.assets.getOne(apartmentId);
+      const assetData = await api.assets.getOne(assetId);
       if (!assetData) throw new Error('Asset not found');
 
       setAsset(assetData);
@@ -159,7 +159,7 @@ export function ApartmentDetails({ apartmentId, onDataUpdate }: ApartmentDetails
 
       <div className="bg-white rounded-xl shadow-lg border border-blue-100">
         <div className="p-4 sm:p-6">
-          <MeasurementHistory apartmentId={apartmentId} />
+          <MeasurementHistory assetId={assetId} />
         </div>
       </div>
     </div>

@@ -8,10 +8,10 @@ interface SearchResult extends Asset {
 }
 
 interface UnitSearchProps {
-  onSelectApartment: (apartmentId: string, assetId: string, buildingNumber: number) => void;
+  onSelectAsset: (assetDbId: string, assetId: string, buildingNumber: number) => void;
 }
 
-export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
+export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
   const { t } = useTranslation();
   const [fromNumber, setFromNumber] = useState('');
   const [toNumber, setToNumber] = useState('');
@@ -162,7 +162,7 @@ export function UnitSearch({ onSelectApartment }: UnitSearchProps) {
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => onSelectApartment(unit.id, unit.asset_id, unit.building_number)}
+                          onClick={() => onSelectAsset(unit.id, unit.asset_id, unit.building_number)}
                           className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}

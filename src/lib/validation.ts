@@ -1,6 +1,42 @@
+import { api, ValidationRule } from './api';
+
 export interface ValidationResult {
   valid: boolean;
   error?: string;
+}
+
+let cachedRules: ValidationRule[] | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_DURATION = 60000;
+
+export async function loadValidationRules(forceRefresh = false): Promise<ValidationRule[]> {
+  const now = Date.now();
+
+  if (!forceRefresh && cachedRules && (now - cacheTimestamp) < CACHE_DURATION) {
+    return cachedRules;
+  }
+
+  try {
+    const rules = await api.validationRules.getEnabled();
+    cachedRules = rules;
+    cacheTimestamp = now;
+    return rules;
+  } catch (error) {
+    console.error('Failed to load validation rules:', error);
+    return cachedRules || [];
+  }
+}
+
+function getRuleValue(rules: ValidationRule[], ruleKey: string, valueType: 'numeric' | 'text'): any {
+  const rule = rules.find(r => r.rule_key === ruleKey && r.enabled);
+  if (!rule) return null;
+
+  return valueType === 'numeric' ? rule.value_numeric : rule.value_text;
+}
+
+function getRuleError(rules: ValidationRule[], ruleKey: string, defaultError: string): string {
+  const rule = rules.find(r => r.rule_key === ruleKey && r.enabled);
+  return rule?.error_message || defaultError;
 }
 
 export const validators = {
@@ -77,6 +113,37 @@ export const assetTypeValidators = {
 
     result = validators.digitsOnly(name, 'Type name');
     if (!result.valid) return result;
+
+    return { valid: true };
+  },
+
+  validateNameWithRules: async (name: string): Promise<ValidationResult> => {
+    const rules = await loadValidationRules();
+
+    const requiredRule = rules.find(r => r.rule_key === 'asset_type_name_required' && r.enabled);
+    if (requiredRule) {
+      const result = validators.required(name, requiredRule.field_name);
+      if (!result.valid) {
+        return { valid: false, error: requiredRule.error_message || result.error };
+      }
+    }
+
+    const lengthRule = rules.find(r => r.rule_key === 'asset_type_name_length' && r.enabled);
+    if (lengthRule && lengthRule.value_numeric) {
+      const result = validators.exactLength(name.trim(), lengthRule.value_numeric, lengthRule.field_name);
+      if (!result.valid) {
+        return { valid: false, error: lengthRule.error_message || result.error };
+      }
+    }
+
+    const patternRule = rules.find(r => r.rule_key === 'asset_type_name_pattern' && r.enabled);
+    if (patternRule && patternRule.value_text) {
+      const pattern = new RegExp(patternRule.value_text);
+      const result = validators.pattern(name, pattern, patternRule.field_name);
+      if (!result.valid) {
+        return { valid: false, error: patternRule.error_message || result.error };
+      }
+    }
 
     return { valid: true };
   },

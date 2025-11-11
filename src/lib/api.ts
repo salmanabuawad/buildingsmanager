@@ -57,6 +57,21 @@ export interface AssetType {
   updated_at: string;
 }
 
+export interface ValidationRule {
+  id: string;
+  rule_key: string;
+  rule_type: string;
+  field_name: string;
+  entity_type: string;
+  value_numeric?: number;
+  value_text?: string;
+  enabled: boolean;
+  error_message?: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export const api = {
   buildings: {
@@ -272,6 +287,93 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Asset type deleted successfully' };
+    },
+  },
+  validationRules: {
+    getAll: async (entityType?: string): Promise<ValidationRule[]> => {
+      let query = supabase
+        .from('validation_rules')
+        .select('*')
+        .order('entity_type')
+        .order('field_name');
+
+      if (entityType) {
+        query = query.eq('entity_type', entityType);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data || [];
+    },
+    getEnabled: async (entityType?: string): Promise<ValidationRule[]> => {
+      let query = supabase
+        .from('validation_rules')
+        .select('*')
+        .eq('enabled', true)
+        .order('entity_type')
+        .order('field_name');
+
+      if (entityType) {
+        query = query.eq('entity_type', entityType);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: string): Promise<ValidationRule> => {
+      const { data, error } = await supabase
+        .from('validation_rules')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) throw new Error('Validation rule not found');
+      return data;
+    },
+    getByKey: async (ruleKey: string): Promise<ValidationRule> => {
+      const { data, error } = await supabase
+        .from('validation_rules')
+        .select('*')
+        .eq('rule_key', ruleKey)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) throw new Error('Validation rule not found');
+      return data;
+    },
+    create: async (input: Omit<ValidationRule, 'id' | 'created_at' | 'updated_at'>): Promise<ValidationRule> => {
+      const { data, error } = await supabase
+        .from('validation_rules')
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    update: async (id: string, input: Partial<ValidationRule>): Promise<ValidationRule> => {
+      const { data, error } = await supabase
+        .from('validation_rules')
+        .update(input)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: string): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('validation_rules')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { message: 'Validation rule deleted successfully' };
     },
   },
 };

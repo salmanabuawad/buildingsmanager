@@ -4,7 +4,7 @@ import { Building, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag, Search, AlertCircle, Plus } from 'lucide-react';
+import { Tag, Search, AlertCircle, Plus, Settings } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -13,9 +13,10 @@ interface BuildingsListProps {
   onOpenAssetTypes?: () => void;
   onOpenAssetSearch?: () => void;
   onOpenDataEntry?: () => void;
+  onOpenValidationRules?: () => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,6 +211,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 >
                   <Tag className="h-5 w-5" />
                   <span className="hidden sm:inline">{t('assetTypes')}</span>
+                </button>
+              )}
+              {onOpenValidationRules && (
+                <button
+                  onClick={onOpenValidationRules}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="hidden sm:inline">Validation Rules</span>
                 </button>
               )}
             </div>

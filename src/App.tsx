@@ -6,11 +6,12 @@ import { AdminPDFManager } from './components/AdminPDFManager';
 import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { AssetDataEntry } from './components/AssetDataEntry';
+import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { X, Settings, Building, Home, Tag, Search, Plus } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry';
+  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry' | 'validation-rules';
   buildingNumber?: number;
   assetId?: string;
   label: string;
@@ -149,6 +150,25 @@ function App() {
     setActiveTabId(dataEntryTabId);
   }
 
+  function openValidationRules() {
+    const validationRulesTabId = 'validation-rules-panel';
+    const existingTab = tabs.find(tab => tab.id === validationRulesTabId);
+
+    if (existingTab) {
+      setActiveTabId(validationRulesTabId);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: validationRulesTabId,
+      type: 'validation-rules',
+      label: 'Validation Rules'
+    };
+
+    setTabs([...tabs, newTab]);
+    setActiveTabId(validationRulesTabId);
+  }
+
   function handleCloseTab(tabId: string) {
     if (tabId === 'buildings') return;
 
@@ -188,6 +208,8 @@ function App() {
                     <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'data-entry' ? (
                     <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                  ) : tab.type === 'validation-rules' ? (
+                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'buildings' ? (
                     <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
                   ) : tab.type === 'assets' ? (
@@ -226,6 +248,7 @@ function App() {
             onOpenAssetTypes={openAssetTypes}
             onOpenAssetSearch={openAssetSearch}
             onOpenDataEntry={openDataEntry}
+            onOpenValidationRules={openValidationRules}
           />
         )}
         {activeTab?.type === 'assets' && activeTab.buildingNumber && (
@@ -249,6 +272,9 @@ function App() {
         )}
         {activeTab?.type === 'data-entry' && (
           <AssetDataEntry />
+        )}
+        {activeTab?.type === 'validation-rules' && (
+          <ValidationRulesManager />
         )}
       </div>
     </div>

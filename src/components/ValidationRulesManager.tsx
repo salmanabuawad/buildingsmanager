@@ -42,7 +42,10 @@ export function ValidationRulesManager() {
   async function fetchRules() {
     try {
       setLoading(true);
+      console.log('Fetching validation rules...');
       const data = await api.validationRules.getAll();
+      console.log('Fetched validation rules:', data.length, 'rules');
+      console.log('Sample rule:', data[0]);
       setRules(data);
     } catch (error) {
       console.error('Error fetching validation rules:', error);
@@ -283,8 +286,8 @@ export function ValidationRulesManager() {
   }), []);
 
   const onGridReady = useCallback(() => {
-    console.log('Grid ready');
-  }, []);
+    console.log('Grid ready, rules count:', rules.length);
+  }, [rules]);
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-lg shadow-lg">
@@ -494,8 +497,15 @@ export function ValidationRulesManager() {
           <div className="flex items-center justify-center h-full">
             <div className="text-slate-600">Loading validation rules...</div>
           </div>
+        ) : rules.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-slate-600">No validation rules found. Click "Add Rule" to create one.</div>
+          </div>
         ) : (
           <div className="ag-theme-alpine h-full">
+            <div className="mb-2 text-sm text-slate-600">
+              Showing {rules.length} validation rules
+            </div>
             <AgGridReact
               rowData={rules}
               columnDefs={columnDefs}

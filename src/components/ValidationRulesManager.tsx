@@ -502,20 +502,22 @@ export function ValidationRulesManager() {
             <div className="text-slate-600">No validation rules found. Click "Add Rule" to create one.</div>
           </div>
         ) : (
-          <div className="ag-theme-alpine h-full">
+          <div className="flex flex-col h-full">
             <div className="mb-2 text-sm text-slate-600">
               Showing {rules.length} validation rules
             </div>
-            <AgGridReact
-              rowData={rules}
-              columnDefs={columnDefs}
-              defaultColDef={defaultColDef}
-              onGridReady={onGridReady}
-              pagination={true}
-              paginationPageSize={20}
-              domLayout="normal"
-              theme="legacy"
-            />
+            <div className="ag-theme-alpine flex-1" style={{ minHeight: 400 }}>
+              <AgGridReact
+                rowData={rules}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                onGridReady={onGridReady}
+                pagination={true}
+                paginationPageSize={20}
+                domLayout="normal"
+                theme="legacy"
+              />
+            </div>
           </div>
         )}
       </div>

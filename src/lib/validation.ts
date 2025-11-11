@@ -97,97 +97,183 @@ export const validators = {
     return { valid: true };
   },
 
-  positiveNumber: (value: number, fieldName: string): ValidationResult => {
-    if (value < 0) {
-      return { valid: false, error: `${fieldName} must be a positive number` };
+  positiveNumber: (value: number, fieldName: string, errorMessage?: string): ValidationResult => {
+    if (value <= 0) {
+      return { valid: false, error: errorMessage || `${fieldName} must be a positive number` };
     }
     return { valid: true };
   },
 
-  email: (value: string, fieldName: string): ValidationResult => {
+  email: (value: string, fieldName: string, errorMessage?: string): ValidationResult => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return validators.pattern(value, emailPattern, fieldName, `${fieldName} must be a valid email address`);
+    return validators.pattern(value, emailPattern, fieldName, errorMessage || `${fieldName} must be a valid email address`);
   },
 };
 
-export const assetTypeValidators = {
-  validateName: (name: string): ValidationResult => {
-    let result = validators.required(name, 'Type name');
-    if (!result.valid) return result;
+export async function applyRule(rule: ValidationRule, value: any): Promise<ValidationResult> {
+  const fieldName = rule.field_name;
+  const errorMessage = rule.error_message;
 
-    result = validators.exactLength(name.trim(), 3, 'Type name');
-    if (!result.valid) return result;
+  switch (rule.rule_type) {
+    case 'required':
+      const trimmedValue = typeof value === 'string' ? value.trim() : value;
+      if (!trimmedValue && trimmedValue !== 0) {
+        return { valid: false, error: errorMessage || `${fieldName} is required` };
+      }
+      return { valid: true };
 
-    result = validators.digitsOnly(name, 'Type name');
-    if (!result.valid) return result;
+    case 'exact_length':
+      if (rule.value_numeric == null) {
+        return { valid: false, error: 'Exact length rule requires numeric value' };
+      }
+      if (String(value).length !== rule.value_numeric) {
+        return { valid: false, error: errorMessage || `${fieldName} must be exactly ${rule.value_numeric} characters` };
+      }
+      return { valid: true };
 
-    return { valid: true };
-  },
+    case 'min_length':
+      if (rule.value_numeric == null) {
+        return { valid: false, error: 'Min length rule requires numeric value' };
+      }
+      if (String(value).length < rule.value_numeric) {
+        return { valid: false, error: errorMessage || `${fieldName} must be at least ${rule.value_numeric} characters` };
+      }
+      return { valid: true };
 
-  validateNameWithRules: async (name: string): Promise<ValidationResult> => {
-    const rules = await loadValidationRules();
+    case 'max_length':
+      if (rule.value_numeric == null) {
+        return { valid: false, error: 'Max length rule requires numeric value' };
+      }
+      if (String(value).length > rule.value_numeric) {
+        return { valid: false, error: errorMessage || `${fieldName} must be at most ${rule.value_numeric} characters` };
+      }
+      return { valid: true };
 
-    const requiredRule = rules.find(r => r.rule_key === 'asset_type_name_required' && r.enabled);
+    case 'pattern':
+      if (!rule.value_text) {
+        return { valid: false, error: 'Pattern rule requires text value' };
+      }
+      try {
+        const pattern = new RegExp(rule.value_text);
+        if (!pattern.test(String(value))) {
+          return { valid: false, error: errorMessage || `${fieldName} format is invalid` };
+        }
+        return { valid: true };
+      } catch (error) {
+        return { valid: false, error: 'Invalid pattern in rule' };
+      }
+
+    case 'numeric':
+      if (isNaN(Number(value))) {
+        return { valid: false, error: errorMessage || `${fieldName} must be a number` };
+      }
+      return { valid: true };
+
+    case 'positive_number':
+      if (Number(value) <= 0) {
+        return { valid: false, error: errorMessage || `${fieldName} must be a positive number` };
+      }
+      return { valid: true };
+
+    default:
+      return { valid: true };
+  }
+}
+
+export async function validateField(
+  entityType: string,
+  fieldName: string,
+  value: any
+): Promise<ValidationResult[]> {
+  const rules = await loadValidationRules();
+  const fieldRules = rules.filter(
+    r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
+  );
+
+  if (value == null || value === '') {
+    const requiredRule = fieldRules.find(r => r.rule_type === 'required');
     if (requiredRule) {
-      const result = validators.required(name, requiredRule.field_name);
+      const result = await applyRule(requiredRule, value);
       if (!result.valid) {
-        return { valid: false, error: requiredRule.error_message || result.error };
+        return [result];
       }
     }
+    return [{ valid: true }];
+  }
 
-    const lengthRule = rules.find(r => r.rule_key === 'asset_type_name_length' && r.enabled);
-    if (lengthRule && lengthRule.value_numeric) {
-      const result = validators.exactLength(name.trim(), lengthRule.value_numeric, lengthRule.field_name);
-      if (!result.valid) {
-        return { valid: false, error: lengthRule.error_message || result.error };
-      }
-    }
+  const results: ValidationResult[] = [];
+  for (const rule of fieldRules) {
+    const result = await applyRule(rule, value);
+    results.push(result);
+  }
 
-    const patternRule = rules.find(r => r.rule_key === 'asset_type_name_pattern' && r.enabled);
-    if (patternRule && patternRule.value_text) {
-      const pattern = new RegExp(patternRule.value_text);
-      const result = validators.pattern(name, pattern, patternRule.field_name);
-      if (!result.valid) {
-        return { valid: false, error: patternRule.error_message || result.error };
-      }
-    }
+  return results;
+}
 
-    return { valid: true };
+export async function validateEntity(
+  entityType: string,
+  entityData: Record<string, any>
+): Promise<Record<string, ValidationResult[]>> {
+  const rules = await loadValidationRules();
+  const entityRules = rules.filter(
+    r => r.entity_type === entityType && r.enabled && r.rule_type !== 'cross_table_comparison'
+  );
+
+  const fieldNames = [...new Set(entityRules.map(r => r.field_name))];
+  const validationResults: Record<string, ValidationResult[]> = {};
+
+  for (const fieldName of fieldNames) {
+    const value = entityData[fieldName];
+    validationResults[fieldName] = await validateField(entityType, fieldName, value);
+  }
+
+  return validationResults;
+}
+
+export const assetTypeValidators = {
+  validateName: async (name: string): Promise<ValidationResult> => {
+    const results = await validateField('asset_type', 'name', name);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
   validateDescription: (description: string): ValidationResult => {
     return { valid: true };
   },
 
-  validateTaxRegion: (taxRegion: string | number): ValidationResult => {
+  validateTaxRegion: async (taxRegion: string | number): Promise<ValidationResult> => {
     if (!taxRegion && taxRegion !== 0) {
       return { valid: true };
     }
-    return validators.numeric(taxRegion, 'Tax region');
+    const results = await validateField('asset_type', 'tax_region', taxRegion);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 };
 
 export const assetValidators = {
-  validateAssetId: (assetId: string): ValidationResult => {
-    return validators.required(assetId, 'Asset ID');
+  validateAssetId: async (assetId: string): Promise<ValidationResult> => {
+    const results = await validateField('asset', 'asset_id', assetId);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
-  validateBuildingNumber: (buildingNumber: number | null): ValidationResult => {
-    if (buildingNumber === null || buildingNumber === undefined) {
-      return { valid: false, error: 'Building number is required' };
-    }
-    return validators.numeric(buildingNumber, 'Building number');
+  validateBuildingNumber: async (buildingNumber: number | null): Promise<ValidationResult> => {
+    const results = await validateField('asset', 'building_number', buildingNumber);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
-  validatePayerId: (payerId: string): ValidationResult => {
-    return { valid: true };
+  validatePayerId: async (payerId: string): Promise<ValidationResult> => {
+    const results = await validateField('asset', 'payer_id', payerId);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
-  validateSize: (size: number, fieldName: string): ValidationResult => {
-    const result = validators.numeric(size, fieldName);
-    if (!result.valid) return result;
-
-    return validators.positiveNumber(size, fieldName);
+  validateSize: async (size: number, fieldName: string): Promise<ValidationResult> => {
+    const results = await validateField('asset', fieldName, size);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 };
 
@@ -237,31 +323,33 @@ export const patterns = {
 };
 
 export const measurementValidators = {
-  validateDate: (date: string): ValidationResult => {
-    return validators.required(date, 'Measurement date');
+  validateDate: async (date: string): Promise<ValidationResult> => {
+    const results = await validateField('measurement', 'measurement_date', date);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
-  validateArea: (area: number, fieldName: string): ValidationResult => {
-    const result = validators.numeric(area, fieldName);
-    if (!result.valid) return result;
-
-    return validators.positiveNumber(area, fieldName);
+  validateArea: async (area: number, fieldName: string): Promise<ValidationResult> => {
+    const results = await validateField('measurement', fieldName, area);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 };
 
 export const buildingValidators = {
-  validateBuildingNumber: (buildingNumber: number): ValidationResult => {
-    const result = validators.numeric(buildingNumber, 'Building number');
-    if (!result.valid) return result;
-
-    return validators.positiveNumber(buildingNumber, 'Building number');
+  validateBuildingNumber: async (buildingNumber: number): Promise<ValidationResult> => {
+    const results = await validateField('building', 'building_number', buildingNumber);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
-  validateTaxRegion: (taxRegion: string | number | undefined): ValidationResult => {
+  validateTaxRegion: async (taxRegion: string | number | undefined): Promise<ValidationResult> => {
     if (!taxRegion && taxRegion !== 0) {
       return { valid: true };
     }
-    return validators.numeric(taxRegion, 'Tax region');
+    const results = await validateField('building', 'tax_region', taxRegion);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
   },
 
   checkAreaMismatch: (totalAreaForControl: number | null, totalBuildingArea: number): boolean => {

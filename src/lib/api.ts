@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 export interface Building {
   building_number: number;
   tax_region?: string;
-  total_units: number;
+  total_assets: number;
   total_building_area: number;
   total_area_for_control?: number;
   created_at: string;
@@ -48,7 +48,7 @@ export interface AssetMeasurement {
   created_by?: string;
 }
 
-export interface UnitType {
+export interface AssetType {
   id: string;
   name: string;
   description: string;
@@ -222,30 +222,30 @@ export const api = {
       return { message: 'Measurement deleted successfully' };
     },
   },
-  unitTypes: {
-    getAll: async (): Promise<UnitType[]> => {
+  assetTypes: {
+    getAll: async (): Promise<AssetType[]> => {
       const { data, error } = await supabase
-        .from('unit_types')
+        .from('asset_types')
         .select('*')
         .order('name');
 
       if (error) throw error;
       return data || [];
     },
-    getOne: async (id: string): Promise<UnitType> => {
+    getOne: async (id: string): Promise<AssetType> => {
       const { data, error } = await supabase
-        .from('unit_types')
+        .from('asset_types')
         .select('*')
         .eq('id', id)
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Unit type not found');
+      if (!data) throw new Error('Asset type not found');
       return data;
     },
-    create: async (input: Omit<UnitType, 'id' | 'created_at' | 'updated_at'>): Promise<UnitType> => {
+    create: async (input: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>): Promise<AssetType> => {
       const { data, error } = await supabase
-        .from('unit_types')
+        .from('asset_types')
         .insert(input)
         .select()
         .single();
@@ -253,9 +253,9 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (id: string, input: Partial<UnitType>): Promise<UnitType> => {
+    update: async (id: string, input: Partial<AssetType>): Promise<AssetType> => {
       const { data, error } = await supabase
-        .from('unit_types')
+        .from('asset_types')
         .update(input)
         .eq('id', id)
         .select()
@@ -266,12 +266,12 @@ export const api = {
     },
     delete: async (id: string): Promise<{ message: string }> => {
       const { error } = await supabase
-        .from('unit_types')
+        .from('asset_types')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      return { message: 'Unit type deleted successfully' };
+      return { message: 'Asset type deleted successfully' };
     },
   },
 };

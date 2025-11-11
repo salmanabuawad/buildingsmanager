@@ -9,12 +9,12 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number) => void;
-  onOpenUnitTypes?: () => void;
-  onOpenUnitSearch?: () => void;
+  onOpenAssetTypes?: () => void;
+  onOpenAssetSearch?: () => void;
   onOpenDataEntry?: () => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSearch, onOpenDataEntry }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +120,7 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'total_units',
+      field: 'total_assets',
       headerName: t('totalUnits'),
       flex: 1,
       sortable: true,
@@ -192,22 +192,22 @@ export function BuildingsList({ onSelectBuilding, onOpenUnitTypes, onOpenUnitSea
                   <span className="hidden sm:inline">{t('addNewAsset')}</span>
                 </button>
               )}
-              {onOpenUnitSearch && (
+              {onOpenAssetSearch && (
                 <button
-                  onClick={onOpenUnitSearch}
+                  onClick={onOpenAssetSearch}
                   className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
                 >
                   <Search className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('unitSearch') || 'Search'}</span>
+                  <span className="hidden sm:inline">{t('assetSearch') || 'Search'}</span>
                 </button>
               )}
-              {onOpenUnitTypes && (
+              {onOpenAssetTypes && (
                 <button
-                  onClick={onOpenUnitTypes}
+                  onClick={onOpenAssetTypes}
                   className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
                 >
                   <Tag className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('unitTypes')}</span>
+                  <span className="hidden sm:inline">{t('assetTypes')}</span>
                 </button>
               )}
             </div>

@@ -3,14 +3,14 @@ import { BuildingsList } from './components/BuildingsList';
 import { AssetsList } from './components/AssetsList';
 import { AssetDetails } from './components/AssetDetails';
 import { AdminPDFManager } from './components/AdminPDFManager';
-import { UnitTypes } from './components/UnitTypes';
-import { UnitSearch } from './components/UnitSearch';
+import { AssetTypes } from './components/AssetTypes';
+import { AssetSearch } from './components/AssetSearch';
 import { AssetDataEntry } from './components/AssetDataEntry';
 import { X, Settings, Building, Home, Tag, Search, Plus } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'details' | 'admin' | 'unit-types' | 'unit-search' | 'data-entry';
+  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry';
   buildingNumber?: number;
   assetId?: string;
   label: string;
@@ -92,42 +92,42 @@ function App() {
     setActiveTabId(adminTabId);
   }
 
-  function openUnitTypes() {
-    const unitTypesTabId = 'unit-types-panel';
-    const existingTab = tabs.find(tab => tab.id === unitTypesTabId);
+  function openAssetTypes() {
+    const assetTypesTabId = 'asset-types-panel';
+    const existingTab = tabs.find(tab => tab.id === assetTypesTabId);
 
     if (existingTab) {
-      setActiveTabId(unitTypesTabId);
+      setActiveTabId(assetTypesTabId);
       return;
     }
 
     const newTab: Tab = {
-      id: unitTypesTabId,
-      type: 'unit-types',
-      label: 'Unit Types'
+      id: assetTypesTabId,
+      type: 'asset-types',
+      label: 'Asset Types'
     };
 
     setTabs([...tabs, newTab]);
-    setActiveTabId(unitTypesTabId);
+    setActiveTabId(assetTypesTabId);
   }
 
-  function openUnitSearch() {
-    const unitSearchTabId = 'unit-search-panel';
-    const existingTab = tabs.find(tab => tab.id === unitSearchTabId);
+  function openAssetSearch() {
+    const assetSearchTabId = 'asset-search-panel';
+    const existingTab = tabs.find(tab => tab.id === assetSearchTabId);
 
     if (existingTab) {
-      setActiveTabId(unitSearchTabId);
+      setActiveTabId(assetSearchTabId);
       return;
     }
 
     const newTab: Tab = {
-      id: unitSearchTabId,
-      type: 'unit-search',
-      label: 'Unit Search'
+      id: assetSearchTabId,
+      type: 'asset-search',
+      label: 'Asset Search'
     };
 
     setTabs([...tabs, newTab]);
-    setActiveTabId(unitSearchTabId);
+    setActiveTabId(assetSearchTabId);
   }
 
   function openDataEntry() {
@@ -182,9 +182,9 @@ function App() {
                 >
                   {tab.type === 'admin' ? (
                     <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'unit-types' ? (
+                  ) : tab.type === 'asset-types' ? (
                     <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'unit-search' ? (
+                  ) : tab.type === 'asset-search' ? (
                     <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
                   ) : tab.type === 'data-entry' ? (
                     <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
@@ -223,8 +223,8 @@ function App() {
           <BuildingsList
             key={activeTab.refreshKey}
             onSelectBuilding={handleSelectBuilding}
-            onOpenUnitTypes={openUnitTypes}
-            onOpenUnitSearch={openUnitSearch}
+            onOpenAssetTypes={openAssetTypes}
+            onOpenAssetSearch={openAssetSearch}
             onOpenDataEntry={openDataEntry}
           />
         )}
@@ -241,11 +241,11 @@ function App() {
         {activeTab?.type === 'admin' && (
           <AdminPDFManager />
         )}
-        {activeTab?.type === 'unit-types' && (
-          <UnitTypes />
+        {activeTab?.type === 'asset-types' && (
+          <AssetTypes />
         )}
-        {activeTab?.type === 'unit-search' && (
-          <UnitSearch onSelectAsset={handleSelectAsset} />
+        {activeTab?.type === 'asset-search' && (
+          <AssetSearch onSelectAsset={handleSelectAsset} />
         )}
         {activeTab?.type === 'data-entry' && (
           <AssetDataEntry />

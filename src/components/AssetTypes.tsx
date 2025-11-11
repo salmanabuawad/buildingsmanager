@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AssetType, api } from '../lib/api';
-import { assetTypeValidators } from '../lib/validation';
+import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Trash2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -295,7 +295,7 @@ export function AssetTypes() {
                   value={formData.name}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (value === '' || /^\d{0,3}$/.test(value)) {
+                    if (inputValidators.allowDigitsWithMaxLength(value, 3)) {
                       setFormData({ ...formData, name: value });
                     }
                   }}

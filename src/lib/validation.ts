@@ -131,3 +131,62 @@ export function formatValidationErrors(errors: string[]): string {
   if (errors.length === 1) return errors[0];
   return errors.map((err, idx) => `${idx + 1}. ${err}`).join('\n');
 }
+
+export const inputValidators = {
+  allowDigitsOnly: (value: string, maxLength?: number): boolean => {
+    if (maxLength !== undefined) {
+      return value === '' || /^\d+$/.test(value) && value.length <= maxLength;
+    }
+    return value === '' || /^\d+$/.test(value);
+  },
+
+  allowDigitsWithMaxLength: (value: string, maxLength: number): boolean => {
+    const pattern = new RegExp(`^\\d{0,${maxLength}}$`);
+    return value === '' || pattern.test(value);
+  },
+
+  allowAlphanumeric: (value: string): boolean => {
+    return /^[a-zA-Z0-9]*$/.test(value);
+  },
+
+  allowNumeric: (value: string): boolean => {
+    return value === '' || !isNaN(Number(value));
+  },
+};
+
+export const patterns = {
+  threeDigits: /^\d{3}$/,
+  digitsOnly: /^\d+$/,
+  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  alphanumeric: /^[a-zA-Z0-9]+$/,
+  numeric: /^-?\d*\.?\d+$/,
+};
+
+export const measurementValidators = {
+  validateDate: (date: string): ValidationResult => {
+    return validators.required(date, 'Measurement date');
+  },
+
+  validateArea: (area: number, fieldName: string): ValidationResult => {
+    const result = validators.numeric(area, fieldName);
+    if (!result.valid) return result;
+
+    return validators.positiveNumber(area, fieldName);
+  },
+};
+
+export const buildingValidators = {
+  validateBuildingNumber: (buildingNumber: number): ValidationResult => {
+    const result = validators.numeric(buildingNumber, 'Building number');
+    if (!result.valid) return result;
+
+    return validators.positiveNumber(buildingNumber, 'Building number');
+  },
+
+  validateTaxRegion: (taxRegion: string | number | undefined): ValidationResult => {
+    if (!taxRegion && taxRegion !== 0) {
+      return { valid: true };
+    }
+    return validators.numeric(taxRegion, 'Tax region');
+  },
+};

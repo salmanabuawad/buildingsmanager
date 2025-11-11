@@ -241,6 +241,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             pagination={true}
             paginationPageSize={20}
             domLayout="normal"
+            theme="legacy"
             suppressHorizontalScroll={false}
             rowClass="ag-row"
             getRowStyle={(params) => {

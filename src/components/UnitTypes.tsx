@@ -378,6 +378,7 @@ export function UnitTypes() {
               pagination={true}
               paginationPageSize={20}
               domLayout="normal"
+              theme="legacy"
               suppressHorizontalScroll={false}
               rowClass="ag-row"
               getRowStyle={(params) => {

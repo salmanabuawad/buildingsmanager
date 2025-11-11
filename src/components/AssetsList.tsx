@@ -281,6 +281,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             pagination={true}
             paginationPageSize={20}
             domLayout="normal"
+            theme="legacy"
             suppressHorizontalScroll={false}
             rowClass="ag-row"
             getRowStyle={(params) => {

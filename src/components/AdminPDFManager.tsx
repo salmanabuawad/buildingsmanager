@@ -222,6 +222,7 @@ export function AdminPDFManager() {
           pagination={true}
           paginationPageSize={20}
           domLayout="normal"
+          theme="legacy"
           suppressHorizontalScroll={false}
         />
       </div>

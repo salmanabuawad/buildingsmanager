@@ -504,6 +504,7 @@ export function ValidationRulesManager() {
               pagination={true}
               paginationPageSize={20}
               domLayout="normal"
+              theme="legacy"
             />
           </div>
         )}

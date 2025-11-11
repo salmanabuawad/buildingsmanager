@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building } from '../lib/api';
+import { assetValidators, validateAll } from '../lib/validation';
 import { Save, Plus, Trash2, Upload } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -125,6 +126,16 @@ export function AssetDataEntry() {
 
       for (const row of rowsToSave) {
         try {
+          const validation = validateAll([
+            assetValidators.validateBuildingNumber(row.building_number),
+            assetValidators.validateAssetId(row.asset_id),
+          ]);
+
+          if (!validation.valid) {
+            errors.push(`Asset ${row.asset_id} (Building ${row.building_number}): ${validation.error}`);
+            continue;
+          }
+
           const assetData: Omit<Asset, 'id' | 'created_at'> = {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,

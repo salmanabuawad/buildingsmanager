@@ -155,6 +155,7 @@ export function ValidationRulesManager() {
       width: 100,
       editable: true,
       cellRenderer: (params: any) => {
+        if (!params.data) return '';
         const rule = params.data as ValidationRule;
         if (editingId === rule.id) {
           return (
@@ -178,6 +179,7 @@ export function ValidationRulesManager() {
       field: 'value_numeric',
       width: 130,
       cellRenderer: (params: any) => {
+        if (!params.data) return '';
         const rule = params.data as ValidationRule;
         if (editingId === rule.id) {
           return (
@@ -197,6 +199,7 @@ export function ValidationRulesManager() {
       field: 'value_text',
       width: 150,
       cellRenderer: (params: any) => {
+        if (!params.data) return '';
         const rule = params.data as ValidationRule;
         if (editingId === rule.id) {
           return (
@@ -216,6 +219,7 @@ export function ValidationRulesManager() {
       field: 'error_message',
       width: 250,
       cellRenderer: (params: any) => {
+        if (!params.data) return '';
         const rule = params.data as ValidationRule;
         if (editingId === rule.id) {
           return (
@@ -238,6 +242,7 @@ export function ValidationRulesManager() {
       headerName: 'Actions',
       width: 120,
       cellRenderer: (params: any) => {
+        if (!params.data) return null;
         const rule = params.data as ValidationRule;
         if (editingId === rule.id) {
           return (
@@ -506,7 +511,7 @@ export function ValidationRulesManager() {
             <div className="mb-2 text-sm text-slate-600">
               Showing {rules.length} validation rules
             </div>
-            <div className="ag-theme-alpine flex-1" style={{ minHeight: 400 }}>
+            <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
               <AgGridReact
                 rowData={rules}
                 columnDefs={columnDefs}
@@ -514,8 +519,8 @@ export function ValidationRulesManager() {
                 onGridReady={onGridReady}
                 pagination={true}
                 paginationPageSize={20}
-                domLayout="normal"
                 theme="legacy"
+                getRowId={(params) => params.data.id}
               />
             </div>
           </div>

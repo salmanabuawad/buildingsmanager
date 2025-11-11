@@ -189,4 +189,9 @@ export const buildingValidators = {
     }
     return validators.numeric(taxRegion, 'Tax region');
   },
+
+  checkAreaMismatch: (totalAreaForControl: number | null, totalBuildingArea: number): boolean => {
+    if (totalAreaForControl == null) return false;
+    return totalAreaForControl !== totalBuildingArea;
+  },
 };

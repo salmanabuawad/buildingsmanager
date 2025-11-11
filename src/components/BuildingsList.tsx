@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building, api } from '../lib/api';
+import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Tag, Search, AlertCircle, Plus } from 'lucide-react';
@@ -68,9 +69,10 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const hasControlArea = building.total_area_for_control != null;
-        const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
-        const hasDiscrepancy = hasControlArea && !areasMatch;
+        const hasDiscrepancy = buildingValidators.checkAreaMismatch(
+          building.total_area_for_control,
+          building.total_building_area
+        );
 
         if (hasDiscrepancy) {
           return (

@@ -26,6 +26,10 @@ export function ValidationRulesManager() {
     enabled: true,
     error_message: '',
     description: '',
+    compare_table: undefined,
+    compare_field: undefined,
+    join_field: undefined,
+    comparison_operator: undefined,
   };
 
   const [formData, setFormData] = useState(emptyRule);
@@ -223,6 +227,10 @@ export function ValidationRulesManager() {
         return rule.error_message ?? '';
       }
     },
+    { headerName: 'Compare Table', field: 'compare_table', width: 150 },
+    { headerName: 'Compare Field', field: 'compare_field', width: 150 },
+    { headerName: 'Join Field', field: 'join_field', width: 150 },
+    { headerName: 'Operator', field: 'comparison_operator', width: 100 },
     {
       headerName: 'Actions',
       width: 120,
@@ -361,6 +369,7 @@ export function ValidationRulesManager() {
                 <option value="pattern">Pattern</option>
                 <option value="numeric">Numeric</option>
                 <option value="positive_number">Positive Number</option>
+                <option value="cross_table_comparison">Cross-Table Comparison</option>
               </select>
             </div>
             <div>
@@ -403,6 +412,56 @@ export function ValidationRulesManager() {
                 placeholder="Description of what this rule validates"
               />
             </div>
+            {formData.rule_type === 'cross_table_comparison' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Compare Table</label>
+                  <input
+                    type="text"
+                    value={formData.compare_table ?? ''}
+                    onChange={(e) => setFormData({ ...formData, compare_table: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="buildings"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Compare Field</label>
+                  <input
+                    type="text"
+                    value={formData.compare_field ?? ''}
+                    onChange={(e) => setFormData({ ...formData, compare_field: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="total_area_for_control"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Join Field</label>
+                  <input
+                    type="text"
+                    value={formData.join_field ?? ''}
+                    onChange={(e) => setFormData({ ...formData, join_field: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="building_number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Comparison Operator</label>
+                  <select
+                    value={formData.comparison_operator ?? ''}
+                    onChange={(e) => setFormData({ ...formData, comparison_operator: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">Select...</option>
+                    <option value="=">=</option>
+                    <option value="!=">!=</option>
+                    <option value=">">&gt;</option>
+                    <option value="<">&lt;</option>
+                    <option value=">=">&gt;=</option>
+                    <option value="<=">&lt;=</option>
+                  </select>
+                </div>
+              </>
+            )}
             <div className="col-span-2 flex items-center gap-2">
               <input
                 type="checkbox"

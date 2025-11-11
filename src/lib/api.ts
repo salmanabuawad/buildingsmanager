@@ -68,6 +68,10 @@ export interface ValidationRule {
   enabled: boolean;
   error_message?: string;
   description?: string;
+  compare_table?: string;
+  compare_field?: string;
+  join_field?: string;
+  comparison_operator?: string;
   created_at: string;
   updated_at: string;
 }

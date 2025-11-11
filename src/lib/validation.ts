@@ -1,8 +1,15 @@
 import { api, ValidationRule } from './api';
+import { supabase } from './supabase';
 
 export interface ValidationResult {
   valid: boolean;
   error?: string;
+}
+
+export interface CrossTableValidationContext {
+  entityType: string;
+  entityData: any;
+  joinFieldValue: any;
 }
 
 let cachedRules: ValidationRule[] | null = null;
@@ -262,3 +269,101 @@ export const buildingValidators = {
     return totalAreaForControl !== totalBuildingArea;
   },
 };
+
+export async function validateCrossTable(
+  rule: ValidationRule,
+  context: CrossTableValidationContext
+): Promise<ValidationResult> {
+  if (rule.rule_type !== 'cross_table_comparison') {
+    return { valid: false, error: 'Invalid rule type for cross-table validation' };
+  }
+
+  if (!rule.compare_table || !rule.compare_field || !rule.join_field || !rule.comparison_operator) {
+    return { valid: false, error: 'Missing required fields for cross-table validation' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(rule.compare_table)
+      .select(rule.compare_field)
+      .eq(rule.join_field, context.joinFieldValue)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Cross-table validation query error:', error);
+      return { valid: false, error: 'Failed to execute cross-table validation' };
+    }
+
+    if (!data) {
+      return { valid: true };
+    }
+
+    const fieldValue = context.entityData[rule.field_name];
+    const compareValue = data[rule.compare_field];
+
+    if (fieldValue == null || compareValue == null) {
+      return { valid: true };
+    }
+
+    let isValid = true;
+    switch (rule.comparison_operator) {
+      case '=':
+      case '==':
+        isValid = fieldValue === compareValue;
+        break;
+      case '!=':
+      case '<>':
+        isValid = fieldValue !== compareValue;
+        break;
+      case '>':
+        isValid = fieldValue > compareValue;
+        break;
+      case '<':
+        isValid = fieldValue < compareValue;
+        break;
+      case '>=':
+        isValid = fieldValue >= compareValue;
+        break;
+      case '<=':
+        isValid = fieldValue <= compareValue;
+        break;
+      default:
+        return { valid: false, error: `Unknown comparison operator: ${rule.comparison_operator}` };
+    }
+
+    if (!isValid) {
+      return {
+        valid: false,
+        error: rule.error_message || `Cross-table validation failed: ${rule.field_name} ${rule.comparison_operator} ${rule.compare_field}`
+      };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.error('Cross-table validation error:', error);
+    return { valid: false, error: 'Cross-table validation failed due to unexpected error' };
+  }
+}
+
+export async function validateEntityWithCrossTableRules(
+  entityType: string,
+  entityData: any,
+  joinFieldValue: any
+): Promise<ValidationResult[]> {
+  const rules = await loadValidationRules();
+  const crossTableRules = rules.filter(
+    r => r.entity_type === entityType && r.rule_type === 'cross_table_comparison' && r.enabled
+  );
+
+  const results: ValidationResult[] = [];
+  for (const rule of crossTableRules) {
+    const result = await validateCrossTable(rule, {
+      entityType,
+      entityData,
+      joinFieldValue
+    });
+    results.push(result);
+  }
+
+  return results;
+}

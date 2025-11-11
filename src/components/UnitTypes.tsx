@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UnitType, api } from '../lib/api';
+import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Trash2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -56,22 +57,19 @@ export function UnitTypes() {
   }
 
   async function handleSave() {
-    if (!formData.name.trim()) {
-      showMessage('error', t('typeName') + ' is required');
+    const nameValidation = assetTypeValidators.validateName(formData.name);
+    if (!nameValidation.valid) {
+      showMessage('error', nameValidation.error!);
       return;
     }
 
-    if (formData.name.length !== 3) {
-      showMessage('error', t('typeName') + ' must be exactly 3 digits');
+    const taxRegionValidation = assetTypeValidators.validateTaxRegion(formData.tax_region);
+    if (!taxRegionValidation.valid) {
+      showMessage('error', taxRegionValidation.error!);
       return;
     }
 
-    if (!/^\d{3}$/.test(formData.name)) {
-      showMessage('error', t('typeName') + ' must contain only digits');
-      return;
-    }
-
-    try {
+    try{
       const dataToSave = {
         name: formData.name,
         description: formData.description,
@@ -187,20 +185,9 @@ export function UnitTypes() {
         const parts = line.split(',').map(s => s.trim());
         const [name, description = ''] = parts;
 
-        if (!name) {
-          errors.push(`Line ${i + 1}: Missing name`);
-          errorCount++;
-          continue;
-        }
-
-        if (name.length !== 3) {
-          errors.push(`Line ${i + 1}: Name "${name}" must be exactly 3 digits`);
-          errorCount++;
-          continue;
-        }
-
-        if (!/^\d{3}$/.test(name)) {
-          errors.push(`Line ${i + 1}: Name "${name}" must contain only digits`);
+        const nameValidation = assetTypeValidators.validateName(name || '');
+        if (!nameValidation.valid) {
+          errors.push(`Line ${i + 1}: ${nameValidation.error}`);
           errorCount++;
           continue;
         }
@@ -308,7 +295,7 @@ export function UnitTypes() {
                   value={formData.name}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (value === '' || /^\d{0,3}$/.test(value)) {
+                    if (inputValidators.allowDigitsWithMaxLength(value, 3)) {
                       setFormData({ ...formData, name: value });
                     }
                   }}

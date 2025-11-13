@@ -174,6 +174,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => params.value?.toLocaleString(),
       cellStyle: { textAlign: 'right' }
     },
     {

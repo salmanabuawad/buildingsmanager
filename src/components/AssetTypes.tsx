@@ -57,13 +57,13 @@ export function AssetTypes() {
   }
 
   async function handleSave() {
-    const nameValidation = assetTypeValidators.validateName(formData.name);
+    const nameValidation = await assetTypeValidators.validateName(formData.name);
     if (!nameValidation.valid) {
       showMessage('error', nameValidation.error!);
       return;
     }
 
-    const taxRegionValidation = assetTypeValidators.validateTaxRegion(formData.tax_region);
+    const taxRegionValidation = await assetTypeValidators.validateTaxRegion(formData.tax_region);
     if (!taxRegionValidation.valid) {
       showMessage('error', taxRegionValidation.error!);
       return;
@@ -91,15 +91,33 @@ export function AssetTypes() {
       const { data, colDef } = event;
       const field = colDef.field;
       const assetTypeId = data.id;
+      const newValue = event.newValue;
+
+      if (field === 'name') {
+        const validation = await assetTypeValidators.validateName(newValue);
+        if (!validation.valid) {
+          showMessage('error', validation.error!);
+          await fetchAssetTypes(false);
+          return;
+        }
+      } else if (field === 'tax_region') {
+        const validation = await assetTypeValidators.validateTaxRegion(newValue);
+        if (!validation.valid) {
+          showMessage('error', validation.error!);
+          await fetchAssetTypes(false);
+          return;
+        }
+      }
 
       const updateData: Partial<AssetType> = {
-        [field]: event.newValue
+        [field]: newValue
       };
 
       await api.assetTypes.update(assetTypeId, updateData);
       await fetchAssetTypes(false);
     } catch (error) {
       console.error('Error updating asset type:', error);
+      showMessage('error', 'Update failed');
       await fetchAssetTypes(false);
     }
   }, []);
@@ -185,7 +203,7 @@ export function AssetTypes() {
         const parts = line.split(',').map(s => s.trim());
         const [name, description = ''] = parts;
 
-        const nameValidation = assetTypeValidators.validateName(name || '');
+        const nameValidation = await assetTypeValidators.validateName(name || '');
         if (!nameValidation.valid) {
           errors.push(`Line ${i + 1}: ${nameValidation.error}`);
           errorCount++;

@@ -177,9 +177,11 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
 
     case 'exists_in_table':
       if (!rule.compare_table || !rule.compare_field) {
+        console.error('Missing compare_table or compare_field:', rule);
         return { valid: false, error: 'exists_in_table rule requires compare_table and compare_field' };
       }
       try {
+        console.log(`Validating ${fieldName} = "${value}" exists in ${rule.compare_table}.${rule.compare_field}`);
         const { data, error } = await supabase
           .from(rule.compare_table)
           .select(rule.compare_field)
@@ -192,12 +194,14 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
         }
 
         if (!data) {
+          console.warn(`Value "${value}" not found in ${rule.compare_table}.${rule.compare_field}`);
           return {
             valid: false,
-            error: errorMessage || `${fieldName} value does not exist in ${rule.compare_table}`
+            error: errorMessage || `${fieldName} value "${value}" does not exist in asset types`
           };
         }
 
+        console.log(`Validation passed: "${value}" exists in ${rule.compare_table}`);
         return { valid: true };
       } catch (error) {
         console.error('Exists in table validation error:', error);
@@ -218,6 +222,8 @@ export async function validateField(
   const fieldRules = rules.filter(
     r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
+
+  console.log(`validateField(${entityType}, ${fieldName}, ${value}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
 
   if (value == null || value === '') {
     const requiredRule = fieldRules.find(r => r.rule_type === 'required');

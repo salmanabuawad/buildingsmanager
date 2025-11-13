@@ -280,55 +280,72 @@ export function AssetDataEntry() {
             switch (header) {
               case 'building_number':
               case 'מבנה':
+              case 'מספר בנין':
                 row.building_number = value ? parseInt(value) : null;
                 break;
               case 'payer_id':
+              case 'זיהוי משלם':
                 row.payer_id = value;
                 break;
               case 'asset_id':
               case 'נכס':
+              case 'זיהוי נכס':
                 row.asset_id = value;
                 break;
               case 'main_asset_type':
+              case 'סוג נכס':
                 row.main_asset_type = value;
                 break;
               case 'main_asset_size':
+              case 'גודל נכס':
                 row.main_asset_size = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_1':
+              case 'נכס משנה 1':
                 row.sub_asset_type_1 = value;
                 break;
               case 'sub_asset_size_1':
+              case 'גודל נכס משנה 1':
                 row.sub_asset_size_1 = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_2':
+              case 'נכס משנה 2':
                 row.sub_asset_type_2 = value;
                 break;
               case 'sub_asset_size_2':
+              case 'גודל נכס משנה 2':
                 row.sub_asset_size_2 = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_3':
+              case 'נכס משנה 3':
                 row.sub_asset_type_3 = value;
                 break;
               case 'sub_asset_size_3':
+              case 'גודל נכס משנה 3':
                 row.sub_asset_size_3 = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_4':
+              case 'נכס משנה 4':
                 row.sub_asset_type_4 = value;
                 break;
               case 'sub_asset_size_4':
+              case 'גודל נכס משנה 4':
                 row.sub_asset_size_4 = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_5':
+              case 'נכס משנה 5':
                 row.sub_asset_type_5 = value;
                 break;
               case 'sub_asset_size_5':
+              case 'גודל נכס משנה 5':
                 row.sub_asset_size_5 = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_6':
+              case 'סוג נכס משני 6':
                 row.sub_asset_type_6 = value;
                 break;
               case 'sub_asset_size_6':
+              case 'גודל נכסי משני 6':
                 row.sub_asset_size_6 = value ? parseFloat(value) : 0;
                 break;
             }

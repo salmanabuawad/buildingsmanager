@@ -77,10 +77,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: t('actions'),
-      width: 130,
+      width: 150,
+      minWidth: 150,
       filter: false,
       sortable: false,
       editable: false,
+      pinned: 'right',
       cellRenderer: (params: any) => {
         return (
           <button
@@ -95,7 +97,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      flex: 1.2,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -104,7 +107,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      flex: 1.2,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -113,7 +117,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -122,7 +127,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'main_asset_size',
       headerName: t('mainAssetSize'),
-      flex: 1,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -132,7 +138,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -141,7 +148,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      flex: 0.8,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -151,7 +159,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -160,7 +169,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      flex: 0.8,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -170,7 +180,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -179,7 +190,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      flex: 0.8,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -189,7 +201,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -198,7 +211,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      flex: 0.8,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -208,7 +222,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -217,7 +232,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      flex: 0.8,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -227,7 +243,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      flex: 1,
+      width: 180,
+      minWidth: 180,
       sortable: true,
       filter: true,
       editable: true,
@@ -236,7 +253,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      flex: 0.8,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
@@ -246,7 +264,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'total_size',
       headerName: t('totalSize'),
-      flex: 1,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: false,
@@ -290,7 +309,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           </div>
         </div>
 
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '500px', width: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '600px', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={assets}
@@ -305,6 +324,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             pagination={true}
             paginationPageSize={20}
             enableRtl={true}
+            suppressHorizontalScroll={false}
           />
         </div>
       </div>

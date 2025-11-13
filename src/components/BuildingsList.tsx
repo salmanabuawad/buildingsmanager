@@ -4,7 +4,7 @@ import { Building, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag, Search, AlertCircle, Plus, Settings } from 'lucide-react';
+import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2 } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -22,6 +22,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<Building>>(null);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
@@ -52,6 +55,74 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   }, [fetchBuildings]);
 
 
+
+  const handleCreateBuilding = async () => {
+    try {
+      const buildingNumber = parseInt(newBuilding.building_number);
+      const taxRegion = newBuilding.tax_region ? parseInt(newBuilding.tax_region) : null;
+
+      if (isNaN(buildingNumber)) {
+        setError('Invalid building number');
+        setTimeout(() => setError(null), 3000);
+        return;
+      }
+
+      await api.buildings.create({
+        building_number: buildingNumber,
+        tax_region: taxRegion,
+        total_assets: 0,
+        total_building_area: 0
+      });
+
+      setShowCreateModal(false);
+      setNewBuilding({ building_number: '', tax_region: '' });
+      await fetchBuildings(false);
+    } catch (error) {
+      console.error('Error creating building:', error);
+      setError('Failed to create building');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+
+      const buildingNumberIdx = headers.findIndex(h => h.toLowerCase().includes('building'));
+      const taxRegionIdx = headers.findIndex(h => h.toLowerCase().includes('tax'));
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const buildingNumber = parseInt(values[buildingNumberIdx]);
+        const taxRegion = taxRegionIdx >= 0 && values[taxRegionIdx] ? parseInt(values[taxRegionIdx]) : null;
+
+        if (!isNaN(buildingNumber)) {
+          try {
+            await api.buildings.create({
+              building_number: buildingNumber,
+              tax_region: taxRegion,
+              total_assets: 0,
+              total_building_area: 0
+            });
+          } catch (err) {
+            console.error(`Error creating building ${buildingNumber}:`, err);
+          }
+        }
+      }
+
+      await fetchBuildings(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) {
+      console.error('Error importing CSV:', error);
+      setError('Failed to import CSV');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
 
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
@@ -231,6 +302,27 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+              >
+                <Building2 className="h-5 w-5" />
+                <span className="hidden sm:inline">Create Building</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+              >
+                <Upload className="h-5 w-5" />
+                <span className="hidden sm:inline">Import CSV</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
               {onOpenDataEntry && (
                 <button
                   onClick={onOpenDataEntry}
@@ -308,6 +400,60 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           />
         </div>
       </div>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6">Create New Building</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Building Number *
+                </label>
+                <input
+                  type="number"
+                  value={newBuilding.building_number}
+                  onChange={(e) => setNewBuilding(prev => ({ ...prev, building_number: e.target.value }))}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  placeholder="Enter building number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Tax Region
+                </label>
+                <input
+                  type="number"
+                  value={newBuilding.tax_region}
+                  onChange={(e) => setNewBuilding(prev => ({ ...prev, tax_region: e.target.value }))}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  placeholder="Enter tax region (optional)"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewBuilding({ building_number: '', tax_region: '' });
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateBuilding}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

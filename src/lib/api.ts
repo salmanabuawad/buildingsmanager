@@ -81,7 +81,7 @@ export const api = {
   buildings: {
     getAll: async (): Promise<Building[]> => {
       const { data, error } = await supabase
-        .from('buildings')
+        .from('building')
         .select('*')
         .order('building_number');
 
@@ -90,7 +90,7 @@ export const api = {
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
       const { data, error } = await supabase
-        .from('buildings')
+        .from('building')
         .select('*')
         .eq('building_number', buildingNumber)
         .maybeSingle();
@@ -101,7 +101,7 @@ export const api = {
     },
     create: async (input: Omit<Building, 'created_at' | 'total_units' | 'total_building_area'>): Promise<Building> => {
       const { data, error } = await supabase
-        .from('buildings')
+        .from('building')
         .insert(input)
         .select()
         .single();
@@ -111,7 +111,7 @@ export const api = {
     },
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
       const { data, error } = await supabase
-        .from('buildings')
+        .from('building')
         .update(input)
         .eq('building_number', buildingNumber)
         .select()
@@ -122,7 +122,7 @@ export const api = {
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
       const { error } = await supabase
-        .from('buildings')
+        .from('building')
         .delete()
         .eq('building_number', buildingNumber);
 

@@ -454,7 +454,7 @@ export function ValidationRulesManager() {
                     value={formData.compare_table ?? ''}
                     onChange={(e) => setFormData({ ...formData, compare_table: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg"
-                    placeholder="buildings"
+                    placeholder="building"
                   />
                 </div>
                 <div>

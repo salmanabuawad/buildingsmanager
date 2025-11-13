@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, api } from '../lib/api';
+import { assetValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon } from 'lucide-react';
@@ -49,15 +50,28 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = data.id;
+      const newValue = event.newValue;
+
+      if (field.includes('asset_type')) {
+        const validation = await assetValidators.validateAssetType(newValue, field);
+        if (!validation.valid) {
+          setError(validation.error || 'Invalid asset type');
+          setTimeout(() => setError(null), 3000);
+          await fetchData(false);
+          return;
+        }
+      }
 
       const updateData: Partial<Asset> = {
-        [field]: event.newValue
+        [field]: newValue
       };
 
       await api.assets.update(assetId, updateData);
       await fetchData(false);
     } catch (error) {
       console.error('Error updating asset:', error);
+      setError('Failed to update asset');
+      setTimeout(() => setError(null), 3000);
       await fetchData(false);
     }
   }, []);

@@ -304,10 +304,20 @@ export const assetValidators = {
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };
   },
+
+  validateAssetType: async (assetType: string | undefined, fieldName: string): Promise<ValidationResult> => {
+    if (!assetType) {
+      return { valid: true };
+    }
+    const results = await validateField('asset', fieldName, assetType);
+    const firstError = results.find(r => !r.valid);
+    return firstError || { valid: true };
+  },
 };
 
-export function validateAll(validations: ValidationResult[]): ValidationResult {
-  for (const validation of validations) {
+export async function validateAll(validations: (ValidationResult | Promise<ValidationResult>)[]): Promise<ValidationResult> {
+  const resolvedValidations = await Promise.all(validations);
+  for (const validation of resolvedValidations) {
     if (!validation.valid) {
       return validation;
     }

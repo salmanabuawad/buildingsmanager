@@ -183,8 +183,8 @@ function App() {
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex flex-row-reverse" dir="rtl">
-      <div className="w-64 bg-white/90 backdrop-blur-sm border-l border-blue-200 shadow-lg flex flex-col shrink-0">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex" dir="rtl">
+      <div className="w-64 bg-white/90 backdrop-blur-sm border-r border-blue-200 shadow-lg flex flex-col shrink-0">
         <div className="p-4 border-b border-blue-100 bg-gradient-to-b from-teal-50 to-white">
           <h2 className="text-lg font-bold text-teal-900">תפריט ראשי</h2>
         </div>

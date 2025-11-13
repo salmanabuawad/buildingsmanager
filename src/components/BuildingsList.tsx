@@ -190,7 +190,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value != null ? params.value.toLocaleString() : '',
       valueParser: (params) => {
         const val = params.newValue;
         if (val == null || val === '') return null;

@@ -258,18 +258,15 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-8">
-        <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-6 max-w-md shadow-md">
-          <p className="text-red-800 font-medium">{t('error')}: {error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
+      {error && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
+          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg">
+            <p className="text-red-800 font-medium">{t('error')}: {error}</p>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
         {building && (
           <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">

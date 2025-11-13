@@ -183,99 +183,144 @@ function App() {
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50" dir="rtl">
-      <div className="bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4">
-          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
-            {tabs.map((tab) => (
-              <div
-                key={tab.id}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 border-b-2 transition-all cursor-pointer group ${
-                  activeTabId === tab.id
-                    ? 'border-teal-600 bg-gradient-to-r from-teal-50 to-blue-50'
-                    : 'border-transparent hover:bg-blue-50/50'
-                }`}
-              >
-                <div
-                  onClick={() => setActiveTabId(tab.id)}
-                  className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
-                >
-                  {tab.type === 'admin' ? (
-                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'asset-types' ? (
-                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'asset-search' ? (
-                    <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'data-entry' ? (
-                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'validation-rules' ? (
-                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : tab.type === 'buildings' ? (
-                    <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
-                  ) : tab.type === 'assets' ? (
-                    <Building className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  ) : (
-                    <Home className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
-                  )}
-                  <span className={`font-medium whitespace-nowrap text-xs sm:text-sm ${
-                    activeTabId === tab.id ? 'text-teal-900' : 'text-slate-700'
-                  }`}>
-                    {tab.label}
-                  </span>
-                </div>
-                {tab.id !== 'buildings' && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCloseTab(tab.id);
-                    }}
-                    className="p-0.5 sm:p-1 hover:bg-red-100 rounded transition-colors"
-                  >
-                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-600 hover:text-red-600" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex flex-row-reverse" dir="rtl">
+      <div className="w-64 bg-white/90 backdrop-blur-sm border-l border-blue-200 shadow-lg flex flex-col shrink-0">
+        <div className="p-4 border-b border-blue-100 bg-gradient-to-b from-teal-50 to-white">
+          <h2 className="text-lg font-bold text-teal-900">תפריט ראשי</h2>
         </div>
+        <nav className="flex-1 p-4 space-y-2">
+          <button
+            onClick={openDataEntry}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-teal-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-teal-900">הוסף נכס חדש</span>
+            <Plus className="h-5 w-5 text-teal-600 group-hover:text-teal-700" />
+          </button>
+          <button
+            onClick={openAssetSearch}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-blue-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-blue-900">חיפוש נכס</span>
+            <Search className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
+          </button>
+          <button
+            onClick={openAssetTypes}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-green-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-green-900">סוגי נכסים</span>
+            <Tag className="h-5 w-5 text-green-600 group-hover:text-green-700" />
+          </button>
+          <button
+            onClick={openValidationRules}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-amber-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-amber-900">כללי תקינות</span>
+            <Settings className="h-5 w-5 text-amber-600 group-hover:text-amber-700" />
+          </button>
+          <button
+            onClick={openAdminPanel}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-slate-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-slate-900">מנהל PDF</span>
+            <Settings className="h-5 w-5 text-slate-600 group-hover:text-slate-700" />
+          </button>
+        </nav>
       </div>
 
-      <div>
-        {activeTab?.type === 'buildings' && (
-          <BuildingsList
-            key={activeTab.refreshKey}
-            onSelectBuilding={handleSelectBuilding}
-            onOpenAssetTypes={openAssetTypes}
-            onOpenAssetSearch={openAssetSearch}
-            onOpenDataEntry={openDataEntry}
-            onOpenValidationRules={openValidationRules}
-          />
-        )}
-        {activeTab?.type === 'assets' && activeTab.buildingNumber && (
-          <AssetsList
-            key={activeTab.refreshKey}
-            buildingNumber={activeTab.buildingNumber}
-            onSelectAsset={handleSelectAsset}
-          />
-        )}
-        {activeTab?.type === 'details' && activeTab.assetId && (
-          <AssetDetails assetId={activeTab.assetId} onDataUpdate={handleDataUpdate} />
-        )}
-        {activeTab?.type === 'admin' && (
-          <AdminPDFManager />
-        )}
-        {activeTab?.type === 'asset-types' && (
-          <AssetTypes />
-        )}
-        {activeTab?.type === 'asset-search' && (
-          <AssetSearch onSelectAsset={handleSelectAsset} />
-        )}
-        {activeTab?.type === 'data-entry' && (
-          <AssetDataEntry />
-        )}
-        {activeTab?.type === 'validation-rules' && (
-          <ValidationRulesManager />
-        )}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm">
+          <div className="px-2 sm:px-4">
+            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+              {tabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 border-b-2 transition-all cursor-pointer group ${
+                    activeTabId === tab.id
+                      ? 'border-teal-600 bg-gradient-to-r from-teal-50 to-blue-50'
+                      : 'border-transparent hover:bg-blue-50/50'
+                  }`}
+                >
+                  <div
+                    onClick={() => setActiveTabId(tab.id)}
+                    className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
+                  >
+                    {tab.type === 'admin' ? (
+                      <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    ) : tab.type === 'asset-types' ? (
+                      <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    ) : tab.type === 'asset-search' ? (
+                      <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    ) : tab.type === 'data-entry' ? (
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    ) : tab.type === 'validation-rules' ? (
+                      <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    ) : tab.type === 'buildings' ? (
+                      <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
+                    ) : tab.type === 'assets' ? (
+                      <Building className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    ) : (
+                      <Home className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                    )}
+                    <span className={`font-medium whitespace-nowrap text-xs sm:text-sm ${
+                      activeTabId === tab.id ? 'text-teal-900' : 'text-slate-700'
+                    }`}>
+                      {tab.label}
+                    </span>
+                  </div>
+                  {tab.id !== 'buildings' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseTab(tab.id);
+                      }}
+                      className="p-0.5 sm:p-1 hover:bg-red-100 rounded transition-colors"
+                    >
+                      <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-600 hover:text-red-600" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          {activeTab?.type === 'buildings' && (
+            <BuildingsList
+              key={activeTab.refreshKey}
+              onSelectBuilding={handleSelectBuilding}
+              onOpenAssetTypes={openAssetTypes}
+              onOpenAssetSearch={openAssetSearch}
+              onOpenDataEntry={openDataEntry}
+              onOpenValidationRules={openValidationRules}
+            />
+          )}
+          {activeTab?.type === 'assets' && activeTab.buildingNumber && (
+            <AssetsList
+              key={activeTab.refreshKey}
+              buildingNumber={activeTab.buildingNumber}
+              onSelectAsset={handleSelectAsset}
+            />
+          )}
+          {activeTab?.type === 'details' && activeTab.assetId && (
+            <AssetDetails assetId={activeTab.assetId} onDataUpdate={handleDataUpdate} />
+          )}
+          {activeTab?.type === 'admin' && (
+            <AdminPDFManager />
+          )}
+          {activeTab?.type === 'asset-types' && (
+            <AssetTypes />
+          )}
+          {activeTab?.type === 'asset-search' && (
+            <AssetSearch onSelectAsset={handleSelectAsset} />
+          )}
+          {activeTab?.type === 'data-entry' && (
+            <AssetDataEntry />
+          )}
+          {activeTab?.type === 'validation-rules' && (
+            <ValidationRulesManager />
+          )}
+        </div>
       </div>
     </div>
   );

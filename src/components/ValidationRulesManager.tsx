@@ -519,7 +519,7 @@ export function ValidationRulesManager() {
                 onGridReady={onGridReady}
                 pagination={true}
                 paginationPageSize={20}
-                theme="legacy"
+                paginationPageSizeSelector={[10, 20, 50, 100]}
                 getRowId={(params) => params.data.id}
               />
             </div>

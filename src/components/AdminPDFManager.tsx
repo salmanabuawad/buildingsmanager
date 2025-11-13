@@ -221,8 +221,8 @@ export function AdminPDFManager() {
           defaultColDef={defaultColDef}
           pagination={true}
           paginationPageSize={20}
+          paginationPageSizeSelector={[10, 20, 50, 100]}
           domLayout="normal"
-          theme="legacy"
           suppressHorizontalScroll={false}
         />
       </div>

@@ -240,8 +240,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             onCellValueChanged={onCellValueChanged}
             pagination={true}
             paginationPageSize={20}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
             domLayout="normal"
-            theme="legacy"
             suppressHorizontalScroll={false}
             rowClass="ag-row"
             getRowStyle={(params) => {

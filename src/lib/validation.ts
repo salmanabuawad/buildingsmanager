@@ -182,18 +182,17 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
       }
       try {
         console.log(`Validating ${fieldName} = "${value}" exists in ${rule.compare_table}.${rule.compare_field}`);
-        const { data, error } = await supabase
+        const { data, error, count } = await supabase
           .from(rule.compare_table)
-          .select(rule.compare_field)
-          .eq(rule.compare_field, value)
-          .maybeSingle();
+          .select(rule.compare_field, { count: 'exact', head: true })
+          .eq(rule.compare_field, value);
 
         if (error) {
           console.error('Exists in table validation query error:', error);
           return { valid: false, error: 'Failed to validate existence in table' };
         }
 
-        if (!data) {
+        if (!count || count === 0) {
           console.warn(`Value "${value}" not found in ${rule.compare_table}.${rule.compare_field}`);
           return {
             valid: false,
@@ -201,7 +200,7 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
           };
         }
 
-        console.log(`Validation passed: "${value}" exists in ${rule.compare_table}`);
+        console.log(`Validation passed: "${value}" exists in ${rule.compare_table} (${count} records)`);
         return { valid: true };
       } catch (error) {
         console.error('Exists in table validation error:', error);

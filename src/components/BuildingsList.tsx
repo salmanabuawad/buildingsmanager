@@ -67,20 +67,27 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         return;
       }
 
+      console.log('[CREATE] Attempting to create building:', { buildingNumber, taxRegion });
       await api.buildings.create({
         building_number: buildingNumber,
         tax_region: taxRegion,
         total_assets: 0,
         total_building_area: 0
       });
+      console.log('[CREATE] Building created successfully');
 
       setShowCreateModal(false);
       setNewBuilding({ building_number: '', tax_region: '' });
       await fetchBuildings(false);
-    } catch (error) {
-      console.error('Error creating building:', error);
-      setError('Failed to create building');
-      setTimeout(() => setError(null), 3000);
+    } catch (error: any) {
+      console.error('[CREATE ERROR] Full error object:', error);
+      console.error('[CREATE ERROR] Error message:', error.message);
+      console.error('[CREATE ERROR] Error details:', error.details);
+      console.error('[CREATE ERROR] Error hint:', error.hint);
+      console.error('[CREATE ERROR] Error code:', error.code);
+      const errorMsg = `Failed to create building: ${error.message || error.toString()}`;
+      setError(errorMsg);
+      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -103,14 +110,20 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
         if (!isNaN(buildingNumber)) {
           try {
+            console.log(`[CSV IMPORT] Creating building ${buildingNumber} with tax region ${taxRegion}`);
             await api.buildings.create({
               building_number: buildingNumber,
               tax_region: taxRegion,
               total_assets: 0,
               total_building_area: 0
             });
-          } catch (err) {
-            console.error(`Error creating building ${buildingNumber}:`, err);
+            console.log(`[CSV IMPORT] Successfully created building ${buildingNumber}`);
+          } catch (err: any) {
+            console.error(`[CSV IMPORT ERROR] Building ${buildingNumber}:`, err);
+            console.error(`[CSV IMPORT ERROR] Message:`, err.message);
+            console.error(`[CSV IMPORT ERROR] Details:`, err.details);
+            console.error(`[CSV IMPORT ERROR] Hint:`, err.hint);
+            console.error(`[CSV IMPORT ERROR] Code:`, err.code);
           }
         }
       }
@@ -130,6 +143,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       const field = colDef.field;
       const buildingNumber = data.building_number;
       const newValue = event.newValue;
+
+      console.log(`[UPDATE] Attempting to update building ${buildingNumber}, field: ${field}, value:`, newValue);
 
       if (field === 'tax_region') {
         const validation = await buildingValidators.validateTaxRegion(newValue);
@@ -152,12 +167,19 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         [field]: newValue
       };
 
+      console.log('[UPDATE] Sending update data:', updateData);
       await api.buildings.update(buildingNumber, updateData);
+      console.log('[UPDATE] Update successful');
       await fetchBuildings(false);
-    } catch (error) {
-      console.error('Error updating building:', error);
-      setError('Failed to update building');
-      setTimeout(() => setError(null), 3000);
+    } catch (error: any) {
+      console.error('[UPDATE ERROR] Full error object:', error);
+      console.error('[UPDATE ERROR] Error message:', error.message);
+      console.error('[UPDATE ERROR] Error details:', error.details);
+      console.error('[UPDATE ERROR] Error hint:', error.hint);
+      console.error('[UPDATE ERROR] Error code:', error.code);
+      const errorMsg = `Failed to update building: ${error.message || error.toString()}`;
+      setError(errorMsg);
+      setTimeout(() => setError(null), 5000);
       await fetchBuildings(false);
     }
   }, [fetchBuildings]);

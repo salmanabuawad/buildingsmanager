@@ -100,16 +100,27 @@ export const api = {
       return data;
     },
     create: async (input: Omit<Building, 'created_at' | 'total_units' | 'total_building_area'>): Promise<Building> => {
+      console.log('[API] Creating building with input:', input);
       const { data, error } = await supabase
         .from('building')
         .insert(input)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[API ERROR] Create building failed:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+      console.log('[API] Building created successfully:', data);
       return data;
     },
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
+      console.log('[API] Updating building:', buildingNumber, 'with data:', input);
       const { data, error } = await supabase
         .from('building')
         .update(input)
@@ -117,7 +128,18 @@ export const api = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[API ERROR] Update building failed:', {
+          buildingNumber,
+          input,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+      console.log('[API] Building updated successfully:', data);
       return data;
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {

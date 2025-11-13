@@ -58,15 +58,35 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       const { data, colDef } = event;
       const field = colDef.field;
       const buildingNumber = data.building_number;
+      const newValue = event.newValue;
+
+      if (field === 'tax_region') {
+        const validation = await buildingValidators.validateTaxRegion(newValue);
+        if (!validation.valid) {
+          setError(validation.error || 'Invalid tax region');
+          setTimeout(() => setError(null), 3000);
+          await fetchBuildings(false);
+          return;
+        }
+      } else if (field === 'total_area_for_control') {
+        if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
+          setError('Total area must be a positive number');
+          setTimeout(() => setError(null), 3000);
+          await fetchBuildings(false);
+          return;
+        }
+      }
 
       const updateData: Partial<Building> = {
-        [field]: event.newValue
+        [field]: newValue
       };
 
       await api.buildings.update(buildingNumber, updateData);
       await fetchBuildings(false);
     } catch (error) {
       console.error('Error updating building:', error);
+      setError('Failed to update building');
+      setTimeout(() => setError(null), 3000);
       await fetchBuildings(false);
     }
   }, [fetchBuildings]);

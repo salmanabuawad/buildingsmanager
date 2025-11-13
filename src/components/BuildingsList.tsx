@@ -21,6 +21,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const gridRef = useRef<AgGridReact<Building>>(null);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
@@ -30,6 +31,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       const data = await api.buildings.getAll();
       console.log('[BuildingsList] Received buildings:', data);
       setBuildings(data || []);
+
+      const invalidSet = new Set<number>();
+      for (const building of data || []) {
+        const isInvalid = await buildingValidators.checkTaxRegionInvalid(building.tax_region);
+        if (isInvalid) {
+          invalidSet.add(building.building_number);
+        }
+      }
+      setInvalidTaxRegions(invalidSet);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load buildings');
     } finally {
@@ -70,14 +80,19 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const hasDiscrepancy = buildingValidators.checkAreaMismatch(
+        const hasAreaDiscrepancy = buildingValidators.checkAreaMismatch(
           building.total_area_for_control,
           building.total_building_area
         );
+        const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
-        if (hasDiscrepancy) {
+        if (hasAreaDiscrepancy || hasTaxRegionError) {
+          const errors = [];
+          if (hasAreaDiscrepancy) errors.push('Area mismatch');
+          if (hasTaxRegionError) errors.push('Invalid tax region');
+
           return (
-            <div className="flex items-center justify-center h-full" title="Data mismatch">
+            <div className="flex items-center justify-center h-full" title={errors.join(', ')}>
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
           );
@@ -150,7 +165,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: false,
       cellStyle: { textAlign: 'right' }
     }
-  ], [onSelectBuilding, t]);
+  ], [onSelectBuilding, t, invalidTaxRegions]);
 
   if (loading) {
     return (
@@ -248,9 +263,10 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               const building = params.data as Building;
               const hasControlArea = building.total_area_for_control != null;
               const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
-              const hasDiscrepancy = hasControlArea && !areasMatch;
+              const hasAreaDiscrepancy = hasControlArea && !areasMatch;
+              const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
-              if (hasDiscrepancy) {
+              if (hasAreaDiscrepancy || hasTaxRegionError) {
                 return { background: '#fee2e2' };
               }
 

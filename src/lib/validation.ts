@@ -385,6 +385,12 @@ export const buildingValidators = {
     if (totalAreaForControl == null) return false;
     return totalAreaForControl !== totalBuildingArea;
   },
+
+  checkTaxRegionInvalid: async (taxRegion: number | null | undefined): Promise<boolean> => {
+    if (taxRegion == null) return false;
+    const result = await buildingValidators.validateTaxRegion(taxRegion);
+    return !result.valid;
+  },
 };
 
 export async function validateCrossTable(

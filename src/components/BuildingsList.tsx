@@ -174,7 +174,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value != null ? params.value.toLocaleString() : '',
+      valueParser: (params) => {
+        const val = params.newValue;
+        if (val == null || val === '') return null;
+        const num = typeof val === 'string' ? parseInt(val.replace(/,/g, ''), 10) : val;
+        return isNaN(num) ? null : num;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {

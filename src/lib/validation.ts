@@ -175,6 +175,35 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
       }
       return { valid: true };
 
+    case 'exists_in_table':
+      if (!rule.compare_table || !rule.compare_field) {
+        return { valid: false, error: 'exists_in_table rule requires compare_table and compare_field' };
+      }
+      try {
+        const { data, error } = await supabase
+          .from(rule.compare_table)
+          .select(rule.compare_field)
+          .eq(rule.compare_field, value)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Exists in table validation query error:', error);
+          return { valid: false, error: 'Failed to validate existence in table' };
+        }
+
+        if (!data) {
+          return {
+            valid: false,
+            error: errorMessage || `${fieldName} value does not exist in ${rule.compare_table}`
+          };
+        }
+
+        return { valid: true };
+      } catch (error) {
+        console.error('Exists in table validation error:', error);
+        return { valid: false, error: 'Existence validation failed' };
+      }
+
     default:
       return { valid: true };
   }

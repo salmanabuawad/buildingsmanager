@@ -28,11 +28,14 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
     setHasSearched(true);
 
     try {
+      const fromNum = parseInt(fromNumber);
+      const toNum = parseInt(toNumber);
+
       const { data, error } = await supabase
         .from('assets')
         .select('*')
-        .gte('asset_id', fromNumber)
-        .lte('asset_id', toNumber)
+        .gte('asset_id', fromNum)
+        .lte('asset_id', toNum)
         .order('asset_id');
 
       if (error) throw error;
@@ -72,10 +75,10 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                 {t('fromAssetNumber') || 'From Asset ID'}
               </label>
               <input
-                type="text"
+                type="number"
                 value={fromNumber}
                 onChange={(e) => setFromNumber(e.target.value)}
-                placeholder="826812801"
+                placeholder="1"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
               />
@@ -85,10 +88,10 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                 {t('toAssetNumber') || 'To Asset ID'}
               </label>
               <input
-                type="text"
+                type="number"
                 value={toNumber}
                 onChange={(e) => setToNumber(e.target.value)}
-                placeholder="826812899"
+                placeholder="10000000000"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
               />

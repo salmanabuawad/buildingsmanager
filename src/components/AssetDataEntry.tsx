@@ -552,37 +552,11 @@ export function AssetDataEntry() {
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-8">
       <div className="mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Plus className="h-8 w-8 text-white" />
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Plus className="h-8 w-8 text-white" />
-              <h1 className="text-3xl font-bold text-white">{t('assetDataEntry')}</h1>
-            </div>
+            <h1 className="text-3xl font-bold text-white">{t('assetDataEntry')}</h1>
             <p className="text-teal-50">Excel-like data entry for assets</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
-            >
-              <Upload className="h-5 w-5" />
-              Import CSV
-            </button>
-            <button
-              onClick={addEmptyRow}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
-            >
-              <Plus className="h-5 w-5" />
-              Add Row
-            </button>
-            <button
-              onClick={handleSaveAll}
-              disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-white text-teal-600 rounded-lg hover:bg-teal-50 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-            >
-              <Save className="h-5 w-5" />
-              {loading ? 'Saving...' : 'Save All'}
-            </button>
           </div>
         </div>
       </div>
@@ -600,6 +574,35 @@ export function AssetDataEntry() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="border-b border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+              >
+                <Upload className="h-5 w-5" />
+                Import CSV
+              </button>
+              <button
+                onClick={addEmptyRow}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+              >
+                <Plus className="h-5 w-5" />
+                Add Row
+              </button>
+            </div>
+            <button
+              onClick={handleSaveAll}
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              <Save className="h-5 w-5" />
+              {loading ? 'Saving...' : 'Save All'}
+            </button>
+          </div>
+        </div>
+
         <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
           <AgGridReact
             ref={gridRef}

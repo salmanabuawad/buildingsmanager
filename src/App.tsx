@@ -20,7 +20,7 @@ interface Tab {
 
 function App() {
   const [tabs, setTabs] = useState<Tab[]>([
-    { id: 'buildings', type: 'buildings', label: 'Buildings' }
+    { id: 'buildings', type: 'buildings', label: 'בניינים' }
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
@@ -41,7 +41,7 @@ function App() {
       id: newTabId,
       type: 'assets',
       buildingNumber,
-      label: `Building ${buildingNumber}`
+      label: `בניין ${buildingNumber}`
     };
 
     setTabs([...tabs, newTab]);
@@ -62,7 +62,7 @@ function App() {
       type: 'details',
       buildingNumber,
       assetId: assetDbId,
-      label: `Asset ${assetId}`
+      label: `נכס ${assetId}`
     };
 
     setTabs([...tabs, newTab]);
@@ -90,7 +90,7 @@ function App() {
     const newTab: Tab = {
       id: adminTabId,
       type: 'admin',
-      label: 'PDF Manager'
+      label: 'מנהל PDF'
     };
 
     setTabs([...tabs, newTab]);
@@ -109,7 +109,7 @@ function App() {
     const newTab: Tab = {
       id: assetTypesTabId,
       type: 'asset-types',
-      label: 'Asset Types'
+      label: 'סוגי נכסים'
     };
 
     setTabs([...tabs, newTab]);
@@ -128,7 +128,7 @@ function App() {
     const newTab: Tab = {
       id: assetSearchTabId,
       type: 'asset-search',
-      label: 'Asset Search'
+      label: 'חיפוש נכס'
     };
 
     setTabs([...tabs, newTab]);
@@ -147,7 +147,7 @@ function App() {
     const newTab: Tab = {
       id: dataEntryTabId,
       type: 'data-entry',
-      label: 'Asset Data Entry'
+      label: 'הוספת נכס'
     };
 
     setTabs([...tabs, newTab]);
@@ -166,7 +166,7 @@ function App() {
     const newTab: Tab = {
       id: validationRulesTabId,
       type: 'validation-rules',
-      label: 'Validation Rules'
+      label: 'כללי תקינות'
     };
 
     setTabs([...tabs, newTab]);

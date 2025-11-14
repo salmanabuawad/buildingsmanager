@@ -315,77 +315,83 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
         <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
             <div>
-              <div className="flex items-center gap-3 mb-1 sm:mb-2">
-                <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
-              </div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
               <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-              >
-                <Building2 className="h-5 w-5" />
-                <span className="hidden sm:inline">Create Building</span>
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-              >
-                <Upload className="h-5 w-5" />
-                <span className="hidden sm:inline">Import CSV</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleImportCSV}
-                className="hidden"
-              />
-              {onOpenDataEntry && (
-                <button
-                  onClick={onOpenDataEntry}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('addNewAsset')}</span>
-                </button>
-              )}
-              {onOpenAssetSearch && (
-                <button
-                  onClick={onOpenAssetSearch}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-                >
-                  <Search className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('assetSearch') || 'Search'}</span>
-                </button>
-              )}
-              {onOpenAssetTypes && (
-                <button
-                  onClick={onOpenAssetTypes}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-                >
-                  <Tag className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('assetTypes')}</span>
-                </button>
-              )}
-              {onOpenValidationRules && (
-                <button
-                  onClick={onOpenValidationRules}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-                >
-                  <Settings className="h-5 w-5" />
-                  <span className="hidden sm:inline">Validation Rules</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '500px', width: '100%' }}>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-4">
+          <div className="border-b border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                >
+                  <Building2 className="h-5 w-5" />
+                  <span>Create Building</span>
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                >
+                  <Upload className="h-5 w-5" />
+                  <span>Import CSV</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImportCSV}
+                  className="hidden"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {onOpenDataEntry && (
+                  <button
+                    onClick={onOpenDataEntry}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span>{t('addNewAsset')}</span>
+                  </button>
+                )}
+                {onOpenAssetSearch && (
+                  <button
+                    onClick={onOpenAssetSearch}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                  >
+                    <Search className="h-5 w-5" />
+                    <span>{t('assetSearch') || 'Search'}</span>
+                  </button>
+                )}
+                {onOpenAssetTypes && (
+                  <button
+                    onClick={onOpenAssetTypes}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                  >
+                    <Tag className="h-5 w-5" />
+                    <span>{t('assetTypes')}</span>
+                  </button>
+                )}
+                {onOpenValidationRules && (
+                  <button
+                    onClick={onOpenValidationRules}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                  >
+                    <Settings className="h-5 w-5" />
+                    <span>Validation Rules</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={buildings}
@@ -420,6 +426,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               return { background: '#f0f9ff' };
             }}
           />
+          </div>
         </div>
       </div>
 

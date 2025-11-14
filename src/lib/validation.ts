@@ -272,7 +272,9 @@ export async function validateAssetTypeForBuildingTaxRegion(
 export async function validateSubAssetsFor199Or299(
   buildingNumber: number | null,
   mainAssetType: string | undefined,
-  subAssetTypes: (string | undefined)[]
+  mainAssetSize: number | undefined,
+  subAssetTypes: (string | undefined)[],
+  subAssetSizes: (number | undefined)[]
 ): Promise<ValidationResult> {
   if (!mainAssetType || !buildingNumber) {
     return { valid: true };
@@ -289,6 +291,39 @@ export async function validateSubAssetsFor199Or299(
       valid: false,
       error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, חייב להיות לפחות נכס משנה אחד`
     };
+  }
+
+  for (let i = 0; i < subAssetTypes.length; i++) {
+    const currentType = subAssetTypes[i];
+    const hasCurrentType = currentType && currentType.trim() !== '';
+
+    if (hasCurrentType && i > 0) {
+      const previousType = subAssetTypes[i - 1];
+      const hasPreviousType = previousType && previousType.trim() !== '';
+
+      if (!hasPreviousType) {
+        return {
+          valid: false,
+          error: `אין לדלג על סדר נכסי המשנה - נכס משנה ${i + 1} קיים אך נכס משנה ${i} חסר`
+        };
+      }
+    }
+  }
+
+  if (mainAssetSize != null && mainAssetSize > 0) {
+    const totalSubAssetSize = subAssetSizes
+      .filter((size, idx) => {
+        const hasType = subAssetTypes[idx] && subAssetTypes[idx]!.trim() !== '';
+        return hasType && size != null;
+      })
+      .reduce((sum, size) => sum + (size || 0), 0);
+
+    if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
+      return {
+        valid: false,
+        error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, סכום שטחי המשנה (${totalSubAssetSize}) חייב להיות שווה לשטח הראשי (${mainAssetSize})`
+      };
+    }
   }
 
   const { data: building, error: buildingError } = await supabase
@@ -451,9 +486,11 @@ export const assetValidators = {
   validateSubAssetsFor199Or299: async (
     buildingNumber: number | null,
     mainAssetType: string | undefined,
-    subAssetTypes: (string | undefined)[]
+    mainAssetSize: number | undefined,
+    subAssetTypes: (string | undefined)[],
+    subAssetSizes: (number | undefined)[]
   ): Promise<ValidationResult> => {
-    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, subAssetTypes);
+    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes);
   },
 };
 

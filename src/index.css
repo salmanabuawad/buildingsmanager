@@ -41,16 +41,15 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-header-icon {
-  color: white !important;
+  color: black !important;
   opacity: 1 !important;
 }
 
 .ag-theme-alpine .ag-sort-ascending-icon,
 .ag-theme-alpine .ag-sort-descending-icon,
 .ag-theme-alpine .ag-sort-none-icon {
-  color: white !important;
+  color: black !important;
   opacity: 1 !important;
-  filter: brightness(1.2);
 }
 
 .ag-theme-alpine .ag-row {

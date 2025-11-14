@@ -28,15 +28,11 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
     setHasSearched(true);
 
     try {
-      const fromNum = parseInt(fromNumber);
-      const toNum = parseInt(toNumber);
-
       const { data, error } = await supabase
-        .from('assets')
-        .select('*')
-        .gte('asset_id', fromNum)
-        .lte('asset_id', toNum)
-        .order('asset_id');
+        .rpc('search_assets_by_range', {
+          from_id: parseInt(fromNumber),
+          to_id: parseInt(toNumber)
+        });
 
       if (error) throw error;
 

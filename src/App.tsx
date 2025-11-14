@@ -31,12 +31,6 @@ function App() {
   function handleSelectBuilding(buildingNumber: number) {
     const newTabId = `assets-${buildingNumber}`;
 
-    const existingTab = tabs.find(tab => tab.id === newTabId);
-    if (existingTab) {
-      setActiveTabId(newTabId);
-      return;
-    }
-
     const newTab: Tab = {
       id: newTabId,
       type: 'assets',
@@ -44,18 +38,12 @@ function App() {
       label: `בניין ${buildingNumber}`
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(newTabId);
   }
 
   function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {
     const newTabId = `details-${assetDbId}`;
-
-    const existingTab = tabs.find(tab => tab.id === newTabId);
-    if (existingTab) {
-      setActiveTabId(newTabId);
-      return;
-    }
 
     const newTab: Tab = {
       id: newTabId,
@@ -65,7 +53,7 @@ function App() {
       label: `נכס ${assetId}`
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(newTabId);
   }
 
@@ -80,12 +68,6 @@ function App() {
 
   function openAdminPanel() {
     const adminTabId = 'admin-panel';
-    const existingTab = tabs.find(tab => tab.id === adminTabId);
-
-    if (existingTab) {
-      setActiveTabId(adminTabId);
-      return;
-    }
 
     const newTab: Tab = {
       id: adminTabId,
@@ -93,18 +75,12 @@ function App() {
       label: 'מנהל PDF'
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(adminTabId);
   }
 
   function openAssetTypes() {
     const assetTypesTabId = 'asset-types-panel';
-    const existingTab = tabs.find(tab => tab.id === assetTypesTabId);
-
-    if (existingTab) {
-      setActiveTabId(assetTypesTabId);
-      return;
-    }
 
     const newTab: Tab = {
       id: assetTypesTabId,
@@ -112,18 +88,12 @@ function App() {
       label: 'סוגי נכסים'
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(assetTypesTabId);
   }
 
   function openAssetSearch() {
     const assetSearchTabId = 'asset-search-panel';
-    const existingTab = tabs.find(tab => tab.id === assetSearchTabId);
-
-    if (existingTab) {
-      setActiveTabId(assetSearchTabId);
-      return;
-    }
 
     const newTab: Tab = {
       id: assetSearchTabId,
@@ -131,18 +101,12 @@ function App() {
       label: 'חיפוש נכס'
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(assetSearchTabId);
   }
 
   function openDataEntry() {
     const dataEntryTabId = 'data-entry-panel';
-    const existingTab = tabs.find(tab => tab.id === dataEntryTabId);
-
-    if (existingTab) {
-      setActiveTabId(dataEntryTabId);
-      return;
-    }
 
     const newTab: Tab = {
       id: dataEntryTabId,
@@ -150,18 +114,12 @@ function App() {
       label: 'הוספת נכס'
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(dataEntryTabId);
   }
 
   function openValidationRules() {
     const validationRulesTabId = 'validation-rules-panel';
-    const existingTab = tabs.find(tab => tab.id === validationRulesTabId);
-
-    if (existingTab) {
-      setActiveTabId(validationRulesTabId);
-      return;
-    }
 
     const newTab: Tab = {
       id: validationRulesTabId,
@@ -169,19 +127,14 @@ function App() {
       label: 'כללי תקינות'
     };
 
-    setTabs([...tabs, newTab]);
+    setTabs([newTab]);
     setActiveTabId(validationRulesTabId);
   }
 
   function handleCloseTab(tabId: string) {
-    if (tabId === 'buildings') return;
-
-    const newTabs = tabs.filter(tab => tab.id !== tabId);
-    setTabs(newTabs);
-
-    if (activeTabId === tabId) {
-      setActiveTabId(newTabs[newTabs.length - 1].id);
-    }
+    const newTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    setTabs([newTab]);
+    setActiveTabId('buildings');
   }
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
@@ -212,6 +165,8 @@ function App() {
               <div className="mr-4 mt-1 space-y-1">
                 <button
                   onClick={() => {
+                    const newTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+                    setTabs([newTab]);
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
@@ -328,17 +283,15 @@ function App() {
                       {tab.label}
                     </span>
                   </div>
-                  {tab.id !== 'buildings' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCloseTab(tab.id);
-                      }}
-                      className="p-0.5 sm:p-1 hover:bg-red-100 rounded transition-colors"
-                    >
-                      <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-600 hover:text-red-600" />
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCloseTab(tab.id);
+                    }}
+                    className="p-0.5 sm:p-1 hover:bg-red-100 rounded transition-colors"
+                  >
+                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-600 hover:text-red-600" />
+                  </button>
                 </div>
               ))}
             </div>

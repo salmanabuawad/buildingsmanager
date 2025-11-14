@@ -285,13 +285,6 @@ function App() {
             <span className="font-medium text-slate-700 group-hover:text-amber-900">כללי תקינות</span>
             <Settings className="h-5 w-5 text-amber-600 group-hover:text-amber-700" />
           </button>
-          <button
-            onClick={openAdminPanel}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-slate-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-slate-900">מנהל PDF</span>
-            <Settings className="h-5 w-5 text-slate-600 group-hover:text-slate-700" />
-          </button>
         </nav>
       </div>
 

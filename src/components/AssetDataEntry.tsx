@@ -130,6 +130,7 @@ export function AssetDataEntry() {
             assetValidators.validateBuildingNumber(row.building_number),
             assetValidators.validateAssetId(row.asset_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
+            assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
             assetValidators.validateAssetType(row.sub_asset_type_1, 'sub_asset_type_1'),
             assetValidators.validateAssetType(row.sub_asset_type_2, 'sub_asset_type_2'),
             assetValidators.validateAssetType(row.sub_asset_type_3, 'sub_asset_type_3'),

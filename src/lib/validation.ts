@@ -212,6 +212,63 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
   }
 }
 
+export async function validateAssetTypeForBuildingTaxRegion(
+  buildingNumber: number,
+  assetTypeName: string
+): Promise<ValidationResult> {
+  try {
+    const { data: building, error: buildingError } = await supabase
+      .from('building')
+      .select('tax_region')
+      .eq('building_number', buildingNumber)
+      .maybeSingle();
+
+    if (buildingError) {
+      console.error('Error fetching building:', buildingError);
+      return { valid: false, error: 'Failed to validate building tax region' };
+    }
+
+    if (!building) {
+      return { valid: false, error: 'Building not found' };
+    }
+
+    if (building.tax_region == null) {
+      return { valid: true };
+    }
+
+    const { data: assetType, error: assetTypeError } = await supabase
+      .from('asset_types')
+      .select('name, tax_region')
+      .eq('name', assetTypeName)
+      .maybeSingle();
+
+    if (assetTypeError) {
+      console.error('Error fetching asset type:', assetTypeError);
+      return { valid: false, error: 'Failed to validate asset type' };
+    }
+
+    if (!assetType) {
+      return { valid: false, error: `Asset type "${assetTypeName}" does not exist` };
+    }
+
+    if (assetType.tax_region == null) {
+      return { valid: true };
+    }
+
+    if (assetType.tax_region !== building.tax_region) {
+      return {
+        valid: false,
+        error: `סוג הנכס "${assetTypeName}" (אזור ${assetType.tax_region}) לא שייך לאזור המס של הבניין (אזור ${building.tax_region})`
+      };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.error('Asset type tax region validation error:', error);
+    return { valid: false, error: 'Validation failed' };
+  }
+}
+
 export async function validateField(
   entityType: string,
   fieldName: string,
@@ -317,6 +374,16 @@ export const assetValidators = {
     const results = await validateField('asset', fieldName, assetType);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };
+  },
+
+  validateMainAssetTypeForBuilding: async (
+    buildingNumber: number | null,
+    mainAssetType: string | undefined
+  ): Promise<ValidationResult> => {
+    if (!mainAssetType || !buildingNumber) {
+      return { valid: true };
+    }
+    return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType);
   },
 };
 

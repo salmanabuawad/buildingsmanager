@@ -269,6 +269,68 @@ export async function validateAssetTypeForBuildingTaxRegion(
   }
 }
 
+export async function validateSubAssetsFor199Or299(
+  buildingNumber: number | null,
+  mainAssetType: string | undefined,
+  subAssetTypes: (string | undefined)[]
+): Promise<ValidationResult> {
+  if (!mainAssetType || !buildingNumber) {
+    return { valid: true };
+  }
+
+  if (mainAssetType !== '199' && mainAssetType !== '299') {
+    return { valid: true };
+  }
+
+  const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
+
+  if (validSubAssets.length === 0) {
+    return {
+      valid: false,
+      error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, חייב להיות לפחות נכס משנה אחד`
+    };
+  }
+
+  const { data: building, error: buildingError } = await supabase
+    .from('building')
+    .select('tax_region')
+    .eq('building_number', buildingNumber)
+    .maybeSingle();
+
+  if (buildingError || !building) {
+    return { valid: false, error: 'Failed to validate building' };
+  }
+
+  if (building.tax_region == null) {
+    return { valid: true };
+  }
+
+  for (const subAssetType of validSubAssets) {
+    const { data: assetType, error: assetTypeError } = await supabase
+      .from('asset_types')
+      .select('name, tax_region')
+      .eq('name', subAssetType)
+      .maybeSingle();
+
+    if (assetTypeError) {
+      return { valid: false, error: `Failed to validate sub-asset type ${subAssetType}` };
+    }
+
+    if (!assetType) {
+      return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים` };
+    }
+
+    if (assetType.tax_region != null && assetType.tax_region !== building.tax_region) {
+      return {
+        valid: false,
+        error: `סוג נכס משנה "${subAssetType}" (אזור ${assetType.tax_region}) לא שייך לאזור המס של הבניין (אזור ${building.tax_region})`
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
 export async function validateField(
   entityType: string,
   fieldName: string,
@@ -384,6 +446,14 @@ export const assetValidators = {
       return { valid: true };
     }
     return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType);
+  },
+
+  validateSubAssetsFor199Or299: async (
+    buildingNumber: number | null,
+    mainAssetType: string | undefined,
+    subAssetTypes: (string | undefined)[]
+  ): Promise<ValidationResult> => {
+    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, subAssetTypes);
   },
 };
 

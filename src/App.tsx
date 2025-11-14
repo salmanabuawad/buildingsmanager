@@ -7,7 +7,7 @@ import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { AssetDataEntry } from './components/AssetDataEntry';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft } from 'lucide-react';
 
 interface Tab {
   id: string;
@@ -25,6 +25,7 @@ function App() {
   const [activeTabId, setActiveTabId] = useState('buildings');
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [showImportCSVModal, setShowImportCSVModal] = useState(false);
+  const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number) {
     const newTabId = `assets-${buildingNumber}`;
@@ -191,20 +192,50 @@ function App() {
           <h2 className="text-lg font-bold text-teal-900">תפריט ראשי</h2>
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          <button
-            onClick={() => setShowCreateBuildingModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-sky-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-sky-900">צור בניין חדש</span>
-            <Building2 className="h-5 w-5 text-sky-600 group-hover:text-sky-700" />
-          </button>
-          <button
-            onClick={() => setShowImportCSVModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-indigo-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-indigo-900">ייבוא CSV</span>
-            <Upload className="h-5 w-5 text-indigo-600 group-hover:text-indigo-700" />
-          </button>
+          <div>
+            <button
+              onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-sky-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-medium text-slate-700 group-hover:text-sky-900">בניינים</span>
+                <Building2 className="h-5 w-5 text-sky-600 group-hover:text-sky-700" />
+              </div>
+              {buildingsMenuOpen ? (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronLeft className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
+            {buildingsMenuOpen && (
+              <div className="mr-4 mt-1 space-y-1">
+                <button
+                  onClick={() => {
+                    setActiveTabId('buildings');
+                    setBuildingsMenuOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-sky-50/50 hover:bg-sky-50 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">רשימת בניינים</span>
+                  <Building className="h-4 w-4 text-sky-500" />
+                </button>
+                <button
+                  onClick={() => setShowCreateBuildingModal(true)}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-sky-50/50 hover:bg-sky-50 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">צור בניין חדש</span>
+                  <Plus className="h-4 w-4 text-sky-500" />
+                </button>
+                <button
+                  onClick={() => setShowImportCSVModal(true)}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-sky-50/50 hover:bg-sky-50 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">ייבוא CSV</span>
+                  <Upload className="h-4 w-4 text-sky-500" />
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={openDataEntry}
             className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-teal-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"

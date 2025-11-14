@@ -140,20 +140,20 @@ function App() {
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex" dir="rtl">
-      <div className="w-64 bg-white/90 backdrop-blur-sm border-r border-blue-200 shadow-lg flex flex-col shrink-0">
-        <div className="p-4 border-b border-blue-100 bg-gradient-to-b from-teal-50 to-white">
-          <h2 className="text-lg font-bold text-teal-900">תפריט ראשי</h2>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
+      <div className="w-64 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
+        <div className="p-4 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
+          <h2 className="text-lg font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <div>
             <button
               onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-sky-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-purple-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
             >
               <div className="flex items-center gap-3">
-                <span className="font-medium text-slate-700 group-hover:text-sky-900">בניינים</span>
-                <Building2 className="h-5 w-5 text-sky-600 group-hover:text-sky-700" />
+                <span className="font-medium text-slate-700 group-hover:text-purple-900">בניינים</span>
+                <Building2 className="h-5 w-5 text-purple-600 group-hover:text-purple-700" />
               </div>
               {buildingsMenuOpen ? (
                 <ChevronDown className="h-4 w-4 text-slate-500" />
@@ -170,24 +170,24 @@ function App() {
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-sky-50/50 hover:bg-sky-50 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">רשימת בניינים</span>
-                  <Building className="h-4 w-4 text-sky-500" />
+                  <Building className="h-4 w-4 text-purple-500" />
                 </button>
                 <button
                   onClick={() => setShowCreateBuildingModal(true)}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-sky-50/50 hover:bg-sky-50 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">צור בניין חדש</span>
-                  <Plus className="h-4 w-4 text-sky-500" />
+                  <Plus className="h-4 w-4 text-purple-500" />
                 </button>
                 <button
                   onClick={() => setShowImportCSVModal(true)}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-sky-50/50 hover:bg-sky-50 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">ייבוא CSV</span>
-                  <Upload className="h-4 w-4 text-sky-500" />
+                  <Upload className="h-4 w-4 text-purple-500" />
                 </button>
               </div>
             )}
@@ -195,11 +195,11 @@ function App() {
           <div>
             <button
               onClick={() => setAssetsMenuOpen(!assetsMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-teal-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-indigo-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
             >
               <div className="flex items-center gap-3">
-                <span className="font-medium text-slate-700 group-hover:text-teal-900">נכסים</span>
-                <Home className="h-5 w-5 text-teal-600 group-hover:text-teal-700" />
+                <span className="font-medium text-slate-700 group-hover:text-indigo-900">נכסים</span>
+                <Home className="h-5 w-5 text-indigo-600 group-hover:text-indigo-700" />
               </div>
               {assetsMenuOpen ? (
                 <ChevronDown className="h-4 w-4 text-slate-500" />
@@ -211,40 +211,40 @@ function App() {
               <div className="mr-4 mt-1 space-y-1">
                 <button
                   onClick={openDataEntry}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-teal-50/50 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">הוסף נכס חדש</span>
-                  <Plus className="h-4 w-4 text-teal-500" />
+                  <Plus className="h-4 w-4 text-indigo-500" />
                 </button>
                 <button
                   onClick={openAssetSearch}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-teal-50/50 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">חיפוש נכס</span>
-                  <Search className="h-4 w-4 text-teal-500" />
+                  <Search className="h-4 w-4 text-indigo-500" />
                 </button>
                 <button
                   onClick={openAssetTypes}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-teal-50/50 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">סוגי נכסים</span>
-                  <Tag className="h-4 w-4 text-teal-500" />
+                  <Tag className="h-4 w-4 text-indigo-500" />
                 </button>
               </div>
             )}
           </div>
           <button
             onClick={openValidationRules}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-amber-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-pink-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
           >
-            <span className="font-medium text-slate-700 group-hover:text-amber-900">כללי תקינות</span>
-            <Settings className="h-5 w-5 text-amber-600 group-hover:text-amber-700" />
+            <span className="font-medium text-slate-700 group-hover:text-pink-900">כללי תקינות</span>
+            <Settings className="h-5 w-5 text-pink-600 group-hover:text-pink-700" />
           </button>
         </nav>
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm border-b border-purple-100 shadow-md">
           <div className="px-2 sm:px-4">
             <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
               {tabs.map((tab) => (
@@ -252,8 +252,8 @@ function App() {
                   key={tab.id}
                   className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 border-b-2 transition-all cursor-pointer group ${
                     activeTabId === tab.id
-                      ? 'border-teal-600 bg-gradient-to-r from-teal-50 to-blue-50'
-                      : 'border-transparent hover:bg-blue-50/50'
+                      ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50'
+                      : 'border-transparent hover:bg-purple-50/50'
                   }`}
                 >
                   <div
@@ -261,24 +261,24 @@ function App() {
                     className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
                   >
                     {tab.type === 'admin' ? (
-                      <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'asset-types' ? (
-                      <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'asset-search' ? (
-                      <Search className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Search className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'data-entry' ? (
-                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
-                      <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
                     ) : tab.type === 'assets' ? (
-                      <Building className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Building className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : (
-                      <Home className="h-3 w-3 sm:h-4 sm:w-4 text-teal-700" />
+                      <Home className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     )}
                     <span className={`font-medium whitespace-nowrap text-xs sm:text-sm ${
-                      activeTabId === tab.id ? 'text-teal-900' : 'text-slate-700'
+                      activeTabId === tab.id ? 'text-purple-900' : 'text-slate-700'
                     }`}>
                       {tab.label}
                     </span>

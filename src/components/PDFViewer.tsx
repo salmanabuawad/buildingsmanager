@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ZoomIn, ZoomOut, Download, RotateCw } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -102,8 +102,9 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
               <button
                 onClick={previousPage}
                 disabled={pageNumber <= 1}
-                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
+                <ChevronRight className="h-4 w-4 text-black" />
                 Previous
               </button>
               <span className="text-sm text-slate-700">
@@ -112,9 +113,10 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
               <button
                 onClick={nextPage}
                 disabled={pageNumber >= numPages}
-                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 Next
+                <ChevronLeft className="h-4 w-4 text-black" />
               </button>
             </div>
           )}

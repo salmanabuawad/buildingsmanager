@@ -26,6 +26,7 @@ function App() {
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [showImportCSVModal, setShowImportCSVModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
+  const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number) {
     const newTabId = `assets-${buildingNumber}`;
@@ -236,27 +237,47 @@ function App() {
               </div>
             )}
           </div>
-          <button
-            onClick={openDataEntry}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-teal-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-teal-900">הוסף נכס חדש</span>
-            <Plus className="h-5 w-5 text-teal-600 group-hover:text-teal-700" />
-          </button>
-          <button
-            onClick={openAssetSearch}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-blue-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-blue-900">חיפוש נכס</span>
-            <Search className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
-          </button>
-          <button
-            onClick={openAssetTypes}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-green-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-green-900">סוגי נכסים</span>
-            <Tag className="h-5 w-5 text-green-600 group-hover:text-green-700" />
-          </button>
+          <div>
+            <button
+              onClick={() => setAssetsMenuOpen(!assetsMenuOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-teal-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-medium text-slate-700 group-hover:text-teal-900">נכסים</span>
+                <Home className="h-5 w-5 text-teal-600 group-hover:text-teal-700" />
+              </div>
+              {assetsMenuOpen ? (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronLeft className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
+            {assetsMenuOpen && (
+              <div className="mr-4 mt-1 space-y-1">
+                <button
+                  onClick={openDataEntry}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-teal-50/50 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">הוסף נכס חדש</span>
+                  <Plus className="h-4 w-4 text-teal-500" />
+                </button>
+                <button
+                  onClick={openAssetSearch}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-teal-50/50 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">חיפוש נכס</span>
+                  <Search className="h-4 w-4 text-teal-500" />
+                </button>
+                <button
+                  onClick={openAssetTypes}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-teal-50/50 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">סוגי נכסים</span>
+                  <Tag className="h-4 w-4 text-teal-500" />
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={openValidationRules}
             className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-amber-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"

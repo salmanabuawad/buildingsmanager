@@ -313,24 +313,30 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
       )}
-      <div className="flex gap-4 px-2 sm:px-4 py-4 sm:py-8 md:py-12 max-w-[98vw] mx-auto">
-        <div className="w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl shadow-lg p-4 sticky top-4">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Actions</h3>
-            <div className="space-y-2">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
+        <div className="mb-4 sm:mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
+              <div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
+                <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="w-full flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
               >
                 <Building2 className="h-5 w-5" />
-                <span>Create Building</span>
+                <span className="hidden sm:inline">Create Building</span>
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
               >
                 <Upload className="h-5 w-5" />
-                <span>Import CSV</span>
+                <span className="hidden sm:inline">Import CSV</span>
               </button>
               <input
                 ref={fileInputRef}
@@ -339,99 +345,46 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 onChange={handleImportCSV}
                 className="hidden"
               />
-
-              <div className="pt-2 border-t border-gray-200 mt-4">
-                <h4 className="text-sm font-semibold text-slate-600 mb-2">Asset Management</h4>
-              </div>
-
-              {onOpenDataEntry && (
-                <button
-                  onClick={onOpenDataEntry}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span>{t('addNewAsset')}</span>
-                </button>
-              )}
-              {onOpenAssetSearch && (
-                <button
-                  onClick={onOpenAssetSearch}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-                >
-                  <Search className="h-5 w-5" />
-                  <span>{t('assetSearch') || 'Search'}</span>
-                </button>
-              )}
-              {onOpenAssetTypes && (
-                <button
-                  onClick={onOpenAssetTypes}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-                >
-                  <Tag className="h-5 w-5" />
-                  <span>{t('assetTypes')}</span>
-                </button>
-              )}
-              {onOpenValidationRules && (
-                <button
-                  onClick={onOpenValidationRules}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-                >
-                  <Settings className="h-5 w-5" />
-                  <span>Validation Rules</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-3">
-              <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
-              <div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
-                <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
-              </div>
-            </div>
-          </div>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
+            <AgGridReact
+              ref={gridRef}
+              rowData={buildings}
+              columnDefs={columnDefs}
+              defaultColDef={{
+                resizable: true,
+                sortable: true,
+                filter: true,
+                minWidth: 100
+              }}
+              onCellValueChanged={onCellValueChanged}
+              pagination={true}
+              paginationPageSize={20}
+              paginationPageSizeSelector={[10, 20, 50, 100]}
+              domLayout="normal"
+              suppressHorizontalScroll={false}
+              rowClass="ag-row"
+              getRowStyle={(params) => {
+                const building = params.data as Building;
+                const hasControlArea = building.total_area_for_control != null;
+                const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
+                const hasAreaDiscrepancy = hasControlArea && !areasMatch;
+                const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
-              <AgGridReact
-                ref={gridRef}
-                rowData={buildings}
-                columnDefs={columnDefs}
-                defaultColDef={{
-                  resizable: true,
-                  sortable: true,
-                  filter: true,
-                  minWidth: 100
-                }}
-                onCellValueChanged={onCellValueChanged}
-                pagination={true}
-                paginationPageSize={20}
-                paginationPageSizeSelector={[10, 20, 50, 100]}
-                domLayout="normal"
-                suppressHorizontalScroll={false}
-                rowClass="ag-row"
-                getRowStyle={(params) => {
-                  const building = params.data as Building;
-                  const hasControlArea = building.total_area_for_control != null;
-                  const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
-                  const hasAreaDiscrepancy = hasControlArea && !areasMatch;
-                  const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
+                if (hasAreaDiscrepancy || hasTaxRegionError) {
+                  return { background: '#fee2e2' };
+                }
 
-                  if (hasAreaDiscrepancy || hasTaxRegionError) {
-                    return { background: '#fee2e2' };
-                  }
-
-                  if (params.node.rowIndex % 2 === 0) {
-                    return { background: '#ffffff' };
-                  }
-                  return { background: '#f0f9ff' };
-                }}
-              />
-            </div>
+                if (params.node.rowIndex % 2 === 0) {
+                  return { background: '#ffffff' };
+                }
+                return { background: '#f0f9ff' };
+              }}
+            />
           </div>
         </div>
       </div>

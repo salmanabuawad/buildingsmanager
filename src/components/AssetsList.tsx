@@ -102,7 +102,14 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      cellEditor: 'agNumberCellEditor',
+      valueParser: (params) => {
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const parsed = Number(newValue);
+        return isNaN(parsed) ? null : parsed;
+      }
     },
     {
       field: 'payer_id',

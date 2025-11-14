@@ -14,15 +14,18 @@ interface BuildingsListProps {
   onOpenAssetSearch?: () => void;
   onOpenDataEntry?: () => void;
   onOpenValidationRules?: () => void;
+  showCreateModal: boolean;
+  setShowCreateModal: (show: boolean) => void;
+  showImportModal: boolean;
+  setShowImportModal: (show: boolean) => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules, showCreateModal, setShowCreateModal, showImportModal, setShowImportModal }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<Building>>(null);
@@ -129,6 +132,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
 
       await fetchBuildings(false);
+      setShowImportModal(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error('Error importing CSV:', error);
@@ -315,36 +319,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
         <div className="mb-4 sm:mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
-              <div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
-                <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
-              >
-                <Building2 className="h-5 w-5" />
-                <span className="hidden sm:inline">Create Building</span>
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm font-semibold"
-              >
-                <Upload className="h-5 w-5" />
-                <span className="hidden sm:inline">Import CSV</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleImportCSV}
-                className="hidden"
-              />
+          <div className="flex items-center gap-3">
+            <img src="/buildings.png" alt="Buildings" className="w-10 h-10 bg-white rounded-lg p-2" />
+            <div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">{t('propertyListings')}</h1>
+              <p className="text-sm sm:text-base text-teal-50">{t('browseBuildings')}</p>
             </div>
           </div>
         </div>
@@ -437,6 +416,42 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
               >
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6">Import Buildings from CSV</h2>
+
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Select a CSV file containing building data. The file should include columns for building number and tax region.
+              </p>
+
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImportCSV}
+                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </div>

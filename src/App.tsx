@@ -7,7 +7,7 @@ import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { AssetDataEntry } from './components/AssetDataEntry';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
-import { X, Settings, Building, Home, Tag, Search, Plus } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload } from 'lucide-react';
 
 interface Tab {
   id: string;
@@ -23,6 +23,8 @@ function App() {
     { id: 'buildings', type: 'buildings', label: 'Buildings' }
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
+  const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
+  const [showImportCSVModal, setShowImportCSVModal] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number) {
     const newTabId = `assets-${buildingNumber}`;
@@ -190,6 +192,20 @@ function App() {
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <button
+            onClick={() => setShowCreateBuildingModal(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-sky-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-sky-900">צור בניין חדש</span>
+            <Building2 className="h-5 w-5 text-sky-600 group-hover:text-sky-700" />
+          </button>
+          <button
+            onClick={() => setShowImportCSVModal(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-indigo-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
+          >
+            <span className="font-medium text-slate-700 group-hover:text-indigo-900">ייבוא CSV</span>
+            <Upload className="h-5 w-5 text-indigo-600 group-hover:text-indigo-700" />
+          </button>
+          <button
             onClick={openDataEntry}
             className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-teal-50 rounded-lg transition-colors shadow-sm border border-blue-100 group"
           >
@@ -293,6 +309,10 @@ function App() {
               onOpenAssetSearch={openAssetSearch}
               onOpenDataEntry={openDataEntry}
               onOpenValidationRules={openValidationRules}
+              showCreateModal={showCreateBuildingModal}
+              setShowCreateModal={setShowCreateBuildingModal}
+              showImportModal={showImportCSVModal}
+              setShowImportModal={setShowImportCSVModal}
             />
           )}
           {activeTab?.type === 'assets' && activeTab.buildingNumber && (

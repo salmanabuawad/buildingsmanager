@@ -36,7 +36,7 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-icon {
-  color: white;
+  color: black;
   opacity: 1;
 }
 
@@ -50,6 +50,17 @@ input[type="number"] {
 .ag-theme-alpine .ag-sort-none-icon {
   color: black !important;
   opacity: 1 !important;
+}
+
+.ag-theme-alpine .ag-paging-button {
+  color: black !important;
+}
+
+.ag-theme-alpine .ag-icon-previous,
+.ag-theme-alpine .ag-icon-next,
+.ag-theme-alpine .ag-icon-first,
+.ag-theme-alpine .ag-icon-last {
+  color: black !important;
 }
 
 .ag-theme-alpine .ag-row {

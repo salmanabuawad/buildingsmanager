@@ -618,9 +618,6 @@ export function AssetDataEntry() {
       }
 
       setRowData(prev => prev.filter(row => !row._isNew || !row.building_number || !row.asset_id));
-      if (rowData.every(row => row._dbId)) {
-        addEmptyRow();
-      }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בשמירת נכסים';
       setError(`שגיאה קריטית: ${errorMsg}`);

@@ -198,7 +198,7 @@ function App() {
               <div className="mr-4 mt-1 space-y-1">
                 <button
                   onClick={() => {
-                    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+                    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים', refreshKey: Date.now() };
                     setTabs([buildingsTab]);
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);

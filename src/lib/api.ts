@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import i18n from '../i18n/i18n';
 
 export interface Building {
   building_number: number;
@@ -214,12 +215,12 @@ export const api = {
           if (error.message.includes('check_sub_asset_type_') && error.message.includes('not_composite')) {
             const match = error.message.match(/check_sub_asset_type_(\d+)_not_composite/);
             const subAssetNum = match ? match[1] : '';
-            errorMessage = `Sub-Asset Type ${subAssetNum} cannot be 199 or 299. These composite types can only be used as Main Asset Type.`;
+            errorMessage = i18n.t('subAssetTypeCompositeError', { subAssetNum });
           }
         }
 
-        const details = error.details && !errorMessage.includes('Sub-Asset Type') ? ` (${error.details})` : '';
-        const hint = error.hint && !errorMessage.includes('Sub-Asset Type') ? ` - ${error.hint}` : '';
+        const details = error.details && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` (${error.details})` : '';
+        const hint = error.hint && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` - ${error.hint}` : '';
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }

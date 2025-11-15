@@ -129,6 +129,8 @@ export function AssetDataEntry() {
     updatedRow._dirtyFields.add(field);
     updatedRow._isDirty = true;
 
+    updatedRow._validationErrors.clear();
+
     const validation = await validateAll([
       assetValidators.validateBuildingNumber(updatedRow.building_number),
       assetValidators.validateAssetId(updatedRow.asset_id),

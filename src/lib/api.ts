@@ -311,6 +311,24 @@ export const api = {
       if (!data) throw new Error('Asset type not found');
       return data;
     },
+    getByCode: async (code: string): Promise<AssetType | null> => {
+      const { data, error } = await supabase
+        .from('asset_types')
+        .select('*')
+        .eq('name', code)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    formatWithDescription: (code: string | undefined | null, assetTypes: AssetType[]): string => {
+      if (!code) return '';
+      const assetType = assetTypes.find(at => at.name === code);
+      if (assetType && assetType.description) {
+        return `${code} - ${assetType.description}`;
+      }
+      return code;
+    },
     create: async (input: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')

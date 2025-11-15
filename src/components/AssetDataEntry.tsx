@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, Asset, Building } from '../lib/api';
+import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
 import { Save, Plus, Trash2, Upload, Download, RefreshCw } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
@@ -37,6 +37,7 @@ export function AssetDataEntry() {
   const gridRef = useRef<AgGridReact>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function AssetDataEntry() {
 
   useEffect(() => {
     fetchBuildings();
+    fetchAssetTypes();
     addEmptyRow();
   }, []);
 
@@ -55,6 +57,15 @@ export function AssetDataEntry() {
       setBuildings(data);
     } catch (err) {
       console.error('Error fetching buildings:', err);
+    }
+  };
+
+  const fetchAssetTypes = async () => {
+    try {
+      const data = await api.assetTypes.getAll();
+      setAssetTypes(data);
+    } catch (err) {
+      console.error('Error fetching asset types:', err);
     }
   };
 
@@ -677,8 +688,9 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'sub_asset_size_5',
@@ -691,8 +703,9 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'sub_asset_size_4',
@@ -705,8 +718,9 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'sub_asset_size_3',
@@ -719,8 +733,9 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'sub_asset_size_2',
@@ -733,8 +748,9 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'sub_asset_size_1',
@@ -747,8 +763,9 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'main_asset_size',
@@ -761,8 +778,9 @@ export function AssetDataEntry() {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 150,
-      editable: true
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
       field: 'asset_id',
@@ -795,7 +813,7 @@ export function AssetDataEntry() {
       },
       cellStyle: { backgroundColor: '#fff9e6' }
     }
-  ], [t, buildings, handleDeleteRow]);
+  ], [t, buildings, assetTypes, handleDeleteRow]);
 
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-8">

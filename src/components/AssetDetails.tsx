@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, api } from '../lib/api';
+import { Asset, Building, AssetType, api } from '../lib/api';
 import { Home, Package, Edit2, Save, X } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
 import { Toast } from './Toast';
@@ -14,6 +14,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [building, setBuilding] = useState<Building | null>(null);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
@@ -28,11 +29,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     try {
       setLoading(true);
 
-      const assetData = await api.assets.getOne(assetId);
+      const [assetData, assetTypesData] = await Promise.all([
+        api.assets.getOne(assetId),
+        api.assetTypes.getAll()
+      ]);
+
       if (!assetData) throw new Error('Asset not found');
 
       setAsset(assetData);
       setEditedAsset(assetData);
+      setAssetTypes(assetTypesData || []);
 
       const buildingData = await api.buildings.getOne(assetData.building_number);
       setBuilding(buildingData);
@@ -223,7 +229,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               ) : (
-                <p className="text-base sm:text-lg text-slate-900">{asset.main_asset_type || '-'}</p>
+                <p className="text-base sm:text-lg text-slate-900">{api.assetTypes.formatWithDescription(asset.main_asset_type, assetTypes) || '-'}</p>
               )}
             </div>
             <div>
@@ -274,7 +280,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                           placeholder={t('type')}
                         />
                       ) : (
-                        <p className="text-base font-semibold text-slate-900">{typeValue}</p>
+                        <p className="text-base font-semibold text-slate-900">{api.assetTypes.formatWithDescription(typeValue, assetTypes)}</p>
                       )}
                     </div>
                     <div>

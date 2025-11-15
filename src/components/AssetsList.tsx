@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, api } from '../lib/api';
+import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -17,6 +17,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
@@ -29,13 +30,15 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     try {
       if (showLoading) setLoading(true);
 
-      const [buildingData, assetsData] = await Promise.all([
+      const [buildingData, assetsData, assetTypesData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
-        api.assets.getAll(buildingNumber)
+        api.assets.getAll(buildingNumber),
+        api.assetTypes.getAll()
       ]);
 
       setBuilding(buildingData);
       setAssets(assetsData || []);
+      setAssetTypes(assetTypesData || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
@@ -131,11 +134,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -152,11 +156,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -173,11 +178,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -194,11 +200,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -215,11 +222,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -236,11 +244,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -257,11 +266,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 180,
-      minWidth: 180,
+      width: 300,
+      minWidth: 300,
       sortable: true,
       filter: true,
       editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -286,7 +296,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       valueFormatter: (params) => params.value?.toLocaleString(),
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
-  ], [t, onSelectAsset, buildingNumber]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes]);
 
   if (loading) {
     return (

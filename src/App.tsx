@@ -30,6 +30,7 @@ function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number) {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const newTabId = `assets-${buildingNumber}`;
 
     const newTab: Tab = {
@@ -39,11 +40,12 @@ function App() {
       label: `בניין ${buildingNumber}`
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(newTabId);
   }
 
   function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const newTabId = `details-${assetDbId}`;
 
     const newTab: Tab = {
@@ -54,7 +56,7 @@ function App() {
       label: `נכס ${assetId}`
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(newTabId);
   }
 
@@ -68,6 +70,7 @@ function App() {
   }
 
   function openAdminPanel() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const adminTabId = 'admin-panel';
 
     const newTab: Tab = {
@@ -76,11 +79,12 @@ function App() {
       label: 'מנהל PDF'
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(adminTabId);
   }
 
   function openAssetTypes() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const assetTypesTabId = 'asset-types-panel';
 
     const newTab: Tab = {
@@ -89,11 +93,12 @@ function App() {
       label: 'סוגי נכסים'
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(assetTypesTabId);
   }
 
   function openAssetSearch() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const assetSearchTabId = 'asset-search-panel';
 
     const newTab: Tab = {
@@ -102,11 +107,12 @@ function App() {
       label: 'חיפוש נכס'
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(assetSearchTabId);
   }
 
   function openDataEntry() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const dataEntryTabId = 'data-entry-panel';
 
     const newTab: Tab = {
@@ -115,11 +121,12 @@ function App() {
       label: 'הוספת נכס'
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(dataEntryTabId);
   }
 
   function openValidationRules() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const validationRulesTabId = 'validation-rules-panel';
 
     const newTab: Tab = {
@@ -128,13 +135,13 @@ function App() {
       label: 'כללי תקינות'
     };
 
-    setTabs([newTab]);
+    setTabs([buildingsTab, newTab]);
     setActiveTabId(validationRulesTabId);
   }
 
   function handleCloseTab(tabId: string) {
-    const newTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-    setTabs([newTab]);
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    setTabs([buildingsTab]);
     setActiveTabId('buildings');
   }
 
@@ -166,8 +173,8 @@ function App() {
               <div className="mr-4 mt-1 space-y-1">
                 <button
                   onClick={() => {
-                    const newTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-                    setTabs([newTab]);
+                    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+                    setTabs([buildingsTab]);
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}

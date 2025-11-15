@@ -95,3 +95,21 @@ input[type="number"] {
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
 }
+
+.ag-theme-alpine .ag-pinned-right-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  z-index: 10 !important;
+}
+
+.ag-theme-alpine .ag-pinned-right-cols-container {
+  z-index: 10 !important;
+}
+
+.ag-theme-alpine .ag-cell.ag-cell-last-left-pinned {
+  border-right: 2px solid #e9d5ff !important;
+}
+
+.ag-theme-alpine .ag-header-cell-pinned-right {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  z-index: 10 !important;
+}

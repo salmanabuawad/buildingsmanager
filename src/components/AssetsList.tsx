@@ -95,7 +95,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           </button>
         );
       },
-      cellStyle: { position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 1 }
+      cellStyle: { position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 10 },
+      headerClass: 'ag-header-cell-pinned-right'
     },
     {
       field: 'asset_id',

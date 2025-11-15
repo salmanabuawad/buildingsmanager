@@ -870,18 +870,31 @@ export function AssetDataEntry() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               סינון לפי בניין
             </label>
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            <input
+              type="text"
+              list="building-list"
+              value={selectedBuilding === 'all' ? '' : selectedBuilding}
+              onChange={(e) => {
+                const value = e.target.value.trim();
+                if (value === '') {
+                  setSelectedBuilding('all');
+                } else {
+                  const num = Number(value);
+                  if (!isNaN(num)) {
+                    setSelectedBuilding(num);
+                  }
+                }
+              }}
+              placeholder="כל הבניינים"
               className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-            >
-              <option value="all">כל הבניינים</option>
+            />
+            <datalist id="building-list">
               {buildings.map(building => (
                 <option key={building.id} value={building.building_number}>
                   בניין {building.building_number}
                 </option>
               ))}
-            </select>
+            </datalist>
           </div>
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex gap-2">

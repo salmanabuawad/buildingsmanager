@@ -222,23 +222,23 @@ export function AssetDataEntry() {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      'building_number',
-      'payer_id',
-      'asset_id',
-      'main_asset_type',
-      'main_asset_size',
-      'sub_asset_type_1',
-      'sub_asset_size_1',
-      'sub_asset_type_2',
-      'sub_asset_size_2',
-      'sub_asset_type_3',
-      'sub_asset_size_3',
-      'sub_asset_type_4',
-      'sub_asset_size_4',
-      'sub_asset_type_5',
-      'sub_asset_size_5',
-      'sub_asset_type_6',
-      'sub_asset_size_6'
+      'מספר בניין',
+      'זיהוי משלם',
+      'זיהוי נכס',
+      'סוג נכס ראשי',
+      'גודל נכס ראשי',
+      'סוג נכס משנה 1',
+      'גודל נכס משנה 1',
+      'סוג נכס משנה 2',
+      'גודל נכס משנה 2',
+      'סוג נכס משנה 3',
+      'גודל נכס משנה 3',
+      'סוג נכס משנה 4',
+      'גודל נכס משנה 4',
+      'סוג נכס משנה 5',
+      'גודל נכס משנה 5',
+      'סוג נכס משנה 6',
+      'גודל נכס משנה 6'
     ];
 
     const exampleRow = [
@@ -261,7 +261,7 @@ export function AssetDataEntry() {
       ''
     ];
 
-    const csvContent = [
+    const csvContent = '\uFEFF' + [
       headers.join(','),
       exampleRow.join(',')
     ].join('\n');
@@ -271,7 +271,7 @@ export function AssetDataEntry() {
     const url = URL.createObjectURL(blob);
 
     link.setAttribute('href', url);
-    link.setAttribute('download', 'assets_template.csv');
+    link.setAttribute('download', 'תבנית_נכסים.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -325,7 +325,7 @@ export function AssetDataEntry() {
           throw new Error('קובץ CSV ריק');
         }
 
-        const headers = lines[0].map(h => h.toLowerCase().trim());
+        const headers = lines[0].map(h => h.trim());
         const newRows: AssetRow[] = [];
 
         for (let i = 1; i < lines.length; i++) {
@@ -357,10 +357,12 @@ export function AssetDataEntry() {
 
           headers.forEach((header, index) => {
             const value = values[index] || '';
+            const headerLower = header.toLowerCase();
 
             switch (header) {
               case 'building_number':
               case 'מבנה':
+              case 'מספר בניין':
               case 'מספר בנין':
                 row.building_number = value ? parseInt(value) : null;
                 break;
@@ -375,14 +377,17 @@ export function AssetDataEntry() {
                 break;
               case 'main_asset_type':
               case 'סוג נכס':
+              case 'סוג נכס ראשי':
                 row.main_asset_type = value;
                 break;
               case 'main_asset_size':
               case 'גודל נכס':
+              case 'גודל נכס ראשי':
                 row.main_asset_size = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_1':
               case 'נכס משנה 1':
+              case 'סוג נכס משנה 1':
                 row.sub_asset_type_1 = value;
                 break;
               case 'sub_asset_size_1':
@@ -391,6 +396,7 @@ export function AssetDataEntry() {
                 break;
               case 'sub_asset_type_2':
               case 'נכס משנה 2':
+              case 'סוג נכס משנה 2':
                 row.sub_asset_type_2 = value;
                 break;
               case 'sub_asset_size_2':
@@ -399,6 +405,7 @@ export function AssetDataEntry() {
                 break;
               case 'sub_asset_type_3':
               case 'נכס משנה 3':
+              case 'סוג נכס משנה 3':
                 row.sub_asset_type_3 = value;
                 break;
               case 'sub_asset_size_3':
@@ -407,6 +414,7 @@ export function AssetDataEntry() {
                 break;
               case 'sub_asset_type_4':
               case 'נכס משנה 4':
+              case 'סוג נכס משנה 4':
                 row.sub_asset_type_4 = value;
                 break;
               case 'sub_asset_size_4':
@@ -415,6 +423,7 @@ export function AssetDataEntry() {
                 break;
               case 'sub_asset_type_5':
               case 'נכס משנה 5':
+              case 'סוג נכס משנה 5':
                 row.sub_asset_type_5 = value;
                 break;
               case 'sub_asset_size_5':
@@ -422,10 +431,13 @@ export function AssetDataEntry() {
                 row.sub_asset_size_5 = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_6':
+              case 'נכס משנה 6':
+              case 'סוג נכס משנה 6':
               case 'סוג נכס משני 6':
                 row.sub_asset_type_6 = value;
                 break;
               case 'sub_asset_size_6':
+              case 'גודל נכס משנה 6':
               case 'גודל נכסי משני 6':
                 row.sub_asset_size_6 = value ? parseFloat(value) : 0;
                 break;
@@ -695,9 +707,8 @@ export function AssetDataEntry() {
           סה"כ גודל מחושב אוטומטית. השתמש ב-Tab או Enter לניווט בין תאים.
         </p>
         <p className="text-sm text-blue-700 mt-2">
-          <strong>פורמט CSV:</strong> כותרות צריכות להתאים: building_number (או מבנה), payer_id, asset_id (או נכס), main_asset_type, main_asset_size,
-          sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
-          sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6
+          <strong>פורמט CSV:</strong> השתמש בכפתור "הורד תבנית CSV" להורדת קובץ תבנית עם כותרות בעברית.
+          הקובץ כולל שדות: מספר בניין, זיהוי משלם, זיהוי נכס, סוג נכס ראשי, גודל נכס ראשי, ו-6 זוגות של סוג וגודל נכס משנה.
         </p>
       </div>
 

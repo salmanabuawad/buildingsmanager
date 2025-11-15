@@ -208,9 +208,18 @@ export const api = {
           code: error.code
         });
 
-        const errorMessage = error.message || 'Failed to update asset';
-        const details = error.details ? ` (${error.details})` : '';
-        const hint = error.hint ? ` - ${error.hint}` : '';
+        let errorMessage = error.message || 'Failed to update asset';
+
+        if (error.code === '23514') {
+          if (error.message.includes('check_sub_asset_type_') && error.message.includes('not_composite')) {
+            const match = error.message.match(/check_sub_asset_type_(\d+)_not_composite/);
+            const subAssetNum = match ? match[1] : '';
+            errorMessage = `Sub-Asset Type ${subAssetNum} cannot be 199 or 299. These composite types can only be used as Main Asset Type.`;
+          }
+        }
+
+        const details = error.details && !errorMessage.includes('Sub-Asset Type') ? ` (${error.details})` : '';
+        const hint = error.hint && !errorMessage.includes('Sub-Asset Type') ? ` - ${error.hint}` : '';
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }

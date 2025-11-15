@@ -117,6 +117,25 @@ export function AssetDataEntry() {
     const field = event.column?.getColId();
     if (!field) return;
 
+    // If main_asset_type changed from 199/299 to something else, clear all sub assets
+    if (field === 'main_asset_type') {
+      const newType = updatedRow.main_asset_type;
+      if (newType && newType !== '199' && newType !== '299') {
+        updatedRow.sub_asset_type_1 = null;
+        updatedRow.sub_asset_type_2 = null;
+        updatedRow.sub_asset_type_3 = null;
+        updatedRow.sub_asset_type_4 = null;
+        updatedRow.sub_asset_type_5 = null;
+        updatedRow.sub_asset_type_6 = null;
+        updatedRow.sub_asset_size_1 = 0;
+        updatedRow.sub_asset_size_2 = 0;
+        updatedRow.sub_asset_size_3 = 0;
+        updatedRow.sub_asset_size_4 = 0;
+        updatedRow.sub_asset_size_5 = 0;
+        updatedRow.sub_asset_size_6 = 0;
+      }
+    }
+
     updatedRow.total_size = calculateTotalSize(updatedRow);
 
     if (!updatedRow._dirtyFields) {
@@ -130,19 +149,6 @@ export function AssetDataEntry() {
     updatedRow._isDirty = true;
 
     updatedRow._validationErrors.clear();
-
-    console.log('=== VALIDATION DEBUG ===');
-    console.log('Field changed:', field);
-    console.log('main_asset_type:', updatedRow.main_asset_type);
-    console.log('Building number:', updatedRow.building_number);
-    console.log('Sub asset types:', [
-      updatedRow.sub_asset_type_1,
-      updatedRow.sub_asset_type_2,
-      updatedRow.sub_asset_type_3,
-      updatedRow.sub_asset_type_4,
-      updatedRow.sub_asset_type_5,
-      updatedRow.sub_asset_type_6
-    ]);
 
     const validation = await validateAll([
       assetValidators.validateBuildingNumber(updatedRow.building_number),
@@ -206,17 +212,12 @@ export function AssetDataEntry() {
       assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
     ]);
 
-    console.log('Validation result:', validation);
-
     if (!validation.valid) {
       const detailedError = validation.error || 'Unknown validation error';
-      console.log('Setting error:', detailedError);
       updatedRow._validationErrors.set('_row', detailedError);
     } else {
-      console.log('Validation passed, deleting error');
       updatedRow._validationErrors.delete('_row');
     }
-    console.log('Final validation errors:', updatedRow._validationErrors);
 
     setRowData(prev => {
       const newData = prev.map(row => {

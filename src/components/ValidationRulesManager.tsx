@@ -550,7 +550,7 @@ export function ValidationRulesManager() {
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                     if (gridElement) {
-                      gridElement.scrollLeft = gridElement.scrollWidth;
+                      gridElement.scrollLeft = 0;
                     }
                   }, 100);
                 }}

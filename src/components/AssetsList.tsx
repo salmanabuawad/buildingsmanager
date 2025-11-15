@@ -446,7 +446,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                 if (gridElement) {
-                  gridElement.scrollLeft = gridElement.scrollWidth;
+                  gridElement.scrollLeft = 0;
                 }
               }, 100);
             }}

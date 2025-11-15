@@ -220,13 +220,37 @@ export function AssetDataEntry() {
     setSuccess(null);
 
     try {
+      const newRows = rowData.filter(row => row._isNew);
+
+      if (newRows.length === 0) {
+        throw new Error('אין שורות חדשות לשמור. אנא הוסף שורות חדשות באמצעות כפתור "הוסף שורה".');
+      }
+
+      const invalidRows: string[] = [];
+      newRows.forEach((row, index) => {
+        const rowNum = index + 1;
+        const missing: string[] = [];
+
+        if (!row.building_number) {
+          missing.push('מספר בניין');
+        }
+        if (!row.asset_id) {
+          missing.push('זיהוי נכס');
+        }
+
+        if (missing.length > 0) {
+          invalidRows.push(`שורה ${rowNum}: חסרים ${missing.join(', ')}`);
+        }
+      });
+
+      if (invalidRows.length > 0) {
+        const errorMsg = `לא ניתן לשמור - שדות חובה חסרים:\n${invalidRows.join('\n')}\n\nאנא מלא את כל השדות הנדרשים (מסומנים בצהוב).`;
+        throw new Error(errorMsg);
+      }
+
       const rowsToSave = rowData.filter(row =>
         row._isNew && row.building_number && row.asset_id
       );
-
-      if (rowsToSave.length === 0) {
-        throw new Error('אין שורות תקינות לשמור. מספר בניין וזיהוי נכס נדרשים.');
-      }
 
       let savedCount = 0;
       const errors: string[] = [];

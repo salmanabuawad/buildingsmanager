@@ -342,7 +342,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               onCellValueChanged={onCellValueChanged}
               onFirstDataRendered={(params) => {
-                params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+                params.api.ensureColumnVisible(columnDefs[0].field || 0);
               }}
               pagination={true}
               paginationPageSize={20}

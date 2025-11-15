@@ -1005,7 +1005,7 @@ export function AssetDataEntry() {
               }
             }}
             onFirstDataRendered={(params) => {
-              params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+              params.api.ensureColumnVisible(columnDefs[0].field || 0);
             }}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}

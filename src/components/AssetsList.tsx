@@ -406,7 +406,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             }}
             onCellValueChanged={onCellValueChanged}
             onFirstDataRendered={(params) => {
-              params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+              params.api.ensureColumnVisible(columnDefs[0].field || 0);
             }}
             animateRows={true}
             pagination={true}

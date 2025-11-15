@@ -156,20 +156,31 @@ export function AssetDataEntry() {
 
     updatedRow._validationErrors.clear();
 
-    const validation = await validateAll([
+    // Only validate sub-assets if main type is 199 or 299
+    const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
+
+    const validations = [
       assetValidators.validateBuildingNumber(updatedRow.building_number),
       assetValidators.validateAssetId(updatedRow.asset_id),
       assetValidators.validatePayerId(updatedRow.payer_id),
       assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
       assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
-      assetValidators.validateMinimumSubAssets([
-        updatedRow.sub_asset_type_1,
-        updatedRow.sub_asset_type_2,
-        updatedRow.sub_asset_type_3,
-        updatedRow.sub_asset_type_4,
-        updatedRow.sub_asset_type_5,
-        updatedRow.sub_asset_type_6
-      ]),
+    ];
+
+    if (shouldValidateSubAssets) {
+      validations.push(
+        assetValidators.validateMinimumSubAssets([
+          updatedRow.sub_asset_type_1,
+          updatedRow.sub_asset_type_2,
+          updatedRow.sub_asset_type_3,
+          updatedRow.sub_asset_type_4,
+          updatedRow.sub_asset_type_5,
+          updatedRow.sub_asset_type_6
+        ])
+      );
+    }
+
+    validations.push(
       assetValidators.validateSubAssetSizeMatchesMain(
         updatedRow.asset_size,
         [
@@ -216,7 +227,9 @@ export function AssetDataEntry() {
       assetValidators.validateAssetType(updatedRow.sub_asset_type_4, 'sub_asset_type_4'),
       assetValidators.validateAssetType(updatedRow.sub_asset_type_5, 'sub_asset_type_5'),
       assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
-    ]);
+    );
+
+    const validation = await validateAll(validations);
 
     if (!validation.valid) {
       const detailedError = validation.error || 'Unknown validation error';

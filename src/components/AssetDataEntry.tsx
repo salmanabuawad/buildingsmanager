@@ -236,6 +236,7 @@ export function AssetDataEntry() {
           const validation = await validateAll([
             assetValidators.validateBuildingNumber(row.building_number),
             assetValidators.validateAssetId(row.asset_id),
+            assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
             assetValidators.validateSubAssetsFor199Or299(
@@ -787,19 +788,24 @@ export function AssetDataEntry() {
       headerName: t('assetId'),
       width: 150,
       editable: true,
-      cellStyle: { backgroundColor: '#fff9e6' }
+      cellStyle: (params) => {
+        const numericRegex = /^[0-9]+$/;
+        const hasError = params.value && !numericRegex.test(params.value);
+        return {
+          backgroundColor: hasError ? '#fee2e2' : '#fff9e6',
+          ...(hasError && { border: '2px solid #ef4444' })
+        };
+      }
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 150,
       editable: true,
-      cellEditor: 'agNumberCellEditor',
-      valueParser: (params) => {
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const parsed = Number(newValue);
-        return isNaN(parsed) ? null : parsed;
+      cellStyle: (params) => {
+        const numericRegex = /^[0-9]+$/;
+        const hasError = params.value && !numericRegex.test(params.value);
+        return hasError ? { backgroundColor: '#fee2e2', border: '2px solid #ef4444' } : {};
       }
     },
     {

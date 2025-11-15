@@ -166,13 +166,13 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      cellStyle: { textAlign: 'right' },
-      cellEditor: 'agNumberCellEditor',
-      valueParser: (params) => {
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const parsed = Number(newValue);
-        return isNaN(parsed) ? null : parsed;
+      cellStyle: (params) => {
+        const numericRegex = /^[0-9]+$/;
+        const hasError = params.value && !numericRegex.test(params.value);
+        return {
+          textAlign: 'right',
+          ...(hasError && { backgroundColor: '#fee2e2', border: '2px solid #ef4444' })
+        };
       }
     },
     {
@@ -183,13 +183,13 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      cellStyle: { textAlign: 'right' },
-      cellEditor: 'agNumberCellEditor',
-      valueParser: (params) => {
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const parsed = Number(newValue);
-        return isNaN(parsed) ? null : parsed;
+      cellStyle: (params) => {
+        const numericRegex = /^[0-9]+$/;
+        const hasError = params.value && !numericRegex.test(params.value);
+        return {
+          textAlign: 'right',
+          ...(hasError && { backgroundColor: '#fee2e2', border: '2px solid #ef4444' })
+        };
       }
     },
     {

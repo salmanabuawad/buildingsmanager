@@ -52,7 +52,6 @@ export function AssetDataEntry() {
   useEffect(() => {
     fetchBuildings();
     fetchAssetTypes();
-    addEmptyRow();
   }, []);
 
   const fetchBuildings = async () => {

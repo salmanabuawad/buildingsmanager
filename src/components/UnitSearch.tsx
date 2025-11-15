@@ -184,7 +184,7 @@ export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
                         {unit.main_asset_type || '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {unit.main_asset_size.toFixed(2)}
+                        {unit.asset_size.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
                         {unit.total_size.toFixed(2)}

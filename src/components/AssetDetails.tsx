@@ -239,12 +239,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               {isEditing ? (
                 <input
                   type="number"
-                  value={editedAsset.main_asset_size || 0}
-                  onChange={(e) => updateField('main_asset_size', parseFloat(e.target.value) || 0)}
+                  value={editedAsset.asset_size || 0}
+                  onChange={(e) => updateField('asset_size', parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               ) : (
-                <p className="text-base sm:text-lg text-slate-900">{asset.main_asset_size.toLocaleString()}</p>
+                <p className="text-base sm:text-lg text-slate-900">{asset.asset_size.toLocaleString()}</p>
               )}
             </div>
           </div>

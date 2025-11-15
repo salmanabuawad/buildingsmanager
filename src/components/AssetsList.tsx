@@ -204,7 +204,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'main_asset_size',
+      field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 150,
       minWidth: 150,

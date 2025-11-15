@@ -16,7 +16,7 @@ export interface Asset {
   payer_id: string;
   asset_id: string;
   main_asset_type?: string;
-  main_asset_size: number;
+  asset_size: number;
   sub_asset_type_1?: string;
   sub_asset_size_1: number;
   sub_asset_type_2?: string;

@@ -183,7 +183,7 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                         {asset.main_asset_type || '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {asset.main_asset_size.toFixed(2)}
+                        {asset.asset_size.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
                         {asset.total_size.toFixed(2)}

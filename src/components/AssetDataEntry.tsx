@@ -14,7 +14,7 @@ interface AssetRow {
   payer_id: string;
   asset_id: string;
   main_asset_type: string;
-  main_asset_size: number;
+  asset_size: number;
   sub_asset_type_1: string;
   sub_asset_size_1: number;
   sub_asset_type_2: string;
@@ -76,7 +76,7 @@ export function AssetDataEntry() {
     payer_id: '',
     asset_id: '',
     main_asset_type: '',
-    main_asset_size: 0,
+    asset_size: 0,
     sub_asset_type_1: '',
     sub_asset_size_1: 0,
     sub_asset_type_2: '',
@@ -99,7 +99,7 @@ export function AssetDataEntry() {
 
   const calculateTotalSize = (row: AssetRow): number => {
     return (
-      (row.main_asset_size || 0) +
+      (row.asset_size || 0) +
       (row.sub_asset_size_1 || 0) +
       (row.sub_asset_size_2 || 0) +
       (row.sub_asset_size_3 || 0) +
@@ -131,7 +131,7 @@ export function AssetDataEntry() {
           payer_id: updatedRow.payer_id || null,
           asset_id: updatedRow.asset_id,
           main_asset_type: updatedRow.main_asset_type || null,
-          main_asset_size: updatedRow.main_asset_size || 0,
+          asset_size: updatedRow.asset_size || 0,
           sub_asset_type_1: updatedRow.sub_asset_type_1 || null,
           sub_asset_size_1: updatedRow.sub_asset_size_1 || 0,
           sub_asset_type_2: updatedRow.sub_asset_type_2 || null,
@@ -187,7 +187,7 @@ export function AssetDataEntry() {
         payer_id: asset.payer_id || '',
         asset_id: asset.asset_id,
         main_asset_type: asset.main_asset_type || '',
-        main_asset_size: asset.main_asset_size || 0,
+        asset_size: asset.asset_size || 0,
         sub_asset_type_1: asset.sub_asset_type_1 || '',
         sub_asset_size_1: asset.sub_asset_size_1 || 0,
         sub_asset_type_2: asset.sub_asset_type_2 || '',
@@ -241,7 +241,7 @@ export function AssetDataEntry() {
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
             assetValidators.validateSubAssetSizeMatchesMain(
-              row.main_asset_size,
+              row.asset_size,
               [
                 row.sub_asset_type_1,
                 row.sub_asset_type_2,
@@ -262,7 +262,7 @@ export function AssetDataEntry() {
             assetValidators.validateSubAssetsFor199Or299(
               row.building_number,
               row.main_asset_type,
-              row.main_asset_size,
+              row.asset_size,
               [
                 row.sub_asset_type_1,
                 row.sub_asset_type_2,
@@ -299,7 +299,7 @@ export function AssetDataEntry() {
             payer_id: row.payer_id || null,
             asset_id: row.asset_id,
             main_asset_type: row.main_asset_type || undefined,
-            main_asset_size: row.main_asset_size || 0,
+            asset_size: row.asset_size || 0,
             sub_asset_type_1: row.sub_asset_type_1 || undefined,
             sub_asset_size_1: row.sub_asset_size_1 || 0,
             sub_asset_type_2: row.sub_asset_type_2 || undefined,
@@ -473,7 +473,7 @@ export function AssetDataEntry() {
             payer_id: '',
             asset_id: '',
             main_asset_type: '',
-            main_asset_size: 0,
+            asset_size: 0,
             sub_asset_type_1: '',
             sub_asset_size_1: 0,
             sub_asset_type_2: '',
@@ -515,10 +515,10 @@ export function AssetDataEntry() {
               case 'סוג נכס ראשי':
                 row.main_asset_type = value;
                 break;
-              case 'main_asset_size':
+              case 'asset_size':
               case 'גודל נכס':
               case 'גודל נכס ראשי':
-                row.main_asset_size = value ? parseFloat(value) : 0;
+                row.asset_size = value ? parseFloat(value) : 0;
                 break;
               case 'sub_asset_type_1':
               case 'נכס משנה 1':
@@ -602,7 +602,7 @@ export function AssetDataEntry() {
                 assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
                 assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
                 assetValidators.validateSubAssetSizeMatchesMain(
-                  row.main_asset_size,
+                  row.asset_size,
                   [
                     row.sub_asset_type_1,
                     row.sub_asset_type_2,
@@ -623,7 +623,7 @@ export function AssetDataEntry() {
                 assetValidators.validateSubAssetsFor199Or299(
                   row.building_number,
                   row.main_asset_type,
-                  row.main_asset_size,
+                  row.asset_size,
                   [
                     row.sub_asset_type_1,
                     row.sub_asset_type_2,
@@ -808,7 +808,7 @@ export function AssetDataEntry() {
       valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
-      field: 'main_asset_size',
+      field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 130,
       editable: true,

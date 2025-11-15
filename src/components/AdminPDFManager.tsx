@@ -220,7 +220,16 @@ export function AdminPDFManager() {
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           onFirstDataRendered={(params) => {
-            params.api.ensureColumnVisible(columnDefs[0].field || 0);
+            const firstCol = params.api.getAllDisplayedColumns()[0];
+            if (firstCol) {
+              params.api.ensureColumnVisible(firstCol);
+            }
+            setTimeout(() => {
+              const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+              if (gridElement) {
+                gridElement.scrollLeft = gridElement.scrollWidth;
+              }
+            }, 100);
           }}
           pagination={true}
           paginationPageSize={20}

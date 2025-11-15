@@ -1013,9 +1013,9 @@ export function AssetDataEntry() {
       width: 150,
       editable: true,
       cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
+      cellEditorParams: () => ({
         values: buildings.map(b => b.building_number)
-      },
+      }),
       cellStyle: (params) => getCellStyle(params, 'building_number', true)
     },
     {

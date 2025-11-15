@@ -116,6 +116,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(null)}
+          duration={0}
         />
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">

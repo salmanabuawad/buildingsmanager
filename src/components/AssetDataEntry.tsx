@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
-import { Save, Plus, Trash2, Upload, Download } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, Download, RefreshCw } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -29,6 +29,7 @@ interface AssetRow {
   sub_asset_size_6: number;
   total_size: number;
   _isNew?: boolean;
+  _dbId?: string;
 }
 
 export function AssetDataEntry() {
@@ -96,7 +97,7 @@ export function AssetDataEntry() {
     );
   };
 
-  const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
+  const onCellValueChanged = useCallback(async (event: CellValueChangedEvent) => {
     const updatedRow = event.data as AssetRow;
     updatedRow.total_size = calculateTotalSize(updatedRow);
 
@@ -107,7 +108,87 @@ export function AssetDataEntry() {
     if (gridRef.current) {
       gridRef.current.api.refreshCells({ force: true });
     }
+
+    if (updatedRow._dbId && !updatedRow._isNew) {
+      try {
+        const field = event.column?.getColId();
+        if (!field) return;
+
+        const updateData: Partial<Asset> = {
+          building_number: updatedRow.building_number!,
+          payer_id: updatedRow.payer_id || null,
+          asset_id: updatedRow.asset_id,
+          main_asset_type: updatedRow.main_asset_type || null,
+          main_asset_size: updatedRow.main_asset_size || 0,
+          sub_asset_type_1: updatedRow.sub_asset_type_1 || null,
+          sub_asset_size_1: updatedRow.sub_asset_size_1 || 0,
+          sub_asset_type_2: updatedRow.sub_asset_type_2 || null,
+          sub_asset_size_2: updatedRow.sub_asset_size_2 || 0,
+          sub_asset_type_3: updatedRow.sub_asset_type_3 || null,
+          sub_asset_size_3: updatedRow.sub_asset_size_3 || 0,
+          sub_asset_type_4: updatedRow.sub_asset_type_4 || null,
+          sub_asset_size_4: updatedRow.sub_asset_size_4 || 0,
+          sub_asset_type_5: updatedRow.sub_asset_type_5 || null,
+          sub_asset_size_5: updatedRow.sub_asset_size_5 || 0,
+          sub_asset_type_6: updatedRow.sub_asset_type_6 || null,
+          sub_asset_size_6: updatedRow.sub_asset_size_6 || 0,
+          total_size: updatedRow.total_size
+        };
+
+        await api.assets.update(updatedRow._dbId, updateData);
+        setSuccess(`נכס ${updatedRow.asset_id} עודכן בהצלחה`);
+        setTimeout(() => setSuccess(null), 3000);
+      } catch (err) {
+        console.error('Error updating asset:', err);
+        const errorMsg = err instanceof Error ? err.message : 'שגיאה בעדכון';
+        setError(`שגיאה בעדכון נכס ${updatedRow.asset_id}: ${errorMsg}`);
+        setTimeout(() => setError(null), 5000);
+      }
+    }
   }, []);
+
+  const handleLoadAssets = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const assets = await api.assets.getAll();
+
+      const loadedRows: AssetRow[] = assets.map(asset => ({
+        id: crypto.randomUUID(),
+        _dbId: asset.id,
+        _isNew: false,
+        building_number: asset.building_number,
+        payer_id: asset.payer_id || '',
+        asset_id: asset.asset_id,
+        main_asset_type: asset.main_asset_type || '',
+        main_asset_size: asset.main_asset_size || 0,
+        sub_asset_type_1: asset.sub_asset_type_1 || '',
+        sub_asset_size_1: asset.sub_asset_size_1 || 0,
+        sub_asset_type_2: asset.sub_asset_type_2 || '',
+        sub_asset_size_2: asset.sub_asset_size_2 || 0,
+        sub_asset_type_3: asset.sub_asset_type_3 || '',
+        sub_asset_size_3: asset.sub_asset_size_3 || 0,
+        sub_asset_type_4: asset.sub_asset_type_4 || '',
+        sub_asset_size_4: asset.sub_asset_size_4 || 0,
+        sub_asset_type_5: asset.sub_asset_type_5 || '',
+        sub_asset_size_5: asset.sub_asset_size_5 || 0,
+        sub_asset_type_6: asset.sub_asset_type_6 || '',
+        sub_asset_size_6: asset.sub_asset_size_6 || 0,
+        total_size: asset.total_size || 0
+      }));
+
+      setRowData(loadedRows);
+      setSuccess(`${loadedRows.length} נכסים נטענו בהצלחה. ניתן לערוך ישירות בתאים`);
+    } catch (err) {
+      console.error('Error loading assets:', err);
+      const errorMsg = err instanceof Error ? err.message : 'שגיאה בטעינת נכסים';
+      setError(`שגיאה קריטית: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveAll = async () => {
     setLoading(true);
@@ -190,7 +271,9 @@ export function AssetDataEntry() {
             total_size: row.total_size
           };
 
-          await api.assets.create(assetData);
+          const newAsset = await api.assets.create(assetData);
+          row._dbId = newAsset.id;
+          row._isNew = false;
           savedCount++;
           savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - ${row.main_asset_type || 'ללא סוג'} (${row.total_size} מ"ר)`);
         } catch (err) {
@@ -223,7 +306,11 @@ export function AssetDataEntry() {
       } else {
         const savedList = savedAssets.join('\n');
         setSuccess(`${savedCount} נכסים נוצרו בהצלחה:\n${savedList}`);
-        setRowData([createEmptyRow()]);
+      }
+
+      setRowData(prev => prev.filter(row => !row._isNew || !row.building_number || !row.asset_id));
+      if (rowData.every(row => row._dbId)) {
+        addEmptyRow();
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בשמירת נכסים';
@@ -723,6 +810,14 @@ export function AssetDataEntry() {
         <div className="border-b border-gray-200 bg-gray-50 p-4">
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex gap-2">
+              <button
+                onClick={handleLoadAssets}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className="h-5 w-5" />
+                טען נכסים קיימים
+              </button>
               <button
                 onClick={handleDownloadTemplate}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium shadow-sm"

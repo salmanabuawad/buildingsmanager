@@ -895,17 +895,31 @@ export function AssetDataEntry() {
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
       headerName: '',
-      width: 60,
+      width: 80,
       pinned: 'left',
       cellRenderer: (params: any) => {
+        const row = params.data as AssetRow;
+        const hasError = row._validationErrors && row._validationErrors.size > 0;
+        const errorMessage = hasError ? row._validationErrors.get('_row') : '';
+
         return (
-          <button
-            onClick={() => handleDeleteRow(params.data.id)}
-            className="p-1 hover:bg-red-100 rounded transition-colors"
-            title="מחק שורה"
-          >
-            <Trash2 className="h-4 w-4 text-red-600" />
-          </button>
+          <div className="flex items-center gap-1">
+            {hasError && (
+              <div
+                className="flex items-center justify-center w-5 h-5 bg-red-500 rounded-full cursor-help"
+                title={errorMessage || 'שגיאת ולידציה'}
+              >
+                <span className="text-white text-xs font-bold">!</span>
+              </div>
+            )}
+            <button
+              onClick={() => handleDeleteRow(params.data.id)}
+              className="p-1 hover:bg-red-100 rounded transition-colors"
+              title="מחק שורה"
+            >
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </button>
+          </div>
         );
       }
     },

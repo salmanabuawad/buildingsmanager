@@ -333,10 +333,10 @@ export async function validateSubAssetsFor199Or299(
 
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
-  if (validSubAssets.length === 0) {
+  if (validSubAssets.length < 2) {
     return {
       valid: false,
-      error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, חייב להיות לפחות נכס משנה אחד`
+      error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, חייב להיות לפחות 2 נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
     };
   }
 

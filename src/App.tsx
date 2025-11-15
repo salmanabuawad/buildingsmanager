@@ -56,7 +56,18 @@ function App() {
       label: `נכס ${assetId}`
     };
 
-    setTabs([buildingsTab, newTab]);
+    setTabs(prevTabs => {
+      const existingTab = prevTabs.find(tab => tab.id === newTabId);
+      if (existingTab) {
+        return prevTabs;
+      }
+      const hasBuildings = prevTabs.some(tab => tab.id === 'buildings');
+      if (hasBuildings) {
+        return [...prevTabs, newTab];
+      } else {
+        return [buildingsTab, newTab];
+      }
+    });
     setActiveTabId(newTabId);
   }
 

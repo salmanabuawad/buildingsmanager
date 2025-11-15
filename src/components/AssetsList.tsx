@@ -68,6 +68,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       const assetId = data.id;
       const newValue = event.newValue;
 
+      const updatedData = { ...data, [field]: newValue };
+
       if (field === 'payer_id') {
         const validation = await assetValidators.validatePayerId(newValue);
         if (!validation.valid) {
@@ -93,6 +95,37 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         if (!validation.valid) {
           setError(validation.error || 'Invalid asset type');
           setTimeout(() => setError(null), 3000);
+          await fetchData(false);
+          return;
+        }
+      }
+
+      if (field === 'main_asset_type' || field.includes('sub_asset_type') || field.includes('sub_asset_size') || field === 'asset_size') {
+        const validation = await assetValidators.validateSubAssetsFor199Or299(
+          updatedData.building_number,
+          updatedData.main_asset_type,
+          updatedData.asset_size,
+          [
+            updatedData.sub_asset_type_1,
+            updatedData.sub_asset_type_2,
+            updatedData.sub_asset_type_3,
+            updatedData.sub_asset_type_4,
+            updatedData.sub_asset_type_5,
+            updatedData.sub_asset_type_6
+          ],
+          [
+            updatedData.sub_asset_size_1,
+            updatedData.sub_asset_size_2,
+            updatedData.sub_asset_size_3,
+            updatedData.sub_asset_size_4,
+            updatedData.sub_asset_size_5,
+            updatedData.sub_asset_size_6
+          ]
+        );
+
+        if (!validation.valid) {
+          setError(validation.error || 'Validation failed for 199/299 asset types');
+          setTimeout(() => setError(null), 5000);
           await fetchData(false);
           return;
         }

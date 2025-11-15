@@ -799,118 +799,26 @@ export function AssetDataEntry() {
       }
     },
     {
-      field: 'total_size',
-      headerName: t('totalSize'),
-      width: 130,
-      editable: false,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
-      cellStyle: { backgroundColor: '#e6f7ff', fontWeight: 'bold' }
+      field: 'building_number',
+      headerName: t('buildingNumber'),
+      width: 150,
+      editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: buildings.map(b => b.building_number)
+      },
+      cellStyle: { backgroundColor: '#fff9e6' }
     },
     {
-      field: 'sub_asset_size_6',
-      headerName: t('subAssetSize6'),
-      width: 130,
+      field: 'payer_id',
+      headerName: t('payerId'),
+      width: 150,
       editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'sub_asset_type_6',
-      headerName: t('subAssetType6'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
-    },
-    {
-      field: 'sub_asset_size_5',
-      headerName: t('subAssetSize5'),
-      width: 130,
-      editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'sub_asset_type_5',
-      headerName: t('subAssetType5'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
-    },
-    {
-      field: 'sub_asset_size_4',
-      headerName: t('subAssetSize4'),
-      width: 130,
-      editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'sub_asset_type_4',
-      headerName: t('subAssetType4'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
-    },
-    {
-      field: 'sub_asset_size_3',
-      headerName: t('subAssetSize3'),
-      width: 130,
-      editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'sub_asset_type_3',
-      headerName: t('subAssetType3'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
-    },
-    {
-      field: 'sub_asset_size_2',
-      headerName: t('subAssetSize2'),
-      width: 130,
-      editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'sub_asset_type_2',
-      headerName: t('subAssetType2'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
-    },
-    {
-      field: 'sub_asset_size_1',
-      headerName: t('subAssetSize1'),
-      width: 130,
-      editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'sub_asset_type_1',
-      headerName: t('subAssetType1'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
-    },
-    {
-      field: 'asset_size',
-      headerName: t('mainAssetSize'),
-      width: 130,
-      editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
-    },
-    {
-      field: 'main_asset_type',
-      headerName: t('mainAssetType'),
-      width: 300,
-      editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      cellStyle: (params) => {
+        const numericRegex = /^[0-9]+$/;
+        const hasError = params.value && !numericRegex.test(params.value);
+        return hasError ? { backgroundColor: '#fee2e2', border: '2px solid #ef4444' } : {};
+      }
     },
     {
       field: 'asset_id',
@@ -927,26 +835,118 @@ export function AssetDataEntry() {
       }
     },
     {
-      field: 'payer_id',
-      headerName: t('payerId'),
-      width: 150,
+      field: 'main_asset_type',
+      headerName: t('mainAssetType'),
+      width: 300,
       editable: true,
-      cellStyle: (params) => {
-        const numericRegex = /^[0-9]+$/;
-        const hasError = params.value && !numericRegex.test(params.value);
-        return hasError ? { backgroundColor: '#fee2e2', border: '2px solid #ef4444' } : {};
-      }
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
     },
     {
-      field: 'building_number',
-      headerName: t('buildingNumber'),
-      width: 150,
+      field: 'asset_size',
+      headerName: t('mainAssetSize'),
+      width: 130,
       editable: true,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: buildings.map(b => b.building_number)
-      },
-      cellStyle: { backgroundColor: '#fff9e6' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      width: 130,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      width: 130,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: t('subAssetType3'),
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: t('subAssetSize3'),
+      width: 130,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: t('subAssetType4'),
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: t('subAssetSize4'),
+      width: 130,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: t('subAssetType5'),
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: t('subAssetSize5'),
+      width: 130,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: t('subAssetType6'),
+      width: 300,
+      editable: true,
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: t('subAssetSize6'),
+      width: 130,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+    },
+    {
+      field: 'total_size',
+      headerName: t('totalSize'),
+      width: 130,
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: { backgroundColor: '#e6f7ff', fontWeight: 'bold' }
     }
   ], [t, buildings, assetTypes, handleDeleteRow]);
 

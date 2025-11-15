@@ -241,30 +241,7 @@ export function AssetDataEntry() {
       'גודל נכס משנה 6'
     ];
 
-    const exampleRow = [
-      '1',
-      'PAYER123',
-      'ASSET001',
-      '101',
-      '50.5',
-      '201',
-      '10.2',
-      '202',
-      '5.5',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      ''
-    ];
-
-    const csvContent = '\uFEFF' + [
-      headers.join(','),
-      exampleRow.join(',')
-    ].join('\n');
+    const csvContent = '\uFEFF' + headers.join(',');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

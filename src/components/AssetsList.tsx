@@ -82,9 +82,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       filter: false,
       sortable: false,
       editable: false,
-      pinned: 'right',
-      lockPosition: 'right',
-      suppressMovable: true,
       cellRenderer: (params: any) => {
         return (
           <button
@@ -95,8 +92,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           </button>
         );
       },
-      cellStyle: { position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 10 },
-      headerClass: 'ag-header-cell-pinned-right'
+      cellClass: 'floating-action-cell'
     },
     {
       field: 'asset_id',

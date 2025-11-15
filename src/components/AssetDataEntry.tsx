@@ -125,6 +125,7 @@ export function AssetDataEntry() {
 
       let savedCount = 0;
       const errors: string[] = [];
+      const savedAssets: string[] = [];
 
       for (const row of rowsToSave) {
         try {
@@ -191,6 +192,7 @@ export function AssetDataEntry() {
 
           await api.assets.create(assetData);
           savedCount++;
+          savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - ${row.main_asset_type || 'ללא סוג'} (${row.total_size} מ"ר)`);
         } catch (err) {
           console.error('Error saving asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
@@ -212,12 +214,15 @@ export function AssetDataEntry() {
       if (errors.length > 0) {
         const errorDetails = errors.join('\n');
         if (savedCount > 0) {
-          setError(`נשמר חלקית: ${savedCount} הצליחו, ${errors.length} נכשלו:\n${errorDetails}`);
+          const savedList = savedAssets.join('\n');
+          setSuccess(`${savedCount} נכסים נוצרו בהצלחה:\n${savedList}`);
+          setError(`${errors.length} נכשלו:\n${errorDetails}`);
         } else {
           setError(`כל השמירות נכשלו:\n${errorDetails}`);
         }
       } else {
-        setSuccess(`${savedCount} נכסים נוצרו בהצלחה!`);
+        const savedList = savedAssets.join('\n');
+        setSuccess(`${savedCount} נכסים נוצרו בהצלחה:\n${savedList}`);
         setRowData([createEmptyRow()]);
       }
     } catch (err) {
@@ -698,8 +703,8 @@ export function AssetDataEntry() {
       )}
 
       {success && (
-        <div className="mb-4 bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
-          <p className="text-green-800 font-medium">{success}</p>
+        <div className="mb-4 bg-green-50 border-l-4 border-green-500 rounded-lg p-4 max-h-96 overflow-y-auto">
+          <p className="text-green-800 font-medium whitespace-pre-line">{success}</p>
         </div>
       )}
 

@@ -170,7 +170,8 @@ export const translations = {
       addRow: 'Add Row',
       saveAll: 'Save All',
       saving: 'Saving...',
-      tips: 'Tips'
+      tips: 'Tips',
+      downloadTemplate: 'Download CSV Template'
     }
   },
   he: {
@@ -344,7 +345,8 @@ export const translations = {
       addRow: 'הוסף שורה',
       saveAll: 'שמור הכל',
       saving: 'שומר...',
-      tips: 'עצות'
+      tips: 'עצות',
+      downloadTemplate: 'הורד תבנית CSV'
     }
   }
 };

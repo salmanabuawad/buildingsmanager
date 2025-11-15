@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
-import { Save, Plus, Trash2, Upload } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, Download } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -219,6 +219,65 @@ export function AssetDataEntry() {
       return filtered.length > 0 ? filtered : [createEmptyRow()];
     });
   }, []);
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      'building_number',
+      'payer_id',
+      'asset_id',
+      'main_asset_type',
+      'main_asset_size',
+      'sub_asset_type_1',
+      'sub_asset_size_1',
+      'sub_asset_type_2',
+      'sub_asset_size_2',
+      'sub_asset_type_3',
+      'sub_asset_size_3',
+      'sub_asset_type_4',
+      'sub_asset_size_4',
+      'sub_asset_type_5',
+      'sub_asset_size_5',
+      'sub_asset_type_6',
+      'sub_asset_size_6'
+    ];
+
+    const exampleRow = [
+      '1',
+      'PAYER123',
+      'ASSET001',
+      '101',
+      '50.5',
+      '201',
+      '10.2',
+      '202',
+      '5.5',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      exampleRow.join(',')
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'assets_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n');
@@ -577,6 +636,13 @@ export function AssetDataEntry() {
         <div className="border-b border-gray-200 bg-gray-50 p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-2">
+              <button
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+              >
+                <Download className="h-5 w-5" />
+                {t('downloadTemplate')}
+              </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"

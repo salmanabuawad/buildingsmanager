@@ -126,6 +126,70 @@ export function AssetDataEntry() {
         const field = event.column?.getColId();
         if (!field) return;
 
+        // Validate the updated row
+        const validation = await validateAll([
+          assetValidators.validateBuildingNumber(updatedRow.building_number),
+          assetValidators.validateAssetId(updatedRow.asset_id),
+          assetValidators.validatePayerId(updatedRow.payer_id),
+          assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
+          assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
+          assetValidators.validateSubAssetSizeMatchesMain(
+            updatedRow.asset_size,
+            [
+              updatedRow.sub_asset_type_1,
+              updatedRow.sub_asset_type_2,
+              updatedRow.sub_asset_type_3,
+              updatedRow.sub_asset_type_4,
+              updatedRow.sub_asset_type_5,
+              updatedRow.sub_asset_type_6
+            ],
+            [
+              updatedRow.sub_asset_size_1,
+              updatedRow.sub_asset_size_2,
+              updatedRow.sub_asset_size_3,
+              updatedRow.sub_asset_size_4,
+              updatedRow.sub_asset_size_5,
+              updatedRow.sub_asset_size_6
+            ]
+          ),
+          assetValidators.validateSubAssetsFor199Or299(
+            updatedRow.building_number,
+            updatedRow.main_asset_type,
+            updatedRow.asset_size,
+            [
+              updatedRow.sub_asset_type_1,
+              updatedRow.sub_asset_type_2,
+              updatedRow.sub_asset_type_3,
+              updatedRow.sub_asset_type_4,
+              updatedRow.sub_asset_type_5,
+              updatedRow.sub_asset_type_6
+            ],
+            [
+              updatedRow.sub_asset_size_1,
+              updatedRow.sub_asset_size_2,
+              updatedRow.sub_asset_size_3,
+              updatedRow.sub_asset_size_4,
+              updatedRow.sub_asset_size_5,
+              updatedRow.sub_asset_size_6
+            ]
+          ),
+          assetValidators.validateAssetType(updatedRow.sub_asset_type_1, 'sub_asset_type_1'),
+          assetValidators.validateAssetType(updatedRow.sub_asset_type_2, 'sub_asset_type_2'),
+          assetValidators.validateAssetType(updatedRow.sub_asset_type_3, 'sub_asset_type_3'),
+          assetValidators.validateAssetType(updatedRow.sub_asset_type_4, 'sub_asset_type_4'),
+          assetValidators.validateAssetType(updatedRow.sub_asset_type_5, 'sub_asset_type_5'),
+          assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
+        ]);
+
+        if (!validation.valid) {
+          const detailedError = validation.error || 'Unknown validation error';
+          setError(`שגיאה בעדכון נכס ${updatedRow.asset_id}: ${detailedError}`);
+          setTimeout(() => setError(null), 5000);
+          // Reload to revert the change
+          await handleLoadAssets();
+          return;
+        }
+
         const updateData: Partial<Asset> = {
           building_number: updatedRow.building_number!,
           payer_id: updatedRow.payer_id || null,
@@ -167,6 +231,8 @@ export function AssetDataEntry() {
 
         setError(`שגיאה בעדכון נכס ${updatedRow.asset_id}: ${errorMsg}`);
         setTimeout(() => setError(null), 5000);
+        // Reload to revert the change
+        await handleLoadAssets();
       }
     }
   }, []);

@@ -961,6 +961,11 @@ export function AssetDataEntry() {
               resizable: true
             }}
             onCellValueChanged={onCellValueChanged}
+            onGridReady={(params) => {
+              if (filteredRowData.length > 0) {
+                params.api.setFocusedCell(0, 'building_number');
+              }
+            }}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enterNavigatesVertically={true}

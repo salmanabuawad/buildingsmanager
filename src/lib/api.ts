@@ -190,6 +190,7 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
+      console.log('[API] Updating asset:', id, 'with data:', input);
       const { data, error } = await supabase
         .from('assets')
         .update(input)
@@ -197,7 +198,23 @@ export const api = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[API ERROR] Update asset failed:', {
+          id,
+          input,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+
+        const errorMessage = error.message || 'Failed to update asset';
+        const details = error.details ? ` (${error.details})` : '';
+        const hint = error.hint ? ` - ${error.hint}` : '';
+
+        throw new Error(`${errorMessage}${details}${hint}`);
+      }
+      console.log('[API] Asset updated successfully:', data);
       return data;
     },
     delete: async (id: string): Promise<{ message: string }> => {

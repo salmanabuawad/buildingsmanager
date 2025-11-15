@@ -121,9 +121,9 @@ export const translations = {
       taxRegion: 'Tax Region',
       assetId: 'Asset ID',
       payerId: 'Payer ID',
-      mainAsset: 'Main Asset',
-      mainAssetType: 'Main Asset Type',
-      mainAssetSize: 'Main Asset Size',
+      mainAsset: 'Asset',
+      mainAssetType: 'Asset Type',
+      mainAssetSize: 'Asset Size',
       subAssets: 'Sub-Assets',
       type: 'Type',
       size: 'Size',
@@ -301,9 +301,9 @@ export const translations = {
       taxRegion: 'אזור מיסים',
       assetId: 'זיהוי נכס',
       payerId: 'זיהוי משלם',
-      mainAsset: 'נכס ראשי',
-      mainAssetType: 'סוג נכס ראשי',
-      mainAssetSize: 'גודל נכס ראשי',
+      mainAsset: 'נכס',
+      mainAssetType: 'סוג נכס',
+      mainAssetSize: 'גודל נכס',
       subAssets: 'נכסי משנה',
       type: 'סוג',
       size: 'גודל',
@@ -356,7 +356,7 @@ export const translations = {
       validateOnImport: 'אמת נתונים בעת ייבוא',
       validationErrors: 'שגיאות ולידציה',
       assetUpdatedSuccessfully: 'הנכס עודכן בהצלחה',
-      subAssetTypeCompositeError: 'נכס משנה מסוג {{subAssetNum}} לא יכול להיות 199 או 299. סוגים מורכבים אלו יכולים לשמש רק כסוג נכס ראשי.'
+      subAssetTypeCompositeError: 'נכס משנה מסוג {{subAssetNum}} לא יכול להיות 199 או 299. סוגים מורכבים אלו יכולים לשמש רק כסוג נכס.'
     }
   }
 };

@@ -40,6 +40,8 @@ export function AssetDataEntry() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [validateBeforeImport, setValidateBeforeImport] = useState(true);
+  const [importValidationErrors, setImportValidationErrors] = useState<string[]>([]);
 
   useEffect(() => {
     fetchBuildings();
@@ -293,7 +295,7 @@ export function AssetDataEntry() {
     setSuccess(null);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
         const lines = parseCSV(text);
@@ -429,8 +431,75 @@ export function AssetDataEntry() {
           throw new Error('לא נמצאו שורות נתונים תקינות ב-CSV');
         }
 
-        setRowData(newRows);
-        setSuccess(`יובאו ${newRows.length} שורות מ-CSV`);
+        if (validateBeforeImport) {
+          const validationErrors: string[] = [];
+          const validRows: AssetRow[] = [];
+
+          for (let i = 0; i < newRows.length; i++) {
+            const row = newRows[i];
+            const rowNum = i + 2;
+
+            try {
+              const validation = await validateAll([
+                assetValidators.validateBuildingNumber(row.building_number),
+                assetValidators.validateAssetId(row.asset_id),
+                assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
+                assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+                assetValidators.validateSubAssetsFor199Or299(
+                  row.building_number,
+                  row.main_asset_type,
+                  row.main_asset_size,
+                  [
+                    row.sub_asset_type_1,
+                    row.sub_asset_type_2,
+                    row.sub_asset_type_3,
+                    row.sub_asset_type_4,
+                    row.sub_asset_type_5,
+                    row.sub_asset_type_6
+                  ],
+                  [
+                    row.sub_asset_size_1,
+                    row.sub_asset_size_2,
+                    row.sub_asset_size_3,
+                    row.sub_asset_size_4,
+                    row.sub_asset_size_5,
+                    row.sub_asset_size_6
+                  ]
+                ),
+                assetValidators.validateAssetType(row.sub_asset_type_1, 'sub_asset_type_1'),
+                assetValidators.validateAssetType(row.sub_asset_type_2, 'sub_asset_type_2'),
+                assetValidators.validateAssetType(row.sub_asset_type_3, 'sub_asset_type_3'),
+                assetValidators.validateAssetType(row.sub_asset_type_4, 'sub_asset_type_4'),
+                assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
+                assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
+              ]);
+
+              if (!validation.valid) {
+                validationErrors.push(`שורה ${rowNum} (נכס ${row.asset_id}): ${validation.error}`);
+              } else {
+                validRows.push(row);
+              }
+            } catch (err) {
+              const errorMsg = err instanceof Error ? err.message : 'שגיאת ולידציה';
+              validationErrors.push(`שורה ${rowNum} (נכס ${row.asset_id}): ${errorMsg}`);
+            }
+          }
+
+          if (validationErrors.length > 0) {
+            setImportValidationErrors(validationErrors);
+            setError(`נמצאו ${validationErrors.length} שגיאות ולידציה. ${validRows.length} שורות תקינות יובאו.`);
+            setRowData(validRows.length > 0 ? validRows : [createEmptyRow()]);
+            setSuccess(validRows.length > 0 ? `${validRows.length} שורות תקינות יובאו (${validationErrors.length} נכשלו)` : null);
+          } else {
+            setRowData(newRows);
+            setImportValidationErrors([]);
+            setSuccess(`יובאו ${newRows.length} שורות מ-CSV (כולן תקינות)`);
+          }
+        } else {
+          setRowData(newRows);
+          setImportValidationErrors([]);
+          setSuccess(`יובאו ${newRows.length} שורות מ-CSV (ללא ולידציה)`);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'שגיאה בפענוח קובץ CSV');
       }
@@ -621,9 +690,20 @@ export function AssetDataEntry() {
         </div>
       )}
 
+      {importValidationErrors.length > 0 && (
+        <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4 max-h-60 overflow-y-auto">
+          <p className="text-yellow-900 font-bold mb-2">{t('validationErrors')} ({importValidationErrors.length}):</p>
+          <ul className="list-disc list-inside space-y-1">
+            {importValidationErrors.map((err, idx) => (
+              <li key={idx} className="text-yellow-800 text-sm">{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="border-b border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex gap-2">
               <button
                 onClick={handleDownloadTemplate}
@@ -655,6 +735,17 @@ export function AssetDataEntry() {
               <Save className="h-5 w-5" />
               {loading ? t('saving') : t('saveAll')}
             </button>
+          </div>
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={validateBeforeImport}
+                onChange={(e) => setValidateBeforeImport(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="font-medium">{t('validateOnImport')}</span>
+            </label>
           </div>
         </div>
 

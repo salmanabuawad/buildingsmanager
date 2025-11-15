@@ -171,7 +171,9 @@ export const translations = {
       saveAll: 'Save All',
       saving: 'Saving...',
       tips: 'Tips',
-      downloadTemplate: 'Download CSV Template'
+      downloadTemplate: 'Download CSV Template',
+      validateOnImport: 'Validate data on import',
+      validationErrors: 'Validation Errors'
     }
   },
   he: {
@@ -346,7 +348,9 @@ export const translations = {
       saveAll: 'שמור הכל',
       saving: 'שומר...',
       tips: 'עצות',
-      downloadTemplate: 'הורד תבנית CSV'
+      downloadTemplate: 'הורד תבנית CSV',
+      validateOnImport: 'אמת נתונים בעת ייבוא',
+      validationErrors: 'שגיאות ולידציה'
     }
   }
 };

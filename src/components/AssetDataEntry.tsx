@@ -131,6 +131,19 @@ export function AssetDataEntry() {
 
     updatedRow._validationErrors.clear();
 
+    console.log('=== VALIDATION DEBUG ===');
+    console.log('Field changed:', field);
+    console.log('main_asset_type:', updatedRow.main_asset_type);
+    console.log('Building number:', updatedRow.building_number);
+    console.log('Sub asset types:', [
+      updatedRow.sub_asset_type_1,
+      updatedRow.sub_asset_type_2,
+      updatedRow.sub_asset_type_3,
+      updatedRow.sub_asset_type_4,
+      updatedRow.sub_asset_type_5,
+      updatedRow.sub_asset_type_6
+    ]);
+
     const validation = await validateAll([
       assetValidators.validateBuildingNumber(updatedRow.building_number),
       assetValidators.validateAssetId(updatedRow.asset_id),
@@ -193,12 +206,17 @@ export function AssetDataEntry() {
       assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
     ]);
 
+    console.log('Validation result:', validation);
+
     if (!validation.valid) {
       const detailedError = validation.error || 'Unknown validation error';
+      console.log('Setting error:', detailedError);
       updatedRow._validationErrors.set('_row', detailedError);
     } else {
+      console.log('Validation passed, deleting error');
       updatedRow._validationErrors.delete('_row');
     }
+    console.log('Final validation errors:', updatedRow._validationErrors);
 
     setRowData(prev => {
       const newData = prev.map(row => {

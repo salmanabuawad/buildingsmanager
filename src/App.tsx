@@ -27,6 +27,7 @@ function App() {
   const [showImportCSVModal, setShowImportCSVModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number) {
     const newTabId = `assets-${buildingNumber}`;
@@ -223,23 +224,43 @@ function App() {
                   <span className="font-medium text-slate-600">חיפוש נכס</span>
                   <Search className="h-4 w-4 text-indigo-500" />
                 </button>
+              </div>
+            )}
+          </div>
+          <div>
+            <button
+              onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 text-right bg-white hover:bg-pink-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-medium text-slate-700 group-hover:text-pink-900">ניהול</span>
+                <Settings className="h-5 w-5 text-pink-600 group-hover:text-pink-700" />
+              </div>
+              {adminMenuOpen ? (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronLeft className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
+            {adminMenuOpen && (
+              <div className="mr-4 mt-1 space-y-1">
                 <button
                   onClick={openAssetTypes}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">סוגי נכסים</span>
-                  <Tag className="h-4 w-4 text-indigo-500" />
+                  <Tag className="h-4 w-4 text-pink-500" />
+                </button>
+                <button
+                  onClick={openValidationRules}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">כללי תקינות</span>
+                  <Settings className="h-4 w-4 text-pink-500" />
                 </button>
               </div>
             )}
           </div>
-          <button
-            onClick={openValidationRules}
-            className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-pink-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
-          >
-            <span className="font-medium text-slate-700 group-hover:text-pink-900">כללי תקינות</span>
-            <Settings className="h-5 w-5 text-pink-600 group-hover:text-pink-700" />
-          </button>
         </nav>
       </div>
 

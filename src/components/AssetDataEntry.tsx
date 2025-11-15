@@ -133,6 +133,12 @@ export function AssetDataEntry() {
         updatedRow.sub_asset_size_4 = 0;
         updatedRow.sub_asset_size_5 = 0;
         updatedRow.sub_asset_size_6 = 0;
+
+        // Update the row in ag-Grid immediately
+        const rowNode = event.api.getRowNode(updatedRow.id.toString());
+        if (rowNode) {
+          rowNode.setData(updatedRow);
+        }
       }
     }
 

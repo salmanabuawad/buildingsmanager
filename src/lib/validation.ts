@@ -306,10 +306,10 @@ export async function validateMinimumSubAssets(
 ): Promise<ValidationResult> {
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
-  if (validSubAssets.length < 2) {
+  if (validSubAssets.length === 1) {
     return {
       valid: false,
-      error: `חובה להזין לפחות 2 נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
+      error: `אם משתמשים בנכסי משנה, חובה להזין לפחות 2 נכסי משנה`
     };
   }
 

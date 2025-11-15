@@ -151,9 +151,23 @@ function App() {
   }
 
   function handleCloseTab(tabId: string) {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-    setTabs([buildingsTab]);
-    setActiveTabId('buildings');
+    setTabs(prevTabs => {
+      const newTabs = prevTabs.filter(tab => tab.id !== tabId);
+      if (newTabs.length === 0) {
+        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+        return [buildingsTab];
+      }
+      return newTabs;
+    });
+
+    if (activeTabId === tabId) {
+      const remainingTabs = tabs.filter(tab => tab.id !== tabId);
+      if (remainingTabs.length > 0) {
+        setActiveTabId(remainingTabs[remainingTabs.length - 1].id);
+      } else {
+        setActiveTabId('buildings');
+      }
+    }
   }
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);

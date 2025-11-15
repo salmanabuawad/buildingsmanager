@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Asset, Building, api } from '../lib/api';
 import { Home, Package, Edit2, Save, X } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
+import { Toast } from './Toast';
 
 interface AssetDetailsProps {
   assetId: string;
@@ -15,6 +16,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [building, setBuilding] = useState<Building | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedAsset, setEditedAsset] = useState<Partial<Asset>>({});
 
@@ -61,11 +63,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       await api.assets.update(assetId, editedAsset);
       await fetchData();
       setIsEditing(false);
+      setToast({ message: t('assetUpdatedSuccessfully'), type: 'success' });
       if (onDataUpdate) {
         onDataUpdate();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update asset');
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to update asset',
+        type: 'error'
+      });
     }
   }
 
@@ -104,7 +110,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   ].filter(sub => sub.type && sub.size > 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
+    <>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
       <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 mb-1 sm:mb-2">
@@ -290,5 +304,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

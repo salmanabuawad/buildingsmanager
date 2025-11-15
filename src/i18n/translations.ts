@@ -174,7 +174,8 @@ export const translations = {
       tips: 'Tips',
       downloadTemplate: 'Download CSV Template',
       validateOnImport: 'Validate data on import',
-      validationErrors: 'Validation Errors'
+      validationErrors: 'Validation Errors',
+      assetUpdatedSuccessfully: 'Asset updated successfully'
     }
   },
   he: {
@@ -352,7 +353,8 @@ export const translations = {
       tips: 'עצות',
       downloadTemplate: 'הורד תבנית CSV',
       validateOnImport: 'אמת נתונים בעת ייבוא',
-      validationErrors: 'שגיאות ולידציה'
+      validationErrors: 'שגיאות ולידציה',
+      assetUpdatedSuccessfully: 'הנכס עודכן בהצלחה'
     }
   }
 };

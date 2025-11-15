@@ -30,6 +30,9 @@ interface AssetRow {
   total_size: number;
   _isNew?: boolean;
   _dbId?: string;
+  _isDirty?: boolean;
+  _dirtyFields?: Set<string>;
+  _validationErrors?: Map<string, string>;
 }
 
 export function AssetDataEntry() {
@@ -111,7 +114,81 @@ export function AssetDataEntry() {
 
   const onCellValueChanged = useCallback(async (event: CellValueChangedEvent) => {
     const updatedRow = event.data as AssetRow;
+    const field = event.column?.getColId();
+    if (!field) return;
+
     updatedRow.total_size = calculateTotalSize(updatedRow);
+
+    if (!updatedRow._dirtyFields) {
+      updatedRow._dirtyFields = new Set<string>();
+    }
+    if (!updatedRow._validationErrors) {
+      updatedRow._validationErrors = new Map<string, string>();
+    }
+
+    updatedRow._dirtyFields.add(field);
+    updatedRow._isDirty = true;
+
+    const validation = await validateAll([
+      assetValidators.validateBuildingNumber(updatedRow.building_number),
+      assetValidators.validateAssetId(updatedRow.asset_id),
+      assetValidators.validatePayerId(updatedRow.payer_id),
+      assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
+      assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
+      assetValidators.validateSubAssetSizeMatchesMain(
+        updatedRow.asset_size,
+        [
+          updatedRow.sub_asset_type_1,
+          updatedRow.sub_asset_type_2,
+          updatedRow.sub_asset_type_3,
+          updatedRow.sub_asset_type_4,
+          updatedRow.sub_asset_type_5,
+          updatedRow.sub_asset_type_6
+        ],
+        [
+          updatedRow.sub_asset_size_1,
+          updatedRow.sub_asset_size_2,
+          updatedRow.sub_asset_size_3,
+          updatedRow.sub_asset_size_4,
+          updatedRow.sub_asset_size_5,
+          updatedRow.sub_asset_size_6
+        ]
+      ),
+      assetValidators.validateSubAssetsFor199Or299(
+        updatedRow.building_number,
+        updatedRow.main_asset_type,
+        updatedRow.asset_size,
+        [
+          updatedRow.sub_asset_type_1,
+          updatedRow.sub_asset_type_2,
+          updatedRow.sub_asset_type_3,
+          updatedRow.sub_asset_type_4,
+          updatedRow.sub_asset_type_5,
+          updatedRow.sub_asset_type_6
+        ],
+        [
+          updatedRow.sub_asset_size_1,
+          updatedRow.sub_asset_size_2,
+          updatedRow.sub_asset_size_3,
+          updatedRow.sub_asset_size_4,
+          updatedRow.sub_asset_size_5,
+          updatedRow.sub_asset_size_6
+        ]
+      ),
+      assetValidators.validateAssetType(updatedRow.sub_asset_type_1, 'sub_asset_type_1'),
+      assetValidators.validateAssetType(updatedRow.sub_asset_type_2, 'sub_asset_type_2'),
+      assetValidators.validateAssetType(updatedRow.sub_asset_type_3, 'sub_asset_type_3'),
+      assetValidators.validateAssetType(updatedRow.sub_asset_type_4, 'sub_asset_type_4'),
+      assetValidators.validateAssetType(updatedRow.sub_asset_type_5, 'sub_asset_type_5'),
+      assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
+    ]);
+
+    if (!validation.valid) {
+      const detailedError = validation.error || 'Unknown validation error';
+      updatedRow._validationErrors.set('_row', detailedError);
+    } else {
+      updatedRow._validationErrors.delete('_row');
+    }
 
     setRowData(prev =>
       prev.map(row => row.id === updatedRow.id ? updatedRow : row)
@@ -120,122 +197,7 @@ export function AssetDataEntry() {
     if (gridRef.current) {
       gridRef.current.api.refreshCells({ force: true });
     }
-
-    if (updatedRow._dbId && !updatedRow._isNew) {
-      try {
-        const field = event.column?.getColId();
-        if (!field) return;
-
-        // Validate the updated row
-        const validation = await validateAll([
-          assetValidators.validateBuildingNumber(updatedRow.building_number),
-          assetValidators.validateAssetId(updatedRow.asset_id),
-          assetValidators.validatePayerId(updatedRow.payer_id),
-          assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
-          assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
-          assetValidators.validateSubAssetSizeMatchesMain(
-            updatedRow.asset_size,
-            [
-              updatedRow.sub_asset_type_1,
-              updatedRow.sub_asset_type_2,
-              updatedRow.sub_asset_type_3,
-              updatedRow.sub_asset_type_4,
-              updatedRow.sub_asset_type_5,
-              updatedRow.sub_asset_type_6
-            ],
-            [
-              updatedRow.sub_asset_size_1,
-              updatedRow.sub_asset_size_2,
-              updatedRow.sub_asset_size_3,
-              updatedRow.sub_asset_size_4,
-              updatedRow.sub_asset_size_5,
-              updatedRow.sub_asset_size_6
-            ]
-          ),
-          assetValidators.validateSubAssetsFor199Or299(
-            updatedRow.building_number,
-            updatedRow.main_asset_type,
-            updatedRow.asset_size,
-            [
-              updatedRow.sub_asset_type_1,
-              updatedRow.sub_asset_type_2,
-              updatedRow.sub_asset_type_3,
-              updatedRow.sub_asset_type_4,
-              updatedRow.sub_asset_type_5,
-              updatedRow.sub_asset_type_6
-            ],
-            [
-              updatedRow.sub_asset_size_1,
-              updatedRow.sub_asset_size_2,
-              updatedRow.sub_asset_size_3,
-              updatedRow.sub_asset_size_4,
-              updatedRow.sub_asset_size_5,
-              updatedRow.sub_asset_size_6
-            ]
-          ),
-          assetValidators.validateAssetType(updatedRow.sub_asset_type_1, 'sub_asset_type_1'),
-          assetValidators.validateAssetType(updatedRow.sub_asset_type_2, 'sub_asset_type_2'),
-          assetValidators.validateAssetType(updatedRow.sub_asset_type_3, 'sub_asset_type_3'),
-          assetValidators.validateAssetType(updatedRow.sub_asset_type_4, 'sub_asset_type_4'),
-          assetValidators.validateAssetType(updatedRow.sub_asset_type_5, 'sub_asset_type_5'),
-          assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
-        ]);
-
-        if (!validation.valid) {
-          const detailedError = validation.error || 'Unknown validation error';
-          setError(`שגיאה בעדכון נכס ${updatedRow.asset_id}: ${detailedError}`);
-          setTimeout(() => setError(null), 5000);
-          // Reload to revert the change
-          await handleLoadAssets();
-          return;
-        }
-
-        const updateData: Partial<Asset> = {
-          building_number: updatedRow.building_number!,
-          payer_id: updatedRow.payer_id || null,
-          asset_id: updatedRow.asset_id,
-          main_asset_type: updatedRow.main_asset_type || null,
-          asset_size: updatedRow.asset_size || 0,
-          sub_asset_type_1: updatedRow.sub_asset_type_1 || null,
-          sub_asset_size_1: updatedRow.sub_asset_size_1 || 0,
-          sub_asset_type_2: updatedRow.sub_asset_type_2 || null,
-          sub_asset_size_2: updatedRow.sub_asset_size_2 || 0,
-          sub_asset_type_3: updatedRow.sub_asset_type_3 || null,
-          sub_asset_size_3: updatedRow.sub_asset_size_3 || 0,
-          sub_asset_type_4: updatedRow.sub_asset_type_4 || null,
-          sub_asset_size_4: updatedRow.sub_asset_size_4 || 0,
-          sub_asset_type_5: updatedRow.sub_asset_type_5 || null,
-          sub_asset_size_5: updatedRow.sub_asset_size_5 || 0,
-          sub_asset_type_6: updatedRow.sub_asset_type_6 || null,
-          sub_asset_size_6: updatedRow.sub_asset_size_6 || 0,
-          total_size: updatedRow.total_size
-        };
-
-        await api.assets.update(updatedRow._dbId, updateData);
-        setSuccess(`נכס ${updatedRow.asset_id} עודכן בהצלחה`);
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err) {
-        console.error('Error updating asset:', err);
-        let errorMsg = 'שגיאה בעדכון';
-
-        if (err instanceof Error) {
-          errorMsg = err.message;
-        } else if (typeof err === 'object' && err !== null) {
-          const errObj = err as any;
-          if (errObj.code === '23505') {
-            errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
-          } else {
-            errorMsg = JSON.stringify(err);
-          }
-        }
-
-        setError(`שגיאה בעדכון נכס ${updatedRow.asset_id}: ${errorMsg}`);
-        setTimeout(() => setError(null), 5000);
-        // Reload to revert the change
-        await handleLoadAssets();
-      }
-    }
-  }, []);
+  }, [calculateTotalSize]);
 
   const handleLoadAssets = async () => {
     setLoading(true);
@@ -287,11 +249,23 @@ export function AssetDataEntry() {
 
     try {
       const newRows = rowData.filter(row => row._isNew);
+      const dirtyRows = rowData.filter(row => row._isDirty && !row._isNew && row._dbId);
 
-      if (newRows.length === 0) {
-        setSuccess('אין שורות חדשות לשמור. כל השורות כבר נשמרו במערכת.');
+      if (newRows.length === 0 && dirtyRows.length === 0) {
+        setSuccess('אין שינויים לשמור. כל הנתונים מעודכנים.');
         setLoading(false);
         return;
+      }
+
+      const rowsWithErrors = rowData.filter(row =>
+        (row._isNew || row._isDirty) &&
+        row._validationErrors &&
+        row._validationErrors.size > 0
+      );
+
+      if (rowsWithErrors.length > 0) {
+        const errorMsg = `לא ניתן לשמור - יש ${rowsWithErrors.length} שורות עם שגיאות ולידציה.\nאנא תקן את השגיאות לפני השמירה.`;
+        throw new Error(errorMsg);
       }
 
       const invalidRows: string[] = [];
@@ -307,7 +281,7 @@ export function AssetDataEntry() {
         }
 
         if (missing.length > 0) {
-          invalidRows.push(`שורה ${rowNum}: חסרים ${missing.join(', ')}`);
+          invalidRows.push(`שורה חדשה ${rowNum}: חסרים ${missing.join(', ')}`);
         }
       });
 
@@ -425,6 +399,114 @@ export function AssetDataEntry() {
             console.error('Error object:', err);
             const errObj = err as any;
 
+            if (errObj.code === '23505') {
+              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+            } else {
+              errorMsg = JSON.stringify(err, null, 2);
+            }
+          } else {
+            errorMsg = String(err);
+          }
+          errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
+        }
+      }
+
+      for (const row of dirtyRows) {
+        try {
+          const validation = await validateAll([
+            assetValidators.validateBuildingNumber(row.building_number),
+            assetValidators.validateAssetId(row.asset_id),
+            assetValidators.validatePayerId(row.payer_id),
+            assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
+            assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+            assetValidators.validateSubAssetSizeMatchesMain(
+              row.asset_size,
+              [
+                row.sub_asset_type_1,
+                row.sub_asset_type_2,
+                row.sub_asset_type_3,
+                row.sub_asset_type_4,
+                row.sub_asset_type_5,
+                row.sub_asset_type_6
+              ],
+              [
+                row.sub_asset_size_1,
+                row.sub_asset_size_2,
+                row.sub_asset_size_3,
+                row.sub_asset_size_4,
+                row.sub_asset_size_5,
+                row.sub_asset_size_6
+              ]
+            ),
+            assetValidators.validateSubAssetsFor199Or299(
+              row.building_number,
+              row.main_asset_type,
+              row.asset_size,
+              [
+                row.sub_asset_type_1,
+                row.sub_asset_type_2,
+                row.sub_asset_type_3,
+                row.sub_asset_type_4,
+                row.sub_asset_type_5,
+                row.sub_asset_type_6
+              ],
+              [
+                row.sub_asset_size_1,
+                row.sub_asset_size_2,
+                row.sub_asset_size_3,
+                row.sub_asset_size_4,
+                row.sub_asset_size_5,
+                row.sub_asset_size_6
+              ]
+            ),
+            assetValidators.validateAssetType(row.sub_asset_type_1, 'sub_asset_type_1'),
+            assetValidators.validateAssetType(row.sub_asset_type_2, 'sub_asset_type_2'),
+            assetValidators.validateAssetType(row.sub_asset_type_3, 'sub_asset_type_3'),
+            assetValidators.validateAssetType(row.sub_asset_type_4, 'sub_asset_type_4'),
+            assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
+            assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
+          ]);
+
+          if (!validation.valid) {
+            const detailedError = validation.error || 'Unknown validation error';
+            errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
+            continue;
+          }
+
+          const updateData: Partial<Asset> = {
+            building_number: row.building_number!,
+            payer_id: row.payer_id || null,
+            asset_id: row.asset_id,
+            main_asset_type: row.main_asset_type || null,
+            asset_size: row.asset_size || 0,
+            sub_asset_type_1: row.sub_asset_type_1 || null,
+            sub_asset_size_1: row.sub_asset_size_1 || 0,
+            sub_asset_type_2: row.sub_asset_type_2 || null,
+            sub_asset_size_2: row.sub_asset_size_2 || 0,
+            sub_asset_type_3: row.sub_asset_type_3 || null,
+            sub_asset_size_3: row.sub_asset_size_3 || 0,
+            sub_asset_type_4: row.sub_asset_type_4 || null,
+            sub_asset_size_4: row.sub_asset_size_4 || 0,
+            sub_asset_type_5: row.sub_asset_type_5 || null,
+            sub_asset_size_5: row.sub_asset_size_5 || 0,
+            sub_asset_type_6: row.sub_asset_type_6 || null,
+            sub_asset_size_6: row.sub_asset_size_6 || 0,
+            total_size: row.total_size
+          };
+
+          await api.assets.update(row._dbId!, updateData);
+          row._isDirty = false;
+          row._dirtyFields = new Set<string>();
+          savedCount++;
+          savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - עודכן`);
+        } catch (err) {
+          console.error('Error updating asset:', row.asset_id, err);
+          let errorMsg = 'Unknown error';
+
+          if (err instanceof Error) {
+            errorMsg = err.message;
+          } else if (typeof err === 'object' && err !== null) {
+            const errObj = err as any;
             if (errObj.code === '23505') {
               errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
             } else {
@@ -783,6 +865,33 @@ export function AssetDataEntry() {
     }
   };
 
+  const getCellStyle = (params: any, fieldName: string, isRequired: boolean = false) => {
+    const row = params.data as AssetRow;
+    const isDirty = row._dirtyFields?.has(fieldName);
+    const hasValidationError = row._validationErrors && row._validationErrors.size > 0;
+
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        fontWeight: isDirty ? 'bold' : 'normal'
+      };
+    }
+
+    if (isDirty) {
+      return {
+        backgroundColor: '#fef3c7',
+        fontWeight: 'bold'
+      };
+    }
+
+    if (isRequired) {
+      return { backgroundColor: '#fff9e6' };
+    }
+
+    return {};
+  };
+
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
       headerName: '',
@@ -809,39 +918,29 @@ export function AssetDataEntry() {
       cellEditorParams: {
         values: buildings.map(b => b.building_number)
       },
-      cellStyle: { backgroundColor: '#fff9e6' }
+      cellStyle: (params) => getCellStyle(params, 'building_number', true)
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 150,
       editable: true,
-      cellStyle: (params) => {
-        const numericRegex = /^[0-9]+$/;
-        const hasError = params.value && !numericRegex.test(params.value);
-        return hasError ? { backgroundColor: '#fee2e2', border: '2px solid #ef4444' } : {};
-      }
+      cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
       width: 150,
       editable: true,
-      cellStyle: (params) => {
-        const numericRegex = /^[0-9]+$/;
-        const hasError = params.value && !numericRegex.test(params.value);
-        return {
-          backgroundColor: hasError ? '#fee2e2' : '#fff9e6',
-          ...(hasError && { border: '2px solid #ef4444' })
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'main_asset_type', false)
     },
     {
       field: 'asset_size',
@@ -849,14 +948,16 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1', false)
     },
     {
       field: 'sub_asset_size_1',
@@ -864,14 +965,16 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2', false)
     },
     {
       field: 'sub_asset_size_2',
@@ -879,14 +982,16 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3', false)
     },
     {
       field: 'sub_asset_size_3',
@@ -894,14 +999,16 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4', false)
     },
     {
       field: 'sub_asset_size_4',
@@ -909,14 +1016,16 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5', false)
     },
     {
       field: 'sub_asset_size_5',
@@ -924,14 +1033,16 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       width: 300,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes)
+      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6', false)
     },
     {
       field: 'sub_asset_size_6',
@@ -939,7 +1050,8 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00'
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     },
     {
       field: 'total_size',

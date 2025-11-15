@@ -117,7 +117,7 @@ export function AssetTypes() {
       await fetchAssetTypes(false);
     } catch (error) {
       console.error('Error updating asset type:', error);
-      showMessage('error', 'Update failed');
+      showMessage('error', 'עדכון נכשל');
       await fetchAssetTypes(false);
     }
   }, []);
@@ -222,12 +222,12 @@ export function AssetTypes() {
       await fetchAssetTypes();
 
       if (errors.length > 0) {
-        showMessage('error', `Imported ${successCount} types. ${errorCount} errors: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+        showMessage('error', `יובאו ${successCount} סוגים. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
       } else {
-        showMessage('success', `Successfully imported ${successCount} asset types`);
+        showMessage('success', `יובאו בהצלחה ${successCount} סוגי נכסים`);
       }
     } catch (error) {
-      showMessage('error', 'Error reading CSV file');
+      showMessage('error', 'שגיאה בקריאת קובץ CSV');
       console.error('Error importing CSV:', error);
     } finally {
       setIsImporting(false);
@@ -285,7 +285,7 @@ export function AssetTypes() {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 <Upload className="h-5 w-5" />
-                <span className="hidden sm:inline">{isImporting ? t('loading') : 'Import CSV'}</span>
+                <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
               </button>
               <button
                 onClick={startAdd}
@@ -368,10 +368,10 @@ export function AssetTypes() {
 
         {!isAdding && (
           <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-600">
-            <p className="font-semibold mb-1">CSV Format:</p>
-            <p className="font-mono text-xs">123,Description for type 123</p>
-            <p className="font-mono text-xs">456,Description for type 456</p>
-            <p className="mt-1 text-xs">Each line: 3-digit number (required), optional description (comma-separated)</p>
+            <p className="font-semibold mb-1">פורמט CSV:</p>
+            <p className="font-mono text-xs">123,תיאור לסוג 123</p>
+            <p className="font-mono text-xs">456,תיאור לסוג 456</p>
+            <p className="mt-1 text-xs">כל שורה: מספר בן 3 ספרות (נדרש), תיאור אופציונלי (מופרד בפסיק)</p>
           </div>
         )}
 

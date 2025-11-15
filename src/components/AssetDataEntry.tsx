@@ -118,7 +118,7 @@ export function AssetDataEntry() {
       );
 
       if (rowsToSave.length === 0) {
-        throw new Error('No valid rows to save. Building Number and Asset ID are required.');
+        throw new Error('אין שורות תקינות לשמור. מספר בניין וזיהוי נכס נדרשים.');
       }
 
       let savedCount = 0;
@@ -197,17 +197,17 @@ export function AssetDataEntry() {
       if (errors.length > 0) {
         const errorDetails = errors.join('\n');
         if (savedCount > 0) {
-          setError(`Partially saved: ${savedCount} succeeded, ${errors.length} failed:\n${errorDetails}`);
+          setError(`נשמר חלקית: ${savedCount} הצליחו, ${errors.length} נכשלו:\n${errorDetails}`);
         } else {
-          setError(`All saves failed:\n${errorDetails}`);
+          setError(`כל השמירות נכשלו:\n${errorDetails}`);
         }
       } else {
-        setSuccess(`${savedCount} asset(s) created successfully!`);
+        setSuccess(`${savedCount} נכסים נוצרו בהצלחה!`);
         setRowData([createEmptyRow()]);
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to save assets';
-      setError(`Critical error: ${errorMsg}`);
+      const errorMsg = err instanceof Error ? err.message : 'שגיאה בשמירת נכסים';
+      setError(`שגיאה קריטית: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -263,7 +263,7 @@ export function AssetDataEntry() {
         const lines = parseCSV(text);
 
         if (lines.length === 0) {
-          throw new Error('CSV file is empty');
+          throw new Error('קובץ CSV ריק');
         }
 
         const headers = lines[0].map(h => h.toLowerCase().trim());
@@ -378,18 +378,18 @@ export function AssetDataEntry() {
         }
 
         if (newRows.length === 0) {
-          throw new Error('No valid data rows found in CSV');
+          throw new Error('לא נמצאו שורות נתונים תקינות ב-CSV');
         }
 
         setRowData(newRows);
-        setSuccess(`Imported ${newRows.length} row(s) from CSV`);
+        setSuccess(`יובאו ${newRows.length} שורות מ-CSV`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to parse CSV file');
+        setError(err instanceof Error ? err.message : 'שגיאה בפענוח קובץ CSV');
       }
     };
 
     reader.onerror = () => {
-      setError('Failed to read file');
+      setError('שגיאה בקריאת קובץ');
     };
 
     reader.readAsText(file);
@@ -409,7 +409,7 @@ export function AssetDataEntry() {
           <button
             onClick={() => handleDeleteRow(params.data.id)}
             className="p-1 hover:bg-red-100 rounded transition-colors"
-            title="Delete row"
+            title="מחק שורה"
           >
             <Trash2 className="h-4 w-4 text-red-600" />
           </button>
@@ -556,7 +556,7 @@ export function AssetDataEntry() {
           <Plus className="h-8 w-8 text-white" />
           <div>
             <h1 className="text-3xl font-bold text-white">{t('assetDataEntry')}</h1>
-            <p className="text-teal-50">Excel-like data entry for assets</p>
+            <p className="text-teal-50">הזנת נתונים בסגנון אקסל לנכסים</p>
           </div>
         </div>
       </div>
@@ -582,14 +582,14 @@ export function AssetDataEntry() {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
                 <Upload className="h-5 w-5" />
-                Import CSV
+                {t('importCSV')}
               </button>
               <button
                 onClick={addEmptyRow}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
                 <Plus className="h-5 w-5" />
-                Add Row
+                {t('addRow')}
               </button>
             </div>
             <button
@@ -598,7 +598,7 @@ export function AssetDataEntry() {
               className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
               <Save className="h-5 w-5" />
-              {loading ? 'Saving...' : 'Save All'}
+              {loading ? t('saving') : t('saveAll')}
             </button>
           </div>
         </div>
@@ -625,11 +625,11 @@ export function AssetDataEntry() {
 
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Tips:</strong> Click any cell to edit. Yellow-highlighted fields (Building Number and Asset ID) are required. Payer ID is optional.
-          Total Size is calculated automatically. Use Tab or Enter to navigate between cells.
+          <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי.
+          סה"כ גודל מחושב אוטומטית. השתמש ב-Tab או Enter לניווט בין תאים.
         </p>
         <p className="text-sm text-blue-700 mt-2">
-          <strong>CSV Format:</strong> Headers should match: building_number (or מבנה), payer_id, asset_id (or נכס), main_asset_type, main_asset_size,
+          <strong>פורמט CSV:</strong> כותרות צריכות להתאים: building_number (או מבנה), payer_id, asset_id (או נכס), main_asset_type, main_asset_size,
           sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
           sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6
         </p>

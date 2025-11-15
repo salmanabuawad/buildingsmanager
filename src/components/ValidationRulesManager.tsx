@@ -49,7 +49,7 @@ export function ValidationRulesManager() {
       setRules(data);
     } catch (error) {
       console.error('Error fetching validation rules:', error);
-      showMessage('error', 'Failed to load validation rules');
+      showMessage('error', 'שגיאה בטעינת כללי תקינות');
     } finally {
       setLoading(false);
     }
@@ -58,9 +58,9 @@ export function ValidationRulesManager() {
   async function handleRefreshCache() {
     try {
       await loadValidationRules(true);
-      showMessage('success', 'Validation cache refreshed');
+      showMessage('success', 'מטמון רוענן בהצלחה');
     } catch (error) {
-      showMessage('error', 'Failed to refresh cache');
+      showMessage('error', 'שגיאה בריענון מטמון');
     }
   }
 
@@ -76,29 +76,29 @@ export function ValidationRulesManager() {
 
   async function handleSave() {
     if (!formData.rule_key.trim()) {
-      showMessage('error', 'Rule key is required');
+      showMessage('error', 'מפתח כלל נדרש');
       return;
     }
 
     if (!formData.field_name.trim()) {
-      showMessage('error', 'Field name is required');
+      showMessage('error', 'שם שדה נדרש');
       return;
     }
 
     if (!formData.entity_type.trim()) {
-      showMessage('error', 'Entity type is required');
+      showMessage('error', 'סוג ישות נדרש');
       return;
     }
 
     try {
       await api.validationRules.create(formData);
-      showMessage('success', 'Validation rule created');
+      showMessage('success', 'כלל תקינות נוצר בהצלחה');
       setIsAdding(false);
       setFormData(emptyRule);
       fetchRules();
       handleRefreshCache();
     } catch (error: any) {
-      showMessage('error', error.message || 'Failed to create rule');
+      showMessage('error', error.message || 'שגיאה ביצירת כלל');
     }
   }
 
@@ -125,32 +125,32 @@ export function ValidationRulesManager() {
   async function saveEdit(id: string) {
     try {
       await api.validationRules.update(id, editValues);
-      showMessage('success', 'Validation rule updated');
+      showMessage('success', 'כלל תקינות עודכן בהצלחה');
       setEditingId(null);
       setEditValues({});
       fetchRules();
       handleRefreshCache();
     } catch (error: any) {
-      showMessage('error', error.message || 'Failed to update rule');
+      showMessage('error', error.message || 'שגיאה בעדכון כלל');
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this validation rule?')) return;
+    if (!confirm('למחוק כלל תקינות זה?')) return;
 
     try {
       await api.validationRules.delete(id);
-      showMessage('success', 'Validation rule deleted');
+      showMessage('success', 'כלל תקינות נמחק בהצלחה');
       fetchRules();
       handleRefreshCache();
     } catch (error: any) {
-      showMessage('error', error.message || 'Failed to delete rule');
+      showMessage('error', error.message || 'שגיאה במחיקת כלל');
     }
   }
 
   const columnDefs: ColDef[] = useMemo(() => [
     {
-      headerName: 'Enabled',
+      headerName: t('enabled'),
       field: 'enabled',
       width: 100,
       editable: true,
@@ -170,12 +170,12 @@ export function ValidationRulesManager() {
         return rule.enabled ? '✓' : '✗';
       }
     },
-    { headerName: 'Rule Key', field: 'rule_key', width: 250 },
-    { headerName: 'Entity Type', field: 'entity_type', width: 120 },
-    { headerName: 'Field Name', field: 'field_name', width: 150 },
-    { headerName: 'Rule Type', field: 'rule_type', width: 130 },
+    { headerName: t('ruleKey'), field: 'rule_key', width: 250 },
+    { headerName: t('entityType'), field: 'entity_type', width: 120 },
+    { headerName: t('fieldName'), field: 'field_name', width: 150 },
+    { headerName: t('ruleType'), field: 'rule_type', width: 130 },
     {
-      headerName: 'Numeric Value',
+      headerName: t('numericValue'),
       field: 'value_numeric',
       width: 130,
       cellRenderer: (params: any) => {
@@ -195,7 +195,7 @@ export function ValidationRulesManager() {
       }
     },
     {
-      headerName: 'Text Value',
+      headerName: t('textValue'),
       field: 'value_text',
       width: 150,
       cellRenderer: (params: any) => {
@@ -215,7 +215,7 @@ export function ValidationRulesManager() {
       }
     },
     {
-      headerName: 'Error Message',
+      headerName: t('errorMessage'),
       field: 'error_message',
       width: 250,
       cellRenderer: (params: any) => {
@@ -234,12 +234,12 @@ export function ValidationRulesManager() {
         return rule.error_message ?? '';
       }
     },
-    { headerName: 'Compare Table', field: 'compare_table', width: 150 },
-    { headerName: 'Compare Field', field: 'compare_field', width: 150 },
-    { headerName: 'Join Field', field: 'join_field', width: 150 },
-    { headerName: 'Operator', field: 'comparison_operator', width: 100 },
+    { headerName: t('compareTable'), field: 'compare_table', width: 150 },
+    { headerName: t('compareField'), field: 'compare_field', width: 150 },
+    { headerName: t('joinField'), field: 'join_field', width: 150 },
+    { headerName: t('operator'), field: 'comparison_operator', width: 100 },
     {
-      headerName: 'Actions',
+      headerName: t('actions'),
       width: 120,
       cellRenderer: (params: any) => {
         if (!params.data) return null;
@@ -250,14 +250,14 @@ export function ValidationRulesManager() {
               <button
                 onClick={() => saveEdit(rule.id)}
                 className="p-1 text-teal-600 hover:text-teal-700"
-                title="Save"
+                title={t('save')}
               >
                 <Save className="h-4 w-4" />
               </button>
               <button
                 onClick={cancelEdit}
                 className="p-1 text-slate-600 hover:text-slate-700"
-                title="Cancel"
+                title={t('cancel')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -270,13 +270,13 @@ export function ValidationRulesManager() {
               onClick={() => startEdit(rule)}
               className="px-2 py-1 text-sm text-teal-600 hover:text-teal-700"
             >
-              Edit
+              {t('edit')}
             </button>
             <button
               onClick={() => handleDelete(rule.id)}
               className="px-2 py-1 text-sm text-red-600 hover:text-red-700"
             >
-              Delete
+              {t('delete')}
             </button>
           </div>
         );
@@ -299,7 +299,7 @@ export function ValidationRulesManager() {
       <div className="flex items-center justify-between p-6 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <Settings className="h-6 w-6 text-teal-600" />
-          <h2 className="text-2xl font-bold text-slate-800">Validation Rules</h2>
+          <h2 className="text-2xl font-bold text-slate-800">{t('validationRules')}</h2>
         </div>
         <div className="flex gap-2">
           <button
@@ -307,14 +307,14 @@ export function ValidationRulesManager() {
             className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
           >
             <RefreshCw className="h-4 w-4" />
-            Refresh Cache
+            {t('refreshCache')}
           </button>
           <button
             onClick={handleAdd}
             className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            Add Rule
+            {t('addRule')}
           </button>
         </div>
       </div>
@@ -327,10 +327,10 @@ export function ValidationRulesManager() {
 
       {isAdding && (
         <div className="m-6 p-6 bg-slate-50 rounded-lg border border-slate-200">
-          <h3 className="text-lg font-semibold mb-4">Add New Validation Rule</h3>
+          <h3 className="text-lg font-semibold mb-4">{t('addRule')}</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Rule Key *</label>
+              <label className="block text-sm font-medium mb-1">{t('ruleKey')} *</label>
               <input
                 type="text"
                 value={formData.rule_key}
@@ -340,21 +340,21 @@ export function ValidationRulesManager() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Entity Type *</label>
+              <label className="block text-sm font-medium mb-1">{t('entityType')} *</label>
               <select
                 value={formData.entity_type}
                 onChange={(e) => setFormData({ ...formData, entity_type: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               >
-                <option value="">Select...</option>
-                <option value="asset_type">Asset Type</option>
-                <option value="asset">Asset</option>
-                <option value="building">Building</option>
-                <option value="measurement">Measurement</option>
+                <option value="">בחר...</option>
+                <option value="asset_type">סוג נכס</option>
+                <option value="asset">נכס</option>
+                <option value="building">בניין</option>
+                <option value="measurement">מדידה</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Field Name *</label>
+              <label className="block text-sm font-medium mb-1">{t('fieldName')} *</label>
               <input
                 type="text"
                 value={formData.field_name}
@@ -364,25 +364,25 @@ export function ValidationRulesManager() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Rule Type *</label>
+              <label className="block text-sm font-medium mb-1">{t('ruleType')} *</label>
               <select
                 value={formData.rule_type}
                 onChange={(e) => setFormData({ ...formData, rule_type: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               >
-                <option value="required">Required</option>
-                <option value="exact_length">Exact Length</option>
-                <option value="min_length">Min Length</option>
-                <option value="max_length">Max Length</option>
-                <option value="pattern">Pattern</option>
-                <option value="numeric">Numeric</option>
-                <option value="positive_number">Positive Number</option>
-                <option value="exists_in_table">Exists In Table</option>
-                <option value="cross_table_comparison">Cross-Table Comparison</option>
+                <option value="required">נדרש</option>
+                <option value="exact_length">אורך מדויק</option>
+                <option value="min_length">אורך מינימלי</option>
+                <option value="max_length">אורך מקסימלי</option>
+                <option value="pattern">תבנית</option>
+                <option value="numeric">מספרי</option>
+                <option value="positive_number">מספר חיובי</option>
+                <option value="exists_in_table">קיים בטבלה</option>
+                <option value="cross_table_comparison">השוואה בין טבלאות</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Numeric Value</label>
+              <label className="block text-sm font-medium mb-1">{t('numericValue')}</label>
               <input
                 type="number"
                 value={formData.value_numeric ?? ''}
@@ -392,7 +392,7 @@ export function ValidationRulesManager() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Text Value</label>
+              <label className="block text-sm font-medium mb-1">{t('textValue')}</label>
               <input
                 type="text"
                 value={formData.value_text ?? ''}
@@ -402,7 +402,7 @@ export function ValidationRulesManager() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Error Message</label>
+              <label className="block text-sm font-medium mb-1">{t('errorMessage')}</label>
               <input
                 type="text"
                 value={formData.error_message ?? ''}
@@ -412,7 +412,7 @@ export function ValidationRulesManager() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label className="block text-sm font-medium mb-1">{t('description')}</label>
               <input
                 type="text"
                 value={formData.description ?? ''}
@@ -502,7 +502,7 @@ export function ValidationRulesManager() {
                 onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
                 className="h-4 w-4"
               />
-              <label className="text-sm font-medium">Enabled</label>
+              <label className="text-sm font-medium">{t('enabled')}</label>
             </div>
           </div>
           <div className="flex gap-2 mt-4">
@@ -510,13 +510,13 @@ export function ValidationRulesManager() {
               onClick={handleSave}
               className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
             >
-              Save
+              {t('save')}
             </button>
             <button
               onClick={() => setIsAdding(false)}
               className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -525,16 +525,16 @@ export function ValidationRulesManager() {
       <div className="flex-1 p-6">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-slate-600">Loading validation rules...</div>
+            <div className="text-slate-600">{t('loading')}</div>
           </div>
         ) : rules.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-slate-600">No validation rules found. Click "Add Rule" to create one.</div>
+            <div className="text-slate-600">לא נמצאו כללי תקינות</div>
           </div>
         ) : (
           <div className="flex flex-col h-full">
             <div className="mb-2 text-sm text-slate-600">
-              Showing {rules.length} validation rules
+              מציג {rules.length} כללי תקינות
             </div>
             <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
               <AgGridReact

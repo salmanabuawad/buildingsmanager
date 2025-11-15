@@ -304,15 +304,17 @@ function App() {
                       {tab.label}
                     </span>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCloseTab(tab.id);
-                    }}
-                    className="p-0.5 sm:p-1 hover:bg-red-100 rounded transition-colors"
-                  >
-                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-600 hover:text-red-600" />
-                  </button>
+                  {tab.type !== 'buildings' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseTab(tab.id);
+                      }}
+                      className="p-0.5 sm:p-1 hover:bg-red-100 rounded transition-colors"
+                    >
+                      <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-600 hover:text-red-600" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

@@ -1004,6 +1004,9 @@ export function AssetDataEntry() {
                 params.api.setFocusedCell(0, 'building_number');
               }
             }}
+            onFirstDataRendered={(params) => {
+              params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+            }}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enterNavigatesVertically={true}

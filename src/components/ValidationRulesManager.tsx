@@ -542,6 +542,9 @@ export function ValidationRulesManager() {
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 onGridReady={onGridReady}
+                onFirstDataRendered={(params) => {
+                  params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+                }}
                 pagination={true}
                 paginationPageSize={20}
                 paginationPageSizeSelector={[10, 20, 50, 100]}

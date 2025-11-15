@@ -405,6 +405,9 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
               resizable: true,
             }}
             onCellValueChanged={onCellValueChanged}
+            onFirstDataRendered={(params) => {
+              params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+            }}
             animateRows={true}
             pagination={true}
             paginationPageSize={20}

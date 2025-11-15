@@ -219,6 +219,9 @@ export function AdminPDFManager() {
           rowData={apartments}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
+          onFirstDataRendered={(params) => {
+            params.api.ensureColumnVisible(columnDefs[columnDefs.length - 1].field || 0);
+          }}
           pagination={true}
           paginationPageSize={20}
           paginationPageSizeSelector={[10, 20, 50, 100]}

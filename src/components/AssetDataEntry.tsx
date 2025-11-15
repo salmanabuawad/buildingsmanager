@@ -163,7 +163,8 @@ export function AssetDataEntry() {
           ]);
 
           if (!validation.valid) {
-            errors.push(`Asset ${row.asset_id} (Building ${row.building_number}): ${validation.error}`);
+            const detailedError = validation.error || 'Unknown validation error';
+            errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
             continue;
           }
 
@@ -191,8 +192,20 @@ export function AssetDataEntry() {
           await api.assets.create(assetData);
           savedCount++;
         } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-          errors.push(`Asset ${row.asset_id} (Building ${row.building_number}): ${errorMsg}`);
+          console.error('Error saving asset:', row.asset_id, err);
+          let errorMsg = 'Unknown error';
+          if (err instanceof Error) {
+            errorMsg = err.message;
+            if (err.stack) {
+              console.error('Stack trace:', err.stack);
+            }
+          } else if (typeof err === 'object' && err !== null) {
+            console.error('Error object:', err);
+            errorMsg = JSON.stringify(err, null, 2);
+          } else {
+            errorMsg = String(err);
+          }
+          errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
         }
       }
 
@@ -679,8 +692,8 @@ export function AssetDataEntry() {
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
-          <p className="text-red-800 font-medium whitespace-pre-line">{error}</p>
+        <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 max-h-96 overflow-y-auto">
+          <p className="text-red-800 font-medium whitespace-pre-line break-words">{error}</p>
         </div>
       )}
 

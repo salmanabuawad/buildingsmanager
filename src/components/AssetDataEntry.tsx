@@ -44,6 +44,7 @@ export function AssetDataEntry() {
   const [success, setSuccess] = useState<string | null>(null);
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
   const [importValidationErrors, setImportValidationErrors] = useState<string[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<number | 'all'>('all');
 
   useEffect(() => {
     fetchBuildings();
@@ -821,6 +822,13 @@ export function AssetDataEntry() {
     }
   ], [t, buildings, assetTypes, handleDeleteRow]);
 
+  const filteredRowData = useMemo(() => {
+    if (selectedBuilding === 'all') {
+      return rowData;
+    }
+    return rowData.filter(row => row.building_number === selectedBuilding);
+  }, [rowData, selectedBuilding]);
+
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-8">
       <div className="mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
@@ -858,6 +866,23 @@ export function AssetDataEntry() {
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="border-b border-gray-200 bg-gray-50 p-4">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              סינון לפי בניין
+            </label>
+            <select
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+            >
+              <option value="all">כל הבניינים</option>
+              {buildings.map(building => (
+                <option key={building.id} value={building.building_number}>
+                  בניין {building.building_number}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex gap-2">
               <button
@@ -915,7 +940,7 @@ export function AssetDataEntry() {
         <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={rowData}
+            rowData={filteredRowData}
             columnDefs={columnDefs}
             defaultColDef={{
               sortable: true,

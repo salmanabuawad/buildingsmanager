@@ -374,6 +374,10 @@ export function AssetDataEntry() {
 
           if (!validation.valid) {
             const detailedError = validation.error || 'Unknown validation error';
+            if (!row._validationErrors) {
+              row._validationErrors = new Map<string, string>();
+            }
+            row._validationErrors.set('_row', detailedError);
             errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
             continue;
           }
@@ -495,6 +499,10 @@ export function AssetDataEntry() {
 
           if (!validation.valid) {
             const detailedError = validation.error || 'Unknown validation error';
+            if (!row._validationErrors) {
+              row._validationErrors = new Map<string, string>();
+            }
+            row._validationErrors.set('_row', detailedError);
             errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
             continue;
           }
@@ -543,6 +551,11 @@ export function AssetDataEntry() {
           }
           errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
         }
+      }
+
+      setRowData(prev => [...prev]);
+      if (gridRef.current) {
+        gridRef.current.api.refreshCells({ force: true });
       }
 
       if (errors.length > 0) {

@@ -240,6 +240,25 @@ export function AssetDataEntry() {
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+            assetValidators.validateSubAssetSizeMatchesMain(
+              row.main_asset_size,
+              [
+                row.sub_asset_type_1,
+                row.sub_asset_type_2,
+                row.sub_asset_type_3,
+                row.sub_asset_type_4,
+                row.sub_asset_type_5,
+                row.sub_asset_type_6
+              ],
+              [
+                row.sub_asset_size_1,
+                row.sub_asset_size_2,
+                row.sub_asset_size_3,
+                row.sub_asset_size_4,
+                row.sub_asset_size_5,
+                row.sub_asset_size_6
+              ]
+            ),
             assetValidators.validateSubAssetsFor199Or299(
               row.building_number,
               row.main_asset_type,
@@ -582,6 +601,25 @@ export function AssetDataEntry() {
                 assetValidators.validateAssetId(row.asset_id),
                 assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
                 assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+                assetValidators.validateSubAssetSizeMatchesMain(
+                  row.main_asset_size,
+                  [
+                    row.sub_asset_type_1,
+                    row.sub_asset_type_2,
+                    row.sub_asset_type_3,
+                    row.sub_asset_type_4,
+                    row.sub_asset_type_5,
+                    row.sub_asset_type_6
+                  ],
+                  [
+                    row.sub_asset_size_1,
+                    row.sub_asset_size_2,
+                    row.sub_asset_size_3,
+                    row.sub_asset_size_4,
+                    row.sub_asset_size_5,
+                    row.sub_asset_size_6
+                  ]
+                ),
                 assetValidators.validateSubAssetsFor199Or299(
                   row.building_number,
                   row.main_asset_type,

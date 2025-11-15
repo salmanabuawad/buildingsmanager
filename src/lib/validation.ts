@@ -269,6 +269,38 @@ export async function validateAssetTypeForBuildingTaxRegion(
   }
 }
 
+export async function validateSubAssetSizeMatchesMain(
+  mainAssetSize: number | undefined,
+  subAssetTypes: (string | undefined)[],
+  subAssetSizes: (number | undefined)[]
+): Promise<ValidationResult> {
+  const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
+
+  if (validSubAssets.length === 0) {
+    return { valid: true };
+  }
+
+  if (mainAssetSize == null || mainAssetSize <= 0) {
+    return { valid: true };
+  }
+
+  const totalSubAssetSize = subAssetSizes
+    .filter((size, idx) => {
+      const hasType = subAssetTypes[idx] && subAssetTypes[idx]!.trim() !== '';
+      return hasType && size != null;
+    })
+    .reduce((sum, size) => sum + (size || 0), 0);
+
+  if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
+    return {
+      valid: false,
+      error: `סה"כ גודל נכסי משנה (${totalSubAssetSize}) חייב להיות שווה לגודל נכס ראשי (${mainAssetSize})`
+    };
+  }
+
+  return { valid: true };
+}
+
 export async function validateSubAssetsFor199Or299(
   buildingNumber: number | null,
   mainAssetType: string | undefined,
@@ -491,6 +523,14 @@ export const assetValidators = {
     subAssetSizes: (number | undefined)[]
   ): Promise<ValidationResult> => {
     return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes);
+  },
+
+  validateSubAssetSizeMatchesMain: async (
+    mainAssetSize: number | undefined,
+    subAssetTypes: (string | undefined)[],
+    subAssetSizes: (number | undefined)[]
+  ): Promise<ValidationResult> => {
+    return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes);
   },
 };
 

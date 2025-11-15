@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -20,6 +20,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [invalidAssets, setInvalidAssets] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
   useEffect(() => {
@@ -39,6 +40,20 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       setBuilding(buildingData);
       setAssets(assetsData || []);
       setAssetTypes(assetTypesData || []);
+
+      const invalidSet = new Set<string>();
+      const numericRegex = /^[0-9]+$/;
+
+      for (const asset of assetsData || []) {
+        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+        if (hasInvalidPayerId || hasInvalidAssetId) {
+          invalidSet.add(asset.id);
+        }
+      }
+
+      setInvalidAssets(invalidSet);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
@@ -52,6 +67,26 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       const field = colDef.field;
       const assetId = data.id;
       const newValue = event.newValue;
+
+      if (field === 'payer_id') {
+        const validation = await assetValidators.validatePayerId(newValue);
+        if (!validation.valid) {
+          setError(validation.error || 'Invalid payer ID');
+          setTimeout(() => setError(null), 3000);
+          await fetchData(false);
+          return;
+        }
+      }
+
+      if (field === 'asset_id') {
+        const validation = await assetValidators.validateAssetId(newValue);
+        if (!validation.valid) {
+          setError(validation.error || 'Invalid asset ID');
+          setTimeout(() => setError(null), 3000);
+          await fetchData(false);
+          return;
+        }
+      }
 
       if (field.includes('asset_type')) {
         const validation = await assetValidators.validateAssetType(newValue, field);
@@ -78,6 +113,32 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   }, []);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
+    {
+      headerName: '',
+      width: 50,
+      filter: false,
+      sortable: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        const numericRegex = /^[0-9]+$/;
+        const asset = params.data as Asset;
+        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+        if (hasInvalidPayerId || hasInvalidAssetId) {
+          const errors = [];
+          if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
+          if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
+
+          return (
+            <div className="flex items-center justify-center h-full" title={errors.join(', ')}>
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+          );
+        }
+        return null;
+      }
+    },
     {
       headerName: t('actions'),
       width: 150,
@@ -349,6 +410,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             paginationPageSize={20}
             enableRtl={true}
             suppressHorizontalScroll={false}
+            getRowStyle={(params) => {
+              if (invalidAssets.has(params.data.id)) {
+                return { background: '#fee2e2' };
+              }
+              return {};
+            }}
           />
         </div>
       </div>

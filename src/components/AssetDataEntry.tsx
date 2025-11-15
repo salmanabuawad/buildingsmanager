@@ -775,7 +775,14 @@ export function AssetDataEntry() {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 150,
-      editable: true
+      editable: true,
+      cellEditor: 'agNumberCellEditor',
+      valueParser: (params) => {
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const parsed = Number(newValue);
+        return isNaN(parsed) ? null : parsed;
+      }
     },
     {
       field: 'building_number',

@@ -185,7 +185,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               <label className="text-xs sm:text-sm font-medium text-slate-600">{t('payerId')}</label>
               {isEditing ? (
                 <input
-                  type="text"
+                  type="number"
                   value={editedAsset.payer_id || ''}
                   onChange={(e) => updateField('payer_id', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"

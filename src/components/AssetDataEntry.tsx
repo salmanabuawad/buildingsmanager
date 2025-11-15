@@ -200,12 +200,20 @@ export function AssetDataEntry() {
       updatedRow._validationErrors.delete('_row');
     }
 
-    setRowData(prev =>
-      prev.map(row => row.id === updatedRow.id ? updatedRow : row)
-    );
+    setRowData(prev => {
+      const newData = prev.map(row => {
+        if (row.id === updatedRow.id) {
+          return { ...updatedRow };
+        }
+        return row;
+      });
+      return newData;
+    });
 
     if (gridRef.current) {
-      gridRef.current.api.refreshCells({ force: true });
+      setTimeout(() => {
+        gridRef.current?.api.refreshCells({ force: true });
+      }, 0);
     }
   }, [calculateTotalSize]);
 

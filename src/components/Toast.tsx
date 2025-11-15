@@ -16,6 +16,12 @@ export function Toast({ message, type = 'error', onClose, duration = 5000 }: Toa
     }
   }, [duration, onClose]);
 
+  useEffect(() => {
+    const handleClick = () => onClose();
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [onClose]);
+
   const styles = {
     error: {
       bg: 'bg-red-50',
@@ -40,11 +46,8 @@ export function Toast({ message, type = 'error', onClose, duration = 5000 }: Toa
   const style = styles[type];
 
   return (
-    <div
-      className={`fixed top-4 right-4 z-50 max-w-md animate-slide-in`}
-      onClick={onClose}
-    >
-      <div className={`${style.bg} ${style.border} border rounded-lg shadow-lg p-4 flex items-start gap-3 cursor-pointer`}>
+    <div className={`fixed top-4 right-4 z-50 max-w-md animate-slide-in`}>
+      <div className={`${style.bg} ${style.border} border rounded-lg shadow-lg p-4 flex items-start gap-3`}>
         {style.icon}
         <p className={`flex-1 ${style.text} text-sm font-medium`}>{message}</p>
         <button

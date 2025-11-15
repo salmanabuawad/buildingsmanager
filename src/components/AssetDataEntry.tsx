@@ -135,6 +135,14 @@ export function AssetDataEntry() {
       assetValidators.validatePayerId(updatedRow.payer_id),
       assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
       assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
+      assetValidators.validateMinimumSubAssets([
+        updatedRow.sub_asset_type_1,
+        updatedRow.sub_asset_type_2,
+        updatedRow.sub_asset_type_3,
+        updatedRow.sub_asset_type_4,
+        updatedRow.sub_asset_type_5,
+        updatedRow.sub_asset_type_6
+      ]),
       assetValidators.validateSubAssetSizeMatchesMain(
         updatedRow.asset_size,
         [
@@ -306,6 +314,14 @@ export function AssetDataEntry() {
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+            assetValidators.validateMinimumSubAssets([
+              row.sub_asset_type_1,
+              row.sub_asset_type_2,
+              row.sub_asset_type_3,
+              row.sub_asset_type_4,
+              row.sub_asset_type_5,
+              row.sub_asset_type_6
+            ]),
             assetValidators.validateSubAssetSizeMatchesMain(
               row.asset_size,
               [
@@ -419,6 +435,14 @@ export function AssetDataEntry() {
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+            assetValidators.validateMinimumSubAssets([
+              row.sub_asset_type_1,
+              row.sub_asset_type_2,
+              row.sub_asset_type_3,
+              row.sub_asset_type_4,
+              row.sub_asset_type_5,
+              row.sub_asset_type_6
+            ]),
             assetValidators.validateSubAssetSizeMatchesMain(
               row.asset_size,
               [

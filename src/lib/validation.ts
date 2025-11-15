@@ -301,6 +301,21 @@ export async function validateSubAssetSizeMatchesMain(
   return { valid: true };
 }
 
+export async function validateMinimumSubAssets(
+  subAssetTypes: (string | undefined)[]
+): Promise<ValidationResult> {
+  const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
+
+  if (validSubAssets.length < 2) {
+    return {
+      valid: false,
+      error: `חובה להזין לפחות 2 נכסי משנה. נמצאו ${validSubAssets.length} נכסי משנה בלבד`
+    };
+  }
+
+  return { valid: true };
+}
+
 export async function validateSubAssetsFor199Or299(
   buildingNumber: number | null,
   mainAssetType: string | undefined,
@@ -531,6 +546,12 @@ export const assetValidators = {
     subAssetSizes: (number | undefined)[]
   ): Promise<ValidationResult> => {
     return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes);
+  },
+
+  validateMinimumSubAssets: async (
+    subAssetTypes: (string | undefined)[]
+  ): Promise<ValidationResult> => {
+    return await validateMinimumSubAssets(subAssetTypes);
   },
 };
 

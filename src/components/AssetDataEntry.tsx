@@ -140,7 +140,19 @@ export function AssetDataEntry() {
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
         console.error('Error updating asset:', err);
-        const errorMsg = err instanceof Error ? err.message : 'שגיאה בעדכון';
+        let errorMsg = 'שגיאה בעדכון';
+
+        if (err instanceof Error) {
+          errorMsg = err.message;
+        } else if (typeof err === 'object' && err !== null) {
+          const errObj = err as any;
+          if (errObj.code === '23505') {
+            errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+          } else {
+            errorMsg = JSON.stringify(err);
+          }
+        }
+
         setError(`שגיאה בעדכון נכס ${updatedRow.asset_id}: ${errorMsg}`);
         setTimeout(() => setError(null), 5000);
       }
@@ -279,6 +291,7 @@ export function AssetDataEntry() {
         } catch (err) {
           console.error('Error saving asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
+
           if (err instanceof Error) {
             errorMsg = err.message;
             if (err.stack) {
@@ -286,7 +299,13 @@ export function AssetDataEntry() {
             }
           } else if (typeof err === 'object' && err !== null) {
             console.error('Error object:', err);
-            errorMsg = JSON.stringify(err, null, 2);
+            const errObj = err as any;
+
+            if (errObj.code === '23505') {
+              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+            } else {
+              errorMsg = JSON.stringify(err, null, 2);
+            }
           } else {
             errorMsg = String(err);
           }

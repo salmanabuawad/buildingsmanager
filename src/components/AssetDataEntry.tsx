@@ -1110,6 +1110,7 @@ export function AssetDataEntry() {
             stopEditingWhenCellsLoseFocus={true}
             enterNavigatesVertically={true}
             enterNavigatesVerticallyAfterEdit={true}
+            enableRtl={true}
             theme="legacy"
           />
         </div>

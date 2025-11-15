@@ -557,6 +557,7 @@ export function ValidationRulesManager() {
                 pagination={true}
                 paginationPageSize={20}
                 paginationPageSizeSelector={[10, 20, 50, 100]}
+                enableRtl={true}
                 getRowId={(params) => params.data.id}
               />
             </div>

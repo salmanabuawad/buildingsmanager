@@ -289,7 +289,9 @@ export function AssetDataEntry() {
       const newRows = rowData.filter(row => row._isNew);
 
       if (newRows.length === 0) {
-        throw new Error('אין שורות חדשות לשמור. אנא הוסף שורות חדשות באמצעות כפתור "הוסף שורה".');
+        setSuccess('אין שורות חדשות לשמור. כל השורות כבר נשמרו במערכת.');
+        setLoading(false);
+        return;
       }
 
       const invalidRows: string[] = [];

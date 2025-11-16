@@ -1345,6 +1345,14 @@ export function AssetDataEntry() {
         onChange={handleFileUpload}
         className="hidden"
       />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

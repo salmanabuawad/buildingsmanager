@@ -205,8 +205,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
         if (hasAreaDiscrepancy || hasTaxRegionError) {
           const errors = [];
-          if (hasAreaDiscrepancy) errors.push('Area mismatch');
-          if (hasTaxRegionError) errors.push('Invalid tax region');
+          if (hasAreaDiscrepancy) errors.push(t('areaMismatch'));
+          if (hasTaxRegionError) errors.push(t('invalidTaxRegion'));
 
           return (
             <div className="flex items-center justify-center h-full" title={errors.join(', ')}>

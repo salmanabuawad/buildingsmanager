@@ -176,7 +176,9 @@ export const translations = {
       validateOnImport: 'Validate data on import',
       validationErrors: 'Validation Errors',
       assetUpdatedSuccessfully: 'Asset updated successfully',
-      subAssetTypeCompositeError: 'Sub-Asset Type {{subAssetNum}} cannot be 199 or 299. These composite types can only be used as Main Asset Type.'
+      subAssetTypeCompositeError: 'Sub-Asset Type {{subAssetNum}} cannot be 199 or 299. These composite types can only be used as Main Asset Type.',
+      areaMismatch: 'Area mismatch',
+      invalidTaxRegion: 'Invalid tax region'
     }
   },
   he: {
@@ -356,7 +358,9 @@ export const translations = {
       validateOnImport: 'אמת נתונים בעת ייבוא',
       validationErrors: 'שגיאות ולידציה',
       assetUpdatedSuccessfully: 'הנכס עודכן בהצלחה',
-      subAssetTypeCompositeError: 'נכס משנה מסוג {{subAssetNum}} לא יכול להיות 199 או 299. סוגים מורכבים אלו יכולים לשמש רק כסוג נכס.'
+      subAssetTypeCompositeError: 'נכס משנה מסוג {{subAssetNum}} לא יכול להיות 199 או 299. סוגים מורכבים אלו יכולים לשמש רק כסוג נכס.',
+      areaMismatch: 'אי התאמת שטח',
+      invalidTaxRegion: 'אזור מיסים לא תקין'
     }
   }
 };

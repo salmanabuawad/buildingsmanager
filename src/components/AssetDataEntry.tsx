@@ -1054,7 +1054,12 @@ export function AssetDataEntry() {
       headerName: t('buildingNumber'),
       width: 150,
       editable: true,
-      cellStyle: (params) => getCellStyle(params, 'building_number', true)
+      cellStyle: (params) => getCellStyle(params, 'building_number', true),
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        const str = String(params.value);
+        return str.length > 15 ? str.substring(0, 15) + '...' : str;
+      }
     },
     {
       field: 'payer_id',

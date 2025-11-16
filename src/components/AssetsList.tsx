@@ -329,9 +329,15 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         if (!hasHistory) return null;
 
         const isExpanded = params.node.expanded;
+
+        const handleClick = (e: any) => {
+          e.stopPropagation();
+          params.node.setExpanded(!isExpanded);
+        };
+
         return (
           <button
-            onClick={() => params.node.setExpanded(!isExpanded)}
+            onClick={handleClick}
             className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
             title={isExpanded ? t('collapse') : t('expand')}
           >
@@ -583,7 +589,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       valueFormatter: (params) => params.value?.toLocaleString(),
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, detailCellRenderer]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assets]);
 
   if (loading) {
     return (

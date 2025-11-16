@@ -1192,7 +1192,7 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-
+      minWidth: 200,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',

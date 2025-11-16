@@ -1320,7 +1320,8 @@ export function AssetDataEntry() {
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,
-              autoHeaderHeight: true
+              autoHeaderHeight: true,
+              minWidth: 80
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {

@@ -1318,7 +1318,9 @@ export function AssetDataEntry() {
             rowData={filteredRowData}
             columnDefs={columnDefs}
             defaultColDef={{
-              resizable: true
+              resizable: true,
+              wrapHeaderText: true,
+              autoHeaderHeight: true
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {

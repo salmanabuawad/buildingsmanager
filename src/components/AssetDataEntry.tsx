@@ -1380,7 +1380,7 @@ export function AssetDataEntry() {
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי.
-          סה"כ גודל מחושב אוטומטית. השתמש ב-Tab או Enter לניווט בין תאים.
+          השתמש ב-Tab או Enter לניווט בין תאים.
         </p>
         <p className="text-sm text-blue-700 mt-2">
           <strong>פורמט CSV:</strong> השתמש בכפתור "הורד תבנית CSV" להורדת קובץ תבנית עם כותרות בעברית.

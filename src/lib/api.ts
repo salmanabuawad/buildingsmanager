@@ -15,6 +15,7 @@ export interface Asset {
   building_number: number;
   payer_id: string;
   asset_id: string;
+  measurement_date: string;
   main_asset_type?: string;
   asset_size: number;
   sub_asset_type_1?: string;
@@ -158,7 +159,24 @@ export const api = {
       let query = supabase
         .from('assets')
         .select('*')
-        .order('asset_id');
+        .order('asset_id')
+        .order('measurement_date', { ascending: false });
+
+      if (buildingNumber) {
+        query = query.eq('building_number', buildingNumber);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data || [];
+    },
+    getAllByAssetId: async (assetId: string, buildingNumber?: number): Promise<Asset[]> => {
+      let query = supabase
+        .from('assets')
+        .select('*')
+        .eq('asset_id', assetId)
+        .order('measurement_date', { ascending: false });
 
       if (buildingNumber) {
         query = query.eq('building_number', buildingNumber);

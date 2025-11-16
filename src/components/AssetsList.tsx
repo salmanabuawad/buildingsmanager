@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -16,6 +16,7 @@ interface AssetsListProps {
 export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [masterAssets, setMasterAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,21 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       setBuilding(buildingData);
       setAssets(assetsData || []);
       setAssetTypes(assetTypesData || []);
+
+      const assetsByAssetId = new Map<string, Asset[]>();
+      for (const asset of assetsData || []) {
+        if (!assetsByAssetId.has(asset.asset_id)) {
+          assetsByAssetId.set(asset.asset_id, []);
+        }
+        assetsByAssetId.get(asset.asset_id)!.push(asset);
+      }
+
+      const masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
+        group.sort((a, b) => new Date(b.measurement_date).getTime() - new Date(a.measurement_date).getTime());
+        return group[0];
+      });
+
+      setMasterAssets(masterAssetsList);
 
       const invalidSet = new Set<string>();
       const numericRegex = /^[0-9]+$/;
@@ -145,6 +161,69 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     }
   }, []);
 
+  const detailCellRenderer = useMemo(() => {
+    return (props: IDetailCellRendererParams) => {
+      const masterAsset = props.data as Asset;
+      const historicalRecords = assets.filter(
+        a => a.asset_id === masterAsset.asset_id && a.measurement_date !== masterAsset.measurement_date
+      );
+
+      if (historicalRecords.length === 0) {
+        return (
+          <div className="p-4 text-gray-500 text-sm">
+            {t('noMeasurements')}
+          </div>
+        );
+      }
+
+      return (
+        <div className="p-4 bg-gray-50">
+          <h3 className="text-sm font-semibold mb-2 text-gray-700">{t('measurementHistory')}</h3>
+          <div className="ag-theme-alpine" style={{ height: `${Math.min(historicalRecords.length * 42 + 60, 300)}px`, width: '100%' }}>
+            <AgGridReact
+              rowData={historicalRecords}
+              columnDefs={detailColumnDefs}
+              domLayout='autoHeight'
+              headerHeight={35}
+              rowHeight={35}
+              suppressHorizontalScroll={true}
+            />
+          </div>
+        </div>
+      );
+    };
+  }, [assets, t]);
+
+  const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
+    {
+      field: 'measurement_date',
+      headerName: t('measurementDate'),
+      width: 150,
+      valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'main_asset_type',
+      headerName: t('mainAssetType'),
+      width: 150,
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'asset_size',
+      headerName: t('mainAssetSize'),
+      width: 120,
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'total_size',
+      headerName: t('totalSize'),
+      width: 120,
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right', fontWeight: 'bold' }
+    }
+  ], [t]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: '',
@@ -190,6 +269,17 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         );
       },
       cellClass: 'floating-action-cell'
+    },
+    {
+      field: 'measurement_date',
+      headerName: t('measurementDate'),
+      width: 150,
+      minWidth: 150,
+      sortable: true,
+      filter: true,
+      editable: false,
+      valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
+      cellStyle: { textAlign: 'right', backgroundColor: '#f0fdf4', fontWeight: '600' }
     },
     {
       field: 'asset_id',
@@ -418,7 +508,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       valueFormatter: (params) => params.value?.toLocaleString(),
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, detailCellRenderer]);
 
   if (loading) {
     return (
@@ -458,13 +548,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={assets}
+            rowData={masterAssets}
             columnDefs={columnDefs}
             defaultColDef={{
               sortable: true,
               filter: true,
               resizable: true,
             }}
+            masterDetail={true}
+            detailCellRenderer={detailCellRenderer}
+            detailRowAutoHeight={true}
             onCellValueChanged={onCellValueChanged}
             onFirstDataRendered={(params) => {
               const firstCol = params.api.getAllDisplayedColumns()[0];

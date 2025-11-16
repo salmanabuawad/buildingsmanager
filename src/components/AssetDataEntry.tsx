@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
-import { Save, Plus, Trash2, Upload, Download, RefreshCw, FileText } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, Download, RefreshCw, FileText, AlertCircle } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
@@ -978,6 +978,28 @@ export function AssetDataEntry() {
   };
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
+      headerName: '',
+      width: 50,
+      editable: false,
+      pinned: 'left',
+      cellRenderer: (params: any) => {
+        const row = params.data as AssetRow;
+        const hasError = row._validationErrors && row._validationErrors.size > 0;
+        if (hasError) {
+          const errorMessages: string[] = [];
+          row._validationErrors.forEach((msg, field) => {
+            errorMessages.push(msg);
+          });
+          return (
+            <div className="flex items-center justify-center h-full" title={errorMessages.join(', ')}>
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+          );
+        }
+        return null;
+      }
+    },
+    {
       field: 'building_number',
       headerName: t('buildingNumber'),
       width: 140,
@@ -1178,18 +1200,8 @@ export function AssetDataEntry() {
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
-        const hasError = row._validationErrors && row._validationErrors.size > 0;
-        const errorMessage = hasError ? row._validationErrors.get('_row') : '';
         return (
           <div className="flex items-center gap-1">
-            {hasError && (
-              <div
-                className="flex items-center justify-center w-5 h-5 bg-red-500 rounded-full cursor-help flex-shrink-0"
-                title={errorMessage || 'שגיאת ולידציה'}
-              >
-                <span className="text-white text-xs font-bold">!</span>
-              </div>
-            )}
             {!row._isNew && (
               <button
                 type="button"

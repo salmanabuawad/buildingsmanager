@@ -232,7 +232,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 <div className="group relative inline-block">
                   <p className="text-base sm:text-lg text-slate-900">{asset.main_asset_type || '-'}</p>
                   {asset.main_asset_type && assetTypes.find(at => at.name === asset.main_asset_type)?.description && (
-                    <span className="invisible group-hover:visible absolute z-10 p-2 bg-slate-800 text-white text-xs rounded shadow-lg -top-8 left-0 whitespace-nowrap">
+                    <span className="invisible group-hover:visible absolute z-10 p-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm rounded-lg shadow-xl -top-10 left-0 whitespace-nowrap">
                       {assetTypes.find(at => at.name === asset.main_asset_type)?.description}
                     </span>
                   )}
@@ -290,7 +290,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                         <div className="group relative inline-block">
                           <p className="text-base font-semibold text-slate-900">{typeValue}</p>
                           {typeValue && assetTypes.find(at => at.name === typeValue)?.description && (
-                            <span className="invisible group-hover:visible absolute z-10 p-2 bg-slate-800 text-white text-xs rounded shadow-lg -top-8 left-0 whitespace-nowrap">
+                            <span className="invisible group-hover:visible absolute z-10 p-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm rounded-lg shadow-xl -top-10 left-0 whitespace-nowrap">
                               {assetTypes.find(at => at.name === typeValue)?.description}
                             </span>
                           )}

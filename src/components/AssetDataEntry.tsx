@@ -626,7 +626,7 @@ export function AssetDataEntry() {
       setRowData(prev => prev.filter(row => !row._isNew || !row.building_number || !row.asset_id));
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בשמירת נכסים';
-      setError(`שגיאה קריטית: ${errorMsg}`);
+      showToast(`שגיאה קריטית: ${errorMsg}`, 'error');
     } finally {
       setLoading(false);
     }

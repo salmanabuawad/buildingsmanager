@@ -287,7 +287,7 @@ export function AssetDataEntry() {
       }));
 
       setRowData(loadedRows);
-      setSuccess(`${loadedRows.length} נכסים נטענו בהצלחה. ניתן לערוך ישירות בתאים`);
+      showToast(`${loadedRows.length} נכסים נטענו בהצלחה. ניתן לערוך ישירות בתאים`, 'success');
     } catch (err) {
       console.error('Error loading assets:', err);
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בטעינת נכסים';
@@ -1201,7 +1201,7 @@ export function AssetDataEntry() {
         <div className="border-b border-gray-200 bg-gray-50 p-4">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              סינון לפי בניין
+              בחר בניין
             </label>
             <input
               type="text"

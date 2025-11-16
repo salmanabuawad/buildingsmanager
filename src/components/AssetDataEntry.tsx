@@ -978,32 +978,6 @@ export function AssetDataEntry() {
   };
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
-      headerName: '',
-      width: 50,
-      minWidth: 50,
-      maxWidth: 50,
-      pinned: 'left',
-      suppressSizeToFit: true,
-      resizable: false,
-      cellRenderer: (params: any) => {
-        const row = params.data as AssetRow;
-        const hasError = row._validationErrors && row._validationErrors.size > 0;
-        const errorMessage = hasError ? row._validationErrors.get('_row') : '';
-        return (
-          <div className="flex items-center gap-1">
-            {hasError && (
-              <div
-                className="flex items-center justify-center w-5 h-5 bg-red-500 rounded-full cursor-help"
-                title={errorMessage || 'שגיאת ולידציה'}
-              >
-                <span className="text-white text-xs font-bold">!</span>
-              </div>
-            )}
-          </div>
-        );
-      }
-    },
-    {
       field: 'building_number',
       headerName: t('buildingNumber'),
       minWidth: 160,
@@ -1187,8 +1161,18 @@ export function AssetDataEntry() {
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
+        const hasError = row._validationErrors && row._validationErrors.size > 0;
+        const errorMessage = hasError ? row._validationErrors.get('_row') : '';
         return (
           <div className="flex items-center gap-1">
+            {hasError && (
+              <div
+                className="flex items-center justify-center w-5 h-5 bg-red-500 rounded-full cursor-help flex-shrink-0"
+                title={errorMessage || 'שגיאת ולידציה'}
+              >
+                <span className="text-white text-xs font-bold">!</span>
+              </div>
+            )}
             {!row._isNew && (
               <button
                 type="button"

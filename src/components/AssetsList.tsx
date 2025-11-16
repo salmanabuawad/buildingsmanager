@@ -441,16 +441,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         </div>
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
-        <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
+        <div className="mb-4 sm:mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-3">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-1 sm:mb-2">
-                <BuildingIcon className="w-10 h-10 text-white" />
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+              <div className="flex items-center gap-2">
+                <BuildingIcon className="w-8 h-8 text-white" />
+                <h1 className="text-xl sm:text-2xl font-bold text-white">
                   {t('buildingNumber')} {building?.building_number}
                 </h1>
               </div>
-              <p className="text-sm sm:text-base text-teal-50">{t('totalApartments')}: {assets.length}</p>
+              <p className="text-xs sm:text-sm text-teal-50 mt-0.5">{t('totalApartments')}: {assets.length}</p>
             </div>
           </div>
         </div>

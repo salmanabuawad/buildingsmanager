@@ -161,44 +161,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     }
   }, []);
 
-  const detailCellRenderer = useMemo(() => {
-    return (props: IDetailCellRendererParams) => {
-      const masterAsset = props.data as Asset;
-      const historicalRecords = assets.filter(
-        a => a.asset_id === masterAsset.asset_id && a.measurement_date !== masterAsset.measurement_date
-      );
-
-      if (historicalRecords.length === 0) {
-        return (
-          <div className="p-4 text-gray-500 text-sm italic bg-gray-50">
-            {t('noMeasurements')}
-          </div>
-        );
-      }
-
-      return (
-        <div className="p-4 bg-gradient-to-br from-blue-50 to-teal-50 border-l-4 border-teal-500">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-1 w-1 rounded-full bg-teal-600"></div>
-            <h3 className="text-sm font-bold text-teal-900">{t('measurementHistory')}</h3>
-            <span className="text-xs text-teal-600 font-medium">({historicalRecords.length} {t('previousRecords')})</span>
-          </div>
-          <div className="ag-theme-alpine rounded-lg overflow-hidden shadow-sm" style={{ height: `${Math.min(historicalRecords.length * 42 + 60, 300)}px`, width: '100%' }}>
-            <AgGridReact
-              rowData={historicalRecords}
-              columnDefs={detailColumnDefs}
-              domLayout='autoHeight'
-              headerHeight={38}
-              rowHeight={38}
-              suppressHorizontalScroll={true}
-              enableRtl={true}
-            />
-          </div>
-        </div>
-      );
-    };
-  }, [assets, t]);
-
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       field: 'measurement_date',
@@ -269,6 +231,42 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#dbeafe' }
     }
   ], [t, assetTypes]);
+
+  const DetailCellRenderer = useCallback((props: IDetailCellRendererParams) => {
+    const masterAsset = props.data as Asset;
+    const historicalRecords = assets.filter(
+      a => a.asset_id === masterAsset.asset_id && a.measurement_date !== masterAsset.measurement_date
+    );
+
+    if (historicalRecords.length === 0) {
+      return (
+        <div className="p-4 text-gray-500 text-sm italic bg-gray-50">
+          {t('noMeasurements')}
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4 bg-gradient-to-br from-blue-50 to-teal-50 border-l-4 border-teal-500">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-1 w-1 rounded-full bg-teal-600"></div>
+          <h3 className="text-sm font-bold text-teal-900">{t('measurementHistory')}</h3>
+          <span className="text-xs text-teal-600 font-medium">({historicalRecords.length} {t('previousRecords')})</span>
+        </div>
+        <div className="ag-theme-alpine rounded-lg overflow-hidden shadow-sm" style={{ height: `${Math.min(historicalRecords.length * 42 + 60, 300)}px`, width: '100%' }}>
+          <AgGridReact
+            rowData={historicalRecords}
+            columnDefs={detailColumnDefs}
+            domLayout='autoHeight'
+            headerHeight={38}
+            rowHeight={38}
+            suppressHorizontalScroll={true}
+            enableRtl={true}
+          />
+        </div>
+      </div>
+    );
+  }, [assets, t, detailColumnDefs]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -661,7 +659,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
               resizable: true,
             }}
             masterDetail={true}
-            detailCellRenderer={detailCellRenderer}
+            detailCellRenderer={DetailCellRenderer}
             detailRowAutoHeight={true}
             isRowMaster={(dataItem) => {
               return assets.filter(a => a.asset_id === dataItem.asset_id).length > 1;

@@ -322,7 +322,10 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                minWidth: 100
+                minWidth: 100,
+                wrapHeaderText: true,
+                autoHeaderHeight: true,
+                cellStyle: { textAlign: 'right' }
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {

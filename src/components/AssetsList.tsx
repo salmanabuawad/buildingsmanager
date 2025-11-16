@@ -558,6 +558,9 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             columnDefs={columnDefs}
             defaultColDef={{
               resizable: true,
+              wrapHeaderText: true,
+              autoHeaderHeight: true,
+              cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}

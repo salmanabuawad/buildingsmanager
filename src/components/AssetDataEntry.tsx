@@ -1321,7 +1321,8 @@ export function AssetDataEntry() {
               resizable: true,
               wrapHeaderText: true,
               autoHeaderHeight: true,
-              minWidth: 80
+              minWidth: 80,
+              cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {

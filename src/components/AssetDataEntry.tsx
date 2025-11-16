@@ -76,7 +76,7 @@ export function AssetDataEntry() {
     building_number: null,
     payer_id: '',
     asset_id: '',
-    measurement_date: new Date().toISOString().split('T')[0],
+    measurement_date: '',
     main_asset_type: '',
     asset_size: 0,
     sub_asset_type_1: '',
@@ -743,7 +743,7 @@ export function AssetDataEntry() {
             building_number: null,
             payer_id: '',
             asset_id: '',
-            measurement_date: new Date().toISOString().split('T')[0],
+            measurement_date: '',
             main_asset_type: '',
             asset_size: 0,
             sub_asset_type_1: '',
@@ -781,7 +781,7 @@ export function AssetDataEntry() {
                 break;
               case 'measurement_date':
               case 'תאריך מדידה':
-                row.measurement_date = value || new Date().toISOString().split('T')[0];
+                row.measurement_date = value || '';
                 break;
               case 'main_asset_type':
               case 'סוג נכס':

@@ -1034,7 +1034,12 @@ export function AssetDataEntry() {
               </div>
             )}
             <button
-              onClick={() => handleDeleteRow(params.data.id)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteRow(params.data.id);
+              }}
               className="p-1 hover:bg-red-100 rounded transition-colors"
               title="מחק שורה"
             >

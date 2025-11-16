@@ -328,26 +328,43 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
         if (!hasHistory) return null;
 
-        const isExpanded = params.node.expanded;
+        const ExpandButton = () => {
+          const [expanded, setExpanded] = useState(params.node.expanded || false);
 
-        const handleClick = (e: any) => {
-          e.stopPropagation();
-          params.node.setExpanded(!isExpanded);
+          useEffect(() => {
+            const listener = () => {
+              setExpanded(params.node.expanded || false);
+            };
+            params.node.addEventListener('expandedChanged', listener);
+            return () => {
+              params.node.removeEventListener('expandedChanged', listener);
+            };
+          }, []);
+
+          const handleClick = (e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const newExpandedState = !expanded;
+            params.node.setExpanded(newExpandedState);
+            setExpanded(newExpandedState);
+          };
+
+          return (
+            <button
+              onClick={handleClick}
+              className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
+              title={expanded ? t('collapse') : t('expand')}
+            >
+              {expanded ? (
+                <ChevronDown className="w-5 h-5 text-teal-700" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-teal-700" />
+              )}
+            </button>
+          );
         };
 
-        return (
-          <button
-            onClick={handleClick}
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
-            title={isExpanded ? t('collapse') : t('expand')}
-          >
-            {isExpanded ? (
-              <ChevronDown className="w-5 h-5 text-teal-700" />
-            ) : (
-              <ChevronRight className="w-5 h-5 text-teal-700" />
-            )}
-          </button>
-        );
+        return <ExpandButton />;
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },

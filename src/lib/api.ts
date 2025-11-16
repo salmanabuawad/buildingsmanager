@@ -11,10 +11,10 @@ export interface Building {
 }
 
 export interface Asset {
-  id: string;
+  id: number;
   building_number: number;
-  payer_id: string;
-  asset_id: string;
+  payer_id?: string;
+  asset_id: number;
   measurement_date: string;
   main_asset_type?: string;
   asset_size: number;
@@ -30,8 +30,8 @@ export interface Asset {
   sub_asset_size_5: number;
   sub_asset_type_6?: string;
   sub_asset_size_6: number;
-  total_size: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface AssetMeasurement {
@@ -269,7 +269,7 @@ export const api = {
       console.log('[API] Asset updated successfully:', data);
       return data;
     },
-    delete: async (id: string): Promise<{ message: string }> => {
+    delete: async (id: number | string): Promise<{ message: string }> => {
       const { error } = await supabase
         .from('assets')
         .delete()

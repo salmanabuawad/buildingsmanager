@@ -29,7 +29,7 @@ interface AssetRow {
   sub_asset_type_6: string;
   sub_asset_size_6: number;
   _isNew?: boolean;
-  _dbId?: string;
+  _dbId?: number;
   _isDirty?: boolean;
   _dirtyFields?: Set<string>;
   _validationErrors?: Map<string, string>;
@@ -726,7 +726,7 @@ export function AssetDataEntry() {
     } finally {
       setLoading(false);
     }
-  }, [rowData]);
+  }, [rowData, showToast]);
 
   const handleDownloadTemplate = () => {
     const headers = [

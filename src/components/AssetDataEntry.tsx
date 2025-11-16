@@ -1260,44 +1260,41 @@ export function AssetDataEntry() {
   }, [rowData, selectedBuilding]);
 
   return (
-    <div className="max-w-[95vw] mx-auto px-4 py-4">
-      <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-3">
-        <div className="flex items-center gap-2">
-          <Plus className="h-6 w-6 text-white" />
-          <div>
-            <h1 className="text-xl font-bold text-white">{t('assetDataEntry')}</h1>
-            <p className="text-xs text-teal-50">עדכון והוספת נכסים</p>
-          </div>
+    <div className="max-w-[95vw] mx-auto px-4 py-2">
+      <div className="mb-2 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
+        <div className="flex items-center gap-1.5">
+          <Plus className="h-5 w-5 text-white" />
+          <h1 className="text-lg font-bold text-white">{t('assetDataEntry')}</h1>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 max-h-96 overflow-y-auto">
-          <p className="text-red-800 font-medium whitespace-pre-line break-words">{error}</p>
+        <div className="mb-2 bg-red-50 border-l-4 border-red-500 rounded-lg p-2 max-h-60 overflow-y-auto">
+          <p className="text-red-800 text-xs font-medium whitespace-pre-line break-words">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 bg-green-50 border-l-4 border-green-500 rounded-lg p-4 max-h-96 overflow-y-auto">
-          <p className="text-green-800 font-medium whitespace-pre-line">{success}</p>
+        <div className="mb-2 bg-green-50 border-l-4 border-green-500 rounded-lg p-2 max-h-60 overflow-y-auto">
+          <p className="text-green-800 text-xs font-medium whitespace-pre-line">{success}</p>
         </div>
       )}
 
       {importValidationErrors.length > 0 && (
-        <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4 max-h-60 overflow-y-auto">
-          <p className="text-yellow-900 font-bold mb-2">{t('validationErrors')} ({importValidationErrors.length}):</p>
-          <ul className="list-disc list-inside space-y-1">
+        <div className="mb-2 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-2 max-h-40 overflow-y-auto">
+          <p className="text-yellow-900 text-xs font-bold mb-1">{t('validationErrors')} ({importValidationErrors.length}):</p>
+          <ul className="list-disc list-inside space-y-0.5">
             {importValidationErrors.map((err, idx) => (
-              <li key={idx} className="text-yellow-800 text-sm">{err}</li>
+              <li key={idx} className="text-yellow-800 text-xs">{err}</li>
             ))}
           </ul>
         </div>
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="border-b border-gray-200 bg-gray-50 p-2">
-          <div className="mb-2">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+        <div className="border-b border-gray-200 bg-gray-50 p-1.5">
+          <div className="mb-1.5">
+            <label className="block text-xs font-medium text-gray-700 mb-0.5">
               בחר בניין
             </label>
             <input
@@ -1316,7 +1313,7 @@ export function AssetDataEntry() {
                 }
               }}
               placeholder="כל הבניינים"
-              className="w-full md:w-64 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
             />
             <datalist id="building-list">
               {buildings.map(building => (
@@ -1326,54 +1323,54 @@ export function AssetDataEntry() {
               ))}
             </datalist>
           </div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex gap-2">
+          <div className="flex items-center justify-between gap-1.5 mb-1.5">
+            <div className="flex gap-1.5">
               <button
                 onClick={handleLoadAssets}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="h-3.5 w-3.5" />
                 טען נכסים קיימים
               </button>
               <button
                 onClick={handleDownloadTemplate}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors font-medium shadow-sm"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3.5 w-3.5" />
                 {t('downloadTemplate')}
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium shadow-sm"
               >
-                <Upload className="h-4 w-4" />
+                <Upload className="h-3.5 w-3.5" />
                 {t('importCSV')}
               </button>
               <button
                 onClick={addEmptyRow}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium shadow-sm"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
                 {t('addRow')}
               </button>
             </div>
             <button
               onClick={handleSaveAll}
               disabled={loading}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
-              <Save className="h-4 w-4" />
+              <Save className="h-3.5 w-3.5" />
               {loading ? t('saving') : t('saveAll')}
             </button>
           </div>
-          <div className="flex items-center gap-2 pt-1.5 border-t border-gray-200">
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700">
+          <div className="flex items-center gap-1.5 pt-1 border-t border-gray-200">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
               <input
                 type="checkbox"
                 checked={validateBeforeImport}
                 onChange={(e) => setValidateBeforeImport(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <span className="font-medium">{t('validateOnImport')}</span>
             </label>

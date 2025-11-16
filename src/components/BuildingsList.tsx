@@ -342,14 +342,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               onCellValueChanged={onCellValueChanged}
               onFirstDataRendered={(params) => {
-                const lastCol = params.api.getAllDisplayedColumns().slice(-1)[0];
-                if (lastCol) {
-                  params.api.ensureColumnVisible(lastCol);
+                const firstCol = params.api.getAllDisplayedColumns()[0];
+                if (firstCol) {
+                  params.api.ensureColumnVisible(firstCol);
                 }
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {
-                    gridElement.scrollLeft = gridElement.scrollWidth;
+                    gridElement.scrollLeft = 0;
                   }
                 }, 100);
               }}

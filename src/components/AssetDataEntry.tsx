@@ -621,12 +621,6 @@ export function AssetDataEntry() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `האם להוסיף מדידה חדשה לנכס ${row.asset_id} בבניין ${row.building_number}?\nהמדידה הנוכחית תישמר והמערכת תיצור רשומה חדשה עם תאריך מדידה עדכני.`
-    );
-
-    if (!confirmed) return;
-
     try {
       setLoading(true);
 
@@ -1113,10 +1107,10 @@ export function AssetDataEntry() {
                   e.stopPropagation();
                   handleAddNewMeasurement(params.data.id);
                 }}
-                className="p-1 hover:bg-blue-100 rounded transition-colors"
+                className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium"
                 title="הוסף מדידה חדשה"
               >
-                <FileText className="h-4 w-4 text-blue-600" />
+                מדידה חדשה
               </button>
             )}
             <button

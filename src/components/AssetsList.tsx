@@ -22,11 +22,28 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invalidAssets, setInvalidAssets] = useState<Set<string>>(new Set());
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
+  const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
 
   useEffect(() => {
     fetchData();
   }, [buildingNumber]);
+
+  useEffect(() => {
+    // Create display data with expanded rows
+    const display: Asset[] = [];
+    for (const asset of masterAssets) {
+      display.push(asset);
+      if (expandedRows.has(asset.asset_id)) {
+        const historicalRecords = assets.filter(
+          a => a.asset_id === asset.asset_id && a.measurement_date !== asset.measurement_date
+        );
+        display.push(...historicalRecords);
+      }
+    }
+    setDisplayAssets(display);
+  }, [masterAssets, assets, expandedRows]);
 
   async function fetchData(showLoading = true) {
     try {
@@ -232,41 +249,17 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     }
   ], [t, assetTypes]);
 
-  const DetailCellRenderer = useCallback((props: IDetailCellRendererParams) => {
-    const masterAsset = props.data as Asset;
-    const historicalRecords = assets.filter(
-      a => a.asset_id === masterAsset.asset_id && a.measurement_date !== masterAsset.measurement_date
-    );
-
-    if (historicalRecords.length === 0) {
-      return (
-        <div className="p-4 text-gray-500 text-sm italic bg-gray-50">
-          {t('noMeasurements')}
-        </div>
-      );
-    }
-
-    return (
-      <div className="p-4 bg-gradient-to-br from-blue-50 to-teal-50 border-l-4 border-teal-500">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="h-1 w-1 rounded-full bg-teal-600"></div>
-          <h3 className="text-sm font-bold text-teal-900">{t('measurementHistory')}</h3>
-          <span className="text-xs text-teal-600 font-medium">({historicalRecords.length} {t('previousRecords')})</span>
-        </div>
-        <div className="ag-theme-alpine rounded-lg overflow-hidden shadow-sm" style={{ height: `${Math.min(historicalRecords.length * 42 + 60, 300)}px`, width: '100%' }}>
-          <AgGridReact
-            rowData={historicalRecords}
-            columnDefs={detailColumnDefs}
-            domLayout='autoHeight'
-            headerHeight={38}
-            rowHeight={38}
-            suppressHorizontalScroll={true}
-            enableRtl={true}
-          />
-        </div>
-      </div>
-    );
-  }, [assets, t, detailColumnDefs]);
+  const toggleRowExpansion = useCallback((assetId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(assetId)) {
+        newSet.delete(assetId);
+      } else {
+        newSet.add(assetId);
+      }
+      return newSet;
+    });
+  }, []);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -326,43 +319,27 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
         if (!hasHistory) return null;
 
-        const ExpandButton = () => {
-          const [expanded, setExpanded] = useState(params.node.expanded || false);
+        const isExpanded = expandedRows.has(params.data.asset_id);
 
-          useEffect(() => {
-            const listener = () => {
-              setExpanded(params.node.expanded || false);
-            };
-            params.node.addEventListener('expandedChanged', listener);
-            return () => {
-              params.node.removeEventListener('expandedChanged', listener);
-            };
-          }, []);
-
-          const handleClick = (e: React.MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const newExpandedState = !expanded;
-            params.node.setExpanded(newExpandedState);
-            setExpanded(newExpandedState);
-          };
-
-          return (
-            <button
-              onClick={handleClick}
-              className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
-              title={expanded ? t('collapse') : t('expand')}
-            >
-              {expanded ? (
-                <ChevronDown className="w-5 h-5 text-teal-700" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-teal-700" />
-              )}
-            </button>
-          );
+        const handleClick = (e: any) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleRowExpansion(params.data.asset_id);
         };
 
-        return <ExpandButton />;
+        return (
+          <button
+            onClick={handleClick}
+            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
+            title={isExpanded ? t('collapse') : t('expand')}
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-5 h-5 text-teal-700" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-teal-700" />
+            )}
+          </button>
+        );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
@@ -604,7 +581,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       valueFormatter: (params) => params.value?.toLocaleString(),
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion]);
 
   if (loading) {
     return (
@@ -651,37 +628,15 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={masterAssets}
+            rowData={displayAssets}
             columnDefs={columnDefs}
             defaultColDef={{
               sortable: true,
               filter: true,
               resizable: true,
             }}
-            masterDetail={true}
-            detailCellRendererParams={{
-              detailGridOptions: {
-                columnDefs: detailColumnDefs,
-                defaultColDef: {
-                  sortable: true,
-                  filter: true,
-                  resizable: true,
-                },
-                enableRtl: true,
-              },
-              getDetailRowData: (params: any) => {
-                const masterAsset = params.data as Asset;
-                const historicalRecords = assets.filter(
-                  a => a.asset_id === masterAsset.asset_id && a.measurement_date !== masterAsset.measurement_date
-                );
-                params.successCallback(historicalRecords);
-              },
-            }}
-            detailRowAutoHeight={true}
-            isRowMaster={(dataItem) => {
-              return assets.filter(a => a.asset_id === dataItem.asset_id).length > 1;
-            }}
             onCellValueChanged={onCellValueChanged}
+            getRowId={(params) => params.data.id}
             onFirstDataRendered={(params) => {
               const firstCol = params.api.getAllDisplayedColumns()[0];
               if (firstCol) {
@@ -702,6 +657,15 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             getRowStyle={(params) => {
               if (invalidAssets.has(params.data.id)) {
                 return { background: '#fee2e2' };
+              }
+              // Check if this is a historical record (not in masterAssets)
+              const isMaster = masterAssets.some(m => m.id === params.data.id);
+              if (!isMaster) {
+                return {
+                  background: 'linear-gradient(to right, #dbeafe 0%, #e0f2fe 100%)',
+                  fontStyle: 'italic',
+                  fontSize: '0.9em'
+                };
               }
               return {};
             }}

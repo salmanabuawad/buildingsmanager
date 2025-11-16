@@ -294,7 +294,7 @@ export async function validateSubAssetSizeMatchesMain(
   if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
     return {
       valid: false,
-      error: `גודל נכסי משנה (${totalSubAssetSize}) חייב להיות שווה לגודל נכס ראשי (${mainAssetSize})`
+      error: `סה"כ גודל נכסי משנה (${totalSubAssetSize}) חייב להיות שווה לגודל נכס ראשי (${mainAssetSize})`
     };
   }
 

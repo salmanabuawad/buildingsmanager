@@ -13,6 +13,7 @@ interface AssetRow {
   building_number: number | null;
   payer_id: string;
   asset_id: string;
+  measurement_date: string;
   main_asset_type: string;
   asset_size: number;
   sub_asset_type_1: string;
@@ -75,6 +76,7 @@ export function AssetDataEntry() {
     building_number: null,
     payer_id: '',
     asset_id: '',
+    measurement_date: new Date().toISOString().split('T')[0],
     main_asset_type: '',
     asset_size: 0,
     sub_asset_type_1: '',
@@ -234,6 +236,7 @@ export function AssetDataEntry() {
         building_number: asset.building_number,
         payer_id: asset.payer_id || '',
         asset_id: asset.asset_id,
+        measurement_date: asset.measurement_date,
         main_asset_type: asset.main_asset_type || '',
         asset_size: asset.asset_size || 0,
         sub_asset_type_1: asset.sub_asset_type_1 || '',
@@ -380,6 +383,7 @@ export function AssetDataEntry() {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,
             asset_id: row.asset_id,
+            measurement_date: row.measurement_date || new Date().toISOString().split('T')[0],
             main_asset_type: row.main_asset_type || undefined,
             asset_size: row.asset_size || 0,
             sub_asset_type_1: row.sub_asset_type_1 || undefined,
@@ -574,6 +578,7 @@ export function AssetDataEntry() {
         building_number: row.building_number!,
         payer_id: row.payer_id || undefined,
         asset_id: row.asset_id,
+        measurement_date: new Date().toISOString().split('T')[0],
         main_asset_type: row.main_asset_type,
         asset_size: row.asset_size,
         sub_asset_type_1: row.sub_asset_type_1 || undefined,
@@ -596,6 +601,7 @@ export function AssetDataEntry() {
         building_number: newAsset.building_number,
         payer_id: newAsset.payer_id || '',
         asset_id: newAsset.asset_id,
+        measurement_date: newAsset.measurement_date,
         main_asset_type: newAsset.main_asset_type || '',
         asset_size: newAsset.asset_size || 0,
         sub_asset_type_1: newAsset.sub_asset_type_1 || '',
@@ -662,6 +668,7 @@ export function AssetDataEntry() {
       'מספר בניין',
       'זיהוי משלם',
       'זיהוי נכס',
+      'תאריך מדידה',
       'סוג נכס ראשי',
       'גודל נכס ראשי',
       'סוג נכס משנה 1',
@@ -736,6 +743,7 @@ export function AssetDataEntry() {
             building_number: null,
             payer_id: '',
             asset_id: '',
+            measurement_date: new Date().toISOString().split('T')[0],
             main_asset_type: '',
             asset_size: 0,
             sub_asset_type_1: '',
@@ -770,6 +778,10 @@ export function AssetDataEntry() {
               case 'נכס':
               case 'זיהוי נכס':
                 row.asset_id = value;
+                break;
+              case 'measurement_date':
+              case 'תאריך מדידה':
+                row.measurement_date = value || new Date().toISOString().split('T')[0];
                 break;
               case 'main_asset_type':
               case 'סוג נכס':
@@ -1005,6 +1017,14 @@ export function AssetDataEntry() {
       minWidth: 120,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
+    },
+    {
+      field: 'measurement_date',
+      headerName: 'תאריך מדידה',
+      width: 130,
+      minWidth: 130,
+      editable: true,
+      cellStyle: (params) => getCellStyle(params, 'measurement_date', false)
     },
     {
       field: 'main_asset_type',
@@ -1384,7 +1404,7 @@ export function AssetDataEntry() {
         </p>
         <p className="text-sm text-blue-700 mt-2">
           <strong>פורמט CSV:</strong> השתמש בכפתור "הורד תבנית CSV" להורדת קובץ תבנית עם כותרות בעברית.
-          הקובץ כולל שדות: מספר בניין, זיהוי משלם, זיהוי נכס, סוג נכס ראשי, גודל נכס ראשי, ו-6 זוגות של סוג וגודל נכס משנה.
+          הקובץ כולל שדות: מספר בניין, זיהוי משלם, זיהוי נכס, תאריך מדידה (אופציונלי - ברירת המחדל היום), סוג נכס ראשי, גודל נכס ראשי, ו-6 זוגות של סוג וגודל נכס משנה.
         </p>
       </div>
       <input

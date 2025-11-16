@@ -235,33 +235,18 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
     },
     {
-      field: 'total_area_for_control',
-      headerName: t('totalAreaForControl'),
-      flex: 1.5,
-      sortable: true,
-      filter: true,
-      editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'total_building_area',
-      headerName: t('totalBuildingArea'),
+      field: 'building_number',
+      headerName: t('buildingNumber'),
       flex: 1.5,
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString(),
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'total_assets',
-      headerName: t('totalUnits'),
-      flex: 1,
-      sortable: true,
-      filter: true,
-      editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueParser: (params) => {
+        const val = params.newValue;
+        if (val == null || val === '') return null;
+        const num = typeof val === 'string' ? parseInt(val.replace(/,/g, ''), 10) : val;
+        return isNaN(num) ? null : num;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -281,18 +266,33 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'building_number',
-      headerName: t('buildingNumber'),
+      field: 'total_assets',
+      headerName: t('totalUnits'),
+      flex: 1,
+      sortable: true,
+      filter: true,
+      editable: false,
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'total_building_area',
+      headerName: t('totalBuildingArea'),
       flex: 1.5,
       sortable: true,
       filter: true,
       editable: false,
-      valueParser: (params) => {
-        const val = params.newValue;
-        if (val == null || val === '') return null;
-        const num = typeof val === 'string' ? parseInt(val.replace(/,/g, ''), 10) : val;
-        return isNaN(num) ? null : num;
-      },
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'total_area_for_control',
+      headerName: t('totalAreaForControl'),
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      editable: true,
+      valueFormatter: (params) => params.value?.toLocaleString(),
       cellStyle: { textAlign: 'right' }
     }
   ], [onSelectBuilding, t, invalidTaxRegions]);

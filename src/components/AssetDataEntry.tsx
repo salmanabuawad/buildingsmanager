@@ -314,7 +314,7 @@ export function AssetDataEntry() {
       const dirtyRows = rowData.filter(row => row._isDirty && !row._isNew && row._dbId);
 
       if (newRows.length === 0 && dirtyRows.length === 0) {
-        setSuccess('אין שינויים לשמור. כל הנתונים מעודכנים.');
+        showToast('אין שינויים לשמור. כל הנתונים מעודכנים.', 'info');
         setLoading(false);
         return;
       }

@@ -236,7 +236,7 @@ export function AssetDataEntry() {
         building_number: asset.building_number,
         payer_id: asset.payer_id || '',
         asset_id: asset.asset_id,
-        measurement_date: asset.measurement_date,
+        measurement_date: '',
         main_asset_type: asset.main_asset_type || '',
         asset_size: asset.asset_size || 0,
         sub_asset_type_1: asset.sub_asset_type_1 || '',

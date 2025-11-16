@@ -646,6 +646,9 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             masterDetail={true}
             detailCellRenderer={detailCellRenderer}
             detailRowAutoHeight={true}
+            isRowMaster={(dataItem) => {
+              return assets.filter(a => a.asset_id === dataItem.asset_id).length > 1;
+            }}
             onCellValueChanged={onCellValueChanged}
             onFirstDataRendered={(params) => {
               const firstCol = params.api.getAllDisplayedColumns()[0];

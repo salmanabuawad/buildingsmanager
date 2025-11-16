@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 
 export interface ToastProps {
@@ -8,13 +7,7 @@ export interface ToastProps {
   duration?: number;
 }
 
-export function Toast({ message, type = 'error', onClose, duration = 5000 }: ToastProps) {
-  useEffect(() => {
-    if (duration > 0) {
-      const timer = setTimeout(onClose, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [duration, onClose]);
+export function Toast({ message, type = 'error', onClose }: ToastProps) {
 
   const styles = {
     error: {

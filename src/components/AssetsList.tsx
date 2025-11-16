@@ -467,14 +467,14 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             }}
             onCellValueChanged={onCellValueChanged}
             onFirstDataRendered={(params) => {
-              const firstCol = params.api.getAllDisplayedColumns()[0];
-              if (firstCol) {
-                params.api.ensureColumnVisible(firstCol);
+              const lastCol = params.api.getAllDisplayedColumns().slice(-1)[0];
+              if (lastCol) {
+                params.api.ensureColumnVisible(lastCol);
               }
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                 if (gridElement) {
-                  gridElement.scrollLeft = 0;
+                  gridElement.scrollLeft = gridElement.scrollWidth;
                 }
               }, 100);
             }}

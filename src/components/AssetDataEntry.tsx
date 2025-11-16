@@ -1196,16 +1196,16 @@ export function AssetDataEntry() {
     {
       field: 'actions',
       headerName: t('actions'),
-      width: 180,
-      minWidth: 180,
-      maxWidth: 180,
+      width: 135,
+      minWidth: 135,
+      maxWidth: 135,
       pinned: 'right',
       suppressSizeToFit: true,
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {!row._isNew && (
               <button
                 type="button"
@@ -1214,7 +1214,7 @@ export function AssetDataEntry() {
                   e.stopPropagation();
                   handleAddNewMeasurement(params.data.id);
                 }}
-                className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium"
+                className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
                 title="הוסף מדידה חדשה"
               >
                 מדידה חדשה
@@ -1227,7 +1227,7 @@ export function AssetDataEntry() {
                 e.stopPropagation();
                 handleDeleteRow(params.data.id);
               }}
-              className="p-1 hover:bg-red-100 rounded transition-colors"
+              className="p-0.5 hover:bg-red-100 rounded transition-colors"
               title="מחק שורה"
             >
               <Trash2 className="h-4 w-4 text-red-600" />

@@ -613,14 +613,14 @@ export function AssetDataEntry() {
         const errorDetails = errors.join('\n');
         if (savedCount > 0) {
           const savedList = savedAssets.join('\n');
-          setSuccess(`פעולה הסתיימה בהצלחה:\n${savedList}`);
+          showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
           setError(`${errors.length} נכשלו:\n${errorDetails}`);
         } else {
           setError(`כל השמירות נכשלו:\n${errorDetails}`);
         }
       } else {
         const savedList = savedAssets.join('\n');
-        setSuccess(`פעולה הסתיימה בהצלחה:\n${savedList}`);
+        showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
       }
 
       setRowData(prev => prev.filter(row => !row._isNew || !row.building_number || !row.asset_id));

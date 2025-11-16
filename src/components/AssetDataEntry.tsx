@@ -1261,13 +1261,6 @@ export function AssetDataEntry() {
 
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-2">
-      <div className="mb-2 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
-        <div className="flex items-center gap-1.5">
-          <Plus className="h-5 w-5 text-white" />
-          <h1 className="text-lg font-bold text-white">{t('assetDataEntry')}</h1>
-        </div>
-      </div>
-
       {error && (
         <div className="mb-2 bg-red-50 border-l-4 border-red-500 rounded-lg p-2 max-h-60 overflow-y-auto">
           <p className="text-red-800 text-xs font-medium whitespace-pre-line break-words">{error}</p>

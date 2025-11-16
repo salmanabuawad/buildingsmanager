@@ -34,12 +34,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     // Create display data with expanded rows
     const display: Asset[] = [];
     for (const asset of masterAssets) {
-      display.push(asset);
+      display.push({ ...asset, _isMasterRow: true });
       if (expandedRows.has(asset.asset_id)) {
         const historicalRecords = assets.filter(
           a => a.asset_id === asset.asset_id && a.measurement_date !== asset.measurement_date
         );
-        display.push(...historicalRecords);
+        display.push(...historicalRecords.map(r => ({ ...r, _isMasterRow: false })));
       }
     }
     setDisplayAssets(display);
@@ -296,6 +296,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: false,
       editable: false,
       cellRenderer: (params: any) => {
+        if (params.data._isMasterRow === false) return null;
         return (
           <button
             onClick={() => onSelectAsset(params.data.id, params.data.asset_id, buildingNumber)}
@@ -316,6 +317,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       editable: false,
       pinned: 'right',
       cellRenderer: (params: any) => {
+        if (params.data._isMasterRow === false) return null;
         const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
         if (!hasHistory) return null;
 

@@ -7,12 +7,10 @@ import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-
 interface AssetsListProps {
   buildingNumber: number;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
 }
-
 export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -25,11 +23,9 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
-
   useEffect(() => {
     fetchData();
   }, [buildingNumber]);
-
   useEffect(() => {
     // Create display data with expanded rows
     const display: Asset[] = [];
@@ -44,21 +40,17 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     }
     setDisplayAssets(display);
   }, [masterAssets, assets, expandedRows]);
-
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
-
       const [buildingData, assetsData, assetTypesData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
         api.assets.getAll(buildingNumber),
         api.assetTypes.getAll()
       ]);
-
       setBuilding(buildingData);
       setAssets(assetsData || []);
       setAssetTypes(assetTypesData || []);
-
       const assetsByAssetId = new Map<string, Asset[]>();
       for (const asset of assetsData || []) {
         if (!assetsByAssetId.has(asset.asset_id)) {
@@ -66,26 +58,20 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         }
         assetsByAssetId.get(asset.asset_id)!.push(asset);
       }
-
       const masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
         group.sort((a, b) => new Date(b.measurement_date).getTime() - new Date(a.measurement_date).getTime());
         return group[0];
       });
-
       setMasterAssets(masterAssetsList);
-
       const invalidSet = new Set<string>();
       const numericRegex = /^[0-9]+$/;
-
       for (const asset of assetsData || []) {
         const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
         const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
         if (hasInvalidPayerId || hasInvalidAssetId) {
           invalidSet.add(asset.id);
         }
       }
-
       setInvalidAssets(invalidSet);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
@@ -93,16 +79,13 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       if (showLoading) setLoading(false);
     }
   }
-
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = data.id;
       const newValue = event.newValue;
-
       const updatedData = { ...data, [field]: newValue };
-
       if (field === 'payer_id') {
         const validation = await assetValidators.validatePayerId(newValue);
         if (!validation.valid) {
@@ -112,7 +95,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           return;
         }
       }
-
       if (field === 'asset_id') {
         const validation = await assetValidators.validateAssetId(newValue);
         if (!validation.valid) {
@@ -122,7 +104,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           return;
         }
       }
-
       if (field.includes('asset_type')) {
         const validation = await assetValidators.validateAssetType(newValue, field);
         if (!validation.valid) {
@@ -132,7 +113,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           return;
         }
       }
-
       if (field === 'main_asset_type' || field.includes('sub_asset_type') || field.includes('sub_asset_size') || field === 'asset_size') {
         const validation = await assetValidators.validateSubAssetsFor199Or299(
           updatedData.building_number,
@@ -155,7 +135,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             updatedData.sub_asset_size_6
           ]
         );
-
         if (!validation.valid) {
           setError(validation.error || 'Validation failed for 199/299 asset types');
           setTimeout(() => setError(null), 5000);
@@ -163,11 +142,9 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
           return;
         }
       }
-
       const updateData: Partial<Asset> = {
         [field]: newValue
       };
-
       await api.assets.update(assetId, updateData);
       await fetchData(false);
     } catch (error) {
@@ -177,7 +154,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       await fetchData(false);
     }
   }, []);
-
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       field: 'measurement_date',
@@ -248,7 +224,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#dbeafe' }
     }
   ], [t, assetTypes]);
-
   const toggleRowExpansion = useCallback((assetId: string) => {
     setExpandedRows(prev => {
       const newSet = new Set(prev);
@@ -260,25 +235,20 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       return newSet;
     });
   }, []);
-
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: '',
       width: 50,
-      
-      
       editable: false,
       cellRenderer: (params: any) => {
         const numericRegex = /^[0-9]+$/;
         const asset = params.data as Asset;
         const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
         const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
         if (hasInvalidPayerId || hasInvalidAssetId) {
           const errors = [];
           if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
           if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
-
           return (
             <div className="flex items-center justify-center h-full" title={errors.join(', ')}>
               <AlertCircle className="h-5 w-5 text-red-600" />
@@ -292,8 +262,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('actions'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: false,
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
@@ -312,23 +280,18 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: '',
       width: 60,
       minWidth: 60,
-      
-      
       editable: false,
       pinned: 'right',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
         const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
         if (!hasHistory) return null;
-
         const isExpanded = expandedRows.has(params.data.asset_id);
-
         const handleClick = (e: any) => {
           e.preventDefault();
           e.stopPropagation();
           toggleRowExpansion(params.data.asset_id);
         };
-
         return (
           <button
             onClick={handleClick}
@@ -350,8 +313,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('measurementDate'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: false,
       valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
       cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
@@ -361,8 +322,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('assetId'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       cellStyle: (params) => {
         const numericRegex = /^[0-9]+$/;
@@ -378,8 +337,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('payerId'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       cellStyle: (params) => {
         const numericRegex = /^[0-9]+$/;
@@ -395,8 +352,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('mainAssetType'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -410,8 +365,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('mainAssetSize'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -421,8 +374,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType1'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -436,8 +387,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize1'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -447,8 +396,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType2'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -462,8 +409,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize2'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -473,8 +418,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType3'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -488,8 +431,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize3'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -499,8 +440,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType4'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -514,8 +453,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize4'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -525,8 +462,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType5'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -540,8 +475,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize5'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -551,8 +484,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType6'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -566,8 +497,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize6'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -577,14 +506,11 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('totalSize'),
       width: 150,
       minWidth: 150,
-      
-      
       editable: false,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
   ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -595,7 +521,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       </div>
     );
   }
-
   return (
     <>
       {error && (
@@ -626,15 +551,12 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             </div>
           </div>
         </div>
-
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={displayAssets}
             columnDefs={columnDefs}
             defaultColDef={{
-              
-              
               resizable: true,
             }}
             onCellValueChanged={onCellValueChanged}

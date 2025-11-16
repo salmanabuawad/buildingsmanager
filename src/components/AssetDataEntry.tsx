@@ -8,7 +8,6 @@ import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -34,7 +33,6 @@ interface AssetRow {
   _dirtyFields?: Set<string>;
   _validationErrors?: Map<string, string>;
 }
-
 export function AssetDataEntry() {
   const { t } = useTranslation();
   const gridRef = useRef<AgGridReact>(null);
@@ -49,16 +47,13 @@ export function AssetDataEntry() {
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
   const [importValidationErrors, setImportValidationErrors] = useState<string[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<number | 'all'>('all');
-
   const showToast = (message: string, type: 'error' | 'success' | 'info') => {
     setToast({ message, type });
   };
-
   useEffect(() => {
     fetchBuildings();
     fetchAssetTypes();
   }, []);
-
   const fetchBuildings = async () => {
     try {
       const data = await api.buildings.getAll();
@@ -67,7 +62,6 @@ export function AssetDataEntry() {
       console.error('Error fetching buildings:', err);
     }
   };
-
   const fetchAssetTypes = async () => {
     try {
       const data = await api.assetTypes.getAll();
@@ -76,7 +70,6 @@ export function AssetDataEntry() {
       console.error('Error fetching asset types:', err);
     }
   };
-
   const createEmptyRow = (): AssetRow => ({
     id: `new_${Date.now()}_${Math.random()}`,
     building_number: null,
@@ -98,17 +91,13 @@ export function AssetDataEntry() {
     sub_asset_size_6: 0,
     _isNew: true
   });
-
   const addEmptyRow = () => {
     setRowData(prev => [...prev, createEmptyRow()]);
   };
-
-
   const onCellValueChanged = useCallback(async (event: CellValueChangedEvent) => {
     const updatedRow = event.data as AssetRow;
     const field = event.column?.getColId();
     if (!field) return;
-
     // If main_asset_type changed from 199/299 to something else, clear all sub assets
     if (field === 'main_asset_type') {
       const newType = updatedRow.main_asset_type;
@@ -125,7 +114,6 @@ export function AssetDataEntry() {
         updatedRow.sub_asset_size_4 = 0;
         updatedRow.sub_asset_size_5 = 0;
         updatedRow.sub_asset_size_6 = 0;
-
         // Update the row in ag-Grid immediately
         const rowNode = event.api.getRowNode(updatedRow.id.toString());
         if (rowNode) {
@@ -133,22 +121,17 @@ export function AssetDataEntry() {
         }
       }
     }
-
     if (!updatedRow._dirtyFields) {
       updatedRow._dirtyFields = new Set<string>();
     }
     if (!updatedRow._validationErrors) {
       updatedRow._validationErrors = new Map<string, string>();
     }
-
     updatedRow._dirtyFields.add(field);
     updatedRow._isDirty = true;
-
     updatedRow._validationErrors.clear();
-
     // Only validate sub-assets if main type is 199 or 299
     const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
-
     const validations = [
       assetValidators.validateBuildingNumber(updatedRow.building_number),
       assetValidators.validateAssetId(updatedRow.asset_id),
@@ -156,7 +139,6 @@ export function AssetDataEntry() {
       assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
       assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
     ];
-
     if (shouldValidateSubAssets) {
       validations.push(
         assetValidators.validateMinimumSubAssets([
@@ -169,7 +151,6 @@ export function AssetDataEntry() {
         ])
       );
     }
-
     validations.push(
       assetValidators.validateSubAssetSizeMatchesMain(
         updatedRow.asset_size,
@@ -218,16 +199,13 @@ export function AssetDataEntry() {
       assetValidators.validateAssetType(updatedRow.sub_asset_type_5, 'sub_asset_type_5'),
       assetValidators.validateAssetType(updatedRow.sub_asset_type_6, 'sub_asset_type_6'),
     );
-
     const validation = await validateAll(validations);
-
     if (!validation.valid) {
       const detailedError = validation.error || 'Unknown validation error';
       updatedRow._validationErrors.set('_row', detailedError);
     } else {
       updatedRow._validationErrors.delete('_row');
     }
-
     setRowData(prev => {
       const newData = prev.map(row => {
         if (row.id === updatedRow.id) {
@@ -237,22 +215,18 @@ export function AssetDataEntry() {
       });
       return newData;
     });
-
     if (gridRef.current) {
       setTimeout(() => {
         gridRef.current?.api.refreshCells({ force: true });
       }, 0);
     }
   }, []);
-
   const handleLoadAssets = async () => {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
     try {
       const assets = await api.assets.getLatestOnly();
-
       const loadedRows: AssetRow[] = assets.map(asset => ({
         id: crypto.randomUUID(),
         _dbId: asset.id,
@@ -275,7 +249,6 @@ export function AssetDataEntry() {
         sub_asset_type_6: asset.sub_asset_type_6 || '',
         sub_asset_size_6: asset.sub_asset_size_6 || 0
       }));
-
       setRowData(loadedRows);
       showToast(`${loadedRows.length} נכסים נטענו בהצלחה. ניתן לערוך ישירות בתאים`, 'success');
     } catch (err) {
@@ -286,63 +259,51 @@ export function AssetDataEntry() {
       setLoading(false);
     }
   };
-
   const handleSaveAll = async () => {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
     try {
       const newRows = rowData.filter(row => row._isNew);
       const dirtyRows = rowData.filter(row => row._isDirty && !row._isNew && row._dbId);
-
       if (newRows.length === 0 && dirtyRows.length === 0) {
         showToast('אין שינויים לשמור. כל הנתונים מעודכנים.', 'info');
         setLoading(false);
         return;
       }
-
       const rowsWithErrors = rowData.filter(row =>
         (row._isNew || row._isDirty) &&
         row._validationErrors &&
         row._validationErrors.size > 0
       );
-
       if (rowsWithErrors.length > 0) {
         const errorMsg = `לא ניתן לשמור - יש ${rowsWithErrors.length} שורות עם שגיאות ולידציה.\nאנא תקן את השגיאות לפני השמירה.`;
         throw new Error(errorMsg);
       }
-
       const invalidRows: string[] = [];
       newRows.forEach((row, index) => {
         const rowNum = index + 1;
         const missing: string[] = [];
-
         if (!row.building_number) {
           missing.push('מספר בניין');
         }
         if (!row.asset_id) {
           missing.push('זיהוי נכס');
         }
-
         if (missing.length > 0) {
           invalidRows.push(`שורה חדשה ${rowNum}: חסרים ${missing.join(', ')}`);
         }
       });
-
       if (invalidRows.length > 0) {
         const errorMsg = `לא ניתן לשמור - שדות חובה חסרים:\n${invalidRows.join('\n')}\n\nאנא מלא את כל השדות הנדרשים (מסומנים בצהוב).`;
         throw new Error(errorMsg);
       }
-
       const rowsToSave = rowData.filter(row =>
         row._isNew && row.building_number && row.asset_id
       );
-
       let savedCount = 0;
       const errors: string[] = [];
       const savedAssets: string[] = [];
-
       for (const row of rowsToSave) {
         try {
           const validation = await validateAll([
@@ -406,7 +367,6 @@ export function AssetDataEntry() {
             assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
             assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
           ]);
-
           if (!validation.valid) {
             const detailedError = validation.error || 'Unknown validation error';
             if (!row._validationErrors) {
@@ -416,7 +376,6 @@ export function AssetDataEntry() {
             errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
             continue;
           }
-
           const assetData: Omit<Asset, 'id' | 'created_at'> = {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,
@@ -436,7 +395,6 @@ export function AssetDataEntry() {
             sub_asset_type_6: row.sub_asset_type_6 || undefined,
             sub_asset_size_6: row.sub_asset_size_6 || 0
           };
-
           const newAsset = await api.assets.create(assetData);
           row._dbId = newAsset.id;
           row._isNew = false;
@@ -445,7 +403,6 @@ export function AssetDataEntry() {
         } catch (err) {
           console.error('Error saving asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
-
           if (err instanceof Error) {
             errorMsg = err.message;
             if (err.stack) {
@@ -454,7 +411,6 @@ export function AssetDataEntry() {
           } else if (typeof err === 'object' && err !== null) {
             console.error('Error object:', err);
             const errObj = err as any;
-
             if (errObj.code === '23505') {
               errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
             } else {
@@ -466,7 +422,6 @@ export function AssetDataEntry() {
           errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
         }
       }
-
       for (const row of dirtyRows) {
         try {
           const validation = await validateAll([
@@ -530,7 +485,6 @@ export function AssetDataEntry() {
             assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
             assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
           ]);
-
           if (!validation.valid) {
             const detailedError = validation.error || 'Unknown validation error';
             if (!row._validationErrors) {
@@ -540,7 +494,6 @@ export function AssetDataEntry() {
             errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
             continue;
           }
-
           const updateData: Partial<Asset> = {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,
@@ -560,7 +513,6 @@ export function AssetDataEntry() {
             sub_asset_type_6: row.sub_asset_type_6 || null,
             sub_asset_size_6: row.sub_asset_size_6 || 0
           };
-
           await api.assets.update(row._dbId!, updateData);
           row._isDirty = false;
           row._dirtyFields = new Set<string>();
@@ -569,7 +521,6 @@ export function AssetDataEntry() {
         } catch (err) {
           console.error('Error updating asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
-
           if (err instanceof Error) {
             errorMsg = err.message;
           } else if (typeof err === 'object' && err !== null) {
@@ -585,12 +536,10 @@ export function AssetDataEntry() {
           errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
         }
       }
-
       setRowData(prev => [...prev]);
       if (gridRef.current) {
         gridRef.current.api.refreshCells({ force: true });
       }
-
       if (errors.length > 0) {
         const errorDetails = errors.join('\n');
         if (savedCount > 0) {
@@ -604,7 +553,6 @@ export function AssetDataEntry() {
         const savedList = savedAssets.join('\n');
         showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
       }
-
       setRowData(prev => prev.filter(row => !row._isNew || !row.building_number || !row.asset_id));
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בשמירת נכסים';
@@ -613,17 +561,14 @@ export function AssetDataEntry() {
       setLoading(false);
     }
   };
-
   const handleAddNewMeasurement = useCallback(async (rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
     if (!row || row._isNew) {
       showToast('יש לשמור את הנכס לפני הוספת מדידה חדשה', 'error');
       return;
     }
-
     try {
       setLoading(true);
-
       // Create new measurement with current date
       const newMeasurementData = {
         building_number: row.building_number!,
@@ -644,9 +589,7 @@ export function AssetDataEntry() {
         sub_asset_type_6: row.sub_asset_type_6 || undefined,
         sub_asset_size_6: row.sub_asset_size_6 || 0
       };
-
       const newAsset = await api.assets.create(newMeasurementData);
-
       // Add the new measurement to the grid
       const newRow: AssetRow = {
         id: `temp-${Date.now()}`,
@@ -670,7 +613,6 @@ export function AssetDataEntry() {
         _isNew: false,
         _dbId: newAsset.id
       };
-
       setRowData(prev => [...prev, newRow]);
       showToast('מדידה חדשה נוספה בהצלחה', 'success');
     } catch (err) {
@@ -680,11 +622,9 @@ export function AssetDataEntry() {
       setLoading(false);
     }
   }, [rowData, showToast]);
-
   const handleDeleteRow = useCallback(async (rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
     if (!row) return;
-
     // If this is a new row (not saved to DB), just remove it from the grid
     if (row._isNew) {
       setRowData(prev => {
@@ -693,21 +633,17 @@ export function AssetDataEntry() {
       });
       return;
     }
-
     // For existing DB rows, ask for confirmation
     const confirmed = window.confirm(
       `האם אתה בטוח שברצונך למחוק נכס ${row.asset_id} בבניין ${row.building_number}?\nפעולה זו תמחק את הנכס מהמסד נתונים ולא ניתן לבטלה.`
     );
-
     if (!confirmed) return;
-
     try {
       setLoading(true);
       // Delete from database using _dbId
       if (row._dbId) {
         await api.assets.delete(row._dbId);
         showToast('הנכס נמחק בהצלחה', 'success');
-
         // Remove from grid
         setRowData(prev => {
           const filtered = prev.filter(r => r.id !== rowId);
@@ -721,7 +657,6 @@ export function AssetDataEntry() {
       setLoading(false);
     }
   }, [rowData, showToast]);
-
   const handleDownloadTemplate = () => {
     const headers = [
       'מספר בניין',
@@ -742,13 +677,10 @@ export function AssetDataEntry() {
       'סוג נכס משנה 6',
       'גודל נכס משנה 6'
     ];
-
     const csvContent = '\uFEFF' + headers.join(',');
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-
     link.setAttribute('href', url);
     link.setAttribute('download', 'תבנית_נכסים.csv');
     link.style.visibility = 'hidden';
@@ -757,20 +689,16 @@ export function AssetDataEntry() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n');
     const result: string[][] = [];
-
     for (const line of lines) {
       if (!line.trim()) continue;
       const values: string[] = [];
       let current = '';
       let inQuotes = false;
-
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
-
         if (char === '"') {
           inQuotes = !inQuotes;
         } else if (char === ',' && !inQuotes) {
@@ -783,34 +711,26 @@ export function AssetDataEntry() {
       values.push(current.trim());
       result.push(values);
     }
-
     return result;
   };
-
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     setError(null);
     setSuccess(null);
-
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
         const lines = parseCSV(text);
-
         if (lines.length === 0) {
           throw new Error('קובץ CSV ריק');
         }
-
         const headers = lines[0].map(h => h.trim());
         const newRows: AssetRow[] = [];
-
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i];
           if (values.length === 0 || values.every(v => !v)) continue;
-
           const row: AssetRow = {
             id: `new_${Date.now()}_${Math.random()}_${i}`,
             building_number: null,
@@ -832,11 +752,9 @@ export function AssetDataEntry() {
             sub_asset_size_6: 0,
             _isNew: true
           };
-
           headers.forEach((header, index) => {
             const value = values[index] || '';
             const headerLower = header.toLowerCase();
-
             switch (header) {
               case 'building_number':
               case 'מבנה':
@@ -921,21 +839,17 @@ export function AssetDataEntry() {
                 break;
             }
           });
-
           newRows.push(row);
         }
-
         if (newRows.length === 0) {
           throw new Error('לא נמצאו שורות נתונים תקינות ב-CSV');
         }
-
         const existingAssets = await api.assets.getAll();
         const existingMap = new Map<string, Asset>();
         existingAssets.forEach(asset => {
           const key = `${asset.building_number}-${asset.asset_id}`;
           existingMap.set(key, asset);
         });
-
         newRows.forEach(row => {
           const key = `${row.building_number}-${row.asset_id}`;
           const existing = existingMap.get(key);
@@ -946,14 +860,11 @@ export function AssetDataEntry() {
           }
           row._isDirty = true;
         });
-
         if (validateBeforeImport) {
           const validationErrors: string[] = [];
-
           for (let i = 0; i < newRows.length; i++) {
             const row = newRows[i];
             const rowNum = i + 2;
-
             try {
               const validation = await validateAll([
                 assetValidators.validateBuildingNumber(row.building_number),
@@ -1007,7 +918,6 @@ export function AssetDataEntry() {
                 assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
                 assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
               ]);
-
               if (!validation.valid) {
                 validationErrors.push(`שורה ${rowNum} (נכס ${row.asset_id}): ${validation.error}`);
               }
@@ -1016,13 +926,10 @@ export function AssetDataEntry() {
               validationErrors.push(`שורה ${rowNum} (נכס ${row.asset_id}): ${errorMsg}`);
             }
           }
-
           setRowData(newRows);
           setImportValidationErrors(validationErrors);
-
           const newCount = newRows.filter(r => r._isNew).length;
           const updateCount = newRows.length - newCount;
-
           if (validationErrors.length > 0) {
             showToast(`יובאו ${newRows.length} שורות מ-CSV (${newCount} חדשות, ${updateCount} עדכון, ${validationErrors.length} עם שגיאות)`, 'info');
           } else {
@@ -1031,7 +938,6 @@ export function AssetDataEntry() {
         } else {
           setRowData(newRows);
           setImportValidationErrors([]);
-
           const newCount = newRows.filter(r => r._isNew).length;
           const updateCount = newRows.length - newCount;
           showToast(`יובאו ${newRows.length} שורות מ-CSV (${newCount} חדשות, ${updateCount} עדכון, ללא ולידציה)`, 'info');
@@ -1040,23 +946,18 @@ export function AssetDataEntry() {
         setError(err instanceof Error ? err.message : 'שגיאה בפענוח קובץ CSV');
       }
     };
-
     reader.onerror = () => {
       setError('שגיאה בקריאת קובץ');
     };
-
     reader.readAsText(file);
-
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
-
   const getCellStyle = (params: any, fieldName: string, isRequired: boolean = false) => {
     const row = params.data as AssetRow;
     const isDirty = row._dirtyFields?.has(fieldName);
     const hasValidationError = row._validationErrors && row._validationErrors.size > 0;
-
     if (hasValidationError) {
       return {
         backgroundColor: '#fee2e2',
@@ -1064,21 +965,17 @@ export function AssetDataEntry() {
         fontWeight: isDirty ? 'bold' : 'normal'
       };
     }
-
     if (isDirty) {
       return {
         backgroundColor: '#fef3c7',
         fontWeight: 'bold'
       };
     }
-
     if (isRequired) {
       return { backgroundColor: '#fff9e6' };
     }
-
     return {};
   };
-
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
       headerName: '',
@@ -1088,7 +985,6 @@ export function AssetDataEntry() {
         const row = params.data as AssetRow;
         const hasError = row._validationErrors && row._validationErrors.size > 0;
         const errorMessage = hasError ? row._validationErrors.get('_row') : '';
-
         return (
           <div className="flex items-center gap-1">
             {hasError && (
@@ -1303,14 +1199,12 @@ export function AssetDataEntry() {
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     }
   ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement]);
-
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {
       return rowData;
     }
     return rowData.filter(row => row.building_number === selectedBuilding);
   }, [rowData, selectedBuilding]);
-
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-2">
       {error && (
@@ -1318,13 +1212,11 @@ export function AssetDataEntry() {
           <p className="text-red-800 text-xs font-medium whitespace-pre-line break-words">{error}</p>
         </div>
       )}
-
       {success && (
         <div className="mb-2 bg-green-50 border-l-4 border-green-500 rounded-lg p-2 max-h-60 overflow-y-auto">
           <p className="text-green-800 text-xs font-medium whitespace-pre-line">{success}</p>
         </div>
       )}
-
       {importValidationErrors.length > 0 && (
         <div className="mb-2 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-2 max-h-40 overflow-y-auto">
           <p className="text-yellow-900 text-xs font-bold mb-1">{t('validationErrors')} ({importValidationErrors.length}):</p>
@@ -1335,7 +1227,6 @@ export function AssetDataEntry() {
           </ul>
         </div>
       )}
-
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="border-b border-gray-200 bg-gray-50 p-1.5">
           <div className="mb-1.5">
@@ -1421,15 +1312,12 @@ export function AssetDataEntry() {
             </label>
           </div>
         </div>
-
         <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={filteredRowData}
             columnDefs={columnDefs}
             defaultColDef={{
-              
-              
               resizable: true
             }}
             onCellValueChanged={onCellValueChanged}
@@ -1461,7 +1349,6 @@ export function AssetDataEntry() {
           />
         </div>
       </div>
-
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי.
@@ -1472,7 +1359,6 @@ export function AssetDataEntry() {
           הקובץ כולל שדות: מספר בניין, זיהוי משלם, זיהוי נכס, סוג נכס ראשי, גודל נכס ראשי, ו-6 זוגות של סוג וגודל נכס משנה.
         </p>
       </div>
-
       <input
         ref={fileInputRef}
         type="file"
@@ -1480,7 +1366,6 @@ export function AssetDataEntry() {
         onChange={handleFileUpload}
         className="hidden"
       />
-
       {toast && (
         <Toast
           message={toast.message}

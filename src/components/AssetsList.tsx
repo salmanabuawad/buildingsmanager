@@ -659,7 +659,24 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
               resizable: true,
             }}
             masterDetail={true}
-            detailCellRenderer={DetailCellRenderer}
+            detailCellRendererParams={{
+              detailGridOptions: {
+                columnDefs: detailColumnDefs,
+                defaultColDef: {
+                  sortable: true,
+                  filter: true,
+                  resizable: true,
+                },
+                enableRtl: true,
+              },
+              getDetailRowData: (params: any) => {
+                const masterAsset = params.data as Asset;
+                const historicalRecords = assets.filter(
+                  a => a.asset_id === masterAsset.asset_id && a.measurement_date !== masterAsset.measurement_date
+                );
+                params.successCallback(historicalRecords);
+              },
+            }}
             detailRowAutoHeight={true}
             isRowMaster={(dataItem) => {
               return assets.filter(a => a.asset_id === dataItem.asset_id).length > 1;

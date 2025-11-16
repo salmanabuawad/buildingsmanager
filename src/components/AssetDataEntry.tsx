@@ -1028,7 +1028,7 @@ export function AssetDataEntry() {
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
-
+      minWidth: 160,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'building_number', true),
       valueFormatter: (params) => {
@@ -1040,14 +1040,14 @@ export function AssetDataEntry() {
     {
       field: 'payer_id',
       headerName: t('payerId'),
-
+      minWidth: 160,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
-
+      minWidth: 160,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },

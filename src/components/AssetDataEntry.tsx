@@ -1169,7 +1169,9 @@ export function AssetDataEntry() {
     },
     {
       headerName: '',
-      width: 50,
+      width: 40,
+      minWidth: 40,
+      maxWidth: 40,
       editable: false,
       pinned: 'right',
       suppressSizeToFit: true,
@@ -1194,9 +1196,9 @@ export function AssetDataEntry() {
     {
       field: 'actions',
       headerName: t('actions'),
-      width: 210,
-      minWidth: 210,
-      maxWidth: 210,
+      width: 180,
+      minWidth: 180,
+      maxWidth: 180,
       pinned: 'right',
       suppressSizeToFit: true,
       resizable: false,

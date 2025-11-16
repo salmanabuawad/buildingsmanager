@@ -271,7 +271,14 @@ export function AssetDataEntry() {
     try {
       const newRows = rowData.filter(row => row._isNew);
       const dirtyRows = rowData.filter(row => row._isDirty && !row._isNew && row._dbId);
-      if (newRows.length === 0 && dirtyRows.length === 0) {
+
+      if (dirtyRows.length > 0) {
+        showToast('לא ניתן לערוך נכסים קיימים. רק הוספת נכסים חדשים מותרת.', 'error');
+        setLoading(false);
+        return;
+      }
+
+      if (newRows.length === 0) {
         showToast('אין שינויים לשמור. כל הנתונים מעודכנים.', 'info');
         setLoading(false);
         return;
@@ -1009,7 +1016,7 @@ export function AssetDataEntry() {
       headerName: t('buildingNumber'),
       width: 140,
       minWidth: 140,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       cellStyle: (params) => getCellStyle(params, 'building_number', true),
       valueFormatter: (params) => {
         if (!params.value) return '';
@@ -1022,7 +1029,7 @@ export function AssetDataEntry() {
       headerName: t('payerId'),
       width: 120,
       minWidth: 120,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
@@ -1030,7 +1037,7 @@ export function AssetDataEntry() {
       headerName: t('assetId'),
       width: 120,
       minWidth: 120,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
@@ -1038,7 +1045,7 @@ export function AssetDataEntry() {
       headerName: 'תאריך מדידה',
       width: 130,
       minWidth: 130,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       valueFormatter: (params) => {
         if (!params.value) return '';
         const date = new Date(params.value);
@@ -1069,7 +1076,7 @@ export function AssetDataEntry() {
       headerName: t('mainAssetType'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1082,7 +1089,7 @@ export function AssetDataEntry() {
       headerName: t('mainAssetSize'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
@@ -1092,7 +1099,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetType1'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1105,7 +1112,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize1'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
@@ -1115,7 +1122,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetType2'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1128,7 +1135,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize2'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
@@ -1138,7 +1145,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetType3'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1151,7 +1158,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize3'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
@@ -1161,7 +1168,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetType4'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1174,7 +1181,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize4'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
@@ -1184,7 +1191,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetType5'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1197,7 +1204,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize5'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
@@ -1207,7 +1214,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetType6'),
       width: 70,
       minWidth: 70,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1220,7 +1227,7 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize6'),
       width: 75,
       minWidth: 75,
-      editable: true,
+      editable: (params) => params.data?._isNew === true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)

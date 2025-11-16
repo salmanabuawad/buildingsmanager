@@ -28,7 +28,6 @@ interface AssetRow {
   sub_asset_size_5: number;
   sub_asset_type_6: string;
   sub_asset_size_6: number;
-  total_size: number;
   _isNew?: boolean;
   _dbId?: string;
   _isDirty?: boolean;
@@ -97,7 +96,6 @@ export function AssetDataEntry() {
     sub_asset_size_5: 0,
     sub_asset_type_6: '',
     sub_asset_size_6: 0,
-    total_size: 0,
     _isNew: true
   });
 
@@ -105,17 +103,6 @@ export function AssetDataEntry() {
     setRowData(prev => [...prev, createEmptyRow()]);
   };
 
-  const calculateTotalSize = (row: AssetRow): number => {
-    return (
-      (row.asset_size || 0) +
-      (row.sub_asset_size_1 || 0) +
-      (row.sub_asset_size_2 || 0) +
-      (row.sub_asset_size_3 || 0) +
-      (row.sub_asset_size_4 || 0) +
-      (row.sub_asset_size_5 || 0) +
-      (row.sub_asset_size_6 || 0)
-    );
-  };
 
   const onCellValueChanged = useCallback(async (event: CellValueChangedEvent) => {
     const updatedRow = event.data as AssetRow;
@@ -146,8 +133,6 @@ export function AssetDataEntry() {
         }
       }
     }
-
-    updatedRow.total_size = calculateTotalSize(updatedRow);
 
     if (!updatedRow._dirtyFields) {
       updatedRow._dirtyFields = new Set<string>();
@@ -258,7 +243,7 @@ export function AssetDataEntry() {
         gridRef.current?.api.refreshCells({ force: true });
       }, 0);
     }
-  }, [calculateTotalSize]);
+  }, []);
 
   const handleLoadAssets = async () => {
     setLoading(true);
@@ -288,8 +273,7 @@ export function AssetDataEntry() {
         sub_asset_type_5: asset.sub_asset_type_5 || '',
         sub_asset_size_5: asset.sub_asset_size_5 || 0,
         sub_asset_type_6: asset.sub_asset_type_6 || '',
-        sub_asset_size_6: asset.sub_asset_size_6 || 0,
-        total_size: asset.total_size || 0
+        sub_asset_size_6: asset.sub_asset_size_6 || 0
       }));
 
       setRowData(loadedRows);
@@ -450,15 +434,14 @@ export function AssetDataEntry() {
             sub_asset_type_5: row.sub_asset_type_5 || undefined,
             sub_asset_size_5: row.sub_asset_size_5 || 0,
             sub_asset_type_6: row.sub_asset_type_6 || undefined,
-            sub_asset_size_6: row.sub_asset_size_6 || 0,
-            total_size: row.total_size
+            sub_asset_size_6: row.sub_asset_size_6 || 0
           };
 
           const newAsset = await api.assets.create(assetData);
           row._dbId = newAsset.id;
           row._isNew = false;
           savedCount++;
-          savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - ${row.main_asset_type || 'ללא סוג'} (${row.total_size} מ"ר)`);
+          savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - ${row.main_asset_type || 'ללא סוג'}`);
         } catch (err) {
           console.error('Error saving asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
@@ -575,8 +558,7 @@ export function AssetDataEntry() {
             sub_asset_type_5: row.sub_asset_type_5 || null,
             sub_asset_size_5: row.sub_asset_size_5 || 0,
             sub_asset_type_6: row.sub_asset_type_6 || null,
-            sub_asset_size_6: row.sub_asset_size_6 || 0,
-            total_size: row.total_size
+            sub_asset_size_6: row.sub_asset_size_6 || 0
           };
 
           await api.assets.update(row._dbId!, updateData);
@@ -781,7 +763,6 @@ export function AssetDataEntry() {
             sub_asset_size_5: 0,
             sub_asset_type_6: '',
             sub_asset_size_6: 0,
-            total_size: 0,
             _isNew: true
           };
 
@@ -874,7 +855,6 @@ export function AssetDataEntry() {
             }
           });
 
-          row.total_size = calculateTotalSize(row);
           newRows.push(row);
         }
 
@@ -1240,15 +1220,6 @@ export function AssetDataEntry() {
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
-    },
-    {
-      field: 'total_size',
-      headerName: t('totalSize'),
-      width: 130,
-      editable: false,
-      type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
-      cellStyle: { backgroundColor: '#e6f7ff', fontWeight: 'bold' }
     }
   ], [t, buildings, assetTypes, handleDeleteRow]);
 

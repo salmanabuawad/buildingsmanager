@@ -170,23 +170,28 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
 
       if (historicalRecords.length === 0) {
         return (
-          <div className="p-4 text-gray-500 text-sm">
+          <div className="p-4 text-gray-500 text-sm italic bg-gray-50">
             {t('noMeasurements')}
           </div>
         );
       }
 
       return (
-        <div className="p-4 bg-gray-50">
-          <h3 className="text-sm font-semibold mb-2 text-gray-700">{t('measurementHistory')}</h3>
-          <div className="ag-theme-alpine" style={{ height: `${Math.min(historicalRecords.length * 42 + 60, 300)}px`, width: '100%' }}>
+        <div className="p-4 bg-gradient-to-br from-blue-50 to-teal-50 border-l-4 border-teal-500">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-1 w-1 rounded-full bg-teal-600"></div>
+            <h3 className="text-sm font-bold text-teal-900">{t('measurementHistory')}</h3>
+            <span className="text-xs text-teal-600 font-medium">({historicalRecords.length} {t('previousRecords')})</span>
+          </div>
+          <div className="ag-theme-alpine rounded-lg overflow-hidden shadow-sm" style={{ height: `${Math.min(historicalRecords.length * 42 + 60, 300)}px`, width: '100%' }}>
             <AgGridReact
               rowData={historicalRecords}
               columnDefs={detailColumnDefs}
               domLayout='autoHeight'
-              headerHeight={35}
-              rowHeight={35}
+              headerHeight={38}
+              rowHeight={38}
               suppressHorizontalScroll={true}
+              enableRtl={true}
             />
           </div>
         </div>
@@ -200,12 +205,17 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('measurementDate'),
       width: 150,
       valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right', backgroundColor: '#fef3c7', fontWeight: '600' }
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 150,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -216,13 +226,49 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
+      width: 120,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      width: 110,
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      width: 120,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      width: 110,
+      valueFormatter: (params) => params.value?.toLocaleString(),
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'total_size',
       headerName: t('totalSize'),
       width: 120,
       valueFormatter: (params) => params.value?.toLocaleString(),
-      cellStyle: { textAlign: 'right', fontWeight: 'bold' }
+      cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#dbeafe' }
     }
-  ], [t]);
+  ], [t, assetTypes]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -279,7 +325,20 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       filter: true,
       editable: false,
       valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
-      cellStyle: { textAlign: 'right', backgroundColor: '#f0fdf4', fontWeight: '600' }
+      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' },
+      cellRenderer: (params: any) => {
+        const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
+        return (
+          <div className="flex items-center justify-end gap-2 h-full">
+            {hasHistory && (
+              <span className="px-2 py-0.5 bg-teal-600 text-white text-xs rounded-full font-semibold">
+                {t('latest')}
+              </span>
+            )}
+            <span>{new Date(params.value).toLocaleDateString()}</span>
+          </div>
+        );
+      }
     },
     {
       field: 'asset_id',
@@ -540,7 +599,14 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
                   {t('buildingNumber')} {building?.building_number}
                 </h1>
               </div>
-              <p className="text-xs sm:text-sm text-teal-50 mt-0.5">{t('totalApartments')}: {assets.length}</p>
+              <div className="flex items-center gap-4 mt-1">
+                <p className="text-xs sm:text-sm text-teal-50">
+                  <span className="font-semibold">{t('uniqueAssets')}:</span> {masterAssets.length}
+                </p>
+                <p className="text-xs sm:text-sm text-teal-50">
+                  <span className="font-semibold">{t('totalMeasurements')}:</span> {assets.length}
+                </p>
+              </div>
             </div>
           </div>
         </div>

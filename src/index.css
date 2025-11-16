@@ -13,25 +13,25 @@ input[type="number"] {
 }
 
 .ag-theme-alpine {
-  --ag-header-background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --ag-header-background-color: #0f766e;
   --ag-header-foreground-color: white;
   --ag-font-family: inherit;
   --ag-font-size: 11px;
   --ag-row-height: 24px;
   --ag-header-height: 28px;
-  --ag-row-hover-color: #faf5ff;
-  --ag-selected-row-background-color: #e9d5ff;
-  --ag-odd-row-background-color: #faf5ff;
+  --ag-row-hover-color: #f0fdfa;
+  --ag-selected-row-background-color: #ccfbf1;
+  --ag-odd-row-background-color: #ffffff;
   --ag-background-color: #ffffff;
-  --ag-border-color: #e9d5ff;
+  --ag-border-color: #cbd5e1;
   --ag-header-cell-hover-background-color: rgba(255, 255, 255, 0.15);
 }
 
 .ag-theme-alpine .ag-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
   color: white;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
 }
 
 .ag-theme-alpine .ag-header-cell-label {
@@ -56,14 +56,14 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-paging-button {
-  color: #667eea !important;
+  color: #0d9488 !important;
 }
 
 .ag-theme-alpine .ag-icon-previous,
 .ag-theme-alpine .ag-icon-next,
 .ag-theme-alpine .ag-icon-first,
 .ag-theme-alpine .ag-icon-last {
-  color: #667eea !important;
+  color: #0d9488 !important;
 }
 
 .ag-theme-alpine .ag-row {
@@ -71,16 +71,43 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-row-hover {
-  background-color: #faf5ff !important;
+  background-color: #f0fdfa !important;
   transform: translateX(-2px);
 }
 
 .ag-theme-alpine .ag-cell {
-  border-color: #e9d5ff;
+  border-color: #cbd5e1;
 }
 
 .ag-theme-alpine .ag-row-selected {
-  background-color: #e9d5ff !important;
+  background-color: #ccfbf1 !important;
+}
+
+.ag-theme-alpine .ag-details-row {
+  background: linear-gradient(to bottom right, #eff6ff, #f0fdfa) !important;
+  border-left: 4px solid #0d9488 !important;
+}
+
+.ag-theme-alpine .ag-detail-row {
+  padding: 0 !important;
+}
+
+.ag-row-level-0 {
+  font-weight: 500;
+}
+
+.ag-row-group-expanded .ag-icon-tree-open,
+.ag-row-group-contracted .ag-icon-tree-closed {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50%;
+  background: #0d9488 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: white !important;
+  font-weight: bold;
+  font-size: 14px;
 }
 
 @keyframes slide-in {

@@ -1260,13 +1260,13 @@ export function AssetDataEntry() {
   }, [rowData, selectedBuilding]);
 
   return (
-    <div className="max-w-[95vw] mx-auto px-4 py-8">
-      <div className="mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3">
-          <Plus className="h-8 w-8 text-white" />
+    <div className="max-w-[95vw] mx-auto px-4 py-4">
+      <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-3">
+        <div className="flex items-center gap-2">
+          <Plus className="h-6 w-6 text-white" />
           <div>
-            <h1 className="text-3xl font-bold text-white">{t('assetDataEntry')}</h1>
-            <p className="text-teal-50">עדכון והוספת נכסים</p>
+            <h1 className="text-xl font-bold text-white">{t('assetDataEntry')}</h1>
+            <p className="text-xs text-teal-50">עדכון והוספת נכסים</p>
           </div>
         </div>
       </div>
@@ -1295,9 +1295,9 @@ export function AssetDataEntry() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="border-b border-gray-200 bg-gray-50 p-4">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="border-b border-gray-200 bg-gray-50 p-2">
+          <div className="mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               בחר בניין
             </label>
             <input
@@ -1316,7 +1316,7 @@ export function AssetDataEntry() {
                 }
               }}
               placeholder="כל הבניינים"
-              className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              className="w-full md:w-64 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
             />
             <datalist id="building-list">
               {buildings.map(building => (
@@ -1326,49 +1326,49 @@ export function AssetDataEntry() {
               ))}
             </datalist>
           </div>
-          <div className="flex items-center justify-between gap-4 mb-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex gap-2">
               <button
                 onClick={handleLoadAssets}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="h-5 w-5" />
+                <RefreshCw className="h-4 w-4" />
                 טען נכסים קיימים
               </button>
               <button
                 onClick={handleDownloadTemplate}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
-                <Download className="h-5 w-5" />
+                <Download className="h-4 w-4" />
                 {t('downloadTemplate')}
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
-                <Upload className="h-5 w-5" />
+                <Upload className="h-4 w-4" />
                 {t('importCSV')}
               </button>
               <button
                 onClick={addEmptyRow}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
                 {t('addRow')}
               </button>
             </div>
             <button
               onClick={handleSaveAll}
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
             >
-              <Save className="h-5 w-5" />
+              <Save className="h-4 w-4" />
               {loading ? t('saving') : t('saveAll')}
             </button>
           </div>
-          <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+          <div className="flex items-center gap-2 pt-1.5 border-t border-gray-200">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-700">
               <input
                 type="checkbox"
                 checked={validateBeforeImport}

@@ -1336,7 +1336,7 @@ export function AssetDataEntry() {
               resizable: true,
               wrapHeaderText: true,
               autoHeaderHeight: true,
-              minWidth: 80,
+              minWidth: 120,
               cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}
@@ -1344,20 +1344,10 @@ export function AssetDataEntry() {
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
-              params.api.sizeColumnsToFit();
+              params.api.autoSizeAllColumns();
             }}
             onFirstDataRendered={(params) => {
-              const lastCol = params.api.getAllDisplayedColumns().slice(-1)[0];
-              if (lastCol) {
-                params.api.ensureColumnVisible(lastCol);
-              }
-              params.api.sizeColumnsToFit();
-              setTimeout(() => {
-                const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
-                if (gridElement) {
-                  gridElement.scrollLeft = gridElement.scrollWidth;
-                }
-              }, 100);
+              params.api.autoSizeAllColumns();
             }}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}

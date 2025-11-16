@@ -979,7 +979,8 @@ export function AssetDataEntry() {
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
       headerName: '',
-      width: 200,
+      width: 250,
+      minWidth: 250,
       pinned: 'left',
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
@@ -1192,7 +1193,7 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      minWidth: 200,
+
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',

@@ -632,12 +632,46 @@ export function AssetDataEntry() {
     }
   };
 
-  const handleDeleteRow = useCallback((rowId: string) => {
-    setRowData(prev => {
-      const filtered = prev.filter(row => row.id !== rowId);
-      return filtered.length > 0 ? filtered : [createEmptyRow()];
-    });
-  }, []);
+  const handleDeleteRow = useCallback(async (rowId: string) => {
+    const row = rowData.find(r => r.id === rowId);
+    if (!row) return;
+
+    // If this is a new row (not saved to DB), just remove it from the grid
+    if (row._isNew) {
+      setRowData(prev => {
+        const filtered = prev.filter(r => r.id !== rowId);
+        return filtered.length > 0 ? filtered : [createEmptyRow()];
+      });
+      return;
+    }
+
+    // For existing DB rows, ask for confirmation
+    const confirmed = window.confirm(
+      `האם אתה בטוח שברצונך למחוק נכס ${row.asset_id} בבניין ${row.building_number}?\nפעולה זו תמחק את הנכס מהמסד נתונים ולא ניתן לבטלה.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      // Delete from database using _dbId
+      if (row._dbId) {
+        await api.assets.delete(row._dbId);
+        showToast('הנכס נמחק בהצלחה', 'success');
+
+        // Remove from grid
+        setRowData(prev => {
+          const filtered = prev.filter(r => r.id !== rowId);
+          return filtered.length > 0 ? filtered : [createEmptyRow()];
+        });
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'שגיאה במחיקת נכס';
+      showToast(`שגיאה במחיקה: ${errorMsg}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [rowData]);
 
   const handleDownloadTemplate = () => {
     const headers = [

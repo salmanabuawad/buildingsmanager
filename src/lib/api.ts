@@ -171,6 +171,30 @@ export const api = {
       if (error) throw error;
       return data || [];
     },
+    getLatestOnly: async (buildingNumber?: number): Promise<Asset[]> => {
+      let query = supabase
+        .from('assets')
+        .select('*')
+        .order('asset_id')
+        .order('measurement_date', { ascending: false });
+
+      if (buildingNumber) {
+        query = query.eq('building_number', buildingNumber);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const latestMap = new Map<string, Asset>();
+      for (const asset of data || []) {
+        if (!latestMap.has(asset.asset_id)) {
+          latestMap.set(asset.asset_id, asset);
+        }
+      }
+
+      return Array.from(latestMap.values());
+    },
     getAllByAssetId: async (assetId: string, buildingNumber?: number): Promise<Asset[]> => {
       let query = supabase
         .from('assets')

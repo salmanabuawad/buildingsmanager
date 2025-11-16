@@ -266,7 +266,7 @@ export function AssetDataEntry() {
     setSuccess(null);
 
     try {
-      const assets = await api.assets.getAll();
+      const assets = await api.assets.getLatestOnly();
 
       const loadedRows: AssetRow[] = assets.map(asset => ({
         id: crypto.randomUUID(),

@@ -897,6 +897,7 @@ export function AssetDataEntry() {
             row._dbId = existing.id;
             row.id = existing.id;
           }
+          row._isDirty = true;
         });
 
         if (validateBeforeImport) {

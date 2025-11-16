@@ -1009,8 +1009,8 @@ export function AssetDataEntry() {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1032,8 +1032,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1055,8 +1055,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1078,8 +1078,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1101,8 +1101,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1124,8 +1124,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1147,8 +1147,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 100,
-      minWidth: 100,
+      width: 90,
+      minWidth: 90,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1170,9 +1170,9 @@ export function AssetDataEntry() {
     {
       field: 'actions',
       headerName: t('actions'),
-      width: 220,
-      minWidth: 220,
-      maxWidth: 220,
+      width: 260,
+      minWidth: 260,
+      maxWidth: 260,
       pinned: 'right',
       suppressSizeToFit: true,
       resizable: false,

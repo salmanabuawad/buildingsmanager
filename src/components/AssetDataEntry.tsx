@@ -980,7 +980,8 @@ export function AssetDataEntry() {
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
-      minWidth: 160,
+      width: 140,
+      minWidth: 140,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'building_number', true),
       valueFormatter: (params) => {
@@ -992,21 +993,24 @@ export function AssetDataEntry() {
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      minWidth: 160,
+      width: 120,
+      minWidth: 120,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      minWidth: 160,
+      width: 120,
+      minWidth: 120,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1018,7 +1022,8 @@ export function AssetDataEntry() {
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1027,7 +1032,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1039,7 +1045,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1048,7 +1055,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1060,7 +1068,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1069,7 +1078,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1081,7 +1091,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1090,7 +1101,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1102,7 +1114,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1111,7 +1124,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1123,7 +1137,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1132,7 +1147,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-
+      width: 130,
+      minWidth: 130,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1144,7 +1160,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-
+      width: 120,
+      minWidth: 120,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1334,10 +1351,6 @@ export function AssetDataEntry() {
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
-              params.api.autoSizeAllColumns();
-            }}
-            onFirstDataRendered={(params) => {
-              params.api.autoSizeAllColumns();
             }}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}

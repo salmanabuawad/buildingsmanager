@@ -45,9 +45,15 @@ export function AssetDataEntry() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
   const [importValidationErrors, setImportValidationErrors] = useState<string[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<number | 'all'>('all');
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
+  };
 
   useEffect(() => {
     fetchBuildings();

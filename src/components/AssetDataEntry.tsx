@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
-import { Save, Plus, Trash2, Upload, Download, RefreshCw } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, Download, RefreshCw, FileText } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
@@ -614,6 +614,79 @@ export function AssetDataEntry() {
     }
   };
 
+  const handleAddNewMeasurement = useCallback(async (rowId: string) => {
+    const row = rowData.find(r => r.id === rowId);
+    if (!row || row._isNew) {
+      showToast('יש לשמור את הנכס לפני הוספת מדידה חדשה', 'error');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `האם להוסיף מדידה חדשה לנכס ${row.asset_id} בבניין ${row.building_number}?\nהמדידה הנוכחית תישמר והמערכת תיצור רשומה חדשה עם תאריך מדידה עדכני.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+
+      // Create new measurement with current date
+      const newMeasurementData = {
+        building_number: row.building_number!,
+        payer_id: row.payer_id || undefined,
+        asset_id: row.asset_id,
+        main_asset_type: row.main_asset_type,
+        asset_size: row.asset_size,
+        sub_asset_type_1: row.sub_asset_type_1 || undefined,
+        sub_asset_size_1: row.sub_asset_size_1 || 0,
+        sub_asset_type_2: row.sub_asset_type_2 || undefined,
+        sub_asset_size_2: row.sub_asset_size_2 || 0,
+        sub_asset_type_3: row.sub_asset_type_3 || undefined,
+        sub_asset_size_3: row.sub_asset_size_3 || 0,
+        sub_asset_type_4: row.sub_asset_type_4 || undefined,
+        sub_asset_size_4: row.sub_asset_size_4 || 0,
+        sub_asset_type_5: row.sub_asset_type_5 || undefined,
+        sub_asset_size_5: row.sub_asset_size_5 || 0,
+        sub_asset_type_6: row.sub_asset_type_6 || undefined,
+        sub_asset_size_6: row.sub_asset_size_6 || 0
+      };
+
+      const newAsset = await api.assets.create(newMeasurementData);
+
+      // Add the new measurement to the grid
+      const newRow: AssetRow = {
+        id: `temp-${Date.now()}`,
+        building_number: newAsset.building_number,
+        payer_id: newAsset.payer_id || '',
+        asset_id: newAsset.asset_id,
+        main_asset_type: newAsset.main_asset_type || '',
+        asset_size: newAsset.asset_size || 0,
+        sub_asset_type_1: newAsset.sub_asset_type_1 || '',
+        sub_asset_size_1: newAsset.sub_asset_size_1 || 0,
+        sub_asset_type_2: newAsset.sub_asset_type_2 || '',
+        sub_asset_size_2: newAsset.sub_asset_size_2 || 0,
+        sub_asset_type_3: newAsset.sub_asset_type_3 || '',
+        sub_asset_size_3: newAsset.sub_asset_size_3 || 0,
+        sub_asset_type_4: newAsset.sub_asset_type_4 || '',
+        sub_asset_size_4: newAsset.sub_asset_size_4 || 0,
+        sub_asset_type_5: newAsset.sub_asset_type_5 || '',
+        sub_asset_size_5: newAsset.sub_asset_size_5 || 0,
+        sub_asset_type_6: newAsset.sub_asset_type_6 || '',
+        sub_asset_size_6: newAsset.sub_asset_size_6 || 0,
+        _isNew: false,
+        _dbId: newAsset.id
+      };
+
+      setRowData(prev => [...prev, newRow]);
+      showToast('מדידה חדשה נוספה בהצלחה', 'success');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'שגיאה בהוספת מדידה חדשה';
+      showToast(`שגיאה: ${errorMsg}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [rowData]);
+
   const handleDeleteRow = useCallback(async (rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
     if (!row) return;
@@ -1037,6 +1110,19 @@ export function AssetDataEntry() {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                handleAddNewMeasurement(params.data.id);
+              }}
+              className="p-1 hover:bg-blue-100 rounded transition-colors"
+              title="הוסף מדידה חדשה"
+              disabled={row._isNew}
+            >
+              <FileText className="h-4 w-4 text-blue-600" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 handleDeleteRow(params.data.id);
               }}
               className="p-1 hover:bg-red-100 rounded transition-colors"
@@ -1221,7 +1307,7 @@ export function AssetDataEntry() {
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     }
-  ], [t, buildings, assetTypes, handleDeleteRow]);
+  ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement]);
 
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {

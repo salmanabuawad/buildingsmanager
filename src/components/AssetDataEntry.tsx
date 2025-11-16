@@ -33,6 +33,7 @@ interface AssetRow {
   _isDirty?: boolean;
   _dirtyFields?: Set<string>;
   _validationErrors?: Map<string, string>;
+  _originalMeasurementDate?: string;
 }
 export function AssetDataEntry() {
   const { t } = useTranslation();
@@ -233,6 +234,7 @@ export function AssetDataEntry() {
         id: crypto.randomUUID(),
         _dbId: asset.id,
         _isNew: false,
+        _originalMeasurementDate: asset.measurement_date,
         building_number: asset.building_number,
         payer_id: asset.payer_id || '',
         asset_id: asset.asset_id,
@@ -304,10 +306,23 @@ export function AssetDataEntry() {
       const rowsToSave = rowData.filter(row =>
         row._isNew && row.building_number && row.asset_id
       );
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filteredRowsToSave = rowsToSave.filter(row => {
+        const measurementDate = row.measurement_date || currentDate;
+        if (row._originalMeasurementDate && row._originalMeasurementDate === measurementDate) {
+          return false;
+        }
+        return true;
+      });
+      if (filteredRowsToSave.length === 0 && rowsToSave.length > 0) {
+        showToast('לא ניתן לשמור - כל השורות כבר קיימות עם אותו תאריך מדידה', 'error');
+        setLoading(false);
+        return;
+      }
       let savedCount = 0;
       const errors: string[] = [];
       const savedAssets: string[] = [];
-      for (const row of rowsToSave) {
+      for (const row of filteredRowsToSave) {
         try {
           const validation = await validateAll([
             assetValidators.validateBuildingNumber(row.building_number),

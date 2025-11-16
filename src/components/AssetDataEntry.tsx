@@ -979,8 +979,8 @@ export function AssetDataEntry() {
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
       headerName: '',
-      width: 250,
-      minWidth: 250,
+      width: 150,
+      minWidth: 150,
       pinned: 'left',
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;

@@ -536,7 +536,7 @@ export function ValidationRulesManager() {
             <div className="mb-2 text-sm text-slate-600">
               מציג {rules.length} כללי תקינות
             </div>
-            <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
               <AgGridReact
                 rowData={rules}
                 columnDefs={columnDefs}

@@ -329,7 +329,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="ag-theme-alpine" style={{ height: '500px', width: '100%' }}>
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
             <AgGridReact
               ref={gridRef}
               rowData={buildings}

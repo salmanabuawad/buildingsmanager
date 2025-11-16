@@ -685,7 +685,7 @@ export function AssetDataEntry() {
     } finally {
       setLoading(false);
     }
-  }, [rowData]);
+  }, [rowData, showToast]);
 
   const handleDeleteRow = useCallback(async (rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
@@ -1105,19 +1105,20 @@ export function AssetDataEntry() {
                 <span className="text-white text-xs font-bold">!</span>
               </div>
             )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddNewMeasurement(params.data.id);
-              }}
-              className="p-1 hover:bg-blue-100 rounded transition-colors"
-              title="הוסף מדידה חדשה"
-              disabled={row._isNew}
-            >
-              <FileText className="h-4 w-4 text-blue-600" />
-            </button>
+            {!row._isNew && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddNewMeasurement(params.data.id);
+                }}
+                className="p-1 hover:bg-blue-100 rounded transition-colors"
+                title="הוסף מדידה חדשה"
+              >
+                <FileText className="h-4 w-4 text-blue-600" />
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {

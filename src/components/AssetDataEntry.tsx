@@ -53,7 +53,6 @@ export function AssetDataEntry() {
 
   const showToast = (message: string, type: 'error' | 'success' | 'info') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
   };
 
   useEffect(() => {

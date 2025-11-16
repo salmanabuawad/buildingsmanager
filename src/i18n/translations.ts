@@ -184,7 +184,9 @@ export const translations = {
       previousRecords: 'previous records',
       latest: 'Latest',
       uniqueAssets: 'Unique Assets',
-      totalMeasurements: 'Total Measurements'
+      totalMeasurements: 'Total Measurements',
+      expand: 'Expand to view history',
+      collapse: 'Collapse history'
     }
   },
   he: {
@@ -372,7 +374,9 @@ export const translations = {
       previousRecords: 'רשומות קודמות',
       latest: 'אחרון',
       uniqueAssets: 'נכסים ייחודיים',
-      totalMeasurements: 'סה"כ מדידות'
+      totalMeasurements: 'סה"כ מדידות',
+      expand: 'הרחב לצפייה בהיסטוריה',
+      collapse: 'כווץ היסטוריה'
     }
   }
 };

@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -317,6 +317,35 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       cellClass: 'floating-action-cell'
     },
     {
+      headerName: '',
+      width: 60,
+      minWidth: 60,
+      sortable: false,
+      filter: false,
+      editable: false,
+      pinned: 'right',
+      cellRenderer: (params: any) => {
+        const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
+        if (!hasHistory) return null;
+
+        const isExpanded = params.node.expanded;
+        return (
+          <button
+            onClick={() => params.node.setExpanded(!isExpanded)}
+            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
+            title={isExpanded ? t('collapse') : t('expand')}
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-5 h-5 text-teal-700" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-teal-700" />
+            )}
+          </button>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 150,
@@ -325,20 +354,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       filter: true,
       editable: false,
       valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
-      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' },
-      cellRenderer: (params: any) => {
-        const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
-        return (
-          <div className="flex items-center justify-end gap-2 h-full">
-            {hasHistory && (
-              <span className="px-2 py-0.5 bg-teal-600 text-white text-xs rounded-full font-semibold">
-                {t('latest')}
-              </span>
-            )}
-            <span>{new Date(params.value).toLocaleDateString()}</span>
-          </div>
-        );
-      }
+      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
     },
     {
       field: 'asset_id',

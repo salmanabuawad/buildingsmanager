@@ -978,28 +978,6 @@ export function AssetDataEntry() {
   };
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
-      headerName: '',
-      width: 50,
-      editable: false,
-      pinned: 'left',
-      cellRenderer: (params: any) => {
-        const row = params.data as AssetRow;
-        const hasError = row._validationErrors && row._validationErrors.size > 0;
-        if (hasError) {
-          const errorMessages: string[] = [];
-          row._validationErrors.forEach((msg, field) => {
-            errorMessages.push(msg);
-          });
-          return (
-            <div className="flex items-center justify-center h-full" title={errorMessages.join(', ')}>
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            </div>
-          );
-        }
-        return null;
-      }
-    },
-    {
       field: 'building_number',
       headerName: t('buildingNumber'),
       width: 140,
@@ -1190,11 +1168,35 @@ export function AssetDataEntry() {
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     },
     {
+      headerName: '',
+      width: 50,
+      editable: false,
+      pinned: 'right',
+      suppressSizeToFit: true,
+      resizable: false,
+      cellRenderer: (params: any) => {
+        const row = params.data as AssetRow;
+        const hasError = row._validationErrors && row._validationErrors.size > 0;
+        if (hasError) {
+          const errorMessages: string[] = [];
+          row._validationErrors.forEach((msg, field) => {
+            errorMessages.push(msg);
+          });
+          return (
+            <div className="flex items-center justify-center h-full" title={errorMessages.join(', ')}>
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+          );
+        }
+        return null;
+      }
+    },
+    {
       field: 'actions',
       headerName: t('actions'),
-      width: 260,
-      minWidth: 260,
-      maxWidth: 260,
+      width: 210,
+      minWidth: 210,
+      maxWidth: 210,
       pinned: 'right',
       suppressSizeToFit: true,
       resizable: false,

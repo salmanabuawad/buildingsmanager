@@ -1169,9 +1169,9 @@ export function AssetDataEntry() {
     },
     {
       headerName: '',
-      width: 40,
-      minWidth: 40,
-      maxWidth: 40,
+      width: 50,
+      minWidth: 50,
+      maxWidth: 50,
       editable: false,
       pinned: 'right',
       suppressSizeToFit: true,
@@ -1185,8 +1185,8 @@ export function AssetDataEntry() {
             errorMessages.push(msg);
           });
           return (
-            <div className="flex items-center justify-center h-full" title={errorMessages.join(', ')}>
-              <AlertCircle className="h-5 w-5 text-red-600" />
+            <div className="flex items-center justify-center w-full h-full" title={errorMessages.join(', ')}>
+              <AlertCircle className="h-4 w-4 text-red-600" />
             </div>
           );
         }

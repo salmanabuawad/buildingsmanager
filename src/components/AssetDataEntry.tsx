@@ -1009,8 +1009,8 @@ export function AssetDataEntry() {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1022,8 +1022,8 @@ export function AssetDataEntry() {
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1032,8 +1032,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1045,8 +1045,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1055,8 +1055,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1068,8 +1068,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1078,8 +1078,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1091,8 +1091,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1101,8 +1101,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1114,8 +1114,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1124,8 +1124,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1137,8 +1137,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
@@ -1147,8 +1147,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 65,
-      minWidth: 65,
+      width: 55,
+      minWidth: 55,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1160,8 +1160,8 @@ export function AssetDataEntry() {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 90,
-      minWidth: 90,
+      width: 75,
+      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',

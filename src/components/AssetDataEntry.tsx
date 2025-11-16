@@ -614,9 +614,9 @@ export function AssetDataEntry() {
         if (savedCount > 0) {
           const savedList = savedAssets.join('\n');
           showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
-          setError(`${errors.length} נכשלו:\n${errorDetails}`);
+          showToast(`${errors.length} נכשלו:\n${errorDetails}`, 'error');
         } else {
-          setError(`כל השמירות נכשלו:\n${errorDetails}`);
+          showToast(`כל השמירות נכשלו:\n${errorDetails}`, 'error');
         }
       } else {
         const savedList = savedAssets.join('\n');

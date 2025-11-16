@@ -1377,7 +1377,7 @@ export function AssetDataEntry() {
           </div>
         </div>
 
-        <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+        <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={filteredRowData}

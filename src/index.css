@@ -18,7 +18,7 @@ input[type="number"] {
   --ag-font-family: inherit;
   --ag-font-size: 11px;
   --ag-row-height: 24px;
-  --ag-header-height: 28px;
+  --ag-header-height: 56px;
   --ag-row-hover-color: #f0fdfa;
   --ag-selected-row-background-color: #ccfbf1;
   --ag-odd-row-background-color: #ffffff;
@@ -82,6 +82,14 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-end !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+}
+
+.ag-theme-alpine .ag-header-cell-text {
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
 }
 
 .ag-theme-alpine .ag-row-selected {

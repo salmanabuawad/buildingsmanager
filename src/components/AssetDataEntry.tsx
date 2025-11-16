@@ -1024,6 +1024,29 @@ export function AssetDataEntry() {
       width: 130,
       minWidth: 130,
       editable: true,
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        const date = new Date(params.value);
+        if (isNaN(date.getTime())) return params.value;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      },
+      valueParser: (params) => {
+        const value = params.newValue;
+        if (!value) return '';
+        if (value.includes('/')) {
+          const parts = value.split('/');
+          if (parts.length === 3) {
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            return `${year}-${month}-${day}`;
+          }
+        }
+        return value;
+      },
       cellStyle: (params) => getCellStyle(params, 'measurement_date', false)
     },
     {

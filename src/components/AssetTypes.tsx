@@ -393,11 +393,15 @@ export function AssetTypes() {
                 minWidth: 100
               }}
               onCellValueChanged={onCellValueChanged}
+              onGridReady={(params) => {
+                params.api.autoSizeAllColumns();
+              }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
+                params.api.autoSizeAllColumns();
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

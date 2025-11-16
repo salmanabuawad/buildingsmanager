@@ -290,8 +290,9 @@ export function ValidationRulesManager() {
     resizable: true,
   }), []);
 
-  const onGridReady = useCallback(() => {
+  const onGridReady = useCallback((params: any) => {
     console.log('Grid ready, rules count:', rules.length);
+    params.api.autoSizeAllColumns();
   }, [rules]);
 
   return (
@@ -547,6 +548,7 @@ export function ValidationRulesManager() {
                   if (firstCol) {
                     params.api.ensureColumnVisible(firstCol);
                   }
+                  params.api.autoSizeAllColumns();
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                     if (gridElement) {

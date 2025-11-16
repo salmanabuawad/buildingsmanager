@@ -1437,12 +1437,14 @@ export function AssetDataEntry() {
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
+              params.api.autoSizeAllColumns();
             }}
             onFirstDataRendered={(params) => {
               const lastCol = params.api.getAllDisplayedColumns().slice(-1)[0];
               if (lastCol) {
                 params.api.ensureColumnVisible(lastCol);
               }
+              params.api.autoSizeAllColumns();
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                 if (gridElement) {

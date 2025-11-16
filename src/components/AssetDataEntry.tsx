@@ -1318,8 +1318,10 @@ export function AssetDataEntry() {
             rowData={filteredRowData}
             columnDefs={columnDefs}
             defaultColDef={{
-              resizable: true
+              resizable: true,
+              suppressSizeToFit: true
             }}
+            suppressColumnVirtualisation={true}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {
               if (filteredRowData.length > 0) {

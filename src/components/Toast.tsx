@@ -16,12 +16,6 @@ export function Toast({ message, type = 'error', onClose, duration = 5000 }: Toa
     }
   }, [duration, onClose]);
 
-  useEffect(() => {
-    const handleClick = () => onClose();
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [onClose]);
-
   const styles = {
     error: {
       bg: 'bg-red-50',

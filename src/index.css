@@ -88,12 +88,30 @@ input[type="number"] {
   justify-content: flex-end !important;
   white-space: normal !important;
   word-wrap: break-word !important;
+  font-size: 11px !important;
 }
 
 .ag-theme-alpine .ag-header-cell-text {
   white-space: normal !important;
   overflow-wrap: break-word !important;
   word-break: break-word !important;
+  font-size: 11px !important;
+}
+
+.ag-theme-alpine .ag-header-cell,
+.ag-theme-alpine .ag-header-group-cell {
+  height: 60px !important;
+  line-height: 1.2 !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.ag-theme-alpine .ag-header {
+  min-height: 60px !important;
+}
+
+.ag-theme-alpine .ag-header-row {
+  height: 60px !important;
 }
 
 .ag-theme-alpine .ag-row-selected {

@@ -86,16 +86,16 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-end !important;
-  white-space: normal !important;
+  white-space: pre-wrap !important;
   word-wrap: break-word !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
 }
 
 .ag-theme-alpine .ag-header-cell-text {
-  white-space: normal !important;
+  white-space: pre-wrap !important;
   overflow-wrap: break-word !important;
   word-break: break-word !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
 }
 
 .ag-theme-alpine .ag-header-cell,

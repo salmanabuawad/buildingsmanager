@@ -884,7 +884,6 @@ export function AssetDataEntry() {
 
         if (validateBeforeImport) {
           const validationErrors: string[] = [];
-          const validRows: AssetRow[] = [];
 
           for (let i = 0; i < newRows.length; i++) {
             const row = newRows[i];
@@ -946,8 +945,6 @@ export function AssetDataEntry() {
 
               if (!validation.valid) {
                 validationErrors.push(`שורה ${rowNum} (נכס ${row.asset_id}): ${validation.error}`);
-              } else {
-                validRows.push(row);
               }
             } catch (err) {
               const errorMsg = err instanceof Error ? err.message : 'שגיאת ולידציה';
@@ -955,17 +952,12 @@ export function AssetDataEntry() {
             }
           }
 
+          setRowData(newRows);
+          setImportValidationErrors(validationErrors);
+
           if (validationErrors.length > 0) {
-            setImportValidationErrors(validationErrors);
-            setRowData(validRows.length > 0 ? validRows : [createEmptyRow()]);
-            if (validRows.length > 0) {
-              showToast(`${validRows.length} שורות תקינות יובאו (${validationErrors.length} נכשלו)`, 'info');
-            } else {
-              showToast(`נמצאו ${validationErrors.length} שגיאות ולידציה. אין שורות תקינות לייבוא.`, 'error');
-            }
+            showToast(`יובאו ${newRows.length} שורות מ-CSV (${validationErrors.length} עם שגיאות ולידציה)`, 'info');
           } else {
-            setRowData(newRows);
-            setImportValidationErrors([]);
             showToast(`יובאו ${newRows.length} שורות מ-CSV (כולן תקינות)`, 'success');
           }
         } else {

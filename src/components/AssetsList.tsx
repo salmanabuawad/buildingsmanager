@@ -336,7 +336,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             {isExpanded ? (
               <ChevronDown className="w-5 h-5 text-teal-700" />
             ) : (
-              <ChevronRight className="w-5 h-5 text-teal-700" />
+              <ChevronRight className="w-5 h-5 text-teal-700 scale-x-[-1]" />
             )}
           </button>
         );

@@ -77,6 +77,11 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-cell {
   border-color: #cbd5e1;
+  text-align: right !important;
+}
+
+.ag-theme-alpine .ag-header-cell-label {
+  justify-content: flex-end !important;
 }
 
 .ag-theme-alpine .ag-row-selected {

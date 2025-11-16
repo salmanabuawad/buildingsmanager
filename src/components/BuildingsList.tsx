@@ -192,8 +192,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       headerName: '',
       width: 50,
-      filter: false,
-      sortable: false,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -220,8 +218,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       headerName: t('actions'),
       width: 130,
-      filter: false,
-      sortable: false,
       editable: false,
       cellRenderer: (params: any) => {
         return (
@@ -238,8 +234,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'building_number',
       headerName: t('buildingNumber'),
       flex: 1.5,
-      sortable: true,
-      filter: true,
       editable: false,
       valueParser: (params) => {
         const val = params.newValue;
@@ -253,8 +247,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'tax_region',
       headerName: t('taxRegion'),
       flex: 1,
-      sortable: true,
-      filter: true,
       editable: true,
       valueFormatter: (params) => params.value != null ? params.value.toLocaleString() : '',
       valueParser: (params) => {
@@ -269,8 +261,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'total_assets',
       headerName: t('totalUnits'),
       flex: 1,
-      sortable: true,
-      filter: true,
       editable: false,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -279,8 +269,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'total_building_area',
       headerName: t('totalBuildingArea'),
       flex: 1.5,
-      sortable: true,
-      filter: true,
       editable: false,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -289,8 +277,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'total_area_for_control',
       headerName: t('totalAreaForControl'),
       flex: 1.5,
-      sortable: true,
-      filter: true,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -336,8 +322,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                sortable: true,
-                filter: true,
                 minWidth: 100
               }}
               onCellValueChanged={onCellValueChanged}

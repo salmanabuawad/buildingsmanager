@@ -126,38 +126,29 @@ export function AdminPDFManager() {
     {
       headerName: 'Actions',
       flex: 2,
-      cellRenderer: ActionsCellRenderer,
-      sortable: false,
-      filter: false
+      cellRenderer: ActionsCellRenderer
     },
     {
       field: 'dwg_file_url',
       headerName: 'Status',
       flex: 1,
-      sortable: true,
-      filter: true,
       cellRenderer: StatusCellRenderer,
       valueGetter: (params) => params.data?.dwg_file_url ? 'Has PDF' : 'No PDF'
     },
     {
       field: 'apartment_number',
       headerName: 'Unit Number',
-      flex: 1,
-      sortable: true,
-      filter: true
+      flex: 1
     },
     {
       field: 'building_name',
       headerName: 'Building',
-      flex: 2,
-      sortable: true,
-      filter: true
+      flex: 2
     }
   ], [uploadingIds]);
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
-    sortable: true,
   }), []);
 
   const apartmentsWithPDF = apartments.filter(a => a.dwg_file_url).length;

@@ -265,8 +265,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       headerName: '',
       width: 50,
-      filter: false,
-      sortable: false,
+      
+      
       editable: false,
       cellRenderer: (params: any) => {
         const numericRegex = /^[0-9]+$/;
@@ -292,8 +292,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('actions'),
       width: 150,
       minWidth: 150,
-      filter: false,
-      sortable: false,
+      
+      
       editable: false,
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
@@ -312,8 +312,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: '',
       width: 60,
       minWidth: 60,
-      sortable: false,
-      filter: false,
+      
+      
       editable: false,
       pinned: 'right',
       cellRenderer: (params: any) => {
@@ -350,8 +350,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('measurementDate'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: false,
       valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
       cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
@@ -361,8 +361,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('assetId'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       cellStyle: (params) => {
         const numericRegex = /^[0-9]+$/;
@@ -378,8 +378,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('payerId'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       cellStyle: (params) => {
         const numericRegex = /^[0-9]+$/;
@@ -395,8 +395,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('mainAssetType'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -410,8 +410,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('mainAssetSize'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -421,8 +421,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType1'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -436,8 +436,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize1'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -447,8 +447,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType2'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -462,8 +462,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize2'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -473,8 +473,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType3'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -488,8 +488,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize3'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -499,8 +499,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType4'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -514,8 +514,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize4'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -525,8 +525,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType5'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -540,8 +540,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize5'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -551,8 +551,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetType6'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -566,8 +566,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('subAssetSize6'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
@@ -577,8 +577,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       headerName: t('totalSize'),
       width: 150,
       minWidth: 150,
-      sortable: true,
-      filter: true,
+      
+      
       editable: false,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
@@ -633,8 +633,8 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
             rowData={displayAssets}
             columnDefs={columnDefs}
             defaultColDef={{
-              sortable: true,
-              filter: true,
+              
+              
               resizable: true,
             }}
             onCellValueChanged={onCellValueChanged}

@@ -1428,8 +1428,8 @@ export function AssetDataEntry() {
             rowData={filteredRowData}
             columnDefs={columnDefs}
             defaultColDef={{
-              sortable: true,
-              filter: true,
+              
+              
               resizable: true
             }}
             onCellValueChanged={onCellValueChanged}

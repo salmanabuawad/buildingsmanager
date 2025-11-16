@@ -285,8 +285,6 @@ export function ValidationRulesManager() {
   ], [editingId, editValues]);
 
   const defaultColDef = useMemo(() => ({
-    sortable: true,
-    filter: true,
     resizable: true,
   }), []);
 

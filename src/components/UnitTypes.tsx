@@ -122,8 +122,6 @@ export function UnitTypes() {
       field: 'name',
       headerName: t('typeName'),
       flex: 1,
-      sortable: true,
-      filter: true,
       editable: true,
       cellStyle: { textAlign: 'right' }
     },
@@ -131,8 +129,6 @@ export function UnitTypes() {
       field: 'description',
       headerName: t('typeDescription'),
       flex: 2,
-      sortable: true,
-      filter: true,
       editable: true,
       cellStyle: { textAlign: 'right' }
     },
@@ -140,8 +136,6 @@ export function UnitTypes() {
       field: 'tax_region',
       headerName: t('taxRegion'),
       flex: 1,
-      sortable: true,
-      filter: true,
       editable: true,
       valueFormatter: (params) => params.value || '-',
       cellStyle: { textAlign: 'right' }
@@ -149,8 +143,6 @@ export function UnitTypes() {
     {
       headerName: t('actions'),
       width: 100,
-      filter: false,
-      sortable: false,
       editable: false,
       cellRenderer: (params: any) => {
         return (
@@ -370,8 +362,6 @@ export function UnitTypes() {
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                sortable: true,
-                filter: true,
                 minWidth: 100
               }}
               onCellValueChanged={onCellValueChanged}

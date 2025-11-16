@@ -140,8 +140,6 @@ export function AssetTypes() {
       field: 'name',
       headerName: t('typeName'),
       flex: 1,
-      sortable: true,
-      filter: true,
       editable: true,
       cellStyle: { textAlign: 'right' }
     },
@@ -149,8 +147,6 @@ export function AssetTypes() {
       field: 'description',
       headerName: t('typeDescription'),
       flex: 2,
-      sortable: true,
-      filter: true,
       editable: true,
       cellStyle: { textAlign: 'right' }
     },
@@ -158,8 +154,6 @@ export function AssetTypes() {
       field: 'tax_region',
       headerName: t('taxRegion'),
       flex: 1,
-      sortable: true,
-      filter: true,
       editable: true,
       valueFormatter: (params) => params.value || '-',
       cellStyle: { textAlign: 'right' }
@@ -167,8 +161,6 @@ export function AssetTypes() {
     {
       headerName: t('actions'),
       width: 100,
-      filter: false,
-      sortable: false,
       editable: false,
       cellRenderer: (params: any) => {
         return (
@@ -388,8 +380,6 @@ export function AssetTypes() {
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                sortable: true,
-                filter: true,
                 minWidth: 100
               }}
               onCellValueChanged={onCellValueChanged}

@@ -979,8 +979,8 @@ export function AssetDataEntry() {
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
       headerName: '',
-      width: 150,
-      minWidth: 150,
+      width: 50,
+      minWidth: 50,
       pinned: 'left',
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
@@ -996,32 +996,6 @@ export function AssetDataEntry() {
                 <span className="text-white text-xs font-bold">!</span>
               </div>
             )}
-            {!row._isNew && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleAddNewMeasurement(params.data.id);
-                }}
-                className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium"
-                title="הוסף מדידה חדשה"
-              >
-                מדידה חדשה
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDeleteRow(params.data.id);
-              }}
-              className="p-1 hover:bg-red-100 rounded transition-colors"
-              title="מחק שורה"
-            >
-              <Trash2 className="h-4 w-4 text-red-600" />
-            </button>
           </div>
         );
       }
@@ -1198,6 +1172,46 @@ export function AssetDataEntry() {
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
+    },
+    {
+      field: 'actions',
+      headerName: t('actions'),
+      width: 180,
+      minWidth: 180,
+      pinned: 'right',
+      cellRenderer: (params: any) => {
+        const row = params.data as AssetRow;
+        return (
+          <div className="flex items-center gap-1">
+            {!row._isNew && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddNewMeasurement(params.data.id);
+                }}
+                className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium"
+                title="הוסף מדידה חדשה"
+              >
+                מדידה חדשה
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteRow(params.data.id);
+              }}
+              className="p-1 hover:bg-red-100 rounded transition-colors"
+              title="מחק שורה"
+            >
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </button>
+          </div>
+        );
+      }
     }
   ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement]);
   const filteredRowData = useMemo(() => {

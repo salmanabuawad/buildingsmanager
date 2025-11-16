@@ -201,7 +201,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 120,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -219,7 +219,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 110,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -237,14 +237,14 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 110,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
       field: 'total_size',
       headerName: t('totalSize'),
       width: 120,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#dbeafe' }
     }
   ], [t, assetTypes]);
@@ -413,7 +413,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -439,7 +439,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -465,7 +465,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -491,7 +491,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -517,7 +517,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -543,7 +543,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -569,7 +569,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -580,7 +580,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
   ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion]);

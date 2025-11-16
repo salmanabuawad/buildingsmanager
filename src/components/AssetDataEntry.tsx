@@ -1092,7 +1092,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
     {
@@ -1113,7 +1113,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
     {
@@ -1134,7 +1134,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
     {
@@ -1155,7 +1155,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
     {
@@ -1176,7 +1176,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
     {
@@ -1197,7 +1197,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
     {
@@ -1218,7 +1218,7 @@ export function AssetDataEntry() {
       width: 130,
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0.00',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     }
   ], [t, buildings, assetTypes, handleDeleteRow]);

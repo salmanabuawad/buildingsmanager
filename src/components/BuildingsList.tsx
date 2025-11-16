@@ -272,7 +272,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -282,7 +282,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       sortable: true,
       filter: true,
       editable: false,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -292,7 +292,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => params.value?.toLocaleString(),
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     }
   ], [onSelectBuilding, t, invalidTaxRegions]);

@@ -882,6 +882,23 @@ export function AssetDataEntry() {
           throw new Error('לא נמצאו שורות נתונים תקינות ב-CSV');
         }
 
+        const existingAssets = await api.assets.getAll();
+        const existingMap = new Map<string, Asset>();
+        existingAssets.forEach(asset => {
+          const key = `${asset.building_number}-${asset.asset_id}`;
+          existingMap.set(key, asset);
+        });
+
+        newRows.forEach(row => {
+          const key = `${row.building_number}-${row.asset_id}`;
+          const existing = existingMap.get(key);
+          if (existing) {
+            row._isNew = false;
+            row._dbId = existing.id;
+            row.id = existing.id;
+          }
+        });
+
         if (validateBeforeImport) {
           const validationErrors: string[] = [];
 
@@ -955,15 +972,21 @@ export function AssetDataEntry() {
           setRowData(newRows);
           setImportValidationErrors(validationErrors);
 
+          const newCount = newRows.filter(r => r._isNew).length;
+          const updateCount = newRows.length - newCount;
+
           if (validationErrors.length > 0) {
-            showToast(`יובאו ${newRows.length} שורות מ-CSV (${validationErrors.length} עם שגיאות ולידציה)`, 'info');
+            showToast(`יובאו ${newRows.length} שורות מ-CSV (${newCount} חדשות, ${updateCount} עדכון, ${validationErrors.length} עם שגיאות)`, 'info');
           } else {
-            showToast(`יובאו ${newRows.length} שורות מ-CSV (כולן תקינות)`, 'success');
+            showToast(`יובאו ${newRows.length} שורות מ-CSV (${newCount} חדשות, ${updateCount} עדכון, כולן תקינות)`, 'success');
           }
         } else {
           setRowData(newRows);
           setImportValidationErrors([]);
-          showToast(`יובאו ${newRows.length} שורות מ-CSV (ללא ולידציה)`, 'info');
+
+          const newCount = newRows.filter(r => r._isNew).length;
+          const updateCount = newRows.length - newCount;
+          showToast(`יובאו ${newRows.length} שורות מ-CSV (${newCount} חדשות, ${updateCount} עדכון, ללא ולידציה)`, 'info');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'שגיאה בפענוח קובץ CSV');

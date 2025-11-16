@@ -229,7 +229,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               ) : (
-                <p className="text-base sm:text-lg text-slate-900">{api.assetTypes.formatWithDescription(asset.main_asset_type, assetTypes) || '-'}</p>
+                <div className="group relative inline-block">
+                  <p className="text-base sm:text-lg text-slate-900">{asset.main_asset_type || '-'}</p>
+                  {asset.main_asset_type && assetTypes.find(at => at.name === asset.main_asset_type)?.description && (
+                    <span className="invisible group-hover:visible absolute z-10 p-2 bg-slate-800 text-white text-xs rounded shadow-lg -top-8 left-0 whitespace-nowrap">
+                      {assetTypes.find(at => at.name === asset.main_asset_type)?.description}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             <div>
@@ -280,7 +287,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                           placeholder={t('type')}
                         />
                       ) : (
-                        <p className="text-base font-semibold text-slate-900">{api.assetTypes.formatWithDescription(typeValue, assetTypes)}</p>
+                        <div className="group relative inline-block">
+                          <p className="text-base font-semibold text-slate-900">{typeValue}</p>
+                          {typeValue && assetTypes.find(at => at.name === typeValue)?.description && (
+                            <span className="invisible group-hover:visible absolute z-10 p-2 bg-slate-800 text-white text-xs rounded shadow-lg -top-8 left-0 whitespace-nowrap">
+                              {assetTypes.find(at => at.name === typeValue)?.description}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div>

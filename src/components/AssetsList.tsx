@@ -228,12 +228,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -250,12 +254,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -272,12 +280,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -294,12 +306,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -316,12 +332,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -338,12 +358,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -360,12 +384,16 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 300,
-      minWidth: 300,
+      width: 150,
+      minWidth: 150,
       sortable: true,
       filter: true,
       editable: true,
-      valueFormatter: (params) => api.assetTypes.formatWithDescription(params.value, assetTypes),
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {

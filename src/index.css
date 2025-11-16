@@ -16,7 +16,9 @@ input[type="number"] {
   --ag-header-background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --ag-header-foreground-color: white;
   --ag-font-family: inherit;
-  --ag-font-size: 14px;
+  --ag-font-size: 12px;
+  --ag-row-height: 28px;
+  --ag-header-height: 32px;
   --ag-row-hover-color: #faf5ff;
   --ag-selected-row-background-color: #e9d5ff;
   --ag-odd-row-background-color: #faf5ff;

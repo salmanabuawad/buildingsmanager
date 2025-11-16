@@ -78,6 +78,10 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell {
   border-color: #cbd5e1;
   text-align: right !important;
+  max-width: 12ch !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 .ag-theme-alpine .ag-header-cell-label {

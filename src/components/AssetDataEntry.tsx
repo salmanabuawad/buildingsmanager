@@ -981,7 +981,10 @@ export function AssetDataEntry() {
       headerName: '',
       width: 50,
       minWidth: 50,
+      maxWidth: 50,
       pinned: 'left',
+      suppressSizeToFit: true,
+      resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
         const hasError = row._validationErrors && row._validationErrors.size > 0;
@@ -1178,7 +1181,10 @@ export function AssetDataEntry() {
       headerName: t('actions'),
       width: 180,
       minWidth: 180,
+      maxWidth: 180,
       pinned: 'right',
+      suppressSizeToFit: true,
+      resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
         return (

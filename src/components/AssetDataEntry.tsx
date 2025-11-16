@@ -957,18 +957,21 @@ export function AssetDataEntry() {
 
           if (validationErrors.length > 0) {
             setImportValidationErrors(validationErrors);
-            setError(`נמצאו ${validationErrors.length} שגיאות ולידציה. ${validRows.length} שורות תקינות יובאו.`);
             setRowData(validRows.length > 0 ? validRows : [createEmptyRow()]);
-            setSuccess(validRows.length > 0 ? `${validRows.length} שורות תקינות יובאו (${validationErrors.length} נכשלו)` : null);
+            if (validRows.length > 0) {
+              showToast(`${validRows.length} שורות תקינות יובאו (${validationErrors.length} נכשלו)`, 'info');
+            } else {
+              showToast(`נמצאו ${validationErrors.length} שגיאות ולידציה. אין שורות תקינות לייבוא.`, 'error');
+            }
           } else {
             setRowData(newRows);
             setImportValidationErrors([]);
-            setSuccess(`יובאו ${newRows.length} שורות מ-CSV (כולן תקינות)`);
+            showToast(`יובאו ${newRows.length} שורות מ-CSV (כולן תקינות)`, 'success');
           }
         } else {
           setRowData(newRows);
           setImportValidationErrors([]);
-          setSuccess(`יובאו ${newRows.length} שורות מ-CSV (ללא ולידציה)`);
+          showToast(`יובאו ${newRows.length} שורות מ-CSV (ללא ולידציה)`, 'info');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'שגיאה בפענוח קובץ CSV');

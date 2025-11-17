@@ -529,7 +529,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 50,
       maxWidth: 50,
       editable: false,
-      pinned: 'left',
       suppressSizeToFit: true,
       resizable: false,
       cellRenderer: (params: any) => {

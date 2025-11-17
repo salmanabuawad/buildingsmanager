@@ -1299,18 +1299,6 @@ export function AssetDataEntry() {
           <div className="flex items-center gap-0.5">
             {!row._isNew && (
               <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  placeholder="DD/MM/YYYY"
-                  value={newMeasurementDate}
-                  onChange={(e) => setNewMeasurementDate(e.target.value)}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  className="px-1 py-0.5 text-xs border border-gray-300 rounded w-20 text-center"
-                  title="תאריך מדידה (DD/MM/YYYY)"
-                />
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1323,6 +1311,18 @@ export function AssetDataEntry() {
                 >
                   מדידה חדשה
                 </button>
+                <input
+                  type="text"
+                  placeholder="DD/MM/YYYY"
+                  value={newMeasurementDate}
+                  onChange={(e) => setNewMeasurementDate(e.target.value)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  className="px-1 py-0.5 text-xs border border-gray-300 rounded w-20 text-center"
+                  title="תאריך מדידה (DD/MM/YYYY)"
+                />
               </div>
             )}
             <button

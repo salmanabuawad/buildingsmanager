@@ -1296,34 +1296,20 @@ export function AssetDataEntry() {
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
         return (
-          <div className="flex items-center gap-0.5 w-full px-2">
+          <div className="flex items-center gap-2 w-full px-2">
             {!row._isNew && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleAddNewMeasurement(params.data.id);
-                  }}
-                  className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
-                  title="הוסף מדידה חדשה"
-                >
-                  מדידה חדשה
-                </button>
-                <input
-                  type="text"
-                  placeholder="DD/MM/YYYY"
-                  value={newMeasurementDate}
-                  onChange={(e) => setNewMeasurementDate(e.target.value)}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  className="px-1 py-0.5 text-xs border border-gray-300 rounded w-20 text-center"
-                  title="תאריך מדידה (DD/MM/YYYY)"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAddNewMeasurement(params.data.id);
+                }}
+                className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
+                title="הוסף מדידה חדשה"
+              >
+                מדידה חדשה
+              </button>
             )}
             <button
               type="button"
@@ -1332,7 +1318,7 @@ export function AssetDataEntry() {
                 e.stopPropagation();
                 handleDeleteRow(params.data.id);
               }}
-              className="p-0.5 hover:bg-red-100 rounded transition-colors"
+              className="p-1 hover:bg-red-100 rounded transition-colors"
               title="מחק שורה"
             >
               <Trash2 className="h-4 w-4 text-red-600" />

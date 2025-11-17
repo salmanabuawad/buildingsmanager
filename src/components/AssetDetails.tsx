@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Package, Edit2, Save, X } from 'lucide-react';
+import { Home, Package, Edit2, Save, X, Loader2 } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
 import { Toast } from './Toast';
 
@@ -89,7 +89,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loadingDetails')}</p>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
-import { Save, Plus, Trash2, Upload, Download, RefreshCw, FileText, AlertCircle } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, Download, RefreshCw, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
@@ -1302,7 +1302,15 @@ export function AssetDataEntry() {
     return rowData.filter(row => row.building_number === selectedBuilding);
   }, [rowData, selectedBuilding]);
   return (
-    <div className="max-w-[95vw] mx-auto px-4 py-2">
+    <div className="max-w-[95vw] mx-auto px-4 py-2 relative">
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-2xl flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+            <p className="text-gray-700 font-medium text-lg">מעבד נתונים...</p>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="mb-2 bg-red-50 border-l-4 border-red-500 rounded-lg p-2 max-h-60 overflow-y-auto">
           <p className="text-red-800 text-xs font-medium whitespace-pre-line break-words">{error}</p>

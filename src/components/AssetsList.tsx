@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 interface AssetsListProps {
@@ -515,7 +515,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
           <p className="mt-4 text-slate-700 font-medium">{t('loadingApartments')}</p>
         </div>
       </div>

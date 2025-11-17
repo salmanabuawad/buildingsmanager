@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
-import { assetValidators, validateAll } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { Save, Plus, Trash2, Upload, Download, RefreshCw, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -133,6 +133,20 @@ export function AssetDataEntry() {
     updatedRow._dirtyFields.add(field);
     updatedRow._isDirty = true;
     updatedRow._validationErrors.clear();
+
+    // Validate measurement_date format
+    if (field === 'measurement_date' && updatedRow.measurement_date) {
+      const dateValidation = inputValidators.validateDateFormat(updatedRow.measurement_date);
+      if (!dateValidation.valid) {
+        updatedRow._validationErrors.set('measurement_date', dateValidation.error || 'Invalid date format');
+        setRowData(prev => prev.map(r => r.id === updatedRow.id ? { ...updatedRow } : r));
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        setToast({ message: dateValidation.error || 'Invalid date format', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+    }
+
     // Only validate sub-assets if main type is 199 or 299
     const shouldValidateSubAssets = updatedRow.main_asset_type === '199' || updatedRow.main_asset_type === '299';
     const validations = [
@@ -1046,6 +1060,17 @@ export function AssetDataEntry() {
       width: 130,
       minWidth: 130,
       editable: true,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: {
+        maxLength: 10,
+      },
+      valueParser: (params) => {
+        const value = params.newValue;
+        if (!value) return '';
+        // Allow only digits and forward slashes, max 10 chars
+        const cleaned = value.replace(/[^\d/]/g, '').substring(0, 10);
+        return cleaned;
+      },
       cellStyle: (params) => getCellStyle(params, 'measurement_date', false)
     },
     {

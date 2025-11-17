@@ -591,6 +591,52 @@ export const inputValidators = {
   allowNumeric: (value: string): boolean => {
     return value === '' || !isNaN(Number(value));
   },
+
+  allowDateFormat: (value: string): boolean => {
+    if (value === '') return true;
+    const match = value.match(/^(\d{0,2})(\/?)(\d{0,2})(\/?)(\d{0,4})$/);
+    return match !== null;
+  },
+
+  validateDateFormat: (value: string): ValidationResult => {
+    if (value === '') return { valid: true };
+
+    const match = value.match(patterns.dateFormat);
+    if (!match) {
+      return {
+        valid: false,
+        error: 'תאריך חייב להיות בפורמט DD/MM/YYYY'
+      };
+    }
+
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+
+    if (month < 1 || month > 12) {
+      return {
+        valid: false,
+        error: 'חודש לא תקין (1-12)'
+      };
+    }
+
+    if (day < 1 || day > 31) {
+      return {
+        valid: false,
+        error: 'יום לא תקין (1-31)'
+      };
+    }
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (day > daysInMonth) {
+      return {
+        valid: false,
+        error: `יום לא תקין עבור חודש ${month} (1-${daysInMonth})`
+      };
+    }
+
+    return { valid: true };
+  },
 };
 
 export const patterns = {
@@ -599,6 +645,7 @@ export const patterns = {
   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   alphanumeric: /^[a-zA-Z0-9]+$/,
   numeric: /^-?\d*\.?\d+$/,
+  dateFormat: /^(\d{2})\/(\d{2})\/(\d{4})$/,
 };
 
 export const measurementValidators = {

@@ -506,7 +506,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       return {
         border: '3px solid #ef4444',
         borderRadius: '4px',
-        background: '#fee2e2'
+        background: '#fee2e2',
+        position: 'relative'
       };
     }
 
@@ -520,6 +521,29 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
     return undefined;
   }, [validationErrors, invalidAssets, masterAssets]);
+
+  const getRowClass = useCallback((params: any) => {
+    const assetId = params.data?.id;
+    if (!assetId) return undefined;
+
+    const assetErrors = validationErrors.get(assetId);
+    const hasErrors = assetErrors && assetErrors.size > 0;
+
+    // Also check for numeric validation errors
+    const asset = params.data as Asset;
+    const numericRegex = /^[0-9]+$/;
+    const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+    const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+    // Check if this is invalid (for backwards compatibility)
+    const isInvalid = invalidAssets.has(assetId);
+
+    if (hasErrors || hasInvalidPayerId || hasInvalidAssetId || isInvalid) {
+      return 'row-with-error';
+    }
+
+    return undefined;
+  }, [validationErrors, invalidAssets]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -852,6 +876,21 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   }
   return (
     <>
+      <style>{`
+        .row-with-error::before {
+          content: '⚠';
+          position: absolute;
+          left: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 20px;
+          color: #ef4444;
+          z-index: 1;
+          pointer-events: none;
+          font-weight: bold;
+          text-shadow: 0 0 3px white;
+        }
+      `}</style>
       {error && (
         <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg">
@@ -908,6 +947,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}
             getRowStyle={getRowStyle}
+            rowClass={getRowClass}
             onGridReady={(params) => {
               params.api.autoSizeAllColumns();
             }}

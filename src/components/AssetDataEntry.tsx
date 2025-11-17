@@ -49,6 +49,7 @@ export function AssetDataEntry() {
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
   const [importValidationErrors, setImportValidationErrors] = useState<string[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<number | 'all'>('all');
+  const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const showToast = (message: string, type: 'error' | 'success' | 'info') => {
     setToast({ message, type });
   };
@@ -606,15 +607,16 @@ export function AssetDataEntry() {
     }
     try {
       setLoading(true);
-      // Create new measurement with current date
+      // Create new measurement with specified date or current date
+      const measurementDate = newMeasurementDate || (() => {
+        const now = new Date();
+        return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+      })();
       const newMeasurementData = {
         building_number: row.building_number!,
         payer_id: row.payer_id || undefined,
         asset_id: row.asset_id,
-        measurement_date: (() => {
-          const now = new Date();
-          return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-        })(),
+        measurement_date: measurementDate,
         main_asset_type: row.main_asset_type,
         asset_size: row.asset_size,
         sub_asset_type_1: row.sub_asset_type_1 || undefined,
@@ -656,6 +658,7 @@ export function AssetDataEntry() {
         _dbId: newAsset.id
       };
       setRowData(prev => [...prev, newRow]);
+      setNewMeasurementDate(''); // Clear the date input after successful creation
       showToast('מדידה חדשה נוספה בהצלחה', 'success');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בהוספת מדידה חדשה';
@@ -663,7 +666,7 @@ export function AssetDataEntry() {
     } finally {
       setLoading(false);
     }
-  }, [rowData, showToast]);
+  }, [rowData, showToast, newMeasurementDate]);
   const handleDeleteRow = useCallback(async (rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
     if (!row) return;
@@ -1295,18 +1298,32 @@ export function AssetDataEntry() {
         return (
           <div className="flex items-center gap-0.5">
             {!row._isNew && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleAddNewMeasurement(params.data.id);
-                }}
-                className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
-                title="הוסף מדידה חדשה"
-              >
-                מדידה חדשה
-              </button>
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  placeholder="DD/MM/YYYY"
+                  value={newMeasurementDate}
+                  onChange={(e) => setNewMeasurementDate(e.target.value)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  className="px-1 py-0.5 text-xs border border-gray-300 rounded w-20 text-center"
+                  title="תאריך מדידה (DD/MM/YYYY)"
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAddNewMeasurement(params.data.id);
+                  }}
+                  className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
+                  title="הוסף מדידה חדשה"
+                >
+                  מדידה חדשה
+                </button>
+              </div>
             )}
             <button
               type="button"

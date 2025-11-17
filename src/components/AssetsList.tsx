@@ -483,6 +483,44 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     return { textAlign: 'right' };
   }, [dirtyAssets, validationErrors]);
 
+  const getRowStyle = useCallback((params: any) => {
+    const assetId = params.data?.id;
+    if (!assetId) return undefined;
+
+    const assetErrors = validationErrors.get(assetId);
+    const hasErrors = assetErrors && assetErrors.size > 0;
+
+    // Also check for numeric validation errors
+    const asset = params.data as Asset;
+    const numericRegex = /^[0-9]+$/;
+    const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+    const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+    // Check if this is invalid (for backwards compatibility)
+    const isInvalid = invalidAssets.has(assetId);
+
+    // Check if this is a historical record (not in masterAssets)
+    const isMaster = masterAssets.some(m => m.id === assetId);
+
+    if (hasErrors || hasInvalidPayerId || hasInvalidAssetId || isInvalid) {
+      return {
+        border: '3px solid #ef4444',
+        borderRadius: '4px',
+        background: '#fee2e2'
+      };
+    }
+
+    if (!isMaster) {
+      return {
+        background: 'linear-gradient(to right, #dbeafe 0%, #e0f2fe 100%)',
+        fontStyle: 'italic',
+        fontSize: '0.9em'
+      };
+    }
+
+    return undefined;
+  }, [validationErrors, invalidAssets, masterAssets]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: '',
@@ -869,6 +907,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}
+            getRowStyle={getRowStyle}
             onGridReady={(params) => {
               params.api.autoSizeAllColumns();
             }}
@@ -890,21 +929,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             paginationPageSize={20}
             enableRtl={true}
             suppressHorizontalScroll={false}
-            getRowStyle={(params) => {
-              if (invalidAssets.has(params.data.id)) {
-                return { background: '#fee2e2' };
-              }
-              // Check if this is a historical record (not in masterAssets)
-              const isMaster = masterAssets.some(m => m.id === params.data.id);
-              if (!isMaster) {
-                return {
-                  background: 'linear-gradient(to right, #dbeafe 0%, #e0f2fe 100%)',
-                  fontStyle: 'italic',
-                  fontSize: '0.9em'
-                };
-              }
-              return {};
-            }}
           />
         </div>
       </div>

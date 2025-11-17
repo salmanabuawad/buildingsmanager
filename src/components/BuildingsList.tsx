@@ -158,7 +158,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           await fetchBuildings(false);
           return;
         }
-      } else if (field === 'total_area_for_control') {
+      } else if (field === 'total_area_for_control' || field === 'shared_area') {
         if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
           setError('Total area must be a positive number');
           setTimeout(() => setError(null), 3000);
@@ -275,6 +275,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'total_area_for_control',
       headerName: t('totalAreaForControl'),
+      flex: 1.5,
+      editable: true,
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'shared_area',
+      headerName: 'שטח משותף',
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',

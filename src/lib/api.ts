@@ -8,6 +8,7 @@ export interface Building {
   total_assets: number;
   total_building_area: number;
   total_area_for_control?: number;
+  shared_area?: number;
   created_at: string;
 }
 
@@ -115,6 +116,7 @@ function sanitizeBuildingInput(input: any): any {
     building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
     tax_region: input.tax_region != null ? sanitizeText(input.tax_region) : undefined,
     total_area_for_control: input.total_area_for_control != null ? sanitizeNumber(input.total_area_for_control) : undefined,
+    shared_area: input.shared_area != null ? sanitizeNumber(input.shared_area) : undefined,
   };
 }
 

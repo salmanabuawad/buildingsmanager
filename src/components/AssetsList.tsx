@@ -26,7 +26,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [success, setSuccess] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Map<string, Set<string>>>(new Map());
+  const [validationErrors, setValidationErrors] = useState<Map<string, Map<string, string>>>(new Map());
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxZone]);
@@ -123,9 +123,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         if (!dateValidation.valid) {
           setValidationErrors(prev => {
             const newMap = new Map(prev);
-            const errors = new Set<string>();
-            errors.add('measurement_date');
-            newMap.set(assetId, errors);
+            const errorMap = new Map<string, string>();
+            errorMap.set('measurement_date', dateValidation.error || 'Invalid date format');
+            newMap.set(assetId, errorMap);
             return newMap;
           });
           setError(dateValidation.error || 'Invalid date format');
@@ -225,9 +225,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const detailedError = validation.error || 'Unknown validation error';
         setValidationErrors(prev => {
           const newMap = new Map(prev);
-          const errors = new Set<string>();
-          errors.add(field);
-          newMap.set(assetId, errors);
+          const errorMap = new Map<string, string>();
+          errorMap.set(field, detailedError);
+          newMap.set(assetId, errorMap);
           return newMap;
         });
         setError(detailedError);
@@ -452,7 +452,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
   const getCellStyle = useCallback((params: any, fieldName: string, isRequired: boolean = false) => {
     const assetId = params.data?.id;
-    const hasValidationError = validationErrors.has(assetId) && validationErrors.get(assetId)?.has(fieldName);
+    const assetErrors = validationErrors.get(assetId);
+    const hasValidationError = assetErrors && assetErrors.has(fieldName);
     const isDirty = assetId && dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
 
     if (hasValidationError) {
@@ -488,16 +489,32 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 50,
       editable: false,
       cellRenderer: (params: any) => {
-        const numericRegex = /^[0-9]+$/;
         const asset = params.data as Asset;
+        const assetId = asset.id;
+        const errors: string[] = [];
+
+        // Check for validation errors from validationErrors state
+        if (validationErrors.has(assetId)) {
+          const fieldErrors = validationErrors.get(assetId);
+          if (fieldErrors && fieldErrors.size > 0) {
+            // Add all the specific error messages
+            fieldErrors.forEach((errorMsg, fieldName) => {
+              errors.push(errorMsg);
+            });
+          }
+        }
+
+        // Also check for basic numeric validation
+        const numericRegex = /^[0-9]+$/;
         const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
         const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-        if (hasInvalidPayerId || hasInvalidAssetId) {
-          const errors = [];
-          if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
-          if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
+
+        if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
+        if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
+
+        if (errors.length > 0) {
           return (
-            <div className="flex items-center justify-center h-full" title={errors.join(', ')}>
+            <div className="flex items-center justify-center h-full" title={errors.join('\n')}>
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
           );
@@ -784,7 +801,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

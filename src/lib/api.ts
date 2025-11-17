@@ -264,14 +264,58 @@ export const api = {
       return data;
     },
     create: async (input: Omit<Asset, 'id' | 'created_at'>): Promise<Asset> => {
+      console.log('[API] Creating asset with input:', input);
       const sanitizedInput = sanitizeAssetInput(input);
+      console.log('[API] Sanitized input:', sanitizedInput);
       const { data, error } = await supabase
         .from('assets')
         .insert(sanitizedInput)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[API ERROR] Create asset failed:', {
+          input,
+          sanitizedInput,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+
+        let errorMessage = error.message || 'Failed to create asset';
+
+        // Handle constraint violations
+        if (error.code === '23505') {
+          if (error.message.includes('assets_pkey') || error.message.includes('primary key')) {
+            errorMessage = 'נכס עם זיהוי זה כבר קיים עם תאריך מדידה זה. כל שילוב של מספר נכס ותאריך מדידה חייב להיות ייחודי.';
+          } else {
+            errorMessage = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+          }
+        } else if (error.code === '23514') {
+          if (error.message.includes('check_sub_asset_type_') && error.message.includes('not_composite')) {
+            const match = error.message.match(/check_sub_asset_type_(\d+)_not_composite/);
+            const subAssetNum = match ? match[1] : '';
+            errorMessage = i18n.t('subAssetTypeCompositeError', { subAssetNum });
+          } else if (error.message.includes('check_minimum_two_sub_assets')) {
+            errorMessage = 'נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה עם ערכים.';
+          } else if (error.message.includes('check_numeric_asset_id')) {
+            errorMessage = 'זיהוי נכס חייב להיות מספר תקין.';
+          } else if (error.message.includes('check_numeric_payer_id')) {
+            errorMessage = 'מספר משלם חייב להיות מספר תקין.';
+          }
+        } else if (error.code === '23503') {
+          if (error.message.includes('building_number')) {
+            errorMessage = `בניין ${input.building_number} לא קיים. הבניין ייווצר אוטומטית אם הנתונים תקינים.`;
+          }
+        }
+
+        const details = error.details ? ` (${error.details})` : '';
+        const hint = error.hint ? ` - ${error.hint}` : '';
+
+        throw new Error(`${errorMessage}${details}${hint}`);
+      }
+      console.log('[API] Asset created successfully:', data);
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {

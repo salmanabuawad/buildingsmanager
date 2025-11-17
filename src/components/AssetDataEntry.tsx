@@ -1296,7 +1296,7 @@ export function AssetDataEntry() {
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
         return (
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 w-full pr-2">
             {!row._isNew && (
               <div className="flex items-center gap-1">
                 <button

@@ -9,7 +9,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface BuildingsListProps {
-  onSelectBuilding: (buildingNumber: number) => void;
+  onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
   onOpenAssetTypes?: () => void;
   onOpenAssetSearch?: () => void;
   onOpenDataEntry?: () => void;
@@ -62,7 +62,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const handleCreateBuilding = async () => {
     try {
       const buildingNumber = parseInt(newBuilding.building_number);
-      const taxRegion = newBuilding.tax_region ? parseInt(newBuilding.tax_region) : null;
+      const taxRegion = newBuilding.tax_region ? newBuilding.tax_region.trim() : null;
 
       if (isNaN(buildingNumber)) {
         setError('Invalid building number');
@@ -109,7 +109,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
         const buildingNumber = parseInt(values[buildingNumberIdx]);
-        const taxRegion = taxRegionIdx >= 0 && values[taxRegionIdx] ? parseInt(values[taxRegionIdx]) : null;
+        const taxRegion = taxRegionIdx >= 0 && values[taxRegionIdx] ? values[taxRegionIdx].trim() : null;
 
         if (!isNaN(buildingNumber)) {
           try {
@@ -222,7 +222,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => onSelectBuilding(params.data.building_number)}
+            onClick={() => onSelectBuilding(params.data.building_number, params.data.tax_region)}
             className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
           >
             {t('viewAssets')}
@@ -248,12 +248,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: t('taxRegion'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value != null ? params.value.toLocaleString() : '',
+      valueFormatter: (params) => params.value != null ? params.value : '',
       valueParser: (params) => {
         const val = params.newValue;
         if (val == null || val === '') return null;
-        const num = typeof val === 'string' ? parseInt(val.replace(/,/g, ''), 10) : val;
-        return isNaN(num) ? null : num;
+        return val.toString().trim();
       },
       cellStyle: { textAlign: 'right' }
     },
@@ -393,14 +392,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Tax Region
+                  Tax Region (comma-separated for multiple zones)
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   value={newBuilding.tax_region}
                   onChange={(e) => setNewBuilding(prev => ({ ...prev, tax_region: e.target.value }))}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="Enter tax region (optional)"
+                  placeholder="e.g., 1 or 1,2,3"
                 />
               </div>
             </div>

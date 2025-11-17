@@ -9,9 +9,10 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 interface AssetsListProps {
   buildingNumber: number;
+  taxZone?: string;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
 }
-export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
+export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [masterAssets, setMasterAssets] = useState<Asset[]>([]);
@@ -25,7 +26,7 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
   const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
   useEffect(() => {
     fetchData();
-  }, [buildingNumber]);
+  }, [buildingNumber, taxZone]);
   useEffect(() => {
     // Create display data with expanded rows
     const display: Asset[] = [];
@@ -58,10 +59,19 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
         }
         assetsByAssetId.get(asset.asset_id)!.push(asset);
       }
-      const masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
+      let masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
         group.sort((a, b) => new Date(b.measurement_date).getTime() - new Date(a.measurement_date).getTime());
         return group[0];
       });
+
+      if (taxZone) {
+        masterAssetsList = masterAssetsList.filter(asset => {
+          const assetType = assetTypesData?.find(at => at.name === asset.main_asset_type);
+          if (!assetType || !assetType.tax_region) return false;
+          return assetType.tax_region.toString() === taxZone;
+        });
+      }
+
       setMasterAssets(masterAssetsList);
       const invalidSet = new Set<string>();
       const numericRegex = /^[0-9]+$/;

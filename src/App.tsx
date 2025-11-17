@@ -16,6 +16,7 @@ interface Tab {
   assetId?: string;
   label: string;
   refreshKey?: number;
+  taxZone?: string;
 }
 
 function App() {
@@ -29,19 +30,36 @@ function App() {
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
-  function handleSelectBuilding(buildingNumber: number) {
+  function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-    const newTabId = `assets-${buildingNumber}`;
+    const newTabs: Tab[] = [buildingsTab];
 
-    const newTab: Tab = {
-      id: newTabId,
+    const allAssetsTabId = `assets-${buildingNumber}-all`;
+    const allAssetsTab: Tab = {
+      id: allAssetsTabId,
       type: 'assets',
       buildingNumber,
-      label: `בניין ${buildingNumber}`
+      label: `בניין ${buildingNumber} - כל הנכסים`
     };
+    newTabs.push(allAssetsTab);
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(newTabId);
+    if (taxRegions) {
+      const zones = taxRegions.split(',').map(z => z.trim()).filter(z => z);
+      zones.forEach(zone => {
+        const zoneTabId = `assets-${buildingNumber}-zone-${zone}`;
+        const zoneTab: Tab = {
+          id: zoneTabId,
+          type: 'assets',
+          buildingNumber,
+          taxZone: zone,
+          label: `בניין ${buildingNumber} - אזור ${zone}`
+        };
+        newTabs.push(zoneTab);
+      });
+    }
+
+    setTabs(newTabs);
+    setActiveTabId(allAssetsTabId);
   }
 
   function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {
@@ -372,6 +390,7 @@ function App() {
             <AssetsList
               key={activeTab.refreshKey}
               buildingNumber={activeTab.buildingNumber}
+              taxZone={activeTab.taxZone}
               onSelectAsset={handleSelectAsset}
             />
           )}

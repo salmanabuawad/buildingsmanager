@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import i18n from '../i18n/i18n';
+import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 
 export interface Building {
   building_number: number;
@@ -78,6 +79,44 @@ export interface ValidationRule {
   updated_at: string;
 }
 
+/**
+ * Sanitizes asset data before sending to the server
+ */
+function sanitizeAssetInput(input: any): any {
+  return {
+    ...input,
+    building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
+    payer_id: input.payer_id != null ? sanitizeText(input.payer_id) : undefined,
+    asset_id: input.asset_id != null ? sanitizeInteger(input.asset_id) : undefined,
+    measurement_date: input.measurement_date != null ? sanitizeDate(input.measurement_date) : undefined,
+    main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
+    asset_size: input.asset_size != null ? sanitizeNumber(input.asset_size) : undefined,
+    sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,
+    sub_asset_size_1: input.sub_asset_size_1 != null ? sanitizeNumber(input.sub_asset_size_1) : undefined,
+    sub_asset_type_2: input.sub_asset_type_2 != null ? sanitizeText(input.sub_asset_type_2) : undefined,
+    sub_asset_size_2: input.sub_asset_size_2 != null ? sanitizeNumber(input.sub_asset_size_2) : undefined,
+    sub_asset_type_3: input.sub_asset_type_3 != null ? sanitizeText(input.sub_asset_type_3) : undefined,
+    sub_asset_size_3: input.sub_asset_size_3 != null ? sanitizeNumber(input.sub_asset_size_3) : undefined,
+    sub_asset_type_4: input.sub_asset_type_4 != null ? sanitizeText(input.sub_asset_type_4) : undefined,
+    sub_asset_size_4: input.sub_asset_size_4 != null ? sanitizeNumber(input.sub_asset_size_4) : undefined,
+    sub_asset_type_5: input.sub_asset_type_5 != null ? sanitizeText(input.sub_asset_type_5) : undefined,
+    sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
+    sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
+    sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
+  };
+}
+
+/**
+ * Sanitizes building data before sending to the server
+ */
+function sanitizeBuildingInput(input: any): any {
+  return {
+    ...input,
+    building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
+    tax_region: input.tax_region != null ? sanitizeText(input.tax_region) : undefined,
+    total_area_for_control: input.total_area_for_control != null ? sanitizeNumber(input.total_area_for_control) : undefined,
+  };
+}
 
 export const api = {
   buildings: {
@@ -103,9 +142,10 @@ export const api = {
     },
     create: async (input: Omit<Building, 'created_at' | 'total_units' | 'total_building_area'>): Promise<Building> => {
       console.log('[API] Creating building with input:', input);
+      const sanitizedInput = sanitizeBuildingInput(input);
       const { data, error } = await supabase
         .from('building')
-        .insert(input)
+        .insert(sanitizedInput)
         .select()
         .single();
 
@@ -123,9 +163,10 @@ export const api = {
     },
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
       console.log('[API] Updating building:', buildingNumber, 'with data:', input);
+      const sanitizedInput = sanitizeBuildingInput(input);
       const { data, error } = await supabase
         .from('building')
-        .update(input)
+        .update(sanitizedInput)
         .eq('building_number', buildingNumber)
         .select()
         .single();
@@ -223,9 +264,10 @@ export const api = {
       return data;
     },
     create: async (input: Omit<Asset, 'id' | 'created_at'>): Promise<Asset> => {
+      const sanitizedInput = sanitizeAssetInput(input);
       const { data, error } = await supabase
         .from('assets')
-        .insert(input)
+        .insert(sanitizedInput)
         .select()
         .single();
 
@@ -234,9 +276,10 @@ export const api = {
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
       console.log('[API] Updating asset:', id, 'with data:', input);
+      const sanitizedInput = sanitizeAssetInput(input);
       const { data, error } = await supabase
         .from('assets')
-        .update(input)
+        .update(sanitizedInput)
         .eq('id', id)
         .select()
         .single();

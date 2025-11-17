@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { sanitizeFilename } from '../lib/sanitize';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -53,7 +54,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName || 'document.pdf';
+      link.download = sanitizeFilename(fileName || 'document.pdf');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

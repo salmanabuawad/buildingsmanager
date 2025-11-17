@@ -306,7 +306,8 @@ export function AssetDataEntry() {
       const rowsToSave = rowData.filter(row =>
         row._isNew && row.building_number && row.asset_id
       );
-      const currentDate = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const currentDate = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
       const filteredRowsToSave = rowsToSave.filter(row => {
         const measurementDate = row.measurement_date || currentDate;
         if (row._originalMeasurementDate && row._originalMeasurementDate === measurementDate) {
@@ -398,7 +399,10 @@ export function AssetDataEntry() {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,
             asset_id: row.asset_id,
-            measurement_date: row.measurement_date || new Date().toISOString().split('T')[0],
+            measurement_date: row.measurement_date || (() => {
+              const now = new Date();
+              return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            })(),
             main_asset_type: row.main_asset_type || undefined,
             asset_size: row.asset_size || 0,
             sub_asset_type_1: row.sub_asset_type_1 || undefined,
@@ -593,7 +597,10 @@ export function AssetDataEntry() {
         building_number: row.building_number!,
         payer_id: row.payer_id || undefined,
         asset_id: row.asset_id,
-        measurement_date: new Date().toISOString().split('T')[0],
+        measurement_date: (() => {
+          const now = new Date();
+          return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+        })(),
         main_asset_type: row.main_asset_type,
         asset_size: row.asset_size,
         sub_asset_type_1: row.sub_asset_type_1 || undefined,
@@ -1039,38 +1046,6 @@ export function AssetDataEntry() {
       width: 130,
       minWidth: 130,
       editable: true,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        const date = new Date(params.value);
-        if (isNaN(date.getTime())) return params.value;
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-      },
-      valueGetter: (params) => {
-        if (!params.data?.measurement_date) return '';
-        return params.data.measurement_date;
-      },
-      valueSetter: (params) => {
-        const value = params.newValue;
-        if (!value) {
-          params.data.measurement_date = '';
-          return true;
-        }
-        if (value.includes('/')) {
-          const parts = value.split('/');
-          if (parts.length === 3) {
-            const day = parts[0].padStart(2, '0');
-            const month = parts[1].padStart(2, '0');
-            const year = parts[2];
-            params.data.measurement_date = `${year}-${month}-${day}`;
-            return true;
-          }
-        }
-        params.data.measurement_date = value;
-        return true;
-      },
       cellStyle: (params) => getCellStyle(params, 'measurement_date', false)
     },
     {

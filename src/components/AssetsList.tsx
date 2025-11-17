@@ -159,15 +159,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 150,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        const date = new Date(params.value);
-        if (isNaN(date.getTime())) return params.value;
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-      },
       cellStyle: { textAlign: 'right', backgroundColor: '#fef3c7', fontWeight: '600' }
     },
     {
@@ -322,15 +313,6 @@ export function AssetsList({ buildingNumber, onSelectAsset }: AssetsListProps) {
       width: 150,
       minWidth: 150,
       editable: false,
-      valueFormatter: (params) => {
-        if (!params.value) return '';
-        const date = new Date(params.value);
-        if (isNaN(date.getTime())) return params.value;
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-      },
       cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
     },
     {

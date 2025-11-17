@@ -26,6 +26,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [success, setSuccess] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Map<string, Set<string>>>(new Map());
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxZone]);
@@ -317,6 +318,39 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       return newSet;
     });
   }, []);
+
+  const getCellStyle = useCallback((params: any, fieldName: string, isRequired: boolean = false) => {
+    const assetId = params.data?.id;
+    const hasValidationError = validationErrors.has(assetId) && validationErrors.get(assetId)?.has(fieldName);
+    const isDirty = assetId && dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
+
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        fontWeight: isDirty ? 'bold' : 'normal',
+        textAlign: 'right'
+      };
+    }
+
+    if (isDirty) {
+      return {
+        backgroundColor: '#fef3c7',
+        fontWeight: 'bold',
+        textAlign: 'right'
+      };
+    }
+
+    if (isRequired) {
+      return {
+        backgroundColor: '#fff9e6',
+        textAlign: 'right'
+      };
+    }
+
+    return { textAlign: 'right' };
+  }, [dirtyAssets, validationErrors]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: '',
@@ -393,194 +427,187 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      width: 150,
-      minWidth: 150,
+      width: 130,
+      minWidth: 130,
       editable: false,
       cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      width: 150,
-      minWidth: 150,
+      width: 120,
+      minWidth: 120,
       editable: true,
-      cellStyle: (params) => {
-        const numericRegex = /^[0-9]+$/;
-        const hasError = params.value && !numericRegex.test(params.value);
-        return {
-          textAlign: 'right',
-          ...(hasError && { backgroundColor: '#fee2e2', border: '2px solid #ef4444' })
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      width: 150,
-      minWidth: 150,
+      width: 120,
+      minWidth: 120,
       editable: true,
-      cellStyle: (params) => {
-        const numericRegex = /^[0-9]+$/;
-        const hasError = params.value && !numericRegex.test(params.value);
-        return {
-          textAlign: 'right',
-          ...(hasError && { backgroundColor: '#fee2e2', border: '2px solid #ef4444' })
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'main_asset_type', false)
     },
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1', false)
     },
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2', false)
     },
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3', false)
     },
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4', false)
     },
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5', false)
     },
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 150,
-      minWidth: 150,
+      width: 70,
+      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6', false)
     },
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 150,
-      minWidth: 150,
+      width: 75,
+      minWidth: 75,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     },
     {
       field: 'total_size',
@@ -591,7 +618,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -655,23 +682,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,
-              autoHeaderHeight: true,
-              cellStyle: (params) => {
-                const style: any = { textAlign: 'right' };
-                const assetId = params.data?.id;
-                const field = params.colDef.field;
-
-                // Highlight dirty cells
-                if (assetId && field && dirtyAssets.has(assetId)) {
-                  const changes = dirtyAssets.get(assetId);
-                  if (changes && changes.hasOwnProperty(field)) {
-                    style.backgroundColor = '#fef3c7';
-                    style.fontWeight = 'bold';
-                  }
-                }
-
-                return style;
-              }
+              autoHeaderHeight: true
             }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}

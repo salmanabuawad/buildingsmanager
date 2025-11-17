@@ -8,11 +8,12 @@ import { AssetSearch } from './components/AssetSearch';
 import { AssetDataEntry } from './components/AssetDataEntry';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { CSVImport } from './components/CSVImport';
+import { AssetsCSVImport } from './components/AssetsCSVImport';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry' | 'validation-rules' | 'csv-import';
+  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry' | 'validation-rules' | 'csv-import' | 'assets-csv-import';
   buildingNumber?: number;
   assetId?: string;
   label: string;
@@ -182,6 +183,20 @@ function App() {
     setActiveTabId(csvImportTabId);
   }
 
+  function openAssetsCSVImport() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const assetsCSVImportTabId = 'assets-csv-import-panel';
+
+    const newTab: Tab = {
+      id: assetsCSVImportTabId,
+      type: 'assets-csv-import',
+      label: 'ייבוא נכסים CSV'
+    };
+
+    setTabs([buildingsTab, newTab]);
+    setActiveTabId(assetsCSVImportTabId);
+  }
+
   function handleCloseTab(tabId: string) {
     setTabs(prevTabs => {
       const newTabs = prevTabs.filter(tab => tab.id !== tabId);
@@ -288,6 +303,13 @@ function App() {
                   <span className="font-medium text-slate-600">חיפוש נכס</span>
                   <Search className="h-4 w-4 text-indigo-500" />
                 </button>
+                <button
+                  onClick={openAssetsCSVImport}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-sm"
+                >
+                  <span className="font-medium text-slate-600">ייבוא CSV</span>
+                  <Upload className="h-4 w-4 text-indigo-500" />
+                </button>
               </div>
             )}
           </div>
@@ -356,6 +378,8 @@ function App() {
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'csv-import' ? (
+                      <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
+                    ) : tab.type === 'assets-csv-import' ? (
                       <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -428,6 +452,9 @@ function App() {
           )}
           {activeTab?.type === 'csv-import' && (
             <CSVImport />
+          )}
+          {activeTab?.type === 'assets-csv-import' && (
+            <AssetsCSVImport />
           )}
         </div>
       </div>

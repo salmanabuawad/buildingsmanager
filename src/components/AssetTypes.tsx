@@ -373,7 +373,7 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%' }}>
             <AgGridReact
               ref={gridRef}
               rowData={assetTypes}
@@ -399,10 +399,8 @@ export function AssetTypes() {
                   }
                 }, 100);
               }}
-              pagination={true}
-              paginationPageSize={20}
-              paginationPageSizeSelector={[10, 20, 50, 100]}
-              domLayout="normal"
+              pagination={false}
+              domLayout="autoHeight"
               suppressHorizontalScroll={false}
               enableRtl={true}
               rowClass="ag-row"

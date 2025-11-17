@@ -16,18 +16,15 @@ interface BuildingsListProps {
   onOpenValidationRules?: () => void;
   showCreateModal: boolean;
   setShowCreateModal: (show: boolean) => void;
-  showImportModal: boolean;
-  setShowImportModal: (show: boolean) => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules, showCreateModal, setShowCreateModal, showImportModal, setShowImportModal }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules, showCreateModal, setShowCreateModal }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<Building>>(null);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
@@ -94,52 +91,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
   };
 
-  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim());
-
-      const buildingNumberIdx = headers.findIndex(h => h.toLowerCase().includes('building'));
-      const taxRegionIdx = headers.findIndex(h => h.toLowerCase().includes('tax'));
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const buildingNumber = parseInt(values[buildingNumberIdx]);
-        const taxRegion = taxRegionIdx >= 0 && values[taxRegionIdx] ? values[taxRegionIdx].trim() : null;
-
-        if (!isNaN(buildingNumber)) {
-          try {
-            console.log(`[CSV IMPORT] Creating building ${buildingNumber} with tax region ${taxRegion}`);
-            await api.buildings.create({
-              building_number: buildingNumber,
-              tax_region: taxRegion,
-              total_assets: 0,
-              total_building_area: 0
-            });
-            console.log(`[CSV IMPORT] Successfully created building ${buildingNumber}`);
-          } catch (err: any) {
-            console.error(`[CSV IMPORT ERROR] Building ${buildingNumber}:`, err);
-            console.error(`[CSV IMPORT ERROR] Message:`, err.message);
-            console.error(`[CSV IMPORT ERROR] Details:`, err.details);
-            console.error(`[CSV IMPORT ERROR] Hint:`, err.hint);
-            console.error(`[CSV IMPORT ERROR] Code:`, err.code);
-          }
-        }
-      }
-
-      await fetchBuildings(false);
-      setShowImportModal(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (error) {
-      console.error('Error importing CSV:', error);
-      setError('Failed to import CSV');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
 
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
@@ -433,41 +384,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         </div>
       )}
 
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-6">Import Buildings from CSV</h2>
-
-            <div className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Select a CSV file containing building data. The file should include columns for building number and tax region.
-              </p>
-
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleImportCSV}
-                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowImportModal(false);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

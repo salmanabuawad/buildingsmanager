@@ -7,11 +7,12 @@ import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { AssetDataEntry } from './components/AssetDataEntry';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
+import { CSVImport } from './components/CSVImport';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry' | 'validation-rules';
+  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'data-entry' | 'validation-rules' | 'csv-import';
   buildingNumber?: number;
   assetId?: string;
   label: string;
@@ -25,7 +26,6 @@ function App() {
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
-  const [showImportCSVModal, setShowImportCSVModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
@@ -168,6 +168,20 @@ function App() {
     setActiveTabId(validationRulesTabId);
   }
 
+  function openCSVImport() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const csvImportTabId = 'csv-import-panel';
+
+    const newTab: Tab = {
+      id: csvImportTabId,
+      type: 'csv-import',
+      label: 'ייבוא CSV'
+    };
+
+    setTabs([buildingsTab, newTab]);
+    setActiveTabId(csvImportTabId);
+  }
+
   function handleCloseTab(tabId: string) {
     setTabs(prevTabs => {
       const newTabs = prevTabs.filter(tab => tab.id !== tabId);
@@ -234,7 +248,7 @@ function App() {
                   <Plus className="h-4 w-4 text-purple-500" />
                 </button>
                 <button
-                  onClick={() => setShowImportCSVModal(true)}
+                  onClick={openCSVImport}
                   className="w-full flex items-center gap-3 px-4 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-sm"
                 >
                   <span className="font-medium text-slate-600">ייבוא CSV</span>
@@ -341,6 +355,8 @@ function App() {
                       <Plus className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
+                    ) : tab.type === 'csv-import' ? (
+                      <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-3 w-3 sm:h-4 sm:w-4" />
                     ) : tab.type === 'assets' ? (
@@ -382,8 +398,6 @@ function App() {
               onOpenValidationRules={openValidationRules}
               showCreateModal={showCreateBuildingModal}
               setShowCreateModal={setShowCreateBuildingModal}
-              showImportModal={showImportCSVModal}
-              setShowImportModal={setShowImportCSVModal}
             />
           )}
           {activeTab?.type === 'assets' && activeTab.buildingNumber && (
@@ -411,6 +425,9 @@ function App() {
           )}
           {activeTab?.type === 'validation-rules' && (
             <ValidationRulesManager />
+          )}
+          {activeTab?.type === 'csv-import' && (
+            <CSVImport />
           )}
         </div>
       </div>

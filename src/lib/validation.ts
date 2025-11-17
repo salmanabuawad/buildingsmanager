@@ -673,6 +673,25 @@ export const buildingValidators = {
     if (!taxRegion && taxRegion !== 0) {
       return { valid: true };
     }
+
+    // Convert to string if it's a number
+    const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
+
+    // Valid combinations: "40,10", "40,20", "40,30", or single values
+    const validCombinations = ['40,10', '40,20', '40,30'];
+    const trimmedValue = taxRegionStr.trim();
+
+    // Check if it's a comma-separated value
+    if (trimmedValue.includes(',')) {
+      const normalized = trimmedValue.split(',').map(v => v.trim()).sort().join(',');
+      if (!validCombinations.includes(normalized)) {
+        return {
+          valid: false,
+          error: 'אזור מס יכול להיות ערך בודד או אחד מהצירופים הבאים בלבד: 40,10 או 40,20 או 40,30'
+        };
+      }
+    }
+
     const results = await validateField('building', 'tax_region', taxRegion);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };

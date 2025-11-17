@@ -1071,6 +1071,27 @@ export function AssetDataEntry() {
         const cleaned = value.replace(/[^\d/]/g, '').substring(0, 10);
         return cleaned;
       },
+      comparator: (valueA: string, valueB: string) => {
+        // Parse DD/MM/YYYY to comparable format
+        const parseDate = (dateStr: string): number => {
+          if (!dateStr) return 0;
+          const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (!match) return 0;
+          const day = parseInt(match[1], 10);
+          const month = parseInt(match[2], 10);
+          const year = parseInt(match[3], 10);
+          return new Date(year, month - 1, day).getTime();
+        };
+
+        const dateA = parseDate(valueA);
+        const dateB = parseDate(valueB);
+
+        if (dateA === 0 && dateB === 0) return 0;
+        if (dateA === 0) return -1;
+        if (dateB === 0) return 1;
+
+        return dateA - dateB;
+      },
       cellStyle: (params) => getCellStyle(params, 'measurement_date', false)
     },
     {

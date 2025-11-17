@@ -1287,9 +1287,9 @@ export function AssetDataEntry() {
     {
       field: 'actions',
       headerName: t('actions'),
-      width: 250,
-      minWidth: 250,
-      maxWidth: 250,
+      width: 150,
+      minWidth: 150,
+      maxWidth: 150,
       pinned: 'right',
       suppressSizeToFit: true,
       resizable: false,

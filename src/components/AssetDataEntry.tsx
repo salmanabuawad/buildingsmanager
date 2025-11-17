@@ -1059,17 +1059,6 @@ export function AssetDataEntry() {
               {loading ? t('saving') : t('saveAll')}
             </button>
           </div>
-          <div className="flex items-center gap-1.5 pt-1 border-t border-gray-200">
-            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
-              <input
-                type="checkbox"
-                checked={validateBeforeImport}
-                onChange={(e) => setValidateBeforeImport(e.target.checked)}
-                className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span className="font-medium">{t('validateOnImport')}</span>
-            </label>
-          </div>
         </div>
         <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>
           <AgGridReact

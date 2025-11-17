@@ -1048,19 +1048,28 @@ export function AssetDataEntry() {
         const year = date.getFullYear();
         return `${day}/${month}/${year}`;
       },
-      valueParser: (params) => {
+      valueGetter: (params) => {
+        if (!params.data?.measurement_date) return '';
+        return params.data.measurement_date;
+      },
+      valueSetter: (params) => {
         const value = params.newValue;
-        if (!value) return '';
+        if (!value) {
+          params.data.measurement_date = '';
+          return true;
+        }
         if (value.includes('/')) {
           const parts = value.split('/');
           if (parts.length === 3) {
             const day = parts[0].padStart(2, '0');
             const month = parts[1].padStart(2, '0');
             const year = parts[2];
-            return `${year}-${month}-${day}`;
+            params.data.measurement_date = `${year}-${month}-${day}`;
+            return true;
           }
         }
-        return value;
+        params.data.measurement_date = value;
+        return true;
       },
       cellStyle: (params) => getCellStyle(params, 'measurement_date', false)
     },

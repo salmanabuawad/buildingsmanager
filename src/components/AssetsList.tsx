@@ -526,7 +526,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       headerName: '',
       width: 50,
+      minWidth: 50,
+      maxWidth: 50,
       editable: false,
+      pinned: 'left',
+      suppressSizeToFit: true,
+      resizable: false,
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         const assetId = asset.id;
@@ -553,11 +558,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
         if (errors.length > 0) {
           return (
-            <div className="flex items-center justify-center h-full" title={errors.join('\n')}>
-              <div className="relative">
-                <AlertCircle className="h-6 w-6 text-red-600 animate-pulse" />
-                <div className="absolute inset-0 bg-red-600 rounded-full opacity-20 animate-ping"></div>
-              </div>
+            <div className="flex items-center justify-center w-full h-full" title={errors.join(', ')}>
+              <AlertCircle className="h-4 w-4 text-red-600" />
             </div>
           );
         }

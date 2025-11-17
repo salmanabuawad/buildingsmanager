@@ -524,48 +524,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
-      headerName: '',
-      width: 50,
-      minWidth: 50,
-      maxWidth: 50,
-      editable: false,
-      suppressSizeToFit: true,
-      resizable: false,
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const assetId = asset.id;
-        const errors: string[] = [];
-
-        // Check for validation errors from validationErrors state
-        if (validationErrors.has(assetId)) {
-          const fieldErrors = validationErrors.get(assetId);
-          if (fieldErrors && fieldErrors.size > 0) {
-            // Add all the specific error messages
-            fieldErrors.forEach((errorMsg, fieldName) => {
-              errors.push(errorMsg);
-            });
-          }
-        }
-
-        // Also check for basic numeric validation
-        const numericRegex = /^[0-9]+$/;
-        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
-        if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
-        if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
-
-        if (errors.length > 0) {
-          return (
-            <div className="flex items-center justify-center w-full h-full" title={errors.join(', ')}>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
-          );
-        }
-        return null;
-      }
-    },
-    {
       headerName: t('actions'),
       width: 150,
       minWidth: 150,
@@ -843,6 +801,49 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       editable: false,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
+    },
+    {
+      headerName: '',
+      width: 50,
+      minWidth: 50,
+      maxWidth: 50,
+      editable: false,
+      pinned: 'right',
+      suppressSizeToFit: true,
+      resizable: false,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        const assetId = asset.id;
+        const errors: string[] = [];
+
+        // Check for validation errors from validationErrors state
+        if (validationErrors.has(assetId)) {
+          const fieldErrors = validationErrors.get(assetId);
+          if (fieldErrors && fieldErrors.size > 0) {
+            // Add all the specific error messages
+            fieldErrors.forEach((errorMsg, fieldName) => {
+              errors.push(errorMsg);
+            });
+          }
+        }
+
+        // Also check for basic numeric validation
+        const numericRegex = /^[0-9]+$/;
+        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+        if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
+        if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
+
+        if (errors.length > 0) {
+          return (
+            <div className="flex items-center justify-center w-full h-full" title={errors.join(', ')}>
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            </div>
+          );
+        }
+        return null;
+      }
     }
   ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors]);
   if (loading) {

@@ -1008,16 +1008,6 @@ export function AssetDataEntry() {
           <p className="text-green-800 text-xs font-medium whitespace-pre-line">{success}</p>
         </div>
       )}
-      {importValidationErrors.length > 0 && (
-        <div className="mb-2 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-2 max-h-40 overflow-y-auto">
-          <p className="text-yellow-900 text-xs font-bold mb-1">{t('validationErrors')} ({importValidationErrors.length}):</p>
-          <ul className="list-disc list-inside space-y-0.5">
-            {importValidationErrors.map((err, idx) => (
-              <li key={idx} className="text-yellow-800 text-xs">{err}</li>
-            ))}
-          </ul>
-        </div>
-      )}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="border-b border-gray-200 bg-gray-50 p-1.5">
           <div className="mb-1.5">
@@ -1044,7 +1034,7 @@ export function AssetDataEntry() {
             />
             <datalist id="building-list">
               {buildings.map(building => (
-                <option key={building.id} value={building.building_number}>
+                <option key={building.building_number} value={building.building_number}>
                   בניין {building.building_number}
                 </option>
               ))}

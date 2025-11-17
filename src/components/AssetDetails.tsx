@@ -204,10 +204,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               <label className="text-xs sm:text-sm font-medium text-slate-600">{t('buildingNumber')}</label>
               <p className="text-base sm:text-lg text-slate-900">{asset.building_number}</p>
             </div>
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-slate-600">{t('totalSize')}</label>
-              <p className="text-xl sm:text-2xl font-bold text-teal-600">{asset.asset_size.toLocaleString()}</p>
-            </div>
           </div>
         </div>
 

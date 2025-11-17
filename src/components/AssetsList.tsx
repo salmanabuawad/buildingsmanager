@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { assetValidators } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save } from 'lucide-react';
@@ -99,6 +99,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       const assetId = data.id;
       const newValue = event.newValue;
 
+      // Create updated asset with new value
+      const updatedAsset = { ...data, [field]: newValue };
+
       // Track the change in dirtyAssets
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
@@ -107,19 +110,147 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return newMap;
       });
 
-      // Update the display data
+      // Clear previous validation errors for this asset
+      setValidationErrors(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(assetId);
+        return newMap;
+      });
+
+      // Validate measurement_date format if changed
+      if (field === 'measurement_date' && updatedAsset.measurement_date) {
+        const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
+        if (!dateValidation.valid) {
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const errors = new Set<string>();
+            errors.add('measurement_date');
+            newMap.set(assetId, errors);
+            return newMap;
+          });
+          setError(dateValidation.error || 'Invalid date format');
+          setTimeout(() => setError(null), 3000);
+          // Still update the display to show the invalid value
+          setDisplayAssets(prevAssets =>
+            prevAssets.map(asset =>
+              asset.id === assetId ? updatedAsset : asset
+            )
+          );
+          setMasterAssets(prevMasterAssets =>
+            prevMasterAssets.map(asset =>
+              asset.id === assetId ? updatedAsset : asset
+            )
+          );
+          event.api.refreshCells({ rowNodes: [event.node!], force: true });
+          return;
+        }
+      }
+
+      // Build comprehensive validation list
+      const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
+      const validations = [
+        assetValidators.validateBuildingNumber(updatedAsset.building_number),
+        assetValidators.validateAssetId(updatedAsset.asset_id),
+        assetValidators.validatePayerId(updatedAsset.payer_id),
+        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
+        assetValidators.validateMainAssetTypeForBuilding(updatedAsset.building_number, updatedAsset.main_asset_type),
+      ];
+
+      if (shouldValidateSubAssets) {
+        validations.push(
+          assetValidators.validateMinimumSubAssets([
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ])
+        );
+      }
+
+      validations.push(
+        assetValidators.validateSubAssetSizeMatchesMain(
+          updatedAsset.asset_size,
+          [
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ],
+          [
+            updatedAsset.sub_asset_size_1,
+            updatedAsset.sub_asset_size_2,
+            updatedAsset.sub_asset_size_3,
+            updatedAsset.sub_asset_size_4,
+            updatedAsset.sub_asset_size_5,
+            updatedAsset.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateSubAssetsFor199Or299(
+          updatedAsset.building_number,
+          updatedAsset.main_asset_type,
+          updatedAsset.asset_size,
+          [
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ],
+          [
+            updatedAsset.sub_asset_size_1,
+            updatedAsset.sub_asset_size_2,
+            updatedAsset.sub_asset_size_3,
+            updatedAsset.sub_asset_size_4,
+            updatedAsset.sub_asset_size_5,
+            updatedAsset.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_3, 'sub_asset_type_3'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
+      );
+
+      // Run all validations
+      const validation = await validateAll(validations);
+
+      if (!validation.valid) {
+        const detailedError = validation.error || 'Unknown validation error';
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          const errors = new Set<string>();
+          errors.add(field);
+          newMap.set(assetId, errors);
+          return newMap;
+        });
+        setError(detailedError);
+        setTimeout(() => setError(null), 5000);
+      }
+
+      // Update the display data with the new value
       setDisplayAssets(prevAssets =>
         prevAssets.map(asset =>
-          asset.id === assetId ? { ...asset, [field]: newValue } : asset
+          asset.id === assetId ? updatedAsset : asset
         )
       );
 
       // Also update masterAssets if this is a master row
       setMasterAssets(prevMasterAssets =>
         prevMasterAssets.map(asset =>
-          asset.id === assetId ? { ...asset, [field]: newValue } : asset
+          asset.id === assetId ? updatedAsset : asset
         )
       );
+
+      // Refresh the grid cells to show validation styling
+      event.api.refreshCells({ rowNodes: [event.node!], force: true });
+
     } catch (error) {
       console.error('Error tracking change:', error);
       setError('Failed to track change');

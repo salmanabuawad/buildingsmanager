@@ -65,13 +65,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const assetId = data.id;
       let newValue = event.newValue;
 
-      // If measurement_date is empty or blank, set it to current date
+      // If measurement_date is empty or blank, restore original value
       if (field === 'measurement_date' && (!newValue || newValue.trim() === '')) {
-        const today = new Date();
-        const day = String(today.getDate()).padStart(2, '0');
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const year = today.getFullYear();
-        newValue = `${day}/${month}/${year}`;
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        return;
       }
 
       const updatedAsset = { ...data, [field]: newValue };
@@ -188,6 +185,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           newMap.set(assetId, errorMap);
           return newMap;
         });
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        return;
       }
 
       // Update allMeasurements to show the edited value

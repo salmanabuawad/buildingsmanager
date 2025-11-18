@@ -46,13 +46,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -65,13 +65,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -84,13 +84,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -103,13 +103,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -122,13 +122,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -141,13 +141,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -160,13 +160,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 150,
-      minWidth: 150,
-      valueFormatter: (params) => {
+      width: 100,
+      minWidth: 100,
+      tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
         const assetType = assetTypes.find(at => at.name === code);
-        return assetType?.description ? `${code} - ${assetType.description}` : code;
+        return assetType?.description || code;
       },
     },
     {
@@ -298,6 +298,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
                 enableRtl={true}
                 animateRows={true}
+                tooltipShowDelay={200}
+                tooltipHideDelay={10000}
               />
             </div>
           </div>

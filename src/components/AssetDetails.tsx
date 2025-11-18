@@ -101,12 +101,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           });
           setError(dateValidation.error || 'Invalid date format');
           setTimeout(() => setError(null), 3000);
-          // Update allMeasurements even for invalid values
-          setAllMeasurements(prevAssets =>
-            prevAssets.map(asset =>
-              asset.id === assetId ? updatedAsset : asset
-            )
-          );
           event.api.refreshCells({ rowNodes: [event.node!], force: true });
           return;
         }

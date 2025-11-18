@@ -345,7 +345,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('measurementDate'),
       width: 130,
       minWidth: 130,
-      editable: false,
+      editable: (params) => params.data.id === latestMeasurementId,
     },
     {
       field: 'payer_id',

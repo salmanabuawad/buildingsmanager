@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 interface AssetsListProps {
@@ -24,6 +24,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
+  const [originalDisplayAssets, setOriginalDisplayAssets] = useState<Asset[]>([]);
+  const [originalMasterAssets, setOriginalMasterAssets] = useState<Asset[]>([]);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [success, setSuccess] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Map<string, Map<string, string>>>(new Map());
@@ -43,7 +45,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       }
     }
     setDisplayAssets(display);
-  }, [masterAssets, assets, expandedRows]);
+    // Store original data only if dirtyAssets is empty (initial load or after save)
+    if (dirtyAssets.size === 0) {
+      setOriginalDisplayAssets(JSON.parse(JSON.stringify(display)));
+      setOriginalMasterAssets(JSON.parse(JSON.stringify(masterAssets)));
+    }
+  }, [masterAssets, assets, expandedRows, dirtyAssets.size]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
@@ -891,7 +898,23 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             <p className="text-green-800 text-sm font-medium">{success}</p>
           </div>
         )}
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex justify-end gap-2">
+          <button
+            onClick={() => {
+              setDisplayAssets(JSON.parse(JSON.stringify(originalDisplayAssets)));
+              setMasterAssets(JSON.parse(JSON.stringify(originalMasterAssets)));
+              setDirtyAssets(new Map());
+              setValidationErrors(new Map());
+              setError(null);
+              setSuccess('השינויים בוטלו');
+              setTimeout(() => setSuccess(null), 3000);
+            }}
+            disabled={loading || dirtyAssets.size === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          >
+            <X className="h-4 w-4" />
+            ביטול
+          </button>
           <button
             onClick={handleSaveAll}
             disabled={loading || dirtyAssets.size === 0}

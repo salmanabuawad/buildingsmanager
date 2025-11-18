@@ -6,8 +6,6 @@ import { MeasurementHistory } from './MeasurementHistory';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface AssetDetailsProps {
   assetId: number;
@@ -26,103 +24,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedAsset, setEditedAsset] = useState<Partial<Asset>>({});
   const gridRef = useRef<AgGridReact<Asset>>(null);
-
-  useEffect(() => {
-    fetchData();
-  }, [assetId]);
-
-  async function fetchData() {
-    try {
-      setLoading(true);
-
-      const [assetData, assetTypesData] = await Promise.all([
-        api.assets.getOne(String(assetId)),
-        api.assetTypes.getAll()
-      ]);
-
-      if (!assetData) throw new Error('Asset not found');
-
-      setAsset(assetData);
-      setEditedAsset(assetData);
-      setAssetTypes(assetTypesData || []);
-
-      const buildingData = await api.buildings.getOne(assetData.building_number);
-      setBuilding(buildingData);
-
-      const allAssetMeasurements = await api.assets.getAllByAssetId(String(assetData.asset_id), assetData.building_number);
-      setAllMeasurements(allAssetMeasurements || []);
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load asset details');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function startEdit() {
-    if (asset) {
-      setEditedAsset({ ...asset });
-      setIsEditing(true);
-    }
-  }
-
-  function cancelEdit() {
-    if (asset) {
-      setEditedAsset({ ...asset });
-      setIsEditing(false);
-    }
-  }
-
-  async function saveEdit() {
-    try {
-      await api.assets.update(String(assetId), editedAsset);
-      await fetchData();
-      setIsEditing(false);
-      setToast({ message: t('assetUpdatedSuccessfully'), type: 'success' });
-      if (onDataUpdate) {
-        onDataUpdate();
-      }
-    } catch (err) {
-      setToast({
-        message: err instanceof Error ? err.message : 'Failed to update asset',
-        type: 'error'
-      });
-    }
-  }
-
-  function updateField(field: keyof Asset, value: any) {
-    setEditedAsset(prev => ({ ...prev, [field]: value }));
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
-          <p className="mt-4 text-slate-700 font-medium">{t('loadingDetails')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !asset) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <p className="text-red-800">{t('error')}: {error || 'Asset not found'}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const subAssets = [
-    { type: asset.sub_asset_type_1, size: asset.sub_asset_size_1 },
-    { type: asset.sub_asset_type_2, size: asset.sub_asset_size_2 },
-    { type: asset.sub_asset_type_3, size: asset.sub_asset_size_3 },
-    { type: asset.sub_asset_type_4, size: asset.sub_asset_size_4 },
-    { type: asset.sub_asset_type_5, size: asset.sub_asset_size_5 },
-    { type: asset.sub_asset_type_6, size: asset.sub_asset_size_6 },
-  ].filter(sub => sub.type && sub.size > 0);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -277,6 +178,103 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
     },
   ], [t, assetTypes]);
+
+  useEffect(() => {
+    fetchData();
+  }, [assetId]);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
+
+      const [assetData, assetTypesData] = await Promise.all([
+        api.assets.getOne(String(assetId)),
+        api.assetTypes.getAll()
+      ]);
+
+      if (!assetData) throw new Error('Asset not found');
+
+      setAsset(assetData);
+      setEditedAsset(assetData);
+      setAssetTypes(assetTypesData || []);
+
+      const buildingData = await api.buildings.getOne(assetData.building_number);
+      setBuilding(buildingData);
+
+      const allAssetMeasurements = await api.assets.getAllByAssetId(String(assetData.asset_id), assetData.building_number);
+      setAllMeasurements(allAssetMeasurements || []);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load asset details');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function startEdit() {
+    if (asset) {
+      setEditedAsset({ ...asset });
+      setIsEditing(true);
+    }
+  }
+
+  function cancelEdit() {
+    if (asset) {
+      setEditedAsset({ ...asset });
+      setIsEditing(false);
+    }
+  }
+
+  async function saveEdit() {
+    try {
+      await api.assets.update(String(assetId), editedAsset);
+      await fetchData();
+      setIsEditing(false);
+      setToast({ message: t('assetUpdatedSuccessfully'), type: 'success' });
+      if (onDataUpdate) {
+        onDataUpdate();
+      }
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to update asset',
+        type: 'error'
+      });
+    }
+  }
+
+  function updateField(field: keyof Asset, value: any) {
+    setEditedAsset(prev => ({ ...prev, [field]: value }));
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
+          <p className="mt-4 text-slate-700 font-medium">{t('loadingDetails')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !asset) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <p className="text-red-800">{t('error')}: {error || 'Asset not found'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const subAssets = [
+    { type: asset.sub_asset_type_1, size: asset.sub_asset_size_1 },
+    { type: asset.sub_asset_type_2, size: asset.sub_asset_size_2 },
+    { type: asset.sub_asset_type_3, size: asset.sub_asset_size_3 },
+    { type: asset.sub_asset_type_4, size: asset.sub_asset_size_4 },
+    { type: asset.sub_asset_type_5, size: asset.sub_asset_size_5 },
+    { type: asset.sub_asset_type_6, size: asset.sub_asset_size_6 },
+  ].filter(sub => sub.type && sub.size > 0);
 
   return (
     <>
@@ -484,11 +482,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
               {t('measurementHistory')} ({allMeasurements.length})
             </h2>
-            <div className="ag-theme-alpine" style={{ width: '100%', height: '500px' }} dir="rtl">
+            <div style={{ width: '100%', height: '500px' }} dir="rtl">
               <AgGridReact<Asset>
                 ref={gridRef}
                 rowData={allMeasurements}
                 columnDefs={columnDefs}
+                theme="legacy"
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,

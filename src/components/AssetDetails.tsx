@@ -253,12 +253,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     const day = String(today.getDate()).padStart(2, '0');
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const year = today.getFullYear();
-    const newMeasurementDate = `${day}/${month}/${year}`;
-
-    // Use current date if measurement_date is blank, otherwise use the existing date
-    const measurementDate = !latestRow.measurement_date || latestRow.measurement_date.trim() === ''
-      ? newMeasurementDate
-      : latestRow.measurement_date;
+    const measurementDate = `${day}/${month}/${year}`;
 
     const newMeasurement = {
       asset_id: latestRow.asset_id,

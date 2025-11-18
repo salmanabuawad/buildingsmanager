@@ -589,43 +589,39 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 {t('measurementHistory')} ({allMeasurements.length})
               </h2>
               <div className="flex gap-2">
-                {hasChanges && (
-                  <>
-                    <button
-                      onClick={handleSaveChanges}
-                      disabled={isSaving || validationErrors.size > 0}
-                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                      title={validationErrors.size > 0 ? 'Fix errors before saving' : 'Save changes'}
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
-                      )}
-                      <span className="hidden sm:inline text-sm">Save</span>
-                    </button>
-                    <button
-                      onClick={handleCancelChanges}
-                      disabled={isSaving}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="hidden sm:inline text-sm">Cancel</span>
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={handleSaveChanges}
+                  disabled={isSaving || !hasChanges || validationErrors.size > 0}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : 'שמור שינויים'}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  <span className="text-sm">{t('save')}</span>
+                </button>
+                <button
+                  onClick={handleCancelChanges}
+                  disabled={isSaving || !hasChanges}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="text-sm">{t('cancel')}</span>
+                </button>
                 <button
                   onClick={handleNewMeasurement}
                   disabled={isSaving || hasChanges}
                   className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title={hasChanges ? 'Save or cancel changes first' : 'Create new measurement'}
+                  title={hasChanges ? 'שמור או בטל שינויים תחילה' : 'צור מדידה חדשה'}
                 >
                   {isSaving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline text-sm">{t('newMeasurement')}</span>
+                  <span className="text-sm">{t('newMeasurement')}</span>
                 </button>
               </div>
             </div>

@@ -260,7 +260,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   async function handleNewMeasurement() {
     if (!asset || !building) return;
 
-    const latestRow = allMeasurements[0];
+    // Use original data, not edited data
+    const latestRow = originalMeasurements[0];
     if (!latestRow) {
       setToast({ message: 'No existing measurement to copy', type: 'error' });
       return;
@@ -272,11 +273,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     const year = today.getFullYear();
     const measurementDate = `${day}/${month}/${year}`;
 
+    // Ensure payer_id is not undefined
+    const payerId = latestRow.payer_id || '';
+
     const newMeasurement = {
       asset_id: latestRow.asset_id,
       building_number: latestRow.building_number,
       measurement_date: measurementDate,
-      payer_id: latestRow.payer_id,
+      payer_id: payerId,
       main_asset_type: latestRow.main_asset_type,
       asset_size: latestRow.asset_size,
       sub_asset_type_1: latestRow.sub_asset_type_1,

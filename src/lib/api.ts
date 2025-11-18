@@ -9,6 +9,7 @@ export interface Building {
   total_building_area: number;
   total_area_for_control?: number;
   shared_area?: number;
+  has_elevator: boolean;
   created_at: string;
 }
 

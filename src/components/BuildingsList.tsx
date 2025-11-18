@@ -252,6 +252,23 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'has_elevator',
+      headerName: 'מעלית',
+      flex: 1,
+      editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['true', 'false']
+      },
+      valueFormatter: (params) => params.value ? 'כן' : 'לא',
+      valueParser: (params) => {
+        if (params.newValue === 'true' || params.newValue === true) return true;
+        if (params.newValue === 'false' || params.newValue === false) return false;
+        return params.newValue;
+      },
+      cellStyle: { textAlign: 'right' }
     }
   ], [onSelectBuilding, t, invalidTaxRegions]);
 

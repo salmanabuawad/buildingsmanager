@@ -60,7 +60,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('mainAssetSize'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_1',
@@ -79,7 +79,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize1'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_2',
@@ -98,7 +98,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize2'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_3',
@@ -117,7 +117,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize3'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_4',
@@ -136,7 +136,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize4'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_5',
@@ -155,7 +155,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize5'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_6',
@@ -174,7 +174,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize6'),
       width: 120,
       minWidth: 120,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
   ], [t, assetTypes]);
 

@@ -534,27 +534,24 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         const hasDrawing = !!asset.structure_drawing_url;
-        const isLatest = asset.id === latestMeasurementId;
 
         return (
           <div className="flex items-center gap-2 h-full">
-            {isLatest && (
-              <label className="flex items-center gap-1 px-2 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-sm">
-                <Upload className="h-3 w-3" />
-                <span>{t('upload')}</span>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleFileUpload(asset.id, file);
-                    }
-                  }}
-                />
-              </label>
-            )}
+            <label className="flex items-center gap-1 px-2 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-sm">
+              <Upload className="h-3 w-3" />
+              <span>{t('upload')}</span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(asset.id, file);
+                  }
+                }}
+              />
+            </label>
             {hasDrawing && (
               <button
                 onClick={() => handleViewDrawing(asset.structure_drawing_url!)}

@@ -24,6 +24,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
   const latestMeasurementId = useMemo(() => {
@@ -94,32 +95,143 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   }
 
   async function handleCellValueChanged(params: any) {
-    const { data, colDef, newValue } = params;
+    const { data, colDef, newValue, oldValue, node } = params;
     const field = colDef.field;
     const cellKey = getCellKey(data.id, field);
 
+    console.log('Cell value changed:', { field, newValue, oldValue });
+
     const result = await validateCell(data.id, field, newValue, data);
+    console.log('Validation result:', result);
+
+    if (!result.valid) {
+      setCellErrors(prev => ({
+        ...prev,
+        [cellKey]: result.error || 'Validation failed'
+      }));
+
+      data[field] = oldValue;
+      node.setData(data);
+
+      gridRef.current?.api.refreshCells({
+        rowNodes: [node],
+        columns: [field],
+        force: true
+      });
+
+      setToast({ message: result.error || 'Validation failed', type: 'error' });
+      return;
+    }
 
     setCellErrors(prev => {
       const updated = { ...prev };
-      if (result.valid) {
-        delete updated[cellKey];
-      } else {
-        updated[cellKey] = result.error || 'Validation failed';
-      }
+      delete updated[cellKey];
       return updated;
     });
 
-    if (!result.valid) {
-      setToast({ message: result.error || 'Validation failed', type: 'error' });
-    } else {
-      try {
-        await api.assets.update(data.id, { [field]: newValue });
-        setToast({ message: t('updatedSuccessfully'), type: 'success' });
-        if (onDataUpdate) onDataUpdate();
-      } catch (error) {
-        setToast({ message: error instanceof Error ? error.message : 'Failed to update', type: 'error' });
-      }
+    gridRef.current?.api.refreshCells({
+      rowNodes: [node],
+      columns: [field],
+      force: true
+    });
+
+    try {
+      await api.assets.update(data.id, { [field]: newValue });
+      setToast({ message: t('updatedSuccessfully'), type: 'success' });
+      if (onDataUpdate) onDataUpdate();
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Failed to update', type: 'error' });
+
+      data[field] = oldValue;
+      node.setData(data);
+      gridRef.current?.api.refreshCells({
+        rowNodes: [node],
+        columns: [field],
+        force: true
+      });
+    }
+  }
+
+  async function handleUpdateRecord() {
+    if (!latestMeasurementId || Object.keys(cellErrors).length > 0) {
+      setToast({
+        message: Object.keys(cellErrors).length > 0
+          ? 'אנא תקן את כל השגיאות לפני השמירה'
+          : 'אין רשומה לעדכון',
+        type: 'error'
+      });
+      return;
+    }
+
+    const latestRow = allMeasurements.find(m => m.id === latestMeasurementId);
+    if (!latestRow) return;
+
+    setIsSaving(true);
+    try {
+      await api.assets.update(latestRow.id, latestRow);
+      setToast({ message: 'הרשומה עודכנה בהצלחה', type: 'success' });
+      if (onDataUpdate) onDataUpdate();
+      await fetchData();
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'שגיאה בעדכון הרשומה',
+        type: 'error'
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleNewMeasurement() {
+    if (!asset || !building) return;
+
+    const latestRow = allMeasurements[0];
+    if (!latestRow) {
+      setToast({ message: 'לא נמצאה מדידה קיימת להעתקה', type: 'error' });
+      return;
+    }
+
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const newMeasurementDate = `${day}/${month}/${year}`;
+
+    const newMeasurement = {
+      asset_id: latestRow.asset_id,
+      building_number: latestRow.building_number,
+      measurement_date: newMeasurementDate,
+      payer_id: latestRow.payer_id,
+      main_asset_type: latestRow.main_asset_type,
+      asset_size: latestRow.asset_size,
+      sub_asset_type_1: latestRow.sub_asset_type_1,
+      sub_asset_size_1: latestRow.sub_asset_size_1,
+      sub_asset_type_2: latestRow.sub_asset_type_2,
+      sub_asset_size_2: latestRow.sub_asset_size_2,
+      sub_asset_type_3: latestRow.sub_asset_type_3,
+      sub_asset_size_3: latestRow.sub_asset_size_3,
+      sub_asset_type_4: latestRow.sub_asset_type_4,
+      sub_asset_size_4: latestRow.sub_asset_size_4,
+      sub_asset_type_5: latestRow.sub_asset_type_5,
+      sub_asset_size_5: latestRow.sub_asset_size_5,
+      sub_asset_type_6: latestRow.sub_asset_type_6,
+      sub_asset_size_6: latestRow.sub_asset_size_6,
+    };
+
+    setIsSaving(true);
+    try {
+      await api.assets.create(newMeasurement);
+      setToast({ message: 'מדידה חדשה נוצרה בהצלחה', type: 'success' });
+      if (onDataUpdate) onDataUpdate();
+      await fetchData();
+      setCellErrors({});
+    } catch (error) {
+      setToast({
+        message: error instanceof Error ? error.message : 'שגיאה ביצירת מדידה חדשה',
+        type: 'error'
+      });
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -397,17 +509,28 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               </h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setToast({ message: 'Update record functionality coming soon', type: 'info' })}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  onClick={handleUpdateRecord}
+                  disabled={isSaving || Object.keys(cellErrors).length > 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  title={Object.keys(cellErrors).length > 0 ? 'תקן שגיאות לפני שמירה' : ''}
                 >
-                  <Edit2 className="h-5 w-5" />
+                  {isSaving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Edit2 className="h-5 w-5" />
+                  )}
                   <span className="hidden sm:inline">{t('updateRecord')}</span>
                 </button>
                 <button
-                  onClick={() => setToast({ message: 'New measurement functionality coming soon', type: 'info' })}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                  onClick={handleNewMeasurement}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                 >
-                  <Plus className="h-5 w-5" />
+                  {isSaving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Plus className="h-5 w-5" />
+                  )}
                   <span className="hidden sm:inline">{t('newMeasurement')}</span>
                 </button>
               </div>

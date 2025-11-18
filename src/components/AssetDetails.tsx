@@ -1,13 +1,13 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Edit2, Plus } from 'lucide-react';
+import { Home, Loader2, Save, X, Plus } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, CellClassParams, ValueSetterParams } from 'ag-grid-community';
+import { ColDef, CellClassParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { assetValidators, ValidationResult } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 
 interface AssetDetailsProps {
   assetId: number;
@@ -23,7 +23,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
-  const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
+  const [dirtyAssets, setDirtyAssets] = useState<Map<number, Partial<Asset>>>(new Map());
+  const [validationErrors, setValidationErrors] = useState<Map<number, Map<string, string>>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
@@ -32,154 +33,193 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     return allMeasurements[0]?.id;
   }, [allMeasurements]);
 
-  const getCellKey = (rowId: number, field: string) => `${rowId}_${field}`;
-
   const cellClassRules = {
     'ag-cell-error': (params: CellClassParams) => {
       if (params.data.id !== latestMeasurementId) return false;
-      const cellKey = getCellKey(params.data.id, params.colDef.field || '');
-      return !!cellErrors[cellKey];
+      const assetErrors = validationErrors.get(params.data.id);
+      if (!assetErrors) return false;
+      return assetErrors.has(params.colDef.field || '');
     }
   };
 
-  async function validateCell(rowId: number, field: string, value: any, rowData: Asset): Promise<ValidationResult> {
-    if (!building) return { valid: true };
-
-    switch (field) {
-      case 'payer_id':
-        return await assetValidators.validatePayerId(value);
-
-      case 'main_asset_type':
-        const mainTypeResult = await assetValidators.validateAssetType(value, field);
-        if (!mainTypeResult.valid) return mainTypeResult;
-        return await assetValidators.validateMainAssetTypeForBuilding(building.building_number, value);
-
-      case 'asset_size':
-        const sizeResult = await assetValidators.validateSize(value, field);
-        if (!sizeResult.valid) return sizeResult;
-
-        const subTypes = [
-          rowData.sub_asset_type_1, rowData.sub_asset_type_2, rowData.sub_asset_type_3,
-          rowData.sub_asset_type_4, rowData.sub_asset_type_5, rowData.sub_asset_type_6
-        ];
-        const subSizes = [
-          rowData.sub_asset_size_1, rowData.sub_asset_size_2, rowData.sub_asset_size_3,
-          rowData.sub_asset_size_4, rowData.sub_asset_size_5, rowData.sub_asset_size_6
-        ];
-
-        return await assetValidators.validateSubAssetSizeMatchesMain(value, subTypes, subSizes);
-
-      case 'sub_asset_type_1':
-      case 'sub_asset_type_2':
-      case 'sub_asset_type_3':
-      case 'sub_asset_type_4':
-      case 'sub_asset_type_5':
-      case 'sub_asset_type_6':
-        if (!value) return { valid: true };
-        const subTypeResult = await assetValidators.validateAssetType(value, field);
-        if (!subTypeResult.valid) return subTypeResult;
-        return await assetValidators.validateMainAssetTypeForBuilding(building.building_number, value);
-
-      case 'sub_asset_size_1':
-      case 'sub_asset_size_2':
-      case 'sub_asset_size_3':
-      case 'sub_asset_size_4':
-      case 'sub_asset_size_5':
-      case 'sub_asset_size_6':
-        if (!value) return { valid: true };
-        return await assetValidators.validateSize(value, field);
-
-      default:
-        return { valid: true };
-    }
-  }
-
-  async function handleCellValueChanged(params: any) {
-    const { data, colDef, newValue, oldValue, node } = params;
-    const field = colDef.field;
-    const cellKey = getCellKey(data.id, field);
-
-    console.log('Cell value changed:', { field, newValue, oldValue });
-
-    const result = await validateCell(data.id, field, newValue, data);
-    console.log('Validation result:', result);
-
-    if (!result.valid) {
-      setCellErrors(prev => ({
-        ...prev,
-        [cellKey]: result.error || 'Validation failed'
-      }));
-
-      data[field] = oldValue;
-      node.setData(data);
-
-      gridRef.current?.api.refreshCells({
-        rowNodes: [node],
-        columns: [field],
-        force: true
-      });
-
-      setToast({ message: result.error || 'Validation failed', type: 'error' });
-      return;
-    }
-
-    setCellErrors(prev => {
-      const updated = { ...prev };
-      delete updated[cellKey];
-      return updated;
-    });
-
-    gridRef.current?.api.refreshCells({
-      rowNodes: [node],
-      columns: [field],
-      force: true
-    });
-
+  const onCellValueChanged = useCallback(async (event: any) => {
     try {
-      await api.assets.update(data.id, { [field]: newValue });
-      setToast({ message: t('updatedSuccessfully'), type: 'success' });
-      if (onDataUpdate) onDataUpdate();
-    } catch (error) {
-      setToast({ message: error instanceof Error ? error.message : 'Failed to update', type: 'error' });
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const assetId = data.id;
+      const newValue = event.newValue;
 
-      data[field] = oldValue;
-      node.setData(data);
-      gridRef.current?.api.refreshCells({
-        rowNodes: [node],
-        columns: [field],
-        force: true
+      const updatedAsset = { ...data, [field]: newValue };
+
+      setDirtyAssets(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(assetId) || {};
+        newMap.set(assetId, { ...existing, [field]: newValue });
+        return newMap;
       });
+
+      setValidationErrors(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(assetId);
+        return newMap;
+      });
+
+      if (field === 'measurement_date' && updatedAsset.measurement_date) {
+        const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
+        if (!dateValidation.valid) {
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const errorMap = new Map<string, string>();
+            errorMap.set('measurement_date', dateValidation.error || 'Invalid date format');
+            newMap.set(assetId, errorMap);
+            return newMap;
+          });
+          setError(dateValidation.error || 'Invalid date format');
+          setTimeout(() => setError(null), 3000);
+          setAllMeasurements(prevAssets =>
+            prevAssets.map(asset =>
+              asset.id === assetId ? updatedAsset : asset
+            )
+          );
+          event.api.refreshCells({ rowNodes: [event.node!], force: true });
+          return;
+        }
+      }
+
+      const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
+      const validations = [
+        assetValidators.validateBuildingNumber(updatedAsset.building_number),
+        assetValidators.validateAssetId(updatedAsset.asset_id),
+        assetValidators.validatePayerId(updatedAsset.payer_id),
+        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
+        assetValidators.validateMainAssetTypeForBuilding(updatedAsset.building_number, updatedAsset.main_asset_type),
+      ];
+
+      if (shouldValidateSubAssets) {
+        validations.push(
+          assetValidators.validateMinimumSubAssets([
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ])
+        );
+      }
+
+      validations.push(
+        assetValidators.validateSubAssetSizeMatchesMain(
+          updatedAsset.asset_size,
+          [
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ],
+          [
+            updatedAsset.sub_asset_size_1,
+            updatedAsset.sub_asset_size_2,
+            updatedAsset.sub_asset_size_3,
+            updatedAsset.sub_asset_size_4,
+            updatedAsset.sub_asset_size_5,
+            updatedAsset.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateSubAssetsFor199Or299(
+          updatedAsset.building_number,
+          updatedAsset.main_asset_type,
+          updatedAsset.asset_size,
+          [
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ],
+          [
+            updatedAsset.sub_asset_size_1,
+            updatedAsset.sub_asset_size_2,
+            updatedAsset.sub_asset_size_3,
+            updatedAsset.sub_asset_size_4,
+            updatedAsset.sub_asset_size_5,
+            updatedAsset.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_3, 'sub_asset_type_3'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
+      );
+
+      const validation = await validateAll(validations);
+
+      if (!validation.valid) {
+        const detailedError = validation.error || 'Unknown validation error';
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          const errorMap = new Map<string, string>();
+          errorMap.set(field, detailedError);
+          newMap.set(assetId, errorMap);
+          return newMap;
+        });
+        setError(detailedError);
+        setTimeout(() => setError(null), 5000);
+      }
+
+      setAllMeasurements(prevAssets =>
+        prevAssets.map(asset =>
+          asset.id === assetId ? updatedAsset : asset
+        )
+      );
+
+      event.api.refreshCells({ rowNodes: [event.node!], force: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Validation error');
+      setTimeout(() => setError(null), 3000);
     }
-  }
+  }, []);
 
-  async function handleUpdateRecord() {
-    if (!latestMeasurementId || Object.keys(cellErrors).length > 0) {
-      setToast({
-        message: Object.keys(cellErrors).length > 0
-          ? 'אנא תקן את כל השגיאות לפני השמירה'
-          : 'אין רשומה לעדכון',
-        type: 'error'
-      });
+  const hasChanges = dirtyAssets.size > 0;
+
+  async function handleSaveChanges() {
+    if (validationErrors.size > 0) {
+      setError('Please fix all validation errors before saving');
       return;
     }
 
-    const latestRow = allMeasurements.find(m => m.id === latestMeasurementId);
-    if (!latestRow) return;
+    if (dirtyAssets.size === 0) {
+      setToast({ message: 'No changes to save', type: 'info' });
+      return;
+    }
 
     setIsSaving(true);
     try {
-      await api.assets.update(latestRow.id, latestRow);
-      setToast({ message: 'הרשומה עודכנה בהצלחה', type: 'success' });
+      for (const [assetId, changes] of dirtyAssets.entries()) {
+        await api.assets.update(assetId, changes);
+      }
+
+      setToast({ message: t('updatedSuccessfully'), type: 'success' });
+      setDirtyAssets(new Map());
+      setValidationErrors(new Map());
       if (onDataUpdate) onDataUpdate();
       await fetchData();
-    } catch (error) {
-      setToast({
-        message: error instanceof Error ? error.message : 'שגיאה בעדכון הרשומה',
-        type: 'error'
-      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleCancelChanges() {
+    setDirtyAssets(new Map());
+    setValidationErrors(new Map());
+    fetchData();
   }
 
   async function handleNewMeasurement() {
@@ -187,7 +227,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
     const latestRow = allMeasurements[0];
     if (!latestRow) {
-      setToast({ message: 'לא נמצאה מדידה קיימת להעתקה', type: 'error' });
+      setToast({ message: 'No existing measurement to copy', type: 'error' });
       return;
     }
 
@@ -221,13 +261,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setIsSaving(true);
     try {
       await api.assets.create(newMeasurement);
-      setToast({ message: 'מדידה חדשה נוצרה בהצלחה', type: 'success' });
+      setToast({ message: 'New measurement created successfully', type: 'success' });
+      setDirtyAssets(new Map());
+      setValidationErrors(new Map());
       if (onDataUpdate) onDataUpdate();
       await fetchData();
-      setCellErrors({});
     } catch (error) {
       setToast({
-        message: error instanceof Error ? error.message : 'שגיאה ביצירת מדידה חדשה',
+        message: error instanceof Error ? error.message : 'Failed to create new measurement',
         type: 'error'
       });
     } finally {
@@ -501,30 +542,43 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 {t('measurementHistory')} ({allMeasurements.length})
               </h2>
               <div className="flex gap-2">
-                <button
-                  onClick={handleUpdateRecord}
-                  disabled={isSaving || Object.keys(cellErrors).length > 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title={Object.keys(cellErrors).length > 0 ? 'תקן שגיאות לפני שמירה' : ''}
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Edit2 className="h-5 w-5" />
-                  )}
-                  <span className="hidden sm:inline">{t('updateRecord')}</span>
-                </button>
+                {hasChanges && (
+                  <>
+                    <button
+                      onClick={handleSaveChanges}
+                      disabled={isSaving || validationErrors.size > 0}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                      title={validationErrors.size > 0 ? 'Fix errors before saving' : 'Save changes'}
+                    >
+                      {isSaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      <span className="hidden sm:inline text-sm">Save</span>
+                    </button>
+                    <button
+                      onClick={handleCancelChanges}
+                      disabled={isSaving}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="hidden sm:inline text-sm">Cancel</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={handleNewMeasurement}
-                  disabled={isSaving}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  disabled={isSaving || hasChanges}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  title={hasChanges ? 'Save or cancel changes first' : 'Create new measurement'}
                 >
                   {isSaving ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Plus className="h-5 w-5" />
+                    <Plus className="h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">{t('newMeasurement')}</span>
+                  <span className="hidden sm:inline text-sm">{t('newMeasurement')}</span>
                 </button>
               </div>
             </div>
@@ -542,7 +596,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 onGridReady={(params) => {
                   params.api.sizeColumnsToFit();
                 }}
-                onCellValueChanged={handleCellValueChanged}
+                onCellValueChanged={onCellValueChanged}
                 enableRtl={true}
                 animateRows={true}
                 tooltipShowDelay={200}

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
-import { Save, Plus, Trash2, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';

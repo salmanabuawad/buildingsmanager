@@ -453,7 +453,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
-  ], [t, assetTypes, latestMeasurementId, cellErrors]);
+  ], [t, assetTypes, latestMeasurementId, validationErrors]);
 
   useEffect(() => {
     fetchData();

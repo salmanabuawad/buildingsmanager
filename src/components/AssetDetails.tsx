@@ -345,7 +345,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
     },
     {
       field: 'main_asset_type',

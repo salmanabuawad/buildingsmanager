@@ -24,30 +24,39 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
+  const latestMeasurementId = useMemo(() => {
+    if (allMeasurements.length === 0) return null;
+    return allMeasurements[0]?.id;
+  }, [allMeasurements]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 130,
       minWidth: 130,
+      editable: false,
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
       width: 120,
       minWidth: 120,
+      editable: false,
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -60,6 +69,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('mainAssetSize'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -67,6 +77,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetType1'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -79,6 +90,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize1'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -86,6 +98,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetType2'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -98,6 +111,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize2'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -105,6 +119,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetType3'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -117,6 +132,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize3'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -124,6 +140,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetType4'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -136,6 +153,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize4'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -143,6 +161,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetType5'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -155,6 +174,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize5'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -162,6 +182,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetType6'),
       width: 100,
       minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -174,9 +195,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('subAssetSize6'),
       width: 120,
       minWidth: 120,
+      editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
-  ], [t, assetTypes]);
+  ], [t, assetTypes, latestMeasurementId]);
 
   useEffect(() => {
     fetchData();
@@ -289,8 +311,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,
-                  autoHeaderHeight: true,
-                  editable: false
+                  autoHeaderHeight: true
                 }}
                 getRowId={(params) => String(params.data.id)}
                 onGridReady={(params) => {

@@ -599,7 +599,12 @@ export const inputValidators = {
   },
 
   validateDateFormat: (value: string): ValidationResult => {
-    if (value === '') return { valid: true };
+    if (!value || value === '') {
+      return {
+        valid: false,
+        error: 'תאריך חובה'
+      };
+    }
 
     const match = value.match(patterns.dateFormat);
     if (!match) {

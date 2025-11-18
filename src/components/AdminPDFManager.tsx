@@ -4,8 +4,6 @@ import { Apartment, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Upload, FileCheck, FileX, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface ApartmentWithBuilding extends Apartment {
   building_name: string;

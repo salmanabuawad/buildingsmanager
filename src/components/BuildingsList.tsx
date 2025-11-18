@@ -5,8 +5,6 @@ import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2, Loader2 } from 'lucide-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;

@@ -5,8 +5,6 @@ import { loadValidationRules } from '../lib/validation';
 import { Settings, Plus, Save, X, RefreshCw } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 export function ValidationRulesManager() {
   const { t } = useTranslation();

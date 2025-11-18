@@ -5,8 +5,6 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2 } from 'lucide-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 interface AssetsListProps {
   buildingNumber: number;
   taxZone?: string;

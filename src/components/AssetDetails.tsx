@@ -654,7 +654,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,
-                  autoHeaderHeight: true
+                  autoHeaderHeight: true,
+                  sortable: false
                 }}
                 getRowId={(params) => String(params.data.id)}
                 getRowStyle={getRowStyle}

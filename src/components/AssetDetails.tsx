@@ -244,13 +244,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       editable: false,
     },
     {
-      field: 'asset_id',
-      headerName: t('assetId'),
-      width: 120,
-      minWidth: 120,
-      editable: false,
-    },
-    {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,

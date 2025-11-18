@@ -183,8 +183,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           newMap.set(assetId, errorMap);
           return newMap;
         });
-        setError(detailedError);
-        setTimeout(() => setError(null), 5000);
       }
 
       setAllMeasurements(prevAssets =>
@@ -195,8 +193,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       event.api.refreshCells({ rowNodes: [event.node!], force: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Validation error');
-      setTimeout(() => setError(null), 3000);
+      console.error('Validation error:', err);
     }
   }, []);
 

@@ -673,9 +673,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
@@ -701,9 +701,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
@@ -729,9 +729,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
@@ -757,9 +757,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
@@ -785,9 +785,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
@@ -813,9 +813,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
@@ -841,9 +841,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '') return '';
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
-        return isNaN(num) ? '' : num.toFixed(2);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     },
@@ -1010,8 +1010,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               }, 100);
             }}
             animateRows={true}
-            pagination={true}
-            paginationPageSize={20}
             enableRtl={true}
             suppressHorizontalScroll={false}
           />

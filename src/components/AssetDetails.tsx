@@ -230,17 +230,26 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   }
 
   function handleCancelChanges() {
+    // Build list of rows to update with original data
+    const rowsToUpdate: Asset[] = [];
+
+    for (const [assetId] of dirtyAssets.entries()) {
+      const originalAsset = originalMeasurements.find(m => m.id === assetId);
+      if (originalAsset) {
+        rowsToUpdate.push({ ...originalAsset });
+      }
+    }
+
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
 
-    // Restore original data without fetching from server
-    const restoredData = originalMeasurements.map(m => ({ ...m }));
-    setAllMeasurements(restoredData);
-
-    // Force grid to update with restored data
-    if (gridRef.current?.api) {
-      gridRef.current.api.setGridOption('rowData', restoredData);
+    // Update grid using transaction API to revert changes
+    if (gridRef.current?.api && rowsToUpdate.length > 0) {
+      gridRef.current.api.applyTransaction({ update: rowsToUpdate });
     }
+
+    // Also update state
+    setAllMeasurements(originalMeasurements.map(m => ({ ...m })));
   }
 
   async function handleNewMeasurement() {

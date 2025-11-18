@@ -994,8 +994,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     <>
       {error && (
         <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg">
-            <p className="text-red-800 font-medium">{t('error')}: {error}</p>
+          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg relative">
+            <button
+              onClick={() => setError(null)}
+              className="absolute top-2 left-2 text-red-600 hover:text-red-800 transition-colors"
+              title="סגור"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="text-red-800 font-medium pr-6">{t('error')}: {error}</p>
           </div>
         </div>
       )}

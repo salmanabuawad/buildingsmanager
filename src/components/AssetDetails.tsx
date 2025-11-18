@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, Plus } from 'lucide-react';
+import { Home, Loader2, Save, X, Plus, AlertCircle } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
@@ -33,14 +33,29 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     return allMeasurements[0]?.id;
   }, [allMeasurements]);
 
-  const cellClassRules = {
-    'ag-cell-error': (params: CellClassParams) => {
-      if (params.data.id !== latestMeasurementId) return false;
-      const assetErrors = validationErrors.get(params.data.id);
-      if (!assetErrors) return false;
-      return assetErrors.has(params.colDef.field || '');
+  const getRowStyle = useCallback((params: any) => {
+    const assetId = params.data?.id;
+    if (!assetId) return undefined;
+
+    const assetErrors = validationErrors.get(assetId);
+    const hasErrors = assetErrors && assetErrors.size > 0;
+
+    const asset = params.data as Asset;
+    const numericRegex = /^[0-9]+$/;
+    const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+    const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+    if (hasErrors || hasInvalidPayerId || hasInvalidAssetId) {
+      return {
+        border: '3px solid #ef4444',
+        borderRadius: '4px',
+        background: '#fee2e2',
+        position: 'relative'
+      };
     }
-  };
+
+    return undefined;
+  }, [validationErrors]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
@@ -278,6 +293,46 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
+      headerName: '',
+      width: 50,
+      minWidth: 50,
+      maxWidth: 50,
+      pinned: 'right',
+      sortable: false,
+      filter: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        const assetId = asset.id;
+        const errors: string[] = [];
+
+        if (validationErrors.has(assetId)) {
+          const fieldErrors = validationErrors.get(assetId);
+          if (fieldErrors && fieldErrors.size > 0) {
+            fieldErrors.forEach((errorMsg) => {
+              errors.push(errorMsg);
+            });
+          }
+        }
+
+        const numericRegex = /^[0-9]+$/;
+        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+        if (hasInvalidPayerId) errors.push('Invalid payer ID - must be numeric');
+        if (hasInvalidAssetId) errors.push('Invalid asset ID - must be numeric');
+
+        if (errors.length > 0) {
+          return (
+            <div className="flex items-center justify-center w-full h-full" title={errors.join(', ')}>
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            </div>
+          );
+        }
+        return null;
+      }
+    },
+    {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 130,
@@ -298,7 +353,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -312,7 +366,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -321,7 +374,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -335,7 +387,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -344,7 +395,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -358,7 +408,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -367,7 +416,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -381,7 +429,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -390,7 +437,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -404,7 +450,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -413,7 +458,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -427,7 +471,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
@@ -436,7 +479,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 100,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -450,7 +492,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       width: 120,
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellClassRules,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
   ], [t, assetTypes, latestMeasurementId, validationErrors]);
@@ -593,6 +634,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   autoHeaderHeight: true
                 }}
                 getRowId={(params) => String(params.data.id)}
+                getRowStyle={getRowStyle}
                 onGridReady={(params) => {
                   params.api.sizeColumnsToFit();
                 }}

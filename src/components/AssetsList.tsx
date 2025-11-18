@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2 } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 interface AssetsListProps {
@@ -27,6 +27,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [originalDisplayAssets, setOriginalDisplayAssets] = useState<Asset[]>([]);
   const [originalMasterAssets, setOriginalMasterAssets] = useState<Asset[]>([]);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
+  const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [success, setSuccess] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Map<string, Map<string, string>>>(new Map());
   useEffect(() => {
@@ -266,7 +267,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   }, []);
 
   const handleSaveAll = async () => {
-    if (dirtyAssets.size === 0) {
+    if (dirtyAssets.size === 0 && deletedAssets.size === 0) {
       setError('אין שינויים לשמור');
       setTimeout(() => setError(null), 3000);
       return;
@@ -278,10 +279,35 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
     try {
       let savedCount = 0;
+      let deletedCount = 0;
       const errors: string[] = [];
+
+      // Process deletions first
+      for (const assetId of deletedAssets) {
+        try {
+          const asset = displayAssets.find(a => a.id === assetId);
+          if (!asset) continue;
+
+          // Skip deletion if it's a temp asset (not saved to database yet)
+          if (assetId.startsWith('temp-')) {
+            deletedCount++;
+            continue;
+          }
+
+          await api.assets.delete(assetId);
+          deletedCount++;
+        } catch (err) {
+          const asset = displayAssets.find(a => a.id === assetId);
+          const assetIdent = asset?.asset_id || assetId;
+          errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה במחיקה'}`);
+        }
+      }
 
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
+          // Skip if marked for deletion
+          if (deletedAssets.has(assetId)) continue;
+
           // Get the full asset data
           const asset = displayAssets.find(a => a.id === assetId);
           if (!asset) continue;
@@ -365,13 +391,20 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         }
       }
 
-      // Clear dirty assets after save
+      // Clear dirty assets and deleted assets after save
       setDirtyAssets(new Map());
+      setDeletedAssets(new Set());
 
       if (errors.length > 0) {
-        setError(`נשמרו ${savedCount} נכסים. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
+        const successMsg = [];
+        if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} נכסים`);
+        if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} נכסים`);
+        setError(`${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
       } else {
-        setSuccess(`✓ נשמרו ${savedCount} נכסים בהצלחה`);
+        const successMsg = [];
+        if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} נכסים`);
+        if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} נכסים`);
+        setSuccess(`✓ ${successMsg.join(', ')} בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
       }
 
@@ -537,9 +570,31 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     return { textAlign: 'right' };
   }, [dirtyAssets, validationErrors]);
 
+  const toggleDelete = useCallback((assetId: string) => {
+    setDeletedAssets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(assetId)) {
+        newSet.delete(assetId);
+      } else {
+        newSet.add(assetId);
+      }
+      return newSet;
+    });
+  }, []);
+
   const getRowStyle = useCallback((params: any) => {
     const assetId = params.data?.id;
     if (!assetId) return undefined;
+
+    // Check if marked for deletion
+    const isDeleted = deletedAssets.has(assetId);
+    if (isDeleted) {
+      return {
+        background: '#fee2e2',
+        textDecoration: 'line-through',
+        opacity: 0.6
+      };
+    }
 
     const assetErrors = validationErrors.get(assetId);
     const hasErrors = assetErrors && assetErrors.size > 0;
@@ -574,9 +629,34 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     }
 
     return undefined;
-  }, [validationErrors, invalidAssets, masterAssets]);
+  }, [validationErrors, invalidAssets, masterAssets, deletedAssets]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
+    {
+      headerName: '',
+      width: 60,
+      minWidth: 60,
+      editable: false,
+      pinned: 'right',
+      cellRenderer: (params: any) => {
+        if (params.data._isMasterRow === false) return null;
+        const isDeleted = deletedAssets.has(params.data.id);
+        return (
+          <button
+            onClick={() => toggleDelete(params.data.id)}
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
+              isDeleted
+                ? 'bg-red-200 hover:bg-red-300 text-red-700'
+                : 'hover:bg-red-100 text-red-500 hover:text-red-700'
+            }`}
+            title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
     {
       headerName: t('actions'),
       width: 150,
@@ -899,7 +979,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return null;
       }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -959,12 +1039,13 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               setDisplayAssets(JSON.parse(JSON.stringify(originalDisplayAssets)));
               setMasterAssets(JSON.parse(JSON.stringify(originalMasterAssets)));
               setDirtyAssets(new Map());
+              setDeletedAssets(new Set());
               setValidationErrors(new Map());
               setError(null);
               setSuccess('השינויים בוטלו');
               setTimeout(() => setSuccess(null), 3000);
             }}
-            disabled={loading || dirtyAssets.size === 0}
+            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             <X className="h-4 w-4" />
@@ -972,11 +1053,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           </button>
           <button
             onClick={handleSaveAll}
-            disabled={loading || dirtyAssets.size === 0}
+            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             <Save className="h-4 w-4" />
-            {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size > 0 ? ` (${dirtyAssets.size})` : ''}`}
+            {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size})` : ''}`}
           </button>
           </div>
         </div>

@@ -234,7 +234,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setValidationErrors(new Map());
 
     // Restore original data without fetching from server
-    setAllMeasurements([...originalMeasurements]);
+    const restoredData = originalMeasurements.map(m => ({ ...m }));
+    setAllMeasurements(restoredData);
+
+    // Force grid to update with restored data
+    if (gridRef.current?.api) {
+      gridRef.current.api.setGridOption('rowData', restoredData);
+    }
   }
 
   async function handleNewMeasurement() {

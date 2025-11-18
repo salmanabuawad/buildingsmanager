@@ -18,6 +18,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
+  const [originalMeasurements, setOriginalMeasurements] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,8 +220,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
+      setOriginalMeasurements([...allMeasurements]);
       if (onDataUpdate) onDataUpdate();
-      await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
@@ -231,7 +232,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   function handleCancelChanges() {
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
-    fetchData();
+
+    // Restore original data without fetching from server
+    setAllMeasurements([...originalMeasurements]);
   }
 
   async function handleNewMeasurement() {
@@ -515,6 +518,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       const allAssetMeasurements = await api.assets.getAllByAssetId(String(assetData.asset_id), assetData.building_number);
       setAllMeasurements(allAssetMeasurements || []);
+      setOriginalMeasurements(allAssetMeasurements || []);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load asset details');

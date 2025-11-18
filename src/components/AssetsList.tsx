@@ -898,6 +898,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             <p className="text-green-800 text-sm font-medium">{success}</p>
           </div>
         )}
+        <div className="mb-3 bg-blue-50 border-r-4 border-blue-500 rounded-lg p-3">
+          <p className="text-blue-900 text-sm font-medium">
+            <span className="font-bold">עצות:</span> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי. השתמש ב-Tab או Enter לניווט בין תאים.
+          </p>
+        </div>
         <div className="mb-2 flex justify-end gap-2">
           <button
             onClick={() => {

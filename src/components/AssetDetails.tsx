@@ -63,7 +63,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = data.id;
-      const newValue = event.newValue;
+      let newValue = event.newValue;
+
+      // If measurement_date is empty or blank, set it to current date
+      if (field === 'measurement_date' && (!newValue || newValue.trim() === '')) {
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, '0');
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const year = today.getFullYear();
+        newValue = `${day}/${month}/${year}`;
+      }
 
       const updatedAsset = { ...data, [field]: newValue };
 

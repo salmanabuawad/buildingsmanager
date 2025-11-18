@@ -80,26 +80,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         return newMap;
       });
 
-      // Validate measurement_date (including empty/blank values)
-      if (field === 'measurement_date') {
-        const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
-        if (!dateValidation.valid) {
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            const errorMap = new Map<string, string>();
-            errorMap.set('measurement_date', dateValidation.error || 'Invalid date format');
-            newMap.set(assetId, errorMap);
-            return newMap;
-          });
-          setError(dateValidation.error || 'Invalid date format');
-          setTimeout(() => setError(null), 3000);
-          event.api.refreshCells({ rowNodes: [event.node!], force: true });
-          return;
-        }
-      }
-
       const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
       const validations = [
+        inputValidators.validateDateFormat(updatedAsset.measurement_date),
         assetValidators.validateBuildingNumber(updatedAsset.building_number),
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),

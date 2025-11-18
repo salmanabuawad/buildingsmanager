@@ -289,7 +289,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           if (!asset) continue;
 
           // Skip deletion if it's a temp asset (not saved to database yet)
-          if (assetId.startsWith('temp-')) {
+          if (String(assetId).startsWith('temp-')) {
             deletedCount++;
             continue;
           }
@@ -313,7 +313,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           if (!asset) continue;
 
           const updatedData = { ...asset, ...changes };
-          const isNewAsset = assetId.startsWith('temp-');
+          const isNewAsset = String(assetId).startsWith('temp-');
 
           // Validate based on what fields changed
           if (changes.hasOwnProperty('payer_id')) {

@@ -516,13 +516,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'total_size',
-      headerName: t('totalSize'),
-      width: 120,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#dbeafe' }
     }
   ], [t, assetTypes]);
   const toggleRowExpansion = useCallback((assetId: string) => {
@@ -926,15 +919,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
-    },
-    {
-      field: 'total_size',
-      headerName: t('totalSize'),
-      width: 150,
-      minWidth: 150,
-      editable: false,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right', fontWeight: 'bold', backgroundColor: '#f0f9ff' }
     },
     {
       headerName: '',

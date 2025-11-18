@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2 } from 'lucide-react';
+import { Home, Loader2, Edit2, Plus } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -242,17 +242,35 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
       <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3">
-          <Home className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-              {t('assetId')}: {asset.asset_id}
-            </h1>
-            {building && (
-              <p className="text-sm sm:text-base text-teal-50">
-                {t('building')} {building.building_number}
-              </p>
-            )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Home className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
+            <div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+                {t('assetId')}: {asset.asset_id}
+              </h1>
+              {building && (
+                <p className="text-sm sm:text-base text-teal-50">
+                  {t('building')} {building.building_number}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setToast({ message: 'Update record functionality coming soon', type: 'info' })}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
+            >
+              <Edit2 className="h-5 w-5" />
+              <span className="hidden sm:inline">{t('updateRecord')}</span>
+            </button>
+            <button
+              onClick={() => setToast({ message: 'New measurement functionality coming soon', type: 'info' })}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+              <span className="hidden sm:inline">{t('newMeasurement')}</span>
+            </button>
           </div>
         </div>
       </div>

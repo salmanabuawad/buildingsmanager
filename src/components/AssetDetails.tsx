@@ -242,35 +242,17 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
       <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Home className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
-            <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                {t('assetId')}: {asset.asset_id}
-              </h1>
-              {building && (
-                <p className="text-sm sm:text-base text-teal-50">
-                  {t('building')} {building.building_number}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setToast({ message: 'Update record functionality coming soon', type: 'info' })}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
-            >
-              <Edit2 className="h-5 w-5" />
-              <span className="hidden sm:inline">{t('updateRecord')}</span>
-            </button>
-            <button
-              onClick={() => setToast({ message: 'New measurement functionality coming soon', type: 'info' })}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            >
-              <Plus className="h-5 w-5" />
-              <span className="hidden sm:inline">{t('newMeasurement')}</span>
-            </button>
+        <div className="flex items-center gap-3">
+          <Home className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+              {t('assetId')}: {asset.asset_id}
+            </h1>
+            {building && (
+              <p className="text-sm sm:text-base text-teal-50">
+                {t('building')} {building.building_number}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -278,9 +260,27 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       {allMeasurements.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg border border-blue-100">
           <div className="p-4 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
-              {t('measurementHistory')} ({allMeasurements.length})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                {t('measurementHistory')} ({allMeasurements.length})
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setToast({ message: 'Update record functionality coming soon', type: 'info' })}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  <Edit2 className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('updateRecord')}</span>
+                </button>
+                <button
+                  onClick={() => setToast({ message: 'New measurement functionality coming soon', type: 'info' })}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('newMeasurement')}</span>
+                </button>
+              </div>
+            </div>
             <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
               <AgGridReact<Asset>
                 ref={gridRef}

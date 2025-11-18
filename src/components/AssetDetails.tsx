@@ -1,18 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { Home, Package, Edit2, Save, X, Loader2 } from 'lucide-react';
 import { MeasurementHistory } from './MeasurementHistory';
 import { Toast } from './Toast';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface AssetDetailsProps {
-  assetId: string;
+  assetId: number;
   onDataUpdate?: () => void;
 }
 
 export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
+  const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +25,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedAsset, setEditedAsset] = useState<Partial<Asset>>({});
+  const gridRef = useRef<AgGridReact<Asset>>(null);
 
   useEffect(() => {
     fetchData();
@@ -30,7 +36,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setLoading(true);
 
       const [assetData, assetTypesData] = await Promise.all([
-        api.assets.getOne(assetId),
+        api.assets.getOne(String(assetId)),
         api.assetTypes.getAll()
       ]);
 
@@ -42,6 +48,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       const buildingData = await api.buildings.getOne(assetData.building_number);
       setBuilding(buildingData);
+
+      const allAssetMeasurements = await api.assets.getAllByAssetId(String(assetData.asset_id), assetData.building_number);
+      setAllMeasurements(allAssetMeasurements || []);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load asset details');
@@ -66,7 +75,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   async function saveEdit() {
     try {
-      await api.assets.update(assetId, editedAsset);
+      await api.assets.update(String(assetId), editedAsset);
       await fetchData();
       setIsEditing(false);
       setToast({ message: t('assetUpdatedSuccessfully'), type: 'success' });
@@ -114,6 +123,160 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     { type: asset.sub_asset_type_5, size: asset.sub_asset_size_5 },
     { type: asset.sub_asset_type_6, size: asset.sub_asset_size_6 },
   ].filter(sub => sub.type && sub.size > 0);
+
+  const columnDefs: ColDef<Asset>[] = useMemo(() => [
+    {
+      field: 'measurement_date',
+      headerName: t('measurementDate'),
+      width: 130,
+      minWidth: 130,
+    },
+    {
+      field: 'asset_id',
+      headerName: t('assetId'),
+      width: 120,
+      minWidth: 120,
+    },
+    {
+      field: 'payer_id',
+      headerName: t('payerId'),
+      width: 120,
+      minWidth: 120,
+    },
+    {
+      field: 'main_asset_type',
+      headerName: t('mainAssetType'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'asset_size',
+      headerName: t('mainAssetSize'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+    {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: t('subAssetType3'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: t('subAssetSize3'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: t('subAssetType4'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: t('subAssetSize4'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: t('subAssetType5'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: t('subAssetSize5'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: t('subAssetType6'),
+      width: 150,
+      minWidth: 150,
+      valueFormatter: (params) => {
+        const code = params.value;
+        if (!code) return '';
+        const assetType = assetTypes.find(at => at.name === code);
+        return assetType?.description ? `${code} - ${assetType.description}` : code;
+      },
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: t('subAssetSize6'),
+      width: 120,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '0',
+    },
+  ], [t, assetTypes]);
 
   return (
     <>
@@ -315,11 +478,34 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100">
-        <div className="p-4 sm:p-6">
-          <MeasurementHistory assetId={assetId} />
+      {allMeasurements.length > 0 && (
+        <div className="bg-white rounded-xl shadow-lg border border-blue-100">
+          <div className="p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
+              {t('measurementHistory')} ({allMeasurements.length})
+            </h2>
+            <div className="ag-theme-alpine" style={{ width: '100%', height: '500px' }} dir="rtl">
+              <AgGridReact<Asset>
+                ref={gridRef}
+                rowData={allMeasurements}
+                columnDefs={columnDefs}
+                defaultColDef={{
+                  resizable: true,
+                  wrapHeaderText: true,
+                  autoHeaderHeight: true,
+                  editable: false
+                }}
+                getRowId={(params) => String(params.data.id)}
+                onGridReady={(params) => {
+                  params.api.sizeColumnsToFit();
+                }}
+                enableRtl={true}
+                animateRows={true}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
     </>
   );

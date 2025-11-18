@@ -47,6 +47,7 @@ export const translations = {
       cancel: 'Cancel',
       saveSuccess: 'Changes saved successfully',
       saveError: 'Error saving changes',
+      updatedSuccessfully: 'Updated successfully',
       dwgFile: 'DWG File (PDF)',
       uploadDwgFile: 'Upload DWG File',
       changeFile: 'Change File',

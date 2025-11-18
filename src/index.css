@@ -169,3 +169,9 @@ input[type="number"] {
 .ag-theme-alpine .ag-watermark {
   display: none !important;
 }
+
+.ag-theme-alpine .ag-cell-error {
+  background-color: #fee2e2 !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 0 1px #ef4444 inset !important;
+}

@@ -21,6 +21,8 @@ interface BuildingsListProps {
 export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules, showCreateModal, setShowCreateModal }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);
+  const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
@@ -34,6 +36,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       const data = await api.buildings.getAll();
       console.log('[BuildingsList] Received buildings:', data);
       setBuildings(data || []);
+      setFilteredBuildings(data || []);
 
       const invalidSet = new Set<number>();
       for (const building of data || []) {
@@ -53,6 +56,17 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   useEffect(() => {
     fetchBuildings(true);
   }, [fetchBuildings]);
+
+  useEffect(() => {
+    if (buildingFilter === '') {
+      setFilteredBuildings(buildings);
+    } else {
+      const filtered = buildings.filter(b =>
+        b.building_number.toString().includes(buildingFilter)
+      );
+      setFilteredBuildings(filtered);
+    }
+  }, [buildingFilter, buildings]);
 
 
 
@@ -272,11 +286,24 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
 
+        <div className="mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={buildingFilter}
+              onChange={(e) => setBuildingFilter(e.target.value)}
+              placeholder={t('searchByBuildingNumber')}
+              className="w-full px-4 py-2 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
             <AgGridReact
               ref={gridRef}
-              rowData={buildings}
+              rowData={filteredBuildings}
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
@@ -302,9 +329,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   }
                 }, 100);
               }}
-              pagination={true}
-              paginationPageSize={20}
-              paginationPageSizeSelector={[10, 20, 50, 100]}
               domLayout="normal"
               suppressHorizontalScroll={false}
               enableRtl={true}

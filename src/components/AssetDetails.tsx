@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, Plus, AlertCircle } from 'lucide-react';
+import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye } from 'lucide-react';
 import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { supabase } from '../lib/supabase';
 
 interface AssetDetailsProps {
   assetId: number;
@@ -218,6 +219,38 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function handleFileUpload(assetId: number, file: File) {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${assetId}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('structure-drawings')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('structure-drawings')
+        .getPublicUrl(filePath);
+
+      await api.assets.update(assetId, { structure_drawing_url: publicUrl });
+
+      setToast({ message: 'Drawing uploaded successfully', type: 'success' });
+      await fetchData();
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to upload drawing',
+        type: 'error'
+      });
+    }
+  }
+
+  function handleViewDrawing(url: string) {
+    window.open(url, '_blank');
   }
 
   function handleCancelChanges() {
@@ -487,6 +520,51 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       minWidth: 120,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+    },
+    {
+      headerName: 'Structure Drawing',
+      width: 180,
+      minWidth: 180,
+      pinned: 'left',
+      sortable: false,
+      filter: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        const hasDrawing = !!asset.structure_drawing_url;
+        const isLatest = asset.id === latestMeasurementId;
+
+        return (
+          <div className="flex items-center gap-2 h-full">
+            {isLatest && (
+              <label className="flex items-center gap-1 px-2 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-sm">
+                <Upload className="h-3 w-3" />
+                <span>Upload</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleFileUpload(asset.id, file);
+                    }
+                  }}
+                />
+              </label>
+            )}
+            {hasDrawing && (
+              <button
+                onClick={() => handleViewDrawing(asset.structure_drawing_url!)}
+                className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+              >
+                <Eye className="h-3 w-3" />
+                <span>View</span>
+              </button>
+            )}
+          </div>
+        );
+      }
     },
   ], [t, assetTypes, latestMeasurementId, validationErrors]);
 

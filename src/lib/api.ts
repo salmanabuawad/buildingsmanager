@@ -33,6 +33,7 @@ export interface Asset {
   sub_asset_size_5: number;
   sub_asset_type_6?: string;
   sub_asset_size_6: number;
+  structure_drawing_url?: string;
   created_at: string;
   updated_at: string;
 }

@@ -1050,14 +1050,27 @@ export function AssetDataEntry() {
                 {t('addRow')}
               </button>
             </div>
-            <button
-              onClick={handleSaveAll}
-              disabled={loading}
-              className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-            >
-              <Save className="h-3.5 w-3.5" />
-              {loading ? t('saving') : t('saveAll')}
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => {
+                  setRowData(JSON.parse(JSON.stringify(originalRowData)));
+                  showToast('השינויים בוטלו', 'info');
+                }}
+                disabled={loading}
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                <X className="h-3.5 w-3.5" />
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleSaveAll}
+                disabled={loading}
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                <Save className="h-3.5 w-3.5" />
+                {loading ? t('saving') : t('saveAll')}
+              </button>
+            </div>
           </div>
         </div>
         <div className="ag-theme-alpine" style={{ height: '50vh', width: '100%' }}>

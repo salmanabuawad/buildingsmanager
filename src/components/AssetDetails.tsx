@@ -65,12 +65,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const assetId = data.id;
       let newValue = event.newValue;
 
-      // If measurement_date is empty or blank, restore original value
-      if (field === 'measurement_date' && (!newValue || newValue.trim() === '')) {
-        event.api.refreshCells({ rowNodes: [event.node!], force: true });
-        return;
-      }
-
       const updatedAsset = { ...data, [field]: newValue };
 
       setDirtyAssets(prev => {
@@ -79,6 +73,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         newMap.set(assetId, { ...existing, [field]: newValue });
         return newMap;
       });
+
+      // If measurement_date is empty or blank, restore original value
+      if (field === 'measurement_date' && (!newValue || newValue.trim() === '')) {
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        return;
+      }
 
       setValidationErrors(prev => {
         const newMap = new Map(prev);

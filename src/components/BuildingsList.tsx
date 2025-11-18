@@ -286,16 +286,16 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
 
-        <div className="mb-4">
-          <div className="relative">
+        <div className="mb-3">
+          <div className="relative max-w-xs">
             <input
               type="text"
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
               placeholder={t('searchByBuildingNumber')}
-              className="w-full px-4 py-2 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+              className="w-full px-3 py-1.5 pr-9 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right text-sm"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
         </div>
 

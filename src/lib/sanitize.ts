@@ -65,17 +65,21 @@ export function sanitizeInteger(value: any): number {
 }
 
 /**
- * Validates and sanitizes a date string
+ * Validates and sanitizes a date string in DD/MM/YYYY format
  */
 export function sanitizeDate(dateStr: string | null | undefined): string {
   if (dateStr == null) return '';
 
   const str = String(dateStr).trim();
 
-  // Check if it matches ISO date format (YYYY-MM-DD)
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    const date = new Date(str);
-    if (!isNaN(date.getTime())) {
+  // Check if it matches DD/MM/YYYY format
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    const [day, month, year] = str.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (!isNaN(date.getTime()) &&
+        date.getDate() === day &&
+        date.getMonth() === month - 1 &&
+        date.getFullYear() === year) {
       return str;
     }
   }

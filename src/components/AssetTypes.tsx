@@ -22,7 +22,7 @@ export function AssetTypes() {
     name: '',
     description: '',
     tax_region: '',
-    shared_area: '',
+    shared_area: false,
     has_elevator: false,
     min_asset_size: '',
     max_asset_size: '',
@@ -51,7 +51,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', shared_area: '', has_elevator: false, min_asset_size: '', max_asset_size: '' });
+    setFormData({ name: '', description: '', tax_region: '', shared_area: false, has_elevator: false, min_asset_size: '', max_asset_size: '' });
     setIsAdding(false);
   }
 
@@ -78,7 +78,7 @@ export function AssetTypes() {
         name: formData.name,
         description: formData.description,
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
-        shared_area: formData.shared_area ? parseFloat(formData.shared_area) : undefined,
+        shared_area: formData.shared_area,
         has_elevator: formData.has_elevator,
         min_asset_size: formData.min_asset_size ? parseFloat(formData.min_asset_size) : undefined,
         max_asset_size: formData.max_asset_size ? parseFloat(formData.max_asset_size) : undefined,
@@ -171,7 +171,16 @@ export function AssetTypes() {
       headerName: t('sharedArea'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['true', 'false']
+      },
+      valueFormatter: (params) => params.value ? 'כן' : 'לא',
+      valueParser: (params) => {
+        if (params.newValue === 'true' || params.newValue === true) return true;
+        if (params.newValue === 'false' || params.newValue === false) return false;
+        return params.newValue;
+      },
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -392,14 +401,14 @@ export function AssetTypes() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {t('sharedArea')}
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.shared_area}
-                  onChange={(e) => setFormData({ ...formData, shared_area: e.target.value })}
+                <select
+                  value={formData.shared_area ? 'true' : 'false'}
+                  onChange={(e) => setFormData({ ...formData, shared_area: e.target.value === 'true' })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="0"
-                />
+                >
+                  <option value="false">לא</option>
+                  <option value="true">כן</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">

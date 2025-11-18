@@ -58,7 +58,7 @@ export interface AssetType {
   name: string;
   description: string;
   tax_region?: number;
-  shared_area?: number;
+  shared_area?: boolean;
   has_elevator?: boolean;
   min_asset_size?: number;
   max_asset_size?: number;

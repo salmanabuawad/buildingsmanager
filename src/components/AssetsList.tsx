@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 interface AssetsListProps {
@@ -287,6 +287,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           if (!asset) continue;
 
           const updatedData = { ...asset, ...changes };
+          const isNewAsset = assetId.startsWith('temp-');
 
           // Validate based on what fields changed
           if (changes.hasOwnProperty('payer_id')) {
@@ -348,7 +349,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           }
 
           // Save the changes
-          await api.assets.update(assetId, changes);
+          if (isNewAsset) {
+            // Create new asset
+            const { id, _isMasterRow, created_at, ...assetData } = updatedData;
+            await api.assets.create(assetData);
+          } else {
+            // Update existing asset
+            await api.assets.update(assetId, changes);
+          }
           savedCount++;
         } catch (err) {
           const asset = displayAssets.find(a => a.id === assetId);
@@ -374,6 +382,45 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     } finally {
       setLoading(false);
     }
+  };
+
+  const addEmptyRow = () => {
+    const today = new Date();
+    const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+    const newAsset: Asset = {
+      id: `temp-${Date.now()}`,
+      building_number: buildingNumber,
+      asset_id: '',
+      payer_id: '',
+      main_asset_type: '',
+      asset_size: 0,
+      sub_asset_type_1: '',
+      sub_asset_size_1: 0,
+      sub_asset_type_2: '',
+      sub_asset_size_2: 0,
+      sub_asset_type_3: '',
+      sub_asset_size_3: 0,
+      sub_asset_type_4: '',
+      sub_asset_size_4: 0,
+      sub_asset_type_5: '',
+      sub_asset_size_5: 0,
+      sub_asset_type_6: '',
+      sub_asset_size_6: 0,
+      measurement_date: dateStr,
+      created_at: new Date().toISOString(),
+      _isMasterRow: true
+    };
+
+    setDisplayAssets(prev => [newAsset, ...prev]);
+    setMasterAssets(prev => [newAsset, ...prev]);
+
+    setTimeout(() => {
+      if (gridRef.current) {
+        gridRef.current.api.setFocusedCell(0, 'asset_id');
+        gridRef.current.api.startEditingCell({ rowIndex: 0, colKey: 'asset_id' });
+      }
+    }, 100);
   };
 
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
@@ -898,12 +945,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             <p className="text-green-800 text-sm font-medium">{success}</p>
           </div>
         )}
-        <div className="mb-3 bg-blue-50 border-r-4 border-blue-500 rounded-lg p-3">
-          <p className="text-blue-900 text-sm font-medium">
-            <span className="font-bold">עצות:</span> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי. השתמש ב-Tab או Enter לניווט בין תאים.
-          </p>
-        </div>
-        <div className="mb-2 flex justify-end gap-2">
+        <div className="mb-2 flex justify-between items-center gap-2">
+          <button
+            onClick={addEmptyRow}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף שורה
+          </button>
+          <div className="flex gap-2">
           <button
             onClick={() => {
               setDisplayAssets(JSON.parse(JSON.stringify(originalDisplayAssets)));
@@ -928,8 +978,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             <Save className="h-4 w-4" />
             {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size > 0 ? ` (${dirtyAssets.size})` : ''}`}
           </button>
+          </div>
         </div>
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '45vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={displayAssets}
@@ -964,6 +1015,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             enableRtl={true}
             suppressHorizontalScroll={false}
           />
+        </div>
+        <div className="mt-3 bg-blue-50 border-r-4 border-blue-500 rounded-lg p-3">
+          <p className="text-blue-900 text-sm font-medium">
+            <span className="font-bold">עצות:</span> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי. השתמש ב-Tab או Enter לניווט בין תאים.
+          </p>
         </div>
       </div>
     </>

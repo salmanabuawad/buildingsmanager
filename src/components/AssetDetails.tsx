@@ -241,11 +241,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       await api.assets.update(assetId, { structure_drawing_url: publicUrl });
 
-      setToast({ message: 'Drawing uploaded successfully', type: 'success' });
+      setToast({ message: t('drawingUploadedSuccessfully'), type: 'success' });
       await fetchData();
     } catch (err) {
       setToast({
-        message: err instanceof Error ? err.message : 'Failed to upload drawing',
+        message: err instanceof Error ? err.message : t('failedToUploadDrawing'),
         type: 'error'
       });
     }
@@ -524,7 +524,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
-      headerName: 'Structure Drawing',
+      headerName: t('structureDrawing'),
       width: 180,
       minWidth: 180,
       pinned: 'left',
@@ -541,7 +541,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {isLatest && (
               <label className="flex items-center gap-1 px-2 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-sm">
                 <Upload className="h-3 w-3" />
-                <span>Upload</span>
+                <span>{t('upload')}</span>
                 <input
                   type="file"
                   className="hidden"
@@ -565,7 +565,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }`}
               >
                 <Eye className="h-3 w-3" />
-                <span>{selectedDrawingUrl === asset.structure_drawing_url ? 'Viewing' : 'View'}</span>
+                <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
               </button>
             )}
           </div>
@@ -728,13 +728,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {selectedDrawingUrl && (
               <div className="mt-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-800">Structure Drawing</h3>
+                  <h3 className="text-lg font-semibold text-slate-800">{t('structureDrawing')}</h3>
                   <button
                     onClick={() => setSelectedDrawingUrl(null)}
                     className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
                   >
                     <X className="h-4 w-4" />
-                    <span>Close Viewer</span>
+                    <span>{t('closeViewer')}</span>
                   </button>
                 </div>
                 <PDFViewer

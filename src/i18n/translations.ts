@@ -194,7 +194,14 @@ export const translations = {
       uniqueAssets: 'Unique Assets',
       totalMeasurements: 'Total Measurements',
       expand: 'Expand to view history',
-      collapse: 'Collapse history'
+      collapse: 'Collapse history',
+      structureDrawing: 'Structure Drawing',
+      upload: 'Upload',
+      view: 'View',
+      viewing: 'Viewing',
+      closeViewer: 'Close Viewer',
+      drawingUploadedSuccessfully: 'Drawing uploaded successfully',
+      failedToUploadDrawing: 'Failed to upload drawing'
     }
   },
   he: {
@@ -391,7 +398,14 @@ export const translations = {
       uniqueAssets: 'נכסים ייחודיים',
       totalMeasurements: 'סה"כ מדידות',
       expand: 'הרחב לצפייה בהיסטוריה',
-      collapse: 'כווץ היסטוריה'
+      collapse: 'כווץ היסטוריה',
+      structureDrawing: 'שרטוט מבנה',
+      upload: 'העלאה',
+      view: 'צפה',
+      viewing: 'צופה',
+      closeViewer: 'סגור תצוגה',
+      drawingUploadedSuccessfully: 'השרטוט הועלה בהצלחה',
+      failedToUploadDrawing: 'כשל בהעלאת השרטוט'
     }
   }
 };

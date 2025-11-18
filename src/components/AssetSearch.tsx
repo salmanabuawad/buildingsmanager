@@ -74,7 +74,6 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                 type="number"
                 value={fromNumber}
                 onChange={(e) => setFromNumber(e.target.value)}
-                placeholder="1"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
               />
@@ -87,7 +86,6 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                 type="number"
                 value={toNumber}
                 onChange={(e) => setToNumber(e.target.value)}
-                placeholder="10000000000"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 required
               />

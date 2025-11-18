@@ -74,19 +74,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         return newMap;
       });
 
-      // If measurement_date is empty or blank, restore original value
-      if (field === 'measurement_date' && (!newValue || newValue.trim() === '')) {
-        event.api.refreshCells({ rowNodes: [event.node!], force: true });
-        return;
-      }
-
       setValidationErrors(prev => {
         const newMap = new Map(prev);
         newMap.delete(assetId);
         return newMap;
       });
 
-      if (field === 'measurement_date' && updatedAsset.measurement_date) {
+      // Validate measurement_date (including empty/blank values)
+      if (field === 'measurement_date') {
         const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
         if (!dateValidation.valid) {
           setValidationErrors(prev => {

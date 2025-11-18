@@ -18,7 +18,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
-  const [originalMeasurements, setOriginalMeasurements] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,11 +91,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           });
           setError(dateValidation.error || 'Invalid date format');
           setTimeout(() => setError(null), 3000);
-          setAllMeasurements(prevAssets =>
-            prevAssets.map(asset =>
-              asset.id === assetId ? updatedAsset : asset
-            )
-          );
+          // Don't update allMeasurements - validation failed
           event.api.refreshCells({ rowNodes: [event.node!], force: true });
           return;
         }
@@ -186,12 +181,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         });
       }
 
-      setAllMeasurements(prevAssets =>
-        prevAssets.map(asset =>
-          asset.id === assetId ? updatedAsset : asset
-        )
-      );
-
+      // Don't update allMeasurements - let grid keep its edited value
+      // We'll revert on cancel or apply on save
       event.api.refreshCells({ rowNodes: [event.node!], force: true });
     } catch (err) {
       console.error('Validation error:', err);
@@ -220,8 +211,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
-      setOriginalMeasurements([...allMeasurements]);
       if (onDataUpdate) onDataUpdate();
+      await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
@@ -230,11 +221,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   }
 
   function handleCancelChanges() {
-    // Build list of rows to update with original data
+    // Build list of rows to restore with original data
     const rowsToUpdate: Asset[] = [];
 
     for (const [assetId] of dirtyAssets.entries()) {
-      const originalAsset = originalMeasurements.find(m => m.id === assetId);
+      const originalAsset = allMeasurements.find(m => m.id === assetId);
       if (originalAsset) {
         rowsToUpdate.push({ ...originalAsset });
       }
@@ -243,13 +234,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
 
-    // Update grid using transaction API to revert changes
+    // Revert changed rows back to original data
     if (gridRef.current?.api && rowsToUpdate.length > 0) {
       gridRef.current.api.applyTransaction({ update: rowsToUpdate });
     }
-
-    // Also update state
-    setAllMeasurements(originalMeasurements.map(m => ({ ...m })));
   }
 
   async function handleNewMeasurement() {
@@ -533,7 +521,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       const allAssetMeasurements = await api.assets.getAllByAssetId(String(assetData.asset_id), assetData.building_number);
       setAllMeasurements(allAssetMeasurements || []);
-      setOriginalMeasurements(allAssetMeasurements || []);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load asset details');

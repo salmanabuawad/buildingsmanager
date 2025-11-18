@@ -371,16 +371,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           duration={0}
         />
       )}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
-      <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-teal-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3">
-          <Home className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
+      <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">
+        <div className="flex items-center gap-2">
+          <Home className="w-8 h-8 text-white bg-white/20 rounded-lg p-1.5" strokeWidth={1.5} />
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+            <h1 className="text-xl sm:text-2xl font-bold text-white">
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <p className="text-sm sm:text-base text-teal-50">
+              <p className="text-xs sm:text-sm text-teal-50">
                 {t('building')} {building.building_number}
               </p>
             )}
@@ -390,9 +390,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       {allMeasurements.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg border border-blue-100">
-          <div className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 {t('measurementHistory')} ({allMeasurements.length})
               </h2>
               <div className="flex gap-2">
@@ -412,7 +412,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 </button>
               </div>
             </div>
-            <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+            <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '40vh', width: '100%' }}>
               <AgGridReact<Asset>
                 ref={gridRef}
                 rowData={allMeasurements}

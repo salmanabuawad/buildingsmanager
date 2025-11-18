@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye } from 'lucide-react';
 import { Toast } from './Toast';
+import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -28,6 +29,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [dirtyAssets, setDirtyAssets] = useState<Map<number, Partial<Asset>>>(new Map());
   const [validationErrors, setValidationErrors] = useState<Map<number, Map<string, string>>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
   const latestMeasurementId = useMemo(() => {
@@ -250,7 +252,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   }
 
   function handleViewDrawing(url: string) {
-    window.open(url, '_blank');
+    setSelectedDrawingUrl(url);
   }
 
   function handleCancelChanges() {
@@ -556,10 +558,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {hasDrawing && (
               <button
                 onClick={() => handleViewDrawing(asset.structure_drawing_url!)}
-                className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                className={`flex items-center gap-1 px-2 py-1 rounded transition-colors text-sm ${
+                  selectedDrawingUrl === asset.structure_drawing_url
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 <Eye className="h-3 w-3" />
-                <span>View</span>
+                <span>{selectedDrawingUrl === asset.structure_drawing_url ? 'Viewing' : 'View'}</span>
               </button>
             )}
           </div>
@@ -718,6 +724,25 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 tooltipHideDelay={10000}
               />
             </div>
+
+            {selectedDrawingUrl && (
+              <div className="mt-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-slate-800">Structure Drawing</h3>
+                  <button
+                    onClick={() => setSelectedDrawingUrl(null)}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>Close Viewer</span>
+                  </button>
+                </div>
+                <PDFViewer
+                  fileUrl={selectedDrawingUrl}
+                  fileName={`structure-drawing-${assetId}.pdf`}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

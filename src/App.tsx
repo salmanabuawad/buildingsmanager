@@ -35,32 +35,58 @@ function App() {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
     const newTabs: Tab[] = [buildingsTab];
 
-    const allAssetsTabId = `assets-${buildingNumber}-all`;
-    const allAssetsTab: Tab = {
-      id: allAssetsTabId,
-      type: 'assets',
-      buildingNumber,
-      label: `בניין ${buildingNumber} - כל הנכסים`
-    };
-    newTabs.push(allAssetsTab);
-
     if (taxRegions) {
       const zones = taxRegions.split(',').map(z => z.trim()).filter(z => z);
-      zones.forEach(zone => {
-        const zoneTabId = `assets-${buildingNumber}-zone-${zone}`;
-        const zoneTab: Tab = {
-          id: zoneTabId,
+
+      if (zones.length === 1) {
+        const singleZoneTabId = `assets-${buildingNumber}-zone-${zones[0]}`;
+        const singleZoneTab: Tab = {
+          id: singleZoneTabId,
           type: 'assets',
           buildingNumber,
-          taxZone: zone,
-          label: `בניין ${buildingNumber} - אזור ${zone}`
+          taxZone: zones[0],
+          label: `בניין ${buildingNumber} - אזור ${zones[0]}`
         };
-        newTabs.push(zoneTab);
-      });
-    }
+        newTabs.push(singleZoneTab);
+        setTabs(newTabs);
+        setActiveTabId(singleZoneTabId);
+      } else {
+        const allAssetsTabId = `assets-${buildingNumber}-all`;
+        const allAssetsTab: Tab = {
+          id: allAssetsTabId,
+          type: 'assets',
+          buildingNumber,
+          label: `בניין ${buildingNumber} - כל הנכסים`
+        };
+        newTabs.push(allAssetsTab);
 
-    setTabs(newTabs);
-    setActiveTabId(allAssetsTabId);
+        zones.forEach(zone => {
+          const zoneTabId = `assets-${buildingNumber}-zone-${zone}`;
+          const zoneTab: Tab = {
+            id: zoneTabId,
+            type: 'assets',
+            buildingNumber,
+            taxZone: zone,
+            label: `בניין ${buildingNumber} - אזור ${zone}`
+          };
+          newTabs.push(zoneTab);
+        });
+
+        setTabs(newTabs);
+        setActiveTabId(allAssetsTabId);
+      }
+    } else {
+      const allAssetsTabId = `assets-${buildingNumber}-all`;
+      const allAssetsTab: Tab = {
+        id: allAssetsTabId,
+        type: 'assets',
+        buildingNumber,
+        label: `בניין ${buildingNumber} - כל הנכסים`
+      };
+      newTabs.push(allAssetsTab);
+      setTabs(newTabs);
+      setActiveTabId(allAssetsTabId);
+    }
   }
 
   function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {

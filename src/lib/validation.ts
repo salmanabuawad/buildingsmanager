@@ -626,10 +626,10 @@ export const assetValidators = {
     mainAssetType: string | undefined,
     assetSize: number | undefined
   ): Promise<ValidationResult> => {
-    if (!mainAssetType || !buildingNumber || !assetSize) {
+    if (!mainAssetType || !buildingNumber) {
       return { valid: true };
     }
-    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize);
+    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize || 0);
   },
 
   validateSubAssetTypeComplete: async (
@@ -637,10 +637,10 @@ export const assetValidators = {
     subAssetType: string | undefined,
     subAssetSize: number | undefined
   ): Promise<ValidationResult> => {
-    if (!subAssetType || !buildingNumber || !subAssetSize) {
+    if (!subAssetType || !buildingNumber) {
       return { valid: true };
     }
-    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize);
+    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0);
   },
 
   validateSubAssetsFor199Or299: async (

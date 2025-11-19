@@ -640,6 +640,14 @@ export const assetValidators = {
     if (!subAssetType || !buildingNumber) {
       return { valid: true };
     }
+
+    if (subAssetType === '199' || subAssetType === '299') {
+      return {
+        valid: false,
+        error: 'סוג משנה לא יכול להיות סוג מורכב (199, 299)'
+      };
+    }
+
     return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0);
   },
 

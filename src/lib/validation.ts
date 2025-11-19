@@ -600,10 +600,7 @@ export const inputValidators = {
 
   validateDateFormat: (value: string): ValidationResult => {
     if (!value || value === '') {
-      return {
-        valid: false,
-        error: 'תאריך חובה'
-      };
+      return { valid: true };
     }
 
     const match = value.match(patterns.dateFormat);

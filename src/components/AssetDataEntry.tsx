@@ -948,20 +948,18 @@ export function AssetDataEntry() {
         const row = params.data as AssetRow;
         return (
           <div className="flex items-center gap-2 w-full px-2">
-            {!row._isNew && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleAddNewMeasurement(params.data.id);
-                }}
-                className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
-                title="הוסף מדידה חדשה"
-              >
-                מדידה חדשה
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddNewMeasurement(params.data.id);
+              }}
+              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
+              title="הוסף מדידה חדשה"
+            >
+              מדידה חדשה
+            </button>
             <button
               type="button"
               onClick={(e) => {

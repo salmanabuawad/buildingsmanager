@@ -334,18 +334,22 @@ export async function validateAssetTypeComplete(
     }
 
     // Step 3: Check asset size is within range
-    if (assetSize != null && assetSize > 0) {
-      if (assetType.min_asset_size != null && assetSize < assetType.min_asset_size) {
+    if (assetSize != null) {
+      const minSize = assetType.min_asset_size != null ? Number(assetType.min_asset_size) : null;
+      const maxSize = assetType.max_asset_size != null ? Number(assetType.max_asset_size) : null;
+      const numericAssetSize = Number(assetSize);
+
+      if (minSize != null && numericAssetSize < minSize) {
         return {
           valid: false,
-          error: `גודל הנכס (${assetSize}) קטן מהמינימום המותר לסוג "${assetTypeName}" (${assetType.min_asset_size})`
+          error: `גודל הנכס (${numericAssetSize}) קטן מהמינימום המותר לסוג "${assetTypeName}" (${minSize})`
         };
       }
 
-      if (assetType.max_asset_size != null && assetSize > assetType.max_asset_size) {
+      if (maxSize != null && numericAssetSize > maxSize) {
         return {
           valid: false,
-          error: `גודל הנכס (${assetSize}) גדול מהמקסימום המותר לסוג "${assetTypeName}" (${assetType.max_asset_size})`
+          error: `גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר לסוג "${assetTypeName}" (${maxSize})`
         };
       }
     }

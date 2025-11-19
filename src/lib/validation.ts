@@ -236,10 +236,11 @@ export async function validateAssetTypeForBuildingTaxRegion(
       return { valid: true };
     }
 
+    const assetTypeCode = typeof assetTypeName === 'string' ? parseInt(assetTypeName) : assetTypeName;
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
-      .select('name, tax_region')
-      .eq('name', assetTypeName)
+      .select('code, description, tax_region')
+      .eq('code', assetTypeCode)
       .maybeSingle();
 
     if (assetTypeError) {
@@ -393,10 +394,11 @@ export async function validateSubAssetsFor199Or299(
   const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
 
   for (const subAssetType of validSubAssets) {
+    const assetTypeCode = typeof subAssetType === 'string' ? parseInt(subAssetType) : subAssetType;
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
-      .select('name, tax_region')
-      .eq('name', subAssetType)
+      .select('code, description, tax_region')
+      .eq('code', assetTypeCode)
       .maybeSingle();
 
     if (assetTypeError) {

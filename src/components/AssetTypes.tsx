@@ -17,7 +17,7 @@ export function AssetTypes() {
   const gridRef = useRef<AgGridReact<AssetType>>(null);
 
   const [formData, setFormData] = useState({
-    name: '',
+    code: '',
     description: '',
     tax_region: '',
     shared_area: false,
@@ -49,7 +49,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', shared_area: false, has_elevator: false, min_asset_size: '', max_asset_size: '' });
+    setFormData({ code: '', description: '', tax_region: '', shared_area: false, has_elevator: false, min_asset_size: '', max_asset_size: '' });
     setIsAdding(false);
   }
 
@@ -59,9 +59,8 @@ export function AssetTypes() {
   }
 
   async function handleSave() {
-    const nameValidation = await assetTypeValidators.validateName(formData.name);
-    if (!nameValidation.valid) {
-      showMessage('error', nameValidation.error!);
+    if (!formData.code || isNaN(parseInt(formData.code))) {
+      showMessage('error', 'קוד נכס חייב להיות מספר');
       return;
     }
 
@@ -73,7 +72,7 @@ export function AssetTypes() {
 
     try {
       const dataToSave = {
-        name: formData.name,
+        code: parseInt(formData.code),
         description: formData.description,
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
         shared_area: formData.shared_area,
@@ -96,16 +95,13 @@ export function AssetTypes() {
     try {
       const { data, colDef } = event;
       const field = colDef.field;
-      const assetTypeId = data.id;
+      const assetTypeCode = data.code;
       const newValue = event.newValue;
 
-      if (field === 'name') {
-        const validation = await assetTypeValidators.validateName(newValue);
-        if (!validation.valid) {
-          showMessage('error', validation.error!);
-          await fetchAssetTypes(false);
-          return;
-        }
+      if (field === 'code') {
+        showMessage('error', 'לא ניתן לערוך את קוד הנכס');
+        await fetchAssetTypes(false);
+        return;
       } else if (field === 'tax_region') {
         const validation = await assetTypeValidators.validateTaxRegion(newValue);
         if (!validation.valid) {
@@ -119,7 +115,7 @@ export function AssetTypes() {
         [field]: newValue
       };
 
-      await api.assetTypes.update(assetTypeId, updateData);
+      await api.assetTypes.update(assetTypeCode, updateData);
       await fetchAssetTypes(false);
     } catch (error) {
       console.error('Error updating asset type:', error);
@@ -128,11 +124,11 @@ export function AssetTypes() {
     }
   }, []);
 
-  async function handleDelete(id: string) {
+  async function handleDelete(code: number) {
     if (!confirm(t('confirmDeleteAssetType'))) return;
 
     try {
-      await api.assetTypes.delete(id);
+      await api.assetTypes.delete(code);
       showMessage('success', t('assetTypeDeleted'));
       await fetchAssetTypes();
     } catch (error) {
@@ -143,10 +139,10 @@ export function AssetTypes() {
 
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
-      field: 'name',
-      headerName: t('typeName'),
-      flex: 1,
-      editable: true,
+      field: 'code',
+      headerName: 'קוד',
+      flex: 0.5,
+      editable: false,
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -221,7 +217,7 @@ export function AssetTypes() {
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => handleDelete(params.data.id)}
+            onClick={() => handleDelete(params.data.code)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <Trash2 className="h-4 w-4" />
@@ -354,20 +350,16 @@ export function AssetTypes() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('typeName')} *
+                  קוד נכס *
                 </label>
                 <input
-                  type="text"
-                  value={formData.name}
+                  type="number"
+                  value={formData.code}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (inputValidators.allowDigitsWithMaxLength(value, 3)) {
-                      setFormData({ ...formData, name: value });
-                    }
+                    setFormData({ ...formData, code: e.target.value });
                   }}
-                  maxLength={3}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="123"
+                  placeholder="199"
                 />
               </div>
               <div>

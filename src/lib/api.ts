@@ -52,8 +52,7 @@ export interface AssetMeasurement {
 }
 
 export interface AssetType {
-  id: string;
-  name: string;
+  code: number;
   description: string;
   tax_region?: number;
   shared_area?: boolean;
@@ -477,41 +476,42 @@ export const api = {
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
-        .order('name');
+        .order('code');
 
       if (error) throw error;
       return data || [];
     },
-    getOne: async (id: string): Promise<AssetType> => {
+    getOne: async (code: number): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
-        .eq('id', id)
+        .eq('code', code)
         .maybeSingle();
 
       if (error) throw error;
       if (!data) throw new Error('Asset type not found');
       return data;
     },
-    getByCode: async (code: string): Promise<AssetType | null> => {
+    getByCode: async (code: number | string): Promise<AssetType | null> => {
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
-        .eq('name', code)
+        .eq('code', typeof code === 'string' ? parseInt(code) : code)
         .maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    formatWithDescription: (code: string | undefined | null, assetTypes: AssetType[]): string => {
+    formatWithDescription: (code: string | number | undefined | null, assetTypes: AssetType[]): string => {
       if (!code) return '';
-      const assetType = assetTypes.find(at => at.name === code);
+      const codeNum = typeof code === 'string' ? parseInt(code) : code;
+      const assetType = assetTypes.find(at => at.code === codeNum);
       if (assetType && assetType.description) {
         return `${code} - ${assetType.description}`;
       }
-      return code;
+      return String(code);
     },
-    create: async (input: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>): Promise<AssetType> => {
+    create: async (input: Omit<AssetType, 'created_at' | 'updated_at'>): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')
         .insert(input)
@@ -521,22 +521,22 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (id: string, input: Partial<AssetType>): Promise<AssetType> => {
+    update: async (code: number, input: Partial<AssetType>): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')
         .update(input)
-        .eq('id', id)
+        .eq('code', code)
         .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    delete: async (id: string): Promise<{ message: string }> => {
+    delete: async (code: number): Promise<{ message: string }> => {
       const { error } = await supabase
         .from('asset_types')
         .delete()
-        .eq('id', id);
+        .eq('code', code);
 
       if (error) throw error;
       return { message: 'Asset type deleted successfully' };

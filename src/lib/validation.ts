@@ -218,7 +218,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
 ): Promise<ValidationResult> {
   try {
     const { data: building, error: buildingError } = await supabase
-      .from('building')
+      .from('buildings')
       .select('tax_region')
       .eq('building_number', buildingNumber)
       .maybeSingle();
@@ -377,7 +377,7 @@ export async function validateSubAssetsFor199Or299(
   }
 
   const { data: building, error: buildingError } = await supabase
-    .from('building')
+    .from('buildings')
     .select('tax_region')
     .eq('building_number', buildingNumber)
     .maybeSingle();

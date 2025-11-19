@@ -10,13 +10,12 @@ interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
   onOpenAssetTypes?: () => void;
   onOpenAssetSearch?: () => void;
-  onOpenDataEntry?: () => void;
   onOpenValidationRules?: () => void;
   showCreateModal: boolean;
   setShowCreateModal: (show: boolean) => void;
 }
 
-export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenDataEntry, onOpenValidationRules, showCreateModal, setShowCreateModal }: BuildingsListProps) {
+export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetSearch, onOpenValidationRules, showCreateModal, setShowCreateModal }: BuildingsListProps) {
   const { t } = useTranslation();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);

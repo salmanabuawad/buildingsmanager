@@ -294,38 +294,136 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       return;
     }
 
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    const measurementDate = `${day}/${month}/${year}`;
-
-    // Ensure payer_id is not undefined
-    const payerId = latestRow.payer_id || '';
-
-    const newMeasurement = {
-      asset_id: latestRow.asset_id,
-      building_number: latestRow.building_number,
-      measurement_date: measurementDate,
-      payer_id: payerId,
-      main_asset_type: latestRow.main_asset_type,
-      asset_size: latestRow.asset_size,
-      sub_asset_type_1: latestRow.sub_asset_type_1,
-      sub_asset_size_1: latestRow.sub_asset_size_1,
-      sub_asset_type_2: latestRow.sub_asset_type_2,
-      sub_asset_size_2: latestRow.sub_asset_size_2,
-      sub_asset_type_3: latestRow.sub_asset_type_3,
-      sub_asset_size_3: latestRow.sub_asset_size_3,
-      sub_asset_type_4: latestRow.sub_asset_type_4,
-      sub_asset_size_4: latestRow.sub_asset_size_4,
-      sub_asset_type_5: latestRow.sub_asset_type_5,
-      sub_asset_size_5: latestRow.sub_asset_size_5,
-      sub_asset_type_6: latestRow.sub_asset_type_6,
-      sub_asset_size_6: latestRow.sub_asset_size_6,
-    };
-
     setIsSaving(true);
     try {
+      // Comprehensive validation before saving
+      const validations = [
+        assetValidators.validateBuildingNumber(latestRow.building_number),
+        assetValidators.validateAssetId(latestRow.asset_id),
+        assetValidators.validatePayerId(latestRow.payer_id),
+        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size),
+      ];
+
+      // Validate sub-asset types if they exist
+      if (latestRow.sub_asset_type_1) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_1, latestRow.sub_asset_size_1)
+        );
+      }
+      if (latestRow.sub_asset_type_2) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_2, latestRow.sub_asset_size_2)
+        );
+      }
+      if (latestRow.sub_asset_type_3) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_3, latestRow.sub_asset_size_3)
+        );
+      }
+      if (latestRow.sub_asset_type_4) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_4, latestRow.sub_asset_size_4)
+        );
+      }
+      if (latestRow.sub_asset_type_5) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_5, latestRow.sub_asset_size_5)
+        );
+      }
+      if (latestRow.sub_asset_type_6) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_6, latestRow.sub_asset_size_6)
+        );
+      }
+
+      // Validate sub-assets constraints
+      validations.push(
+        assetValidators.validateMinimumSubAssets([
+          latestRow.sub_asset_type_1,
+          latestRow.sub_asset_type_2,
+          latestRow.sub_asset_type_3,
+          latestRow.sub_asset_type_4,
+          latestRow.sub_asset_type_5,
+          latestRow.sub_asset_type_6
+        ]),
+        assetValidators.validateSubAssetSizeMatchesMain(
+          latestRow.asset_size,
+          [
+            latestRow.sub_asset_type_1,
+            latestRow.sub_asset_type_2,
+            latestRow.sub_asset_type_3,
+            latestRow.sub_asset_type_4,
+            latestRow.sub_asset_type_5,
+            latestRow.sub_asset_type_6
+          ],
+          [
+            latestRow.sub_asset_size_1,
+            latestRow.sub_asset_size_2,
+            latestRow.sub_asset_size_3,
+            latestRow.sub_asset_size_4,
+            latestRow.sub_asset_size_5,
+            latestRow.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateSubAssetsFor199Or299(
+          latestRow.building_number,
+          latestRow.main_asset_type,
+          latestRow.asset_size,
+          [
+            latestRow.sub_asset_type_1,
+            latestRow.sub_asset_type_2,
+            latestRow.sub_asset_type_3,
+            latestRow.sub_asset_type_4,
+            latestRow.sub_asset_type_5,
+            latestRow.sub_asset_type_6
+          ],
+          [
+            latestRow.sub_asset_size_1,
+            latestRow.sub_asset_size_2,
+            latestRow.sub_asset_size_3,
+            latestRow.sub_asset_size_4,
+            latestRow.sub_asset_size_5,
+            latestRow.sub_asset_size_6
+          ]
+        )
+      );
+
+      const validation = await validateAll(validations);
+      if (!validation.valid) {
+        setToast({ message: `שגיאת ולידציה: ${validation.error}`, type: 'error' });
+        return;
+      }
+
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const measurementDate = `${day}/${month}/${year}`;
+
+      // Ensure payer_id is not undefined
+      const payerId = latestRow.payer_id || '';
+
+      const newMeasurement = {
+        asset_id: latestRow.asset_id,
+        building_number: latestRow.building_number,
+        measurement_date: measurementDate,
+        payer_id: payerId,
+        main_asset_type: latestRow.main_asset_type,
+        asset_size: latestRow.asset_size,
+        sub_asset_type_1: latestRow.sub_asset_type_1,
+        sub_asset_size_1: latestRow.sub_asset_size_1,
+        sub_asset_type_2: latestRow.sub_asset_type_2,
+        sub_asset_size_2: latestRow.sub_asset_size_2,
+        sub_asset_type_3: latestRow.sub_asset_type_3,
+        sub_asset_size_3: latestRow.sub_asset_size_3,
+        sub_asset_type_4: latestRow.sub_asset_type_4,
+        sub_asset_size_4: latestRow.sub_asset_size_4,
+        sub_asset_type_5: latestRow.sub_asset_type_5,
+        sub_asset_size_5: latestRow.sub_asset_size_5,
+        sub_asset_type_6: latestRow.sub_asset_type_6,
+        sub_asset_size_6: latestRow.sub_asset_size_6,
+      };
+
       await api.assets.create(newMeasurement);
       setToast({ message: 'New measurement created successfully', type: 'success' });
       setDirtyAssets(new Map());
@@ -714,9 +812,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 </button>
                 <button
                   onClick={handleNewMeasurement}
-                  disabled={isSaving || validationErrors.size > 0}
+                  disabled={isSaving || hasChanges || validationErrors.size > 0}
                   className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title={validationErrors.size > 0 ? 'תקן שגיאות לפני יצירת מדידה חדשה' : 'צור מדידה חדשה'}
+                  title={
+                    hasChanges
+                      ? 'שמור שינויים לפני יצירת מדידה חדשה'
+                      : validationErrors.size > 0
+                      ? 'תקן שגיאות לפני יצירת מדידה חדשה'
+                      : 'צור מדידה חדשה'
+                  }
                 >
                   {isSaving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

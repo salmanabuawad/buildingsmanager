@@ -68,7 +68,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         }
         assetsByAssetId.get(asset.asset_id)!.push(asset);
       }
-      let masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
+      const masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
         group.sort((a, b) => {
           const parseDate = (dateStr: string) => {
             const parts = dateStr.split('/');
@@ -81,14 +81,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         });
         return group[0];
       });
-
-      if (taxZone) {
-        masterAssetsList = masterAssetsList.filter(asset => {
-          const assetType = assetTypesData?.find(at => at.name === asset.main_asset_type);
-          if (!assetType || !assetType.tax_region) return false;
-          return assetType.tax_region.toString() === taxZone;
-        });
-      }
 
       setMasterAssets(masterAssetsList);
       const invalidSet = new Set<string>();

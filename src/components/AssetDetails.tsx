@@ -199,6 +199,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setIsSaving(true);
     try {
       for (const [assetId, changes] of dirtyAssets.entries()) {
+        console.log('=== Saving asset ===');
+        console.log('Asset ID:', assetId);
+        console.log('Changes object:', changes);
+        console.log('measurement_date in changes:', 'measurement_date' in changes);
+        console.log('measurement_date value:', changes.measurement_date);
+
         // Only modify measurement_date if it was explicitly changed to empty
         if ('measurement_date' in changes && (!changes.measurement_date || changes.measurement_date.trim() === '')) {
           const today = new Date();
@@ -206,7 +212,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           const month = String(today.getMonth() + 1).padStart(2, '0');
           const year = today.getFullYear();
           changes.measurement_date = `${day}/${month}/${year}`;
+          console.log('Auto-filled empty date with:', changes.measurement_date);
+        } else if ('measurement_date' in changes) {
+          console.log('Keeping user-entered date:', changes.measurement_date);
         }
+
+        console.log('Final changes being sent to API:', changes);
         await api.assets.update(assetId, changes);
       }
 

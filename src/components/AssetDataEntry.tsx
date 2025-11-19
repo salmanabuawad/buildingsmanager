@@ -567,6 +567,13 @@ export function AssetDataEntry() {
       showToast('יש לשמור את הנכס לפני הוספת מדידה חדשה', 'error');
       return;
     }
+
+    // Check for validation errors
+    if (row._validationErrors && row._validationErrors.size > 0) {
+      showToast('יש לתקן שגיאות אימות לפני הוספת מדידה חדשה', 'error');
+      return;
+    }
+
     try {
       setLoading(true);
       // Create new measurement with specified date or current date
@@ -965,8 +972,9 @@ export function AssetDataEntry() {
                   e.stopPropagation();
                   handleAddNewMeasurement(params.data.id);
                 }}
-                className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
-                title="הוסף מדידה חדשה"
+                disabled={row._validationErrors && row._validationErrors.size > 0}
+                className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                title={row._validationErrors && row._validationErrors.size > 0 ? "תקן שגיאות אימות תחילה" : "הוסף מדידה חדשה"}
               >
                 מדידה חדשה
               </button>

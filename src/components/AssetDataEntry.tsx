@@ -1048,8 +1048,6 @@ export function AssetDataEntry() {
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
-        const isNewRow = row._isNew || false;
-        const anyDirtyInGrid = rowData.some(r => r._isDirty || r._isNew);
 
         return (
           <div className="flex items-center gap-2 w-full px-2">
@@ -1060,17 +1058,13 @@ export function AssetDataEntry() {
                 e.stopPropagation();
                 handleAddNewMeasurement(params.data.id);
               }}
-              disabled={anyDirtyInGrid}
+              disabled={loading}
               className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
-                anyDirtyInGrid
+                loading
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
-              title={
-                anyDirtyInGrid
-                  ? 'יש לשמור את כל השינויים בטבלה לפני הוספת מדידה חדשה'
-                  : 'הוסף מדידה חדשה'
-              }
+              title="הוסף מדידה חדשה"
             >
               מדידה חדשה
             </button>
@@ -1090,7 +1084,7 @@ export function AssetDataEntry() {
         );
       }
     }
-  ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement, rowData]);
+  ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement, loading]);
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {
       return rowData;

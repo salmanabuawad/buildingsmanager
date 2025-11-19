@@ -812,15 +812,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 </button>
                 <button
                   onClick={handleNewMeasurement}
-                  disabled={isSaving || hasChanges || validationErrors.size > 0}
+                  disabled={isSaving}
                   className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title={
-                    hasChanges
-                      ? 'שמור שינויים לפני יצירת מדידה חדשה'
-                      : validationErrors.size > 0
-                      ? 'תקן שגיאות לפני יצירת מדידה חדשה'
-                      : 'צור מדידה חדשה'
-                  }
+                  title="צור מדידה חדשה"
                 >
                   {isSaving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

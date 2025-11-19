@@ -199,8 +199,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setIsSaving(true);
     try {
       for (const [assetId, changes] of dirtyAssets.entries()) {
-        // If measurement_date is empty, set it to current date
-        if (changes.measurement_date !== undefined && (!changes.measurement_date || changes.measurement_date.trim() === '')) {
+        // Only modify measurement_date if it was explicitly changed to empty
+        if ('measurement_date' in changes && (!changes.measurement_date || changes.measurement_date.trim() === '')) {
           const today = new Date();
           const day = String(today.getDate()).padStart(2, '0');
           const month = String(today.getMonth() + 1).padStart(2, '0');

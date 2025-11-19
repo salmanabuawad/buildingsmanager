@@ -83,8 +83,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       await api.buildings.create({
         building_number: buildingNumber,
         tax_region: taxRegion,
-        total_assets: 0,
-        total_building_area: 0
+        has_elevator: false
       });
       console.log('[CREATE] Building created successfully');
 
@@ -121,9 +120,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           await fetchBuildings(false);
           return;
         }
-      } else if (field === 'total_area_for_control' || field === 'shared_area') {
+      } else if (field === 'shared_area') {
         if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
-          setError('Total area must be a positive number');
+          setError('Shared area must be a positive number');
           setTimeout(() => setError(null), 3000);
           await fetchBuildings(false);
           return;
@@ -158,19 +157,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const hasAreaDiscrepancy = buildingValidators.checkAreaMismatch(
-          building.total_area_for_control,
-          building.total_building_area
-        );
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
-        if (hasAreaDiscrepancy || hasTaxRegionError) {
-          const errors = [];
-          if (hasAreaDiscrepancy) errors.push(t('areaMismatch'));
-          if (hasTaxRegionError) errors.push(t('invalidTaxRegion'));
-
+        if (hasTaxRegionError) {
           return (
-            <div className="flex items-center justify-center h-full" title={errors.join(', ')}>
+            <div className="flex items-center justify-center h-full" title={t('invalidTaxRegion')}>
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
           );
@@ -217,30 +208,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         if (val == null || val === '') return null;
         return val.toString().trim();
       },
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'total_assets',
-      headerName: t('totalUnits'),
-      flex: 1,
-      editable: false,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'total_building_area',
-      headerName: t('totalBuildingArea'),
-      flex: 1.5,
-      editable: false,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'total_area_for_control',
-      headerName: t('totalAreaForControl'),
-      flex: 1.5,
-      editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -350,12 +317,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               rowClass="ag-row"
               getRowStyle={(params) => {
                 const building = params.data as Building;
-                const hasControlArea = building.total_area_for_control != null;
-                const areasMatch = hasControlArea && building.total_area_for_control === building.total_building_area;
-                const hasAreaDiscrepancy = hasControlArea && !areasMatch;
                 const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
-                if (hasAreaDiscrepancy || hasTaxRegionError) {
+                if (hasTaxRegionError) {
                   return { background: '#fee2e2' };
                 }
 

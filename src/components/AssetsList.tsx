@@ -1003,12 +1003,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 <BuildingIcon className="w-8 h-8 text-white" />
                 <h1 className="text-xl sm:text-2xl font-bold text-white">
                   {t('buildingNumber')} {building?.building_number}
-                  {building?.tax_region && (
-                    <span>
-                      {' | '}
-                      אזור מיסים: {building.tax_region}
-                    </span>
-                  )}
                 </h1>
               </div>
               <div className="flex items-center gap-4 mt-1">

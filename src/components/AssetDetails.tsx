@@ -37,6 +37,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     return allMeasurements[0]?.id;
   }, [allMeasurements]);
 
+  const assetTaxRegion = useMemo(() => {
+    if (!asset?.main_asset_type || assetTypes.length === 0) return null;
+    const assetType = assetTypes.find(at => String(at.code) === String(asset.main_asset_type));
+    return assetType?.tax_region || null;
+  }, [asset?.main_asset_type, assetTypes]);
+
   const getRowStyle = useCallback((params: any) => {
     const assetId = params.data?.id;
     if (!assetId) return undefined;
@@ -775,10 +781,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {building && (
               <p className="text-xs sm:text-sm text-teal-50">
                 {t('building')} {building.building_number}
-                {building.tax_region && (
+                {assetTaxRegion && (
                   <span>
                     {' | '}
-                    אזור מיסים: {building.tax_region}
+                    אזור מיסים: {assetTaxRegion}
                   </span>
                 )}
               </p>

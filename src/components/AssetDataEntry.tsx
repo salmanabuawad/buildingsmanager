@@ -73,7 +73,7 @@ export function AssetDataEntry() {
     building_number: null,
     payer_id: '',
     asset_id: '',
-    measurement_date: '',
+    measurement_date: '01/01/1900',
     main_asset_type: '',
     asset_size: 0,
     sub_asset_type_1: '',
@@ -369,10 +369,7 @@ export function AssetDataEntry() {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,
             asset_id: row.asset_id,
-            measurement_date: row.measurement_date || (() => {
-              const now = new Date();
-              return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-            })(),
+            measurement_date: row.measurement_date || '01/01/1900',
             main_asset_type: row.main_asset_type || undefined,
             asset_size: row.asset_size || 0,
             sub_asset_type_1: row.sub_asset_type_1 || undefined,

@@ -365,11 +365,21 @@ export function AssetDataEntry() {
             errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
             continue;
           }
+          // If measurement_date is blank or 01/01/1900, use current date
+          let measurementDate = row.measurement_date || '01/01/1900';
+          if (measurementDate === '01/01/1900') {
+            const today = new Date();
+            const day = String(today.getDate()).padStart(2, '0');
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const year = today.getFullYear();
+            measurementDate = `${day}/${month}/${year}`;
+          }
+
           const assetData: Omit<Asset, 'id' | 'created_at'> = {
             building_number: row.building_number!,
             payer_id: row.payer_id || null,
             asset_id: row.asset_id,
-            measurement_date: row.measurement_date || '01/01/1900',
+            measurement_date: measurementDate,
             main_asset_type: row.main_asset_type || undefined,
             asset_size: row.asset_size || 0,
             sub_asset_type_1: row.sub_asset_type_1 || undefined,
@@ -716,9 +726,10 @@ export function AssetDataEntry() {
       cellEditorParams: {
         maxLength: 10,
       },
+      valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
       valueParser: (params) => {
         const value = params.newValue;
-        if (!value) return '';
+        if (!value) return '01/01/1900';
         // Allow only digits and forward slashes, max 10 chars
         const cleaned = value.replace(/[^\d/]/g, '').substring(0, 10);
         return cleaned;

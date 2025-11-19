@@ -200,6 +200,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       for (const [assetId, changes] of dirtyAssets.entries()) {
         // If measurement_date is being changed, we need special handling
         if ('measurement_date' in changes) {
+          // If date is blank or 01/01/1900, use current date
+          if (!changes.measurement_date || changes.measurement_date === '01/01/1900') {
+            const today = new Date();
+            const day = String(today.getDate()).padStart(2, '0');
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const year = today.getFullYear();
+            changes.measurement_date = `${day}/${month}/${year}`;
+          }
+
           // Find the asset to get all its data
           const asset = allMeasurements.find(a => a.id === assetId);
           if (!asset) continue;
@@ -381,6 +390,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       minWidth: 130,
       editable: (params) => params.data.id === latestMeasurementId,
       cellStyle: (params) => params.data.id === latestMeasurementId ? {} : { backgroundColor: '#f3f4f6' },
+      valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
+      valueGetter: (params) => params.data.measurement_date,
+      valueSetter: (params) => {
+        const newValue = params.newValue?.trim();
+        params.data.measurement_date = newValue || '01/01/1900';
+        return true;
+      },
     },
     {
       field: 'payer_id',

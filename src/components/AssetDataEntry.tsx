@@ -44,7 +44,6 @@ export function AssetDataEntry() {
   const [success, setSuccess] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<number | 'all'>('all');
-  const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const showToast = (message: string, type: 'error' | 'success' | 'info') => {
     setToast({ message, type });
   };
@@ -555,13 +554,18 @@ export function AssetDataEntry() {
       return;
     }
 
+    const dateInput = window.prompt('הכנס תאריך מדידה חדש (DD/MM/YYYY):', (() => {
+      const now = new Date();
+      return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    })());
+
+    if (!dateInput) {
+      return;
+    }
+
     try {
       setLoading(true);
-      // Create new measurement with specified date or current date
-      const measurementDate = newMeasurementDate || (() => {
-        const now = new Date();
-        return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-      })();
+      const measurementDate = dateInput;
       const newMeasurementData = {
         building_number: row.building_number!,
         payer_id: row.payer_id || undefined,
@@ -608,7 +612,6 @@ export function AssetDataEntry() {
         _dbId: newAsset.id
       };
       setRowData(prev => [...prev, newRow]);
-      setNewMeasurementDate(''); // Clear the date input after successful creation
       showToast('מדידה חדשה נוספה בהצלחה', 'success');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בהוספת מדידה חדשה';
@@ -616,7 +619,7 @@ export function AssetDataEntry() {
     } finally {
       setLoading(false);
     }
-  }, [rowData, showToast, newMeasurementDate]);
+  }, [rowData, showToast]);
   const handleDeleteRow = useCallback(async (rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
     if (!row) return;

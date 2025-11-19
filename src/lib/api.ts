@@ -10,17 +10,6 @@ export interface Building {
   created_at: string;
 }
 
-export interface SubAsset {
-  id: number;
-  asset_id: number;
-  building_number: number;
-  measurement_date: string;
-  sub_asset_type: string;
-  sub_asset_size: number;
-  sequence_order: number;
-  created_at: string;
-}
-
 export interface Asset {
   id: number;
   building_number: number;
@@ -29,10 +18,21 @@ export interface Asset {
   measurement_date: string;
   main_asset_type?: string;
   asset_size: number;
+  sub_asset_type_1?: string;
+  sub_asset_size_1: number;
+  sub_asset_type_2?: string;
+  sub_asset_size_2: number;
+  sub_asset_type_3?: string;
+  sub_asset_size_3: number;
+  sub_asset_type_4?: string;
+  sub_asset_size_4: number;
+  sub_asset_type_5?: string;
+  sub_asset_size_5: number;
+  sub_asset_type_6?: string;
+  sub_asset_size_6: number;
   structure_drawing_url?: string;
   created_at: string;
   updated_at: string;
-  sub_assets?: SubAsset[];
 }
 
 export interface AssetMeasurement {
@@ -95,17 +95,18 @@ function sanitizeAssetInput(input: any): any {
     measurement_date: input.measurement_date != null ? sanitizeDate(input.measurement_date) : undefined,
     main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
     asset_size: input.asset_size != null ? sanitizeNumber(input.asset_size) : undefined,
-  };
-}
-
-function sanitizeSubAssetInput(input: any): any {
-  return {
-    asset_id: input.asset_id != null ? sanitizeInteger(input.asset_id) : undefined,
-    building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
-    measurement_date: input.measurement_date != null ? sanitizeDate(input.measurement_date) : undefined,
-    sub_asset_type: input.sub_asset_type != null ? sanitizeText(input.sub_asset_type) : undefined,
-    sub_asset_size: input.sub_asset_size != null ? sanitizeNumber(input.sub_asset_size) : undefined,
-    sequence_order: input.sequence_order != null ? sanitizeInteger(input.sequence_order) : undefined,
+    sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,
+    sub_asset_size_1: input.sub_asset_size_1 != null ? sanitizeNumber(input.sub_asset_size_1) : undefined,
+    sub_asset_type_2: input.sub_asset_type_2 != null ? sanitizeText(input.sub_asset_type_2) : undefined,
+    sub_asset_size_2: input.sub_asset_size_2 != null ? sanitizeNumber(input.sub_asset_size_2) : undefined,
+    sub_asset_type_3: input.sub_asset_type_3 != null ? sanitizeText(input.sub_asset_type_3) : undefined,
+    sub_asset_size_3: input.sub_asset_size_3 != null ? sanitizeNumber(input.sub_asset_size_3) : undefined,
+    sub_asset_type_4: input.sub_asset_type_4 != null ? sanitizeText(input.sub_asset_type_4) : undefined,
+    sub_asset_size_4: input.sub_asset_size_4 != null ? sanitizeNumber(input.sub_asset_size_4) : undefined,
+    sub_asset_type_5: input.sub_asset_type_5 != null ? sanitizeText(input.sub_asset_type_5) : undefined,
+    sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
+    sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
+    sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
   };
 }
 
@@ -626,77 +627,6 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Validation rule deleted successfully' };
-    },
-  },
-  subAssets: {
-    getByAsset: async (assetId: number, buildingNumber: number, measurementDate: string): Promise<SubAsset[]> => {
-      const { data, error } = await supabase
-        .from('sub_assets')
-        .select('*')
-        .eq('asset_id', assetId)
-        .eq('building_number', buildingNumber)
-        .eq('measurement_date', measurementDate)
-        .order('sequence_order');
-
-      if (error) throw error;
-      return data || [];
-    },
-    create: async (input: Omit<SubAsset, 'id' | 'created_at'>): Promise<SubAsset> => {
-      const sanitizedInput = sanitizeSubAssetInput(input);
-      const { data, error } = await supabase
-        .from('sub_assets')
-        .insert(sanitizedInput)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    update: async (id: number, input: Partial<SubAsset>): Promise<SubAsset> => {
-      const sanitizedInput = sanitizeSubAssetInput(input);
-      const { data, error } = await supabase
-        .from('sub_assets')
-        .update(sanitizedInput)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    delete: async (id: number): Promise<{ message: string }> => {
-      const { error } = await supabase
-        .from('sub_assets')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      return { message: 'Sub-asset deleted successfully' };
-    },
-    bulkUpsert: async (assetId: number, buildingNumber: number, measurementDate: string, subAssets: Array<{sub_asset_type: string, sub_asset_size: number, sequence_order: number}>): Promise<void> => {
-      await supabase
-        .from('sub_assets')
-        .delete()
-        .eq('asset_id', assetId)
-        .eq('building_number', buildingNumber)
-        .eq('measurement_date', measurementDate);
-
-      if (subAssets.length > 0) {
-        const records = subAssets.map(sa => ({
-          asset_id: assetId,
-          building_number: buildingNumber,
-          measurement_date: measurementDate,
-          sub_asset_type: sa.sub_asset_type,
-          sub_asset_size: sa.sub_asset_size,
-          sequence_order: sa.sequence_order,
-        }));
-
-        const { error } = await supabase
-          .from('sub_assets')
-          .insert(records);
-
-        if (error) throw error;
-      }
     },
   },
 };

@@ -255,7 +255,10 @@ export async function validateAssetTypeForBuildingTaxRegion(
       return { valid: true };
     }
 
-    if (assetType.tax_region !== building.tax_region) {
+    const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+    const assetTaxRegion = String(assetType.tax_region);
+
+    if (!buildingTaxRegions.includes(assetTaxRegion)) {
       return {
         valid: false,
         error: `סוג הנכס "${assetTypeName}" (אזור ${assetType.tax_region}) לא שייך לאזור המס של הבניין (אזור ${building.tax_region})`
@@ -387,6 +390,8 @@ export async function validateSubAssetsFor199Or299(
     return { valid: true };
   }
 
+  const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+
   for (const subAssetType of validSubAssets) {
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
@@ -402,7 +407,7 @@ export async function validateSubAssetsFor199Or299(
       return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים` };
     }
 
-    if (assetType.tax_region != null && assetType.tax_region !== building.tax_region) {
+    if (assetType.tax_region != null && !buildingTaxRegions.includes(String(assetType.tax_region))) {
       return {
         valid: false,
         error: `סוג נכס משנה "${subAssetType}" (אזור ${assetType.tax_region}) לא שייך לאזור המס של הבניין (אזור ${building.tax_region})`

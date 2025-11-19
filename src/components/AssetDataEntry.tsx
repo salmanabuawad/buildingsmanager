@@ -384,6 +384,8 @@ export function AssetDataEntry() {
           const newAsset = await api.assets.create(assetData);
           row._dbId = newAsset.id;
           row._isNew = false;
+          row._isDirty = false;
+          row._dirtyFields = new Set<string>();
           savedCount++;
           savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - ${row.main_asset_type || 'ללא סוג'}`);
         } catch (err) {
@@ -1046,6 +1048,9 @@ export function AssetDataEntry() {
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
+        const hasDirtyChanges = row._isDirty || false;
+        const isNewRow = row._isNew || false;
+
         return (
           <div className="flex items-center gap-2 w-full px-2">
             <button
@@ -1055,8 +1060,19 @@ export function AssetDataEntry() {
                 e.stopPropagation();
                 handleAddNewMeasurement(params.data.id);
               }}
-              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium whitespace-nowrap"
-              title="הוסף מדידה חדשה"
+              disabled={hasDirtyChanges || isNewRow}
+              className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
+                hasDirtyChanges || isNewRow
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title={
+                isNewRow
+                  ? 'יש לשמור את הנכס לפני הוספת מדידה חדשה'
+                  : hasDirtyChanges
+                  ? 'יש לשמור את השינויים לפני הוספת מדידה חדשה'
+                  : 'הוסף מדידה חדשה'
+              }
             >
               מדידה חדשה
             </button>

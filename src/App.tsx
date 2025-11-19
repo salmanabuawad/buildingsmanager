@@ -45,7 +45,7 @@ function App() {
           type: 'assets',
           buildingNumber,
           taxZone: zones[0],
-          label: `בניין ${buildingNumber} - אזור ${zones[0]}`
+          label: `בניין ${buildingNumber}`
         };
         newTabs.push(singleZoneTab);
         setTabs(newTabs);

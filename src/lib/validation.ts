@@ -676,7 +676,7 @@ export const buildingValidators = {
     return firstError || { valid: true };
   },
 
-  validateTaxRegion: async (taxRegion: string | number | undefined): Promise<ValidationResult> => {
+  validateTaxRegion: async (taxRegion: string | number | undefined, skipAssetTypeCheck: boolean = false): Promise<ValidationResult> => {
     if (!taxRegion && taxRegion !== 0) {
       return { valid: true };
     }
@@ -684,7 +684,7 @@ export const buildingValidators = {
     // Convert to string if it's a number
     const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
 
-    // Valid combinations: "40,10", "40,20", "40,30", or single values
+    // Valid combinations: "10,40", "20,40", "30,40", or single values
     const validCombinations = ['10,40', '20,40', '30,40'];
     const trimmedValue = taxRegionStr.trim();
 
@@ -697,21 +697,25 @@ export const buildingValidators = {
           error: 'אזור מס יכול להיות ערך בודד או אחד מהצירופים הבאים בלבד: 10,40 או 20,40 או 30,40'
         };
       }
-      // For valid combinations, we verify each component exists in asset_types
-      const components = trimmedValue.split(',').map(v => v.trim());
-      for (const component of components) {
-        const { count, error } = await supabase
-          .from('asset_types')
-          .select('tax_region', { count: 'exact', head: true })
-          .eq('tax_region', parseInt(component));
 
-        if (error || !count || count === 0) {
-          return {
-            valid: false,
-            error: `אזור מס ${component} לא קיים בסוגי הנכסים`
-          };
+      // Only check asset_types existence when explicitly requested (during save/update)
+      if (!skipAssetTypeCheck) {
+        const components = trimmedValue.split(',').map(v => v.trim());
+        for (const component of components) {
+          const { count, error } = await supabase
+            .from('asset_types')
+            .select('tax_region', { count: 'exact', head: true })
+            .eq('tax_region', parseInt(component));
+
+          if (error || !count || count === 0) {
+            return {
+              valid: false,
+              error: `אזור מס ${component} לא קיים בסוגי הנכסים`
+            };
+          }
         }
       }
+
       return { valid: true };
     }
 
@@ -728,7 +732,7 @@ export const buildingValidators = {
 
   checkTaxRegionInvalid: async (taxRegion: string | number | null | undefined): Promise<boolean> => {
     if (taxRegion == null) return false;
-    const result = await buildingValidators.validateTaxRegion(taxRegion);
+    const result = await buildingValidators.validateTaxRegion(taxRegion, true);
     return !result.valid;
   },
 };

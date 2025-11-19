@@ -198,7 +198,28 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setIsSaving(true);
     try {
       for (const [assetId, changes] of dirtyAssets.entries()) {
-        await api.assets.update(assetId, changes);
+        // If measurement_date is being changed, we need special handling
+        if ('measurement_date' in changes) {
+          // Find the asset to get all its data
+          const asset = allMeasurements.find(a => a.id === assetId);
+          if (!asset) continue;
+
+          // Delete the old record and create a new one with the new date
+          await api.assets.delete(assetId);
+
+          const newAssetData = {
+            ...asset,
+            ...changes,
+            updated_at: new Date().toISOString()
+          };
+          delete (newAssetData as any).id;
+          delete (newAssetData as any).created_at;
+
+          await api.assets.create(newAssetData as any);
+        } else {
+          // Normal update for other fields
+          await api.assets.update(assetId, changes);
+        }
       }
 
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
@@ -358,9 +379,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('measurementDate'),
       width: 130,
       minWidth: 130,
-      editable: false,
-      cellStyle: { backgroundColor: '#f3f4f6' },
-      headerTooltip: 'Measurement date cannot be edited. Create a new measurement to track changes over time.',
+      editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => params.data.id === latestMeasurementId ? {} : { backgroundColor: '#f3f4f6' },
     },
     {
       field: 'payer_id',

@@ -136,7 +136,7 @@ export function AssetDataEntry() {
       assetValidators.validateAssetId(updatedRow.asset_id),
       assetValidators.validatePayerId(updatedRow.payer_id),
       assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
-      assetValidators.validateMainAssetTypeForBuilding(updatedRow.building_number, updatedRow.main_asset_type),
+      assetValidators.validateMainAssetTypeComplete(updatedRow.building_number, updatedRow.main_asset_type, updatedRow.asset_size),
     ];
     if (shouldValidateSubAssets) {
       validations.push(
@@ -286,7 +286,7 @@ export function AssetDataEntry() {
             assetValidators.validateAssetId(row.asset_id),
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
             assetValidators.validateMinimumSubAssets([
               row.sub_asset_type_1,
               row.sub_asset_type_2,
@@ -415,7 +415,7 @@ export function AssetDataEntry() {
             assetValidators.validateAssetId(row.asset_id),
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeForBuilding(row.building_number, row.main_asset_type),
+            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
             assetValidators.validateMinimumSubAssets([
               row.sub_asset_type_1,
               row.sub_asset_type_2,
@@ -565,6 +565,106 @@ export function AssetDataEntry() {
 
     try {
       setLoading(true);
+
+      // Comprehensive validation before saving
+      const validations = [
+        assetValidators.validateBuildingNumber(row.building_number),
+        assetValidators.validateAssetId(row.asset_id),
+        assetValidators.validatePayerId(row.payer_id),
+        assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
+      ];
+
+      // Validate sub-asset types if they exist
+      if (row.sub_asset_type_1) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_1, row.sub_asset_size_1)
+        );
+      }
+      if (row.sub_asset_type_2) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_2, row.sub_asset_size_2)
+        );
+      }
+      if (row.sub_asset_type_3) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_3, row.sub_asset_size_3)
+        );
+      }
+      if (row.sub_asset_type_4) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_4, row.sub_asset_size_4)
+        );
+      }
+      if (row.sub_asset_type_5) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_5, row.sub_asset_size_5)
+        );
+      }
+      if (row.sub_asset_type_6) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_6, row.sub_asset_size_6)
+        );
+      }
+
+      // Validate sub-assets constraints
+      validations.push(
+        assetValidators.validateMinimumSubAssets([
+          row.sub_asset_type_1,
+          row.sub_asset_type_2,
+          row.sub_asset_type_3,
+          row.sub_asset_type_4,
+          row.sub_asset_type_5,
+          row.sub_asset_type_6
+        ]),
+        assetValidators.validateSubAssetSizeMatchesMain(
+          row.asset_size,
+          [
+            row.sub_asset_type_1,
+            row.sub_asset_type_2,
+            row.sub_asset_type_3,
+            row.sub_asset_type_4,
+            row.sub_asset_type_5,
+            row.sub_asset_type_6
+          ],
+          [
+            row.sub_asset_size_1,
+            row.sub_asset_size_2,
+            row.sub_asset_size_3,
+            row.sub_asset_size_4,
+            row.sub_asset_size_5,
+            row.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateSubAssetsFor199Or299(
+          row.building_number,
+          row.main_asset_type,
+          row.asset_size,
+          [
+            row.sub_asset_type_1,
+            row.sub_asset_type_2,
+            row.sub_asset_type_3,
+            row.sub_asset_type_4,
+            row.sub_asset_type_5,
+            row.sub_asset_type_6
+          ],
+          [
+            row.sub_asset_size_1,
+            row.sub_asset_size_2,
+            row.sub_asset_size_3,
+            row.sub_asset_size_4,
+            row.sub_asset_size_5,
+            row.sub_asset_size_6
+          ]
+        )
+      );
+
+      const validation = await validateAll(validations);
+      if (!validation.valid) {
+        showToast(`שגיאת ולידציה: ${validation.error}`, 'error');
+        setLoading(false);
+        return;
+      }
+
       const measurementDate = dateInput;
       const newMeasurementData = {
         building_number: row.building_number!,

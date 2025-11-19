@@ -219,7 +219,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
   try {
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region')
+      .select('tax_region, has_elevator')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -239,7 +239,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
     const assetTypeCode = typeof assetTypeName === 'string' ? parseInt(assetTypeName) : assetTypeName;
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
-      .select('code, description, tax_region')
+      .select('code, description, tax_region, has_elevator, min_asset_size, max_asset_size')
       .eq('code', assetTypeCode)
       .maybeSingle();
 
@@ -270,6 +270,90 @@ export async function validateAssetTypeForBuildingTaxRegion(
   } catch (error) {
     console.error('Asset type tax region validation error:', error);
     return { valid: false, error: 'Validation failed' };
+  }
+}
+
+export async function validateAssetTypeComplete(
+  buildingNumber: number,
+  assetTypeName: string,
+  assetSize: number
+): Promise<ValidationResult> {
+  try {
+    const { data: building, error: buildingError } = await supabase
+      .from('buildings')
+      .select('tax_region, has_elevator')
+      .eq('building_number', buildingNumber)
+      .maybeSingle();
+
+    if (buildingError) {
+      console.error('Error fetching building:', buildingError);
+      return { valid: false, error: 'שגיאה באימות פרטי הבניין' };
+    }
+
+    if (!building) {
+      return { valid: false, error: 'הבניין לא נמצא' };
+    }
+
+    const assetTypeCode = typeof assetTypeName === 'string' ? parseInt(assetTypeName) : assetTypeName;
+    const { data: assetType, error: assetTypeError } = await supabase
+      .from('asset_types')
+      .select('code, description, tax_region, has_elevator, min_asset_size, max_asset_size')
+      .eq('code', assetTypeCode)
+      .maybeSingle();
+
+    if (assetTypeError) {
+      console.error('Error fetching asset type:', assetTypeError);
+      return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+    }
+
+    if (!assetType) {
+      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים` };
+    }
+
+    // Step 1: Check tax region match
+    if (building.tax_region != null && assetType.tax_region != null) {
+      const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+      const assetTaxRegion = String(assetType.tax_region);
+
+      if (!buildingTaxRegions.includes(assetTaxRegion)) {
+        return {
+          valid: false,
+          error: `סוג הנכס "${assetTypeName}" (אזור מס ${assetType.tax_region}) לא קיים באזור המס של הבניין (${building.tax_region})`
+        };
+      }
+    }
+
+    // Step 2: Check elevator requirement match
+    if (assetType.has_elevator != null && building.has_elevator !== assetType.has_elevator) {
+      const elevatorMsg = building.has_elevator ? 'יש מעלית' : 'אין מעלית';
+      const typeRequirement = assetType.has_elevator ? 'דורש מעלית' : 'לא דורש מעלית';
+      return {
+        valid: false,
+        error: `סוג הנכס "${assetTypeName}" ${typeRequirement}, אבל בבניין ${elevatorMsg}`
+      };
+    }
+
+    // Step 3: Check asset size is within range
+    if (assetSize != null && assetSize > 0) {
+      if (assetType.min_asset_size != null && assetSize < assetType.min_asset_size) {
+        return {
+          valid: false,
+          error: `גודל הנכס (${assetSize}) קטן מהמינימום המותר לסוג "${assetTypeName}" (${assetType.min_asset_size})`
+        };
+      }
+
+      if (assetType.max_asset_size != null && assetSize > assetType.max_asset_size) {
+        return {
+          valid: false,
+          error: `גודל הנכס (${assetSize}) גדול מהמקסימום המותר לסוג "${assetTypeName}" (${assetType.max_asset_size})`
+        };
+      }
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.error('Complete asset type validation error:', error);
+    return { valid: false, error: 'שגיאה באימות סוג הנכס' };
   }
 }
 
@@ -535,6 +619,28 @@ export const assetValidators = {
       return { valid: true };
     }
     return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType);
+  },
+
+  validateMainAssetTypeComplete: async (
+    buildingNumber: number | null,
+    mainAssetType: string | undefined,
+    assetSize: number | undefined
+  ): Promise<ValidationResult> => {
+    if (!mainAssetType || !buildingNumber || !assetSize) {
+      return { valid: true };
+    }
+    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize);
+  },
+
+  validateSubAssetTypeComplete: async (
+    buildingNumber: number | null,
+    subAssetType: string | undefined,
+    subAssetSize: number | undefined
+  ): Promise<ValidationResult> => {
+    if (!subAssetType || !buildingNumber || !subAssetSize) {
+      return { valid: true };
+    }
+    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize);
   },
 
   validateSubAssetsFor199Or299: async (

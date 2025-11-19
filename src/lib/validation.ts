@@ -685,7 +685,7 @@ export const buildingValidators = {
     const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
 
     // Valid combinations: "40,10", "40,20", "40,30", or single values
-    const validCombinations = ['40,10', '40,20', '40,30'];
+    const validCombinations = ['10,40', '20,40', '30,40'];
     const trimmedValue = taxRegionStr.trim();
 
     // Check if it's a comma-separated value
@@ -694,11 +694,28 @@ export const buildingValidators = {
       if (!validCombinations.includes(normalized)) {
         return {
           valid: false,
-          error: 'אזור מס יכול להיות ערך בודד או אחד מהצירופים הבאים בלבד: 40,10 או 40,20 או 40,30'
+          error: 'אזור מס יכול להיות ערך בודד או אחד מהצירופים הבאים בלבד: 10,40 או 20,40 או 30,40'
         };
       }
+      // For valid combinations, we verify each component exists in asset_types
+      const components = trimmedValue.split(',').map(v => v.trim());
+      for (const component of components) {
+        const { count, error } = await supabase
+          .from('asset_types')
+          .select('tax_region', { count: 'exact', head: true })
+          .eq('tax_region', parseInt(component));
+
+        if (error || !count || count === 0) {
+          return {
+            valid: false,
+            error: `אזור מס ${component} לא קיים בסוגי הנכסים`
+          };
+        }
+      }
+      return { valid: true };
     }
 
+    // For single values, use the standard validation rules
     const results = await validateField('building', 'tax_region', taxRegion);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };
@@ -709,7 +726,7 @@ export const buildingValidators = {
     return totalAreaForControl !== totalBuildingArea;
   },
 
-  checkTaxRegionInvalid: async (taxRegion: number | null | undefined): Promise<boolean> => {
+  checkTaxRegionInvalid: async (taxRegion: string | number | null | undefined): Promise<boolean> => {
     if (taxRegion == null) return false;
     const result = await buildingValidators.validateTaxRegion(taxRegion);
     return !result.valid;

@@ -776,8 +776,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               <p className="text-xs sm:text-sm text-teal-50">
                 {t('building')} {building.building_number}
                 {building.tax_region && (
-                  <span className="mr-2 bg-white/20 px-2 py-0.5 rounded">
-                    אזור מס: {building.tax_region}
+                  <span>
+                    {' | '}
+                    אזור מיסים: {building.tax_region}
                   </span>
                 )}
               </p>

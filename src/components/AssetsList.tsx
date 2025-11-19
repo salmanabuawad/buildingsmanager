@@ -998,8 +998,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 <h1 className="text-xl sm:text-2xl font-bold text-white">
                   {t('buildingNumber')} {building?.building_number}
                   {building?.tax_region && (
-                    <span className="mr-3 text-sm font-medium bg-white/20 px-3 py-1 rounded-lg">
-                      אזור מס: {building.tax_region}
+                    <span>
+                      {' | '}
+                      אזור מיסים: {building.tax_region}
                     </span>
                   )}
                 </h1>

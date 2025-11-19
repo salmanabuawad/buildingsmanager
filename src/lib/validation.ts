@@ -604,7 +604,7 @@ export const inputValidators = {
   },
 
   validateDateFormat: (value: string): ValidationResult => {
-    if (!value || value === '') {
+    if (!value || value === '' || value === '01/01/1900') {
       return { valid: true };
     }
 

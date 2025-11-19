@@ -208,8 +208,7 @@ export const api = {
       let query = supabase
         .from('assets')
         .select('*')
-        .order('asset_id')
-        .order('measurement_date', { ascending: false });
+        .order('asset_id');
 
       if (buildingNumber) {
         query = query.eq('building_number', buildingNumber);
@@ -218,14 +217,29 @@ export const api = {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data || [];
+
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      const sortedData = (data || []).sort((a, b) => {
+        if (a.asset_id !== b.asset_id) {
+          return a.asset_id - b.asset_id;
+        }
+        return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+      });
+
+      return sortedData;
     },
     getLatestOnly: async (buildingNumber?: number): Promise<Asset[]> => {
       let query = supabase
         .from('assets')
         .select('*')
-        .order('asset_id')
-        .order('measurement_date', { ascending: false });
+        .order('asset_id');
 
       if (buildingNumber) {
         query = query.eq('building_number', buildingNumber);
@@ -235,8 +249,23 @@ export const api = {
 
       if (error) throw error;
 
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      const sortedData = (data || []).sort((a, b) => {
+        if (a.asset_id !== b.asset_id) {
+          return a.asset_id - b.asset_id;
+        }
+        return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+      });
+
       const latestMap = new Map<string, Asset>();
-      for (const asset of data || []) {
+      for (const asset of sortedData) {
         if (!latestMap.has(asset.asset_id)) {
           latestMap.set(asset.asset_id, asset);
         }
@@ -248,8 +277,7 @@ export const api = {
       let query = supabase
         .from('assets')
         .select('*')
-        .eq('asset_id', assetId)
-        .order('measurement_date', { ascending: false });
+        .eq('asset_id', assetId);
 
       if (buildingNumber) {
         query = query.eq('building_number', buildingNumber);
@@ -258,7 +286,18 @@ export const api = {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data || [];
+
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      return (data || []).sort((a, b) =>
+        parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+      );
     },
     getOne: async (id: string): Promise<Asset> => {
       const { data, error } = await supabase
@@ -379,11 +418,21 @@ export const api = {
       const { data, error } = await supabase
         .from('apartment_measurements')
         .select('*')
-        .eq('asset_id', assetId)
-        .order('measurement_date', { ascending: false });
+        .eq('asset_id', assetId);
 
       if (error) throw error;
-      return data || [];
+
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      return (data || []).sort((a, b) =>
+        parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+      );
     },
     getOne: async (id: string): Promise<AssetMeasurement> => {
       const { data, error } = await supabase

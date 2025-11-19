@@ -69,7 +69,16 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         assetsByAssetId.get(asset.asset_id)!.push(asset);
       }
       let masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
-        group.sort((a, b) => new Date(b.measurement_date).getTime() - new Date(a.measurement_date).getTime());
+        group.sort((a, b) => {
+          const parseDate = (dateStr: string) => {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+              return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            }
+            return new Date(dateStr);
+          };
+          return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+        });
         return group[0];
       });
 

@@ -131,7 +131,7 @@ export function AssetDataEntry() {
     updatedRow._validationErrors.clear();
 
     // Validate measurement_date format
-    if (field === 'measurement_date' && updatedRow.measurement_date) {
+    if (field === 'measurement_date') {
       const dateValidation = inputValidators.validateDateFormat(updatedRow.measurement_date);
       if (!dateValidation.valid) {
         updatedRow._validationErrors.set('measurement_date', dateValidation.error || 'Invalid date format');
@@ -140,6 +140,8 @@ export function AssetDataEntry() {
         setToast({ message: dateValidation.error || 'Invalid date format', type: 'error' });
         setTimeout(() => setToast(null), 3000);
         return;
+      } else {
+        updatedRow._validationErrors.delete('measurement_date');
       }
     }
 

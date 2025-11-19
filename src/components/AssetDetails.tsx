@@ -68,12 +68,18 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const assetId = data.id;
       let newValue = event.newValue;
 
+      console.log('=== Cell value changed ===');
+      console.log('Field:', field);
+      console.log('Asset ID:', assetId);
+      console.log('New value:', newValue);
+
       const updatedAsset = { ...data, [field]: newValue };
 
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
         const existing = newMap.get(assetId) || {};
         newMap.set(assetId, { ...existing, [field]: newValue });
+        console.log('Updated dirty assets for asset', assetId, ':', { ...existing, [field]: newValue });
         return newMap;
       });
 
@@ -157,8 +163,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       const validation = await validateAll(validations);
 
+      console.log('Validation result:', validation);
+
       if (!validation.valid) {
         const detailedError = validation.error || 'Unknown validation error';
+        console.log('Validation FAILED:', detailedError);
         setValidationErrors(prev => {
           const newMap = new Map(prev);
           const errorMap = new Map<string, string>();
@@ -169,6 +178,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         event.api.refreshCells({ rowNodes: [event.node!], force: true });
         return;
       }
+
+      console.log('Validation passed, updating allMeasurements');
 
       // Update allMeasurements to show the edited value
       setAllMeasurements(prevAssets =>

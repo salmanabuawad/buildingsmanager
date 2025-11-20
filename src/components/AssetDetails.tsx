@@ -868,7 +868,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   params.api.autoSizeAllColumns(true);
                 }}
                 onCellValueChanged={onCellValueChanged}
-                enableRtl={true}
+                enableRtl={false}
                 animateRows={true}
                 tooltipShowDelay={200}
                 tooltipHideDelay={10000}

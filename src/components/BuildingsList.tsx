@@ -325,7 +325,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               domLayout="normal"
               suppressHorizontalScroll={false}
-              enableRtl={true}
+              enableRtl={false}
               rowClass="ag-row"
               getRowStyle={(params) => {
                 const building = params.data as Building;

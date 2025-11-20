@@ -493,7 +493,7 @@ export function AssetTypes() {
               pagination={false}
               domLayout="autoHeight"
               suppressHorizontalScroll={false}
-              enableRtl={true}
+              enableRtl={false}
               rowClass="ag-row"
               getRowStyle={(params) => {
                 if (params.node.rowIndex % 2 === 0) {

@@ -1190,7 +1190,7 @@ export function AssetDataEntry() {
             enterNavigatesVertically={true}
             enterNavigatesVerticallyAfterEdit={true}
             suppressScrollOnNewData={true}
-            enableRtl={true}
+            enableRtl={false}
             theme="legacy"
           />
         </div>

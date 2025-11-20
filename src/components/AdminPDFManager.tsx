@@ -229,7 +229,7 @@ export function AdminPDFManager() {
           paginationPageSizeSelector={[10, 20, 50, 100]}
           domLayout="normal"
           suppressHorizontalScroll={false}
-          enableRtl={true}
+          enableRtl={false}
         />
       </div>
     </div>

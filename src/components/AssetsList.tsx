@@ -1050,7 +1050,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               }, 100);
             }}
             animateRows={true}
-            enableRtl={true}
+            enableRtl={false}
             suppressHorizontalScroll={false}
           />
         </div>

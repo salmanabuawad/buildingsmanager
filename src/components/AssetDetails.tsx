@@ -531,46 +531,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
     {
-      headerName: '',
-      flex: 0,
-      width: 50,
-      pinned: 'right',
-      sortable: false,
-      filter: false,
-      editable: false,
-      suppressSizeToFit: true,
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const assetId = asset.id;
-        const errors: string[] = [];
-
-        if (validationErrors.has(assetId)) {
-          const fieldErrors = validationErrors.get(assetId);
-          if (fieldErrors && fieldErrors.size > 0) {
-            fieldErrors.forEach((errorMsg) => {
-              errors.push(errorMsg);
-            });
-          }
-        }
-
-        const numericRegex = /^[0-9]+$/;
-        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
-        if (hasInvalidPayerId) errors.push('Invalid payer ID - must be numeric');
-        if (hasInvalidAssetId) errors.push('Invalid asset ID - must be numeric');
-
-        if (errors.length > 0) {
-          return (
-            <div className="flex items-center justify-center w-full h-full" title={errors.join(', ')}>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
-          );
-        }
-        return null;
-      }
-    },
-    {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       flex: 1,

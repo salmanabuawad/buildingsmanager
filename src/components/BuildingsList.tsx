@@ -370,8 +370,35 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: 'ס"כ גודל',
       flex: 1.5,
       editable: false,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '0',
-      cellStyle: { textAlign: 'right', backgroundColor: '#f0f9ff', fontWeight: '600' }
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasAreaMismatch = errors && errors['area_for_control'];
+        const value = params.value ? params.value.toLocaleString() : '0';
+
+        if (hasAreaMismatch) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={hasAreaMismatch} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasAreaMismatch = errors && errors['area_for_control'];
+        return {
+          textAlign: 'right',
+          backgroundColor: '#f0f9ff',
+          fontWeight: '600',
+          border: hasAreaMismatch ? '2px solid #dc2626' : undefined
+        };
+      }
     },
     {
       field: 'area_for_control',

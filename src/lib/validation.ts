@@ -934,6 +934,16 @@ export const buildingValidators = {
       }
     }
 
+    // Validate area_for_control matches total_building_area if both exist
+    if (building.area_for_control != null && building.total_building_area != null) {
+      const controlArea = Number(building.area_for_control);
+      const totalArea = Number(building.total_building_area);
+
+      if (!isNaN(controlArea) && !isNaN(totalArea) && controlArea !== totalArea) {
+        errors.area_for_control = `שטח לבקרה (${controlArea.toLocaleString()}) חייב להיות שווה לשטח הכולל (${totalArea.toLocaleString()})`;
+      }
+    }
+
     return {
       valid: Object.keys(errors).length === 0,
       errors

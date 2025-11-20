@@ -4,7 +4,7 @@ import { Building, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2, Loader2, Eye } from 'lucide-react';
+import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2, Loader2, Eye, Save, X } from 'lucide-react';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
@@ -25,6 +25,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
   const gridRef = useRef<AgGridReact<Building>>(null);
+  const [dirtyBuildings, setDirtyBuildings] = useState<Map<number, Partial<Building>>>(new Map());
+  const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -33,6 +35,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       const data = await api.buildings.getAll();
       console.log('[BuildingsList] Received buildings:', data);
       setBuildings(data || []);
+      setOriginalBuildings(JSON.parse(JSON.stringify(data || [])));
       setFilteredBuildings(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load buildings');
@@ -107,66 +110,89 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
 
   const onCellValueChanged = useCallback(async (event: any) => {
+    const { data, colDef } = event;
+    const field = colDef.field;
+    const buildingNumber = data.building_number;
+    const newValue = event.newValue;
+
+    console.log(`[CELL CHANGED] Building ${buildingNumber}, field: ${field}, value:`, newValue);
+
+    if (field === 'shared_area') {
+      if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
+        setError('Shared area must be a positive number');
+        setTimeout(() => setError(null), 3000);
+        event.node.setDataValue(field, event.oldValue);
+        return;
+      }
+    }
+
+    // Update the dirty tracking
+    setDirtyBuildings(prev => {
+      const next = new Map(prev);
+      const existingChanges = next.get(buildingNumber) || {};
+      next.set(buildingNumber, { ...existingChanges, [field]: newValue });
+      return next;
+    });
+
+    // Update local state
+    setBuildings(prevBuildings => {
+      return prevBuildings.map(b =>
+        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
+      );
+    });
+
+    if (field === 'tax_region') {
+      console.log('[VALIDATION] Validating tax_region for building:', buildingNumber, 'value:', newValue);
+      const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
+      console.log('[VALIDATION] Validation result for building', buildingNumber, ':', isInvalid ? 'INVALID' : 'VALID');
+      setInvalidTaxRegions(prev => {
+        const next = new Set(prev);
+        if (isInvalid) {
+          console.log('[VALIDATION] Adding building', buildingNumber, 'to invalid set');
+          next.add(buildingNumber);
+        } else {
+          console.log('[VALIDATION] Removing building', buildingNumber, 'from invalid set');
+          next.delete(buildingNumber);
+        }
+        console.log('[VALIDATION] New invalid set:', Array.from(next));
+        return next;
+      });
+      if (gridRef.current?.api) {
+        console.log('[VALIDATION] Refreshing grid cell');
+        gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+      }
+    }
+  }, []);
+
+  const handleSaveAll = async () => {
+    if (dirtyBuildings.size === 0) return;
+
+    setLoading(true);
     try {
-      const { data, colDef } = event;
-      const field = colDef.field;
-      const buildingNumber = data.building_number;
-      const newValue = event.newValue;
-
-      console.log(`[UPDATE] Attempting to update building ${buildingNumber}, field: ${field}, value:`, newValue);
-
-      if (field === 'shared_area') {
-        if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
-          setError('Shared area must be a positive number');
-          setTimeout(() => setError(null), 3000);
-          await fetchBuildings(false);
-          return;
-        }
+      for (const [buildingNumber, changes] of dirtyBuildings.entries()) {
+        await api.buildings.update(buildingNumber, changes);
       }
-
-      const updateData: Partial<Building> = {
-        [field]: newValue
-      };
-
-      console.log('[UPDATE] Sending update data:', updateData);
-      await api.buildings.update(buildingNumber, updateData);
-      console.log('[UPDATE] Update successful');
-
-      if (field === 'tax_region') {
-        console.log('[VALIDATION] Validating tax_region for building:', buildingNumber, 'value:', newValue);
-        const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
-        console.log('[VALIDATION] Validation result for building', buildingNumber, ':', isInvalid ? 'INVALID' : 'VALID');
-        setInvalidTaxRegions(prev => {
-          const next = new Set(prev);
-          if (isInvalid) {
-            console.log('[VALIDATION] Adding building', buildingNumber, 'to invalid set');
-            next.add(buildingNumber);
-          } else {
-            console.log('[VALIDATION] Removing building', buildingNumber, 'from invalid set');
-            next.delete(buildingNumber);
-          }
-          console.log('[VALIDATION] New invalid set:', Array.from(next));
-          return next;
-        });
-        if (gridRef.current?.api) {
-          console.log('[VALIDATION] Refreshing grid cell');
-          gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
-        }
-      }
-
+      setDirtyBuildings(new Map());
       await fetchBuildings(false);
+      setError(null);
     } catch (error: any) {
-      console.error('[UPDATE ERROR] Full error object:', error);
-      console.error('[UPDATE ERROR] Error message:', error.message);
-      console.error('[UPDATE ERROR] Error details:', error.details);
-      console.error('[UPDATE ERROR] Error hint:', error.hint);
-      console.error('[UPDATE ERROR] Error code:', error.code);
-      const errorMsg = `Failed to update building: ${error.message || error.toString()}`;
+      const errorMsg = `Failed to save changes: ${error.message || error.toString()}`;
       setError(errorMsg);
       setTimeout(() => setError(null), 5000);
-      await fetchBuildings(false);
+    } finally {
+      setLoading(false);
     }
-  }, [fetchBuildings]);
+  };
+
+  const handleCancelAll = () => {
+    setBuildings(JSON.parse(JSON.stringify(originalBuildings)));
+    setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
+    setDirtyBuildings(new Map());
+    setError(null);
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
+  };
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
@@ -291,6 +317,25 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             />
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
+        </div>
+
+        <div className="mb-3 flex justify-end gap-2">
+          <button
+            onClick={handleCancelAll}
+            disabled={loading || dirtyBuildings.size === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          >
+            <X className="h-4 w-4" />
+            {t('cancel')}
+          </button>
+          <button
+            onClick={handleSaveAll}
+            disabled={loading || dirtyBuildings.size === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          >
+            <Save className="h-4 w-4" />
+            {loading ? t('saving') : `${t('saveAll')}${dirtyBuildings.size > 0 ? ` (${dirtyBuildings.size})` : ''}`}
+          </button>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">

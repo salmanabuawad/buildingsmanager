@@ -34,25 +34,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       console.log('[BuildingsList] Received buildings:', data);
       setBuildings(data || []);
       setFilteredBuildings(data || []);
-
-      const invalidSet = new Set<number>();
-      console.log('[BuildingsList] Checking', (data || []).length, 'buildings for invalid tax regions');
-      for (const building of data || []) {
-        const isInvalid = await buildingValidators.checkTaxRegionInvalid(building.tax_region);
-        console.log('[BuildingsList] Building', building.building_number, 'tax_region:', building.tax_region, 'isInvalid:', isInvalid);
-        if (isInvalid) {
-          invalidSet.add(building.building_number);
-        }
-      }
-      console.log('[BuildingsList] Invalid tax regions set:', Array.from(invalidSet));
-      setInvalidTaxRegions(invalidSet);
-
-      // Force grid to refresh cells after validation state updates
-      setTimeout(() => {
-        if (gridRef.current?.api) {
-          gridRef.current.api.refreshCells({ force: true });
-        }
-      }, 100);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load buildings');
     } finally {
@@ -102,6 +83,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       });
       console.log('[CREATE] Building created successfully');
 
+      if (taxRegion) {
+        const isInvalid = await buildingValidators.checkTaxRegionInvalid(taxRegion);
+        if (isInvalid) {
+          setInvalidTaxRegions(prev => new Set(prev).add(buildingNumber));
+        }
+      }
+
       setShowCreateModal(false);
       setNewBuilding({ building_number: '', tax_region: '' });
       await fetchBuildings(false);
@@ -143,6 +131,23 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       console.log('[UPDATE] Sending update data:', updateData);
       await api.buildings.update(buildingNumber, updateData);
       console.log('[UPDATE] Update successful');
+
+      if (field === 'tax_region') {
+        const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
+        setInvalidTaxRegions(prev => {
+          const next = new Set(prev);
+          if (isInvalid) {
+            next.add(buildingNumber);
+          } else {
+            next.delete(buildingNumber);
+          }
+          return next;
+        });
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+        }
+      }
+
       await fetchBuildings(false);
     } catch (error: any) {
       console.error('[UPDATE ERROR] Full error object:', error);

@@ -676,6 +676,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       sortable: false,
       filter: false,
       editable: false,
+      suppressNavigable: true,
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         const hasDrawing = !!asset.structure_drawing_url;

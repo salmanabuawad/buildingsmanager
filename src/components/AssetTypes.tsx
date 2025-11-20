@@ -182,16 +182,7 @@ export function AssetTypes() {
       headerName: t('elevator'),
       flex: 1,
       editable: true,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['true', 'false']
-      },
       valueFormatter: (params) => params.value ? 'כן' : 'לא',
-      valueParser: (params) => {
-        if (params.newValue === 'true' || params.newValue === true) return true;
-        if (params.newValue === 'false' || params.newValue === false) return false;
-        return params.newValue;
-      },
       cellStyle: { textAlign: 'right' }
     },
     {

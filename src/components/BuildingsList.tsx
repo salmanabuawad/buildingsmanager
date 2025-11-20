@@ -28,6 +28,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<number, Partial<Building>>>(new Map());
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<number, Record<string, string>>>(new Map());
+  const [buildingsToDelete, setBuildingsToDelete] = useState<Set<number>>(new Set());
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -182,10 +183,17 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const handleSaveAll = async () => {
     if (dirtyBuildings.size === 0) return;
 
-    // Check if there are any validation errors
-    if (validationErrors.size > 0) {
+    // Check if there are any validation errors (skip for buildings marked for deletion)
+    const nonDeletedErrors = new Map();
+    for (const [buildingNumber, errors] of validationErrors.entries()) {
+      if (!buildingsToDelete.has(buildingNumber)) {
+        nonDeletedErrors.set(buildingNumber, errors);
+      }
+    }
+
+    if (nonDeletedErrors.size > 0) {
       const errorMessages: string[] = [];
-      for (const [buildingNumber, errors] of validationErrors.entries()) {
+      for (const [buildingNumber, errors] of nonDeletedErrors.entries()) {
         const fieldErrors = Object.entries(errors)
           .map(([field, msg]) => `${field}: ${msg}`)
           .join(', ');
@@ -198,11 +206,24 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     setLoading(true);
     try {
-      for (const [buildingNumber, changes] of dirtyBuildings.entries()) {
-        await api.buildings.update(buildingNumber, changes);
+      // Process deletions first
+      for (const buildingNumber of buildingsToDelete) {
+        // Delete all assets for this building first
+        await api.deleteAssetsByBuilding(buildingNumber);
+        // Delete the building
+        await api.deleteBuilding(buildingNumber);
       }
+
+      // Process updates for non-deleted buildings
+      for (const [buildingNumber, changes] of dirtyBuildings.entries()) {
+        if (!buildingsToDelete.has(buildingNumber)) {
+          await api.buildings.update(buildingNumber, changes);
+        }
+      }
+
       setDirtyBuildings(new Map());
       setValidationErrors(new Map());
+      setBuildingsToDelete(new Set());
       await fetchBuildings(false);
       setError(null);
     } catch (error: any) {
@@ -219,6 +240,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
     setDirtyBuildings(new Map());
     setValidationErrors(new Map());
+    setBuildingsToDelete(new Set());
     setError(null);
 
     const newInvalidSet = new Set<number>();
@@ -237,29 +259,20 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
   };
 
-  const handleDeleteBuilding = useCallback(async (buildingNumber: number) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק בניין זה וכל הנכסים שלו?')) {
-      return;
-    }
+  const handleDeleteBuilding = useCallback((buildingNumber: number) => {
+    setBuildingsToDelete(prev => {
+      const newSet = new Set(prev);
+      newSet.add(buildingNumber);
+      return newSet;
+    });
 
-    try {
-      // Delete all assets for this building first
-      await api.deleteAssetsByBuilding(buildingNumber);
-
-      // Delete the building
-      await api.deleteBuilding(buildingNumber);
-
-      // Refresh the buildings list
-      await fetchBuildings();
-
-      setError('הבניין והנכסים נמחקו בהצלחה');
-      setTimeout(() => setError(null), 3000);
-    } catch (err) {
-      console.error('Error deleting building:', err);
-      setError('שגיאה במחיקת הבניין');
-      setTimeout(() => setError(null), 5000);
-    }
-  }, [fetchBuildings]);
+    // Mark as dirty
+    setDirtyBuildings(prev => {
+      const newMap = new Map(prev);
+      newMap.set(buildingNumber, { deleted: true, deleted_at: new Date().toISOString() });
+      return newMap;
+    });
+  }, []);
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
@@ -269,6 +282,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(building.building_number);
 
         return (
           <div className="flex items-center justify-center gap-1 h-full">
@@ -288,8 +302,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             </button>
             <button
               onClick={() => handleDeleteBuilding(building.building_number)}
-              className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-              title="מחק בניין"
+              className={`p-1 transition-colors hover:scale-110 ${
+                markedForDeletion
+                  ? 'text-red-800 bg-red-100 rounded'
+                  : 'text-red-600 hover:text-red-700'
+              }`}
+              title={markedForDeletion ? 'מסומן למחיקה' : 'מחק בניין'}
             >
               <Trash2 className="h-5 w-5" />
             </button>
@@ -497,7 +515,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         };
       }
     }
-  ], [onSelectBuilding, handleDeleteBuilding, t, invalidTaxRegions, validationErrors]);
+  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors]);
 
   if (loading) {
     return (
@@ -600,6 +618,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               getRowStyle={(params) => {
                 const building = params.data as Building;
                 const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
+                const markedForDeletion = buildingsToDelete.has(building.building_number);
+
+                if (markedForDeletion) {
+                  return {
+                    background: '#fee2e2',
+                    textDecoration: 'line-through',
+                    opacity: 0.6
+                  };
+                }
 
                 if (hasTaxRegionError) {
                   return {

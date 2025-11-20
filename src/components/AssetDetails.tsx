@@ -681,7 +681,20 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         const hasDrawing = !!asset.structure_drawing_url;
 
         return (
-          <div className="flex items-center gap-2 h-full">
+          <div className="flex items-center justify-end gap-2 h-full">
+            {hasDrawing && (
+              <button
+                onClick={() => handleViewDrawing(asset.structure_drawing_url!)}
+                className={`flex items-center gap-1 px-2 py-1 rounded transition-colors text-sm ${
+                  selectedDrawingUrl === asset.structure_drawing_url
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                <Eye className="h-3 w-3" />
+                <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
+              </button>
+            )}
             <label className="flex items-center gap-1 px-2 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-sm">
               <Upload className="h-3 w-3" />
               <span>{t('upload')}</span>
@@ -697,19 +710,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
               />
             </label>
-            {hasDrawing && (
-              <button
-                onClick={() => handleViewDrawing(asset.structure_drawing_url!)}
-                className={`flex items-center gap-1 px-2 py-1 rounded transition-colors text-sm ${
-                  selectedDrawingUrl === asset.structure_drawing_url
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <Eye className="h-3 w-3" />
-                <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
-              </button>
-            )}
           </div>
         );
       }

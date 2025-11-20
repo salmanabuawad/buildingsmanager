@@ -649,7 +649,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         if (validationErrors.has(assetId)) {
           const fieldErrors = validationErrors.get(assetId);
           if (fieldErrors && fieldErrors.size > 0) {
-            fieldErrors.forEach((errorMsg, fieldName) => {
+            fieldErrors.forEach((errorMsg) => {
               errors.push(errorMsg);
             });
           }
@@ -666,7 +666,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return (
           <div className="flex items-center justify-center gap-1">
             {hasErrors && (
-              <div className="flex items-center justify-center" title={errors.join(', ')}>
+              <div className="flex items-center justify-center" title={errors.join('\n')}>
                 <AlertCircle className="h-4 w-4 text-red-600" />
               </div>
             )}

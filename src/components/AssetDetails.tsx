@@ -458,6 +458,54 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
+      headerName: t('structureDrawing'),
+      field: 'structure_drawing_url',
+      flex: 1.5,
+      minWidth: 140,
+      pinned: 'right',
+      sortable: false,
+      filter: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        const hasDrawing = !!asset.structure_drawing_url;
+
+        return (
+          <div className="flex items-center justify-center gap-1">
+            <label className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
+              <Upload className="w-4 h-4" />
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(asset.id, file);
+                  }
+                }}
+              />
+            </label>
+            <button
+              onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
+              disabled={!hasDrawing}
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
+                !hasDrawing
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : selectedDrawingUrl === asset.structure_drawing_url
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title={hasDrawing ? (selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')) : 'No drawing'}
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
       headerName: '',
       flex: 0,
       width: 50,
@@ -665,53 +713,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
-    },
-    {
-      headerName: t('structureDrawing'),
-      field: 'structure_drawing_url',
-      flex: 1.5,
-      minWidth: 140,
-      sortable: false,
-      filter: false,
-      editable: false,
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const hasDrawing = !!asset.structure_drawing_url;
-
-        return (
-          <div className="flex items-center justify-center gap-1">
-            <label className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
-              <Upload className="w-4 h-4" />
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    handleFileUpload(asset.id, file);
-                  }
-                }}
-              />
-            </label>
-            <button
-              onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
-              disabled={!hasDrawing}
-              className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
-                !hasDrawing
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : selectedDrawingUrl === asset.structure_drawing_url
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-              title={hasDrawing ? (selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')) : 'No drawing'}
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-          </div>
-        );
-      },
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
   ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl]);
 

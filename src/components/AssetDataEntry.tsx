@@ -1178,7 +1178,7 @@ export function AssetDataEntry() {
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {
-              params.api.autoSizeAllColumns();
+              params.api.autoSizeAllColumns(true);
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }

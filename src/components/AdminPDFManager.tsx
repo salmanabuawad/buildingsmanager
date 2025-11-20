@@ -209,10 +209,10 @@ export function AdminPDFManager() {
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           onGridReady={(params) => {
-            params.api.autoSizeAllColumns();
+            params.api.autoSizeAllColumns(true);
           }}
           onFirstDataRendered={(params) => {
-            params.api.autoSizeAllColumns();
+            params.api.autoSizeAllColumns(true);
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
               params.api.ensureColumnVisible(firstCol);

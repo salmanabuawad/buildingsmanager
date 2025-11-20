@@ -865,7 +865,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 getRowId={(params) => String(params.data.id)}
                 getRowStyle={getRowStyle}
                 onGridReady={(params) => {
-                  params.api.autoSizeAllColumns();
+                  params.api.autoSizeAllColumns(true);
                 }}
                 onCellValueChanged={onCellValueChanged}
                 enableRtl={true}

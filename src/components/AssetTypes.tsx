@@ -475,14 +475,14 @@ export function AssetTypes() {
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns();
+                params.api.autoSizeAllColumns(true);
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
-                params.api.autoSizeAllColumns();
+                params.api.autoSizeAllColumns(true);
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

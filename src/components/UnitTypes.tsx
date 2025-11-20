@@ -364,7 +364,7 @@ export function UnitTypes() {
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns();
+                params.api.autoSizeAllColumns(true);
               }}
               pagination={true}
               paginationPageSize={20}

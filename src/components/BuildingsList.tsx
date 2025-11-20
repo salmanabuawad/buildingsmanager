@@ -94,15 +94,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         return;
       }
 
-      if (taxRegion) {
-        const validation = await buildingValidators.validateTaxRegion(taxRegion);
-        if (!validation.valid) {
-          setError(validation.error || 'Invalid tax region');
-          setTimeout(() => setError(null), 5000);
-          return;
-        }
-      }
-
       console.log('[CREATE] Attempting to create building:', { buildingNumber, taxRegion });
       await api.buildings.create({
         building_number: buildingNumber,
@@ -136,19 +127,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
       console.log(`[UPDATE] Attempting to update building ${buildingNumber}, field: ${field}, value:`, newValue);
 
-      if (field === 'tax_region') {
-        const trimmedValue = newValue ? String(newValue).trim() : null;
-
-        if (trimmedValue) {
-          const validation = await buildingValidators.validateTaxRegion(trimmedValue);
-          if (!validation.valid) {
-            setError(validation.error || 'Invalid tax region');
-            setTimeout(() => setError(null), 5000);
-            await fetchBuildings(false);
-            return;
-          }
-        }
-      } else if (field === 'shared_area') {
+      if (field === 'shared_area') {
         if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
           setError('Shared area must be a positive number');
           setTimeout(() => setError(null), 3000);

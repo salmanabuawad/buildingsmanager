@@ -975,21 +975,19 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
-        <div className="mb-4 sm:mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-3">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
+        <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <BuildingIcon className="w-8 h-8 text-white" />
-                <h1 className="text-xl sm:text-2xl font-bold text-white">
-                  {t('buildingNumber')} {building?.building_number}
-                </h1>
-              </div>
-              <div className="flex items-center gap-4 mt-1">
-                <p className="text-xs sm:text-sm text-teal-50">
+            <div className="flex items-center gap-3">
+              <BuildingIcon className="w-7 h-7 text-white" />
+              <h1 className="text-lg sm:text-xl font-bold text-white">
+                {t('buildingNumber')} {building?.building_number}
+              </h1>
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-teal-50">
                   <span className="font-semibold">{t('uniqueAssets')}:</span> {masterAssets.length}
                 </p>
-                <p className="text-xs sm:text-sm text-teal-50">
+                <p className="text-xs text-teal-50">
                   <span className="font-semibold">{t('totalMeasurements')}:</span> {assets.length}
                 </p>
               </div>

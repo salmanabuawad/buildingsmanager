@@ -293,22 +293,22 @@ export function ValidationRulesManager() {
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-lg shadow-lg">
-      <div className="flex items-center justify-between p-6 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <Settings className="h-6 w-6 text-teal-600" />
-          <h2 className="text-2xl font-bold text-slate-800">{t('validationRules')}</h2>
+      <div className="flex items-center justify-between p-3 border-b border-slate-200">
+        <div className="flex items-center gap-2">
+          <Settings className="h-5 w-5 text-teal-600" />
+          <h2 className="text-lg font-bold text-slate-800">{t('validationRules')}</h2>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleRefreshCache}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
           >
             <RefreshCw className="h-4 w-4" />
             {t('refreshCache')}
           </button>
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
           >
             <Plus className="h-4 w-4" />
             {t('addRule')}

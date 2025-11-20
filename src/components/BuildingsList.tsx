@@ -559,13 +559,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8 md:py-12">
-        <div className="mb-4 sm:mb-6 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-3">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
+        <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
           <div className="flex items-center gap-2">
-            <img src="/buildings.png" alt="Buildings" className="w-8 h-8 bg-white rounded-lg p-1.5" />
+            <img src="/buildings.png" alt="Buildings" className="w-7 h-7 bg-white rounded-lg p-1" />
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white">{t('propertyListings')}</h1>
-              <p className="text-xs sm:text-sm text-teal-50">{t('browseBuildings')}</p>
+              <h1 className="text-lg sm:text-xl font-bold text-white">{t('propertyListings')}</h1>
             </div>
           </div>
         </div>

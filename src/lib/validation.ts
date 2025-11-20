@@ -856,8 +856,11 @@ export const buildingValidators = {
     const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
     const trimmedValue = taxRegionStr.trim();
 
+    console.log('[checkTaxRegionInvalid] Checking tax region:', taxRegion, 'trimmed:', trimmedValue);
+
     // Check format first
     const formatResult = await buildingValidators.validateTaxRegion(taxRegion, true);
+    console.log('[checkTaxRegionInvalid] Format validation result:', formatResult);
     if (!formatResult.valid) return true;
 
     // Then check if all components exist in asset_types
@@ -865,17 +868,23 @@ export const buildingValidators = {
       ? trimmedValue.split(',').map(v => v.trim())
       : [trimmedValue];
 
+    console.log('[checkTaxRegionInvalid] Checking components:', components);
+
     for (const component of components) {
       const { count, error } = await supabase
         .from('asset_types')
         .select('tax_region', { count: 'exact', head: true })
         .eq('tax_region', parseInt(component));
 
+      console.log('[checkTaxRegionInvalid] Component', component, 'count:', count, 'error:', error);
+
       if (error || !count || count === 0) {
+        console.log('[checkTaxRegionInvalid] Tax region component', component, 'is INVALID');
         return true;
       }
     }
 
+    console.log('[checkTaxRegionInvalid] All components valid, returning false');
     return false;
   },
 };

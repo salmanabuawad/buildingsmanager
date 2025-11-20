@@ -36,12 +36,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       setFilteredBuildings(data || []);
 
       const invalidSet = new Set<number>();
+      console.log('[BuildingsList] Checking', (data || []).length, 'buildings for invalid tax regions');
       for (const building of data || []) {
         const isInvalid = await buildingValidators.checkTaxRegionInvalid(building.tax_region);
+        console.log('[BuildingsList] Building', building.building_number, 'tax_region:', building.tax_region, 'isInvalid:', isInvalid);
         if (isInvalid) {
           invalidSet.add(building.building_number);
         }
       }
+      console.log('[BuildingsList] Invalid tax regions set:', Array.from(invalidSet));
       setInvalidTaxRegions(invalidSet);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load buildings');

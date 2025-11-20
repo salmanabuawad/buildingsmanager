@@ -486,31 +486,39 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'has_elevator',
       headerName: 'מעלית',
       flex: 1,
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['has_elevator'];
-        const value = params.value ? 'כן' : 'לא';
 
-        if (errorMsg) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
+            {errorMsg && (
               <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
                 <AlertCircle size={16} />
               </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
-        return value;
+            )}
+            <input
+              type="checkbox"
+              checked={params.value || false}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                params.node.setDataValue('has_elevator', newValue);
+              }}
+              className="w-5 h-5 cursor-pointer"
+            />
+          </div>
+        );
       },
       cellStyle: (params) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
         const hasError = errors && errors['has_elevator'];
         return {
-          textAlign: 'right',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           border: hasError ? '2px solid #dc2626' : undefined
         };
       }

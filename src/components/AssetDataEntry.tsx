@@ -798,6 +798,8 @@ export function AssetDataEntry() {
       headerName: t('payerId'),
       width: 120,
       minWidth: 120,
+      maxWidth: 120,
+      suppressSizeToFit: true,
       editable: true,
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },

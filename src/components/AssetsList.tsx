@@ -733,7 +733,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       headerName: t('payerId'),
       width: 120,
       minWidth: 120,
+      maxWidth: 120,
       editable: true,
+      suppressSizeToFit: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },

@@ -519,6 +519,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('payerId'),
       width: 120,
       minWidth: 120,
+      maxWidth: 120,
+      suppressSizeToFit: true,
       editable: (params) => params.data.id === latestMeasurementId,
     },
     {

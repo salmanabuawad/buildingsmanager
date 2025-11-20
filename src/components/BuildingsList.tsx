@@ -260,19 +260,33 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   };
 
   const handleDeleteBuilding = useCallback((buildingNumber: number) => {
+    const isCurrentlyMarked = buildingsToDelete.has(buildingNumber);
+
     setBuildingsToDelete(prev => {
       const newSet = new Set(prev);
-      newSet.add(buildingNumber);
+      if (isCurrentlyMarked) {
+        // Cancel deletion mark
+        newSet.delete(buildingNumber);
+      } else {
+        // Add deletion mark
+        newSet.add(buildingNumber);
+      }
       return newSet;
     });
 
-    // Mark as dirty
+    // Toggle dirty state
     setDirtyBuildings(prev => {
       const newMap = new Map(prev);
-      newMap.set(buildingNumber, { deleted: true, deleted_at: new Date().toISOString() });
+      if (isCurrentlyMarked) {
+        // Remove from dirty if canceling deletion
+        newMap.delete(buildingNumber);
+      } else {
+        // Mark as dirty for deletion
+        newMap.set(buildingNumber, { deleted: true, deleted_at: new Date().toISOString() });
+      }
       return newMap;
     });
-  }, []);
+  }, [buildingsToDelete]);
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {

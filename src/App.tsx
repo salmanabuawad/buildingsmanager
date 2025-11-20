@@ -233,7 +233,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
-      <div className="w-64 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
+      <div className="w-52 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
         <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
           <h2 className="text-base font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
@@ -362,7 +362,7 @@ function App() {
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-1 px-2 py-1.5 border-b-2 transition-all cursor-pointer group ${
+                  className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all cursor-pointer group ${
                     activeTabId === tab.id
                       ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50'
                       : 'border-transparent hover:bg-purple-50/50'
@@ -370,28 +370,28 @@ function App() {
                 >
                   <div
                     onClick={() => setActiveTabId(tab.id)}
-                    className="flex items-center gap-1 flex-shrink-0"
+                    className="flex items-center gap-2 flex-shrink-0"
                   >
                     {tab.type === 'admin' ? (
-                      <Settings className="h-3 w-3 text-purple-700" />
+                      <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'asset-types' ? (
-                      <Tag className="h-3 w-3 text-purple-700" />
+                      <Tag className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'asset-search' ? (
-                      <Search className="h-3 w-3 text-purple-700" />
+                      <Search className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
-                      <Settings className="h-3 w-3 text-purple-700" />
+                      <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'csv-import' ? (
-                      <Upload className="h-3 w-3 text-purple-700" />
+                      <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'assets-csv-import' ? (
-                      <Upload className="h-3 w-3 text-purple-700" />
+                      <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
-                      <img src="/buildings.png" alt="Buildings" className="h-3 w-3" />
+                      <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
                     ) : tab.type === 'assets' ? (
-                      <Building className="h-3 w-3 text-purple-700" />
+                      <Building className="h-4 w-4 text-purple-700" />
                     ) : (
-                      <Home className="h-3 w-3 text-purple-700" />
+                      <Home className="h-4 w-4 text-purple-700" />
                     )}
-                    <span className={`font-medium whitespace-nowrap text-xs ${
+                    <span className={`font-semibold whitespace-nowrap text-sm ${
                       activeTabId === tab.id ? 'text-purple-900' : 'text-slate-700'
                     }`}>
                       {tab.label}

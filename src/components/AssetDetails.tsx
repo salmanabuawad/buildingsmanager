@@ -468,10 +468,35 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       editable: false,
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
+        const assetId = asset.id;
         const hasDrawing = !!asset.structure_drawing_url;
+
+        const errors: string[] = [];
+        if (validationErrors.has(assetId)) {
+          const fieldErrors = validationErrors.get(assetId);
+          if (fieldErrors && fieldErrors.size > 0) {
+            fieldErrors.forEach((errorMsg) => {
+              errors.push(errorMsg);
+            });
+          }
+        }
+
+        const numericRegex = /^[0-9]+$/;
+        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+
+        if (hasInvalidPayerId) errors.push('Invalid payer ID - must be numeric');
+        if (hasInvalidAssetId) errors.push('Invalid asset ID - must be numeric');
+
+        const hasErrors = errors.length > 0;
 
         return (
           <div className="flex items-center justify-center gap-1">
+            {hasErrors && (
+              <div className="flex items-center justify-center" title={errors.join('\n')}>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
+            )}
             <label className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
               <Upload className="w-4 h-4" />
               <input

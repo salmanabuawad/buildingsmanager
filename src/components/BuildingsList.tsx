@@ -4,7 +4,7 @@ import { Building, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2, Loader2, Eye, Save, X } from 'lucide-react';
+import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2, Loader2, Eye, Save, X, Trash2 } from 'lucide-react';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
@@ -237,10 +237,34 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
   };
 
+  const handleDeleteBuilding = useCallback(async (buildingNumber: number) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק בניין זה וכל הנכסים שלו?')) {
+      return;
+    }
+
+    try {
+      // Delete all assets for this building first
+      await api.deleteAssetsByBuilding(buildingNumber);
+
+      // Delete the building
+      await api.deleteBuilding(buildingNumber);
+
+      // Refresh the buildings list
+      await fetchBuildings();
+
+      setError('הבניין והנכסים נמחקו בהצלחה');
+      setTimeout(() => setError(null), 3000);
+    } catch (err) {
+      console.error('Error deleting building:', err);
+      setError('שגיאה במחיקת הבניין');
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [fetchBuildings]);
+
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
       headerName: t('actions'),
-      width: 100,
+      width: 130,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -261,6 +285,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               title={t('viewAssets')}
             >
               <Eye className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => handleDeleteBuilding(building.building_number)}
+              className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+              title="מחק בניין"
+            >
+              <Trash2 className="h-5 w-5" />
             </button>
           </div>
         );
@@ -466,7 +497,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         };
       }
     }
-  ], [onSelectBuilding, t, invalidTaxRegions, validationErrors]);
+  ], [onSelectBuilding, handleDeleteBuilding, t, invalidTaxRegions, validationErrors]);
 
   if (loading) {
     return (

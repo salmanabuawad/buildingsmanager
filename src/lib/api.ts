@@ -646,4 +646,16 @@ export const api = {
       return { message: 'Validation rule deleted successfully' };
     },
   },
+  deleteBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
+    return api.buildings.delete(buildingNumber);
+  },
+  deleteAssetsByBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
+    const { error } = await supabase
+      .from('assets')
+      .delete()
+      .eq('building_number', buildingNumber);
+
+    if (error) throw error;
+    return { message: 'Assets deleted successfully' };
+  },
 };

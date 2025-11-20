@@ -668,52 +668,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
-    {
-      headerName: t('structureDrawing'),
-      width: 160,
-      minWidth: 160,
-      pinned: 'left',
-      sortable: false,
-      filter: false,
-      editable: false,
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const hasDrawing = !!asset.structure_drawing_url;
-
-        return (
-          <div className="flex items-center gap-1 h-full">
-            <label className="flex items-center gap-1 px-1.5 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-xs whitespace-nowrap">
-              <Upload className="h-3 w-3 flex-shrink-0" />
-              <span>{t('upload')}</span>
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    handleFileUpload(asset.id, file);
-                  }
-                }}
-              />
-            </label>
-            {hasDrawing && (
-              <button
-                onClick={() => handleViewDrawing(asset.structure_drawing_url!)}
-                className={`flex items-center gap-1 px-1.5 py-1 rounded transition-colors text-xs whitespace-nowrap ${
-                  selectedDrawingUrl === asset.structure_drawing_url
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <Eye className="h-3 w-3 flex-shrink-0" />
-                <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
-              </button>
-            )}
-          </div>
-        );
-      }
-    },
   ], [t, assetTypes, latestMeasurementId, validationErrors]);
 
   useEffect(() => {

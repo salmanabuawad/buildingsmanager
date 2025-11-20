@@ -459,13 +459,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: '',
+      flex: 0,
       width: 50,
-      minWidth: 50,
-      maxWidth: 50,
       pinned: 'right',
       sortable: false,
       filter: false,
       editable: false,
+      suppressSizeToFit: true,
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         const assetId = asset.id;
@@ -500,8 +500,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      width: 130,
-      minWidth: 130,
+      flex: 1,
+      minWidth: 110,
       editable: (params) => params.data.id === latestMeasurementId,
       cellStyle: (params) => params.data.id === latestMeasurementId ? {} : { backgroundColor: '#f3f4f6' },
       valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
@@ -515,17 +515,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      width: 120,
-      minWidth: 120,
-      maxWidth: 120,
-      suppressSizeToFit: true,
+      flex: 1,
+      minWidth: 90,
       editable: (params) => params.data.id === latestMeasurementId,
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -537,16 +535,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 90,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -558,16 +556,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -579,16 +577,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -600,16 +598,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -621,16 +619,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -642,16 +640,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 100,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -663,16 +661,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 120,
-      minWidth: 120,
+      flex: 1,
+      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
       headerName: t('structureDrawing'),
       field: 'structure_drawing_url',
-      width: 160,
-      minWidth: 160,
+      flex: 1.5,
+      minWidth: 140,
       sortable: false,
       filter: false,
       editable: false,

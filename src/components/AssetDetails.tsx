@@ -681,7 +681,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         const hasDrawing = !!asset.structure_drawing_url;
 
         return (
-          <div className="flex items-center justify-start gap-2 h-full">
+          <div className="flex items-center justify-end gap-2 h-full">
             {hasDrawing && (
               <button
                 onClick={() => handleViewDrawing(asset.structure_drawing_url!)}

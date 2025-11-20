@@ -133,17 +133,23 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       console.log('[UPDATE] Update successful');
 
       if (field === 'tax_region') {
+        console.log('[VALIDATION] Validating tax_region for building:', buildingNumber, 'value:', newValue);
         const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
+        console.log('[VALIDATION] Validation result for building', buildingNumber, ':', isInvalid ? 'INVALID' : 'VALID');
         setInvalidTaxRegions(prev => {
           const next = new Set(prev);
           if (isInvalid) {
+            console.log('[VALIDATION] Adding building', buildingNumber, 'to invalid set');
             next.add(buildingNumber);
           } else {
+            console.log('[VALIDATION] Removing building', buildingNumber, 'from invalid set');
             next.delete(buildingNumber);
           }
+          console.log('[VALIDATION] New invalid set:', Array.from(next));
           return next;
         });
         if (gridRef.current?.api) {
+          console.log('[VALIDATION] Refreshing grid cell');
           gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
         }
       }

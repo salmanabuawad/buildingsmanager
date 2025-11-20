@@ -630,80 +630,82 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
-      headerName: '',
-      width: 60,
-      minWidth: 60,
-      editable: false,
-      pinned: 'right',
-      headerClass: 'ag-right-aligned-header',
-      cellRenderer: (params: any) => {
-        if (params.data._isMasterRow === false) return null;
-        const isDeleted = deletedAssets.has(params.data.id);
-        return (
-          <button
-            onClick={() => toggleDelete(params.data.id)}
-            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
-              isDeleted
-                ? 'bg-red-200 hover:bg-red-300 text-red-700'
-                : 'hover:bg-red-100 text-red-500 hover:text-red-700'
-            }`}
-            title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        );
-      },
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
-    },
-    {
       headerName: t('actions'),
-      width: 60,
-      minWidth: 60,
-      editable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellRenderer: (params: any) => {
-        if (params.data._isMasterRow === false) return null;
-        return (
-          <button
-            onClick={() => onSelectAsset(params.data.id, params.data.asset_id, buildingNumber)}
-            className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-            title={t('viewDetails')}
-          >
-            <Eye className="h-5 w-5" />
-          </button>
-        );
-      },
-      cellClass: 'floating-action-cell'
-    },
-    {
-      headerName: '',
-      width: 60,
-      minWidth: 60,
+      width: 150,
+      minWidth: 150,
       editable: false,
       pinned: 'right',
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
+
+        const asset = params.data as Asset;
+        const assetId = asset.id;
+        const isDeleted = deletedAssets.has(assetId);
         const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
-        if (!hasHistory) return null;
         const isExpanded = expandedRows.has(params.data.asset_id);
-        const handleClick = (e: any) => {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleRowExpansion(params.data.asset_id);
-        };
+
+        const errors: string[] = [];
+        if (validationErrors.has(assetId)) {
+          const fieldErrors = validationErrors.get(assetId);
+          if (fieldErrors && fieldErrors.size > 0) {
+            fieldErrors.forEach((errorMsg, fieldName) => {
+              errors.push(errorMsg);
+            });
+          }
+        }
+
+        const numericRegex = /^[0-9]+$/;
+        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
+        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+        if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
+        if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
+
+        const hasErrors = errors.length > 0;
+
         return (
-          <button
-            onClick={handleClick}
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
-            title={isExpanded ? t('collapse') : t('expand')}
-          >
-            {isExpanded ? (
-              <ChevronDown className="w-5 h-5 text-teal-700" />
-            ) : (
-              <ChevronRight className="w-5 h-5 text-teal-700 scale-x-[-1]" />
+          <div className="flex items-center justify-center gap-1">
+            {hasErrors && (
+              <div className="flex items-center justify-center" title={errors.join(', ')}>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
             )}
-          </button>
+            <button
+              onClick={() => toggleDelete(assetId)}
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
+                isDeleted
+                  ? 'bg-red-200 hover:bg-red-300 text-red-700'
+                  : 'hover:bg-red-100 text-red-500 hover:text-red-700'
+              }`}
+              title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            {hasHistory && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleRowExpansion(params.data.asset_id);
+                }}
+                className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
+                title={isExpanded ? t('collapse') : t('expand')}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-5 h-5 text-teal-700" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-teal-700 scale-x-[-1]" />
+                )}
+              </button>
+            )}
+            <button
+              onClick={() => onSelectAsset(assetId, asset.asset_id, buildingNumber)}
+              className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
+              title={t('viewDetails')}
+            >
+              <Eye className="h-5 w-5" />
+            </button>
+          </div>
         );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
@@ -944,50 +946,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
-    },
-    {
-      headerName: '',
-      width: 50,
-      minWidth: 50,
-      maxWidth: 50,
-      editable: false,
-      pinned: 'right',
-      suppressSizeToFit: true,
-      resizable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const assetId = asset.id;
-        const errors: string[] = [];
-
-        // Check for validation errors from validationErrors state
-        if (validationErrors.has(assetId)) {
-          const fieldErrors = validationErrors.get(assetId);
-          if (fieldErrors && fieldErrors.size > 0) {
-            // Add all the specific error messages
-            fieldErrors.forEach((errorMsg, fieldName) => {
-              errors.push(errorMsg);
-            });
-          }
-        }
-
-        // Also check for basic numeric validation
-        const numericRegex = /^[0-9]+$/;
-        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
-        if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
-        if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
-
-        if (errors.length > 0) {
-          return (
-            <div className="flex items-center justify-center w-full h-full" title={errors.join(', ')}>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
-          );
-        }
-        return null;
-      }
     }
   ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete]);
   if (loading) {

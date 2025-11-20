@@ -1012,45 +1012,31 @@ export function AssetDataEntry() {
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     },
     {
-      headerName: '',
-      width: 50,
-      minWidth: 50,
-      maxWidth: 50,
-      editable: false,
+      field: 'actions',
+      headerName: t('actions'),
+      width: 180,
+      minWidth: 180,
+      maxWidth: 180,
       pinned: 'right',
       suppressSizeToFit: true,
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;
         const hasError = row._validationErrors && row._validationErrors.size > 0;
+        const errorMessages: string[] = [];
         if (hasError) {
-          const errorMessages: string[] = [];
           row._validationErrors.forEach((msg, field) => {
             errorMessages.push(msg);
           });
-          return (
-            <div className="flex items-center justify-center w-full h-full" title={errorMessages.join(', ')}>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
-          );
         }
-        return null;
-      }
-    },
-    {
-      field: 'actions',
-      headerName: t('actions'),
-      width: 150,
-      minWidth: 150,
-      maxWidth: 150,
-      pinned: 'right',
-      suppressSizeToFit: true,
-      resizable: false,
-      cellRenderer: (params: any) => {
-        const row = params.data as AssetRow;
 
         return (
           <div className="flex items-center gap-2 w-full px-2">
+            {hasError && (
+              <div className="flex items-center justify-center" title={errorMessages.join(', ')}>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
+            )}
             <button
               type="button"
               onClick={(e) => {

@@ -117,13 +117,20 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     console.log(`[CELL CHANGED] Building ${buildingNumber}, field: ${field}, value:`, newValue);
 
-    if (field === 'shared_area') {
-      if (newValue != null && (isNaN(Number(newValue)) || Number(newValue) < 0)) {
-        setError('Shared area must be a positive number');
-        setTimeout(() => setError(null), 3000);
-        event.node.setDataValue(field, event.oldValue);
-        return;
-      }
+    // Create updated building object with the new value
+    const updatedBuilding = { ...data, [field]: newValue };
+
+    // Validate all fields when dirty
+    const validation = await buildingValidators.validateAllFields(updatedBuilding);
+
+    if (!validation.valid) {
+      const errorMessages = Object.entries(validation.errors)
+        .map(([field, msg]) => `${field}: ${msg}`)
+        .join(', ');
+      setError(errorMessages);
+      setTimeout(() => setError(null), 5000);
+      event.node.setDataValue(field, event.oldValue);
+      return;
     }
 
     // Update the dirty tracking

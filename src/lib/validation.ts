@@ -892,6 +892,27 @@ export const buildingValidators = {
     console.log('[checkTaxRegionInvalid] All components valid, returning false');
     return false;
   },
+
+  validateAllFields: async (building: any): Promise<{ valid: boolean; errors: Record<string, string> }> => {
+    const errors: Record<string, string> = {};
+
+    // Validate has_elevator (should be boolean)
+    if (building.has_elevator !== true && building.has_elevator !== false) {
+      errors.has_elevator = 'Elevator field must be yes or no';
+    }
+
+    // Validate area_for_control (should be positive number if provided)
+    if (building.area_for_control != null) {
+      if (isNaN(Number(building.area_for_control)) || Number(building.area_for_control) < 0) {
+        errors.area_for_control = 'Area for control must be a positive number';
+      }
+    }
+
+    return {
+      valid: Object.keys(errors).length === 0,
+      errors
+    };
+  },
 };
 
 export async function validateCrossTable(

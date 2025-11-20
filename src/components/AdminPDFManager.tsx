@@ -209,10 +209,10 @@ export function AdminPDFManager() {
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           onGridReady={(params) => {
-            params.api.autoSizeAllColumns(true);
+            params.api.autoSizeAllColumns();
           }}
           onFirstDataRendered={(params) => {
-            params.api.autoSizeAllColumns(true);
+            params.api.autoSizeAllColumns();
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
               params.api.ensureColumnVisible(firstCol);
@@ -229,7 +229,7 @@ export function AdminPDFManager() {
           paginationPageSizeSelector={[10, 20, 50, 100]}
           domLayout="normal"
           suppressHorizontalScroll={false}
-          enableRtl={false}
+          enableRtl={true}
         />
       </div>
     </div>

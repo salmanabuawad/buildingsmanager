@@ -143,14 +143,14 @@ export function AssetTypes() {
       headerName: 'קוד',
       flex: 0.5,
       editable: false,
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'description',
       headerName: t('typeDescription'),
       flex: 2,
       editable: true,
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'tax_region',
@@ -158,7 +158,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'shared_area',
@@ -175,7 +175,7 @@ export function AssetTypes() {
         if (params.newValue === 'false' || params.newValue === false) return false;
         return params.newValue;
       },
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'has_elevator',
@@ -183,7 +183,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? 'כן' : 'לא',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'min_asset_size',
@@ -191,7 +191,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'max_asset_size',
@@ -199,7 +199,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       headerName: t('actions'),
@@ -475,14 +475,14 @@ export function AssetTypes() {
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns(true);
+                params.api.autoSizeAllColumns();
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
-                params.api.autoSizeAllColumns(true);
+                params.api.autoSizeAllColumns();
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {
@@ -493,7 +493,7 @@ export function AssetTypes() {
               pagination={false}
               domLayout="autoHeight"
               suppressHorizontalScroll={false}
-              enableRtl={false}
+              enableRtl={true}
               rowClass="ag-row"
               getRowStyle={(params) => {
                 if (params.node.rowIndex % 2 === 0) {

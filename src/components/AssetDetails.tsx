@@ -865,10 +865,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 getRowId={(params) => String(params.data.id)}
                 getRowStyle={getRowStyle}
                 onGridReady={(params) => {
-                  params.api.autoSizeAllColumns(true);
+                  params.api.autoSizeAllColumns();
                 }}
                 onCellValueChanged={onCellValueChanged}
-                enableRtl={false}
+                enableRtl={true}
                 animateRows={true}
                 tooltipShowDelay={200}
                 tooltipHideDelay={10000}

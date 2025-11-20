@@ -288,7 +288,7 @@ export function ValidationRulesManager() {
 
   const onGridReady = useCallback((params: any) => {
     console.log('Grid ready, rules count:', rules.length);
-    params.api.autoSizeAllColumns(true);
+    params.api.autoSizeAllColumns();
   }, [rules]);
 
   return (
@@ -544,7 +544,7 @@ export function ValidationRulesManager() {
                   if (firstCol) {
                     params.api.ensureColumnVisible(firstCol);
                   }
-                  params.api.autoSizeAllColumns(true);
+                  params.api.autoSizeAllColumns();
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                     if (gridElement) {
@@ -555,7 +555,7 @@ export function ValidationRulesManager() {
                 pagination={true}
                 paginationPageSize={20}
                 paginationPageSizeSelector={[10, 20, 50, 100]}
-                enableRtl={false}
+                enableRtl={true}
                 getRowId={(params) => params.data.id}
               />
             </div>

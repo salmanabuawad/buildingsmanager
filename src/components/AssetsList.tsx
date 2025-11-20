@@ -466,7 +466,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 150,
-      cellStyle: { textAlign: 'left', backgroundColor: '#fef3c7', fontWeight: '600' }
+      cellStyle: { textAlign: 'right', backgroundColor: '#fef3c7', fontWeight: '600' }
     },
     {
       field: 'main_asset_type',
@@ -477,14 +477,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 120,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_1',
@@ -495,14 +495,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_2',
@@ -513,14 +513,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     }
   ], [t, assetTypes]);
   const toggleRowExpansion = useCallback((assetId: string) => {
@@ -546,7 +546,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         backgroundColor: '#fee2e2',
         border: '2px solid #ef4444',
         fontWeight: isDirty ? 'bold' : 'normal',
-        textAlign: 'left'
+        textAlign: 'right'
       };
     }
 
@@ -554,18 +554,18 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       return {
         backgroundColor: '#fef3c7',
         fontWeight: 'bold',
-        textAlign: 'left'
+        textAlign: 'right'
       };
     }
 
     if (isRequired) {
       return {
         backgroundColor: '#fff9e6',
-        textAlign: 'left'
+        textAlign: 'right'
       };
     }
 
-    return { textAlign: 'left' };
+    return { textAlign: 'right' };
   }, [dirtyAssets, validationErrors]);
 
   const toggleDelete = useCallback((assetId: string) => {
@@ -635,6 +635,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 150,
       editable: false,
       pinned: 'right',
+      headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
 
@@ -715,7 +716,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 130,
       minWidth: 130,
       editable: false,
-      cellStyle: { textAlign: 'left', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
+      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
     },
     {
       field: 'asset_id',
@@ -723,6 +724,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 120,
       minWidth: 120,
       editable: true,
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
@@ -733,6 +735,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       maxWidth: 120,
       editable: true,
       suppressSizeToFit: true,
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
@@ -746,6 +749,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'main_asset_type', false)
     },
     {
@@ -761,6 +765,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
     {
@@ -774,6 +779,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1', false)
     },
     {
@@ -789,6 +795,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
     {
@@ -802,6 +809,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2', false)
     },
     {
@@ -817,6 +825,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
     {
@@ -830,6 +839,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3', false)
     },
     {
@@ -845,6 +855,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
     {
@@ -858,6 +869,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4', false)
     },
     {
@@ -873,6 +885,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
     {
@@ -886,6 +899,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5', false)
     },
     {
@@ -901,6 +915,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
     {
@@ -914,6 +929,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6', false)
     },
     {
@@ -929,6 +945,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
+      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     }
   ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete]);
@@ -1034,14 +1051,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             getRowId={(params) => params.data.id}
             getRowStyle={getRowStyle}
             onGridReady={(params) => {
-              params.api.autoSizeAllColumns(true);
+              params.api.autoSizeAllColumns();
             }}
             onFirstDataRendered={(params) => {
               const firstCol = params.api.getAllDisplayedColumns()[0];
               if (firstCol) {
                 params.api.ensureColumnVisible(firstCol);
               }
-              params.api.autoSizeAllColumns(true);
+              params.api.autoSizeAllColumns();
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                 if (gridElement) {
@@ -1050,7 +1067,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               }, 100);
             }}
             animateRows={true}
-            enableRtl={false}
+            enableRtl={true}
             suppressHorizontalScroll={false}
           />
         </div>

@@ -121,14 +121,14 @@ export function UnitTypes() {
       headerName: t('typeName'),
       flex: 1,
       editable: true,
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'description',
       headerName: t('typeDescription'),
       flex: 2,
       editable: true,
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'tax_region',
@@ -136,7 +136,7 @@ export function UnitTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'right' }
     },
     {
       headerName: t('actions'),
@@ -364,7 +364,7 @@ export function UnitTypes() {
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns(true);
+                params.api.autoSizeAllColumns();
               }}
               pagination={true}
               paginationPageSize={20}

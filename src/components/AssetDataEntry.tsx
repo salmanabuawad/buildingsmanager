@@ -766,20 +766,20 @@ export function AssetDataEntry() {
         backgroundColor: '#fee2e2',
         border: '2px solid #ef4444',
         fontWeight: isDirty ? 'bold' : 'normal',
-        textAlign: 'left'
+        textAlign: 'right'
       };
     }
     if (isDirty) {
       return {
         backgroundColor: '#fef3c7',
         fontWeight: 'bold',
-        textAlign: 'left'
+        textAlign: 'right'
       };
     }
     if (isRequired) {
-      return { backgroundColor: '#fff9e6', textAlign: 'left' };
+      return { backgroundColor: '#fff9e6', textAlign: 'right' };
     }
-    return { textAlign: 'left' };
+    return { textAlign: 'right' };
   };
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
@@ -1176,11 +1176,11 @@ export function AssetDataEntry() {
               wrapHeaderText: true,
               autoHeaderHeight: true,
               minWidth: 120,
-              cellStyle: { textAlign: 'left' }
+              cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {
-              params.api.autoSizeAllColumns(true);
+              params.api.autoSizeAllColumns();
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
@@ -1190,7 +1190,7 @@ export function AssetDataEntry() {
             enterNavigatesVertically={true}
             enterNavigatesVerticallyAfterEdit={true}
             suppressScrollOnNewData={true}
-            enableRtl={false}
+            enableRtl={true}
             theme="legacy"
           />
         </div>

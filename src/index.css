@@ -91,6 +91,9 @@ input[type="number"] {
   word-wrap: break-word !important;
 }
 
+.ag-theme-alpine .ag-right-aligned-header .ag-header-cell-label {
+  justify-content: flex-end !important;
+}
 
 .ag-theme-alpine .ag-header-cell-text {
   white-space: normal !important;

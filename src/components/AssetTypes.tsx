@@ -143,14 +143,14 @@ export function AssetTypes() {
       headerName: 'קוד',
       flex: 0.5,
       editable: false,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'description',
       headerName: t('typeDescription'),
       flex: 2,
       editable: true,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'tax_region',
@@ -158,7 +158,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'shared_area',
@@ -175,7 +175,7 @@ export function AssetTypes() {
         if (params.newValue === 'false' || params.newValue === false) return false;
         return params.newValue;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'has_elevator',
@@ -183,7 +183,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? 'כן' : 'לא',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'min_asset_size',
@@ -191,7 +191,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'max_asset_size',
@@ -199,7 +199,7 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       headerName: t('actions'),

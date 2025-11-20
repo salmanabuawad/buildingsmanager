@@ -208,7 +208,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         const num = typeof val === 'string' ? parseInt(val.replace(/,/g, ''), 10) : val;
         return isNaN(num) ? null : num;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'tax_region',
@@ -221,7 +221,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         if (val == null || val === '') return null;
         return val.toString().trim();
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'shared_area',
@@ -229,7 +229,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'area_for_control',
@@ -237,7 +237,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'has_elevator',
@@ -245,7 +245,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? 'כן' : 'לא',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     }
   ], [onSelectBuilding, t, invalidTaxRegions]);
 
@@ -304,7 +304,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 minWidth: 100,
                 wrapHeaderText: true,
                 autoHeaderHeight: true,
-                cellStyle: { textAlign: 'right' }
+                cellStyle: { textAlign: 'left' }
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {

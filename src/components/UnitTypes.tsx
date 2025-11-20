@@ -121,14 +121,14 @@ export function UnitTypes() {
       headerName: t('typeName'),
       flex: 1,
       editable: true,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'description',
       headerName: t('typeDescription'),
       flex: 2,
       editable: true,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'tax_region',
@@ -136,7 +136,7 @@ export function UnitTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       headerName: t('actions'),

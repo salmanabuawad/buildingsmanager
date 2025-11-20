@@ -466,7 +466,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 150,
-      cellStyle: { textAlign: 'right', backgroundColor: '#fef3c7', fontWeight: '600' }
+      cellStyle: { textAlign: 'left', backgroundColor: '#fef3c7', fontWeight: '600' }
     },
     {
       field: 'main_asset_type',
@@ -477,14 +477,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 120,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_type_1',
@@ -495,14 +495,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_type_2',
@@ -513,14 +513,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     },
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'left' }
     }
   ], [t, assetTypes]);
   const toggleRowExpansion = useCallback((assetId: string) => {
@@ -546,7 +546,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         backgroundColor: '#fee2e2',
         border: '2px solid #ef4444',
         fontWeight: isDirty ? 'bold' : 'normal',
-        textAlign: 'right'
+        textAlign: 'left'
       };
     }
 
@@ -554,18 +554,18 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       return {
         backgroundColor: '#fef3c7',
         fontWeight: 'bold',
-        textAlign: 'right'
+        textAlign: 'left'
       };
     }
 
     if (isRequired) {
       return {
         backgroundColor: '#fff9e6',
-        textAlign: 'right'
+        textAlign: 'left'
       };
     }
 
-    return { textAlign: 'right' };
+    return { textAlign: 'left' };
   }, [dirtyAssets, validationErrors]);
 
   const toggleDelete = useCallback((assetId: string) => {
@@ -635,7 +635,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 150,
       editable: false,
       pinned: 'right',
-      headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
 
@@ -716,8 +715,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 130,
       minWidth: 130,
       editable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
+      cellStyle: { textAlign: 'left', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
     },
     {
       field: 'asset_id',
@@ -725,7 +723,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 120,
       minWidth: 120,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
@@ -736,7 +733,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       maxWidth: 120,
       editable: true,
       suppressSizeToFit: true,
-      headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
@@ -745,7 +741,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 70,
       minWidth: 70,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -760,7 +755,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -775,7 +769,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 70,
       minWidth: 70,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -790,7 +783,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -805,7 +797,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 70,
       minWidth: 70,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -820,7 +811,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -835,7 +825,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 70,
       minWidth: 70,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -850,7 +839,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -864,7 +852,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       headerName: t('subAssetType4'),
       width: 70,
       minWidth: 70,
-      headerClass: 'ag-right-aligned-header',
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -880,7 +867,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -895,7 +881,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 70,
       minWidth: 70,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -910,7 +895,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -925,7 +909,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 70,
       minWidth: 70,
       editable: true,
-      headerClass: 'ag-right-aligned-header',
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -940,7 +923,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 75,
       editable: true,
       type: 'numericColumn',
-      headerClass: 'ag-right-aligned-header',
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';

@@ -765,19 +765,21 @@ export function AssetDataEntry() {
       return {
         backgroundColor: '#fee2e2',
         border: '2px solid #ef4444',
-        fontWeight: isDirty ? 'bold' : 'normal'
+        fontWeight: isDirty ? 'bold' : 'normal',
+        textAlign: 'left'
       };
     }
     if (isDirty) {
       return {
         backgroundColor: '#fef3c7',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        textAlign: 'left'
       };
     }
     if (isRequired) {
-      return { backgroundColor: '#fff9e6' };
+      return { backgroundColor: '#fff9e6', textAlign: 'left' };
     }
-    return {};
+    return { textAlign: 'left' };
   };
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
@@ -1174,7 +1176,7 @@ export function AssetDataEntry() {
               wrapHeaderText: true,
               autoHeaderHeight: true,
               minWidth: 120,
-              cellStyle: { textAlign: 'right' }
+              cellStyle: { textAlign: 'left' }
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {

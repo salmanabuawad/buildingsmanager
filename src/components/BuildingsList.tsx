@@ -153,15 +153,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       return next;
     });
 
-    // Show error toast if validation failed
-    if (!validation.valid) {
-      const errorMessages = Object.entries(validation.errors)
-        .map(([field, msg]) => `${field}: ${msg}`)
-        .join(', ');
-      setError(errorMessages);
-      setTimeout(() => setError(null), 5000);
-    }
-
     // Update tax region validation state
     if (field === 'tax_region') {
       console.log('[VALIDATION] Validating tax_region for building:', buildingNumber, 'value:', newValue);
@@ -280,34 +271,99 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: t('buildingNumber'),
       flex: 1.5,
       editable: false,
-      valueParser: (params) => {
-        const val = params.newValue;
-        if (val == null || val === '') return null;
-        const num = typeof val === 'string' ? parseInt(val.replace(/,/g, ''), 10) : val;
-        return isNaN(num) ? null : num;
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const errorMsg = errors && errors['building_number'];
+        const value = params.value != null ? params.value.toLocaleString() : '';
+
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasError = errors && errors['building_number'];
+        return {
+          textAlign: 'right',
+          border: hasError ? '2px solid #dc2626' : undefined
+        };
+      }
     },
     {
       field: 'tax_region',
       headerName: t('taxRegion'),
       flex: 1,
       editable: false,
-      valueFormatter: (params) => params.value != null ? params.value : '',
-      valueParser: (params) => {
-        const val = params.newValue;
-        if (val == null || val === '') return null;
-        return val.toString().trim();
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const errorMsg = errors && errors['tax_region'];
+        const value = params.value != null ? params.value : '';
+
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasError = errors && errors['tax_region'];
+        return {
+          textAlign: 'right',
+          border: hasError ? '2px solid #dc2626' : undefined
+        };
+      }
     },
     {
       field: 'shared_area',
       headerName: 'שטח משותף',
       flex: 1.5,
       editable: false,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const errorMsg = errors && errors['shared_area'];
+        const value = params.value ? params.value.toLocaleString() : '';
+
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasError = errors && errors['shared_area'];
+        return {
+          textAlign: 'right',
+          border: hasError ? '2px solid #dc2626' : undefined
+        };
+      }
     },
     {
       field: 'total_building_area',
@@ -322,16 +378,31 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: 'שטח לבקרה',
       flex: 1.5,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const errorMsg = errors && errors['area_for_control'];
+        const value = params.value ? params.value.toLocaleString() : '';
+
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
       cellStyle: (params) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
         const hasError = errors && errors['area_for_control'];
         return {
           textAlign: 'right',
-          backgroundColor: hasError ? '#fee2e2' : undefined,
-          borderColor: hasError ? '#dc2626' : undefined,
-          borderWidth: hasError ? '2px' : undefined
+          border: hasError ? '2px solid #dc2626' : undefined
         };
       }
     },
@@ -340,16 +411,31 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: 'מעלית',
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value ? 'כן' : 'לא',
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const errorMsg = errors && errors['has_elevator'];
+        const value = params.value ? 'כן' : 'לא';
+
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
       cellStyle: (params) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
         const hasError = errors && errors['has_elevator'];
         return {
           textAlign: 'right',
-          backgroundColor: hasError ? '#fee2e2' : undefined,
-          borderColor: hasError ? '#dc2626' : undefined,
-          borderWidth: hasError ? '2px' : undefined
+          border: hasError ? '2px solid #dc2626' : undefined
         };
       }
     }

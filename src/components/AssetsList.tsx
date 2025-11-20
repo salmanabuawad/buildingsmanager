@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2 } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye } from 'lucide-react';
 interface AssetsListProps {
   buildingNumber: number;
   taxZone?: string;
@@ -657,17 +657,18 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     },
     {
       headerName: t('actions'),
-      width: 150,
-      minWidth: 150,
+      width: 60,
+      minWidth: 60,
       editable: false,
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
         return (
           <button
             onClick={() => onSelectAsset(params.data.id, params.data.asset_id, buildingNumber)}
-            className="px-6 py-0.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
+            className="p-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105"
+            title={t('viewDetails')}
           >
-            {t('viewDetails')}
+            <Eye className="h-4 w-4" />
           </button>
         );
       },

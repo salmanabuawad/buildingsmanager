@@ -252,7 +252,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'tax_region',
       headerName: t('taxRegion'),
       flex: 1,
-      editable: true,
+      editable: false,
       valueFormatter: (params) => params.value != null ? params.value : '',
       valueParser: (params) => {
         const val = params.newValue;
@@ -265,7 +265,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'shared_area',
       headerName: 'שטח משותף',
       flex: 1.5,
-      editable: true,
+      editable: false,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },

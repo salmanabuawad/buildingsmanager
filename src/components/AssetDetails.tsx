@@ -681,7 +681,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         const hasDrawing = !!asset.structure_drawing_url;
 
         return (
-          <div className="flex items-center gap-1 h-full">
+          <div className="flex items-center gap-1 h-full px-2">
             <label className="flex items-center gap-1 px-1.5 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-xs whitespace-nowrap">
               <Upload className="h-3 w-3 flex-shrink-0" />
               <span>{t('upload')}</span>
@@ -697,19 +697,20 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
               />
             </label>
-            {hasDrawing && (
-              <button
-                onClick={() => handleViewDrawing(asset.structure_drawing_url!)}
-                className={`flex items-center gap-1 px-1.5 py-1 rounded transition-colors text-xs whitespace-nowrap ${
-                  selectedDrawingUrl === asset.structure_drawing_url
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <Eye className="h-3 w-3 flex-shrink-0" />
-                <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
-              </button>
-            )}
+            <button
+              onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
+              disabled={!hasDrawing}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded transition-colors text-xs whitespace-nowrap ${
+                !hasDrawing
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : selectedDrawingUrl === asset.structure_drawing_url
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <Eye className="h-3 w-3 flex-shrink-0" />
+              <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
+            </button>
           </div>
         );
       }

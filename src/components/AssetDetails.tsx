@@ -676,15 +676,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       sortable: false,
       filter: false,
       editable: false,
-      suppressNavigable: true,
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         const hasDrawing = !!asset.structure_drawing_url;
 
         return (
-          <div className="flex items-center justify-between h-full px-2">
-            <label className="flex items-center justify-center p-2 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors">
-              <Upload className="h-4 w-4" />
+          <div className="flex items-center gap-1 h-full px-2">
+            <label className="flex items-center gap-1 px-1.5 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-xs whitespace-nowrap">
+              <Upload className="h-3 w-3 flex-shrink-0" />
+              <span>{t('upload')}</span>
               <input
                 type="file"
                 className="hidden"
@@ -700,7 +700,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             <button
               onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
               disabled={!hasDrawing}
-              className={`flex items-center justify-center p-2 rounded transition-colors ${
+              className={`flex items-center gap-1 px-1.5 py-1 rounded transition-colors text-xs whitespace-nowrap ${
                 !hasDrawing
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : selectedDrawingUrl === asset.structure_drawing_url
@@ -708,7 +708,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3 w-3 flex-shrink-0" />
+              <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
             </button>
           </div>
         );

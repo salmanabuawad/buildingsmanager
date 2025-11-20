@@ -315,9 +315,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   params.api.ensureColumnVisible(lastCol);
                 }
                 params.api.autoSizeAllColumns(false);
-                params.api.sizeColumnsToFit({
-                  defaultMinWidth: 100
-                });
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

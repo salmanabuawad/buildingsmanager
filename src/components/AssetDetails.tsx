@@ -681,7 +681,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         const hasDrawing = !!asset.structure_drawing_url;
 
         return (
-          <div className="flex items-center justify-start gap-2 h-full">
+          <div className="flex flex-row-reverse items-center justify-end gap-2 h-full">
             <label className="flex items-center gap-1 px-2 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-sm">
               <Upload className="h-3 w-3" />
               <span>{t('upload')}</span>

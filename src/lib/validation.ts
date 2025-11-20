@@ -181,11 +181,16 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
         return { valid: false, error: 'exists_in_table rule requires compare_table and compare_field' };
       }
       try {
-        console.log(`Validating ${fieldName} = "${value}" exists in ${rule.compare_table}.${rule.compare_field}`);
+        // Convert value to integer if it's a numeric string and the field is tax_region
+        const queryValue = (rule.field_name === 'tax_region' && !isNaN(Number(value)))
+          ? parseInt(String(value))
+          : value;
+
+        console.log(`Validating ${fieldName} = "${value}" (query value: ${queryValue}) exists in ${rule.compare_table}.${rule.compare_field}`);
         const { data, error, count } = await supabase
           .from(rule.compare_table)
           .select(rule.compare_field, { count: 'exact', head: true })
-          .eq(rule.compare_field, value);
+          .eq(rule.compare_field, queryValue);
 
         if (error) {
           console.error('Exists in table validation query error:', error);

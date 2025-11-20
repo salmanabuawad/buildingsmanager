@@ -940,7 +940,7 @@ export const buildingValidators = {
       const totalArea = Number(building.total_building_area);
 
       if (!isNaN(controlArea) && !isNaN(totalArea) && controlArea !== totalArea) {
-        errors.area_for_control = `שטח לבקרה (${controlArea.toLocaleString()}) חייב להיות שווה לשטח הכולל (${totalArea.toLocaleString()})`;
+        errors.area_for_control = 'שטח לבקרה חייב להיות שווה לשטח הכולל';
       }
     }
 

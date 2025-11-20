@@ -46,6 +46,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
       console.log('[BuildingsList] Invalid tax regions set:', Array.from(invalidSet));
       setInvalidTaxRegions(invalidSet);
+
+      // Force grid to refresh cells after validation state updates
+      setTimeout(() => {
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: true });
+        }
+      }, 100);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load buildings');
     } finally {

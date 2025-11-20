@@ -568,8 +568,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
           <div className="flex items-center gap-2">
             <img src="/buildings.png" alt="Buildings" className="w-7 h-7 bg-white rounded-lg p-1" />
-            <div>
+            <div className="flex items-center gap-3">
               <h1 className="text-lg sm:text-xl font-bold text-white">{t('propertyListings')}</h1>
+              <span className="text-xs text-teal-50">
+                <span className="font-semibold">סה"כ בניינים:</span> {buildings.length}
+              </span>
             </div>
           </div>
         </div>

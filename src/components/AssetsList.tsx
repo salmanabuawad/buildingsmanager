@@ -1045,7 +1045,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,
-              autoHeaderHeight: true
+              autoHeaderHeight: true,
+              headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}

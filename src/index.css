@@ -86,13 +86,13 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-header-cell-label {
-  justify-content: flex-start !important;
+  justify-content: flex-end !important;
   white-space: normal !important;
   word-wrap: break-word !important;
 }
 
 .ag-theme-alpine .ag-right-aligned-header .ag-header-cell-label {
-  justify-content: flex-start !important;
+  justify-content: flex-end !important;
 }
 
 .ag-theme-alpine .ag-header-cell-text {

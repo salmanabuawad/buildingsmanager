@@ -852,8 +852,31 @@ export const buildingValidators = {
 
   checkTaxRegionInvalid: async (taxRegion: string | number | null | undefined): Promise<boolean> => {
     if (taxRegion == null) return false;
-    const result = await buildingValidators.validateTaxRegion(taxRegion, true);
-    return !result.valid;
+
+    const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
+    const trimmedValue = taxRegionStr.trim();
+
+    // Check format first
+    const formatResult = await buildingValidators.validateTaxRegion(taxRegion, true);
+    if (!formatResult.valid) return true;
+
+    // Then check if all components exist in asset_types
+    const components = trimmedValue.includes(',')
+      ? trimmedValue.split(',').map(v => v.trim())
+      : [trimmedValue];
+
+    for (const component of components) {
+      const { count, error } = await supabase
+        .from('asset_types')
+        .select('tax_region', { count: 'exact', head: true })
+        .eq('tax_region', parseInt(component));
+
+      if (error || !count || count === 0) {
+        return true;
+      }
+    }
+
+    return false;
   },
 };
 

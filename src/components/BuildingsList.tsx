@@ -231,6 +231,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'area_for_control',
+      headerName: 'שטח לבקרה',
+      flex: 1.5,
+      editable: true,
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       field: 'has_elevator',
       headerName: 'מעלית',
       flex: 1,

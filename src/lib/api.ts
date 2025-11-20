@@ -7,6 +7,7 @@ export interface Building {
   tax_region?: string;
   shared_area?: number;
   has_elevator: boolean;
+  area_for_control?: number;
   created_at: string;
 }
 

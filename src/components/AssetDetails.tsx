@@ -6,8 +6,6 @@ import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { supabase } from '../lib/supabase';
 

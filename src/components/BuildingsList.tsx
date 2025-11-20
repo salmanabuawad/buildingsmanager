@@ -75,6 +75,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
   }, [buildingFilter, buildings]);
 
+  useEffect(() => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.redrawRows();
+    }
+  }, [invalidTaxRegions]);
+
 
 
   const handleCreateBuilding = async () => {

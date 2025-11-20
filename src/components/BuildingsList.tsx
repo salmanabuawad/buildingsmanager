@@ -307,14 +307,17 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns();
+                params.api.autoSizeAllColumns(false);
               }}
               onFirstDataRendered={(params) => {
                 const lastCol = params.api.getAllDisplayedColumns().slice(-1)[0];
                 if (lastCol) {
                   params.api.ensureColumnVisible(lastCol);
                 }
-                params.api.autoSizeAllColumns();
+                params.api.autoSizeAllColumns(false);
+                params.api.sizeColumnsToFit({
+                  defaultMinWidth: 100
+                });
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

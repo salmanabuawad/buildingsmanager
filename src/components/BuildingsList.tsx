@@ -174,36 +174,28 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
-      headerName: '',
-      width: 50,
+      headerName: t('actions'),
+      width: 100,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
-        if (hasTaxRegionError) {
-          return (
-            <div className="flex items-center justify-center h-full" title={t('invalidTaxRegion')}>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
-          );
-        }
-        return null;
-      }
-    },
-    {
-      headerName: t('actions'),
-      width: 60,
-      editable: false,
-      cellRenderer: (params: any) => {
         return (
-          <button
-            onClick={() => onSelectBuilding(params.data.building_number, params.data.tax_region)}
-            className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-            title={t('viewAssets')}
-          >
-            <Eye className="h-5 w-5" />
-          </button>
+          <div className="flex items-center justify-center gap-1">
+            {hasTaxRegionError && (
+              <div className="flex items-center justify-center" title={t('invalidTaxRegion')}>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
+            )}
+            <button
+              onClick={() => onSelectBuilding(params.data.building_number, params.data.tax_region)}
+              className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
+              title={t('viewAssets')}
+            >
+              <Eye className="h-5 w-5" />
+            </button>
+          </div>
         );
       }
     },
@@ -343,7 +335,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
                 if (hasTaxRegionError) {
-                  return { background: '#fee2e2' };
+                  return {
+                    border: '3px solid #ef4444',
+                    borderRadius: '4px',
+                    background: '#fee2e2'
+                  };
                 }
 
                 if (params.node.rowIndex % 2 === 0) {

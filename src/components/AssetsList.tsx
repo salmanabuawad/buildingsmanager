@@ -665,10 +665,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return (
           <button
             onClick={() => onSelectAsset(params.data.id, params.data.asset_id, buildingNumber)}
-            className="p-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105"
+            className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
             title={t('viewDetails')}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-5 w-5" />
           </button>
         );
       },

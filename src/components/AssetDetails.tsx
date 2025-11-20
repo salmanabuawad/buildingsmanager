@@ -679,10 +679,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         const hasDrawing = !!asset.structure_drawing_url;
 
         return (
-          <div className="flex items-center gap-1 h-full px-2">
-            <label className="flex items-center gap-1 px-1.5 py-1 bg-teal-600 text-white rounded cursor-pointer hover:bg-teal-700 transition-colors text-xs whitespace-nowrap">
-              <Upload className="h-3 w-3 flex-shrink-0" />
-              <span>{t('upload')}</span>
+          <div className="flex items-center justify-center gap-1">
+            <label className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
+              <Upload className="w-4 h-4" />
               <input
                 type="file"
                 className="hidden"
@@ -698,20 +697,21 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             <button
               onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
               disabled={!hasDrawing}
-              className={`flex items-center gap-1 px-1.5 py-1 rounded transition-colors text-xs whitespace-nowrap ${
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
                 !hasDrawing
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : selectedDrawingUrl === asset.structure_drawing_url
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
+              title={hasDrawing ? (selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')) : 'No drawing'}
             >
-              <Eye className="h-3 w-3 flex-shrink-0" />
-              <span>{selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')}</span>
+              <Eye className="w-4 h-4" />
             </button>
           </div>
         );
-      }
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
   ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl]);
 

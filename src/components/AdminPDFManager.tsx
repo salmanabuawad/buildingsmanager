@@ -208,7 +208,11 @@ export function AdminPDFManager() {
           rowData={apartments}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
+          onGridReady={(params) => {
+            params.api.autoSizeAllColumns();
+          }}
           onFirstDataRendered={(params) => {
+            params.api.autoSizeAllColumns();
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
               params.api.ensureColumnVisible(firstCol);

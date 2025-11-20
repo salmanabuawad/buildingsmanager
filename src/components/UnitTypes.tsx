@@ -363,6 +363,9 @@ export function UnitTypes() {
                 minWidth: 100
               }}
               onCellValueChanged={onCellValueChanged}
+              onGridReady={(params) => {
+                params.api.autoSizeAllColumns();
+              }}
               pagination={true}
               paginationPageSize={20}
               domLayout="normal"

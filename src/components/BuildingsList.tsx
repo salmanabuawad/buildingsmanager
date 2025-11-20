@@ -167,12 +167,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
 
         return (
-          <div className="flex items-center justify-center gap-1">
-            {hasTaxRegionError && (
-              <div className="flex items-center justify-center" title={t('invalidTaxRegion')}>
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </div>
-            )}
+          <div className="flex items-center justify-center gap-1 h-full">
+            <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+              {hasTaxRegionError && (
+                <AlertCircle className="h-4 w-4 text-red-600" title={t('invalidTaxRegion')} />
+              )}
+            </div>
             <button
               onClick={() => onSelectBuilding(params.data.building_number, params.data.tax_region)}
               className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"

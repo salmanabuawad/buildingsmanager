@@ -27,6 +27,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const gridRef = useRef<AgGridReact<Building>>(null);
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<number, Partial<Building>>>(new Map());
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
+  const [validationErrors, setValidationErrors] = useState<Map<number, Record<string, string>>>(new Map());
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -117,21 +118,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     console.log(`[CELL CHANGED] Building ${buildingNumber}, field: ${field}, value:`, newValue);
 
-    // Create updated building object with the new value
-    const updatedBuilding = { ...data, [field]: newValue };
-
-    // Validate all fields when dirty
-    const validation = await buildingValidators.validateAllFields(updatedBuilding);
-
-    if (!validation.valid) {
-      const errorMessages = Object.entries(validation.errors)
-        .map(([field, msg]) => `${field}: ${msg}`)
-        .join(', ');
-      setError(errorMessages);
-      setTimeout(() => setError(null), 5000);
-      event.node.setDataValue(field, event.oldValue);
-      return;
-    }
+    // Update local state first
+    setBuildings(prevBuildings => {
+      return prevBuildings.map(b =>
+        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
+      );
+    });
 
     // Update the dirty tracking
     setDirtyBuildings(prev => {
@@ -141,13 +133,36 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       return next;
     });
 
-    // Update local state
-    setBuildings(prevBuildings => {
-      return prevBuildings.map(b =>
-        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
-      );
+    // Create updated building object with the new value
+    const updatedBuilding = { ...data, [field]: newValue };
+
+    // Validate all fields for this row
+    console.log('[VALIDATION] Running all field validations for building:', buildingNumber);
+    const validation = await buildingValidators.validateAllFields(updatedBuilding);
+
+    // Store validation errors for this row
+    setValidationErrors(prev => {
+      const next = new Map(prev);
+      if (!validation.valid) {
+        console.log('[VALIDATION] Validation failed:', validation.errors);
+        next.set(buildingNumber, validation.errors);
+      } else {
+        console.log('[VALIDATION] All validations passed');
+        next.delete(buildingNumber);
+      }
+      return next;
     });
 
+    // Show error toast if validation failed
+    if (!validation.valid) {
+      const errorMessages = Object.entries(validation.errors)
+        .map(([field, msg]) => `${field}: ${msg}`)
+        .join(', ');
+      setError(errorMessages);
+      setTimeout(() => setError(null), 5000);
+    }
+
+    // Update tax region validation state
     if (field === 'tax_region') {
       console.log('[VALIDATION] Validating tax_region for building:', buildingNumber, 'value:', newValue);
       const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
@@ -164,15 +179,31 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         console.log('[VALIDATION] New invalid set:', Array.from(next));
         return next;
       });
-      if (gridRef.current?.api) {
-        console.log('[VALIDATION] Refreshing grid cell');
-        gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
-      }
+    }
+
+    // Refresh grid to show updated validation state
+    if (gridRef.current?.api) {
+      console.log('[VALIDATION] Refreshing grid cell');
+      gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
     }
   }, []);
 
   const handleSaveAll = async () => {
     if (dirtyBuildings.size === 0) return;
+
+    // Check if there are any validation errors
+    if (validationErrors.size > 0) {
+      const errorMessages: string[] = [];
+      for (const [buildingNumber, errors] of validationErrors.entries()) {
+        const fieldErrors = Object.entries(errors)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+        errorMessages.push(`Building ${buildingNumber}: ${fieldErrors}`);
+      }
+      setError(`Cannot save. Please fix validation errors: ${errorMessages.join('; ')}`);
+      setTimeout(() => setError(null), 8000);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -180,6 +211,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         await api.buildings.update(buildingNumber, changes);
       }
       setDirtyBuildings(new Map());
+      setValidationErrors(new Map());
       await fetchBuildings(false);
       setError(null);
     } catch (error: any) {
@@ -195,6 +227,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     setBuildings(JSON.parse(JSON.stringify(originalBuildings)));
     setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
     setDirtyBuildings(new Map());
+    setValidationErrors(new Map());
     setError(null);
 
     const newInvalidSet = new Set<number>();
@@ -290,7 +323,17 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasError = errors && errors['area_for_control'];
+        return {
+          textAlign: 'right',
+          backgroundColor: hasError ? '#fee2e2' : undefined,
+          borderColor: hasError ? '#dc2626' : undefined,
+          borderWidth: hasError ? '2px' : undefined
+        };
+      }
     },
     {
       field: 'has_elevator',
@@ -298,9 +341,19 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? 'כן' : 'לא',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params) => {
+        const building = params.data as Building;
+        const errors = validationErrors.get(building.building_number);
+        const hasError = errors && errors['has_elevator'];
+        return {
+          textAlign: 'right',
+          backgroundColor: hasError ? '#fee2e2' : undefined,
+          borderColor: hasError ? '#dc2626' : undefined,
+          borderWidth: hasError ? '2px' : undefined
+        };
+      }
     }
-  ], [onSelectBuilding, t, invalidTaxRegions]);
+  ], [onSelectBuilding, t, invalidTaxRegions, validationErrors]);
 
   if (loading) {
     return (

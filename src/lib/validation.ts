@@ -896,6 +896,25 @@ export const buildingValidators = {
   validateAllFields: async (building: any): Promise<{ valid: boolean; errors: Record<string, string> }> => {
     const errors: Record<string, string> = {};
 
+    // Validate building_number
+    if (building.building_number != null) {
+      const results = await validateField('building', 'building_number', building.building_number);
+      for (const result of results) {
+        if (!result.valid) {
+          errors.building_number = result.error || 'Building number is invalid';
+          break;
+        }
+      }
+    }
+
+    // Validate tax_region with all rules
+    if (building.tax_region != null) {
+      const taxRegionResult = await buildingValidators.validateTaxRegion(building.tax_region, false);
+      if (!taxRegionResult.valid) {
+        errors.tax_region = taxRegionResult.error || 'Tax region is invalid';
+      }
+    }
+
     // Validate has_elevator (should be boolean)
     if (building.has_elevator !== true && building.has_elevator !== false) {
       errors.has_elevator = 'Elevator field must be yes or no';
@@ -905,6 +924,13 @@ export const buildingValidators = {
     if (building.area_for_control != null) {
       if (isNaN(Number(building.area_for_control)) || Number(building.area_for_control) < 0) {
         errors.area_for_control = 'Area for control must be a positive number';
+      }
+    }
+
+    // Validate shared_area (should be positive number if provided)
+    if (building.shared_area != null) {
+      if (isNaN(Number(building.shared_area)) || Number(building.shared_area) < 0) {
+        errors.shared_area = 'Shared area must be a positive number';
       }
     }
 

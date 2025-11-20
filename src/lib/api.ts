@@ -385,7 +385,7 @@ export const api = {
         .update(sanitizedInput)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('[API ERROR] Update asset failed:', {
@@ -412,6 +412,11 @@ export const api = {
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }
+
+      if (!data) {
+        throw new Error('Failed to update asset - no data returned');
+      }
+
       console.log('[API] Asset updated successfully:', data);
       return data;
     },

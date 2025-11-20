@@ -9,6 +9,7 @@ export interface Building {
   has_elevator: boolean;
   area_for_control?: number;
   created_at: string;
+  total_building_area?: number;
 }
 
 export interface Asset {
@@ -131,7 +132,22 @@ export const api = {
         .order('building_number');
 
       if (error) throw error;
-      return data || [];
+
+      const buildings = data || [];
+
+      const buildingsWithStats = await Promise.all(
+        buildings.map(async (building) => {
+          const { data: stats } = await supabase
+            .rpc('get_building_stats', { p_building_number: building.building_number });
+
+          return {
+            ...building,
+            total_building_area: stats?.[0]?.total_building_area || 0
+          };
+        })
+      );
+
+      return buildingsWithStats;
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
       const { data, error } = await supabase

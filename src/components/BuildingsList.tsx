@@ -270,6 +270,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellStyle: { textAlign: 'right' }
     },
     {
+      field: 'total_building_area',
+      headerName: 'ס"כ גודל',
+      flex: 1.5,
+      editable: false,
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '0',
+      cellStyle: { textAlign: 'right', backgroundColor: '#f0f9ff', fontWeight: '600' }
+    },
+    {
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
       flex: 1.5,

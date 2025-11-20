@@ -860,7 +860,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   resizable: true,
                   wrapHeaderText: true,
                   autoHeaderHeight: true,
-                  sortable: false
+                  sortable: false,
+                  headerClass: 'ag-right-aligned-header'
                 }}
                 getRowId={(params) => String(params.data.id)}
                 getRowStyle={getRowStyle}

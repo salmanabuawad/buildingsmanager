@@ -175,7 +175,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           <div className="flex items-center justify-center gap-1 h-full">
             <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
               {hasTaxRegionError && (
-                <AlertCircle className="h-4 w-4 text-red-600" title={t('invalidTaxRegion')} />
+                <span title={t('invalidTaxRegion')} className="flex items-center justify-center">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                </span>
               )}
             </div>
             <button

@@ -59,8 +59,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       return {
         border: '3px solid #ef4444',
         borderRadius: '4px',
-        background: '#fee2e2',
-        position: 'relative'
+        background: '#fee2e2'
       };
     }
 

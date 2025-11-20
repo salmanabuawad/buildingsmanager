@@ -184,11 +184,23 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
   };
 
-  const handleCancelAll = () => {
+  const handleCancelAll = async () => {
     setBuildings(JSON.parse(JSON.stringify(originalBuildings)));
     setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
     setDirtyBuildings(new Map());
     setError(null);
+
+    const newInvalidSet = new Set<number>();
+    for (const building of originalBuildings) {
+      if (building.tax_region) {
+        const isInvalid = await buildingValidators.checkTaxRegionInvalid(building.tax_region);
+        if (isInvalid) {
+          newInvalidSet.add(building.building_number);
+        }
+      }
+    }
+    setInvalidTaxRegions(newInvalidSet);
+
     if (gridRef.current?.api) {
       gridRef.current.api.refreshCells({ force: true });
     }

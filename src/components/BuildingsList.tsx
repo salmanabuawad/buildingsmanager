@@ -467,7 +467,10 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
       flex: 1.5,
-      editable: true,
+      editable: (params) => {
+        const building = params.data as Building;
+        return !buildingsToDelete.has(building.building_number);
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
@@ -505,6 +508,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['has_elevator'];
+        const markedForDeletion = buildingsToDelete.has(building.building_number);
 
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
@@ -516,11 +520,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             <input
               type="checkbox"
               checked={params.value || false}
+              disabled={markedForDeletion}
               onChange={(e) => {
                 const newValue = e.target.checked;
                 params.node.setDataValue('has_elevator', newValue);
               }}
-              className="w-5 h-5 cursor-pointer"
+              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );

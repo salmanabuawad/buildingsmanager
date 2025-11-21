@@ -56,13 +56,13 @@ export interface AssetMeasurement {
 export interface AssetType {
   id: number;
   name: string;
-  description: string;
+  description?: string;
   tax_region?: number;
   shared_area_yn?: string;
   has_elevator?: string;
-  condition_elevator?: number;
-  condition_shared_area?: number;
-  condition_size?: number;
+  condition_elevator?: string;
+  condition_shared_area?: string;
+  condition_size?: string;
   min_size?: number;
   max_size?: number;
   notes?: string;

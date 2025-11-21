@@ -22,8 +22,12 @@ export function AssetTypes() {
     tax_region: '',
     shared_area_yn: '',
     has_elevator: '',
+    condition_elevator: '',
+    condition_shared_area: '',
+    condition_size: '',
     min_size: '',
     max_size: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -49,7 +53,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', min_size: '', max_size: '' });
+    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', condition_elevator: '', condition_shared_area: '', condition_size: '', min_size: '', max_size: '', notes: '' });
     setIsAdding(false);
   }
 
@@ -73,12 +77,16 @@ export function AssetTypes() {
     try {
       const dataToSave = {
         name: formData.name,
-        description: formData.description,
+        description: formData.description || undefined,
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
         shared_area_yn: formData.shared_area_yn || undefined,
         has_elevator: formData.has_elevator || undefined,
+        condition_elevator: formData.condition_elevator || undefined,
+        condition_shared_area: formData.condition_shared_area || undefined,
+        condition_size: formData.condition_size || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
+        notes: formData.notes || undefined,
       };
 
       await api.assetTypes.create(dataToSave);
@@ -138,6 +146,13 @@ export function AssetTypes() {
   }
 
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
+    {
+      field: 'id',
+      headerName: 'ID',
+      width: 80,
+      editable: false,
+      cellStyle: { textAlign: 'left' }
+    },
     {
       field: 'name',
       headerName: 'קוד',
@@ -252,6 +267,22 @@ export function AssetTypes() {
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value || '-',
+      cellStyle: { textAlign: 'left' }
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created At',
+      flex: 1,
+      editable: false,
+      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleString('he-IL') : '-',
+      cellStyle: { textAlign: 'left' }
+    },
+    {
+      field: 'updated_at',
+      headerName: 'Updated At',
+      flex: 1,
+      editable: false,
+      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleString('he-IL') : '-',
       cellStyle: { textAlign: 'left' }
     },
     {

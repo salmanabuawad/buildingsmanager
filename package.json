@@ -8,7 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "db:setup": "node -e \"console.log('Run: ./scripts/setup-db.sh (Mac/Linux) or .\\\\scripts\\\\setup-db.bat (Windows)')\"",
+    "db:backup": "node -e \"console.log('Run: pg_dump -U postgres buildings_manager > backup.sql')\"",
+    "db:restore": "node -e \"console.log('Run: psql -U postgres buildings_manager < backup.sql')\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
@@ -17,6 +20,7 @@
     "i18next": "^25.6.1",
     "lucide-react": "^0.344.0",
     "pdfjs-dist": "^5.4.394",
+    "pg": "^8.16.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^16.2.4",
@@ -36,6 +40,6 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
+    "vite": "^5.4.21"
   }
 }

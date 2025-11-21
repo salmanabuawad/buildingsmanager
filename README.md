@@ -39,33 +39,41 @@ cd buildings-manager
 
 ### 2. Database Setup
 
-**Option A: Use Supabase (Recommended)**
+**Option A: Use Local PostgreSQL (Automated Setup) 🚀**
 
-The project is configured to use Supabase. The migrations in `supabase/migrations/` are automatically applied to the Supabase database.
-
-**Option B: Use Local PostgreSQL**
-
-Create a PostgreSQL database:
+The easiest way to get started with a local database:
 
 ```bash
-# Login to PostgreSQL
-psql -U postgres
+# Mac/Linux
+./scripts/setup-db.sh
 
-# Create database
-CREATE DATABASE buildings_db;
-
-# Exit psql
-\q
+# Windows
+.\scripts\setup-db.bat
 ```
 
-Run the migration files to set up the schema:
+This script will:
+- Create the database
+- Set up all tables and schema
+- Create your `.env` file
+- Add sample validation rules
 
-```bash
-# Run each migration file in supabase/migrations/ in chronological order
-psql -U postgres -d buildings_db -f supabase/migrations/20251107215003_rebuild_database.sql
-psql -U postgres -d buildings_db -f supabase/migrations/20251108075335_add_dwg_file_to_apartments.sql
-psql -U postgres -d buildings_db -f supabase/migrations/20251108075351_create_storage_bucket_for_dwg_files.sql
+**For detailed instructions, see:** [QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md)
+
+**Option B: Use Supabase (Recommended for Production)**
+
+The project is configured to work with Supabase. Set your Supabase credentials in `.env`:
+
+```env
+VITE_USE_LOCAL_DB=false
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+The migrations in `supabase/migrations/` are automatically applied to the Supabase database.
+
+**Option C: Manual Local PostgreSQL Setup**
+
+See [LOCAL_SETUP.md](LOCAL_SETUP.md) for detailed manual setup instructions.
 
 ### 3. Backend Setup
 
@@ -115,15 +123,22 @@ cd ..  # Back to project root (if you're in backend/)
 npm install
 ```
 
-Create a `.env` file in the root directory (if not exists):
+If you used the automated setup script, your `.env` file is already created. Otherwise, create it:
 
+**For Local PostgreSQL:**
 ```env
+VITE_USE_LOCAL_DB=true
+VITE_LOCAL_DB_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/buildings_manager
 VITE_API_URL=http://localhost:8000
-VITE_SUPABASE_URL=your-supabase-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-Note: The frontend primarily uses the Python GraphQL API (`VITE_API_URL`). Supabase credentials are for file storage features.
+**For Supabase:**
+```env
+VITE_USE_LOCAL_DB=false
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_API_URL=http://localhost:8000
+```
 
 Start the development server:
 
@@ -277,6 +292,9 @@ mutation {
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
 - `npm run typecheck` - Run TypeScript type checking
+- `npm run db:setup` - Display database setup instructions
+- `npm run db:backup` - Display database backup instructions
+- `npm run db:restore` - Display database restore instructions
 
 ### Backend
 

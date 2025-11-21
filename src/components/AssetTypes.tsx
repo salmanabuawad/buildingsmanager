@@ -153,7 +153,8 @@ export function AssetTypes() {
       headerName: 'סוג נכס',
       flex: 0.5,
       editable: false,
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       field: 'description',
@@ -161,7 +162,8 @@ export function AssetTypes() {
       flex: 2,
       editable: true,
       valueFormatter: (params) => params.value || '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       field: 'tax_region',
@@ -169,13 +171,15 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       field: 'elevator',
       headerName: 'מעלית',
       flex: 1,
       editable: false,
+      headerClass: 'text-left',
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         return (
@@ -207,7 +211,8 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       field: 'single_double_family',
@@ -237,13 +242,15 @@ export function AssetTypes() {
           </div>
         );
       },
-      cellStyle: { textAlign: 'center' }
+      cellStyle: { textAlign: 'center' },
+      headerClass: 'text-left'
     },
     {
       field: 'penthouse',
       headerName: 'דירת גג',
       flex: 1,
       editable: false,
+      headerClass: 'text-left',
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         return (
@@ -274,6 +281,7 @@ export function AssetTypes() {
       headerName: 'בית משותף',
       flex: 1,
       editable: false,
+      headerClass: 'text-left',
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         return (
@@ -327,7 +335,8 @@ export function AssetTypes() {
           </div>
         );
       },
-      cellStyle: { textAlign: 'center' }
+      cellStyle: { textAlign: 'center' },
+      headerClass: 'text-left'
     },
     {
       field: 'min_size',
@@ -335,7 +344,8 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       field: 'max_size',
@@ -343,7 +353,8 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       field: 'shelter',
@@ -351,12 +362,14 @@ export function AssetTypes() {
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value || '',
-      cellStyle: { textAlign: 'left' }
+      cellStyle: { textAlign: 'left' },
+      headerClass: 'text-left'
     },
     {
       headerName: t('actions'),
       width: 100,
       editable: false,
+      headerClass: 'text-left',
       cellRenderer: (params: any) => {
         return (
           <button

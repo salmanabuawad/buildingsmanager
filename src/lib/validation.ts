@@ -241,11 +241,10 @@ export async function validateAssetTypeForBuildingTaxRegion(
       return { valid: true };
     }
 
-    const assetTypeCode = typeof assetTypeName === 'string' ? parseInt(assetTypeName) : assetTypeName;
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
-      .select('code, description, tax_region, has_elevator, min_asset_size, max_asset_size')
-      .eq('code', assetTypeCode)
+      .select('*')
+      .eq('name', assetTypeName)
       .maybeSingle();
 
     if (assetTypeError) {
@@ -281,12 +280,13 @@ export async function validateAssetTypeForBuildingTaxRegion(
 export async function validateAssetTypeComplete(
   buildingNumber: number,
   assetTypeName: string,
-  assetSize: number
+  assetSize: number,
+  assetData?: any
 ): Promise<ValidationResult> {
   try {
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region, has_elevator')
+      .select('tax_region, has_elevator, shared_area')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -299,11 +299,11 @@ export async function validateAssetTypeComplete(
       return { valid: false, error: 'הבניין לא נמצא' };
     }
 
-    const assetTypeCode = typeof assetTypeName === 'string' ? parseInt(assetTypeName) : assetTypeName;
+    // Query asset types by name field
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
-      .select('code, description, tax_region, has_elevator, min_asset_size, max_asset_size')
-      .eq('code', assetTypeCode)
+      .select('*')
+      .eq('name', assetTypeName)
       .maybeSingle();
 
     if (assetTypeError) {
@@ -328,20 +328,31 @@ export async function validateAssetTypeComplete(
       }
     }
 
-    // Step 2: Check elevator requirement match
-    if (assetType.has_elevator != null && building.has_elevator !== assetType.has_elevator) {
-      const elevatorMsg = building.has_elevator ? 'יש מעלית' : 'אין מעלית';
-      const typeRequirement = assetType.has_elevator ? 'דורש מעלית' : 'לא דורש מעלית';
-      return {
-        valid: false,
-        error: `סוג הנכס "${assetTypeName}" ${typeRequirement}, אבל בבניין ${elevatorMsg}`
-      };
+    // Step 2: Check elevator requirement
+    if (assetType.elevator != null && assetType.elevator.trim() !== '') {
+      const elevatorValue = assetType.elevator.toLowerCase();
+
+      if (elevatorValue === 'כן' || elevatorValue === 'yes') {
+        if (!building.has_elevator) {
+          return {
+            valid: false,
+            error: `סוג הנכס "${assetTypeName}" דורש מעלית, אבל בבניין אין מעלית`
+          };
+        }
+      } else if (elevatorValue === 'לא' || elevatorValue === 'no') {
+        if (building.has_elevator) {
+          return {
+            valid: false,
+            error: `סוג הנכס "${assetTypeName}" מיועד לבניינים ללא מעלית, אבל בבניין יש מעלית`
+          };
+        }
+      }
     }
 
     // Step 3: Check asset size is within range
     if (assetSize != null) {
-      const minSize = assetType.min_asset_size != null ? Number(assetType.min_asset_size) : null;
-      const maxSize = assetType.max_asset_size != null ? Number(assetType.max_asset_size) : null;
+      const minSize = assetType.min_size != null ? Number(assetType.min_size) : null;
+      const maxSize = assetType.max_size != null ? Number(assetType.max_size) : null;
       const numericAssetSize = Number(assetSize);
 
       if (minSize != null && numericAssetSize < minSize) {
@@ -357,6 +368,36 @@ export async function validateAssetTypeComplete(
           error: `גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר לסוג "${assetTypeName}" (${maxSize})`
         };
       }
+    }
+
+    // Step 4: Validate asset_group
+    if (assetType.asset_group != null && assetType.asset_group.trim() !== '' && assetData) {
+      // This can be used for future validations based on asset group
+    }
+
+    // Step 5: Validate single_double_family
+    if (assetType.single_double_family != null && assetType.single_double_family.trim() !== '' && assetData) {
+      // This can be used for future validations based on family type
+    }
+
+    // Step 6: Validate penthouse requirement
+    if (assetType.penthouse != null && assetType.penthouse.trim() !== '' && assetData) {
+      // This can be used for future validations based on penthouse requirement
+    }
+
+    // Step 7: Validate condo requirement
+    if (assetType.condo != null && assetType.condo.trim() !== '' && assetData) {
+      // This can be used for future validations based on condo requirement
+    }
+
+    // Step 8: Validate townhouses requirement
+    if (assetType.townhouses != null && assetType.townhouses.trim() !== '' && assetData) {
+      // This can be used for future validations based on townhouses requirement
+    }
+
+    // Step 9: Validate shelter requirement
+    if (assetType.shelter != null && assetType.shelter.trim() !== '' && assetData) {
+      // This can be used for future validations based on shelter requirement
     }
 
     return { valid: true };
@@ -487,11 +528,10 @@ export async function validateSubAssetsFor199Or299(
   const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
 
   for (const subAssetType of validSubAssets) {
-    const assetTypeCode = typeof subAssetType === 'string' ? parseInt(subAssetType) : subAssetType;
     const { data: assetType, error: assetTypeError } = await supabase
       .from('asset_types')
-      .select('code, description, tax_region')
-      .eq('code', assetTypeCode)
+      .select('*')
+      .eq('name', subAssetType)
       .maybeSingle();
 
     if (assetTypeError) {

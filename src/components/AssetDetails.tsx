@@ -493,7 +493,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('structureDrawing'),
       field: 'structure_drawing_url',
       flex: 1.5,
-      minWidth: 140,
       pinned: 'right',
       sortable: false,
       filter: false,
@@ -566,7 +565,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       flex: 1,
-      minWidth: 110,
       editable: (params) => params.data.id === latestMeasurementId,
       cellStyle: (params) => params.data.id === latestMeasurementId ? {} : { backgroundColor: '#f3f4f6' },
       valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
@@ -581,14 +579,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'payer_id',
       headerName: t('payerId'),
       flex: 1,
-      minWidth: 90,
       editable: (params) => params.data.id === latestMeasurementId,
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -601,7 +597,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       flex: 1,
-      minWidth: 90,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -609,7 +604,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -622,7 +616,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -630,7 +623,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -643,7 +635,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -651,7 +642,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -664,7 +654,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -672,7 +661,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -685,7 +673,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -693,7 +680,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -706,7 +692,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -714,7 +699,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -727,7 +711,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       flex: 1,
-      minWidth: 80,
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
@@ -881,9 +864,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 getRowId={(params) => String(params.data.id)}
                 getRowStyle={getRowStyle}
                 onGridReady={(params) => {
+                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                  params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
                   params.api.sizeColumnsToFit();
                 }}
                 onFirstDataRendered={(params) => {
+                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                  params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
                   params.api.sizeColumnsToFit();
                 }}
                 onCellValueChanged={onCellValueChanged}

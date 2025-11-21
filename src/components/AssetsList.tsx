@@ -481,13 +481,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      width: 150,
       cellStyle: { textAlign: 'right', backgroundColor: '#fef3c7', fontWeight: '600' }
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 150,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -498,14 +496,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 120,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 120,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -516,14 +512,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 120,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -534,7 +528,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 110,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'right' }
     }
@@ -647,8 +640,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: t('actions'),
-      width: 150,
-      minWidth: 150,
       editable: false,
       pinned: 'right',
       lockPosition: true,
@@ -730,8 +721,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      width: 120,
-      minWidth: 120,
       editable: true,
       pinned: 'right',
       lockPosition: true,
@@ -741,27 +730,19 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      width: 130,
-      minWidth: 130,
       editable: false,
       cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      width: 120,
-      minWidth: 120,
-      maxWidth: 120,
       editable: true,
-      suppressSizeToFit: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -774,8 +755,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -790,8 +769,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -804,8 +781,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -820,8 +795,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -834,8 +807,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -850,8 +821,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -864,8 +833,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -880,8 +847,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -894,8 +859,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -910,8 +873,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -924,8 +885,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -940,8 +899,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 70,
-      minWidth: 70,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -954,8 +911,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 75,
-      minWidth: 75,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1086,6 +1041,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             getRowId={(params) => params.data.id}
             getRowStyle={getRowStyle}
             onGridReady={(params) => {
+              const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+              params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+              params.api.sizeColumnsToFit();
 
               // Scroll to left on grid ready
               setTimeout(() => {
@@ -1100,6 +1058,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               if (firstCol) {
                 params.api.ensureColumnVisible(firstCol);
               }
+              const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+              params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
               params.api.sizeColumnsToFit();
 
               // Scroll to left after data render

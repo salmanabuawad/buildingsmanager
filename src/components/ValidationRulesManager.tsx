@@ -150,7 +150,6 @@ export function ValidationRulesManager() {
     {
       headerName: t('enabled'),
       field: 'enabled',
-      width: 100,
       editable: true,
       cellRenderer: (params: any) => {
         if (!params.data) return '';
@@ -168,14 +167,13 @@ export function ValidationRulesManager() {
         return rule.enabled ? '✓' : '✗';
       }
     },
-    { headerName: t('ruleKey'), field: 'rule_key', width: 250 },
-    { headerName: t('entityType'), field: 'entity_type', width: 120 },
-    { headerName: t('fieldName'), field: 'field_name', width: 150 },
-    { headerName: t('ruleType'), field: 'rule_type', width: 130 },
+    { headerName: t('ruleKey'), field: 'rule_key' },
+    { headerName: t('entityType'), field: 'entity_type' },
+    { headerName: t('fieldName'), field: 'field_name' },
+    { headerName: t('ruleType'), field: 'rule_type' },
     {
       headerName: t('numericValue'),
       field: 'value_numeric',
-      width: 130,
       cellRenderer: (params: any) => {
         if (!params.data) return '';
         const rule = params.data as ValidationRule;
@@ -195,7 +193,6 @@ export function ValidationRulesManager() {
     {
       headerName: t('textValue'),
       field: 'value_text',
-      width: 150,
       cellRenderer: (params: any) => {
         if (!params.data) return '';
         const rule = params.data as ValidationRule;
@@ -215,7 +212,6 @@ export function ValidationRulesManager() {
     {
       headerName: t('errorMessage'),
       field: 'error_message',
-      width: 250,
       cellRenderer: (params: any) => {
         if (!params.data) return '';
         const rule = params.data as ValidationRule;
@@ -232,13 +228,12 @@ export function ValidationRulesManager() {
         return rule.error_message ?? '';
       }
     },
-    { headerName: t('compareTable'), field: 'compare_table', width: 150 },
-    { headerName: t('compareField'), field: 'compare_field', width: 150 },
-    { headerName: t('joinField'), field: 'join_field', width: 150 },
-    { headerName: t('operator'), field: 'comparison_operator', width: 100 },
+    { headerName: t('compareTable'), field: 'compare_table' },
+    { headerName: t('compareField'), field: 'compare_field' },
+    { headerName: t('joinField'), field: 'join_field' },
+    { headerName: t('operator'), field: 'comparison_operator' },
     {
       headerName: t('actions'),
-      width: 120,
       cellRenderer: (params: any) => {
         if (!params.data) return null;
         const rule = params.data as ValidationRule;
@@ -288,7 +283,9 @@ export function ValidationRulesManager() {
 
   const onGridReady = useCallback((params: any) => {
     console.log('Grid ready, rules count:', rules.length);
-    params.api.autoSizeAllColumns();
+    const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+    params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+    params.api.sizeColumnsToFit();
   }, [rules]);
 
   return (
@@ -544,7 +541,9 @@ export function ValidationRulesManager() {
                   if (firstCol) {
                     params.api.ensureColumnVisible(firstCol);
                   }
-                  params.api.autoSizeAllColumns();
+                  const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+                  params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                  params.api.sizeColumnsToFit();
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                     if (gridElement) {

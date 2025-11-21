@@ -299,7 +299,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
       headerName: t('actions'),
-      width: 130,
       editable: false,
       pinned: 'right',
       lockPosition: true,
@@ -514,7 +513,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'has_elevator',
       headerName: 'מעלית',
-      width: 50,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -557,7 +555,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'single_double_family',
       headerName: 'משפחה יחידה/דו משפחתי',
-      width: 50,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -588,7 +585,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'condo',
       headerName: 'דירת גן',
-      width: 50,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -619,7 +615,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'basement',
       headerName: 'מרתף',
-      width: 50,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -650,7 +645,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'townhouses',
       headerName: 'טוריים',
-      width: 50,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -757,7 +751,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                minWidth: 50,
                 wrapHeaderText: true,
                 autoHeaderHeight: true,
                 cellStyle: { textAlign: 'right' },
@@ -765,6 +758,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
+                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.sizeColumnsToFit();
 
                 // Scroll to left on grid ready
                 setTimeout(() => {
@@ -779,7 +775,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
-                params.api.autoSizeAllColumns();
+                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.sizeColumnsToFit();
 
                 // Scroll to left after data render
                 setTimeout(() => {

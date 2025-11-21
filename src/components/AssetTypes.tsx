@@ -349,7 +349,6 @@ export function AssetTypes() {
     },
     {
       headerName: t('actions'),
-      width: 100,
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
@@ -630,18 +629,23 @@ export function AssetTypes() {
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                minWidth: 100,
                 sortable: true
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
+                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.sizeColumnsToFit();
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
+                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.sizeColumnsToFit();
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

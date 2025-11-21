@@ -58,12 +58,11 @@ export interface AssetType {
   name: string;
   description?: string;
   tax_region?: number;
-  shared_area_yn?: string;
-  has_elevator?: string;
+  elevator?: string;
+  asset_group?: string;
   single_double_family?: string;
   penthouse?: string;
   condo?: string;
-  nursing_home?: string;
   townhouses?: string;
   min_size?: number;
   max_size?: number;

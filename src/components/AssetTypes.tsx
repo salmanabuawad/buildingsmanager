@@ -20,12 +20,11 @@ export function AssetTypes() {
     name: '',
     description: '',
     tax_region: '',
-    shared_area_yn: '',
-    has_elevator: '',
+    elevator: '',
+    asset_group: '',
     single_double_family: '',
     penthouse: '',
     condo: '',
-    nursing_home: '',
     townhouses: '',
     min_size: '',
     max_size: '',
@@ -55,7 +54,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', single_double_family: '', penthouse: '', condo: '', nursing_home: '', townhouses: '', min_size: '', max_size: '', shelter: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', asset_group: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '', shelter: '' });
     setIsAdding(false);
   }
 
@@ -81,12 +80,11 @@ export function AssetTypes() {
         name: formData.name,
         description: formData.description || undefined,
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
-        shared_area_yn: formData.shared_area_yn || undefined,
-        has_elevator: formData.has_elevator || undefined,
+        elevator: formData.elevator || undefined,
+        asset_group: formData.asset_group || undefined,
         single_double_family: formData.single_double_family || undefined,
         penthouse: formData.penthouse || undefined,
         condo: formData.condo || undefined,
-        nursing_home: formData.nursing_home || undefined,
         townhouses: formData.townhouses || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
@@ -180,49 +178,19 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'left' }
     },
     {
-      field: 'shared_area_yn',
-      headerName: t('sharedArea'),
+      field: 'elevator',
+      headerName: 'מעלית',
       flex: 1,
       editable: true,
-      cellRenderer: (params: any) => {
-        const isChecked = params.value === 'א';
-        return (
-          <div className="flex items-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'א' : '';
-                params.node.setDataValue(params.column.colId, newValue);
-              }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        );
-      },
+      valueFormatter: (params) => params.value || '-',
       cellStyle: { textAlign: 'left' }
     },
     {
-      field: 'has_elevator',
-      headerName: t('elevator'),
+      field: 'asset_group',
+      headerName: 'קבוצת נכס',
       flex: 1,
       editable: true,
-      cellRenderer: (params: any) => {
-        const isChecked = params.value === 'א';
-        return (
-          <div className="flex items-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'א' : '';
-                params.node.setDataValue(params.column.colId, newValue);
-              }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        );
-      },
+      valueFormatter: (params) => params.value || '-',
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -244,14 +212,6 @@ export function AssetTypes() {
     {
       field: 'condo',
       headerName: 'בית משותף',
-      flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
-    },
-    {
-      field: 'nursing_home',
-      headerName: 'בית אבות',
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '-',

@@ -60,6 +60,11 @@ export interface AssetType {
   tax_region?: number;
   shared_area_yn?: string;
   has_elevator?: string;
+  single_double_family?: string;
+  penthouse?: string;
+  condo?: string;
+  nursing_home?: string;
+  townhouses?: string;
   min_size?: number;
   max_size?: number;
   shelter?: string;

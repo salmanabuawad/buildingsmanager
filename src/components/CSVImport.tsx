@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Download, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Download, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 
 export function CSVImport() {
@@ -167,7 +167,11 @@ export function CSVImport() {
             disabled={isImporting}
             className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Upload className="h-5 w-5" />
+            {isImporting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Upload className="h-5 w-5" />
+            )}
             <span className="font-semibold">
               {isImporting ? 'מייבא...' : 'בחר קובץ CSV לייבוא'}
             </span>

@@ -11,6 +11,7 @@ export function AssetTypes() {
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +75,7 @@ export function AssetTypes() {
       return;
     }
 
+    setIsSaving(true);
     try {
       const dataToSave = {
         name: formData.name,
@@ -96,6 +98,8 @@ export function AssetTypes() {
     } catch (error) {
       showMessage('error', t('error'));
       console.error('Error saving asset type:', error);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -584,10 +588,15 @@ export function AssetTypes() {
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus className="h-4 w-4" />
-                {t('save')}
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {isSaving ? 'שומר...' : t('save')}
               </button>
               <button
                 onClick={resetForm}

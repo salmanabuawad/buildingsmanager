@@ -652,7 +652,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             disabled={loading || dirtyBuildings.size === 0 || invalidTaxRegions.size > 0}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
-            <Save className="h-4 w-4" />
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             {loading ? t('saving') : `${t('saveAll')}${dirtyBuildings.size > 0 ? ` (${dirtyBuildings.size})` : ''}`}
           </button>
         </div>

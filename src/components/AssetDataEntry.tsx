@@ -1225,7 +1225,11 @@ export function AssetDataEntry() {
                 disabled={loading}
                 className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
               >
-                <Save className="h-3.5 w-3.5" />
+                {loading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
                 {loading ? t('saving') : t('saveAll')}
               </button>
             </div>

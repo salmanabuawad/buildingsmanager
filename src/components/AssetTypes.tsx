@@ -633,11 +633,6 @@ export function AssetTypes() {
                 minWidth: 100,
                 sortable: true
               }}
-              autoSizeStrategy={{
-                type: 'fitCellContents',
-                skipHeader: true,
-                defaultMinWidth: 100
-              }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {

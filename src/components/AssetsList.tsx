@@ -1082,11 +1082,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               autoHeaderHeight: true,
               headerClass: 'ag-right-aligned-header'
             }}
-            autoSizeStrategy={{
-              type: 'fitCellContents',
-              skipHeader: true,
-              defaultMinWidth: 100
-            }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}
             getRowStyle={getRowStyle}

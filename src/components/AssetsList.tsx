@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators, getValidAssetGroups } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye } from 'lucide-react';
@@ -16,6 +16,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [masterAssets, setMasterAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [assetGroups, setAssetGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invalidAssets, setInvalidAssets] = useState<Set<string>>(new Set());
@@ -30,7 +31,17 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [validationErrors, setValidationErrors] = useState<Map<string, Map<string, string>>>(new Map());
   useEffect(() => {
     fetchData();
+    fetchAssetGroups();
   }, [buildingNumber, taxZone]);
+
+  const fetchAssetGroups = async () => {
+    try {
+      const groups = await getValidAssetGroups();
+      setAssetGroups(groups);
+    } catch (err) {
+      console.error('Error fetching asset groups:', err);
+    }
+  };
   useEffect(() => {
     // Create display data with expanded rows
     const display: Asset[] = [];
@@ -791,6 +802,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 100,
       minWidth: 100,
       editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['', ...assetGroups]
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_group', false)
     },
@@ -980,10 +995,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       width: 120,
       minWidth: 120,
       editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['', ...assetGroups]
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_group', false)
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assetGroups, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

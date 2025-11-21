@@ -123,25 +123,21 @@ export function AdminPDFManager() {
   const columnDefs: ColDef<ApartmentWithBuilding>[] = useMemo(() => [
     {
       headerName: 'Actions',
-      flex: 2,
       cellRenderer: ActionsCellRenderer
     },
     {
       field: 'dwg_file_url',
       headerName: 'Status',
-      flex: 1,
       cellRenderer: StatusCellRenderer,
       valueGetter: (params) => params.data?.dwg_file_url ? 'Has PDF' : 'No PDF'
     },
     {
       field: 'apartment_number',
-      headerName: 'Unit Number',
-      flex: 1
+      headerName: 'Unit Number'
     },
     {
       field: 'building_name',
-      headerName: 'Building',
-      flex: 2
+      headerName: 'Building'
     }
   ], [uploadingIds]);
 
@@ -210,12 +206,12 @@ export function AdminPDFManager() {
           defaultColDef={defaultColDef}
           onGridReady={(params) => {
             const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-            params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
             params.api.sizeColumnsToFit();
           }}
           onFirstDataRendered={(params) => {
             const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-            params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
             params.api.sizeColumnsToFit();
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {

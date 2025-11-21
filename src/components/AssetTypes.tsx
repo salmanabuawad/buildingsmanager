@@ -635,7 +635,7 @@ export function AssetTypes() {
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                 params.api.sizeColumnsToFit();
               }}
               onFirstDataRendered={(params) => {
@@ -644,7 +644,7 @@ export function AssetTypes() {
                   params.api.ensureColumnVisible(firstCol);
                 }
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                 params.api.sizeColumnsToFit();
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');

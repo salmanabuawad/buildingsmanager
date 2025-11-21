@@ -1207,7 +1207,7 @@ export function AssetDataEntry() {
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
               params.api.sizeColumnsToFit();
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
@@ -1215,7 +1215,7 @@ export function AssetDataEntry() {
             }}
             onFirstDataRendered={(params) => {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
               params.api.sizeColumnsToFit();
             }}
             singleClickEdit={true}

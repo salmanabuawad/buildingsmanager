@@ -341,7 +341,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
-      flex: 1.5,
       editable: false,
       pinned: 'right',
       lockPosition: true,
@@ -376,7 +375,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'tax_region',
       headerName: t('taxRegion'),
-      flex: 1,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -409,7 +407,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'shared_area',
       headerName: 'שטח משותף',
-      flex: 1.5,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -442,7 +439,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'total_building_area',
       headerName: 'ס"כ גודל',
-      flex: 1.5,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -477,7 +473,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
-      flex: 1.5,
       editable: (params) => {
         const building = params.data as Building;
         return !buildingsToDelete.has(building.building_number);
@@ -759,7 +754,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                 params.api.sizeColumnsToFit();
 
                 // Scroll to left on grid ready
@@ -776,7 +771,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   params.api.ensureColumnVisible(firstCol);
                 }
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                 params.api.sizeColumnsToFit();
 
                 // Scroll to left after data render

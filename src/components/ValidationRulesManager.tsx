@@ -284,7 +284,7 @@ export function ValidationRulesManager() {
   const onGridReady = useCallback((params: any) => {
     console.log('Grid ready, rules count:', rules.length);
     const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-    params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
     params.api.sizeColumnsToFit();
   }, [rules]);
 
@@ -542,7 +542,7 @@ export function ValidationRulesManager() {
                     params.api.ensureColumnVisible(firstCol);
                   }
                   const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                   params.api.sizeColumnsToFit();
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');

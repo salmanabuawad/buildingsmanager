@@ -1042,7 +1042,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             getRowStyle={getRowStyle}
             onGridReady={(params) => {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
               params.api.sizeColumnsToFit();
 
               // Scroll to left on grid ready
@@ -1059,7 +1059,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 params.api.ensureColumnVisible(firstCol);
               }
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true, defaultMinWidth: 100 }, allColumnIds);
+              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
               params.api.sizeColumnsToFit();
 
               // Scroll to left after data render

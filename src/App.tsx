@@ -89,8 +89,8 @@ function App() {
     }
   }
 
-  function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {
-    setSidePanel({ assetId: assetDbId, assetIdentifier: assetId, buildingNumber });
+  function handleSelectAsset(assetDbId: string | number, assetId: string, buildingNumber: number) {
+    setSidePanel({ assetId: String(assetDbId), assetIdentifier: assetId, buildingNumber });
     setSidePanelCollapsed(false);
   }
 

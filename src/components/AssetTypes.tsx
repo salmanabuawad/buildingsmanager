@@ -181,9 +181,31 @@ export function AssetTypes() {
       field: 'elevator',
       headerName: 'מעלית',
       flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      editable: false,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={async (e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.data.elevator = newValue;
+                try {
+                  await api.assetTypes.update(params.data.id, { elevator: newValue });
+                  await fetchAssetTypes(false);
+                } catch (error) {
+                  console.error('Error updating elevator:', error);
+                  showMessage('error', 'עדכון נכשל');
+                }
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' }
     },
     {
       field: 'asset_group',
@@ -197,33 +219,121 @@ export function AssetTypes() {
       field: 'single_double_family',
       headerName: 'בית פרטי',
       flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      editable: false,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={async (e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.data.single_double_family = newValue;
+                try {
+                  await api.assetTypes.update(params.data.id, { single_double_family: newValue });
+                  await fetchAssetTypes(false);
+                } catch (error) {
+                  console.error('Error updating single_double_family:', error);
+                  showMessage('error', 'עדכון נכשל');
+                }
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' }
     },
     {
       field: 'penthouse',
       headerName: 'דירת גג',
       flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      editable: false,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={async (e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.data.penthouse = newValue;
+                try {
+                  await api.assetTypes.update(params.data.id, { penthouse: newValue });
+                  await fetchAssetTypes(false);
+                } catch (error) {
+                  console.error('Error updating penthouse:', error);
+                  showMessage('error', 'עדכון נכשל');
+                }
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' }
     },
     {
       field: 'condo',
       headerName: 'בית משותף',
       flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      editable: false,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={async (e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.data.condo = newValue;
+                try {
+                  await api.assetTypes.update(params.data.id, { condo: newValue });
+                  await fetchAssetTypes(false);
+                } catch (error) {
+                  console.error('Error updating condo:', error);
+                  showMessage('error', 'עדכון נכשל');
+                }
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' }
     },
     {
       field: 'townhouses',
       headerName: 'טוריים',
       flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value || '-',
-      cellStyle: { textAlign: 'left' }
+      editable: false,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={async (e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.data.townhouses = newValue;
+                try {
+                  await api.assetTypes.update(params.data.id, { townhouses: newValue });
+                  await fetchAssetTypes(false);
+                } catch (error) {
+                  console.error('Error updating townhouses:', error);
+                  showMessage('error', 'עדכון נכשל');
+                }
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' }
     },
     {
       field: 'min_size',

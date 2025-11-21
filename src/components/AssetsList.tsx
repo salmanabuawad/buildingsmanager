@@ -1026,7 +1026,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           </button>
           </div>
         </div>
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: 'calc(100vh - 150px)', width: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={displayAssets}

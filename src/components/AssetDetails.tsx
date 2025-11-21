@@ -832,7 +832,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 </button>
               </div>
             </div>
-            <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: 'calc(100vh - 200px)', width: '100%' }}>
+            <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
               <AgGridReact<Asset>
                 ref={gridRef}
                 rowData={allMeasurements}

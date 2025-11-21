@@ -167,6 +167,7 @@ export function AssetTypes() {
       headerName: t('typeDescription'),
       flex: 2,
       editable: true,
+      valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -174,7 +175,7 @@ export function AssetTypes() {
       headerName: t('taxRegion'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value || '-',
+      valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -212,7 +213,7 @@ export function AssetTypes() {
       headerName: 'קבוצת נכס',
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value || '-',
+      valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -340,7 +341,7 @@ export function AssetTypes() {
       headerName: t('minAssetSize'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -348,7 +349,7 @@ export function AssetTypes() {
       headerName: t('maxAssetSize'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -356,7 +357,7 @@ export function AssetTypes() {
       headerName: t('shelter'),
       flex: 1.5,
       editable: true,
-      valueFormatter: (params) => params.value || '-',
+      valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' }
     },
     {

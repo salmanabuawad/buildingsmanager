@@ -86,7 +86,7 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-header-cell-label {
-  justify-content: flex-end !important;
+  justify-content: flex-start !important;
   white-space: normal !important;
   word-wrap: break-word !important;
 }

@@ -198,7 +198,7 @@ export function AdminPDFManager() {
         </div>
       </div>
 
-      <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+      <div className="ag-theme-alpine" style={{ height: 'calc(100vh - 200px)', width: '100%' }}>
         <AgGridReact<ApartmentWithBuilding>
           ref={gridRef}
           rowData={apartments}

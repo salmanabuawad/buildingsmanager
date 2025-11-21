@@ -162,6 +162,10 @@ input[type="number"] {
   display: none !important;
 }
 
+.ag-horizontal-right-spacer {
+  display: none !important;
+}
+
 .ag-theme-alpine .ag-cell-error {
   background-color: #fee2e2 !important;
   border: 2px solid #ef4444 !important;

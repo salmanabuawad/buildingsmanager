@@ -10,6 +10,10 @@ export interface Building {
   area_for_control?: number;
   created_at: string;
   total_building_area?: number;
+  single_double_family?: string;
+  condo?: string;
+  shelter?: string;
+  townhouses?: string;
 }
 
 export interface Asset {
@@ -35,6 +39,7 @@ export interface Asset {
   structure_drawing_url?: string;
   created_at: string;
   updated_at: string;
+  asset_group?: string;
 }
 
 export interface AssetMeasurement {
@@ -114,6 +119,7 @@ function sanitizeAssetInput(input: any): any {
     sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
     sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
     sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
+    asset_group: input.asset_group != null ? sanitizeText(input.asset_group) : undefined,
   };
 }
 
@@ -126,6 +132,10 @@ function sanitizeBuildingInput(input: any): any {
     building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
     tax_region: input.tax_region != null ? sanitizeText(input.tax_region) : undefined,
     shared_area: input.shared_area != null ? sanitizeNumber(input.shared_area) : undefined,
+    single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
+    condo: input.condo != null ? sanitizeText(input.condo) : undefined,
+    shelter: input.shelter != null ? sanitizeText(input.shelter) : undefined,
+    townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
   };
 }
 

@@ -541,6 +541,46 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           border: hasError ? '2px solid #dc2626' : undefined
         };
       }
+    },
+    {
+      field: 'single_double_family',
+      headerName: 'משפחה יחידה/דו משפחתי',
+      flex: 1.5,
+      editable: (params) => {
+        const building = params.data as Building;
+        return !buildingsToDelete.has(building.building_number);
+      },
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'condo',
+      headerName: 'דירת גן',
+      flex: 1,
+      editable: (params) => {
+        const building = params.data as Building;
+        return !buildingsToDelete.has(building.building_number);
+      },
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'shelter',
+      headerName: 'ממ"ד',
+      flex: 1,
+      editable: (params) => {
+        const building = params.data as Building;
+        return !buildingsToDelete.has(building.building_number);
+      },
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'townhouses',
+      headerName: 'טוריים',
+      flex: 1,
+      editable: (params) => {
+        const building = params.data as Building;
+        return !buildingsToDelete.has(building.building_number);
+      },
+      cellStyle: { textAlign: 'right' }
     }
   ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors]);
 

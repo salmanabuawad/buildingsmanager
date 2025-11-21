@@ -463,6 +463,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       sub_asset_size_6: 0,
       measurement_date: dateStr,
       created_at: new Date().toISOString(),
+      asset_group: '',
       _isMasterRow: true
     };
 
@@ -963,6 +964,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
+    },
+    {
+      field: 'asset_group',
+      headerName: 'קבוצת נכס',
+      width: 120,
+      minWidth: 120,
+      editable: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params) => getCellStyle(params, 'asset_group', false)
     }
   ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete]);
   if (loading) {

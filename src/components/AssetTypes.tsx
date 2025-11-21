@@ -149,15 +149,8 @@ export function AssetTypes() {
 
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
-      field: 'id',
-      headerName: 'ID',
-      width: 80,
-      editable: false,
-      cellStyle: { textAlign: 'left' }
-    },
-    {
       field: 'name',
-      headerName: 'קוד',
+      headerName: 'סוג נכס',
       flex: 0.5,
       editable: false,
       cellStyle: { textAlign: 'left' }

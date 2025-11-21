@@ -257,6 +257,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     if (gridRef.current?.api) {
       gridRef.current.api.refreshCells({ force: true });
     }
+
+    // Scroll to left after cancel
+    setTimeout(() => {
+      const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+      if (gridElement) {
+        gridElement.scrollLeft = 0;
+      }
+    }, 100);
   };
 
   const handleDeleteBuilding = useCallback((buildingNumber: number) => {
@@ -666,17 +674,27 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
                 params.api.autoSizeAllColumns();
-              }}
-              onFirstDataRendered={(params) => {
-                const lastCol = params.api.getAllDisplayedColumns().slice(-1)[0];
-                if (lastCol) {
-                  params.api.ensureColumnVisible(lastCol);
-                }
-                params.api.autoSizeAllColumns();
+
+                // Scroll to left on grid ready
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {
-                    gridElement.scrollLeft = gridElement.scrollWidth;
+                    gridElement.scrollLeft = 0;
+                  }
+                }, 100);
+              }}
+              onFirstDataRendered={(params) => {
+                const firstCol = params.api.getAllDisplayedColumns()[0];
+                if (firstCol) {
+                  params.api.ensureColumnVisible(firstCol);
+                }
+                params.api.autoSizeAllColumns();
+
+                // Scroll to left after data render
+                setTimeout(() => {
+                  const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+                  if (gridElement) {
+                    gridElement.scrollLeft = 0;
                   }
                 }, 100);
               }}

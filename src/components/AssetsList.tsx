@@ -1072,6 +1072,19 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               setError(null);
               setSuccess('השינויים בוטלו');
               setTimeout(() => setSuccess(null), 3000);
+
+              // Refresh the grid to show the reset data
+              if (gridRef.current?.api) {
+                gridRef.current.api.refreshCells({ force: true });
+              }
+
+              // Scroll to left after cancel
+              setTimeout(() => {
+                const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+                if (gridElement) {
+                  gridElement.scrollLeft = 0;
+                }
+              }, 100);
             }}
             disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
@@ -1105,6 +1118,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             getRowStyle={getRowStyle}
             onGridReady={(params) => {
               params.api.sizeColumnsToFit();
+
+              // Scroll to left on grid ready
+              setTimeout(() => {
+                const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+                if (gridElement) {
+                  gridElement.scrollLeft = 0;
+                }
+              }, 100);
             }}
             onFirstDataRendered={(params) => {
               const firstCol = params.api.getAllDisplayedColumns()[0];
@@ -1112,6 +1133,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 params.api.ensureColumnVisible(firstCol);
               }
               params.api.sizeColumnsToFit();
+
+              // Scroll to left after data render
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                 if (gridElement) {

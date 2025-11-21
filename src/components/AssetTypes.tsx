@@ -17,13 +17,13 @@ export function AssetTypes() {
   const gridRef = useRef<AgGridReact<AssetType>>(null);
 
   const [formData, setFormData] = useState({
-    code: '',
+    name: '',
     description: '',
     tax_region: '',
-    shared_area: false,
-    has_elevator: false,
-    min_asset_size: '',
-    max_asset_size: '',
+    shared_area_yn: '',
+    has_elevator: '',
+    min_size: '',
+    max_size: '',
   });
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ code: '', description: '', tax_region: '', shared_area: false, has_elevator: false, min_asset_size: '', max_asset_size: '' });
+    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', min_size: '', max_size: '' });
     setIsAdding(false);
   }
 
@@ -59,7 +59,7 @@ export function AssetTypes() {
   }
 
   async function handleSave() {
-    if (!formData.code || isNaN(parseInt(formData.code))) {
+    if (!formData.name) {
       showMessage('error', 'קוד נכס חייב להיות מספר');
       return;
     }
@@ -72,13 +72,13 @@ export function AssetTypes() {
 
     try {
       const dataToSave = {
-        code: parseInt(formData.code),
+        name: formData.name,
         description: formData.description,
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
-        shared_area: formData.shared_area,
-        has_elevator: formData.has_elevator,
-        min_asset_size: formData.min_asset_size ? parseFloat(formData.min_asset_size) : undefined,
-        max_asset_size: formData.max_asset_size ? parseFloat(formData.max_asset_size) : undefined,
+        shared_area_yn: formData.shared_area_yn || undefined,
+        has_elevator: formData.has_elevator || undefined,
+        min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
+        max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
       };
 
       await api.assetTypes.create(dataToSave);
@@ -95,10 +95,10 @@ export function AssetTypes() {
     try {
       const { data, colDef } = event;
       const field = colDef.field;
-      const assetTypeCode = data.code;
+      const assetTypeId = data.id;
       const newValue = event.newValue;
 
-      if (field === 'code') {
+      if (field === 'name') {
         showMessage('error', 'לא ניתן לערוך את קוד הנכס');
         await fetchAssetTypes(false);
         return;
@@ -115,7 +115,7 @@ export function AssetTypes() {
         [field]: newValue
       };
 
-      await api.assetTypes.update(assetTypeCode, updateData);
+      await api.assetTypes.update(assetTypeId, updateData);
       await fetchAssetTypes(false);
     } catch (error) {
       console.error('Error updating asset type:', error);
@@ -124,11 +124,11 @@ export function AssetTypes() {
     }
   }, []);
 
-  async function handleDelete(code: number) {
+  async function handleDelete(id: number) {
     if (!confirm(t('confirmDeleteAssetType'))) return;
 
     try {
-      await api.assetTypes.delete(code);
+      await api.assetTypes.delete(id);
       showMessage('success', t('assetTypeDeleted'));
       await fetchAssetTypes();
     } catch (error) {
@@ -139,7 +139,7 @@ export function AssetTypes() {
 
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
-      field: 'code',
+      field: 'name',
       headerName: 'קוד',
       flex: 0.5,
       editable: false,
@@ -161,20 +161,11 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'shared_area',
+      field: 'shared_area_yn',
       headerName: t('sharedArea'),
       flex: 1,
       editable: true,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['true', 'false']
-      },
-      valueFormatter: (params) => params.value ? 'כן' : 'לא',
-      valueParser: (params) => {
-        if (params.newValue === 'true' || params.newValue === true) return true;
-        if (params.newValue === 'false' || params.newValue === false) return false;
-        return params.newValue;
-      },
+      valueFormatter: (params) => params.value === 'א' ? 'כן' : params.value || '-',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -182,11 +173,11 @@ export function AssetTypes() {
       headerName: t('elevator'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value ? 'כן' : 'לא',
+      valueFormatter: (params) => params.value === 'א' ? 'כן' : params.value || '-',
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'min_asset_size',
+      field: 'min_size',
       headerName: t('minAssetSize'),
       flex: 1,
       editable: true,
@@ -194,7 +185,7 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'max_asset_size',
+      field: 'max_size',
       headerName: t('maxAssetSize'),
       flex: 1,
       editable: true,
@@ -208,7 +199,7 @@ export function AssetTypes() {
       cellRenderer: (params: any) => {
         return (
           <button
-            onClick={() => handleDelete(params.data.code)}
+            onClick={() => handleDelete(params.data.id)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <Trash2 className="h-4 w-4" />
@@ -344,10 +335,10 @@ export function AssetTypes() {
                   קוד נכס *
                 </label>
                 <input
-                  type="number"
-                  value={formData.code}
+                  type="text"
+                  value={formData.name}
                   onChange={(e) => {
-                    setFormData({ ...formData, code: e.target.value });
+                    setFormData({ ...formData, name: e.target.value });
                   }}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="199"
@@ -383,12 +374,12 @@ export function AssetTypes() {
                   {t('sharedArea')}
                 </label>
                 <select
-                  value={formData.shared_area ? 'true' : 'false'}
-                  onChange={(e) => setFormData({ ...formData, shared_area: e.target.value === 'true' })}
+                  value={formData.shared_area_yn}
+                  onChange={(e) => setFormData({ ...formData, shared_area_yn: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
-                  <option value="false">לא</option>
-                  <option value="true">כן</option>
+                  <option value="">לא</option>
+                  <option value="א">כן</option>
                 </select>
               </div>
               <div>
@@ -396,12 +387,12 @@ export function AssetTypes() {
                   {t('elevator')}
                 </label>
                 <select
-                  value={formData.has_elevator ? 'true' : 'false'}
-                  onChange={(e) => setFormData({ ...formData, has_elevator: e.target.value === 'true' })}
+                  value={formData.has_elevator}
+                  onChange={(e) => setFormData({ ...formData, has_elevator: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
-                  <option value="false">לא</option>
-                  <option value="true">כן</option>
+                  <option value="">לא</option>
+                  <option value="א">כן</option>
                 </select>
               </div>
               <div>
@@ -411,8 +402,8 @@ export function AssetTypes() {
                 <input
                   type="number"
                   step="0.01"
-                  value={formData.min_asset_size}
-                  onChange={(e) => setFormData({ ...formData, min_asset_size: e.target.value })}
+                  value={formData.min_size}
+                  onChange={(e) => setFormData({ ...formData, min_size: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="0"
                 />
@@ -424,8 +415,8 @@ export function AssetTypes() {
                 <input
                   type="number"
                   step="0.01"
-                  value={formData.max_asset_size}
-                  onChange={(e) => setFormData({ ...formData, max_asset_size: e.target.value })}
+                  value={formData.max_size}
+                  onChange={(e) => setFormData({ ...formData, max_size: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="0"
                 />

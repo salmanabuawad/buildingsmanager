@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { UnitType, api } from '../lib/api';
+import { AssetType, api } from '../lib/api';
 import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Trash2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
@@ -8,13 +8,13 @@ import { ColDef } from 'ag-grid-community';
 
 export function UnitTypes() {
   const { t } = useTranslation();
-  const [unitTypes, setUnitTypes] = useState<UnitType[]>([]);
+  const [unitTypes, setUnitTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const gridRef = useRef<AgGridReact<UnitType>>(null);
+  const gridRef = useRef<AgGridReact<AssetType>>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -29,7 +29,7 @@ export function UnitTypes() {
   async function fetchUnitTypes(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
-      const data = await api.unitTypes.getAll();
+      const data = await api.assetTypes.getAll();
       setUnitTypes(data);
     } catch (error) {
       console.error('Error fetching unit types:', error);
@@ -74,7 +74,7 @@ export function UnitTypes() {
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
       };
 
-      await api.unitTypes.create(dataToSave);
+      await api.assetTypes.create(dataToSave);
       showMessage('success', t('unitTypeCreated'));
       await fetchUnitTypes();
       resetForm();
@@ -90,11 +90,11 @@ export function UnitTypes() {
       const field = colDef.field;
       const unitTypeId = data.id;
 
-      const updateData: Partial<UnitType> = {
+      const updateData: Partial<AssetType> = {
         [field]: event.newValue
       };
 
-      await api.unitTypes.update(unitTypeId, updateData);
+      await api.assetTypes.update(unitTypeId, updateData);
       await fetchUnitTypes(false);
     } catch (error) {
       console.error('Error updating unit type:', error);
@@ -102,11 +102,11 @@ export function UnitTypes() {
     }
   }, []);
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: number) {
     if (!confirm(t('confirmDeleteUnitType'))) return;
 
     try {
-      await api.unitTypes.delete(id);
+      await api.assetTypes.delete(id);
       showMessage('success', t('unitTypeDeleted'));
       await fetchUnitTypes();
     } catch (error) {
@@ -115,7 +115,7 @@ export function UnitTypes() {
     }
   }
 
-  const columnDefs: ColDef<UnitType>[] = useMemo(() => [
+  const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
       field: 'name',
       headerName: t('typeName'),
@@ -183,7 +183,7 @@ export function UnitTypes() {
         }
 
         try {
-          await api.unitTypes.create({ name, description });
+          await api.assetTypes.create({ name, description });
           successCount++;
         } catch (error) {
           errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);

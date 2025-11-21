@@ -54,13 +54,18 @@ export interface AssetMeasurement {
 }
 
 export interface AssetType {
-  code: number;
+  id: number;
+  name: string;
   description: string;
   tax_region?: number;
-  shared_area?: boolean;
-  has_elevator?: boolean;
-  min_asset_size?: number;
-  max_asset_size?: number;
+  shared_area_yn?: string;
+  has_elevator?: string;
+  condition_elevator?: number;
+  condition_shared_area?: number;
+  condition_size?: number;
+  min_size?: number;
+  max_size?: number;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -498,42 +503,41 @@ export const api = {
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
-        .order('code');
+        .order('name');
 
       if (error) throw error;
       return data || [];
     },
-    getOne: async (code: number): Promise<AssetType> => {
+    getOne: async (id: number): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
-        .eq('code', code)
+        .eq('id', id)
         .maybeSingle();
 
       if (error) throw error;
       if (!data) throw new Error('Asset type not found');
       return data;
     },
-    getByCode: async (code: number | string): Promise<AssetType | null> => {
+    getByName: async (name: string): Promise<AssetType[]> => {
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
-        .eq('code', typeof code === 'string' ? parseInt(code) : code)
-        .maybeSingle();
+        .eq('name', name);
 
       if (error) throw error;
-      return data;
+      return data || [];
     },
     formatWithDescription: (code: string | number | undefined | null, assetTypes: AssetType[]): string => {
       if (!code) return '';
-      const codeNum = typeof code === 'string' ? parseInt(code) : code;
-      const assetType = assetTypes.find(at => at.code === codeNum);
+      const codeStr = String(code);
+      const assetType = assetTypes.find(at => at.name === codeStr);
       if (assetType && assetType.description) {
         return `${code} - ${assetType.description}`;
       }
       return String(code);
     },
-    create: async (input: Omit<AssetType, 'created_at' | 'updated_at'>): Promise<AssetType> => {
+    create: async (input: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')
         .insert(input)
@@ -543,22 +547,22 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (code: number, input: Partial<AssetType>): Promise<AssetType> => {
+    update: async (id: number, input: Partial<AssetType>): Promise<AssetType> => {
       const { data, error } = await supabase
         .from('asset_types')
         .update(input)
-        .eq('code', code)
+        .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    delete: async (code: number): Promise<{ message: string }> => {
+    delete: async (id: number): Promise<{ message: string }> => {
       const { error } = await supabase
         .from('asset_types')
         .delete()
-        .eq('code', code);
+        .eq('id', id);
 
       if (error) throw error;
       return { message: 'Asset type deleted successfully' };

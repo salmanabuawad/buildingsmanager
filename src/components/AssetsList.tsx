@@ -161,6 +161,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
         assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size),
+        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
+          updatedAsset.sub_asset_type_1,
+          updatedAsset.sub_asset_type_2,
+          updatedAsset.sub_asset_type_3,
+          updatedAsset.sub_asset_type_4,
+          updatedAsset.sub_asset_type_5,
+          updatedAsset.sub_asset_type_6
+        ])
       ];
 
       if (shouldValidateSubAssets) {

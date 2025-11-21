@@ -94,6 +94,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
         assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size),
+        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
+          updatedAsset.sub_asset_type_1,
+          updatedAsset.sub_asset_type_2,
+          updatedAsset.sub_asset_type_3,
+          updatedAsset.sub_asset_type_4,
+          updatedAsset.sub_asset_type_5,
+          updatedAsset.sub_asset_type_6
+        ])
       ];
 
       if (shouldValidateSubAssets) {
@@ -354,6 +362,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       // Validate sub-assets constraints
       validations.push(
+        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(latestRow.main_asset_type, [
+          latestRow.sub_asset_type_1,
+          latestRow.sub_asset_type_2,
+          latestRow.sub_asset_type_3,
+          latestRow.sub_asset_type_4,
+          latestRow.sub_asset_type_5,
+          latestRow.sub_asset_type_6
+        ]),
         assetValidators.validateMinimumSubAssets([
           latestRow.sub_asset_type_1,
           latestRow.sub_asset_type_2,

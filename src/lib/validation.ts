@@ -454,6 +454,26 @@ export async function validateMinimumSubAssets(
   return { valid: true };
 }
 
+export async function validateOnlyComplexTypesCanHaveSubAssets(
+  mainAssetType: string | undefined,
+  subAssetTypes: (string | undefined)[]
+): Promise<ValidationResult> {
+  const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
+
+  if (validSubAssets.length === 0) {
+    return { valid: true };
+  }
+
+  if (!mainAssetType || (mainAssetType !== '199' && mainAssetType !== '299')) {
+    return {
+      valid: false,
+      error: 'רק סוגי נכס 199 ו-299 יכולים לכלול נכסי משנה'
+    };
+  }
+
+  return { valid: true };
+}
+
 export async function validateSubAssetsFor199Or299(
   buildingNumber: number | null,
   mainAssetType: string | undefined,
@@ -722,6 +742,13 @@ export const assetValidators = {
     subAssetTypes: (string | undefined)[]
   ): Promise<ValidationResult> => {
     return await validateMinimumSubAssets(subAssetTypes);
+  },
+
+  validateOnlyComplexTypesCanHaveSubAssets: async (
+    mainAssetType: string | undefined,
+    subAssetTypes: (string | undefined)[]
+  ): Promise<ValidationResult> => {
+    return await validateOnlyComplexTypesCanHaveSubAssets(mainAssetType, subAssetTypes);
   },
 };
 

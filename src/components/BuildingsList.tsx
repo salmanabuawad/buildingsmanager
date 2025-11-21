@@ -301,6 +301,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: t('actions'),
       width: 130,
       editable: false,
+      pinned: 'left',
+      lockPosition: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
@@ -342,6 +344,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: t('buildingNumber'),
       flex: 1.5,
       editable: false,
+      pinned: 'left',
+      lockPosition: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);

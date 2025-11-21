@@ -607,14 +607,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     },
     {
       field: 'asset_group',
-      headerName: 'קבוצת נכס',
+      headerName: t('assetGroup'),
       flex: 1,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['א', 'ב', 'ג', 'ד']
-      },
     },
     {
       field: 'sub_asset_type_1',

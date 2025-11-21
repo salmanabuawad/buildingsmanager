@@ -207,6 +207,30 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'left' }
     },
     {
+      field: 'condition_elevator',
+      headerName: 'Condition Elevator',
+      flex: 1,
+      editable: true,
+      valueFormatter: (params) => params.value ?? '-',
+      cellStyle: { textAlign: 'left' }
+    },
+    {
+      field: 'condition_shared_area',
+      headerName: 'Condition Shared Area',
+      flex: 1,
+      editable: true,
+      valueFormatter: (params) => params.value ?? '-',
+      cellStyle: { textAlign: 'left' }
+    },
+    {
+      field: 'condition_size',
+      headerName: 'Condition Size',
+      flex: 1,
+      editable: true,
+      valueFormatter: (params) => params.value ?? '-',
+      cellStyle: { textAlign: 'left' }
+    },
+    {
       field: 'min_size',
       headerName: t('minAssetSize'),
       flex: 1,
@@ -220,6 +244,14 @@ export function AssetTypes() {
       flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '-',
+      cellStyle: { textAlign: 'left' }
+    },
+    {
+      field: 'notes',
+      headerName: 'Notes',
+      flex: 1.5,
+      editable: true,
+      valueFormatter: (params) => params.value || '-',
       cellStyle: { textAlign: 'left' }
     },
     {

@@ -56,20 +56,6 @@ export const validators = {
     return { valid: true };
   },
 
-  assetGroup: async (value: string): Promise<ValidationResult> => {
-    if (!value) {
-      return { valid: true };
-    }
-
-    const validGroups = await getValidAssetGroups();
-    if (!validGroups.includes(value)) {
-      return {
-        valid: false,
-        error: `קבוצת נכס "${value}" לא קיימת. ערכים אפשריים: ${validGroups.join(', ')}`
-      };
-    }
-    return { valid: true };
-  },
 
   exactLength: (value: string, length: number, fieldName: string): ValidationResult => {
     if (value.length !== length) {

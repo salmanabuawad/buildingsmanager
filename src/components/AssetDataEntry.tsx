@@ -1139,7 +1139,7 @@ export function AssetDataEntry() {
         );
       }
     }
-  ], [t, buildings, assetTypes, assetGroups, handleDeleteRow, handleAddNewMeasurement, loading]);
+  ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement, loading]);
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {
       return rowData;

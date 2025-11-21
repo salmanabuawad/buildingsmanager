@@ -124,7 +124,6 @@ function sanitizeAssetInput(input: any): any {
     sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
     sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
     sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
-    asset_group: input.asset_group != null ? sanitizeText(input.asset_group) : undefined,
     elevator: input.elevator != null ? sanitizeText(input.elevator) : undefined,
     single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
     condo: input.condo != null ? sanitizeText(input.condo) : undefined,

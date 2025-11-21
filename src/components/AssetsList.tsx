@@ -463,7 +463,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       sub_asset_size_6: 0,
       measurement_date: dateStr,
       created_at: new Date().toISOString(),
-      asset_group: '',
       _isMasterRow: true
     };
 

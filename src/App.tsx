@@ -254,10 +254,18 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
       <div className="w-52 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
         <div
-          className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white cursor-pointer select-none"
-          onDoubleClick={() => {
+          className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white cursor-pointer select-none hover:bg-gradient-to-br hover:from-purple-200 hover:via-indigo-100 hover:to-white transition-colors"
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Double click detected', { sidePanel, sidePanelCollapsed });
             if (sidePanel) {
-              setSidePanelCollapsed(!sidePanelCollapsed);
+              setSidePanelCollapsed(prev => {
+                console.log('Toggling from', prev, 'to', !prev);
+                return !prev;
+              });
+            } else {
+              console.log('No side panel open');
             }
           }}
           title="לחיצה כפולה להצגה/הסתרת פאנל צד"

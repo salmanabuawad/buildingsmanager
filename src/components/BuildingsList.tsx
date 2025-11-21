@@ -301,7 +301,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: t('actions'),
       width: 130,
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -344,7 +344,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: t('buildingNumber'),
       flex: 1.5,
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

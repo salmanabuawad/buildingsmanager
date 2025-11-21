@@ -1,398 +1,350 @@
 # Buildings Manager
 
-A modern web application for managing buildings and apartments, built with React, TypeScript, Vite frontend and Python FastAPI backend with PostgreSQL database and GraphQL API.
+A comprehensive real estate asset management application for tracking buildings, assets, and measurements with validation rules and historical data support.
 
-## Features
+## 🚀 Features
 
-- 📊 Interactive data grid for buildings and apartments management
-- 🌐 Bilingual support (English/Hebrew)
-- 📄 PDF viewer for apartment floor plans
-- 📱 Responsive design with Tailwind CSS
-- 🐍 Python FastAPI backend
-- 🗄️ PostgreSQL database
-- 🔷 GraphQL API with Strawberry
+- 📊 **Asset Management** - Manage buildings and assets with complex hierarchical types
+- 📈 **Measurement History** - Track asset measurements over time
+- ✅ **Dynamic Validation** - Database-driven validation rules system
+- 🌐 **Bilingual Support** - Full English/Hebrew interface with RTL support
+- 📄 **PDF/DWG Viewer** - View structure drawings and floor plans
+- 📥 **CSV Import/Export** - Bulk import assets and asset types
+- 🔍 **Advanced Search** - Search assets by range with comprehensive filters
+- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
+- ⚡ **Real-time Updates** - Live data synchronization with database
+- 🗄️ **PostgreSQL/Supabase** - Supports both local and cloud databases
 
-## Architecture
+## 🏗️ Architecture
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS + GraphQL Client
-- **Backend**: Python FastAPI + Strawberry GraphQL
-- **Database**: PostgreSQL
-- **Data Grid**: AG Grid
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Database**: PostgreSQL (local) or Supabase (cloud)
+- **Data Grid**: AG Grid React
+- **State Management**: React hooks
+- **Validation**: Database-driven rules engine
 
-## Prerequisites
+## 📋 Prerequisites
 
-Before running this project locally, ensure you have:
+Before running this project, ensure you have:
 
-- **Node.js** (v18 or higher)
-- **npm** (v9 or higher)
-- **Python** (v3.9 or higher)
-- **PostgreSQL** (v12 or higher)
+- **Node.js** v18 or higher
+- **npm** v9 or higher
+- **PostgreSQL** v12 or higher (for local development)
 
-## Local Setup Instructions
+## ⚡ Quick Start
 
-### 1. Clone the Repository
+### Option 1: Local PostgreSQL (5 minutes)
 
+**Mac/Linux:**
 ```bash
-git clone <your-repository-url>
-cd buildings-manager
-```
-
-### 2. Database Setup
-
-**Option A: Use Local PostgreSQL (Automated Setup) 🚀**
-
-The easiest way to get started with a local database:
-
-```bash
-# Mac/Linux
+# Run automated setup
 ./scripts/setup-db.sh
 
-# Windows
-.\scripts\setup-db.bat
-```
-
-This script will:
-- Create the database
-- Set up all tables and schema
-- Create your `.env` file
-- Add sample validation rules
-
-**For detailed instructions, see:** [QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md)
-
-**Option B: Use Supabase (Recommended for Production)**
-
-The project is configured to work with Supabase. Set your Supabase credentials in `.env`:
-
-```env
-VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=your-supabase-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
-The migrations in `supabase/migrations/` are automatically applied to the Supabase database.
-
-**Option C: Manual Local PostgreSQL Setup**
-
-See [LOCAL_SETUP.md](LOCAL_SETUP.md) for detailed manual setup instructions.
-
-### 3. Backend Setup
-
-Install Python dependencies:
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-Create a `.env` file in the `backend/` directory:
-
-**For Bolt/Supabase database:**
-```env
-DB_TYPE=bolt
-SUPABASE_DB_URL=your-supabase-connection-string
-FRONTEND_URL=http://localhost:5173
-```
-
-**For local PostgreSQL database:**
-```env
-DB_TYPE=local
-DATABASE_URL=postgresql://postgres:password@localhost:5432/buildings_db
-FRONTEND_URL=http://localhost:5173
-```
-
-Replace `postgres:password` with your PostgreSQL username and password.
-
-Start the backend server:
-
-```bash
-python main.py
-```
-
-The API will be available at `http://localhost:8000`
-
-You can access:
-- GraphQL Playground: `http://localhost:8000/graphql`
-- API Root: `http://localhost:8000/`
-
-### 4. Frontend Setup
-
-Navigate back to project root and install frontend dependencies:
-
-```bash
-cd ..  # Back to project root (if you're in backend/)
+# Install dependencies and start
 npm install
+npm run dev
 ```
 
-If you used the automated setup script, your `.env` file is already created. Otherwise, create it:
+**Windows:**
+```cmd
+REM Run automated setup
+.\scripts\setup-db.bat
 
-**For Local PostgreSQL:**
-```env
-VITE_USE_LOCAL_DB=true
-VITE_LOCAL_DB_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/buildings_manager
-VITE_API_URL=http://localhost:8000
+REM Install dependencies and start
+npm install
+npm run dev
 ```
 
-**For Supabase:**
+**See [QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md) for detailed instructions**
+
+### Option 2: Supabase Cloud
+
+1. Create a `.env` file:
 ```env
 VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_URL=your-supabase-project-url
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-VITE_API_URL=http://localhost:8000
 ```
 
-Start the development server:
-
+2. Install and run:
 ```bash
+npm install
 npm run dev
 ```
 
 The application will be available at `http://localhost:5173`
 
-### 5. Build for Production
+## 📖 Documentation
 
-Build the frontend:
+- **[QUICKSTART_LOCAL.md](QUICKSTART_LOCAL.md)** - 5-minute local setup guide
+- **[LOCAL_SETUP.md](LOCAL_SETUP.md)** - Detailed local PostgreSQL setup with troubleshooting
+- **[VALIDATION_IMPLEMENTATION.md](VALIDATION_IMPLEMENTATION.md)** - Validation system documentation
 
-```bash
-npm run build
-```
-
-The built files will be in the `dist/` directory.
-
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 buildings-manager/
-├── backend/                # Python FastAPI backend
-│   ├── main.py            # FastAPI + GraphQL application
-│   ├── schema.py          # GraphQL schema and types
-│   ├── resolvers.py       # GraphQL resolvers
-│   ├── database.py        # Database connection
-│   ├── models.py          # Pydantic models (legacy)
-│   ├── requirements.txt   # Python dependencies
-│   └── .env.example       # Environment variables template
-├── src/                   # React frontend
-│   ├── components/        # React components
-│   │   ├── AdminPDFManager.tsx
-│   │   ├── ApartmentDetails.tsx
-│   │   ├── ApartmentsList.tsx
-│   │   ├── BuildingsList.tsx
-│   │   ├── LanguageSwitcher.tsx
-│   │   └── PDFViewer.tsx
-│   ├── i18n/             # Internationalization
-│   │   ├── i18n.ts
-│   │   └── translations.ts
-│   ├── lib/              # Utilities and configurations
-│   │   ├── api.ts        # GraphQL API client
-│   │   └── supabase.ts   # Supabase client (for file storage)
-│   ├── App.tsx           # Main application component
-│   ├── main.tsx          # Application entry point
-│   └── index.css         # Global styles
+├── src/
+│   ├── components/           # React components
+│   │   ├── AssetDataEntry.tsx        # Asset creation/editing
+│   │   ├── AssetDetails.tsx          # Asset details view
+│   │   ├── AssetsList.tsx            # Main asset grid
+│   │   ├── AssetSearch.tsx           # Asset search
+│   │   ├── AssetSearchByRange.tsx    # Range search
+│   │   ├── AssetsCSVImport.tsx       # Bulk CSV import
+│   │   ├── AssetTypes.tsx            # Asset types management
+│   │   ├── BuildingsList.tsx         # Buildings management
+│   │   ├── MeasurementHistory.tsx    # Historical measurements
+│   │   ├── PDFViewer.tsx             # PDF/drawing viewer
+│   │   ├── ValidationRulesManager.tsx # Validation rules admin
+│   │   ├── LanguageSwitcher.tsx      # Language toggle
+│   │   └── Toast.tsx                 # Notifications
+│   ├── lib/
+│   │   ├── api.ts           # API client
+│   │   ├── db.ts            # Database client wrapper
+│   │   ├── supabase.ts      # Supabase configuration
+│   │   ├── validation.ts    # Validation engine
+│   │   └── sanitize.ts      # Input sanitization
+│   ├── i18n/
+│   │   ├── i18n.ts          # i18next configuration
+│   │   └── translations.ts  # Translation strings
+│   ├── App.tsx              # Main app component
+│   └── main.tsx             # Entry point
 ├── supabase/
-│   └── migrations/       # Database migration files
-├── public/               # Static assets
-└── package.json          # Project dependencies
+│   ├── migrations/          # Database migrations (150+ files)
+│   └── data/                # Sample CSV data
+├── scripts/
+│   ├── setup-db.sh          # Mac/Linux setup script
+│   └── setup-db.bat         # Windows setup script
+├── setup-local-db.sql       # Complete database schema
+├── postgrest.conf           # PostgREST configuration
+└── package.json             # Dependencies
 ```
 
-## GraphQL API
+## 🗄️ Database Schema
 
-The application uses GraphQL for data fetching and mutations. Access the GraphQL Playground at `http://localhost:8000/graphql` to explore the schema and test queries.
+### Core Tables
 
-### Queries
+**`buildings`** - Building information
+- `building_number` (BIGINT, unique) - Building identifier
+- `tax_region` (TEXT) - Tax region codes (comma-separated)
+- `has_elevator` (BOOLEAN) - Elevator presence
+- `elevator`, `single_double_family`, `condo`, `basement`, `townhouses` (TEXT) - Building attributes
+- `total_units`, `total_building_area`, `area_for_control` - Calculated fields
 
-```graphql
-# Get all buildings
-query {
-  buildings {
-    id
-    name
-    totalUnits
-    apartmentArea
-    totalBuildingArea
-  }
-}
+**`assets`** - Asset records
+- `building_number`, `asset_id`, `measurement_date` (Composite PK)
+- `payer_id` (TEXT) - Payer identifier
+- `main_asset_type` (TEXT) - Primary asset type
+- `asset_size` (NUMERIC) - Main asset area
+- `sub_asset_X_type`, `sub_asset_X_size` (X=1-6) - Sub-asset hierarchy
+- `structure_drawing` (TEXT) - Drawing file path
 
-# Get a specific building
-query {
-  building(id: "building-id") {
-    id
-    name
-    totalUnits
-  }
-}
+**`asset_types`** - Asset type definitions
+- `asset_type` (TEXT, unique) - Type code
+- `name` (TEXT) - Type name
+- `tax_region` (INTEGER) - Applicable tax region
+- `min_size`, `max_size` (NUMERIC) - Size constraints
+- Attribute requirements: `elevator`, `condo`, `basement`, etc.
 
-# Get apartments (optionally filtered by building)
-query {
-  apartments(buildingId: "building-id") {
-    id
-    apartmentNumber
-    apartmentArea
-    totalApartmentArea
-  }
-}
+**`validation_rules`** - Dynamic validation rules
+- `rule_key` (TEXT, unique) - Rule identifier
+- `entity_type`, `field_name` - Target field
+- `rule_type` - Validation type (required, numeric, pattern, etc.)
+- `value_numeric`, `value_text` - Rule parameters
+- `error_message` - User-facing error message
 
-# Get a specific apartment
-query {
-  apartment(id: "apartment-id") {
-    id
-    apartmentNumber
-    apartmentArea
-  }
-}
-```
+**`asset_measurements`** - Historical measurements
+- Links to assets for tracking changes over time
 
-### Mutations
+## 🛠️ Available Scripts
 
-```graphql
-# Update an apartment
-mutation {
-  updateApartment(
-    id: "apartment-id"
-    input: {
-      apartmentArea: 100.5
-      storageArea: 10.0
-    }
-  ) {
-    id
-    apartmentArea
-    storageArea
-  }
-}
-
-# Create a building
-mutation {
-  createBuilding(input: {
-    name: "Building A"
-    totalUnits: 10
-    apartmentArea: 1000.0
-    storageArea: 100.0
-    pergolaArea: 50.0
-    balconyArea: 200.0
-    totalBuildingArea: 1350.0
-  }) {
-    id
-    name
-  }
-}
-
-# Delete a building
-mutation {
-  deleteBuilding(id: "building-id") {
-    success
-    message
-  }
-}
-```
-
-## Available Scripts
-
-### Frontend
-
-- `npm run dev` - Start development server
+### Development
+- `npm run dev` - Start development server (port 5173)
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
-- `npm run typecheck` - Run TypeScript type checking
-- `npm run db:setup` - Display database setup instructions
-- `npm run db:backup` - Display database backup instructions
-- `npm run db:restore` - Display database restore instructions
+- `npm run typecheck` - TypeScript type checking
 
-### Backend
+### Database
+- `npm run db:setup` - Show database setup instructions
+- `npm run db:backup` - Show backup commands
+- `npm run db:restore` - Show restore commands
 
-- `python main.py` - Start FastAPI server
-- `uvicorn main:app --reload` - Start with auto-reload
+### Manual Database Operations
+```bash
+# Backup
+pg_dump -U postgres buildings_manager > backup.sql
 
-## Database Schema
+# Restore
+psql -U postgres buildings_manager < backup.sql
 
-### Buildings Table
-- `id` (UUID, Primary Key)
-- `name` (Text)
-- `total_units` (Integer)
-- `apartment_area` (Numeric)
-- `storage_area` (Numeric)
-- `pergola_area` (Numeric)
-- `balcony_area` (Numeric)
-- `total_building_area` (Numeric)
-- `created_at` (Timestamp)
+# Import CSV
+psql -U postgres -d buildings_manager
+\copy asset_types FROM 'supabase/data/assettypes.csv' DELIMITER ',' CSV HEADER;
+```
 
-### Apartments Table
-- `id` (UUID, Primary Key)
-- `building_id` (UUID, Foreign Key)
-- `apartment_number` (Text)
-- `floor` (Integer)
-- `apartment_area` (Numeric)
-- `storage_area` (Numeric)
-- `pergola_area` (Numeric)
-- `balcony_area` (Numeric)
-- `garden_area` (Numeric)
-- `total_apartment_area` (Numeric)
-- `pdf_file_url` (Text)
-- `dwg_file_url` (Text)
-- `created_at` (Timestamp)
+## 🔧 Configuration
 
-## Technologies Used
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+**Local PostgreSQL:**
+```env
+VITE_USE_LOCAL_DB=true
+VITE_LOCAL_DB_URL=postgresql://postgres:password@localhost:5432/buildings_manager
+```
+
+**Supabase:**
+```env
+VITE_USE_LOCAL_DB=false
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### PostgREST (Optional)
+
+For full Supabase client compatibility with local PostgreSQL:
+
+1. Install PostgREST:
+   - Mac: `brew install postgrest`
+   - Linux: Download from [PostgREST releases](https://github.com/PostgREST/postgrest/releases)
+
+2. Run: `postgrest postgrest.conf`
+
+3. Update `.env`: `VITE_LOCAL_DB_URL=http://localhost:3000`
+
+## 💻 Technologies Used
 
 ### Frontend
-- **React 18** - UI library
+- **React 18** - UI framework
 - **TypeScript** - Type safety
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **AG Grid** - Data grid component
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Utility-first styling
+- **AG Grid React** - High-performance data grid
 - **i18next** - Internationalization
-- **React PDF** - PDF viewing
-- **Lucide React** - Icons
-- **graphql-request** - GraphQL client
+- **react-pdf** - PDF viewing
+- **Lucide React** - Icon library
+- **@supabase/supabase-js** - Database client
 
-### Backend
-- **FastAPI** - Python web framework
-- **Strawberry GraphQL** - GraphQL library for Python
-- **PostgreSQL** - Database
-- **psycopg2** - PostgreSQL adapter
-- **Pydantic** - Data validation
-- **Uvicorn** - ASGI server
+### Database
+- **PostgreSQL** - Relational database
+- **Supabase** - Backend-as-a-Service (optional)
+- **PostgREST** - REST API layer (optional)
 
-## Troubleshooting
+## 🔍 Key Features Explained
+
+### Asset Hierarchy
+- **Simple Assets**: Basic asset with one type and size
+- **Complex Assets (199/299)**: Multi-component assets with 2-6 sub-assets
+- Sub-asset sizes must sum to main asset size
+
+### Validation System
+- Database-driven rules loaded at runtime
+- Field-level validation (required, numeric, pattern, range)
+- Cross-table validation (foreign key checks)
+- Custom business logic validation
+- Real-time feedback in UI
+
+### Measurement History
+- Track asset measurements over time
+- Compare historical data
+- Date-based versioning using composite keys
+
+### CSV Import
+- Bulk import assets and asset types
+- Column mapping and validation
+- Error reporting and rollback
+
+## 🐛 Troubleshooting
 
 ### Database Connection Issues
-- Verify PostgreSQL is running: `pg_isready`
-- Check your `.env` file has correct database credentials
-- Ensure the database exists: `psql -U postgres -l`
+```bash
+# Check if PostgreSQL is running
+pg_isready -h localhost -p 5432
 
-### Backend Errors
-- Check Python version: `python --version` (should be 3.9+)
-- Verify all dependencies are installed: `pip list`
-- Check the backend logs for detailed error messages
+# List databases
+psql -U postgres -l
 
-### Frontend Build Errors
-- Clear `node_modules` and reinstall: `rm -rf node_modules package-lock.json && npm install`
-- Check Node.js version: `node --version`
-- Run type checking: `npm run typecheck`
+# Connect to database
+psql -U postgres -d buildings_manager
+```
 
-### CORS Issues
-- Ensure the backend CORS middleware includes your frontend URL
-- Check that `FRONTEND_URL` in backend `.env` matches your frontend URL
+### Common Errors
 
-## Production Deployment
+**"password authentication failed"**
+- Check PostgreSQL password in `.env`
+- Verify user has access: `ALTER USER postgres WITH PASSWORD 'your_password';`
 
-### Backend Deployment
+**"database does not exist"**
+- Create database: `createdb -U postgres buildings_manager`
+- Or run setup script: `./scripts/setup-db.sh`
 
-1. Set environment variables on your hosting platform
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run with production ASGI server: `uvicorn main:app --host 0.0.0.0 --port 8000`
+**"Cannot find module 'vite'"**
+- Reinstall dependencies: `rm -rf node_modules package-lock.json && npm install`
 
-### Frontend Deployment
+**Build fails**
+- Check Node.js version: `node --version` (should be 18+)
+- Clear cache: `rm -rf .vite dist`
+- Run typecheck: `npm run typecheck`
 
-1. Update `VITE_API_URL` in `.env` to your production API URL
-2. Build: `npm run build`
-3. Deploy the `dist/` directory to your static hosting service
+### Getting Help
+1. Check the browser console for errors
+2. Review PostgreSQL logs: `sudo tail -f /var/log/postgresql/*.log`
+3. Verify `.env` configuration
+4. See [LOCAL_SETUP.md](LOCAL_SETUP.md) for detailed troubleshooting
 
-## Contributing
+## 🚀 Production Deployment
+
+### Using Supabase (Recommended)
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Apply migrations from `supabase/migrations/` folder
+3. Configure environment variables:
+   ```env
+   VITE_USE_LOCAL_DB=false
+   VITE_SUPABASE_URL=your-project-url
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+4. Build and deploy:
+   ```bash
+   npm run build
+   # Deploy dist/ folder to Netlify, Vercel, or any static host
+   ```
+
+### Using Self-Hosted PostgreSQL
+
+1. Set up PostgreSQL on your server
+2. Run `setup-local-db.sql` to create schema
+3. Configure environment variables with production credentials
+4. Use PostgREST for REST API layer
+5. Deploy with proper CORS and security settings
+
+## 📝 Data Model Notes
+
+- **Building numbers** are unique identifiers (BIGINT)
+- **Asset IDs** are unique within a building
+- **Measurement dates** use DD/MM/YYYY format as TEXT
+- **Tax regions** can be single (10, 20, 30, 40) or combined (10,40, 20,40, 30,40)
+- **Asset types 199 and 299** are complex types requiring sub-assets
+- All areas are stored as NUMERIC for precision
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit changes: `git commit -am 'Add feature'`
+4. Push to branch: `git push origin feature-name`
 5. Open a Pull Request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Built with React and TypeScript
+- Uses Supabase for cloud database
+- AG Grid for data grid functionality
+- Tailwind CSS for styling

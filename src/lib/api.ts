@@ -7,6 +7,7 @@ export interface Building {
   tax_region?: string;
   shared_area?: number;
   has_elevator: boolean;
+  elevator?: string;
   area_for_control?: number;
   created_at: string;
   total_building_area?: number;
@@ -132,6 +133,7 @@ function sanitizeBuildingInput(input: any): any {
     building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
     tax_region: input.tax_region != null ? sanitizeText(input.tax_region) : undefined,
     shared_area: input.shared_area != null ? sanitizeNumber(input.shared_area) : undefined,
+    elevator: input.elevator != null ? sanitizeText(input.elevator) : undefined,
     single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
     condo: input.condo != null ? sanitizeText(input.condo) : undefined,
     basement: input.basement != null ? sanitizeText(input.basement) : undefined,

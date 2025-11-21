@@ -280,7 +280,7 @@ export async function validateAssetTypeComplete(
   try {
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region, has_elevator, shared_area, single_double_family, condo, basement, townhouses')
+      .select('tax_region, has_elevator, elevator, shared_area, single_double_family, condo, basement, townhouses')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -342,17 +342,18 @@ export async function validateAssetTypeComplete(
 
     // Step 1: Check elevator requirement
     if (assetType.elevator != null && assetType.elevator.trim() !== '') {
-      const elevatorValue = assetType.elevator.toLowerCase();
+      const requiredValue = assetType.elevator.toLowerCase();
+      const buildingValue = building.elevator ? building.elevator.toLowerCase() : '';
 
-      if (elevatorValue === 'כן' || elevatorValue === 'yes') {
-        if (!building.has_elevator) {
+      if (requiredValue === 'כן' || requiredValue === 'yes') {
+        if (buildingValue !== 'כן' && buildingValue !== 'yes' && !building.has_elevator) {
           return {
             valid: false,
             error: `סוג הנכס "${assetTypeName}" דורש מעלית, אבל בבניין אין מעלית`
           };
         }
-      } else if (elevatorValue === 'לא' || elevatorValue === 'no') {
-        if (building.has_elevator) {
+      } else if (requiredValue === 'לא' || requiredValue === 'no') {
+        if ((buildingValue === 'כן' || buildingValue === 'yes') || building.has_elevator) {
           return {
             valid: false,
             error: `סוג הנכס "${assetTypeName}" מיועד לבניינים ללא מעלית, אבל בבניין יש מעלית`

@@ -554,41 +554,125 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'single_double_family',
       headerName: 'משפחה יחידה/דו משפחתי',
       flex: 1.5,
-      editable: (params) => {
+      editable: false,
+      cellRenderer: (params: any) => {
         const building = params.data as Building;
-        return !buildingsToDelete.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        const isChecked = params.value === 'כן' || params.value === true;
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={markedForDeletion}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : '';
+                params.node.setDataValue('single_double_family', newValue);
+              }}
+              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            />
+          </div>
+        );
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
     },
     {
       field: 'condo',
       headerName: 'דירת גן',
       flex: 1,
-      editable: (params) => {
+      editable: false,
+      cellRenderer: (params: any) => {
         const building = params.data as Building;
-        return !buildingsToDelete.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        const isChecked = params.value === 'כן' || params.value === true;
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={markedForDeletion}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : '';
+                params.node.setDataValue('condo', newValue);
+              }}
+              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            />
+          </div>
+        );
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
     },
     {
       field: 'basement',
       headerName: 'מרתף',
       flex: 1,
-      editable: (params) => {
+      editable: false,
+      cellRenderer: (params: any) => {
         const building = params.data as Building;
-        return !buildingsToDelete.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        const isChecked = params.value === 'כן' || params.value === true;
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={markedForDeletion}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : '';
+                params.node.setDataValue('basement', newValue);
+              }}
+              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            />
+          </div>
+        );
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
     },
     {
       field: 'townhouses',
       headerName: 'טוריים',
       flex: 1,
-      editable: (params) => {
+      editable: false,
+      cellRenderer: (params: any) => {
         const building = params.data as Building;
-        return !buildingsToDelete.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        const isChecked = params.value === 'כן' || params.value === true;
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={markedForDeletion}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : '';
+                params.node.setDataValue('townhouses', newValue);
+              }}
+              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+            />
+          </div>
+        );
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
     }
   ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors]);
 

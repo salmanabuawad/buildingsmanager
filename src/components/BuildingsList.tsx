@@ -514,7 +514,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'has_elevator',
       headerName: 'מעלית',
-      flex: 1,
+      width: 80,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -557,7 +557,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'single_double_family',
       headerName: 'משפחה יחידה/דו משפחתי',
-      flex: 1.5,
+      width: 80,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -588,7 +588,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'condo',
       headerName: 'דירת גן',
-      flex: 1,
+      width: 80,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -619,7 +619,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'basement',
       headerName: 'מרתף',
-      flex: 1,
+      width: 80,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -650,7 +650,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'townhouses',
       headerName: 'טוריים',
-      flex: 1,
+      width: 80,
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

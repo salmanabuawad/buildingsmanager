@@ -522,7 +522,7 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '60vh' }}>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '45vh' }}>
             <AgGridReact
               ref={gridRef}
               rowData={assetTypes}
@@ -531,6 +531,7 @@ export function AssetTypes() {
                 resizable: true,
                 minWidth: 100
               }}
+              domLayout="normal"
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
                 params.api.autoSizeAllColumns();
@@ -549,7 +550,6 @@ export function AssetTypes() {
                 }, 100);
               }}
               pagination={false}
-              domLayout="autoHeight"
               suppressHorizontalScroll={false}
               enableRtl={true}
               rowClass="ag-row"

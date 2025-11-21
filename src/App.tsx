@@ -488,10 +488,10 @@ function App() {
               {!sidePanelCollapsed && (
                 <div
                   onMouseDown={handleMouseDown}
-                  className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-purple-400 bg-purple-200 z-10 group"
-                  style={{ right: '-2px' }}
+                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-purple-500 bg-purple-400 z-50 transition-colors"
+                  title="גרור לשינוי גודל"
                 >
-                  <div className="absolute inset-y-0 -right-1 -left-1" />
+                  <div className="absolute inset-y-0 -left-2 -right-2" />
                 </div>
               )}
 

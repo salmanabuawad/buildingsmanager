@@ -8,13 +8,12 @@ import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { CSVImport } from './components/CSVImport';
 import { AssetsCSVImport } from './components/AssetsCSVImport';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'details' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'csv-import' | 'assets-csv-import';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'csv-import' | 'assets-csv-import';
   buildingNumber?: number;
-  assetId?: string;
   label: string;
   refreshKey?: number;
   taxZone?: string;
@@ -29,6 +28,8 @@ function App() {
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [sidePanel, setSidePanel] = useState<{ assetId: string; assetIdentifier: string; buildingNumber: number } | null>(null);
+  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
@@ -89,30 +90,8 @@ function App() {
   }
 
   function handleSelectAsset(assetDbId: string, assetId: string, buildingNumber: number) {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-    const newTabId = `details-${assetDbId}`;
-
-    const newTab: Tab = {
-      id: newTabId,
-      type: 'details',
-      buildingNumber,
-      assetId: assetDbId,
-      label: `נכס ${assetId}`
-    };
-
-    setTabs(prevTabs => {
-      const existingTab = prevTabs.find(tab => tab.id === newTabId);
-      if (existingTab) {
-        return prevTabs;
-      }
-      const hasBuildings = prevTabs.some(tab => tab.id === 'buildings');
-      if (hasBuildings) {
-        return [...prevTabs, newTab];
-      } else {
-        return [buildingsTab, newTab];
-      }
-    });
-    setActiveTabId(newTabId);
+    setSidePanel({ assetId: assetDbId, assetIdentifier: assetId, buildingNumber });
+    setSidePanelCollapsed(false);
   }
 
   function handleDataUpdate() {
@@ -386,10 +365,8 @@ function App() {
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
-                    ) : tab.type === 'assets' ? (
-                      <Building className="h-4 w-4 text-purple-700" />
                     ) : (
-                      <Home className="h-4 w-4 text-purple-700" />
+                      <Building className="h-4 w-4 text-purple-700" />
                     )}
                     <span className={`font-semibold whitespace-nowrap text-sm ${
                       activeTabId === tab.id ? 'text-purple-900' : 'text-slate-700'
@@ -414,46 +391,94 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
-          {activeTab?.type === 'buildings' && (
-            <BuildingsList
-              key={activeTab.refreshKey}
-              onSelectBuilding={handleSelectBuilding}
-              onOpenAssetTypes={openAssetTypes}
-              onOpenAssetSearch={openAssetSearch}
-              onOpenValidationRules={openValidationRules}
-              showCreateModal={showCreateBuildingModal}
-              setShowCreateModal={setShowCreateBuildingModal}
-            />
-          )}
-          {activeTab?.type === 'assets' && activeTab.buildingNumber && (
-            <AssetsList
-              key={activeTab.refreshKey}
-              buildingNumber={activeTab.buildingNumber}
-              taxZone={activeTab.taxZone}
-              onSelectAsset={handleSelectAsset}
-            />
-          )}
-          {activeTab?.type === 'details' && activeTab.assetId && (
-            <AssetDetails assetId={activeTab.assetId} onDataUpdate={handleDataUpdate} />
-          )}
-          {activeTab?.type === 'admin' && (
-            <AdminPDFManager />
-          )}
-          {activeTab?.type === 'asset-types' && (
-            <AssetTypes />
-          )}
-          {activeTab?.type === 'asset-search' && (
-            <AssetSearch onSelectAsset={handleSelectAsset} />
-          )}
-          {activeTab?.type === 'validation-rules' && (
-            <ValidationRulesManager />
-          )}
-          {activeTab?.type === 'csv-import' && (
-            <CSVImport />
-          )}
-          {activeTab?.type === 'assets-csv-import' && (
-            <AssetsCSVImport />
+        <div className="flex-1 overflow-hidden flex">
+          {/* Main Content Area */}
+          <div className={`flex-1 overflow-auto transition-all duration-300 ${sidePanel && !sidePanelCollapsed ? 'mr-0' : ''}`}>
+            {activeTab?.type === 'buildings' && (
+              <BuildingsList
+                key={activeTab.refreshKey}
+                onSelectBuilding={handleSelectBuilding}
+                onOpenAssetTypes={openAssetTypes}
+                onOpenAssetSearch={openAssetSearch}
+                onOpenValidationRules={openValidationRules}
+                showCreateModal={showCreateBuildingModal}
+                setShowCreateModal={setShowCreateBuildingModal}
+              />
+            )}
+            {activeTab?.type === 'assets' && activeTab.buildingNumber && (
+              <AssetsList
+                key={activeTab.refreshKey}
+                buildingNumber={activeTab.buildingNumber}
+                taxZone={activeTab.taxZone}
+                onSelectAsset={handleSelectAsset}
+              />
+            )}
+            {activeTab?.type === 'admin' && (
+              <AdminPDFManager />
+            )}
+            {activeTab?.type === 'asset-types' && (
+              <AssetTypes />
+            )}
+            {activeTab?.type === 'asset-search' && (
+              <AssetSearch onSelectAsset={handleSelectAsset} />
+            )}
+            {activeTab?.type === 'validation-rules' && (
+              <ValidationRulesManager />
+            )}
+            {activeTab?.type === 'csv-import' && (
+              <CSVImport />
+            )}
+            {activeTab?.type === 'assets-csv-import' && (
+              <AssetsCSVImport />
+            )}
+          </div>
+
+          {/* Collapsible Side Panel */}
+          {sidePanel && (
+            <div
+              className={`bg-white shadow-2xl border-l border-purple-200 transition-all duration-300 ease-in-out flex flex-col ${
+                sidePanelCollapsed ? 'w-12' : 'w-[60%]'
+              }`}
+            >
+              {sidePanelCollapsed ? (
+                /* Collapsed View - Just Toggle Button */
+                <div className="h-full flex items-center justify-center">
+                  <button
+                    onClick={() => setSidePanelCollapsed(false)}
+                    className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+                    title="הרחב פאנל"
+                  >
+                    <ChevronLeft className="h-5 w-5 text-purple-600" />
+                  </button>
+                </div>
+              ) : (
+                /* Expanded View - Full Panel */
+                <>
+                  <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-bold text-purple-900">נכס {sidePanel.assetIdentifier}</h2>
+                      <button
+                        onClick={() => setSidePanelCollapsed(true)}
+                        className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+                        title="כווץ פאנל"
+                      >
+                        <ChevronRight className="h-5 w-5 text-slate-600" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setSidePanel(null)}
+                      className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                      title="סגור פאנל"
+                    >
+                      <X className="h-5 w-5 text-slate-600 hover:text-red-600" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <AssetDetails assetId={parseInt(sidePanel.assetId)} onDataUpdate={handleDataUpdate} />
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>

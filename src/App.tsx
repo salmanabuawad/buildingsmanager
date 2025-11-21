@@ -12,11 +12,13 @@ import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, Chev
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'csv-import' | 'assets-csv-import';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'csv-import' | 'assets-csv-import' | 'asset-details';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
   taxZone?: string;
+  assetId?: string;
+  assetIdentifier?: string;
 }
 
 function App() {
@@ -28,7 +30,6 @@ function App() {
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-  const [sidePanel, setSidePanel] = useState<{ assetId: string; assetIdentifier: string; buildingNumber: number } | null>(null);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
@@ -89,7 +90,23 @@ function App() {
   }
 
   function handleSelectAsset(assetDbId: string | number, assetId: string, buildingNumber: number) {
-    setSidePanel({ assetId: String(assetDbId), assetIdentifier: assetId, buildingNumber });
+    const assetDetailsTabId = `asset-details-${assetDbId}`;
+    const existingTab = tabs.find(t => t.id === assetDetailsTabId);
+
+    if (existingTab) {
+      setActiveTabId(assetDetailsTabId);
+    } else {
+      const newTab: Tab = {
+        id: assetDetailsTabId,
+        type: 'asset-details',
+        assetId: String(assetDbId),
+        assetIdentifier: assetId,
+        buildingNumber,
+        label: `נכס ${assetId}`
+      };
+      setTabs([...tabs, newTab]);
+      setActiveTabId(assetDetailsTabId);
+    }
   }
 
 
@@ -430,26 +447,10 @@ function App() {
             {activeTab?.type === 'assets-csv-import' && (
               <AssetsCSVImport />
             )}
+            {activeTab?.type === 'asset-details' && activeTab.assetId && (
+              <AssetDetails assetId={parseInt(activeTab.assetId)} onDataUpdate={handleDataUpdate} />
+            )}
           </div>
-
-          {/* Collapsible Side Panel */}
-          {sidePanel && (
-            <div className="w-3/5 bg-white shadow-2xl border-l border-purple-200 flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
-                <h2 className="text-lg font-bold text-purple-900">נכס {sidePanel.assetIdentifier}</h2>
-                <button
-                  onClick={() => setSidePanel(null)}
-                  className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                  title="סגור פאנל"
-                >
-                  <X className="h-5 w-5 text-slate-600 hover:text-red-600" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-auto">
-                <AssetDetails assetId={parseInt(sidePanel.assetId)} onDataUpdate={handleDataUpdate} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

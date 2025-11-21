@@ -529,8 +529,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 <AlertCircle className="h-4 w-4 text-red-600" />
               </div>
             )}
-            <label className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
-              <Upload className="w-3 h-3" />
+            <label className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
+              <Upload className="w-2.5 h-2.5" />
               <input
                 type="file"
                 className="hidden"
@@ -546,7 +546,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             <button
               onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
               disabled={!hasDrawing}
-              className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors duration-200 ${
+              className={`flex items-center justify-center w-5 h-5 rounded-full transition-colors duration-200 ${
                 !hasDrawing
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : selectedDrawingUrl === asset.structure_drawing_url
@@ -555,7 +555,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               }`}
               title={hasDrawing ? (selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')) : 'No drawing'}
             >
-              <Eye className="w-3 h-3" />
+              <Eye className="w-2.5 h-2.5" />
             </button>
           </div>
         );

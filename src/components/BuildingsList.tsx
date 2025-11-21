@@ -757,7 +757,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                minWidth: 100,
+                minWidth: 50,
                 wrapHeaderText: true,
                 autoHeaderHeight: true,
                 cellStyle: { textAlign: 'right' },

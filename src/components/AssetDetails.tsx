@@ -606,6 +606,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
+      field: 'asset_group',
+      headerName: 'קבוצת נכס',
+      flex: 1,
+      minWidth: 100,
+      editable: (params) => params.data.id === latestMeasurementId,
+    },
+    {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       flex: 1,

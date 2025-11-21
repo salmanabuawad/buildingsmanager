@@ -464,9 +464,6 @@ export function AssetTypes() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-              {assetTypes.length} {assetTypes.length === 1 ? 'type' : 'types'}
-            </span>
           </div>
           {!isAdding && (
             <div className="flex gap-2">

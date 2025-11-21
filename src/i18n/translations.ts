@@ -201,7 +201,8 @@ export const translations = {
       viewing: 'Viewing',
       closeViewer: 'Close Viewer',
       drawingUploadedSuccessfully: 'Drawing uploaded successfully',
-      failedToUploadDrawing: 'Failed to upload drawing'
+      failedToUploadDrawing: 'Failed to upload drawing',
+      assetGroup: 'Asset Group'
     }
   },
   he: {
@@ -405,7 +406,8 @@ export const translations = {
       viewing: 'צופה',
       closeViewer: 'סגור תצוגה',
       drawingUploadedSuccessfully: 'השרטוט הועלה בהצלחה',
-      failedToUploadDrawing: 'כשל בהעלאת השרטוט'
+      failedToUploadDrawing: 'כשל בהעלאת השרטוט',
+      assetGroup: 'קבוצת נכס'
     }
   }
 };

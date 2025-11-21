@@ -30,8 +30,6 @@ function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [sidePanel, setSidePanel] = useState<{ assetId: string; assetIdentifier: string; buildingNumber: number } | null>(null);
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
-  const [sidePanelWidth, setSidePanelWidth] = useState(60); // percentage
-  const [isResizing, setIsResizing] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
@@ -96,43 +94,6 @@ function App() {
     setSidePanelCollapsed(false);
   }
 
-  function handleMouseDown(e: React.MouseEvent) {
-    e.preventDefault();
-    setIsResizing(true);
-  }
-
-  // Add event listeners for resize
-  useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const windowWidth = window.innerWidth;
-      const newWidth = ((windowWidth - e.clientX) / windowWidth) * 100;
-
-      // Constrain between 20% and 80%
-      if (newWidth >= 20 && newWidth <= 80) {
-        setSidePanelWidth(newWidth);
-      }
-    };
-
-    const handleUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMove);
-      document.addEventListener('mouseup', handleUp);
-      document.body.style.cursor = 'ew-resize';
-      document.body.style.userSelect = 'none';
-
-      return () => {
-        document.removeEventListener('mousemove', handleMove);
-        document.removeEventListener('mouseup', handleUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      };
-    }
-  }, [isResizing]);
 
   function handleDataUpdate() {
     setTabs(prevTabs => prevTabs.map(tab => {
@@ -492,24 +453,10 @@ function App() {
           {/* Collapsible Side Panel */}
           {sidePanel && (
             <div
-              className={`bg-white shadow-2xl border-l border-purple-200 ease-in-out flex relative ${
-                sidePanelCollapsed ? 'w-12' : ''
+              className={`bg-white shadow-2xl border-l border-purple-200 transition-all duration-300 ease-in-out flex relative ${
+                sidePanelCollapsed ? 'w-12' : 'w-3/5'
               }`}
-              style={{
-                width: sidePanelCollapsed ? '48px' : `${sidePanelWidth}%`,
-                transition: isResizing ? 'none' : 'width 300ms'
-              }}
             >
-              {/* Resize Handle */}
-              {!sidePanelCollapsed && (
-                <div
-                  onMouseDown={handleMouseDown}
-                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-purple-500 bg-purple-400 z-50 transition-colors"
-                  title="גרור לשינוי גודל"
-                >
-                  <div className="absolute inset-y-0 -left-2 -right-2" />
-                </div>
-              )}
 
               {sidePanelCollapsed ? (
                 /* Collapsed View - Just Toggle Button */

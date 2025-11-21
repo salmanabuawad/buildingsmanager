@@ -41,6 +41,12 @@ export interface Asset {
   created_at: string;
   updated_at: string;
   asset_group?: string;
+  elevator?: string;
+  single_double_family?: string;
+  condo?: string;
+  townhouses?: string;
+  basement?: string;
+  penthouse?: string;
 }
 
 export interface AssetMeasurement {
@@ -121,6 +127,12 @@ function sanitizeAssetInput(input: any): any {
     sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
     sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
     asset_group: input.asset_group != null ? sanitizeText(input.asset_group) : undefined,
+    elevator: input.elevator != null ? sanitizeText(input.elevator) : undefined,
+    single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
+    condo: input.condo != null ? sanitizeText(input.condo) : undefined,
+    townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
+    basement: input.basement != null ? sanitizeText(input.basement) : undefined,
+    penthouse: input.penthouse != null ? sanitizeText(input.penthouse) : undefined,
   };
 }
 

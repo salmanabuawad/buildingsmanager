@@ -7,11 +7,11 @@ import { Asset } from '../lib/api';
 interface SearchResult extends Asset {
 }
 
-interface UnitSearchProps {
+interface AssetSearchProps {
   onSelectAsset: (assetDbId: string, assetId: string, buildingNumber: number) => void;
 }
 
-export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
+export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
   const { t } = useTranslation();
   const [fromNumber, setFromNumber] = useState('');
   const [toNumber, setToNumber] = useState('');
@@ -59,7 +59,7 @@ export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
         <div className="flex items-center gap-3">
           <Search className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" strokeWidth={1.5} />
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-            {t('unitSearch') || 'Unit Search'}
+            {t('assetSearch') || 'Asset Search'}
           </h1>
         </div>
       </div>
@@ -69,7 +69,7 @@ export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                {t('fromUnitNumber') || 'From Asset ID'}
+                {t('fromAssetNumber') || 'From Asset ID'}
               </label>
               <input
                 type="text"
@@ -82,7 +82,7 @@ export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                {t('toUnitNumber') || 'To Asset ID'}
+                {t('toAssetNumber') || 'To Asset ID'}
               </label>
               <input
                 type="text"
@@ -124,7 +124,7 @@ export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
           {results.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <Home className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-lg">{t('noUnitsFound') || 'No assets found in this range'}</p>
+              <p className="text-lg">{t('noAssetsFound') || 'No assets found in this range'}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -155,39 +155,39 @@ export function UnitSearch({ onSelectAsset }: UnitSearchProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((unit) => (
+                  {results.map((asset) => (
                     <tr
-                      key={unit.id}
+                      key={asset.id}
                       className="border-b border-slate-100 hover:bg-blue-50/50 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => onSelectAsset(unit.id, unit.asset_id, unit.building_number)}
+                          onClick={() => onSelectAsset(asset.id, asset.asset_id, asset.building_number)}
                           className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}
                         </button>
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-medium">
-                        {unit.asset_id}
+                        {asset.asset_id}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {unit.payer_id}
+                        {asset.payer_id}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
                           <BuildingIcon className="h-4 w-4 text-teal-600" />
-                          {unit.building_number}
+                          {asset.building_number}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {unit.main_asset_type || '-'}
+                        {asset.main_asset_type || '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {unit.asset_size.toFixed(2)}
+                        {asset.asset_size.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
-                        {unit.total_size.toFixed(2)}
+                        {asset.total_size.toFixed(2)}
                       </td>
                     </tr>
                   ))}

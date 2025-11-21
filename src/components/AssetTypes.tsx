@@ -151,7 +151,6 @@ export function AssetTypes() {
     {
       field: 'name',
       headerName: 'סוג נכס',
-      flex: 0.5,
       editable: false,
       cellStyle: { textAlign: 'left' },
       headerClass: 'text-left'
@@ -159,7 +158,6 @@ export function AssetTypes() {
     {
       field: 'description',
       headerName: t('typeDescription'),
-      flex: 2,
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -168,7 +166,6 @@ export function AssetTypes() {
     {
       field: 'tax_region',
       headerName: t('taxRegion'),
-      flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -177,7 +174,6 @@ export function AssetTypes() {
     {
       field: 'elevator',
       headerName: 'מעלית',
-      flex: 1,
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
@@ -208,7 +204,6 @@ export function AssetTypes() {
     {
       field: 'asset_group',
       headerName: 'קבוצת נכס',
-      flex: 1,
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -217,7 +212,6 @@ export function AssetTypes() {
     {
       field: 'single_double_family',
       headerName: 'בית פרטי',
-      flex: 1,
       editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
@@ -248,7 +242,6 @@ export function AssetTypes() {
     {
       field: 'penthouse',
       headerName: 'דירת גג',
-      flex: 1,
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
@@ -279,7 +272,6 @@ export function AssetTypes() {
     {
       field: 'condo',
       headerName: 'בית משותף',
-      flex: 1,
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
@@ -310,7 +302,6 @@ export function AssetTypes() {
     {
       field: 'townhouses',
       headerName: 'טוריים',
-      flex: 1,
       editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
@@ -341,7 +332,6 @@ export function AssetTypes() {
     {
       field: 'min_size',
       headerName: t('minAssetSize'),
-      flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'left' },
@@ -350,7 +340,6 @@ export function AssetTypes() {
     {
       field: 'max_size',
       headerName: t('maxAssetSize'),
-      flex: 1,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'left' },
@@ -359,7 +348,6 @@ export function AssetTypes() {
     {
       field: 'shelter',
       headerName: t('shelter'),
-      flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -634,26 +622,28 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '45vh', direction: 'ltr' }}>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', direction: 'ltr' }}>
             <AgGridReact
               ref={gridRef}
               rowData={assetTypes}
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                minWidth: 100
+                minWidth: 100,
+                sortable: true,
+                filter: true
               }}
-              domLayout="normal"
+              domLayout="autoHeight"
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns();
+                params.api.sizeColumnsToFit();
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
-                params.api.autoSizeAllColumns();
+                params.api.sizeColumnsToFit();
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

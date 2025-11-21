@@ -165,7 +165,22 @@ export function AssetTypes() {
       headerName: t('sharedArea'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value === 'א' ? 'כן' : params.value || '-',
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'א';
+        return (
+          <div className="flex items-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'א' : '';
+                params.node.setDataValue(params.column.colId, newValue);
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        );
+      },
       cellStyle: { textAlign: 'left' }
     },
     {
@@ -173,7 +188,22 @@ export function AssetTypes() {
       headerName: t('elevator'),
       flex: 1,
       editable: true,
-      valueFormatter: (params) => params.value === 'א' ? 'כן' : params.value || '-',
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'א';
+        return (
+          <div className="flex items-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'א' : '';
+                params.node.setDataValue(params.column.colId, newValue);
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        );
+      },
       cellStyle: { textAlign: 'left' }
     },
     {

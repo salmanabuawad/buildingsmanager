@@ -16,6 +16,9 @@ let cachedRules: ValidationRule[] | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION = 60000;
 
+let cachedAssetGroups: string[] | null = null;
+let assetGroupsCacheTimestamp: number = 0;
+
 export async function loadValidationRules(forceRefresh = false): Promise<ValidationRule[]> {
   const now = Date.now();
 
@@ -31,6 +34,31 @@ export async function loadValidationRules(forceRefresh = false): Promise<Validat
   } catch (error) {
     console.error('Failed to load validation rules:', error);
     return cachedRules || [];
+  }
+}
+
+export async function getValidAssetGroups(forceRefresh = false): Promise<string[]> {
+  const now = Date.now();
+
+  if (!forceRefresh && cachedAssetGroups && (now - assetGroupsCacheTimestamp) < CACHE_DURATION) {
+    return cachedAssetGroups;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('asset_types')
+      .select('asset_group')
+      .not('asset_group', 'is', null);
+
+    if (error) throw error;
+
+    const uniqueGroups = [...new Set(data.map(row => row.asset_group).filter(Boolean))];
+    cachedAssetGroups = uniqueGroups.sort();
+    assetGroupsCacheTimestamp = now;
+    return cachedAssetGroups;
+  } catch (error) {
+    console.error('Failed to load asset groups:', error);
+    return cachedAssetGroups || [];
   }
 }
 
@@ -51,6 +79,21 @@ export const validators = {
     const trimmedValue = typeof value === 'string' ? value.trim() : value;
     if (!trimmedValue && trimmedValue !== 0) {
       return { valid: false, error: `${fieldName} is required` };
+    }
+    return { valid: true };
+  },
+
+  assetGroup: async (value: string): Promise<ValidationResult> => {
+    if (!value) {
+      return { valid: true };
+    }
+
+    const validGroups = await getValidAssetGroups();
+    if (!validGroups.includes(value)) {
+      return {
+        valid: false,
+        error: `קבוצת נכס "${value}" לא קיימת. ערכים אפשריים: ${validGroups.join(', ')}`
+      };
     }
     return { valid: true };
   },

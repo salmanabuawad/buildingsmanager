@@ -621,7 +621,7 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '45vh' }}>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '45vh', direction: 'ltr' }}>
             <AgGridReact
               ref={gridRef}
               rowData={assetTypes}

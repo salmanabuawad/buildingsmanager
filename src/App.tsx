@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BuildingsList } from './components/BuildingsList';
 import { AssetsList } from './components/AssetsList';
 import { AssetDetails } from './components/AssetDetails';
@@ -30,6 +30,8 @@ function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [sidePanel, setSidePanel] = useState<{ assetId: string; assetIdentifier: string; buildingNumber: number } | null>(null);
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
+  const [sidePanelWidth, setSidePanelWidth] = useState(60); // percentage
+  const [isResizing, setIsResizing] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
@@ -93,6 +95,44 @@ function App() {
     setSidePanel({ assetId: String(assetDbId), assetIdentifier: assetId, buildingNumber });
     setSidePanelCollapsed(false);
   }
+
+  function handleMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    setIsResizing(true);
+  }
+
+  // Add event listeners for resize
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const windowWidth = window.innerWidth;
+      const newWidth = ((windowWidth - e.clientX) / windowWidth) * 100;
+
+      // Constrain between 20% and 80%
+      if (newWidth >= 20 && newWidth <= 80) {
+        setSidePanelWidth(newWidth);
+      }
+    };
+
+    const handleUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+
+      return () => {
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing]);
 
   function handleDataUpdate() {
     setTabs(prevTabs => prevTabs.map(tab => {
@@ -436,10 +476,25 @@ function App() {
           {/* Collapsible Side Panel */}
           {sidePanel && (
             <div
-              className={`bg-white shadow-2xl border-l border-purple-200 transition-all duration-300 ease-in-out flex flex-col ${
-                sidePanelCollapsed ? 'w-12' : 'w-[60%]'
+              className={`bg-white shadow-2xl border-l border-purple-200 ease-in-out flex relative ${
+                sidePanelCollapsed ? 'w-12' : ''
               }`}
+              style={{
+                width: sidePanelCollapsed ? '48px' : `${sidePanelWidth}%`,
+                transition: isResizing ? 'none' : 'width 300ms'
+              }}
             >
+              {/* Resize Handle */}
+              {!sidePanelCollapsed && (
+                <div
+                  onMouseDown={handleMouseDown}
+                  className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-purple-400 bg-purple-200 z-10 group"
+                  style={{ right: '-2px' }}
+                >
+                  <div className="absolute inset-y-0 -right-1 -left-1" />
+                </div>
+              )}
+
               {sidePanelCollapsed ? (
                 /* Collapsed View - Just Toggle Button */
                 <div className="h-full flex items-center justify-center">
@@ -453,7 +508,7 @@ function App() {
                 </div>
               ) : (
                 /* Expanded View - Full Panel */
-                <>
+                <div className="flex flex-col w-full">
                   <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
                     <div className="flex items-center gap-3">
                       <h2 className="text-lg font-bold text-purple-900">נכס {sidePanel.assetIdentifier}</h2>
@@ -476,7 +531,7 @@ function App() {
                   <div className="flex-1 overflow-auto">
                     <AssetDetails assetId={parseInt(sidePanel.assetId)} onDataUpdate={handleDataUpdate} />
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}

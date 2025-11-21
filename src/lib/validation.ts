@@ -241,33 +241,27 @@ export async function validateAssetTypeForBuildingTaxRegion(
       return { valid: true };
     }
 
-    const { data: assetType, error: assetTypeError } = await supabase
+    const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+
+    let query = supabase
       .from('asset_types')
       .select('*')
-      .eq('name', assetTypeName)
-      .maybeSingle();
+      .eq('name', assetTypeName);
+
+    // Filter by building's tax region
+    if (buildingTaxRegions.length > 0) {
+      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+    }
+
+    const { data: assetTypes, error: assetTypeError } = await query;
 
     if (assetTypeError) {
       console.error('Error fetching asset type:', assetTypeError);
       return { valid: false, error: 'Failed to validate asset type' };
     }
 
-    if (!assetType) {
-      return { valid: false, error: `Asset type "${assetTypeName}" does not exist` };
-    }
-
-    if (assetType.tax_region == null) {
-      return { valid: true };
-    }
-
-    const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
-    const assetTaxRegion = String(assetType.tax_region);
-
-    if (!buildingTaxRegions.includes(assetTaxRegion)) {
-      return {
-        valid: false,
-        error: `סוג הנכס "${assetTypeName}" (אזור ${assetType.tax_region}) לא שייך לאזור המס של הבניין (אזור ${building.tax_region})`
-      };
+    if (!assetTypes || assetTypes.length === 0) {
+      return { valid: false, error: `Asset type "${assetTypeName}" does not exist in building's tax region` };
     }
 
     return { valid: true };
@@ -299,36 +293,54 @@ export async function validateAssetTypeComplete(
       return { valid: false, error: 'הבניין לא נמצא' };
     }
 
-    // Query asset types by name field
-    const { data: assetType, error: assetTypeError } = await supabase
+    // Query asset types by name field, filtering by building's tax region
+    const buildingTaxRegions = building.tax_region != null
+      ? String(building.tax_region).split(',').map(r => r.trim())
+      : [];
+
+    let query = supabase
       .from('asset_types')
       .select('*')
-      .eq('name', assetTypeName)
-      .maybeSingle();
+      .eq('name', assetTypeName);
+
+    // If building has a tax region, filter by it
+    if (buildingTaxRegions.length > 0) {
+      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+    }
+
+    const { data: assetTypes, error: assetTypeError } = await query;
 
     if (assetTypeError) {
       console.error('Error fetching asset type:', assetTypeError);
       return { valid: false, error: 'שגיאה באימות סוג הנכס' };
     }
 
-    if (!assetType) {
-      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים` };
+    if (!assetTypes || assetTypes.length === 0) {
+      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
     }
 
-    // Step 1: Check tax region match
-    if (building.tax_region != null && assetType.tax_region != null) {
-      const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
-      const assetTaxRegion = String(assetType.tax_region);
+    // Filter by elevator requirement to find the best match
+    let assetType = assetTypes[0];
 
-      if (!buildingTaxRegions.includes(assetTaxRegion)) {
-        return {
-          valid: false,
-          error: `סוג הנכס "${assetTypeName}" (אזור מס ${assetType.tax_region}) לא קיים באזור המס של הבניין (${building.tax_region})`
-        };
+    if (assetTypes.length > 1) {
+      // Find asset type that matches elevator requirement
+      const elevatorMatches = assetTypes.filter(at => {
+        if (!at.elevator || at.elevator.trim() === '') return true;
+        const elevatorValue = at.elevator.toLowerCase();
+        if (elevatorValue === 'כן' || elevatorValue === 'yes') {
+          return building.has_elevator;
+        } else if (elevatorValue === 'לא' || elevatorValue === 'no') {
+          return !building.has_elevator;
+        }
+        return true;
+      });
+
+      if (elevatorMatches.length > 0) {
+        assetType = elevatorMatches[0];
       }
     }
 
-    // Step 2: Check elevator requirement
+    // Step 1: Check elevator requirement
     if (assetType.elevator != null && assetType.elevator.trim() !== '') {
       const elevatorValue = assetType.elevator.toLowerCase();
 
@@ -568,25 +580,24 @@ export async function validateSubAssetsFor199Or299(
   const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
 
   for (const subAssetType of validSubAssets) {
-    const { data: assetType, error: assetTypeError } = await supabase
+    let query = supabase
       .from('asset_types')
       .select('*')
-      .eq('name', subAssetType)
-      .maybeSingle();
+      .eq('name', subAssetType);
+
+    // Filter by building's tax region
+    if (buildingTaxRegions.length > 0) {
+      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+    }
+
+    const { data: assetTypes, error: assetTypeError } = await query;
 
     if (assetTypeError) {
       return { valid: false, error: `Failed to validate sub-asset type ${subAssetType}` };
     }
 
-    if (!assetType) {
-      return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים` };
-    }
-
-    if (assetType.tax_region != null && !buildingTaxRegions.includes(String(assetType.tax_region))) {
-      return {
-        valid: false,
-        error: `סוג נכס משנה "${subAssetType}" (אזור ${assetType.tax_region}) לא שייך לאזור המס של הבניין (אזור ${building.tax_region})`
-      };
+    if (!assetTypes || assetTypes.length === 0) {
+      return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים באזור המס של הבניין` };
     }
   }
 

@@ -101,6 +101,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           updatedAsset.sub_asset_type_4,
           updatedAsset.sub_asset_type_5,
           updatedAsset.sub_asset_type_6
+        ]),
+        assetValidators.validateComplexTypesMustHaveSubAssets(updatedAsset.main_asset_type, [
+          updatedAsset.sub_asset_type_1,
+          updatedAsset.sub_asset_type_2,
+          updatedAsset.sub_asset_type_3,
+          updatedAsset.sub_asset_type_4,
+          updatedAsset.sub_asset_type_5,
+          updatedAsset.sub_asset_type_6
         ])
       ];
 
@@ -363,6 +371,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       // Validate sub-assets constraints
       validations.push(
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(latestRow.main_asset_type, [
+          latestRow.sub_asset_type_1,
+          latestRow.sub_asset_type_2,
+          latestRow.sub_asset_type_3,
+          latestRow.sub_asset_type_4,
+          latestRow.sub_asset_type_5,
+          latestRow.sub_asset_type_6
+        ]),
+        assetValidators.validateComplexTypesMustHaveSubAssets(latestRow.main_asset_type, [
           latestRow.sub_asset_type_1,
           latestRow.sub_asset_type_2,
           latestRow.sub_asset_type_3,

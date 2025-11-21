@@ -144,6 +144,14 @@ export function AssetDataEntry() {
         updatedRow.sub_asset_type_4,
         updatedRow.sub_asset_type_5,
         updatedRow.sub_asset_type_6
+      ]),
+      assetValidators.validateComplexTypesMustHaveSubAssets(updatedRow.main_asset_type, [
+        updatedRow.sub_asset_type_1,
+        updatedRow.sub_asset_type_2,
+        updatedRow.sub_asset_type_3,
+        updatedRow.sub_asset_type_4,
+        updatedRow.sub_asset_type_5,
+        updatedRow.sub_asset_type_6
       ])
     ];
     if (shouldValidateSubAssets) {
@@ -303,6 +311,14 @@ export function AssetDataEntry() {
               row.sub_asset_type_5,
               row.sub_asset_type_6
             ]),
+            assetValidators.validateComplexTypesMustHaveSubAssets(row.main_asset_type, [
+              row.sub_asset_type_1,
+              row.sub_asset_type_2,
+              row.sub_asset_type_3,
+              row.sub_asset_type_4,
+              row.sub_asset_type_5,
+              row.sub_asset_type_6
+            ]),
             assetValidators.validateMinimumSubAssets([
               row.sub_asset_type_1,
               row.sub_asset_type_2,
@@ -435,6 +451,14 @@ export function AssetDataEntry() {
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
             assetValidators.validateOnlyComplexTypesCanHaveSubAssets(row.main_asset_type, [
+              row.sub_asset_type_1,
+              row.sub_asset_type_2,
+              row.sub_asset_type_3,
+              row.sub_asset_type_4,
+              row.sub_asset_type_5,
+              row.sub_asset_type_6
+            ]),
+            assetValidators.validateComplexTypesMustHaveSubAssets(row.main_asset_type, [
               row.sub_asset_type_1,
               row.sub_asset_type_2,
               row.sub_asset_type_3,
@@ -635,6 +659,14 @@ export function AssetDataEntry() {
       // Validate sub-assets constraints
       validations.push(
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(row.main_asset_type, [
+          row.sub_asset_type_1,
+          row.sub_asset_type_2,
+          row.sub_asset_type_3,
+          row.sub_asset_type_4,
+          row.sub_asset_type_5,
+          row.sub_asset_type_6
+        ]),
+        assetValidators.validateComplexTypesMustHaveSubAssets(row.main_asset_type, [
           row.sub_asset_type_1,
           row.sub_asset_type_2,
           row.sub_asset_type_3,

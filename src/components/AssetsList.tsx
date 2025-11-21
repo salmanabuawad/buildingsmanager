@@ -168,6 +168,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           updatedAsset.sub_asset_type_4,
           updatedAsset.sub_asset_type_5,
           updatedAsset.sub_asset_type_6
+        ]),
+        assetValidators.validateComplexTypesMustHaveSubAssets(updatedAsset.main_asset_type, [
+          updatedAsset.sub_asset_type_1,
+          updatedAsset.sub_asset_type_2,
+          updatedAsset.sub_asset_type_3,
+          updatedAsset.sub_asset_type_4,
+          updatedAsset.sub_asset_type_5,
+          updatedAsset.sub_asset_type_6
         ])
       ];
 

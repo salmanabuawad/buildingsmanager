@@ -280,7 +280,7 @@ export async function validateAssetTypeComplete(
   try {
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region, has_elevator, shared_area')
+      .select('tax_region, has_elevator, shared_area, single_double_family, condo, shelter, townhouses')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -382,34 +382,64 @@ export async function validateAssetTypeComplete(
       }
     }
 
-    // Step 4: Validate asset_group
-    if (assetType.asset_group != null && assetType.asset_group.trim() !== '' && assetData) {
-      // This can be used for future validations based on asset group
+    // Step 4: Validate single_double_family
+    if (assetType.single_double_family != null && assetType.single_double_family.trim() !== '') {
+      const requiredValue = assetType.single_double_family.toLowerCase();
+      const buildingValue = building.single_double_family ? building.single_double_family.toLowerCase() : '';
+
+      if (requiredValue === 'כן' || requiredValue === 'yes') {
+        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+          return {
+            valid: false,
+            error: `סוג הנכס "${assetTypeName}" דורש משפחה יחידה/דו משפחתי, אבל הבניין לא מסומן ככזה`
+          };
+        }
+      }
     }
 
-    // Step 5: Validate single_double_family
-    if (assetType.single_double_family != null && assetType.single_double_family.trim() !== '' && assetData) {
-      // This can be used for future validations based on family type
+    // Step 5: Validate condo
+    if (assetType.condo != null && assetType.condo.trim() !== '') {
+      const requiredValue = assetType.condo.toLowerCase();
+      const buildingValue = building.condo ? building.condo.toLowerCase() : '';
+
+      if (requiredValue === 'כן' || requiredValue === 'yes') {
+        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+          return {
+            valid: false,
+            error: `סוג הנכס "${assetTypeName}" דורש דירת גן, אבל הבניין לא מסומן ככזה`
+          };
+        }
+      }
     }
 
-    // Step 6: Validate penthouse requirement
-    if (assetType.penthouse != null && assetType.penthouse.trim() !== '' && assetData) {
-      // This can be used for future validations based on penthouse requirement
+    // Step 6: Validate townhouses
+    if (assetType.townhouses != null && assetType.townhouses.trim() !== '') {
+      const requiredValue = assetType.townhouses.toLowerCase();
+      const buildingValue = building.townhouses ? building.townhouses.toLowerCase() : '';
+
+      if (requiredValue === 'כן' || requiredValue === 'yes') {
+        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+          return {
+            valid: false,
+            error: `סוג הנכס "${assetTypeName}" דורש טוריים, אבל הבניין לא מסומן ככזה`
+          };
+        }
+      }
     }
 
-    // Step 7: Validate condo requirement
-    if (assetType.condo != null && assetType.condo.trim() !== '' && assetData) {
-      // This can be used for future validations based on condo requirement
-    }
+    // Step 7: Validate shelter
+    if (assetType.shelter != null && assetType.shelter.trim() !== '') {
+      const requiredValue = assetType.shelter.toLowerCase();
+      const buildingValue = building.shelter ? building.shelter.toLowerCase() : '';
 
-    // Step 8: Validate townhouses requirement
-    if (assetType.townhouses != null && assetType.townhouses.trim() !== '' && assetData) {
-      // This can be used for future validations based on townhouses requirement
-    }
-
-    // Step 9: Validate shelter requirement
-    if (assetType.shelter != null && assetType.shelter.trim() !== '' && assetData) {
-      // This can be used for future validations based on shelter requirement
+      if (requiredValue === 'כן' || requiredValue === 'yes') {
+        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+          return {
+            valid: false,
+            error: `סוג הנכס "${assetTypeName}" דורש ממ"ד, אבל הבניין לא מסומן ככזה`
+          };
+        }
+      }
     }
 
     return { valid: true };

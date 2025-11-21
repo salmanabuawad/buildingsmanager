@@ -763,9 +763,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 cellStyle: { textAlign: 'right' },
                 headerClass: 'ag-right-aligned-header'
               }}
+              autoSizeStrategy={{
+                type: 'fitCellContents',
+                skipHeader: true
+              }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.autoSizeAllColumns();
 
                 // Scroll to left on grid ready
                 setTimeout(() => {

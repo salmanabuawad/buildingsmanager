@@ -1082,11 +1082,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               autoHeaderHeight: true,
               headerClass: 'ag-right-aligned-header'
             }}
+            autoSizeStrategy={{
+              type: 'fitCellContents',
+              skipHeader: true
+            }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}
             getRowStyle={getRowStyle}
             onGridReady={(params) => {
-              params.api.sizeColumnsToFit();
 
               // Scroll to left on grid ready
               setTimeout(() => {

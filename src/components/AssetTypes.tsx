@@ -633,17 +633,19 @@ export function AssetTypes() {
                 minWidth: 100,
                 sortable: true
               }}
+              autoSizeStrategy={{
+                type: 'fitCellContents',
+                skipHeader: true
+              }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
-                params.api.sizeColumnsToFit();
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);
                 }
-                params.api.sizeColumnsToFit();
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

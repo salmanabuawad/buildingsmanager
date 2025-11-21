@@ -16,9 +16,6 @@ let cachedRules: ValidationRule[] | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION = 60000;
 
-let cachedAssetGroups: string[] | null = null;
-let assetGroupsCacheTimestamp: number = 0;
-
 export async function loadValidationRules(forceRefresh = false): Promise<ValidationRule[]> {
   const now = Date.now();
 
@@ -37,30 +34,6 @@ export async function loadValidationRules(forceRefresh = false): Promise<Validat
   }
 }
 
-export async function getValidAssetGroups(forceRefresh = false): Promise<string[]> {
-  const now = Date.now();
-
-  if (!forceRefresh && cachedAssetGroups && (now - assetGroupsCacheTimestamp) < CACHE_DURATION) {
-    return cachedAssetGroups;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('asset_types')
-      .select('asset_group')
-      .not('asset_group', 'is', null);
-
-    if (error) throw error;
-
-    const uniqueGroups = [...new Set(data.map(row => row.asset_group).filter(Boolean))];
-    cachedAssetGroups = uniqueGroups.sort();
-    assetGroupsCacheTimestamp = now;
-    return cachedAssetGroups;
-  } catch (error) {
-    console.error('Failed to load asset groups:', error);
-    return cachedAssetGroups || [];
-  }
-}
 
 function getRuleValue(rules: ValidationRule[], ruleKey: string, valueType: 'numeric' | 'text'): any {
   const rule = rules.find(r => r.rule_key === ruleKey && r.enabled);

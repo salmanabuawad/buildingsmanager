@@ -6,7 +6,7 @@ import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
-import { assetValidators, validateAll, inputValidators, getValidAssetGroups } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { supabase } from '../lib/supabase';
 
 interface AssetDetailsProps {
@@ -21,7 +21,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [originalMeasurements, setOriginalMeasurements] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
-  const [assetGroups, setAssetGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
@@ -607,17 +606,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
     {
-      field: 'asset_group',
-      headerName: t('assetGroup'),
-      flex: 1,
-      minWidth: 100,
-      editable: (params) => params.data.id === latestMeasurementId,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['', ...assetGroups]
-      },
-    },
-    {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       flex: 1,
@@ -743,7 +731,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       editable: (params) => params.data.id === latestMeasurementId,
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
     },
-  ], [t, assetTypes, assetGroups, latestMeasurementId, validationErrors, selectedDrawingUrl]);
+  ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl]);
 
   useEffect(() => {
     fetchData();
@@ -753,17 +741,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     try {
       setLoading(true);
 
-      const [assetData, assetTypesData, assetGroupsData] = await Promise.all([
+      const [assetData, assetTypesData] = await Promise.all([
         api.assets.getOne(String(assetId)),
-        api.assetTypes.getAll(),
-        getValidAssetGroups()
+        api.assetTypes.getAll()
       ]);
 
       if (!assetData) throw new Error('Asset not found');
 
       setAsset(assetData);
       setAssetTypes(assetTypesData || []);
-      setAssetGroups(assetGroupsData || []);
 
       const buildingData = await api.buildings.getOne(assetData.building_number);
       setBuilding(buildingData);

@@ -21,7 +21,6 @@ export function AssetTypes() {
     description: '',
     tax_region: '',
     elevator: '',
-    asset_group: '',
     single_double_family: '',
     penthouse: '',
     condo: '',
@@ -54,7 +53,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', asset_group: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '', shelter: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '', shelter: '' });
     setIsAdding(false);
   }
 
@@ -81,7 +80,6 @@ export function AssetTypes() {
         description: formData.description || undefined,
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
         elevator: formData.elevator || undefined,
-        asset_group: formData.asset_group || undefined,
         single_double_family: formData.single_double_family || undefined,
         penthouse: formData.penthouse || undefined,
         condo: formData.condo || undefined,
@@ -200,14 +198,6 @@ export function AssetTypes() {
         );
       },
       cellStyle: { textAlign: 'center' }
-    },
-    {
-      field: 'asset_group',
-      headerName: t('assetGroup'),
-      editable: true,
-      valueFormatter: (params) => params.value || '',
-      cellStyle: { textAlign: 'left' },
-      headerClass: 'text-left'
     },
     {
       field: 'single_double_family',

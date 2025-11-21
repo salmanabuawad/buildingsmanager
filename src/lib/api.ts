@@ -40,7 +40,6 @@ export interface Asset {
   structure_drawing_url?: string;
   created_at: string;
   updated_at: string;
-  asset_group?: string;
   elevator?: string;
   single_double_family?: string;
   condo?: string;
@@ -71,7 +70,6 @@ export interface AssetType {
   description?: string;
   tax_region?: number;
   elevator?: string;
-  asset_group?: string;
   single_double_family?: string;
   penthouse?: string;
   condo?: string;

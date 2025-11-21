@@ -748,6 +748,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 resizable: true,
                 wrapHeaderText: true,
                 autoHeaderHeight: true,
+                wrapText: true,
+                autoHeight: true,
                 cellStyle: { textAlign: 'right' },
                 headerClass: 'ag-right-aligned-header'
               }}
@@ -755,7 +757,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               onGridReady={(params) => {
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                params.api.sizeColumnsToFit();
+                // Don't use sizeColumnsToFit to allow content-based sizing
 
                 // Scroll to left on grid ready
                 setTimeout(() => {
@@ -772,7 +774,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 }
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                params.api.sizeColumnsToFit();
+                // Don't use sizeColumnsToFit to allow content-based sizing
 
                 // Scroll to left after data render
                 setTimeout(() => {

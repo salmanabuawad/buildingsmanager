@@ -279,13 +279,15 @@ export function ValidationRulesManager() {
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
+    wrapText: true,
+    autoHeight: true
   }), []);
 
   const onGridReady = useCallback((params: any) => {
     console.log('Grid ready, rules count:', rules.length);
     const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
     params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-    params.api.sizeColumnsToFit();
+    // Don't use sizeColumnsToFit to allow content-based sizing
   }, [rules]);
 
   return (
@@ -543,7 +545,7 @@ export function ValidationRulesManager() {
                   }
                   const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
                   params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  params.api.sizeColumnsToFit();
+                  // Don't use sizeColumnsToFit to allow content-based sizing
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                     if (gridElement) {

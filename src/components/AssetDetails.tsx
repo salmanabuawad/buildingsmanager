@@ -841,6 +841,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   resizable: true,
                   wrapHeaderText: true,
                   autoHeaderHeight: true,
+                  wrapText: true,
+                  autoHeight: true,
                   sortable: false,
                   headerClass: 'ag-right-aligned-header'
                 }}
@@ -849,12 +851,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 onGridReady={(params) => {
                   const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                   params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  params.api.sizeColumnsToFit();
+                  // Don't use sizeColumnsToFit to allow content-based sizing
                 }}
                 onFirstDataRendered={(params) => {
                   const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                   params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  params.api.sizeColumnsToFit();
+                  // Don't use sizeColumnsToFit to allow content-based sizing
                 }}
                 onCellValueChanged={onCellValueChanged}
                 enableRtl={true}

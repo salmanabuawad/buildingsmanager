@@ -143,6 +143,8 @@ export function AdminPDFManager() {
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
+    wrapText: true,
+    autoHeight: true
   }), []);
 
   const apartmentsWithPDF = apartments.filter(a => a.dwg_file_url).length;
@@ -207,12 +209,12 @@ export function AdminPDFManager() {
           onGridReady={(params) => {
             const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
             params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-            params.api.sizeColumnsToFit();
+            // Don't use sizeColumnsToFit to allow content-based sizing
           }}
           onFirstDataRendered={(params) => {
             const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
             params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-            params.api.sizeColumnsToFit();
+            // Don't use sizeColumnsToFit to allow content-based sizing
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
               params.api.ensureColumnVisible(firstCol);

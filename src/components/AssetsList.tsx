@@ -1035,6 +1035,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               resizable: true,
               wrapHeaderText: true,
               autoHeaderHeight: true,
+              wrapText: true,
+              autoHeight: true,
               headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}
@@ -1043,7 +1045,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             onGridReady={(params) => {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
               params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              params.api.sizeColumnsToFit();
+              // Don't use sizeColumnsToFit to allow content-based sizing
 
               // Scroll to left on grid ready
               setTimeout(() => {
@@ -1060,7 +1062,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               }
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
               params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              params.api.sizeColumnsToFit();
+              // Don't use sizeColumnsToFit to allow content-based sizing
 
               // Scroll to left after data render
               setTimeout(() => {

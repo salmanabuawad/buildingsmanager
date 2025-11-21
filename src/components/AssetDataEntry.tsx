@@ -1202,13 +1202,15 @@ export function AssetDataEntry() {
               resizable: true,
               wrapHeaderText: true,
               autoHeaderHeight: true,
+              wrapText: true,
+              autoHeight: true,
               cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={(params) => {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
               params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              params.api.sizeColumnsToFit();
+              // Don't use sizeColumnsToFit to allow content-based sizing
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
@@ -1216,7 +1218,7 @@ export function AssetDataEntry() {
             onFirstDataRendered={(params) => {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
               params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              params.api.sizeColumnsToFit();
+              // Don't use sizeColumnsToFit to allow content-based sizing
             }}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}

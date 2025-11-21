@@ -629,14 +629,16 @@ export function AssetTypes() {
               columnDefs={columnDefs}
               defaultColDef={{
                 resizable: true,
-                sortable: true
+                sortable: true,
+                wrapText: true,
+                autoHeight: true
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                params.api.sizeColumnsToFit();
+                // Don't use sizeColumnsToFit to allow content-based sizing
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
@@ -645,7 +647,7 @@ export function AssetTypes() {
                 }
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                params.api.sizeColumnsToFit();
+                // Don't use sizeColumnsToFit to allow content-based sizing
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

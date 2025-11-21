@@ -8,7 +8,7 @@ import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { CSVImport } from './components/CSVImport';
 import { AssetsCSVImport } from './components/AssetsCSVImport';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft } from 'lucide-react';
 
 interface Tab {
   id: string;

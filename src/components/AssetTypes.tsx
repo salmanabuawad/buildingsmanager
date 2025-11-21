@@ -22,9 +22,6 @@ export function AssetTypes() {
     tax_region: '',
     shared_area_yn: '',
     has_elevator: '',
-    condition_elevator: '',
-    condition_shared_area: '',
-    condition_size: '',
     min_size: '',
     max_size: '',
     notes: '',
@@ -53,7 +50,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', condition_elevator: '', condition_shared_area: '', condition_size: '', min_size: '', max_size: '', notes: '' });
+    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', min_size: '', max_size: '', notes: '' });
     setIsAdding(false);
   }
 
@@ -81,9 +78,6 @@ export function AssetTypes() {
         tax_region: formData.tax_region ? parseInt(formData.tax_region) : undefined,
         shared_area_yn: formData.shared_area_yn || undefined,
         has_elevator: formData.has_elevator || undefined,
-        condition_elevator: formData.condition_elevator || undefined,
-        condition_shared_area: formData.condition_shared_area || undefined,
-        condition_size: formData.condition_size || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
         notes: formData.notes || undefined,
@@ -219,30 +213,6 @@ export function AssetTypes() {
           </div>
         );
       },
-      cellStyle: { textAlign: 'left' }
-    },
-    {
-      field: 'condition_elevator',
-      headerName: 'Condition Elevator',
-      flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value ?? '-',
-      cellStyle: { textAlign: 'left' }
-    },
-    {
-      field: 'condition_shared_area',
-      headerName: 'Condition Shared Area',
-      flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value ?? '-',
-      cellStyle: { textAlign: 'left' }
-    },
-    {
-      field: 'condition_size',
-      headerName: 'Condition Size',
-      flex: 1,
-      editable: true,
-      valueFormatter: (params) => params.value ?? '-',
       cellStyle: { textAlign: 'left' }
     },
     {

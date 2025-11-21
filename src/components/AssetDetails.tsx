@@ -611,6 +611,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       flex: 1,
       minWidth: 100,
       editable: (params) => params.data.id === latestMeasurementId,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['א', 'ב', 'ג', 'ד']
+      },
     },
     {
       field: 'sub_asset_type_1',

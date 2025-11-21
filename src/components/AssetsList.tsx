@@ -651,6 +651,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       minWidth: 150,
       editable: false,
       pinned: 'right',
+      lockPosition: true,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;
@@ -727,21 +728,23 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
     {
+      field: 'asset_id',
+      headerName: t('assetId'),
+      width: 120,
+      minWidth: 120,
+      editable: true,
+      pinned: 'right',
+      lockPosition: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params) => getCellStyle(params, 'asset_id', true)
+    },
+    {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 130,
       minWidth: 130,
       editable: false,
       cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
-    },
-    {
-      field: 'asset_id',
-      headerName: t('assetId'),
-      width: 120,
-      minWidth: 120,
-      editable: true,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
       field: 'payer_id',

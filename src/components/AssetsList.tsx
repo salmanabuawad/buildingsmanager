@@ -687,6 +687,13 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               </div>
             )}
             <button
+              onClick={() => onSelectAsset(assetId, asset.asset_id, buildingNumber)}
+              className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
+              title={t('viewDetails')}
+            >
+              <Eye className="h-5 w-5" />
+            </button>
+            <button
               onClick={() => toggleDelete(assetId)}
               className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
                 isDeleted
@@ -714,13 +721,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 )}
               </button>
             )}
-            <button
-              onClick={() => onSelectAsset(assetId, asset.asset_id, buildingNumber)}
-              className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-              title={t('viewDetails')}
-            >
-              <Eye className="h-5 w-5" />
-            </button>
           </div>
         );
       },

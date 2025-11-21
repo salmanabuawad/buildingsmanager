@@ -8,7 +8,7 @@ import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { CSVImport } from './components/CSVImport';
 import { AssetsCSVImport } from './components/AssetsCSVImport';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown } from 'lucide-react';
 
 interface Tab {
   id: string;
@@ -29,7 +29,6 @@ function App() {
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [sidePanel, setSidePanel] = useState<{ assetId: string; assetIdentifier: string; buildingNumber: number } | null>(null);
-  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
@@ -91,7 +90,6 @@ function App() {
 
   function handleSelectAsset(assetDbId: string | number, assetId: string, buildingNumber: number) {
     setSidePanel({ assetId: String(assetDbId), assetIdentifier: assetId, buildingNumber });
-    setSidePanelCollapsed(false);
   }
 
 
@@ -214,23 +212,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
       <div className="w-52 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
-        <div
-          className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white cursor-pointer select-none hover:bg-gradient-to-br hover:from-purple-200 hover:via-indigo-100 hover:to-white transition-colors"
-          onDoubleClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Double click detected', { sidePanel, sidePanelCollapsed });
-            if (sidePanel) {
-              setSidePanelCollapsed(prev => {
-                console.log('Toggling from', prev, 'to', !prev);
-                return !prev;
-              });
-            } else {
-              console.log('No side panel open');
-            }
-          }}
-          title="לחיצה כפולה להצגה/הסתרת פאנל צד"
-        >
+        <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
           <h2 className="text-base font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
         <nav className="flex-1 p-2 space-y-1">
@@ -410,7 +392,7 @@ function App() {
 
         <div className="flex-1 overflow-hidden flex">
           {/* Main Content Area */}
-          <div className={`flex-1 overflow-auto transition-all duration-300 ${sidePanel && !sidePanelCollapsed ? 'mr-0' : ''}`}>
+          <div className="flex-1 overflow-auto">
             {activeTab?.type === 'buildings' && (
               <BuildingsList
                 key={activeTab.refreshKey}
@@ -452,50 +434,20 @@ function App() {
 
           {/* Collapsible Side Panel */}
           {sidePanel && (
-            <div
-              className={`bg-white shadow-2xl border-l border-purple-200 transition-all duration-300 ease-in-out flex relative ${
-                sidePanelCollapsed ? 'w-12' : 'w-3/5'
-              }`}
-            >
-
-              {sidePanelCollapsed ? (
-                /* Collapsed View - Just Toggle Button */
-                <div className="h-full flex items-center justify-center">
-                  <button
-                    onClick={() => setSidePanelCollapsed(false)}
-                    className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
-                    title="הרחב פאנל"
-                  >
-                    <ChevronLeft className="h-5 w-5 text-purple-600" />
-                  </button>
-                </div>
-              ) : (
-                /* Expanded View - Full Panel */
-                <div className="flex flex-col w-full">
-                  <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-bold text-purple-900">נכס {sidePanel.assetIdentifier}</h2>
-                      <button
-                        onClick={() => setSidePanelCollapsed(true)}
-                        className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
-                        title="כווץ פאנל"
-                      >
-                        <ChevronRight className="h-5 w-5 text-slate-600" />
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => setSidePanel(null)}
-                      className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                      title="סגור פאנל"
-                    >
-                      <X className="h-5 w-5 text-slate-600 hover:text-red-600" />
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-auto">
-                    <AssetDetails assetId={parseInt(sidePanel.assetId)} onDataUpdate={handleDataUpdate} />
-                  </div>
-                </div>
-              )}
+            <div className="w-3/5 bg-white shadow-2xl border-l border-purple-200 flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
+                <h2 className="text-lg font-bold text-purple-900">נכס {sidePanel.assetIdentifier}</h2>
+                <button
+                  onClick={() => setSidePanel(null)}
+                  className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                  title="סגור פאנל"
+                >
+                  <X className="h-5 w-5 text-slate-600 hover:text-red-600" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <AssetDetails assetId={parseInt(sidePanel.assetId)} onDataUpdate={handleDataUpdate} />
+              </div>
             </div>
           )}
         </div>

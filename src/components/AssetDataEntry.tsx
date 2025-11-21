@@ -958,7 +958,7 @@ export function AssetDataEntry() {
     },
     {
       field: 'asset_group',
-      headerName: 'קבוצת נכס',
+      headerName: t('assetGroup'),
       width: 100,
       minWidth: 100,
       editable: true,

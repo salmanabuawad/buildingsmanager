@@ -787,7 +787,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     },
     {
       field: 'asset_group',
-      headerName: 'קבוצת נכס',
+      headerName: t('assetGroup'),
       width: 100,
       minWidth: 100,
       editable: true,
@@ -976,7 +976,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     },
     {
       field: 'asset_group',
-      headerName: 'קבוצת נכס',
+      headerName: t('assetGroup'),
       width: 120,
       minWidth: 120,
       editable: true,

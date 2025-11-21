@@ -203,7 +203,7 @@ export function AssetTypes() {
     },
     {
       field: 'asset_group',
-      headerName: 'קבוצת נכס',
+      headerName: t('assetGroup'),
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },

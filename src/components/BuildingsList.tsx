@@ -563,8 +563,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'shelter',
-      headerName: 'ממ"ד',
+      field: 'basement',
+      headerName: 'מרתף',
       flex: 1,
       editable: (params) => {
         const building = params.data as Building;

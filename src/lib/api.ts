@@ -12,7 +12,7 @@ export interface Building {
   total_building_area?: number;
   single_double_family?: string;
   condo?: string;
-  shelter?: string;
+  basement?: string;
   townhouses?: string;
 }
 
@@ -71,7 +71,7 @@ export interface AssetType {
   townhouses?: string;
   min_size?: number;
   max_size?: number;
-  shelter?: string;
+  basement?: string;
   created_at: string;
   updated_at: string;
 }
@@ -134,7 +134,7 @@ function sanitizeBuildingInput(input: any): any {
     shared_area: input.shared_area != null ? sanitizeNumber(input.shared_area) : undefined,
     single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
     condo: input.condo != null ? sanitizeText(input.condo) : undefined,
-    shelter: input.shelter != null ? sanitizeText(input.shelter) : undefined,
+    basement: input.basement != null ? sanitizeText(input.basement) : undefined,
     townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
   };
 }

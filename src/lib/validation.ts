@@ -280,7 +280,7 @@ export async function validateAssetTypeComplete(
   try {
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region, has_elevator, shared_area, single_double_family, condo, shelter, townhouses')
+      .select('tax_region, has_elevator, shared_area, single_double_family, condo, basement, townhouses')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -427,16 +427,16 @@ export async function validateAssetTypeComplete(
       }
     }
 
-    // Step 7: Validate shelter
-    if (assetType.shelter != null && assetType.shelter.trim() !== '') {
-      const requiredValue = assetType.shelter.toLowerCase();
-      const buildingValue = building.shelter ? building.shelter.toLowerCase() : '';
+    // Step 7: Validate basement
+    if (assetType.basement != null && assetType.basement.trim() !== '') {
+      const requiredValue = assetType.basement.toLowerCase();
+      const buildingValue = building.basement ? building.basement.toLowerCase() : '';
 
       if (requiredValue === 'כן' || requiredValue === 'yes') {
         if (buildingValue !== 'כן' && buildingValue !== 'yes') {
           return {
             valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש ממ"ד, אבל הבניין לא מסומן ככזה`
+            error: `סוג הנכס "${assetTypeName}" דורש מרתף, אבל הבניין לא מסומן ככזה`
           };
         }
       }

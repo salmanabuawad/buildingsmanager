@@ -689,37 +689,37 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
-        <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
-          <div className="flex items-center gap-2">
-            <img src="/buildings.png" alt="Buildings" className="w-7 h-7 bg-white rounded-lg p-1" />
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg sm:text-xl font-bold text-white">{t('propertyListings')}</h1>
-              <span className="text-xs text-teal-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
+          <div className="flex items-center gap-3">
+            <img src="/buildings.png" alt="Buildings" className="w-8 h-8 bg-white rounded-lg p-1.5 shadow-sm" />
+            <div className="flex items-center gap-4">
+              <h1 className="text-xl sm:text-2xl font-bold text-white">{t('propertyListings')}</h1>
+              <span className="text-sm text-teal-50 bg-white/20 px-3 py-1 rounded-lg font-semibold">
                 <span className="font-semibold">סה"כ בניינים:</span> {buildings.length}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="mb-3">
+        <div className="mb-4">
           <div className="relative max-w-xs">
             <input
               type="text"
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
               placeholder={t('searchByBuildingNumber')}
-              className="w-full px-3 py-1.5 pr-9 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right text-sm"
+              className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right text-sm shadow-sm hover:shadow-md transition-shadow"
             />
-            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
         </div>
 
-        <div className="mb-3 flex justify-end gap-2">
+        <div className="mb-4 flex justify-end gap-3">
           <button
             onClick={handleCancelAll}
             disabled={loading || dirtyBuildings.size === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             <X className="h-4 w-4" />
             {t('cancel')}
@@ -727,7 +727,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           <button
             onClick={handleSaveAll}
             disabled={loading || dirtyBuildings.size === 0 || invalidTaxRegions.size > 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -738,7 +738,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
           <div className="ag-theme-alpine" style={{ height: 'calc(100vh - 150px)', width: '100%' }}>
             <AgGridReact
               ref={gridRef}

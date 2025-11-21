@@ -229,14 +229,14 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
       <div className="w-48 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
-        <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
-          <h2 className="text-base font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
+        <div className="p-4 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
+          <h2 className="text-lg font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 p-3 space-y-2">
           <div>
             <button
               onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 text-right bg-white hover:bg-purple-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-purple-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-purple-300 group"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm text-slate-700 group-hover:text-purple-900">בניינים</span>
@@ -249,7 +249,7 @@ function App() {
               )}
             </button>
             {buildingsMenuOpen && (
-              <div className="mr-3 mt-1 space-y-1">
+              <div className="mr-2 mt-2 space-y-1.5">
                 <button
                   onClick={() => {
                     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים', refreshKey: Date.now() };
@@ -257,24 +257,24 @@ function App() {
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600 text-xs">רשימת בניינים</span>
-                  <Building className="h-3 w-3 text-purple-500" />
+                  <span className="font-medium text-slate-700 text-xs">רשימת בניינים</span>
+                  <Building className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
                   onClick={() => setShowCreateBuildingModal(true)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600">צור בניין חדש</span>
-                  <Plus className="h-3 w-3 text-purple-500" />
+                  <span className="font-medium text-slate-700">צור בניין חדש</span>
+                  <Plus className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
                   onClick={openCSVImport}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600">ייבוא CSV</span>
-                  <Upload className="h-3 w-3 text-purple-500" />
+                  <span className="font-medium text-slate-700">ייבוא CSV</span>
+                  <Upload className="h-3.5 w-3.5 text-purple-600" />
                 </button>
               </div>
             )}
@@ -282,7 +282,7 @@ function App() {
           <div>
             <button
               onClick={() => setAssetsMenuOpen(!assetsMenuOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 text-right bg-white hover:bg-indigo-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-indigo-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-indigo-300 group"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm text-slate-700 group-hover:text-indigo-900">נכסים</span>
@@ -295,20 +295,20 @@ function App() {
               )}
             </button>
             {assetsMenuOpen && (
-              <div className="mr-3 mt-1 space-y-1">
+              <div className="mr-2 mt-2 space-y-1.5">
                 <button
                   onClick={openAssetSearch}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600">חיפוש נכס</span>
-                  <Search className="h-3 w-3 text-indigo-500" />
+                  <span className="font-medium text-slate-700">חיפוש נכס</span>
+                  <Search className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <button
                   onClick={openAssetsCSVImport}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600">ייבוא CSV</span>
-                  <Upload className="h-3 w-3 text-indigo-500" />
+                  <span className="font-medium text-slate-700">ייבוא CSV</span>
+                  <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
               </div>
             )}
@@ -316,7 +316,7 @@ function App() {
           <div>
             <button
               onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 text-right bg-white hover:bg-pink-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md group"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-pink-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-pink-300 group"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm text-slate-700 group-hover:text-pink-900">ניהול</span>
@@ -329,20 +329,20 @@ function App() {
               )}
             </button>
             {adminMenuOpen && (
-              <div className="mr-3 mt-1 space-y-1">
+              <div className="mr-2 mt-2 space-y-1.5">
                 <button
                   onClick={openAssetTypes}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600">סוגי נכסים</span>
-                  <Tag className="h-3 w-3 text-pink-500" />
+                  <span className="font-medium text-slate-700">סוגי נכסים</span>
+                  <Tag className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
                   onClick={openValidationRules}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-colors text-xs"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-600">כללי תקינות</span>
-                  <Settings className="h-3 w-3 text-pink-500" />
+                  <span className="font-medium text-slate-700">כללי תקינות</span>
+                  <Settings className="h-3.5 w-3.5 text-pink-600" />
                 </button>
               </div>
             )}
@@ -351,16 +351,16 @@ function App() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="bg-white/90 backdrop-blur-sm border-b border-purple-100 shadow-md">
-          <div className="px-2">
-            <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-purple-200 shadow-lg">
+          <div className="px-4 py-2">
+            <div className="flex items-center gap-2 overflow-x-auto">
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-2 px-3 py-2 border-b-2 transition-all cursor-pointer group ${
+                  className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-all cursor-pointer group rounded-t-lg ${
                     activeTabId === tab.id
-                      ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50'
-                      : 'border-transparent hover:bg-purple-50/50'
+                      ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-sm'
+                      : 'border-transparent hover:bg-purple-50/50 hover:border-purple-200'
                   }`}
                 >
                   <div
@@ -385,7 +385,7 @@ function App() {
                       <Building className="h-4 w-4 text-purple-700" />
                     )}
                     <span className={`font-semibold whitespace-nowrap text-sm ${
-                      activeTabId === tab.id ? 'text-purple-900' : 'text-slate-700'
+                      activeTabId === tab.id ? 'text-purple-900' : 'text-slate-600'
                     }`}>
                       {tab.label}
                     </span>
@@ -409,7 +409,7 @@ function App() {
 
         <div className="flex-1 overflow-hidden flex">
           {/* Main Content Area */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50/50 to-white">
             {activeTab?.type === 'buildings' && (
               <BuildingsList
                 key={activeTab.refreshKey}

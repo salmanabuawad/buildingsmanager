@@ -786,6 +786,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
     {
+      field: 'asset_group',
+      headerName: 'קבוצת נכס',
+      width: 100,
+      minWidth: 100,
+      editable: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params) => getCellStyle(params, 'asset_group', false)
+    },
+    {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 70,

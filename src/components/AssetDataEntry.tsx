@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
-import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { assetValidators, validateAll, inputValidators, getValidAssetGroups } from '../lib/validation';
 import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -26,6 +26,7 @@ interface AssetRow {
   sub_asset_size_5: number;
   sub_asset_type_6: string;
   sub_asset_size_6: number;
+  asset_group: string;
   _isNew?: boolean;
   _dbId?: number;
   _isDirty?: boolean;
@@ -38,6 +39,7 @@ export function AssetDataEntry() {
   const gridRef = useRef<AgGridReact>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [assetGroups, setAssetGroups] = useState<string[]>([]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +52,7 @@ export function AssetDataEntry() {
   useEffect(() => {
     fetchBuildings();
     fetchAssetTypes();
+    fetchAssetGroups();
   }, []);
   const fetchBuildings = async () => {
     try {
@@ -65,6 +68,15 @@ export function AssetDataEntry() {
       setAssetTypes(data);
     } catch (err) {
       console.error('Error fetching asset types:', err);
+    }
+  };
+
+  const fetchAssetGroups = async () => {
+    try {
+      const groups = await getValidAssetGroups();
+      setAssetGroups(groups);
+    } catch (err) {
+      console.error('Error fetching asset groups:', err);
     }
   };
   const createEmptyRow = (): AssetRow => ({
@@ -87,6 +99,7 @@ export function AssetDataEntry() {
     sub_asset_size_5: 0,
     sub_asset_type_6: '',
     sub_asset_size_6: 0,
+    asset_group: '',
     _isNew: true
   });
   const addEmptyRow = () => {
@@ -411,7 +424,8 @@ export function AssetDataEntry() {
             sub_asset_type_5: row.sub_asset_type_5 || undefined,
             sub_asset_size_5: row.sub_asset_size_5 || 0,
             sub_asset_type_6: row.sub_asset_type_6 || undefined,
-            sub_asset_size_6: row.sub_asset_size_6 || 0
+            sub_asset_size_6: row.sub_asset_size_6 || 0,
+            asset_group: row.asset_group || undefined
           };
           const newAsset = await api.assets.create(assetData);
           row._dbId = newAsset.id;
@@ -774,6 +788,7 @@ export function AssetDataEntry() {
         sub_asset_size_5: newAsset.sub_asset_size_5 || 0,
         sub_asset_type_6: newAsset.sub_asset_type_6 || '',
         sub_asset_size_6: newAsset.sub_asset_size_6 || 0,
+        asset_group: newAsset.asset_group || '',
         _isNew: false,
         _dbId: newAsset.id
       };
@@ -940,6 +955,18 @@ export function AssetDataEntry() {
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
+    },
+    {
+      field: 'asset_group',
+      headerName: 'קבוצת נכס',
+      width: 100,
+      minWidth: 100,
+      editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['', ...assetGroups]
+      },
+      cellStyle: (params) => getCellStyle(params, 'asset_group', false)
     },
     {
       field: 'sub_asset_type_1',
@@ -1138,7 +1165,7 @@ export function AssetDataEntry() {
         );
       }
     }
-  ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement, loading]);
+  ], [t, buildings, assetTypes, assetGroups, handleDeleteRow, handleAddNewMeasurement, loading]);
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {
       return rowData;

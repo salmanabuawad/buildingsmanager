@@ -630,8 +630,7 @@ export function AssetTypes() {
               defaultColDef={{
                 resizable: true,
                 minWidth: 100,
-                sortable: true,
-                filter: true
+                sortable: true
               }}
               domLayout="autoHeight"
               onCellValueChanged={onCellValueChanged}

@@ -1084,7 +1084,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             }}
             autoSizeStrategy={{
               type: 'fitCellContents',
-              skipHeader: true
+              skipHeader: true,
+              defaultMinWidth: 100
             }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}

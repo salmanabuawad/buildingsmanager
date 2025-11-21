@@ -635,7 +635,8 @@ export function AssetTypes() {
               }}
               autoSizeStrategy={{
                 type: 'fitCellContents',
-                skipHeader: true
+                skipHeader: true,
+                defaultMinWidth: 100
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}

@@ -765,7 +765,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               autoSizeStrategy={{
                 type: 'fitCellContents',
-                skipHeader: true
+                skipHeader: true,
+                defaultMinWidth: 100
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {

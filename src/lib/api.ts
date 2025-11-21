@@ -62,7 +62,7 @@ export interface AssetType {
   has_elevator?: string;
   min_size?: number;
   max_size?: number;
-  notes?: string;
+  shelter?: string;
   created_at: string;
   updated_at: string;
 }

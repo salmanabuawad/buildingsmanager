@@ -24,7 +24,7 @@ export function AssetTypes() {
     has_elevator: '',
     min_size: '',
     max_size: '',
-    notes: '',
+    shelter: '',
   });
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', min_size: '', max_size: '', notes: '' });
+    setFormData({ name: '', description: '', tax_region: '', shared_area_yn: '', has_elevator: '', min_size: '', max_size: '', shelter: '' });
     setIsAdding(false);
   }
 
@@ -80,7 +80,7 @@ export function AssetTypes() {
         has_elevator: formData.has_elevator || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
-        notes: formData.notes || undefined,
+        shelter: formData.shelter || undefined,
       };
 
       await api.assetTypes.create(dataToSave);
@@ -232,8 +232,8 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'left' }
     },
     {
-      field: 'notes',
-      headerName: 'Notes',
+      field: 'shelter',
+      headerName: t('shelter'),
       flex: 1.5,
       editable: true,
       valueFormatter: (params) => params.value || '-',

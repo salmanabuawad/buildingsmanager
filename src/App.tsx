@@ -259,7 +259,7 @@ function App() {
                   }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-colors text-xs"
                 >
-                  <span className="font-medium text-slate-600">רשימת בניינים</span>
+                  <span className="font-medium text-slate-600 text-xs">רשימת בניינים</span>
                   <Building className="h-3 w-3 text-purple-500" />
                 </button>
                 <button

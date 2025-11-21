@@ -410,9 +410,9 @@ export function AssetTypes() {
       await fetchAssetTypes();
 
       if (errors.length > 0) {
-        showMessage('error', `יובאו ${successCount} סוגים. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+        showMessage('error', `יובאו ${successCount} רשומות. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
       } else {
-        showMessage('success', `יובאו בהצלחה ${successCount} סוגי נכסים`);
+        showMessage('success', `יובאו בהצלחה ${successCount} רשומות`);
       }
     } catch (error) {
       showMessage('error', 'שגיאה בקריאת קובץ CSV');

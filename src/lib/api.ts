@@ -449,6 +449,11 @@ export const api = {
           code: error.code
         });
 
+        // Handle PGRST116 error (0 rows) as "asset not found"
+        if (error.code === 'PGRST116') {
+          throw new Error('Asset not found');
+        }
+
         let errorMessage = error.message || 'Failed to update asset';
 
         if (error.code === '23514') {
@@ -466,7 +471,47 @@ export const api = {
       }
 
       if (!data) {
-        throw new Error('Failed to update asset - no data returned');
+        // If no data returned, the asset might not exist or the update didn't match any rows
+        // Try to fetch the asset to see if it exists
+        const { data: existingAsset, error: fetchError } = await supabase
+          .from('assets')
+          .select('id')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (fetchError) {
+          // Handle PGRST116 error (0 rows) as "asset not found"
+          if (fetchError.code === 'PGRST116') {
+            throw new Error('Asset not found');
+          }
+          throw new Error(`Failed to verify asset existence: ${fetchError.message}`);
+        }
+        
+        if (!existingAsset) {
+          throw new Error('Asset not found - cannot update');
+        }
+        
+        // If asset exists but update returned no data, it might be a permissions issue
+        // or the update didn't actually change anything. Fetch the current asset data.
+        const { data: currentAsset, error: currentError } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (currentError) {
+          if (currentError.code === 'PGRST116') {
+            throw new Error('Asset not found');
+          }
+          throw new Error(`Failed to fetch asset after update: ${currentError.message}`);
+        }
+        
+        if (currentAsset) {
+          console.log('[API] Update returned no data, but asset exists. Returning current asset data.');
+          return currentAsset;
+        }
+        
+        throw new Error('Failed to update asset - no data returned and asset could not be fetched');
       }
 
       console.log('[API] Asset updated successfully:', data);

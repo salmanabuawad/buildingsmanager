@@ -1117,6 +1117,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
+              minWidth: 100,
               headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}
@@ -1126,17 +1127,29 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               // Load saved column state first
               const hasSavedState = await loadColumnState();
               
-              // If no saved state, apply default sizing
+              // If no saved state, apply default sizing with minimum widths
               if (!hasSavedState) {
                 setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
+                  const allColumns = params.api.getAllDisplayedColumns();
+                  const allColumnIds = allColumns
                     .map(col => col.getColId())
                     .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
                   
                   if (allColumnIds.length > 0) {
+                    // First, set minimum widths to prevent very small columns
+                    allColumns.forEach(col => {
+                      if (col.getColId() !== 'actions') {
+                        const currentWidth = col.getActualWidth();
+                        if (!currentWidth || currentWidth < 100) {
+                          col.setActualWidth(100); // Set minimum width of 100px
+                        }
+                      }
+                    });
+                    
+                    // Then auto-size based on content
                     params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                   }
-                }, 100);
+                }, 200);
               }
 
               // Scroll to left on grid ready
@@ -1145,29 +1158,36 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 if (gridElement) {
                   gridElement.scrollLeft = 0;
                 }
-              }, 200);
+              }, 300);
             }}
             onFirstDataRendered={async (params) => {
               // Load saved column state if not already loaded
               if (!columnStateLoaded) {
                 const hasSavedState = await loadColumnState();
                 
-                // If no saved state, apply default sizing
+                // If no saved state, apply default sizing with minimum widths
                 if (!hasSavedState) {
                   setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
+                    const allColumns = params.api.getAllDisplayedColumns();
+                    const allColumnIds = allColumns
                       .map(col => col.getColId())
                       .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
                     
                     if (allColumnIds.length > 0) {
+                      // First, set minimum widths to prevent very small columns
+                      allColumns.forEach(col => {
+                        if (col.getColId() !== 'actions') {
+                          const currentWidth = col.getActualWidth();
+                          if (!currentWidth || currentWidth < 100) {
+                            col.setActualWidth(100); // Set minimum width of 100px
+                          }
+                        }
+                      });
+                      
+                      // Then auto-size based on content
                       params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                     }
-                  }, 50);
-                }
-              } else {
-                const firstCol = params.api.getAllDisplayedColumns()[0];
-                if (firstCol) {
-                  params.api.ensureColumnVisible(firstCol);
+                  }, 150);
                 }
               }
 

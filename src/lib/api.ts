@@ -700,32 +700,70 @@ export const api = {
   },
   userPreferences: {
     get: async (userId: string, preferenceKey: string): Promise<UserPreference | null> => {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('preference_key', preferenceKey)
-        .maybeSingle();
+      console.log('[API] Getting user preference:', { userId, preferenceKey });
+      try {
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('preference_key', preferenceKey)
+          .maybeSingle();
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          // If table doesn't exist, return null instead of throwing
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.warn('[API] user_preferences table does not exist. Please run the migration.');
+            return null;
+          }
+          console.error('[API] Error getting user preference:', error);
+          throw error;
+        }
+        console.log('[API] User preference retrieved:', data);
+        return data;
+      } catch (err: any) {
+        // Handle table not found gracefully
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          console.warn('[API] user_preferences table does not exist. Please run the migration.');
+          return null;
+        }
+        throw err;
+      }
     },
     set: async (userId: string, preferenceKey: string, preferenceValue: any): Promise<UserPreference> => {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: userId,
-          preference_key: preferenceKey,
-          preference_value: preferenceValue,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,preference_key'
-        })
-        .select()
-        .single();
+      console.log('[API] Saving user preference:', { userId, preferenceKey, preferenceValue });
+      try {
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .upsert({
+            user_id: userId,
+            preference_key: preferenceKey,
+            preference_value: preferenceValue,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,preference_key'
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          // If table doesn't exist, log warning instead of throwing
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.warn('[API] user_preferences table does not exist. Please run the migration. Preference not saved.');
+            throw new Error('user_preferences table does not exist. Please run the migration.');
+          }
+          console.error('[API] Error saving user preference:', error);
+          throw error;
+        }
+        console.log('[API] User preference saved successfully:', data);
+        return data;
+      } catch (err: any) {
+        // Handle table not found gracefully
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          console.warn('[API] user_preferences table does not exist. Please run the migration.');
+          throw new Error('user_preferences table does not exist. Please run the migration.');
+        }
+        throw err;
+      }
     },
     delete: async (userId: string, preferenceKey: string): Promise<{ message: string }> => {
       const { error } = await supabase

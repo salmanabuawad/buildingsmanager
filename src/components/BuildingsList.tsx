@@ -37,25 +37,31 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   // Load saved column state
   const loadColumnState = useCallback(async () => {
     try {
+      console.log('[BuildingsList] Loading column state...');
       const preference = await api.userPreferences.get(USER_ID, PREFERENCE_KEY);
       if (preference && preference.preference_value && gridRef.current?.api) {
         const columnState = preference.preference_value;
+        console.log('[BuildingsList] Found saved column state:', columnState);
         gridRef.current.api.applyColumnState({
           state: columnState,
           applyOrder: true
         });
         setColumnStateLoaded(true);
         return true;
+      } else {
+        console.log('[BuildingsList] No saved column state found');
       }
     } catch (err) {
-      console.error('Failed to load column state:', err);
+      console.error('[BuildingsList] Failed to load column state:', err);
     }
+    // Mark as loaded even if no state was found, so we can save new preferences
+    setColumnStateLoaded(true);
     return false;
   }, []);
 
   // Save column state with debounce
-  const saveColumnState = useCallback(async () => {
-    if (!gridRef.current?.api || !columnStateLoaded) return;
+  const saveColumnState = useCallback(() => {
+    if (!gridRef.current?.api) return;
 
     // Clear existing timeout
     if (savePreferencesTimeoutRef.current) {
@@ -66,14 +72,16 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     savePreferencesTimeoutRef.current = setTimeout(async () => {
       try {
         const columnState = gridRef.current?.api.getColumnState();
-        if (columnState) {
+        if (columnState && columnState.length > 0) {
+          console.log('[BuildingsList] Saving column state:', columnState);
           await api.userPreferences.set(USER_ID, PREFERENCE_KEY, columnState);
+          console.log('[BuildingsList] Column state saved successfully');
         }
       } catch (err) {
-        console.error('Failed to save column state:', err);
+        console.error('[BuildingsList] Failed to save column state:', err);
       }
     }, 500);
-  }, [columnStateLoaded]);
+  }, []);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -851,6 +859,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                     setTimeout(() => {
                       params.api.sizeColumnsToFit();
                     }, 100);
+                  }
+                } else {
+                  // If state was already loaded, ensure columns are visible
+                  const firstCol = params.api.getAllDisplayedColumns()[0];
+                  if (firstCol) {
+                    params.api.ensureColumnVisible(firstCol);
                   }
                 }
 

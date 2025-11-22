@@ -303,7 +303,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       colId: 'actions',
       headerName: t('actions'),
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
@@ -798,7 +798,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                         const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                         if (actionsCol) {
                           gridRef.current.api.applyColumnState({
-                            state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                            state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
                             applyOrder: true
                           });
                         }

@@ -887,7 +887,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                           const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                           if (actionsCol) {
                             gridRef.current.api.applyColumnState({
-                              state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                              state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
                               applyOrder: true
                             });
                           }

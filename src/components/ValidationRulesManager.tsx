@@ -151,7 +151,7 @@ export function ValidationRulesManager() {
     {
       colId: 'actions',
       headerName: t('actions'),
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
@@ -598,7 +598,7 @@ export function ValidationRulesManager() {
                           const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                           if (actionsCol) {
                             gridRef.current.api.applyColumnState({
-                              state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                              state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
                               applyOrder: true
                             });
                           }

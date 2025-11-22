@@ -309,6 +309,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       suppressMovable: true,
       suppressSizeToFit: true,
       suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
@@ -760,6 +763,24 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
+                // Ensure actions column is always pinned and in correct position
+                setTimeout(() => {
+                  const columnState = params.api.getColumnState();
+                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                  if (actionsCol) {
+                    params.api.applyColumnState({
+                      state: [{
+                        ...actionsCol,
+                        colId: 'actions',
+                        pinned: 'right',
+                        lockPosition: true,
+                        lockPinned: true
+                      }],
+                      defaultState: { pinned: null }
+                    });
+                  }
+                }, 10);
+                
                 // Load saved column state first
                 const hasSavedState = await loadColumnState();
                 
@@ -773,6 +794,24 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                     params.api.sizeColumnsToFit();
                   }, 100);
                 }
+
+                // Ensure actions column stays pinned after any operations
+                setTimeout(() => {
+                  const columnState = params.api.getColumnState();
+                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                  if (actionsCol && actionsCol.pinned !== 'right') {
+                    params.api.applyColumnState({
+                      state: [{
+                        ...actionsCol,
+                        colId: 'actions',
+                        pinned: 'right',
+                        lockPosition: true,
+                        lockPinned: true
+                      }],
+                      defaultState: { pinned: null }
+                    });
+                  }
+                }, 150);
 
                 // Scroll to left on grid ready
                 setTimeout(() => {

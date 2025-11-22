@@ -62,7 +62,7 @@ export function useGridPreferences(
           (!col.headerName || typeof col.headerName !== 'string' || !col.headerName.toLowerCase().includes('action'))
         );
         
-        // Apply all columns with order, but ensure actions is first (pinned right for RTL = visual left)
+        // Apply all columns with order, but ensure actions is first (pinned right for RTL = near sidebar)
         const orderedColumns = actionsColumn 
           ? [{
               ...actionsColumn,
@@ -72,7 +72,10 @@ export function useGridPreferences(
               lockPinned: true,
               suppressMovable: true,
               suppressSizeToFit: true,
-              suppressMenu: true
+              suppressMenu: true,
+              suppressHeaderMenuButton: true,
+              sortable: false,
+              filter: false
             }, ...otherColumns]
           : otherColumns;
         
@@ -80,6 +83,26 @@ export function useGridPreferences(
           state: orderedColumns,
           applyOrder: true  // This ensures column positions are restored
         });
+        
+        // Force actions column to be pinned and locked after applying state
+        setTimeout(() => {
+          if (gridRef.current?.api) {
+            const columnState = gridRef.current.api.getColumnState();
+            const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+            if (actionsCol && actionsCol.pinned !== 'right') {
+              gridRef.current.api.applyColumnState({
+                state: [{
+                  ...actionsCol,
+                  colId: 'actions',
+                  pinned: 'right',
+                  lockPosition: true,
+                  lockPinned: true
+                }],
+                defaultState: { pinned: null }
+              });
+            }
+          }
+        }, 50);
         
         // Also apply sort model if available (for redundancy and explicit control)
         if (sortModel && sortModel.length > 0) {

@@ -162,6 +162,9 @@ export function AssetTypes() {
       suppressMovable: true,
       suppressSizeToFit: true,
       suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
         return (

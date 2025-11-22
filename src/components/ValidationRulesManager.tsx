@@ -157,6 +157,9 @@ export function ValidationRulesManager() {
       suppressMovable: true,
       suppressSizeToFit: true,
       suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
       cellRenderer: (params: any) => {
         if (!params.data) return null;
         const rule = params.data as ValidationRule;

@@ -650,6 +650,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       suppressMovable: true,
       suppressSizeToFit: true,
       suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;

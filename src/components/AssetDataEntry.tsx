@@ -859,6 +859,9 @@ export function AssetDataEntry() {
       suppressMovable: true,
       suppressSizeToFit: true,
       suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
       resizable: false,
       cellRenderer: (params: any) => {
         const row = params.data as AssetRow;

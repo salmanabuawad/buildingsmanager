@@ -132,6 +132,9 @@ export function AdminPDFManager() {
       suppressMovable: true,
       suppressSizeToFit: true,
       suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
       cellRenderer: ActionsCellRenderer
     },
     {

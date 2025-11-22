@@ -16,6 +16,8 @@ export function AssetTypeFieldsManager() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const gridRef = useRef<AgGridReact<AssetTypeField>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_type_fields_column_state');
+  const [dirtyFields, setDirtyFields] = useState<Map<string, Partial<AssetTypeField>>>(new Map());
+  const [originalFields, setOriginalFields] = useState<AssetTypeField[]>([]);
 
   const [formData, setFormData] = useState({
     field_name: '',
@@ -28,11 +30,22 @@ export function AssetTypeFieldsManager() {
     fetchFields();
   }, []);
 
+  useEffect(() => {
+    // Refresh grid when dirtyFields changes to show updated checkboxes
+    if (gridRef.current?.api && dirtyFields.size > 0) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
+  }, [dirtyFields]);
+
   async function fetchFields(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
       const data = await api.assetTypeFields.getAll();
       setFields(data);
+      // Store original data only if dirtyFields is empty (initial load or after save)
+      if (dirtyFields.size === 0) {
+        setOriginalFields(JSON.parse(JSON.stringify(data)));
+      }
       if (data.length === 0) {
         console.warn('No asset type fields found. The table might be empty or not exist yet.');
       }
@@ -121,6 +134,73 @@ export function AssetTypeFieldsManager() {
     }
   }
 
+  const onCellValueChanged = useCallback(async (event: any) => {
+    const { data, colDef } = event;
+    const field = colDef.field;
+    const fieldId = data.id;
+    const newValue = event.newValue;
+
+    // Update local state first
+    setFields(prevFields => {
+      return prevFields.map(f =>
+        f.id === fieldId ? { ...f, [field]: newValue } : f
+      );
+    });
+
+    // Update the dirty tracking
+    setDirtyFields(prev => {
+      const next = new Map(prev);
+      const existingChanges = next.get(fieldId) || {};
+      next.set(fieldId, { ...existingChanges, [field]: newValue });
+      return next;
+    });
+
+    // Refresh grid to show updated state
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+    }
+  }, []);
+
+  const handleSaveAll = async () => {
+    if (dirtyFields.size === 0) {
+      showMessage('error', 'אין שינויים לשמור');
+      return;
+    }
+
+    const count = dirtyFields.size;
+    setLoading(true);
+    try {
+      for (const [fieldId, changes] of dirtyFields.entries()) {
+        await api.assetTypeFields.update(fieldId, changes);
+      }
+
+      setDirtyFields(new Map());
+      await fetchFields(false);
+      showMessage('success', `נשמרו ${count} שדות בהצלחה`);
+    } catch (error: any) {
+      console.error('Error saving fields:', error);
+      showMessage('error', error?.message || 'שגיאה בשמירת השדות');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelAll = () => {
+    if (dirtyFields.size === 0) {
+      return;
+    }
+
+    // Restore original data
+    setFields(JSON.parse(JSON.stringify(originalFields)));
+    setDirtyFields(new Map());
+    showMessage('success', 'בוטלו כל השינויים');
+    
+    // Refresh grid
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
+  };
+
   const columnDefs: ColDef<AssetTypeField>[] = useMemo(() => [
     {
       colId: 'actions',
@@ -134,18 +214,11 @@ export function AssetTypeFieldsManager() {
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      width: 120,
+      width: 80,
       cellRenderer: (params: any) => {
         const field = params.data as AssetTypeField;
         return (
           <div className="flex items-center justify-center gap-1 h-full">
-            <button
-              onClick={() => startEdit(field)}
-              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-              title="ערוך"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
             <button
               onClick={() => handleDelete(field.id)}
               className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -166,17 +239,24 @@ export function AssetTypeFieldsManager() {
     {
       field: 'is_asset_level',
       headerName: 'רמת נכס',
-      editable: false,
+      editable: true,
       width: 120,
       cellRenderer: (params: any) => {
+        const fieldId = params.data?.id;
+        const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_asset_level');
+        const currentValue = isDirty ? dirtyFields.get(fieldId)?.is_asset_level : params.value;
+        
         return (
-          <input
-            type="checkbox"
-            checked={params.value || false}
-            disabled
-            className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-default"
-            readOnly
-          />
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue || false}
+              onChange={(e) => {
+                params.setValue(e.target.checked);
+              }}
+              className={`w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-pointer ${isDirty ? 'ring-2 ring-teal-500' : ''}`}
+            />
+          </div>
         );
       },
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
@@ -184,17 +264,24 @@ export function AssetTypeFieldsManager() {
     {
       field: 'is_building_level',
       headerName: 'רמת בניין',
-      editable: false,
+      editable: true,
       width: 120,
       cellRenderer: (params: any) => {
+        const fieldId = params.data?.id;
+        const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_building_level');
+        const currentValue = isDirty ? dirtyFields.get(fieldId)?.is_building_level : params.value;
+        
         return (
-          <input
-            type="checkbox"
-            checked={params.value || false}
-            disabled
-            className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-default"
-            readOnly
-          />
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue || false}
+              onChange={(e) => {
+                params.setValue(e.target.checked);
+              }}
+              className={`w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-pointer ${isDirty ? 'ring-2 ring-teal-500' : ''}`}
+            />
+          </div>
         );
       },
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
@@ -202,22 +289,29 @@ export function AssetTypeFieldsManager() {
     {
       field: 'is_asset_type_validation',
       headerName: 'תקינות סוג נכס',
-      editable: false,
+      editable: true,
       width: 150,
       cellRenderer: (params: any) => {
+        const fieldId = params.data?.id;
+        const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_asset_type_validation');
+        const currentValue = isDirty ? dirtyFields.get(fieldId)?.is_asset_type_validation : params.value;
+        
         return (
-          <input
-            type="checkbox"
-            checked={params.value || false}
-            disabled
-            className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-default"
-            readOnly
-          />
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue || false}
+              onChange={(e) => {
+                params.setValue(e.target.checked);
+              }}
+              className={`w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-pointer ${isDirty ? 'ring-2 ring-teal-500' : ''}`}
+            />
+          </div>
         );
       },
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
-  ], [t]);
+  ], [t, dirtyFields]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
     resizable: true,
@@ -255,15 +349,43 @@ export function AssetTypeFieldsManager() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-lg font-semibold text-slate-800">רשימת שדות</h2>
-          <button
-            onClick={startAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            הוסף שדה
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={startAdd}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              הוסף שדה
+            </button>
+            {dirtyFields.size > 0 && (
+              <>
+                <button
+                  onClick={handleCancelAll}
+                  disabled={loading || dirtyFields.size === 0}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  <X className="h-4 w-4" />
+                  ביטול
+                </button>
+                <button
+                  onClick={handleSaveAll}
+                  disabled={loading || dirtyFields.size === 0}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  {loading ? (
+                    <span>שומר...</span>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>שמור הכל{dirtyFields.size > 0 ? ` (${dirtyFields.size})` : ''}</span>
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {isAdding && (
@@ -422,6 +544,7 @@ export function AssetTypeFieldsManager() {
               saveColumnState();
             }}
             onSortChanged={saveColumnState}
+            onCellValueChanged={onCellValueChanged}
             pagination={true}
             paginationPageSize={20}
             paginationPageSizeSelector={[10, 20, 50, 100]}

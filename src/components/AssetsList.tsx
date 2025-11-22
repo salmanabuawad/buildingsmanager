@@ -66,22 +66,42 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       // Filter assets by tax region if taxZone is provided
       let filteredAssets = assetsData || [];
       if (taxZone) {
-        // Create a map of asset type name to tax region for quick lookup
-        const assetTypeTaxRegionMap = new Map<string, number>();
-        for (const assetType of assetTypesData || []) {
-          if (assetType.name && assetType.tax_region != null) {
-            assetTypeTaxRegionMap.set(assetType.name, assetType.tax_region);
-          }
-        }
+        const taxZoneNum = parseInt(taxZone.trim());
+        const taxZoneStr = taxZone.trim();
         
-        // Filter assets by tax region derived from their main_asset_type
-        filteredAssets = (assetsData || []).filter(asset => {
-          if (!asset.main_asset_type) return false;
-          const assetTaxRegion = assetTypeTaxRegionMap.get(asset.main_asset_type);
-          if (assetTaxRegion == null) return false;
-          // Check if asset's tax region matches the requested taxZone
-          return String(assetTaxRegion) === taxZone;
+        // First, get all asset types that belong to this tax region
+        const assetTypesInTaxZone = (assetTypesData || []).filter(at => {
+          if (!at.name || at.tax_region == null) return false;
+          return at.tax_region === taxZoneNum || String(at.tax_region) === taxZoneStr;
         });
+        
+        // Create a set of asset type names that are valid for this tax region
+        const validAssetTypeNames = new Set(assetTypesInTaxZone.map(at => at.name));
+        
+        console.log('[AssetsList] Filtering by taxZone:', taxZone);
+        console.log('[AssetsList] Asset types in tax zone:', assetTypesInTaxZone.length);
+        console.log('[AssetsList] Valid asset type names:', Array.from(validAssetTypeNames).slice(0, 10));
+        console.log('[AssetsList] Total assets before filtering:', (assetsData || []).length);
+        
+        // Filter assets by checking if their main_asset_type is in the valid asset types for this tax region
+        filteredAssets = (assetsData || []).filter(asset => {
+          if (!asset.main_asset_type) {
+            return false;
+          }
+          
+          const isValid = validAssetTypeNames.has(asset.main_asset_type);
+          
+          if (!isValid) {
+            console.log('[AssetsList] Asset type', asset.main_asset_type, 'not found in tax zone', taxZone, 'for asset:', asset.asset_id);
+          }
+          
+          return isValid;
+        });
+        
+        console.log('[AssetsList] Total assets after filtering:', filteredAssets.length);
+        if (filteredAssets.length > 0) {
+          console.log('[AssetsList] Sample filtered assets (first 3):', filteredAssets.slice(0, 3).map(a => ({ id: a.asset_id, type: a.main_asset_type })));
+        }
       }
       
       setAssets(filteredAssets);

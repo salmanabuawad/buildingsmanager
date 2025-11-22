@@ -150,7 +150,7 @@ export function ValidationRulesManager() {
   const columnDefs: ColDef[] = useMemo(() => [
     {
       headerName: t('actions'),
-      pinned: 'right',
+      pinned: 'left',
       lockPosition: true,
       suppressMovable: true,
       cellRenderer: (params: any) => {

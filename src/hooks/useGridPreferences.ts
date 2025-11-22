@@ -51,7 +51,7 @@ export function useGridPreferences(
           console.log(`[${preferenceKey}] Found saved sort model:`, sortModel);
         }
         
-        // Ensure actions column (if exists) is last and pinned right
+        // Ensure actions column (if exists) is first and pinned left
         // Filter out actions column from the state, we'll apply it separately
         const actionsColumn = columnState.find((col: any) => 
           col.colId === 'actions' || 
@@ -62,14 +62,14 @@ export function useGridPreferences(
           (!col.headerName || typeof col.headerName !== 'string' || !col.headerName.toLowerCase().includes('action'))
         );
         
-        // Apply all columns with order, but ensure actions is last
+        // Apply all columns with order, but ensure actions is first
         const orderedColumns = actionsColumn 
-          ? [...otherColumns, {
+          ? [{
               ...actionsColumn,
-              pinned: 'right',
+              pinned: 'left',
               lockPosition: true,
               suppressMovable: true
-            }]
+            }, ...otherColumns]
           : otherColumns;
         
         gridRef.current.api.applyColumnState({

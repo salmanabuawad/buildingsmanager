@@ -30,7 +30,7 @@ export function AssetTypes() {
     townhouses: '',
     min_size: '',
     max_size: '',
-    shelter: '',
+    basement: '',
   });
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '', shelter: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '', basement: '' });
     setIsAdding(false);
   }
 
@@ -90,7 +90,7 @@ export function AssetTypes() {
         townhouses: formData.townhouses || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
-        shelter: formData.shelter || undefined,
+        basement: formData.basement || undefined,
       };
 
       await api.assetTypes.create(dataToSave);
@@ -186,7 +186,7 @@ export function AssetTypes() {
     },
     {
       field: 'description',
-      headerName: t('typeDescription'),
+      headerName: 'תיאור',
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -194,7 +194,7 @@ export function AssetTypes() {
     },
     {
       field: 'tax_region',
-      headerName: t('taxRegion'),
+      headerName: 'אזור מיסים',
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -232,7 +232,7 @@ export function AssetTypes() {
     },
     {
       field: 'single_double_family',
-      headerName: 'בית פרטי',
+      headerName: 'בית פרטי חד משפחתי דו משפחתי',
       editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
@@ -322,7 +322,7 @@ export function AssetTypes() {
     },
     {
       field: 'townhouses',
-      headerName: 'טוריים',
+      headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
@@ -352,7 +352,7 @@ export function AssetTypes() {
     },
     {
       field: 'min_size',
-      headerName: t('minAssetSize'),
+      headerName: 'שטח מ',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'left' },
@@ -360,15 +360,15 @@ export function AssetTypes() {
     },
     {
       field: 'max_size',
-      headerName: t('maxAssetSize'),
+      headerName: 'שטח עד',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: { textAlign: 'left' },
       headerClass: 'text-left'
     },
     {
-      field: 'shelter',
-      headerName: t('shelter'),
+      field: 'basement',
+      headerName: 'מרתף',
       editable: true,
       valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
@@ -535,19 +535,19 @@ export function AssetTypes() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('typeDescription')}
+                  תיאור
                 </label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder={t('typeDescription')}
+                  placeholder="תיאור"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('taxRegion')}
+                  אזור מיסים
                 </label>
                 <input
                   type="number"
@@ -555,38 +555,82 @@ export function AssetTypes() {
                   value={formData.tax_region}
                   onChange={(e) => setFormData({ ...formData, tax_region: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="0"
+                  placeholder="10"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('sharedArea')}
+                  מעלית
                 </label>
                 <select
-                  value={formData.shared_area_yn}
-                  onChange={(e) => setFormData({ ...formData, shared_area_yn: e.target.value })}
+                  value={formData.elevator || ''}
+                  onChange={(e) => setFormData({ ...formData, elevator: e.target.value || undefined })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
-                  <option value="">לא</option>
-                  <option value="א">כן</option>
+                  <option value="">--</option>
+                  <option value="כן">כן</option>
+                  <option value="לא">לא</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('elevator')}
+                  בית פרטי חד משפחתי דו משפחתי
                 </label>
                 <select
-                  value={formData.has_elevator}
-                  onChange={(e) => setFormData({ ...formData, has_elevator: e.target.value })}
+                  value={formData.single_double_family || ''}
+                  onChange={(e) => setFormData({ ...formData, single_double_family: e.target.value || undefined })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
-                  <option value="">לא</option>
-                  <option value="א">כן</option>
+                  <option value="">--</option>
+                  <option value="כן">כן</option>
+                  <option value="לא">לא</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('minAssetSize')}
+                  דירת גג
+                </label>
+                <select
+                  value={formData.penthouse || ''}
+                  onChange={(e) => setFormData({ ...formData, penthouse: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="">--</option>
+                  <option value="כן">כן</option>
+                  <option value="לא">לא</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  בית משותף
+                </label>
+                <select
+                  value={formData.condo || ''}
+                  onChange={(e) => setFormData({ ...formData, condo: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="">--</option>
+                  <option value="כן">כן</option>
+                  <option value="לא">לא</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  בניינים צמודי קרקע טוריים מעל 2 יחידות
+                </label>
+                <select
+                  value={formData.townhouses || ''}
+                  onChange={(e) => setFormData({ ...formData, townhouses: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="">--</option>
+                  <option value="כן">כן</option>
+                  <option value="לא">לא</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  שטח מ
                 </label>
                 <input
                   type="number"
@@ -599,7 +643,7 @@ export function AssetTypes() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('maxAssetSize')}
+                  שטח עד
                 </label>
                 <input
                   type="number"
@@ -609,6 +653,20 @@ export function AssetTypes() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="0"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  מרתף
+                </label>
+                <select
+                  value={formData.basement || ''}
+                  onChange={(e) => setFormData({ ...formData, basement: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="">--</option>
+                  <option value="כן">כן</option>
+                  <option value="לא">לא</option>
+                </select>
               </div>
             </div>
             <div className="flex gap-2">

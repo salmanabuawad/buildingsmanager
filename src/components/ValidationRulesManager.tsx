@@ -149,10 +149,14 @@ export function ValidationRulesManager() {
 
   const columnDefs: ColDef[] = useMemo(() => [
     {
+      colId: 'actions',
       headerName: t('actions'),
       pinned: 'left',
       lockPosition: true,
+      lockPinned: true,
       suppressMovable: true,
+      suppressSizeToFit: true,
+      suppressMenu: true,
       cellRenderer: (params: any) => {
         if (!params.data) return null;
         const rule = params.data as ValidationRule;
@@ -580,7 +584,31 @@ export function ValidationRulesManager() {
                   }, 200);
                 }}
                 onColumnResized={saveColumnState}
-                onColumnMoved={saveColumnState}
+                onColumnMoved={(params) => {
+                  // Prevent actions column from being moved - force it back to first position
+                  const actionsColumn = params.columnApi.getColumn('actions');
+                  if (actionsColumn) {
+                    const allColumns = params.columnApi.getAllColumns() || [];
+                    const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
+                    if (actionsIndex !== 0) {
+                      setTimeout(() => {
+                        if (gridRef.current?.api) {
+                          const columnState = gridRef.current.api.getColumnState();
+                          const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                          const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                          if (actionsCol) {
+                            gridRef.current.api.applyColumnState({
+                              state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                              applyOrder: true
+                            });
+                          }
+                        }
+                      }, 0);
+                      return;
+                    }
+                  }
+                  saveColumnState();
+                }}
                 onSortChanged={saveColumnState}
                 pagination={true}
                 paginationPageSize={20}

@@ -300,11 +300,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
+      colId: 'actions',
       headerName: t('actions'),
       editable: false,
       pinned: 'left',
       lockPosition: true,
+      lockPinned: true,
       suppressMovable: true,
+      suppressSizeToFit: true,
+      suppressMenu: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
@@ -779,7 +783,32 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 }, 200);
               }}
               onColumnResized={saveColumnState}
-              onColumnMoved={saveColumnState}
+              onColumnMoved={(params) => {
+                // Prevent actions column from being moved - force it back to first position
+                const actionsColumn = params.columnApi.getColumn('actions');
+                if (actionsColumn) {
+                  const allColumns = params.columnApi.getAllColumns() || [];
+                  const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
+                  if (actionsIndex !== 0) {
+                    // Actions column was moved, force it back to first position
+                    setTimeout(() => {
+                      if (gridRef.current?.api) {
+                        const columnState = gridRef.current.api.getColumnState();
+                        const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                        const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                        if (actionsCol) {
+                          gridRef.current.api.applyColumnState({
+                            state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                            applyOrder: true
+                          });
+                        }
+                      }
+                    }, 0);
+                    return;
+                  }
+                }
+                saveColumnState();
+              }}
               onSortChanged={saveColumnState}
               onFirstDataRendered={async (params) => {
                 // Load saved column state if not already loaded

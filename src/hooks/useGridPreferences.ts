@@ -62,13 +62,17 @@ export function useGridPreferences(
           (!col.headerName || typeof col.headerName !== 'string' || !col.headerName.toLowerCase().includes('action'))
         );
         
-        // Apply all columns with order, but ensure actions is first
+        // Apply all columns with order, but ensure actions is first and locked
         const orderedColumns = actionsColumn 
           ? [{
               ...actionsColumn,
+              colId: 'actions',
               pinned: 'left',
               lockPosition: true,
-              suppressMovable: true
+              lockPinned: true,
+              suppressMovable: true,
+              suppressSizeToFit: true,
+              suppressMenu: true
             }, ...otherColumns]
           : otherColumns;
         

@@ -383,7 +383,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       field: 'tax_region',
       headerName: t('taxRegion'),
-      editable: false,
+      editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);

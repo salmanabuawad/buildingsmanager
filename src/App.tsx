@@ -9,8 +9,9 @@ import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
 import { CSVImport } from './components/CSVImport';
 import { AssetsCSVImport } from './components/AssetsCSVImport';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from './lib/api';
+import { assetValidators, validateEntity } from './lib/validation';
 
 interface Tab {
   id: string;
@@ -34,6 +35,14 @@ function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [showDeletePreferencesConfirm, setShowDeletePreferencesConfirm] = useState(false);
   const [deletePreferencesLoading, setDeletePreferencesLoading] = useState(false);
+  const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
+  const [batchValidationLoading, setBatchValidationLoading] = useState(false);
+  const [batchValidationResults, setBatchValidationResults] = useState<{
+    total: number;
+    valid: number;
+    invalid: number;
+    errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
+  } | null>(null);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
@@ -263,6 +272,174 @@ function App() {
     }
   }
 
+  async function handleBatchValidateAllAssets() {
+    setShowBatchValidationModal(true);
+    setBatchValidationLoading(true);
+    setBatchValidationResults(null);
+
+    try {
+      // Get all assets from the system
+      const allAssets = await api.assets.getAll();
+      console.log(`[Batch Validation] Found ${allAssets.length} assets to validate`);
+
+      const results = {
+        total: allAssets.length,
+        valid: 0,
+        invalid: 0,
+        errors: [] as Array<{ assetId: string; buildingNumber: number; errors: string[] }>
+      };
+
+      // Validate each asset
+      for (const asset of allAssets) {
+        const assetErrors: string[] = [];
+
+        // Validate all fields using validateEntity
+        const fieldValidations = await validateEntity('asset', asset);
+        for (const [fieldName, validationResults] of Object.entries(fieldValidations)) {
+          const invalidResults = validationResults.filter(r => !r.valid);
+          if (invalidResults.length > 0) {
+            invalidResults.forEach(r => {
+              if (r.error) assetErrors.push(`${fieldName}: ${r.error}`);
+            });
+          }
+        }
+
+        // Validate asset-specific rules
+        const validations = [
+          assetValidators.validateBuildingNumber(asset.building_number),
+          assetValidators.validateAssetId(String(asset.asset_id)),
+          assetValidators.validatePayerId(asset.payer_id),
+          assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
+          assetValidators.validateMainAssetTypeForBuilding(asset.building_number, asset.main_asset_type),
+          assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size),
+          assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ]),
+          assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ]),
+          assetValidators.validateSubAssetSizeMatchesMain(
+            asset.asset_size,
+            [
+              asset.sub_asset_type_1,
+              asset.sub_asset_type_2,
+              asset.sub_asset_type_3,
+              asset.sub_asset_type_4,
+              asset.sub_asset_type_5,
+              asset.sub_asset_type_6
+            ],
+            [
+              asset.sub_asset_size_1,
+              asset.sub_asset_size_2,
+              asset.sub_asset_size_3,
+              asset.sub_asset_size_4,
+              asset.sub_asset_size_5,
+              asset.sub_asset_size_6
+            ]
+          ),
+          assetValidators.validateSubAssetsFor199Or299(
+            asset.building_number,
+            asset.main_asset_type,
+            asset.asset_size,
+            [
+              asset.sub_asset_type_1,
+              asset.sub_asset_type_2,
+              asset.sub_asset_type_3,
+              asset.sub_asset_type_4,
+              asset.sub_asset_type_5,
+              asset.sub_asset_type_6
+            ],
+            [
+              asset.sub_asset_size_1,
+              asset.sub_asset_size_2,
+              asset.sub_asset_size_3,
+              asset.sub_asset_size_4,
+              asset.sub_asset_size_5,
+              asset.sub_asset_size_6
+            ]
+          )
+        ];
+
+        // Run all validations
+        for (const validation of validations) {
+          const result = await validation;
+          if (!result.valid && result.error) {
+            assetErrors.push(result.error);
+          }
+        }
+
+        // Validate sub asset types individually
+        const subAssetTypes = [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ];
+        const subAssetSizes = [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ];
+
+        for (let i = 0; i < subAssetTypes.length; i++) {
+          if (subAssetTypes[i]) {
+            const subValidation = await assetValidators.validateSubAssetTypeComplete(
+              asset.building_number,
+              subAssetTypes[i],
+              subAssetSizes[i]
+            );
+            if (!subValidation.valid && subValidation.error) {
+              assetErrors.push(`נכס משנה ${i + 1}: ${subValidation.error}`);
+            }
+          }
+        }
+
+        if (assetErrors.length > 0) {
+          results.invalid++;
+          results.errors.push({
+            assetId: String(asset.asset_id),
+            buildingNumber: asset.building_number,
+            errors: assetErrors
+          });
+        } else {
+          results.valid++;
+        }
+      }
+
+      setBatchValidationResults(results);
+      console.log(`[Batch Validation] Completed: ${results.valid} valid, ${results.invalid} invalid out of ${results.total} total`);
+    } catch (error) {
+      console.error('Error during batch validation:', error);
+      setBatchValidationResults({
+        total: 0,
+        valid: 0,
+        invalid: 0,
+        errors: [{
+          assetId: 'N/A',
+          buildingNumber: 0,
+          errors: [`שגיאה בביצוע אימות: ${error instanceof Error ? error.message : 'Unknown error'}`]
+        }]
+      });
+    } finally {
+      setBatchValidationLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
       <div className="w-48 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
@@ -394,6 +571,13 @@ function App() {
                 >
                   <span className="font-medium text-red-700">מחק כל העדפות משתמש</span>
                   <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                </button>
+                <button
+                  onClick={handleBatchValidateAllAssets}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-blue-50/50 hover:bg-blue-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-blue-700">אמת את כל הנכסים</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                 </button>
               </div>
             )}
@@ -541,6 +725,90 @@ function App() {
                     <span>מחק הכל</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBatchValidationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">אימות כל הנכסים במערכת</h3>
+              <button
+                onClick={() => setShowBatchValidationModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {batchValidationLoading ? (
+              <div className="flex-1 flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                  <p className="text-slate-600">מאמת את כל הנכסים במערכת...</p>
+                </div>
+              </div>
+            ) : batchValidationResults ? (
+              <div className="flex-1 overflow-y-auto">
+                <div className="mb-6 grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-700">{batchValidationResults.total}</div>
+                    <div className="text-sm text-blue-600 mt-1">סה"כ נכסים</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-700">{batchValidationResults.valid}</div>
+                    <div className="text-sm text-green-600 mt-1">תקינים</div>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-red-700">{batchValidationResults.invalid}</div>
+                    <div className="text-sm text-red-600 mt-1">לא תקינים</div>
+                  </div>
+                </div>
+
+                {batchValidationResults.errors.length > 0 ? (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-slate-700 mb-3">נכסים עם שגיאות:</h4>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {batchValidationResults.errors.map((error, idx) => (
+                        <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex items-start gap-2 mb-2">
+                            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <div className="font-semibold text-red-900">
+                                נכס {error.assetId} (בניין {error.buildingNumber})
+                              </div>
+                              <ul className="mt-2 space-y-1">
+                                {error.errors.map((err, errIdx) => (
+                                  <li key={errIdx} className="text-sm text-red-700 flex items-start gap-2">
+                                    <span className="text-red-500">•</span>
+                                    <span>{err}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                    <p className="text-lg font-semibold text-green-700">כל הנכסים תקינים!</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+              <button
+                onClick={() => setShowBatchValidationModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                סגור
               </button>
             </div>
           </div>

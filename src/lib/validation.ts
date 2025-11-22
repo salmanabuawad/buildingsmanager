@@ -555,7 +555,7 @@ export async function validateSubAssetSizeMatchesMain(
   if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
     return {
       valid: false,
-      error: `סה"כ גודל נכסי משנה (${totalSubAssetSize}) חייב להיות שווה לגודל נכס ראשי (${mainAssetSize})`
+      error: `סה"כ גודל נכסי משנה חייב להיות שווה לגודל נכס ראשי`
     };
   }
 
@@ -727,7 +727,7 @@ export async function validateSubAssetsFor199Or299(
     if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
       return {
         valid: false,
-        error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, סכום שטחי המשנה (${totalSubAssetSize}) חייב להיות שווה לשטח הראשי (${mainAssetSize})`
+        error: `כאשר סוג הנכס הראשי הוא ${mainAssetType}, סכום שטחי המשנה חייב להיות שווה לשטח הראשי`
       };
     }
   }

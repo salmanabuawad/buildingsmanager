@@ -328,9 +328,6 @@ export async function validateAssetTypeComplete(
     }
 
     // Query asset types by name field, filtering by building's tax region
-    const buildingTaxRegions = building.tax_region != null
-      ? String(building.tax_region).split(',').map(r => r.trim())
-      : [];
 
     let query = supabase
       .from('asset_types')

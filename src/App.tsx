@@ -32,7 +32,7 @@ function App() {
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
-  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(true);
   const [showDeletePreferencesConfirm, setShowDeletePreferencesConfirm] = useState(false);
   const [deletePreferencesLoading, setDeletePreferencesLoading] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);

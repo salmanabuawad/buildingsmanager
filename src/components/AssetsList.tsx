@@ -69,33 +69,37 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const taxZoneNum = parseInt(taxZone.trim());
         const taxZoneStr = taxZone.trim();
         
-        // First, get all asset types that belong to this tax region
-        const assetTypesInTaxZone = (assetTypesData || []).filter(at => {
-          if (!at.name || at.tax_region == null) return false;
-          return at.tax_region === taxZoneNum || String(at.tax_region) === taxZoneStr;
-        });
-        
-        // Create a set of asset type names that are valid for this tax region
-        const validAssetTypeNames = new Set(assetTypesInTaxZone.map(at => at.name));
-        
         console.log('[AssetsList] Filtering by taxZone:', taxZone);
-        console.log('[AssetsList] Asset types in tax zone:', assetTypesInTaxZone.length);
-        console.log('[AssetsList] Valid asset type names:', Array.from(validAssetTypeNames).slice(0, 10));
+        console.log('[AssetsList] Total asset types loaded:', assetTypesData?.length || 0);
         console.log('[AssetsList] Total assets before filtering:', (assetsData || []).length);
         
-        // Filter assets by checking if their main_asset_type is in the valid asset types for this tax region
+        // For each asset, look up its asset type in the asset_types table and check if the tax_region matches
         filteredAssets = (assetsData || []).filter(asset => {
           if (!asset.main_asset_type) {
             return false;
           }
           
-          const isValid = validAssetTypeNames.has(asset.main_asset_type);
+          // Find the asset type in the asset_types table by name
+          const assetType = (assetTypesData || []).find(at => at.name === asset.main_asset_type);
           
-          if (!isValid) {
-            console.log('[AssetsList] Asset type', asset.main_asset_type, 'not found in tax zone', taxZone, 'for asset:', asset.asset_id);
+          if (!assetType) {
+            console.log('[AssetsList] Asset type not found in asset_types table:', asset.main_asset_type, 'for asset:', asset.asset_id);
+            return false;
           }
           
-          return isValid;
+          if (assetType.tax_region == null) {
+            console.log('[AssetsList] Asset type', asset.main_asset_type, 'has no tax_region for asset:', asset.asset_id);
+            return false;
+          }
+          
+          // Check if the asset type's tax_region matches the requested taxZone
+          const matches = assetType.tax_region === taxZoneNum || String(assetType.tax_region) === taxZoneStr;
+          
+          if (!matches) {
+            console.log('[AssetsList] Asset type', asset.main_asset_type, 'has tax_region', assetType.tax_region, 'which does not match taxZone', taxZone, 'for asset:', asset.asset_id);
+          }
+          
+          return matches;
         });
         
         console.log('[AssetsList] Total assets after filtering:', filteredAssets.length);

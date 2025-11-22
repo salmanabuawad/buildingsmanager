@@ -243,6 +243,21 @@ export async function validateAssetTypeForBuildingTaxRegion(
       return { valid: true };
     }
 
+    // Special validation for asset types 299 and 199
+    if (assetTypeName === '299') {
+      // Asset type 299 is only valid in tax region 40
+      const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+      if (!buildingTaxRegions.includes('40')) {
+        return { valid: false, error: 'סוג נכס 299 תקף רק בבניינים עם אזור מס 40' };
+      }
+    } else if (assetTypeName === '199') {
+      // Asset type 199 is only valid in tax regions other than 40
+      const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+      if (buildingTaxRegions.includes('40')) {
+        return { valid: false, error: 'סוג נכס 199 תקף רק בבניינים עם אזור מס שאינו 40' };
+      }
+    }
+
     const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
 
     let query = supabase
@@ -293,6 +308,25 @@ export async function validateAssetTypeComplete(
 
     if (!building) {
       return { valid: false, error: 'הבניין לא נמצא' };
+    }
+
+    // Special validation for asset types 299 and 199
+    if (assetTypeName === '299') {
+      // Asset type 299 is only valid in tax region 40
+      const buildingTaxRegions = building.tax_region != null
+        ? String(building.tax_region).split(',').map(r => r.trim())
+        : [];
+      if (!buildingTaxRegions.includes('40')) {
+        return { valid: false, error: 'סוג נכס 299 תקף רק בבניינים עם אזור מס 40' };
+      }
+    } else if (assetTypeName === '199') {
+      // Asset type 199 is only valid in tax regions other than 40
+      const buildingTaxRegions = building.tax_region != null
+        ? String(building.tax_region).split(',').map(r => r.trim())
+        : [];
+      if (buildingTaxRegions.includes('40')) {
+        return { valid: false, error: 'סוג נכס 199 תקף רק בבניינים עם אזור מס שאינו 40' };
+      }
     }
 
     // Query asset types by name field, filtering by building's tax region
@@ -452,11 +486,37 @@ export async function validateAssetTypeComplete(
   }
 }
 
+export async function validateSubAssetSizeRequiresType(
+  subAssetTypes: (string | undefined)[],
+  subAssetSizes: (number | undefined)[]
+): Promise<ValidationResult> {
+  // Validate that sub asset size cannot be filled without corresponding sub asset type
+  for (let i = 0; i < subAssetSizes.length; i++) {
+    const hasSize = subAssetSizes[i] != null && subAssetSizes[i] !== 0;
+    const hasType = subAssetTypes[i] && subAssetTypes[i]!.trim() !== '';
+
+    if (hasSize && !hasType) {
+      return {
+        valid: false,
+        error: `שטח נכס משנה ${i + 1} לא יכול להיות מוזן ללא סוג נכס משנה ${i + 1}`
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
 export async function validateSubAssetSizeMatchesMain(
   mainAssetSize: number | undefined,
   subAssetTypes: (string | undefined)[],
   subAssetSizes: (number | undefined)[]
 ): Promise<ValidationResult> {
+  // First validate that sizes are not filled without types
+  const sizeTypeValidation = await validateSubAssetSizeRequiresType(subAssetTypes, subAssetSizes);
+  if (!sizeTypeValidation.valid) {
+    return sizeTypeValidation;
+  }
+
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
   if (validSubAssets.length === 0) {
@@ -484,11 +544,54 @@ export async function validateSubAssetSizeMatchesMain(
   return { valid: true };
 }
 
+export async function validateSubAssetOrder(
+  subAssetTypes: (string | undefined)[]
+): Promise<ValidationResult> {
+  // Validate that sub asset types are filled in order without gaps
+  // You cannot have subtype 2 if subtype 1 is blank, etc.
+  let firstEmptyIndex = -1;
+  for (let i = 0; i < subAssetTypes.length; i++) {
+    const currentType = subAssetTypes[i];
+    const hasCurrentType = currentType && currentType.trim() !== '';
+
+    if (!hasCurrentType) {
+      // Found first empty slot
+      if (firstEmptyIndex === -1) {
+        firstEmptyIndex = i;
+      }
+    } else {
+      // Found a filled slot
+      if (firstEmptyIndex !== -1) {
+        // There's a gap - we found an empty slot before this filled one
+        return {
+          valid: false,
+          error: `נכסי משנה חייבים להיות מוזנים בסדר רציף ללא רווחים. נכס משנה ${firstEmptyIndex + 1} חסר אך נכס משנה ${i + 1} קיים`
+        };
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
 export async function validateMinimumSubAssets(
   subAssetTypes: (string | undefined)[]
 ): Promise<ValidationResult> {
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
+  // If there are no sub assets, validation passes
+  if (validSubAssets.length === 0) {
+    return { valid: true };
+  }
+
+  // Validate order first
+  const orderValidation = await validateSubAssetOrder(subAssetTypes);
+  if (!orderValidation.valid) {
+    return orderValidation;
+  }
+
+  // If there are sub assets, there must be at least 2
+  // Note: This assumes mainAssetType is 199 or 299 (validated by validateOnlyComplexTypesCanHaveSubAssets)
   if (validSubAssets.length === 1) {
     return {
       valid: false,
@@ -505,14 +608,16 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
 ): Promise<ValidationResult> {
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
+  // If there are no sub assets, validation passes
   if (validSubAssets.length === 0) {
     return { valid: true };
   }
 
+  // If there are sub assets, main asset type MUST be 199 or 299
   if (!mainAssetType || (mainAssetType !== '199' && mainAssetType !== '299')) {
     return {
       valid: false,
-      error: 'רק סוגי נכס 199 ו-299 יכולים לכלול נכסי משנה'
+      error: 'רק סוגי נכס 199 ו-299 יכולים לכלול נכסי משנה. נכסי משנה לא מותרים עבור סוגי נכס אחרים'
     };
   }
 
@@ -554,7 +659,23 @@ export async function validateSubAssetsFor199Or299(
     return { valid: true };
   }
 
+  // First validate that sizes are not filled without types
+  const sizeTypeValidation = await validateSubAssetSizeRequiresType(subAssetTypes, subAssetSizes);
+  if (!sizeTypeValidation.valid) {
+    return sizeTypeValidation;
+  }
+
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
+
+  // Check that no sub asset type is 199 or 299 (complex types cannot be sub types)
+  for (const subAssetType of validSubAssets) {
+    if (subAssetType === '199' || subAssetType === '299') {
+      return {
+        valid: false,
+        error: `סוג משנה לא יכול להיות סוג מורכב (199, 299). נכסי משנה חייבים להיות סוגי נכס פשוטים`
+      };
+    }
+  }
 
   if (validSubAssets.length < 2) {
     return {
@@ -563,21 +684,10 @@ export async function validateSubAssetsFor199Or299(
     };
   }
 
-  for (let i = 0; i < subAssetTypes.length; i++) {
-    const currentType = subAssetTypes[i];
-    const hasCurrentType = currentType && currentType.trim() !== '';
-
-    if (hasCurrentType && i > 0) {
-      const previousType = subAssetTypes[i - 1];
-      const hasPreviousType = previousType && previousType.trim() !== '';
-
-      if (!hasPreviousType) {
-        return {
-          valid: false,
-          error: `אין לדלג על סדר נכסי המשנה - נכס משנה ${i + 1} קיים אך נכס משנה ${i} חסר`
-        };
-      }
-    }
+  // Validate that sub asset types are filled in order without gaps
+  const orderValidation = await validateSubAssetOrder(subAssetTypes);
+  if (!orderValidation.valid) {
+    return orderValidation;
   }
 
   if (mainAssetSize != null && mainAssetSize > 0) {
@@ -774,10 +884,11 @@ export const assetValidators = {
       return { valid: true };
     }
 
+    // Sub asset types cannot be complex types (199 or 299)
     if (subAssetType === '199' || subAssetType === '299') {
       return {
         valid: false,
-        error: 'סוג משנה לא יכול להיות סוג מורכב (199, 299)'
+        error: 'סוג משנה לא יכול להיות סוג מורכב (199, 299). נכסי משנה חייבים להיות סוגי נכס פשוטים'
       };
     }
 
@@ -794,12 +905,25 @@ export const assetValidators = {
     return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes);
   },
 
+  validateSubAssetSizeRequiresType: async (
+    subAssetTypes: (string | undefined)[],
+    subAssetSizes: (number | undefined)[]
+  ): Promise<ValidationResult> => {
+    return await validateSubAssetSizeRequiresType(subAssetTypes, subAssetSizes);
+  },
+
   validateSubAssetSizeMatchesMain: async (
     mainAssetSize: number | undefined,
     subAssetTypes: (string | undefined)[],
     subAssetSizes: (number | undefined)[]
   ): Promise<ValidationResult> => {
     return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes);
+  },
+
+  validateSubAssetOrder: async (
+    subAssetTypes: (string | undefined)[]
+  ): Promise<ValidationResult> => {
+    return await validateSubAssetOrder(subAssetTypes);
   },
 
   validateMinimumSubAssets: async (

@@ -738,11 +738,21 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setLoading(true);
 
       const [assetData, assetTypesData] = await Promise.all([
-        api.assets.getOne(String(assetId)),
+        api.assets.getOne(String(assetId)).catch(err => {
+          console.error('Error fetching asset:', err);
+          if (err.message === 'Asset not found') {
+            return null;
+          }
+          throw err;
+        }),
         api.assetTypes.getAll()
       ]);
 
-      if (!assetData) throw new Error('Asset not found');
+      if (!assetData) {
+        setError('הנכס לא נמצא');
+        setLoading(false);
+        return;
+      }
 
       setAsset(assetData);
       setAssetTypes(assetTypesData || []);

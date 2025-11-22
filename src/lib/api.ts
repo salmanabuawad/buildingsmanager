@@ -364,7 +364,13 @@ export const api = {
         .eq('id', id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        // Handle PGRST116 error (0 rows) as "not found"
+        if (error.code === 'PGRST116') {
+          throw new Error('Asset not found');
+        }
+        throw error;
+      }
       if (!data) throw new Error('Asset not found');
       return data;
     },

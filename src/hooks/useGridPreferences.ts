@@ -91,15 +91,11 @@ export function useGridPreferences(
         setTimeout(() => {
           if (gridRef.current?.api) {
             const expectedPinnedSide = preferenceKey === 'asset_type_fields_column_state' ? 'left' : 'right';
-            
-            // First, ensure it's pinned correctly
-            gridRef.current.api.setColumnPinned('actions', expectedPinnedSide);
-            
-            // Then ensure it's in first position
             const columnState = gridRef.current.api.getColumnState();
             const actionsCol = columnState.find((col: any) => col.colId === 'actions');
             if (actionsCol) {
               const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+              // Ensure actions column is pinned correctly and in first position
               gridRef.current.api.applyColumnState({
                 state: [{
                   ...actionsCol,

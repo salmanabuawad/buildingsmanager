@@ -470,14 +470,11 @@ export function AssetTypeFieldsManager() {
               // Ensure actions column is always pinned and in correct position (first column near sidebar)
               setTimeout(() => {
                 if (params.api) {
-                  // First, ensure it's pinned to left
-                  params.api.setColumnPinned('actions', 'left');
-                  
-                  // Then ensure it's in the first position
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                   const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                   if (actionsCol) {
+                    // Ensure actions column is pinned to left and in first position
                     params.api.applyColumnState({
                       state: [{
                         ...actionsCol,
@@ -505,12 +502,7 @@ export function AssetTypeFieldsManager() {
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                   if (actionsCol) {
-                    // Check if pinned correctly
-                    if (actionsCol.pinned !== 'left') {
-                      params.api.setColumnPinned('actions', 'left');
-                    }
-                    
-                    // Ensure it's in first position
+                    // Ensure it's pinned correctly and in first position
                     const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                     params.api.applyColumnState({
                       state: [{
@@ -548,10 +540,7 @@ export function AssetTypeFieldsManager() {
                 if (actionsIndex !== 0 || !isPinnedLeft) {
                   setTimeout(() => {
                     if (gridRef.current?.api) {
-                      // Use setColumnPinned to ensure it's pinned correctly
-                      gridRef.current.api.setColumnPinned('actions', 'left');
-                      
-                      // Then apply column state to ensure it's first
+                      // Apply column state to ensure it's pinned correctly and in first position
                       const columnState = gridRef.current.api.getColumnState();
                       const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                       const otherCols = columnState.filter((col: any) => col.colId !== 'actions');

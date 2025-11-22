@@ -39,7 +39,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   const assetTaxRegion = useMemo(() => {
     if (!asset?.main_asset_type || assetTypes.length === 0) return null;
-    const assetType = assetTypes.find(at => String(at.code) === String(asset.main_asset_type));
+    const assetType = assetTypes.find(at => String(at.name) === String(asset.main_asset_type));
     return assetType?.tax_region || null;
   }, [asset?.main_asset_type, assetTypes]);
 
@@ -769,22 +769,28 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
       <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Home className="w-8 h-8 text-white bg-white/20 rounded-lg p-1.5" strokeWidth={1.5} />
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl sm:text-2xl font-bold text-white">
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <p className="text-xs sm:text-sm text-teal-50">
-                {t('building')} {building.building_number}
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-xs sm:text-sm text-teal-50">
+                  {t('building')} {building.building_number}
+                </p>
                 {assetTaxRegion && (
-                  <span>
-                    {' | '}
-                    אזור מיסים: {assetTaxRegion}
-                  </span>
+                  <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
+                    אזור מס: {assetTaxRegion}
+                  </p>
                 )}
-              </p>
+                {building.tax_region && !assetTaxRegion && (
+                  <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
+                    אזורי מס: {building.tax_region}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>

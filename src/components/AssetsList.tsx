@@ -61,10 +61,32 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         api.assetTypes.getAll()
       ]);
       setBuilding(buildingData);
-      setAssets(assetsData || []);
       setAssetTypes(assetTypesData || []);
+      
+      // Filter assets by tax region if taxZone is provided
+      let filteredAssets = assetsData || [];
+      if (taxZone) {
+        // Create a map of asset type name to tax region for quick lookup
+        const assetTypeTaxRegionMap = new Map<string, number>();
+        for (const assetType of assetTypesData || []) {
+          if (assetType.name && assetType.tax_region != null) {
+            assetTypeTaxRegionMap.set(assetType.name, assetType.tax_region);
+          }
+        }
+        
+        // Filter assets by tax region derived from their main_asset_type
+        filteredAssets = (assetsData || []).filter(asset => {
+          if (!asset.main_asset_type) return false;
+          const assetTaxRegion = assetTypeTaxRegionMap.get(asset.main_asset_type);
+          if (assetTaxRegion == null) return false;
+          // Check if asset's tax region matches the requested taxZone
+          return String(assetTaxRegion) === taxZone;
+        });
+      }
+      
+      setAssets(filteredAssets);
       const assetsByAssetId = new Map<string, Asset[]>();
-      for (const asset of assetsData || []) {
+      for (const asset of filteredAssets) {
         if (!assetsByAssetId.has(asset.asset_id)) {
           assetsByAssetId.set(asset.asset_id, []);
         }
@@ -87,7 +109,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       setMasterAssets(masterAssetsList);
       const invalidSet = new Set<string>();
       const numericRegex = /^[0-9]+$/;
-      for (const asset of assetsData || []) {
+      for (const asset of filteredAssets) {
         const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
         const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
         if (hasInvalidPayerId || hasInvalidAssetId) {
@@ -965,6 +987,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               <h1 className="text-lg sm:text-xl font-bold text-white">
                 {t('buildingNumber')} {building?.building_number}
               </h1>
+              {taxZone ? (
+                <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
+                  אזור מס: {taxZone}
+                </p>
+              ) : building?.tax_region ? (
+                <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
+                  אזורי מס: {building.tax_region}
+                </p>
+              ) : null}
               <div className="flex items-center gap-3">
                 <p className="text-xs text-teal-50">
                   <span className="font-semibold">{t('uniqueAssets')}:</span> {masterAssets.length}

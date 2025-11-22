@@ -49,7 +49,7 @@ function App() {
           type: 'assets',
           buildingNumber,
           taxZone: zones[0],
-          label: `בניין ${buildingNumber}`
+          label: `בניין ${buildingNumber} - אזור מס ${zones[0]}`
         };
         newTabs.push(singleZoneTab);
         setTabs(newTabs);
@@ -60,7 +60,7 @@ function App() {
           id: allAssetsTabId,
           type: 'assets',
           buildingNumber,
-          label: `בניין ${buildingNumber} - כל הנכסים`
+          label: `בניין ${buildingNumber} - כל הנכסים (אזורי מס: ${zones.join(', ')})`
         };
         newTabs.push(allAssetsTab);
 
@@ -71,7 +71,7 @@ function App() {
             type: 'assets',
             buildingNumber,
             taxZone: zone,
-            label: `בניין ${buildingNumber} - אזור ${zone}`
+            label: `בניין ${buildingNumber} - אזור מס ${zone}`
           };
           newTabs.push(zoneTab);
         });

@@ -69,42 +69,61 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const taxZoneNum = parseInt(taxZone.trim());
         const taxZoneStr = taxZone.trim();
         
-        console.log('[AssetsList] Filtering by taxZone:', taxZone);
+        console.log('[AssetsList] Filtering by taxZone:', taxZone, '(as number:', taxZoneNum, ')');
         console.log('[AssetsList] Total asset types loaded:', assetTypesData?.length || 0);
         console.log('[AssetsList] Total assets before filtering:', (assetsData || []).length);
         
+        // Sample some asset types to see their structure
+        if (assetTypesData && assetTypesData.length > 0) {
+          console.log('[AssetsList] Sample asset types (first 5):', assetTypesData.slice(0, 5).map(at => ({ name: at.name, tax_region: at.tax_region })));
+        }
+        
+        // Sample some assets to see their main_asset_type values
+        if (assetsData && assetsData.length > 0) {
+          const sampleAssets = assetsData.slice(0, 5);
+          console.log('[AssetsList] Sample assets (first 5):', sampleAssets.map(a => ({ id: a.asset_id, main_asset_type: a.main_asset_type, type: typeof a.main_asset_type })));
+        }
+        
         // For each asset, look up its asset type in the asset_types table and check if the tax_region matches
+        // Note: The same asset type name might exist in multiple tax regions, so we check all matches
         filteredAssets = (assetsData || []).filter(asset => {
           if (!asset.main_asset_type) {
             return false;
           }
           
-          // Find the asset type in the asset_types table by name
-          const assetType = (assetTypesData || []).find(at => at.name === asset.main_asset_type);
+          // Find all asset types with matching name (in case same name exists in multiple tax regions)
+          const matchingAssetTypes = (assetTypesData || []).filter(at => {
+            const atName = String(at.name || '').trim();
+            const assetTypeName = String(asset.main_asset_type || '').trim();
+            return atName === assetTypeName;
+          });
           
-          if (!assetType) {
-            console.log('[AssetsList] Asset type not found in asset_types table:', asset.main_asset_type, 'for asset:', asset.asset_id);
+          if (matchingAssetTypes.length === 0) {
+            console.log('[AssetsList] Asset type not found in asset_types table:', asset.main_asset_type, '(type:', typeof asset.main_asset_type, ') for asset:', asset.asset_id);
+            console.log('[AssetsList] Available asset type names:', (assetTypesData || []).slice(0, 10).map(at => at.name));
             return false;
           }
           
-          if (assetType.tax_region == null) {
-            console.log('[AssetsList] Asset type', asset.main_asset_type, 'has no tax_region for asset:', asset.asset_id);
-            return false;
+          // Check if any of the matching asset types have the correct tax_region
+          const hasMatchingTaxRegion = matchingAssetTypes.some(at => {
+            if (at.tax_region == null) return false;
+            const matches = at.tax_region === taxZoneNum || String(at.tax_region) === taxZoneStr;
+            return matches;
+          });
+          
+          if (!hasMatchingTaxRegion) {
+            const taxRegions = matchingAssetTypes.map(at => at.tax_region).filter(tr => tr != null);
+            console.log('[AssetsList] Asset type', asset.main_asset_type, 'has tax_regions', taxRegions, 'which do not match taxZone', taxZone, 'for asset:', asset.asset_id);
           }
           
-          // Check if the asset type's tax_region matches the requested taxZone
-          const matches = assetType.tax_region === taxZoneNum || String(assetType.tax_region) === taxZoneStr;
-          
-          if (!matches) {
-            console.log('[AssetsList] Asset type', asset.main_asset_type, 'has tax_region', assetType.tax_region, 'which does not match taxZone', taxZone, 'for asset:', asset.asset_id);
-          }
-          
-          return matches;
+          return hasMatchingTaxRegion;
         });
         
         console.log('[AssetsList] Total assets after filtering:', filteredAssets.length);
         if (filteredAssets.length > 0) {
           console.log('[AssetsList] Sample filtered assets (first 3):', filteredAssets.slice(0, 3).map(a => ({ id: a.asset_id, type: a.main_asset_type })));
+        } else {
+          console.log('[AssetsList] No assets matched the filter. Check the console logs above for details.');
         }
       }
       

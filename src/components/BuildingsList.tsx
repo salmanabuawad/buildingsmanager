@@ -756,8 +756,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                // First auto-size columns based on content
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Don't use sizeColumnsToFit to allow content-based sizing
+                // Then scale up to fit grid width
+                setTimeout(() => {
+                  params.api.sizeColumnsToFit();
+                }, 100);
 
                 // Scroll to left on grid ready
                 setTimeout(() => {
@@ -765,7 +769,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
-                }, 100);
+                }, 200);
               }}
               onFirstDataRendered={(params) => {
                 const firstCol = params.api.getAllDisplayedColumns()[0];
@@ -773,8 +777,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   params.api.ensureColumnVisible(firstCol);
                 }
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                // First auto-size columns based on content
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Don't use sizeColumnsToFit to allow content-based sizing
+                // Then scale up to fit grid width
+                setTimeout(() => {
+                  params.api.sizeColumnsToFit();
+                }, 100);
 
                 // Scroll to left after data render
                 setTimeout(() => {
@@ -782,7 +790,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
-                }, 100);
+                }, 200);
               }}
               domLayout="normal"
               suppressHorizontalScroll={false}

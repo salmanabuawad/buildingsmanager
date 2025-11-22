@@ -244,21 +244,20 @@ export async function validateAssetTypeForBuildingTaxRegion(
     }
 
     // Special validation for asset types 299 and 199
+    const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+    
     if (assetTypeName === '299') {
       // Asset type 299 is only valid in tax region 40
-      const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
       if (!buildingTaxRegions.includes('40')) {
         return { valid: false, error: 'סוג נכס 299 תקף רק בבניינים עם אזור מס 40' };
       }
     } else if (assetTypeName === '199') {
-      // Asset type 199 is only valid in tax regions other than 40
-      const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+      // Asset type 199 is valid in all tax regions EXCEPT 40
+      // If building has tax region 40 (alone or in combination), 199 is invalid
       if (buildingTaxRegions.includes('40')) {
-        return { valid: false, error: 'סוג נכס 199 תקף רק בבניינים עם אזור מס שאינו 40' };
+        return { valid: false, error: 'סוג נכס 199 לא תקף בבניינים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
       }
     }
-
-    const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
 
     let query = supabase
       .from('asset_types')
@@ -311,21 +310,20 @@ export async function validateAssetTypeComplete(
     }
 
     // Special validation for asset types 299 and 199
+    const buildingTaxRegions = building.tax_region != null
+      ? String(building.tax_region).split(',').map(r => r.trim())
+      : [];
+    
     if (assetTypeName === '299') {
       // Asset type 299 is only valid in tax region 40
-      const buildingTaxRegions = building.tax_region != null
-        ? String(building.tax_region).split(',').map(r => r.trim())
-        : [];
       if (!buildingTaxRegions.includes('40')) {
         return { valid: false, error: 'סוג נכס 299 תקף רק בבניינים עם אזור מס 40' };
       }
     } else if (assetTypeName === '199') {
-      // Asset type 199 is only valid in tax regions other than 40
-      const buildingTaxRegions = building.tax_region != null
-        ? String(building.tax_region).split(',').map(r => r.trim())
-        : [];
+      // Asset type 199 is valid in all tax regions EXCEPT 40
+      // If building has tax region 40 (alone or in combination), 199 is invalid
       if (buildingTaxRegions.includes('40')) {
-        return { valid: false, error: 'סוג נכס 199 תקף רק בבניינים עם אזור מס שאינו 40' };
+        return { valid: false, error: 'סוג נכס 199 לא תקף בבניינים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
       }
     }
 

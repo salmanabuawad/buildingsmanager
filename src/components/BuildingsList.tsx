@@ -86,7 +86,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       await api.buildings.create({
         building_number: buildingNumber,
         tax_region: taxRegion,
-        has_elevator: false
+        has_elevator: false,
+        elevator: undefined
       });
       console.log('[CREATE] Building created successfully');
 
@@ -514,13 +515,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
     },
     {
-      field: 'has_elevator',
+      field: 'elevator',
       headerName: 'מעלית',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
-        const errorMsg = errors && errors['has_elevator'];
+        const errorMsg = errors && errors['elevator'];
         const markedForDeletion = buildingsToDelete.has(building.building_number);
 
         return (
@@ -532,11 +533,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             )}
             <input
               type="checkbox"
-              checked={params.value || false}
+              checked={params.value === 'כן' || params.value === true}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked;
-                params.node.setDataValue('has_elevator', newValue);
+                const newValue = e.target.checked ? 'כן' : '';
+                params.node.setDataValue('elevator', newValue);
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -546,7 +547,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       cellStyle: (params) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
-        const hasError = errors && errors['has_elevator'];
+        const hasError = errors && errors['elevator'];
         return {
           display: 'flex',
           alignItems: 'center',
@@ -557,7 +558,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'single_double_family',
-      headerName: 'משפחה יחידה/דו משפחתי',
+      headerName: 'בית פרטי חד משפחתי דו משפחתי',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -587,7 +588,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'condo',
-      headerName: 'דירת גן',
+      headerName: 'בית משותף',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -616,8 +617,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
     },
     {
-      field: 'basement',
-      headerName: 'מרתף',
+      field: 'penthouse',
+      headerName: 'דירת גג',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -632,7 +633,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               disabled={markedForDeletion}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : '';
-                params.node.setDataValue('basement', newValue);
+                params.node.setDataValue('penthouse', newValue);
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -647,7 +648,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'townhouses',
-      headerName: 'טוריים',
+      headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

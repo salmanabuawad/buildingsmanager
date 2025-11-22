@@ -15,6 +15,7 @@ export interface Building {
   condo?: string;
   basement?: string;
   townhouses?: string;
+  penthouse?: string;
 }
 
 export interface Asset {

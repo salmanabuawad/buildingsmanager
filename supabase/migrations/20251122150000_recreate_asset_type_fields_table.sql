@@ -73,16 +73,17 @@ CREATE TRIGGER update_asset_type_fields_updated_at BEFORE UPDATE ON asset_type_f
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert field configurations based on asset_types table structure
--- All fields from asset_types are part of asset type validation
+-- Fields that are building level: elevator, single_double_family, penthouse, condo, townhouses
+-- tax_region is also building level
 INSERT INTO asset_type_fields (field_name, is_asset_level, is_building_level, is_asset_type_validation) VALUES
   ('name', false, false, true),
   ('description', false, false, true),
-  ('tax_region', false, false, true),
-  ('elevator', false, false, true),
-  ('single_double_family', false, false, true),
-  ('penthouse', false, false, true),
-  ('condo', false, false, true),
-  ('townhouses', false, false, true),
+  ('tax_region', false, true, true),
+  ('elevator', true, true, true),
+  ('single_double_family', true, true, true),
+  ('penthouse', true, true, true),
+  ('condo', true, true, true),
+  ('townhouses', true, true, true),
   ('min_size', false, false, true),
   ('max_size', false, false, true)
 ON CONFLICT (field_name) DO UPDATE SET

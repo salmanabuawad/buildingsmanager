@@ -100,6 +100,15 @@ export interface ValidationRule {
   updated_at: string;
 }
 
+export interface UserPreference {
+  id: string;
+  user_id: string;
+  preference_key: string;
+  preference_value: any;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * Sanitizes asset data before sending to the server
  */
@@ -688,5 +697,45 @@ export const api = {
 
     if (error) throw error;
     return { message: 'Assets deleted successfully' };
+  },
+  userPreferences: {
+    get: async (userId: string, preferenceKey: string): Promise<UserPreference | null> => {
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('preference_key', preferenceKey)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    set: async (userId: string, preferenceKey: string, preferenceValue: any): Promise<UserPreference> => {
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: userId,
+          preference_key: preferenceKey,
+          preference_value: preferenceValue,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,preference_key'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (userId: string, preferenceKey: string): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('user_preferences')
+        .delete()
+        .eq('user_id', userId)
+        .eq('preference_key', preferenceKey);
+
+      if (error) throw error;
+      return { message: 'Preference deleted successfully' };
+    },
   },
 };

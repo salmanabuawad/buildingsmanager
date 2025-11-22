@@ -112,6 +112,17 @@ CREATE TABLE validation_rules (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Create user_preferences table
+CREATE TABLE user_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL DEFAULT 'default',
+  preference_key TEXT NOT NULL,
+  preference_value JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, preference_key)
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_buildings_building_number ON buildings(building_number);
 CREATE INDEX idx_buildings_tax_region ON buildings(tax_region);
@@ -131,6 +142,8 @@ CREATE INDEX idx_asset_measurements_date ON asset_measurements(measurement_date)
 CREATE INDEX idx_validation_rules_entity_type ON validation_rules(entity_type);
 CREATE INDEX idx_validation_rules_field_name ON validation_rules(field_name);
 CREATE INDEX idx_validation_rules_enabled ON validation_rules(enabled);
+
+CREATE INDEX idx_user_preferences_user_key ON user_preferences(user_id, preference_key);
 
 -- Enable Row Level Security (RLS) - optional for local dev
 -- ALTER TABLE buildings ENABLE ROW LEVEL SECURITY;
@@ -166,6 +179,9 @@ CREATE TRIGGER update_asset_types_updated_at BEFORE UPDATE ON asset_types
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_validation_rules_updated_at BEFORE UPDATE ON validation_rules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to search assets by range

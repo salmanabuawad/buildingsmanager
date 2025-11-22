@@ -29,6 +29,51 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<number, Record<string, string>>>(new Map());
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<number>>(new Set());
+  const savePreferencesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const USER_ID = 'default'; // In a real app, this would come from auth
+  const PREFERENCE_KEY = 'buildings_list_column_state';
+  const [columnStateLoaded, setColumnStateLoaded] = useState(false);
+
+  // Load saved column state
+  const loadColumnState = useCallback(async () => {
+    try {
+      const preference = await api.userPreferences.get(USER_ID, PREFERENCE_KEY);
+      if (preference && preference.preference_value && gridRef.current?.api) {
+        const columnState = preference.preference_value;
+        gridRef.current.api.applyColumnState({
+          state: columnState,
+          applyOrder: true
+        });
+        setColumnStateLoaded(true);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to load column state:', err);
+    }
+    return false;
+  }, []);
+
+  // Save column state with debounce
+  const saveColumnState = useCallback(async () => {
+    if (!gridRef.current?.api || !columnStateLoaded) return;
+
+    // Clear existing timeout
+    if (savePreferencesTimeoutRef.current) {
+      clearTimeout(savePreferencesTimeoutRef.current);
+    }
+
+    // Debounce save by 500ms
+    savePreferencesTimeoutRef.current = setTimeout(async () => {
+      try {
+        const columnState = gridRef.current?.api.getColumnState();
+        if (columnState) {
+          await api.userPreferences.set(USER_ID, PREFERENCE_KEY, columnState);
+        }
+      } catch (err) {
+        console.error('Failed to save column state:', err);
+      }
+    }, 500);
+  }, [columnStateLoaded]);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -49,6 +94,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   useEffect(() => {
     fetchBuildings(true);
   }, [fetchBuildings]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (savePreferencesTimeoutRef.current) {
+        clearTimeout(savePreferencesTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (buildingFilter === '') {
@@ -754,14 +808,20 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 headerClass: 'ag-right-aligned-header buildings-list-header'
               }}
               onCellValueChanged={onCellValueChanged}
-              onGridReady={(params) => {
-                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                // First auto-size columns based on content
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Then scale up to fit grid width
-                setTimeout(() => {
-                  params.api.sizeColumnsToFit();
-                }, 100);
+              onGridReady={async (params) => {
+                // Load saved column state first
+                const hasSavedState = await loadColumnState();
+                
+                // If no saved state, apply default sizing
+                if (!hasSavedState) {
+                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                  // First auto-size columns based on content
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  // Then scale up to fit grid width
+                  setTimeout(() => {
+                    params.api.sizeColumnsToFit();
+                  }, 100);
+                }
 
                 // Scroll to left on grid ready
                 setTimeout(() => {
@@ -771,18 +831,28 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   }
                 }, 200);
               }}
-              onFirstDataRendered={(params) => {
-                const firstCol = params.api.getAllDisplayedColumns()[0];
-                if (firstCol) {
-                  params.api.ensureColumnVisible(firstCol);
+              onColumnResized={saveColumnState}
+              onColumnMoved={saveColumnState}
+              onFirstDataRendered={async (params) => {
+                // Load saved column state if not already loaded
+                if (!columnStateLoaded) {
+                  const hasSavedState = await loadColumnState();
+                  
+                  // If no saved state, apply default sizing
+                  if (!hasSavedState) {
+                    const firstCol = params.api.getAllDisplayedColumns()[0];
+                    if (firstCol) {
+                      params.api.ensureColumnVisible(firstCol);
+                    }
+                    const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                    // First auto-size columns based on content
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale up to fit grid width
+                    setTimeout(() => {
+                      params.api.sizeColumnsToFit();
+                    }, 100);
+                  }
                 }
-                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                // First auto-size columns based on content
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Then scale up to fit grid width
-                setTimeout(() => {
-                  params.api.sizeColumnsToFit();
-                }, 100);
 
                 // Scroll to left after data render
                 setTimeout(() => {

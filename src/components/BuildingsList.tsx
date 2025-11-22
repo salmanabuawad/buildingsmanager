@@ -83,8 +83,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         
         // Also apply sort model if available (for redundancy and explicit control)
         if (sortModel && sortModel.length > 0) {
-          gridRef.current.api.setSortModel(sortModel);
-          console.log('[BuildingsList] Sort model applied');
+          try {
+            if (typeof gridRef.current.api.setSortModel === 'function') {
+              gridRef.current.api.setSortModel(sortModel);
+              console.log('[BuildingsList] Sort model applied');
+            }
+          } catch (e) {
+            // setSortModel might not be available, that's okay - sort info is in columnState
+            console.log('[BuildingsList] setSortModel not available, using sort info from columnState');
+          }
         }
         
         console.log('[BuildingsList] Column state applied (widths, positions, and sorting restored)');
@@ -123,11 +130,23 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     // Debounce save by 500ms
     savePreferencesTimeoutRef.current = setTimeout(async () => {
       try {
+        if (!gridRef.current?.api) return;
+        
         // getColumnState() returns columns in their current order with all properties
         // The array order itself represents the column position/order
         // It also includes sort information (sort, sortIndex) for each column
-        const columnState = gridRef.current?.api.getColumnState();
-        const sortModel = gridRef.current?.api.getSortModel();
+        const columnState = gridRef.current.api.getColumnState();
+        
+        // Try to get sort model, but handle if method doesn't exist
+        let sortModel: any[] | null = null;
+        try {
+          if (typeof gridRef.current.api.getSortModel === 'function') {
+            sortModel = gridRef.current.api.getSortModel();
+          }
+        } catch (e) {
+          // getSortModel might not be available, that's okay - sort info is in columnState
+          console.log('[BuildingsList] getSortModel not available, using sort info from columnState');
+        }
         
         if (columnState && columnState.length > 0) {
           // Log column state for debugging (including sort info)
@@ -140,12 +159,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             position: columnState.indexOf(col)
           }));
           console.log('[BuildingsList] Saving column state (widths, order, visibility, sorting):', columnInfo);
-          console.log('[BuildingsList] Sort model:', sortModel);
+          if (sortModel) {
+            console.log('[BuildingsList] Sort model:', sortModel);
+          }
           
           // Save both column state (includes sort) and sort model for redundancy
           const stateToSave = {
             columnState: columnState,
-            sortModel: sortModel
+            sortModel: sortModel || null
           };
           
           await api.userPreferences.set(USER_ID, PREFERENCE_KEY, stateToSave);

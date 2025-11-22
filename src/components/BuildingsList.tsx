@@ -51,8 +51,18 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       } else {
         console.log('[BuildingsList] No saved column state found');
       }
-    } catch (err) {
-      console.error('[BuildingsList] Failed to load column state:', err);
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.toString() || 'Unknown error';
+      const errorCode = err?.code || 'N/A';
+      console.error('[BuildingsList] Failed to load column state:', {
+        error: errorMessage,
+        code: errorCode,
+        fullError: err
+      });
+      // If it's a table not found error, show a helpful message
+      if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
+        console.warn('[BuildingsList] user_preferences table does not exist. Please run the migration: create_user_preferences_table.sql');
+      }
     }
     // Mark as loaded even if no state was found, so we can save new preferences
     setColumnStateLoaded(true);

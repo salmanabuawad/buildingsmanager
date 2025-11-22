@@ -51,7 +51,10 @@ export function useGridPreferences(
           console.log(`[${preferenceKey}] Found saved sort model:`, sortModel);
         }
         
-        // Ensure actions column (if exists) is first and pinned right (left side in RTL)
+        // Ensure actions column (if exists) is first and pinned appropriately
+        // For asset_type_fields, pin to 'left' (near sidebar in RTL), otherwise 'right' (away from sidebar)
+        const actionsPinnedSide = preferenceKey === 'asset_type_fields_column_state' ? 'left' : 'right';
+        
         // Filter out actions column from the state, we'll apply it separately
         const actionsColumn = columnState.find((col: any) => 
           col.colId === 'actions' || 
@@ -62,12 +65,12 @@ export function useGridPreferences(
           (!col.headerName || typeof col.headerName !== 'string' || !col.headerName.toLowerCase().includes('action'))
         );
         
-        // Apply all columns with order, but ensure actions is first (pinned right for RTL = near sidebar)
+        // Apply all columns with order, but ensure actions is first with appropriate pinning
         const orderedColumns = actionsColumn 
           ? [{
               ...actionsColumn,
               colId: 'actions',
-              pinned: 'right',
+              pinned: actionsPinnedSide,
               lockPosition: true,
               lockPinned: true,
               suppressMovable: true,
@@ -89,12 +92,13 @@ export function useGridPreferences(
           if (gridRef.current?.api) {
             const columnState = gridRef.current.api.getColumnState();
             const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-            if (actionsCol && actionsCol.pinned !== 'right') {
+            const expectedPinnedSide = preferenceKey === 'asset_type_fields_column_state' ? 'left' : 'right';
+            if (actionsCol && actionsCol.pinned !== expectedPinnedSide) {
               gridRef.current.api.applyColumnState({
                 state: [{
                   ...actionsCol,
                   colId: 'actions',
-                  pinned: 'right',
+                  pinned: expectedPinnedSide,
                   lockPosition: true,
                   lockPinned: true
                 }],

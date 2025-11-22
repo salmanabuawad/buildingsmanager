@@ -852,7 +852,7 @@ export function AssetDataEntry() {
     {
       field: 'actions',
       headerName: t('actions'),
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       suppressMovable: true,
       resizable: false,

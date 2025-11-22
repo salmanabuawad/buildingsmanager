@@ -302,7 +302,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     {
       headerName: t('actions'),
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       suppressMovable: true,
       cellRenderer: (params: any) => {

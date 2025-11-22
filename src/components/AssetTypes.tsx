@@ -155,7 +155,7 @@ export function AssetTypes() {
     {
       headerName: t('actions'),
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       suppressMovable: true,
       headerClass: 'text-left',

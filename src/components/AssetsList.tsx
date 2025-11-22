@@ -643,7 +643,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       headerName: t('actions'),
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       suppressMovable: true,
       headerClass: 'ag-right-aligned-header',

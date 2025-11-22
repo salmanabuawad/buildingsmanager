@@ -234,7 +234,7 @@ function App() {
     try {
       const USER_ID = 'default'; // In a real app, this would come from auth
       const result = await api.userPreferences.deleteAll(USER_ID);
-      alert(`הצלחה: ${result.message}`);
+      console.log('Preferences deleted:', result.message);
       // Refresh all tabs to reset grid preferences
       setTabs(prevTabs => prevTabs.map(tab => ({
         ...tab,
@@ -242,7 +242,6 @@ function App() {
       })));
     } catch (error: any) {
       console.error('Failed to delete all preferences:', error);
-      alert(`שגיאה: ${error?.message || 'נכשל במחיקת ההעדפות'}`);
     } finally {
       setDeletePreferencesLoading(false);
       setShowDeletePreferencesConfirm(false);

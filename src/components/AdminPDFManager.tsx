@@ -125,7 +125,7 @@ export function AdminPDFManager() {
   const columnDefs: ColDef<ApartmentWithBuilding>[] = useMemo(() => [
     {
       headerName: 'Actions',
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       suppressMovable: true,
       cellRenderer: ActionsCellRenderer

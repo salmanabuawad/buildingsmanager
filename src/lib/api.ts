@@ -76,7 +76,6 @@ export interface AssetType {
   townhouses?: string;
   min_size?: number;
   max_size?: number;
-  basement?: string;
   created_at: string;
   updated_at: string;
 }

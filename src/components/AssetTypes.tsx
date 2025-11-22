@@ -30,7 +30,6 @@ export function AssetTypes() {
     townhouses: '',
     min_size: '',
     max_size: '',
-    basement: '',
   });
 
   useEffect(() => {
@@ -56,7 +55,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '', basement: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '' });
     setIsAdding(false);
   }
 
@@ -90,7 +89,6 @@ export function AssetTypes() {
         townhouses: formData.townhouses || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
-        basement: formData.basement || undefined,
       };
 
       await api.assetTypes.create(dataToSave);
@@ -363,14 +361,6 @@ export function AssetTypes() {
       headerName: 'שטח עד',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'basement',
-      headerName: 'מרתף',
-      editable: true,
-      valueFormatter: (params) => params.value || '',
       cellStyle: { textAlign: 'left' },
       headerClass: 'text-left'
     },
@@ -653,20 +643,6 @@ export function AssetTypes() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="0"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  מרתף
-                </label>
-                <select
-                  value={formData.basement || ''}
-                  onChange={(e) => setFormData({ ...formData, basement: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="">--</option>
-                  <option value="כן">כן</option>
-                  <option value="לא">לא</option>
-                </select>
               </div>
             </div>
             <div className="flex gap-2">

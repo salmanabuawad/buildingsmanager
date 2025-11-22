@@ -489,21 +489,6 @@ export async function validateAssetTypeComplete(
       }
     }
 
-    // Step 7: Validate basement
-    if (assetType.basement != null && assetType.basement.trim() !== '') {
-      const requiredValue = assetType.basement.toLowerCase();
-      const buildingValue = building.basement ? building.basement.toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש מרתף, אבל הבניין לא מסומן ככזה`
-          };
-        }
-      }
-    }
-
     return { valid: true };
   } catch (error) {
     console.error('Complete asset type validation error:', error);

@@ -8,6 +8,7 @@ if (-not (Test-Path $csvPath)) {
 
 # Read CSV with UTF-8 encoding
 $rows = Import-Csv -Path $csvPath -Encoding UTF8 -Header "name","description","tax_region","elevator","single_double_family","penthouse","condo","townhouses","min_size","max_size","basement"
+# Note: basement column is read but will be excluded from INSERT
 
 # Skip header row (first row)
 $dataRows = $rows | Select-Object -Skip 1
@@ -46,14 +47,13 @@ foreach ($row in $dataRows) {
         "$(Format-SqlValue $row.condo), " +
         "$(Format-SqlValue $row.townhouses), " +
         "$(Format-SqlValue $row.min_size), " +
-        "$(Format-SqlValue $row.max_size), " +
-        "$(Format-SqlValue $row.basement)" +
+        "$(Format-SqlValue $row.max_size)" +
     ")"
 }
 
 # Output SQL
 Write-Output "-- Insert all asset types from CSV"
-Write-Output "INSERT INTO asset_types (name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, min_size, max_size, basement) VALUES"
+Write-Output "INSERT INTO asset_types (name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, min_size, max_size) VALUES"
 Write-Output ($insertValues -join ",`n") + ";"
 Write-Host "Generated $($insertValues.Count) INSERT statements" -ForegroundColor Green
 

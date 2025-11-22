@@ -153,6 +153,24 @@ export function AssetTypes() {
 
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
+      headerName: t('actions'),
+      editable: false,
+      pinned: 'left',
+      lockPosition: true,
+      suppressMovable: true,
+      headerClass: 'text-left',
+      cellRenderer: (params: any) => {
+        return (
+          <button
+            onClick={() => handleDelete(params.data.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        );
+      }
+    },
+    {
       field: 'name',
       headerName: 'סוג נכס',
       editable: false,

@@ -850,6 +850,63 @@ export function AssetDataEntry() {
   };
   const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
     {
+      field: 'actions',
+      headerName: t('actions'),
+      pinned: 'left',
+      lockPosition: true,
+      suppressMovable: true,
+      resizable: false,
+      cellRenderer: (params: any) => {
+        const row = params.data as AssetRow;
+        const hasError = row._validationErrors && row._validationErrors.size > 0;
+        const errorMessages: string[] = [];
+        if (hasError) {
+          row._validationErrors.forEach((msg, field) => {
+            errorMessages.push(msg);
+          });
+        }
+
+        return (
+          <div className="flex items-center gap-2 w-full px-2">
+            {hasError && (
+              <div className="flex items-center justify-center" title={errorMessages.join(', ')}>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddNewMeasurement(params.data.id);
+              }}
+              disabled={loading}
+              className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
+                loading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title="הוסף מדידה חדשה"
+            >
+              מדידה חדשה
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteRow(params.data.id);
+              }}
+              className="p-1 hover:bg-red-100 rounded transition-colors"
+              title="מחק שורה"
+            >
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </button>
+          </div>
+        );
+      }
+    },
+    {
       field: 'building_number',
       headerName: t('buildingNumber'),
       editable: true,
@@ -1043,63 +1100,8 @@ export function AssetDataEntry() {
       type: 'numericColumn',
       valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
-    },
-    {
-      field: 'actions',
-      headerName: t('actions'),
-      pinned: 'right',
-      resizable: false,
-      cellRenderer: (params: any) => {
-        const row = params.data as AssetRow;
-        const hasError = row._validationErrors && row._validationErrors.size > 0;
-        const errorMessages: string[] = [];
-        if (hasError) {
-          row._validationErrors.forEach((msg, field) => {
-            errorMessages.push(msg);
-          });
-        }
-
-        return (
-          <div className="flex items-center gap-2 w-full px-2">
-            {hasError && (
-              <div className="flex items-center justify-center" title={errorMessages.join(', ')}>
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddNewMeasurement(params.data.id);
-              }}
-              disabled={loading}
-              className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
-                loading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-              title="הוסף מדידה חדשה"
-            >
-              מדידה חדשה
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDeleteRow(params.data.id);
-              }}
-              className="p-1 hover:bg-red-100 rounded transition-colors"
-              title="מחק שורה"
-            >
-              <Trash2 className="h-4 w-4 text-red-600" />
-            </button>
-          </div>
-        );
-      }
     }
-  ], [t, buildings, assetTypes, handleDeleteRow, handleAddNewMeasurement, loading]);
+  ], [t, buildings, assetTypes, getCellStyle]);
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {
       return rowData;

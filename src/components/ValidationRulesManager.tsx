@@ -149,6 +149,52 @@ export function ValidationRulesManager() {
 
   const columnDefs: ColDef[] = useMemo(() => [
     {
+      headerName: t('actions'),
+      pinned: 'left',
+      lockPosition: true,
+      suppressMovable: true,
+      cellRenderer: (params: any) => {
+        if (!params.data) return null;
+        const rule = params.data as ValidationRule;
+        if (editingId === rule.id) {
+          return (
+            <div className="flex gap-1">
+              <button
+                onClick={() => saveEdit(rule.id)}
+                className="p-1 text-teal-600 hover:text-teal-700"
+                title={t('save')}
+              >
+                <Save className="h-4 w-4" />
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="p-1 text-slate-600 hover:text-slate-700"
+                title={t('cancel')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div className="flex gap-1">
+            <button
+              onClick={() => startEdit(rule)}
+              className="px-2 py-1 text-sm text-teal-600 hover:text-teal-700"
+            >
+              {t('edit')}
+            </button>
+            <button
+              onClick={() => handleDelete(rule.id)}
+              className="px-2 py-1 text-sm text-red-600 hover:text-red-700"
+            >
+              {t('delete')}
+            </button>
+          </div>
+        );
+      }
+    },
+    {
       headerName: t('enabled'),
       field: 'enabled',
       editable: true,
@@ -232,50 +278,7 @@ export function ValidationRulesManager() {
     { headerName: t('compareTable'), field: 'compare_table' },
     { headerName: t('compareField'), field: 'compare_field' },
     { headerName: t('joinField'), field: 'join_field' },
-    { headerName: t('operator'), field: 'comparison_operator' },
-    {
-      headerName: t('actions'),
-      cellRenderer: (params: any) => {
-        if (!params.data) return null;
-        const rule = params.data as ValidationRule;
-        if (editingId === rule.id) {
-          return (
-            <div className="flex gap-1">
-              <button
-                onClick={() => saveEdit(rule.id)}
-                className="p-1 text-teal-600 hover:text-teal-700"
-                title={t('save')}
-              >
-                <Save className="h-4 w-4" />
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="p-1 text-slate-600 hover:text-slate-700"
-                title={t('cancel')}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          );
-        }
-        return (
-          <div className="flex gap-1">
-            <button
-              onClick={() => startEdit(rule)}
-              className="px-2 py-1 text-sm text-teal-600 hover:text-teal-700"
-            >
-              {t('edit')}
-            </button>
-            <button
-              onClick={() => handleDelete(rule.id)}
-              className="px-2 py-1 text-sm text-red-600 hover:text-red-700"
-            >
-              {t('delete')}
-            </button>
-          </div>
-        );
-      }
-    }
+    { headerName: t('operator'), field: 'comparison_operator' }
   ], [editingId, editValues]);
 
   const gridRef = useRef<AgGridReact<ValidationRule>>(null);

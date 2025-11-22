@@ -643,8 +643,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       headerName: t('actions'),
       editable: false,
-      pinned: 'right',
+      pinned: 'left',
       lockPosition: true,
+      suppressMovable: true,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         if (params.data._isMasterRow === false) return null;

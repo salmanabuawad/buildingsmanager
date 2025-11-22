@@ -51,10 +51,29 @@ export function useGridPreferences(
           console.log(`[${preferenceKey}] Found saved sort model:`, sortModel);
         }
         
-        // applyOrder: true restores both column widths AND their positions/order
-        // The column state also includes sort information
+        // Ensure actions column (if exists) is first and pinned left
+        // Filter out actions column from the state, we'll apply it separately
+        const actionsColumn = columnState.find((col: any) => 
+          col.colId === 'actions' || 
+          (col.headerName && typeof col.headerName === 'string' && col.headerName.toLowerCase().includes('action'))
+        );
+        const otherColumns = columnState.filter((col: any) => 
+          col.colId !== 'actions' && 
+          (!col.headerName || typeof col.headerName !== 'string' || !col.headerName.toLowerCase().includes('action'))
+        );
+        
+        // Apply all columns with order, but ensure actions is first
+        const orderedColumns = actionsColumn 
+          ? [{
+              ...actionsColumn,
+              pinned: 'left',
+              lockPosition: true,
+              suppressMovable: true
+            }, ...otherColumns]
+          : otherColumns;
+        
         gridRef.current.api.applyColumnState({
-          state: columnState,
+          state: orderedColumns,
           applyOrder: true  // This ensures column positions are restored
         });
         

@@ -205,7 +205,7 @@ export function AssetTypeFieldsManager() {
     {
       colId: 'actions',
       headerName: t('actions'),
-      pinned: 'left',
+      pinned: 'right',
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
@@ -476,7 +476,7 @@ export function AssetTypeFieldsManager() {
                     state: [{
                       ...actionsCol,
                       colId: 'actions',
-                      pinned: 'left',
+                      pinned: 'right',
                       lockPosition: true,
                       lockPinned: true
                     }],
@@ -495,12 +495,12 @@ export function AssetTypeFieldsManager() {
               setTimeout(() => {
                 const columnState = params.api.getColumnState();
                 const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                if (actionsCol && actionsCol.pinned !== 'left') {
+                if (actionsCol && actionsCol.pinned !== 'right') {
                   params.api.applyColumnState({
                     state: [{
                       ...actionsCol,
                       colId: 'actions',
-                      pinned: 'left',
+                      pinned: 'right',
                       lockPosition: true,
                       lockPinned: true
                     }],
@@ -532,7 +532,7 @@ export function AssetTypeFieldsManager() {
                       const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                       if (actionsCol) {
                         gridRef.current.api.applyColumnState({
-                          state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                          state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
                           applyOrder: true
                         });
                       }

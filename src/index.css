@@ -47,6 +47,11 @@ input[type="number"] {
   font-size: 16px !important;
 }
 
+.ag-theme-alpine.buildings-list-grid {
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
 .ag-theme-alpine .ag-header-cell-label {
   color: white;
 }

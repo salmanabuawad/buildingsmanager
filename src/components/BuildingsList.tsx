@@ -689,7 +689,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      <div className="w-full px-4 sm:px-6 py-4">
         <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
           <div className="flex items-center gap-3">
             <img src="/buildings.png" alt="Buildings" className="w-8 h-8 bg-white rounded-lg p-1.5 shadow-sm" />
@@ -738,8 +738,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%' }}>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
             <AgGridReact
               ref={gridRef}
               rowData={filteredBuildings}

@@ -90,19 +90,26 @@ export function useGridPreferences(
         // Force actions column to be pinned and locked after applying state
         setTimeout(() => {
           if (gridRef.current?.api) {
+            const expectedPinnedSide = preferenceKey === 'asset_type_fields_column_state' ? 'left' : 'right';
+            
+            // First, ensure it's pinned correctly
+            gridRef.current.api.setColumnPinned('actions', expectedPinnedSide);
+            
+            // Then ensure it's in first position
             const columnState = gridRef.current.api.getColumnState();
             const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-            const expectedPinnedSide = preferenceKey === 'asset_type_fields_column_state' ? 'left' : 'right';
-            if (actionsCol && actionsCol.pinned !== expectedPinnedSide) {
+            if (actionsCol) {
+              const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
               gridRef.current.api.applyColumnState({
                 state: [{
                   ...actionsCol,
                   colId: 'actions',
                   pinned: expectedPinnedSide,
                   lockPosition: true,
-                  lockPinned: true
-                }],
-                defaultState: { pinned: null }
+                  lockPinned: true,
+                  suppressMovable: true
+                }, ...otherCols],
+                applyOrder: true
               });
             }
           }

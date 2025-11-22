@@ -469,19 +469,27 @@ export function AssetTypeFieldsManager() {
             onGridReady={async (params) => {
               // Ensure actions column is always pinned and in correct position (first column near sidebar)
               setTimeout(() => {
-                const columnState = params.api.getColumnState();
-                const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                if (actionsCol) {
-                  params.api.applyColumnState({
-                    state: [{
-                      ...actionsCol,
-                      colId: 'actions',
-                      pinned: 'left',
-                      lockPosition: true,
-                      lockPinned: true
-                    }],
-                    defaultState: { pinned: null }
-                  });
+                if (params.api) {
+                  // First, ensure it's pinned to left
+                  params.api.setColumnPinned('actions', 'left');
+                  
+                  // Then ensure it's in the first position
+                  const columnState = params.api.getColumnState();
+                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                  const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                  if (actionsCol) {
+                    params.api.applyColumnState({
+                      state: [{
+                        ...actionsCol,
+                        colId: 'actions',
+                        pinned: 'left',
+                        lockPosition: true,
+                        lockPinned: true,
+                        suppressMovable: true
+                      }, ...otherCols],
+                      applyOrder: true
+                    });
+                  }
                 }
               }, 10);
               
@@ -493,19 +501,29 @@ export function AssetTypeFieldsManager() {
 
               // Ensure actions column stays pinned after any operations
               setTimeout(() => {
-                const columnState = params.api.getColumnState();
-                const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                if (actionsCol && actionsCol.pinned !== 'left') {
-                  params.api.applyColumnState({
-                    state: [{
-                      ...actionsCol,
-                      colId: 'actions',
-                      pinned: 'left',
-                      lockPosition: true,
-                      lockPinned: true
-                    }],
-                    defaultState: { pinned: null }
-                  });
+                if (params.api) {
+                  const columnState = params.api.getColumnState();
+                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                  if (actionsCol) {
+                    // Check if pinned correctly
+                    if (actionsCol.pinned !== 'left') {
+                      params.api.setColumnPinned('actions', 'left');
+                    }
+                    
+                    // Ensure it's in first position
+                    const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                    params.api.applyColumnState({
+                      state: [{
+                        ...actionsCol,
+                        colId: 'actions',
+                        pinned: 'left',
+                        lockPosition: true,
+                        lockPinned: true,
+                        suppressMovable: true
+                      }, ...otherCols],
+                      applyOrder: true
+                    });
+                  }
                 }
               }, 150);
             }}
@@ -524,15 +542,29 @@ export function AssetTypeFieldsManager() {
               if (actionsColumn) {
                 const allColumns = params.columnApi.getAllColumns() || [];
                 const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
-                if (actionsIndex !== 0) {
+                const isPinnedLeft = actionsColumn.getPinned() === 'left';
+                
+                // Force actions column to be first and pinned left if it's not
+                if (actionsIndex !== 0 || !isPinnedLeft) {
                   setTimeout(() => {
                     if (gridRef.current?.api) {
+                      // Use setColumnPinned to ensure it's pinned correctly
+                      gridRef.current.api.setColumnPinned('actions', 'left');
+                      
+                      // Then apply column state to ensure it's first
                       const columnState = gridRef.current.api.getColumnState();
                       const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                       const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                       if (actionsCol) {
                         gridRef.current.api.applyColumnState({
-                          state: [{ ...actionsCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                          state: [{ 
+                            ...actionsCol, 
+                            colId: 'actions',
+                            pinned: 'left', 
+                            lockPosition: true,
+                            lockPinned: true,
+                            suppressMovable: true
+                          }, ...otherCols],
                           applyOrder: true
                         });
                       }

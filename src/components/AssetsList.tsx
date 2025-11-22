@@ -1116,16 +1116,28 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               wrapHeaderText: true,
               autoHeaderHeight: true,
               wrapText: true,
-              autoHeight: true,
+              autoHeight: false,
               headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}
             getRowId={(params) => params.data.id}
             getRowStyle={getRowStyle}
-            onGridReady={(params) => {
-              const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              // Don't use sizeColumnsToFit to allow content-based sizing
+            onGridReady={async (params) => {
+              // Load saved column state first
+              const hasSavedState = await loadColumnState();
+              
+              // If no saved state, apply default sizing
+              if (!hasSavedState) {
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId())
+                    .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                  
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  }
+                }, 100);
+              }
 
               // Scroll to left on grid ready
               setTimeout(() => {
@@ -1133,7 +1145,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 if (gridElement) {
                   gridElement.scrollLeft = 0;
                 }
-              }, 100);
+              }, 200);
             }}
             onFirstDataRendered={async (params) => {
               // Load saved column state if not already loaded
@@ -1142,12 +1154,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 
                 // If no saved state, apply default sizing
                 if (!hasSavedState) {
-                  const firstCol = params.api.getAllDisplayedColumns()[0];
-                  if (firstCol) {
-                    params.api.ensureColumnVisible(firstCol);
-                  }
-                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map(col => col.getColId())
+                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                    
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
+                  }, 50);
                 }
               } else {
                 const firstCol = params.api.getAllDisplayedColumns()[0];

@@ -658,7 +658,7 @@ export function AssetTypes() {
                 resizable: true,
                 sortable: true,
                 wrapText: true,
-                autoHeight: true
+                autoHeight: false
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}
@@ -668,8 +668,15 @@ export function AssetTypes() {
                 
                 // If no saved state, apply default sizing
                 if (!hasSavedState) {
-                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map(col => col.getColId())
+                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                    
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
+                  }, 100);
                 }
               }}
               onFirstDataRendered={async (params) => {
@@ -679,12 +686,15 @@ export function AssetTypes() {
                   
                   // If no saved state, apply default sizing
                   if (!hasSavedState) {
-                    const firstCol = params.api.getAllDisplayedColumns()[0];
-                    if (firstCol) {
-                      params.api.ensureColumnVisible(firstCol);
-                    }
-                    const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    setTimeout(() => {
+                      const allColumnIds = params.api.getAllDisplayedColumns()
+                        .map(col => col.getColId())
+                        .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                      
+                      if (allColumnIds.length > 0) {
+                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      }
+                    }, 50);
                   }
                 } else {
                   const firstCol = params.api.getAllDisplayedColumns()[0];

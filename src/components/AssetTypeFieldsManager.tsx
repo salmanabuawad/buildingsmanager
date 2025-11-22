@@ -318,7 +318,7 @@ export function AssetTypeFieldsManager() {
     wrapHeaderText: true,
     autoHeaderHeight: true,
     wrapText: true,
-    autoHeight: true,
+    autoHeight: false,
     cellStyle: { textAlign: 'right' },
     headerClass: 'ag-right-aligned-header'
   }), []);
@@ -523,8 +523,15 @@ export function AssetTypeFieldsManager() {
               if (!columnStateLoaded) {
                 const hasSavedState = await loadColumnState();
                 if (!hasSavedState) {
-                  const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map((col: any) => col.getColId())
+                      .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
+                    
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
+                  }, 50);
                 }
               }
             }}

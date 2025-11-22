@@ -1214,7 +1214,7 @@ export function AssetDataEntry() {
               wrapHeaderText: true,
               autoHeaderHeight: true,
               wrapText: true,
-              autoHeight: true,
+              autoHeight: false,
               cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}
@@ -1224,8 +1224,15 @@ export function AssetDataEntry() {
               
               // If no saved state, apply default sizing
               if (!hasSavedState) {
-                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId())
+                    .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                  
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  }
+                }, 100);
               }
               
               if (filteredRowData.length > 0) {
@@ -1239,8 +1246,15 @@ export function AssetDataEntry() {
                 
                 // If no saved state, apply default sizing
                 if (!hasSavedState) {
-                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map(col => col.getColId())
+                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                    
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
+                  }, 50);
                 }
               }
             }}

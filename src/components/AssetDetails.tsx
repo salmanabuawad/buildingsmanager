@@ -850,7 +850,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   wrapHeaderText: true,
                   autoHeaderHeight: true,
                   wrapText: true,
-                  autoHeight: true,
+                  autoHeight: false,
                   sortable: false,
                   headerClass: 'ag-right-aligned-header'
                 }}
@@ -862,8 +862,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   
                   // If no saved state, apply default sizing
                   if (!hasSavedState) {
-                    const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    setTimeout(() => {
+                      const allColumnIds = params.api.getAllDisplayedColumns()
+                        .map(col => col.getColId())
+                        .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                      
+                      if (allColumnIds.length > 0) {
+                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      }
+                    }, 100);
                   }
                 }}
                 onFirstDataRendered={async (params) => {
@@ -873,8 +880,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     
                     // If no saved state, apply default sizing
                     if (!hasSavedState) {
-                      const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      setTimeout(() => {
+                        const allColumnIds = params.api.getAllDisplayedColumns()
+                          .map(col => col.getColId())
+                          .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                        
+                        if (allColumnIds.length > 0) {
+                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                        }
+                      }, 50);
                     }
                   }
                 }}

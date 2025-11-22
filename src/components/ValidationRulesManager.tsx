@@ -304,8 +304,15 @@ export function ValidationRulesManager() {
     
     // If no saved state, apply default sizing
     if (!hasSavedState) {
-      const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+      setTimeout(() => {
+        const allColumnIds = params.api.getAllDisplayedColumns()
+          .map((col: any) => col.getColId())
+          .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
+        
+        if (allColumnIds.length > 0) {
+          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+        }
+      }, 100);
     }
   }, [rules, loadColumnState]);
 
@@ -565,12 +572,15 @@ export function ValidationRulesManager() {
                     
                     // If no saved state, apply default sizing
                     if (!hasSavedState) {
-                      const firstCol = params.api.getAllDisplayedColumns()[0];
-                      if (firstCol) {
-                        params.api.ensureColumnVisible(firstCol);
-                      }
-                      const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      setTimeout(() => {
+                        const allColumnIds = params.api.getAllDisplayedColumns()
+                          .map((col: any) => col.getColId())
+                          .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
+                        
+                        if (allColumnIds.length > 0) {
+                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                        }
+                      }, 50);
                     }
                   } else {
                     const firstCol = params.api.getAllDisplayedColumns()[0];

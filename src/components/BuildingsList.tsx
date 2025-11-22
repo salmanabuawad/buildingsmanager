@@ -301,7 +301,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
       colId: 'actions',
-      headerName: t('actions'),
+      headerName: 'פעולות',
       editable: false,
       pinned: 'right',
       lockPosition: true,
@@ -350,7 +350,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'building_number',
-      headerName: t('buildingNumber'),
+      headerName: 'מספר בניין',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -382,7 +382,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'tax_region',
-      headerName: t('taxRegion'),
+      headerName: 'אזור מיסים',
       editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

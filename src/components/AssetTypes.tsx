@@ -5,6 +5,7 @@ import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Trash2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
+import { useGridPreferences } from '../hooks/useGridPreferences';
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -16,6 +17,7 @@ export function AssetTypes() {
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_types_column_state');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -635,26 +637,47 @@ export function AssetTypes() {
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}
-              onGridReady={(params) => {
-                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Don't use sizeColumnsToFit to allow content-based sizing
-              }}
-              onFirstDataRendered={(params) => {
-                const firstCol = params.api.getAllDisplayedColumns()[0];
-                if (firstCol) {
-                  params.api.ensureColumnVisible(firstCol);
+              onGridReady={async (params) => {
+                // Load saved column state first
+                const hasSavedState = await loadColumnState();
+                
+                // If no saved state, apply default sizing
+                if (!hasSavedState) {
+                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                 }
-                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Don't use sizeColumnsToFit to allow content-based sizing
+              }}
+              onFirstDataRendered={async (params) => {
+                // Load saved column state if not already loaded
+                if (!columnStateLoaded) {
+                  const hasSavedState = await loadColumnState();
+                  
+                  // If no saved state, apply default sizing
+                  if (!hasSavedState) {
+                    const firstCol = params.api.getAllDisplayedColumns()[0];
+                    if (firstCol) {
+                      params.api.ensureColumnVisible(firstCol);
+                    }
+                    const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  }
+                } else {
+                  const firstCol = params.api.getAllDisplayedColumns()[0];
+                  if (firstCol) {
+                    params.api.ensureColumnVisible(firstCol);
+                  }
+                }
+                
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
-                }, 100);
+                }, 200);
               }}
+              onColumnResized={saveColumnState}
+              onColumnMoved={saveColumnState}
+              onSortChanged={saveColumnState}
               pagination={false}
               suppressHorizontalScroll={false}
               enableRtl={true}

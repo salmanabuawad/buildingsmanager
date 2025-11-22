@@ -5,6 +5,7 @@ import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Tag, Search, AlertCircle, Plus, Settings, Upload, Building2, Loader2, Eye, Save, X, Trash2 } from 'lucide-react';
+import { useGridPreferences } from '../hooks/useGridPreferences';
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
@@ -25,158 +26,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
   const gridRef = useRef<AgGridReact<Building>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'buildings_list_column_state');
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<number, Partial<Building>>>(new Map());
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<number, Record<string, string>>>(new Map());
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<number>>(new Set());
-  const savePreferencesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const USER_ID = 'default'; // In a real app, this would come from auth
-  const PREFERENCE_KEY = 'buildings_list_column_state';
-  const [columnStateLoaded, setColumnStateLoaded] = useState(false);
-
-  // Load saved column state
-  const loadColumnState = useCallback(async () => {
-    try {
-      console.log('[BuildingsList] Loading column state...');
-      const preference = await api.userPreferences.get(USER_ID, PREFERENCE_KEY);
-      if (preference && preference.preference_value && gridRef.current?.api) {
-        const savedState = preference.preference_value;
-        
-        // Handle both old format (just array) and new format (object with columnState and sortModel)
-        let columnState: any[];
-        let sortModel: any[] | null = null;
-        
-        if (Array.isArray(savedState)) {
-          // Old format: just column state array
-          columnState = savedState;
-        } else if (savedState.columnState) {
-          // New format: object with columnState and sortModel
-          columnState = savedState.columnState;
-          sortModel = savedState.sortModel || null;
-        } else {
-          console.warn('[BuildingsList] Unexpected saved state format:', savedState);
-          return false;
-        }
-        
-        // Log column state for debugging (including sort info)
-        const columnInfo = Array.isArray(columnState)
-          ? columnState.map((col: any, index: number) => ({ 
-              colId: col.colId, 
-              width: col.width, 
-              hide: col.hide,
-              sort: col.sort,
-              sortIndex: col.sortIndex,
-              savedPosition: index
-            }))
-          : [];
-        console.log('[BuildingsList] Found saved column state (widths, order, visibility, sorting):', columnInfo);
-        if (sortModel) {
-          console.log('[BuildingsList] Found saved sort model:', sortModel);
-        }
-        
-        // applyOrder: true restores both column widths AND their positions/order
-        // The column state also includes sort information
-        gridRef.current.api.applyColumnState({
-          state: columnState,
-          applyOrder: true  // This ensures column positions are restored
-        });
-        
-        // Also apply sort model if available (for redundancy and explicit control)
-        if (sortModel && sortModel.length > 0) {
-          try {
-            if (typeof gridRef.current.api.setSortModel === 'function') {
-              gridRef.current.api.setSortModel(sortModel);
-              console.log('[BuildingsList] Sort model applied');
-            }
-          } catch (e) {
-            // setSortModel might not be available, that's okay - sort info is in columnState
-            console.log('[BuildingsList] setSortModel not available, using sort info from columnState');
-          }
-        }
-        
-        console.log('[BuildingsList] Column state applied (widths, positions, and sorting restored)');
-        setColumnStateLoaded(true);
-        return true;
-      } else {
-        console.log('[BuildingsList] No saved column state found');
-      }
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.toString() || 'Unknown error';
-      const errorCode = err?.code || 'N/A';
-      console.error('[BuildingsList] Failed to load column state:', {
-        error: errorMessage,
-        code: errorCode,
-        fullError: err
-      });
-      // If it's a table not found error, show a helpful message
-      if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
-        console.warn('[BuildingsList] user_preferences table does not exist. Please run the migration: create_user_preferences_table.sql');
-      }
-    }
-    // Mark as loaded even if no state was found, so we can save new preferences
-    setColumnStateLoaded(true);
-    return false;
-  }, []);
-
-  // Save column state with debounce (includes widths, order, visibility, and sorting)
-  const saveColumnState = useCallback(() => {
-    if (!gridRef.current?.api) return;
-
-    // Clear existing timeout
-    if (savePreferencesTimeoutRef.current) {
-      clearTimeout(savePreferencesTimeoutRef.current);
-    }
-
-    // Debounce save by 500ms
-    savePreferencesTimeoutRef.current = setTimeout(async () => {
-      try {
-        if (!gridRef.current?.api) return;
-        
-        // getColumnState() returns columns in their current order with all properties
-        // The array order itself represents the column position/order
-        // It also includes sort information (sort, sortIndex) for each column
-        const columnState = gridRef.current.api.getColumnState();
-        
-        // Try to get sort model, but handle if method doesn't exist
-        let sortModel: any[] | null = null;
-        try {
-          if (typeof gridRef.current.api.getSortModel === 'function') {
-            sortModel = gridRef.current.api.getSortModel();
-          }
-        } catch (e) {
-          // getSortModel might not be available, that's okay - sort info is in columnState
-          console.log('[BuildingsList] getSortModel not available, using sort info from columnState');
-        }
-        
-        if (columnState && columnState.length > 0) {
-          // Log column state for debugging (including sort info)
-          const columnInfo = columnState.map((col: any) => ({ 
-            colId: col.colId, 
-            width: col.width, 
-            hide: col.hide,
-            sort: col.sort,
-            sortIndex: col.sortIndex,
-            position: columnState.indexOf(col)
-          }));
-          console.log('[BuildingsList] Saving column state (widths, order, visibility, sorting):', columnInfo);
-          if (sortModel) {
-            console.log('[BuildingsList] Sort model:', sortModel);
-          }
-          
-          // Save both column state (includes sort) and sort model for redundancy
-          const stateToSave = {
-            columnState: columnState,
-            sortModel: sortModel || null
-          };
-          
-          await api.userPreferences.set(USER_ID, PREFERENCE_KEY, stateToSave);
-          console.log('[BuildingsList] Column state saved successfully (including positions and sorting)');
-        }
-      } catch (err) {
-        console.error('[BuildingsList] Failed to save column state:', err);
-      }
-    }, 500);
-  }, []);
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -197,15 +51,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   useEffect(() => {
     fetchBuildings(true);
   }, [fetchBuildings]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (savePreferencesTimeoutRef.current) {
-        clearTimeout(savePreferencesTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (buildingFilter === '') {

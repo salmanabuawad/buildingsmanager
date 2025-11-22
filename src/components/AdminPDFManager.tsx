@@ -4,6 +4,7 @@ import { Apartment, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Upload, FileCheck, FileX, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useGridPreferences } from '../hooks/useGridPreferences';
 
 interface ApartmentWithBuilding extends Apartment {
   building_name: string;
@@ -16,6 +17,7 @@ export function AdminPDFManager() {
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const gridRef = useRef<AgGridReact<ApartmentWithBuilding>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'admin_pdf_manager_column_state');
 
   useEffect(() => {
     fetchApartments();
@@ -206,26 +208,43 @@ export function AdminPDFManager() {
           rowData={apartments}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          onGridReady={(params) => {
-            const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-            // Don't use sizeColumnsToFit to allow content-based sizing
+          onGridReady={async (params) => {
+            // Load saved column state first
+            const hasSavedState = await loadColumnState();
+            
+            // If no saved state, apply default sizing
+            if (!hasSavedState) {
+              const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+            }
           }}
-          onFirstDataRendered={(params) => {
-            const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-            // Don't use sizeColumnsToFit to allow content-based sizing
+          onFirstDataRendered={async (params) => {
+            // Load saved column state if not already loaded
+            if (!columnStateLoaded) {
+              const hasSavedState = await loadColumnState();
+              
+              // If no saved state, apply default sizing
+              if (!hasSavedState) {
+                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+              }
+            }
+            
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
               params.api.ensureColumnVisible(firstCol);
             }
+            
             setTimeout(() => {
               const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
               if (gridElement) {
                 gridElement.scrollLeft = 0;
               }
-            }, 100);
+            }, 200);
           }}
+          onColumnResized={saveColumnState}
+          onColumnMoved={saveColumnState}
+          onSortChanged={saveColumnState}
           pagination={true}
           paginationPageSize={20}
           paginationPageSizeSelector={[10, 20, 50, 100]}

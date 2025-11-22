@@ -8,6 +8,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { supabase } from '../lib/supabase';
+import { useGridPreferences } from '../hooks/useGridPreferences';
 
 interface AssetDetailsProps {
   assetId: number;
@@ -29,6 +30,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
 
   const latestMeasurementId = useMemo(() => {
     if (allMeasurements.length === 0) return null;
@@ -848,16 +850,31 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
                 getRowId={(params) => String(params.data.id)}
                 getRowStyle={getRowStyle}
-                onGridReady={(params) => {
-                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Don't use sizeColumnsToFit to allow content-based sizing
+                onGridReady={async (params) => {
+                  // Load saved column state first
+                  const hasSavedState = await loadColumnState();
+                  
+                  // If no saved state, apply default sizing
+                  if (!hasSavedState) {
+                    const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  }
                 }}
-                onFirstDataRendered={(params) => {
-                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Don't use sizeColumnsToFit to allow content-based sizing
+                onFirstDataRendered={async (params) => {
+                  // Load saved column state if not already loaded
+                  if (!columnStateLoaded) {
+                    const hasSavedState = await loadColumnState();
+                    
+                    // If no saved state, apply default sizing
+                    if (!hasSavedState) {
+                      const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
+                  }
                 }}
+                onColumnResized={saveColumnState}
+                onColumnMoved={saveColumnState}
+                onSortChanged={saveColumnState}
                 onCellValueChanged={onCellValueChanged}
                 enableRtl={true}
                 animateRows={true}

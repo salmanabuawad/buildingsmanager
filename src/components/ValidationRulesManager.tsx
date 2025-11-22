@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ValidationRule, api } from '../lib/api';
 import { loadValidationRules } from '../lib/validation';
 import { Settings, Plus, Save, X, RefreshCw } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
+import { useGridPreferences } from '../hooks/useGridPreferences';
 
 export function ValidationRulesManager() {
   const { t } = useTranslation();
@@ -277,18 +278,26 @@ export function ValidationRulesManager() {
     }
   ], [editingId, editValues]);
 
+  const gridRef = useRef<AgGridReact<ValidationRule>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'validation_rules_column_state');
+
   const defaultColDef = useMemo(() => ({
     resizable: true,
     wrapText: true,
     autoHeight: true
   }), []);
 
-  const onGridReady = useCallback((params: any) => {
+  const onGridReady = useCallback(async (params: any) => {
     console.log('Grid ready, rules count:', rules.length);
-    const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-    // Don't use sizeColumnsToFit to allow content-based sizing
-  }, [rules]);
+    // Load saved column state first
+    const hasSavedState = await loadColumnState();
+    
+    // If no saved state, apply default sizing
+    if (!hasSavedState) {
+      const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+    }
+  }, [rules, loadColumnState]);
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-lg shadow-lg">
@@ -534,25 +543,42 @@ export function ValidationRulesManager() {
             </div>
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
               <AgGridReact
+                ref={gridRef}
                 rowData={rules}
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 onGridReady={onGridReady}
-                onFirstDataRendered={(params) => {
-                  const firstCol = params.api.getAllDisplayedColumns()[0];
-                  if (firstCol) {
-                    params.api.ensureColumnVisible(firstCol);
+                onFirstDataRendered={async (params) => {
+                  // Load saved column state if not already loaded
+                  if (!columnStateLoaded) {
+                    const hasSavedState = await loadColumnState();
+                    
+                    // If no saved state, apply default sizing
+                    if (!hasSavedState) {
+                      const firstCol = params.api.getAllDisplayedColumns()[0];
+                      if (firstCol) {
+                        params.api.ensureColumnVisible(firstCol);
+                      }
+                      const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
+                  } else {
+                    const firstCol = params.api.getAllDisplayedColumns()[0];
+                    if (firstCol) {
+                      params.api.ensureColumnVisible(firstCol);
+                    }
                   }
-                  const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Don't use sizeColumnsToFit to allow content-based sizing
+                  
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                     if (gridElement) {
                       gridElement.scrollLeft = 0;
                     }
-                  }, 100);
+                  }, 200);
                 }}
+                onColumnResized={saveColumnState}
+                onColumnMoved={saveColumnState}
+                onSortChanged={saveColumnState}
                 pagination={true}
                 paginationPageSize={20}
                 paginationPageSizeSelector={[10, 20, 50, 100]}

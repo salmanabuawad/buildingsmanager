@@ -5,6 +5,7 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye } from 'lucide-react';
+import { useGridPreferences } from '../hooks/useGridPreferences';
 interface AssetsListProps {
   buildingNumber: number;
   taxZone?: string;
@@ -21,6 +22,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [invalidAssets, setInvalidAssets] = useState<Set<string>>(new Set());
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
   const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
   const [originalDisplayAssets, setOriginalDisplayAssets] = useState<Asset[]>([]);
   const [originalMasterAssets, setOriginalMasterAssets] = useState<Asset[]>([]);
@@ -1055,14 +1057,26 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 }
               }, 100);
             }}
-            onFirstDataRendered={(params) => {
-              const firstCol = params.api.getAllDisplayedColumns()[0];
-              if (firstCol) {
-                params.api.ensureColumnVisible(firstCol);
+            onFirstDataRendered={async (params) => {
+              // Load saved column state if not already loaded
+              if (!columnStateLoaded) {
+                const hasSavedState = await loadColumnState();
+                
+                // If no saved state, apply default sizing
+                if (!hasSavedState) {
+                  const firstCol = params.api.getAllDisplayedColumns()[0];
+                  if (firstCol) {
+                    params.api.ensureColumnVisible(firstCol);
+                  }
+                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                }
+              } else {
+                const firstCol = params.api.getAllDisplayedColumns()[0];
+                if (firstCol) {
+                  params.api.ensureColumnVisible(firstCol);
+                }
               }
-              const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              // Don't use sizeColumnsToFit to allow content-based sizing
 
               // Scroll to left after data render
               setTimeout(() => {
@@ -1070,7 +1084,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 if (gridElement) {
                   gridElement.scrollLeft = 0;
                 }
-              }, 100);
+              }, 200);
             }}
             animateRows={true}
             enableRtl={true}

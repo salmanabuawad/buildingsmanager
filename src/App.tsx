@@ -37,6 +37,11 @@ function App() {
   const [deletePreferencesLoading, setDeletePreferencesLoading] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
+  const [batchValidationProgress, setBatchValidationProgress] = useState<{
+    current: number;
+    total: number;
+    currentAssetId?: string;
+  } | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<{
     total: number;
     valid: number;
@@ -276,6 +281,7 @@ function App() {
     setShowBatchValidationModal(true);
     setBatchValidationLoading(true);
     setBatchValidationResults(null);
+    setBatchValidationProgress(null);
 
     try {
       // Get all assets from the system
@@ -290,7 +296,15 @@ function App() {
       };
 
       // Validate each asset
-      for (const asset of allAssets) {
+      for (let i = 0; i < allAssets.length; i++) {
+        const asset = allAssets[i];
+        
+        // Update progress
+        setBatchValidationProgress({
+          current: i + 1,
+          total: allAssets.length,
+          currentAssetId: String(asset.asset_id)
+        });
         const assetErrors: string[] = [];
 
         // Validate all fields using validateEntity
@@ -746,9 +760,28 @@ function App() {
 
             {batchValidationLoading ? (
               <div className="flex-1 flex items-center justify-center py-12">
-                <div className="text-center">
+                <div className="text-center w-full max-w-md">
                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
-                  <p className="text-slate-600">מאמת את כל הנכסים במערכת...</p>
+                  <p className="text-slate-600 mb-4">מאמת את כל הנכסים במערכת...</p>
+                  {batchValidationProgress && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
+                        <span>נכס {batchValidationProgress.current} מתוך {batchValidationProgress.total}</span>
+                        <span>{Math.round((batchValidationProgress.current / batchValidationProgress.total) * 100)}%</span>
+                      </div>
+                      {batchValidationProgress.currentAssetId && (
+                        <p className="text-xs text-slate-500 mb-3">
+                          מאמת נכס: {batchValidationProgress.currentAssetId}
+                        </p>
+                      )}
+                      <div className="w-full bg-slate-200 rounded-full h-2.5">
+                        <div
+                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                          style={{ width: `${(batchValidationProgress.current / batchValidationProgress.total) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : batchValidationResults ? (

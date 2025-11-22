@@ -540,9 +540,17 @@ export async function validateSubAssetSizeMatchesMain(
   const totalSubAssetSize = subAssetSizes
     .filter((size, idx) => {
       const hasType = subAssetTypes[idx] && subAssetTypes[idx]!.trim() !== '';
-      return hasType && size != null;
+      return hasType && size != null && size !== '';
     })
-    .reduce((sum, size) => sum + (size || 0), 0);
+    .map(size => {
+      // Convert to number if it's a string
+      if (typeof size === 'string') {
+        const num = parseFloat(size);
+        return isNaN(num) ? 0 : num;
+      }
+      return typeof size === 'number' ? size : 0;
+    })
+    .reduce((sum, size) => sum + size, 0);
 
   if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
     return {
@@ -704,9 +712,17 @@ export async function validateSubAssetsFor199Or299(
     const totalSubAssetSize = subAssetSizes
       .filter((size, idx) => {
         const hasType = subAssetTypes[idx] && subAssetTypes[idx]!.trim() !== '';
-        return hasType && size != null;
+        return hasType && size != null && size !== '';
       })
-      .reduce((sum, size) => sum + (size || 0), 0);
+      .map(size => {
+        // Convert to number if it's a string
+        if (typeof size === 'string') {
+          const num = parseFloat(size);
+          return isNaN(num) ? 0 : num;
+        }
+        return typeof size === 'number' ? size : 0;
+      })
+      .reduce((sum, size) => sum + size, 0);
 
     if (Math.abs(totalSubAssetSize - mainAssetSize) > 0.01) {
       return {

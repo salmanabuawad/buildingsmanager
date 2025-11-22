@@ -201,16 +201,9 @@ export function AssetTypeFieldsManager() {
     autoHeaderHeight: true,
     wrapText: true,
     autoHeight: true,
-    cellStyle: { textAlign: 'right' }
+    cellStyle: { textAlign: 'right' },
+    headerClass: 'ag-right-aligned-header'
   }), []);
-
-  const onGridReady = useCallback(async (params: any) => {
-    const hasSavedState = await loadColumnState();
-    if (!hasSavedState) {
-      const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-    }
-  }, [loadColumnState]);
 
   if (loading) {
     return (
@@ -221,7 +214,7 @@ export function AssetTypeFieldsManager() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8" dir="rtl">
+    <div className="w-full px-2 sm:px-4 py-4 sm:py-8" dir="rtl">
       <div className="mb-4 sm:mb-6">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-1 sm:mb-2">
           ניהול שדות סוגי נכסים
@@ -237,7 +230,7 @@ export function AssetTypeFieldsManager() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-800">רשימת שדות</h2>
           <button
@@ -321,13 +314,55 @@ export function AssetTypeFieldsManager() {
           </div>
         )}
 
-        <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={fields}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
-            onGridReady={onGridReady}
+            onGridReady={async (params) => {
+              // Ensure actions column is always pinned and in correct position
+              setTimeout(() => {
+                const columnState = params.api.getColumnState();
+                const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                if (actionsCol) {
+                  params.api.applyColumnState({
+                    state: [{
+                      ...actionsCol,
+                      colId: 'actions',
+                      pinned: 'right',
+                      lockPosition: true,
+                      lockPinned: true
+                    }],
+                    defaultState: { pinned: null }
+                  });
+                }
+              }, 10);
+              
+              const hasSavedState = await loadColumnState();
+              if (!hasSavedState) {
+                const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+              }
+
+              // Ensure actions column stays pinned after any operations
+              setTimeout(() => {
+                const columnState = params.api.getColumnState();
+                const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                if (actionsCol && actionsCol.pinned !== 'right') {
+                  params.api.applyColumnState({
+                    state: [{
+                      ...actionsCol,
+                      colId: 'actions',
+                      pinned: 'right',
+                      lockPosition: true,
+                      lockPinned: true
+                    }],
+                    defaultState: { pinned: null }
+                  });
+                }
+              }, 150);
+            }}
             onFirstDataRendered={async (params) => {
               if (!columnStateLoaded) {
                 const hasSavedState = await loadColumnState();

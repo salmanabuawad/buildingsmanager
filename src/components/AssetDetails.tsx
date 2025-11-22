@@ -595,7 +595,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
     {
       field: 'sub_asset_type_1',
@@ -612,7 +616,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
     {
       field: 'sub_asset_type_2',
@@ -629,7 +637,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
     {
       field: 'sub_asset_type_3',
@@ -646,7 +658,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
     {
       field: 'sub_asset_type_4',
@@ -663,7 +679,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
     {
       field: 'sub_asset_type_5',
@@ -680,7 +700,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
     {
       field: 'sub_asset_type_6',
@@ -697,7 +721,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       editable: (params) => params.data.id === latestMeasurementId,
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
     },
   ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl]);
 

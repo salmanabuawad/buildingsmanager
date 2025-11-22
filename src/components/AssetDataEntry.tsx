@@ -991,7 +991,11 @@ export function AssetDataEntry() {
       headerName: t('mainAssetSize'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
     {
@@ -1010,7 +1014,11 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize1'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
     {
@@ -1029,7 +1037,11 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize2'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
     {
@@ -1048,7 +1060,11 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize3'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
     {
@@ -1067,7 +1083,11 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize4'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
     {
@@ -1086,7 +1106,11 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize5'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
     {
@@ -1105,7 +1129,11 @@ export function AssetDataEntry() {
       headerName: t('subAssetSize6'),
       editable: true,
       type: 'numericColumn',
-      valueFormatter: (params) => params.value ? params.value.toFixed(2) : '',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     }
   ], [t, buildings, assetTypes, getCellStyle]);

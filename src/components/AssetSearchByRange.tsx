@@ -184,10 +184,10 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                         {asset.main_asset_type || '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {asset.asset_size.toFixed(2)}
+                        {asset.asset_size != null && typeof asset.asset_size === 'number' ? asset.asset_size.toFixed(2) : '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
-                        {asset.total_size.toFixed(2)}
+                        {asset.total_size != null && typeof asset.total_size === 'number' ? asset.total_size.toFixed(2) : '-'}
                       </td>
                     </tr>
                   ))}

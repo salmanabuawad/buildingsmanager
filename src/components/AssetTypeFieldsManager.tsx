@@ -169,9 +169,17 @@ export function AssetTypeFieldsManager() {
       editable: false,
       width: 120,
       cellRenderer: (params: any) => {
-        return params.value ? '✓' : '';
+        return (
+          <input
+            type="checkbox"
+            checked={params.value || false}
+            disabled
+            className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-default"
+            readOnly
+          />
+        );
       },
-      cellStyle: { textAlign: 'center' }
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
       field: 'is_building_level',
@@ -179,9 +187,17 @@ export function AssetTypeFieldsManager() {
       editable: false,
       width: 120,
       cellRenderer: (params: any) => {
-        return params.value ? '✓' : '';
+        return (
+          <input
+            type="checkbox"
+            checked={params.value || false}
+            disabled
+            className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-default"
+            readOnly
+          />
+        );
       },
-      cellStyle: { textAlign: 'center' }
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
       field: 'is_asset_type_validation',
@@ -189,9 +205,17 @@ export function AssetTypeFieldsManager() {
       editable: false,
       width: 150,
       cellRenderer: (params: any) => {
-        return params.value ? '✓' : '';
+        return (
+          <input
+            type="checkbox"
+            checked={params.value || false}
+            disabled
+            className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-default"
+            readOnly
+          />
+        );
       },
-      cellStyle: { textAlign: 'center' }
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
   ], [t]);
 

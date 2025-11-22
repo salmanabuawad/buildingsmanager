@@ -1,5 +1,9 @@
 -- Quick script to create user_preferences table
 -- Run this in your database if the migration hasn't been applied yet
+-- After running this, restart PostgREST to refresh the schema cache
+
+-- Drop table if it exists (optional - comment out if you want to preserve data)
+-- DROP TABLE IF EXISTS user_preferences CASCADE;
 
 CREATE TABLE IF NOT EXISTS user_preferences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

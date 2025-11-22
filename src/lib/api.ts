@@ -775,5 +775,35 @@ export const api = {
       if (error) throw error;
       return { message: 'Preference deleted successfully' };
     },
+    deleteAll: async (userId: string): Promise<{ message: string; count: number }> => {
+      console.log('[API] Deleting all user preferences for user:', userId);
+      try {
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .delete()
+          .eq('user_id', userId)
+          .select();
+
+        if (error) {
+          // If table doesn't exist, return success with 0 count
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.warn('[API] user_preferences table does not exist.');
+            return { message: 'No preferences to delete', count: 0 };
+          }
+          console.error('[API] Error deleting all user preferences:', error);
+          throw error;
+        }
+        const count = data?.length || 0;
+        console.log(`[API] Deleted ${count} user preferences`);
+        return { message: `Deleted ${count} preference(s) successfully`, count };
+      } catch (err: any) {
+        // Handle table not found gracefully
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          console.warn('[API] user_preferences table does not exist.');
+          return { message: 'No preferences to delete', count: 0 };
+        }
+        throw err;
+      }
+    },
   },
 };

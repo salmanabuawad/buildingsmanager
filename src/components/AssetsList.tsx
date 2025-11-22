@@ -725,8 +725,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       field: 'asset_id',
       headerName: t('assetId'),
       editable: true,
-      pinned: 'right',
-      lockPosition: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },

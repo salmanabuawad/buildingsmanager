@@ -345,8 +345,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'building_number',
       headerName: t('buildingNumber'),
       editable: false,
-      pinned: 'right',
-      lockPosition: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);

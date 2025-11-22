@@ -739,7 +739,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
-          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%' }}>
             <AgGridReact
               ref={gridRef}
               rowData={filteredBuildings}
@@ -750,8 +750,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 autoHeaderHeight: true,
                 wrapText: true,
                 autoHeight: true,
-                cellStyle: { textAlign: 'right' },
-                headerClass: 'ag-right-aligned-header'
+                cellStyle: { textAlign: 'right', fontSize: '16px' },
+                headerClass: 'ag-right-aligned-header buildings-list-header'
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={(params) => {

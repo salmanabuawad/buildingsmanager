@@ -35,6 +35,18 @@ input[type="number"] {
   font-size: 9px;
 }
 
+.ag-theme-alpine.buildings-list-grid .ag-header {
+  font-size: 16px !important;
+}
+
+.ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
+  font-size: 16px !important;
+}
+
+.ag-theme-alpine.buildings-list-grid .ag-cell {
+  font-size: 16px !important;
+}
+
 .ag-theme-alpine .ag-header-cell-label {
   color: white;
 }

@@ -264,9 +264,19 @@ export async function validateAssetTypeForBuildingTaxRegion(
       .select('*')
       .eq('name', assetTypeName);
 
-    // Filter by building's tax region
-    if (buildingTaxRegions.length > 0) {
-      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+    // For asset type 199, it's valid in all tax regions except 40
+    // So we don't filter by building's tax region, just check it exists and is not in tax region 40
+    if (assetTypeName === '199') {
+      // Check that asset type 199 exists and is not in tax region 40
+      query = query.neq('tax_region', 40);
+    } else if (assetTypeName === '299') {
+      // For 299, it must be in tax region 40
+      query = query.eq('tax_region', 40);
+    } else {
+      // For other asset types, filter by building's tax region
+      if (buildingTaxRegions.length > 0) {
+        query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+      }
     }
 
     const { data: assetTypes, error: assetTypeError } = await query;
@@ -277,6 +287,11 @@ export async function validateAssetTypeForBuildingTaxRegion(
     }
 
     if (!assetTypes || assetTypes.length === 0) {
+      if (assetTypeName === '199') {
+        return { valid: false, error: `Asset type "${assetTypeName}" does not exist or is only available in tax region 40` };
+      } else if (assetTypeName === '299') {
+        return { valid: false, error: `Asset type "${assetTypeName}" does not exist in tax region 40` };
+      }
       return { valid: false, error: `Asset type "${assetTypeName}" does not exist in building's tax region` };
     }
 
@@ -334,9 +349,19 @@ export async function validateAssetTypeComplete(
       .select('*')
       .eq('name', assetTypeName);
 
-    // If building has a tax region, filter by it
-    if (buildingTaxRegions.length > 0) {
-      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+    // For asset type 199, it's valid in all tax regions except 40
+    // So we don't filter by building's tax region, just check it exists and is not in tax region 40
+    if (assetTypeName === '199') {
+      // Check that asset type 199 exists and is not in tax region 40
+      query = query.neq('tax_region', 40);
+    } else if (assetTypeName === '299') {
+      // For 299, it must be in tax region 40
+      query = query.eq('tax_region', 40);
+    } else {
+      // For other asset types, filter by building's tax region
+      if (buildingTaxRegions.length > 0) {
+        query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+      }
     }
 
     const { data: assetTypes, error: assetTypeError } = await query;
@@ -347,6 +372,11 @@ export async function validateAssetTypeComplete(
     }
 
     if (!assetTypes || assetTypes.length === 0) {
+      if (assetTypeName === '199') {
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+      } else if (assetTypeName === '299') {
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+      }
       return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
     }
 

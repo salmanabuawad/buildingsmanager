@@ -33,9 +33,17 @@ export function AssetTypeFieldsManager() {
       if (showLoading) setLoading(true);
       const data = await api.assetTypeFields.getAll();
       setFields(data);
+      if (data.length === 0) {
+        console.warn('No asset type fields found. The table might be empty or not exist yet.');
+      }
     } catch (error: any) {
       console.error('Error fetching asset type fields:', error);
-      showMessage('error', error?.message || t('error'));
+      const errorMessage = error?.message || t('error');
+      showMessage('error', errorMessage);
+      // If table doesn't exist, show helpful message
+      if (errorMessage.includes('does not exist') || errorMessage.includes('42P01')) {
+        showMessage('error', 'טבלת שדות סוגי נכסים לא קיימת. אנא הרץ את המיגרציה תחילה.');
+      }
     } finally {
       if (showLoading) setLoading(false);
     }

@@ -611,54 +611,118 @@ export const api = {
   },
   assetTypeFields: {
     getAll: async (): Promise<AssetTypeField[]> => {
-      const { data, error } = await supabase
-        .from('asset_type_fields')
-        .select('*')
-        .order('field_name');
+      try {
+        const { data, error } = await supabase
+          .from('asset_type_fields')
+          .select('*')
+          .order('field_name');
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          // If table doesn't exist, return empty array instead of throwing
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.warn('[API] asset_type_fields table does not exist. Please run the migration.');
+            return [];
+          }
+          throw error;
+        }
+        return data || [];
+      } catch (err: any) {
+        // Handle table not found gracefully
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          console.warn('[API] asset_type_fields table does not exist. Please run the migration.');
+          return [];
+        }
+        throw err;
+      }
     },
     getOne: async (id: string): Promise<AssetTypeField> => {
-      const { data, error } = await supabase
-        .from('asset_type_fields')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from('asset_type_fields')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
 
-      if (error) throw error;
-      if (!data) throw new Error('Asset type field not found');
-      return data;
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            throw new Error('asset_type_fields table does not exist. Please run the migration.');
+          }
+          throw error;
+        }
+        if (!data) throw new Error('Asset type field not found');
+        return data;
+      } catch (err: any) {
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          throw new Error('asset_type_fields table does not exist. Please run the migration.');
+        }
+        throw err;
+      }
     },
     create: async (input: Omit<AssetTypeField, 'id' | 'created_at' | 'updated_at'>): Promise<AssetTypeField> => {
-      const { data, error } = await supabase
-        .from('asset_type_fields')
-        .insert(input)
-        .select()
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('asset_type_fields')
+          .insert(input)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            throw new Error('asset_type_fields table does not exist. Please run the migration.');
+          }
+          throw error;
+        }
+        return data;
+      } catch (err: any) {
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          throw new Error('asset_type_fields table does not exist. Please run the migration.');
+        }
+        throw err;
+      }
     },
     update: async (id: string, input: Partial<AssetTypeField>): Promise<AssetTypeField> => {
-      const { data, error } = await supabase
-        .from('asset_type_fields')
-        .update(input)
-        .eq('id', id)
-        .select()
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('asset_type_fields')
+          .update(input)
+          .eq('id', id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            throw new Error('asset_type_fields table does not exist. Please run the migration.');
+          }
+          throw error;
+        }
+        return data;
+      } catch (err: any) {
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          throw new Error('asset_type_fields table does not exist. Please run the migration.');
+        }
+        throw err;
+      }
     },
     delete: async (id: string): Promise<{ message: string }> => {
-      const { error } = await supabase
-        .from('asset_type_fields')
-        .delete()
-        .eq('id', id);
+      try {
+        const { error } = await supabase
+          .from('asset_type_fields')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
-      return { message: 'Asset type field deleted successfully' };
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            throw new Error('asset_type_fields table does not exist. Please run the migration.');
+          }
+          throw error;
+        }
+        return { message: 'Asset type field deleted successfully' };
+      } catch (err: any) {
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          throw new Error('asset_type_fields table does not exist. Please run the migration.');
+        }
+        throw err;
+      }
     },
   },
   validationRules: {

@@ -356,7 +356,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         const building = params.data as Building;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['building_number'];
-        const value = params.value != null ? params.value.toLocaleString() : '';
+        const value = params.value != null ? String(params.value) : '';
 
         if (errorMsg) {
           return (

@@ -26,13 +26,17 @@ DROP POLICY IF EXISTS "Allow all access to user preferences" ON user_preferences
 CREATE POLICY "Allow all access to user preferences" ON user_preferences
   FOR ALL USING (true);
 
--- Create trigger for updated_at (assuming the function exists)
-DO $$
+-- Create function to update updated_at timestamp (if it doesn't exist)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
-    DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
-    CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  END IF;
-END $$;
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
+CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

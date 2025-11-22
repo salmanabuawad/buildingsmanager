@@ -41,11 +41,22 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       const preference = await api.userPreferences.get(USER_ID, PREFERENCE_KEY);
       if (preference && preference.preference_value && gridRef.current?.api) {
         const columnState = preference.preference_value;
-        console.log('[BuildingsList] Found saved column state:', columnState);
+        // Log column order for debugging
+        const columnOrder = Array.isArray(columnState) 
+          ? columnState.map((col: any, index: number) => ({ 
+              colId: col.colId, 
+              width: col.width, 
+              hide: col.hide,
+              savedPosition: index
+            }))
+          : [];
+        console.log('[BuildingsList] Found saved column state (widths, order, visibility):', columnOrder);
+        // applyOrder: true restores both column widths AND their positions/order
         gridRef.current.api.applyColumnState({
           state: columnState,
-          applyOrder: true
+          applyOrder: true  // This ensures column positions are restored
         });
+        console.log('[BuildingsList] Column state applied (widths and positions restored)');
         setColumnStateLoaded(true);
         return true;
       } else {
@@ -69,7 +80,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     return false;
   }, []);
 
-  // Save column state with debounce
+  // Save column state with debounce (includes widths, order, and visibility)
   const saveColumnState = useCallback(() => {
     if (!gridRef.current?.api) return;
 
@@ -81,11 +92,20 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     // Debounce save by 500ms
     savePreferencesTimeoutRef.current = setTimeout(async () => {
       try {
+        // getColumnState() returns columns in their current order with all properties
+        // The array order itself represents the column position/order
         const columnState = gridRef.current?.api.getColumnState();
         if (columnState && columnState.length > 0) {
-          console.log('[BuildingsList] Saving column state:', columnState);
+          // Log column order for debugging
+          const columnOrder = columnState.map((col: any) => ({ 
+            colId: col.colId, 
+            width: col.width, 
+            hide: col.hide,
+            position: columnState.indexOf(col)
+          }));
+          console.log('[BuildingsList] Saving column state (widths, order, visibility):', columnOrder);
           await api.userPreferences.set(USER_ID, PREFERENCE_KEY, columnState);
-          console.log('[BuildingsList] Column state saved successfully');
+          console.log('[BuildingsList] Column state saved successfully (including positions)');
         }
       } catch (err) {
         console.error('[BuildingsList] Failed to save column state:', err);

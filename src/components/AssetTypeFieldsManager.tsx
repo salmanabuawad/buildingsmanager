@@ -1,0 +1,369 @@
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AssetTypeField, api } from '../lib/api';
+import { Plus, Settings, Trash2, Save, X } from 'lucide-react';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
+import { useGridPreferences } from '../hooks/useGridPreferences';
+
+export function AssetTypeFieldsManager() {
+  const { t } = useTranslation();
+  const [fields, setFields] = useState<AssetTypeField[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const gridRef = useRef<AgGridReact<AssetTypeField>>(null);
+  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_type_fields_column_state');
+
+  const [formData, setFormData] = useState({
+    field_name: '',
+    is_asset_level: false,
+    is_building_level: false,
+    is_asset_type_validation: false,
+  });
+
+  useEffect(() => {
+    fetchFields();
+  }, []);
+
+  async function fetchFields(showLoading = true) {
+    try {
+      if (showLoading) setLoading(true);
+      const data = await api.assetTypeFields.getAll();
+      setFields(data);
+    } catch (error: any) {
+      console.error('Error fetching asset type fields:', error);
+      showMessage('error', error?.message || t('error'));
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }
+
+  function showMessage(type: 'success' | 'error', text: string) {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  }
+
+  function resetForm() {
+    setFormData({
+      field_name: '',
+      is_asset_level: false,
+      is_building_level: false,
+      is_asset_type_validation: false,
+    });
+    setIsAdding(false);
+    setEditingId(null);
+  }
+
+  function startAdd() {
+    resetForm();
+    setIsAdding(true);
+  }
+
+  function startEdit(field: AssetTypeField) {
+    setFormData({
+      field_name: field.field_name,
+      is_asset_level: field.is_asset_level,
+      is_building_level: field.is_building_level,
+      is_asset_type_validation: field.is_asset_type_validation,
+    });
+    setEditingId(field.id);
+    setIsAdding(true);
+  }
+
+  async function handleSave() {
+    if (!formData.field_name.trim()) {
+      showMessage('error', 'שם השדה הוא חובה');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (editingId) {
+        await api.assetTypeFields.update(editingId, formData);
+        showMessage('success', 'השדה עודכן בהצלחה');
+      } else {
+        await api.assetTypeFields.create(formData);
+        showMessage('success', 'השדה נוצר בהצלחה');
+      }
+      await fetchFields();
+      resetForm();
+    } catch (error: any) {
+      console.error('Error saving asset type field:', error);
+      showMessage('error', error?.message || 'שגיאה בשמירת השדה');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('האם אתה בטוח שברצונך למחוק שדה זה?')) {
+      return;
+    }
+
+    try {
+      await api.assetTypeFields.delete(id);
+      showMessage('success', 'השדה נמחק בהצלחה');
+      await fetchFields();
+    } catch (error: any) {
+      console.error('Error deleting asset type field:', error);
+      showMessage('error', error?.message || 'שגיאה במחיקת השדה');
+    }
+  }
+
+  const columnDefs: ColDef<AssetTypeField>[] = useMemo(() => [
+    {
+      colId: 'actions',
+      headerName: t('actions'),
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressSizeToFit: true,
+      suppressMenu: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      width: 120,
+      cellRenderer: (params: any) => {
+        const field = params.data as AssetTypeField;
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            <button
+              onClick={() => startEdit(field)}
+              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="ערוך"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleDelete(field.id)}
+              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="מחק"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      }
+    },
+    {
+      field: 'field_name',
+      headerName: 'שם השדה',
+      editable: false,
+      width: 200,
+    },
+    {
+      field: 'is_asset_level',
+      headerName: 'רמת נכס',
+      editable: false,
+      width: 120,
+      cellRenderer: (params: any) => {
+        return params.value ? '✓' : '';
+      },
+      cellStyle: { textAlign: 'center' }
+    },
+    {
+      field: 'is_building_level',
+      headerName: 'רמת בניין',
+      editable: false,
+      width: 120,
+      cellRenderer: (params: any) => {
+        return params.value ? '✓' : '';
+      },
+      cellStyle: { textAlign: 'center' }
+    },
+    {
+      field: 'is_asset_type_validation',
+      headerName: 'תקינות סוג נכס',
+      editable: false,
+      width: 150,
+      cellRenderer: (params: any) => {
+        return params.value ? '✓' : '';
+      },
+      cellStyle: { textAlign: 'center' }
+    },
+  ], [t]);
+
+  const defaultColDef = useMemo<ColDef>(() => ({
+    resizable: true,
+    wrapHeaderText: true,
+    autoHeaderHeight: true,
+    wrapText: true,
+    autoHeight: true,
+    cellStyle: { textAlign: 'right' }
+  }), []);
+
+  const onGridReady = useCallback(async (params: any) => {
+    const hasSavedState = await loadColumnState();
+    if (!hasSavedState) {
+      const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+    }
+  }, [loadColumnState]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-slate-600">טוען...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8" dir="rtl">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-1 sm:mb-2">
+          ניהול שדות סוגי נכסים
+        </h1>
+        <p className="text-sm sm:text-base text-slate-600">
+          ניהול הגדרות שדות עבור סוגי נכסים
+        </p>
+      </div>
+
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.text}
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800">רשימת שדות</h2>
+          <button
+            onClick={startAdd}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף שדה
+          </button>
+        </div>
+
+        {isAdding && (
+          <div className="p-4 border-b border-slate-200 bg-slate-50">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  שם השדה *
+                </label>
+                <input
+                  type="text"
+                  value={formData.field_name}
+                  onChange={(e) => setFormData({ ...formData, field_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  placeholder="לדוגמה: asset_id"
+                  disabled={!!editingId}
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_asset_level}
+                    onChange={(e) => setFormData({ ...formData, is_asset_level: e.target.checked })}
+                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
+                  />
+                  <span className="text-sm text-slate-700">רמת נכס</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_building_level}
+                    onChange={(e) => setFormData({ ...formData, is_building_level: e.target.checked })}
+                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
+                  />
+                  <span className="text-sm text-slate-700">רמת בניין</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_asset_type_validation}
+                    onChange={(e) => setFormData({ ...formData, is_asset_type_validation: e.target.checked })}
+                    className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
+                  />
+                  <span className="text-sm text-slate-700">תקינות סוג נכס</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <span>שומר...</span>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>שמור</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={resetForm}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+              >
+                <X className="h-4 w-4" />
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+          <AgGridReact
+            ref={gridRef}
+            rowData={fields}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            onGridReady={onGridReady}
+            onFirstDataRendered={async (params) => {
+              if (!columnStateLoaded) {
+                const hasSavedState = await loadColumnState();
+                if (!hasSavedState) {
+                  const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                }
+              }
+            }}
+            onColumnResized={saveColumnState}
+            onColumnMoved={(params) => {
+              const actionsColumn = params.columnApi.getColumn('actions');
+              if (actionsColumn) {
+                const allColumns = params.columnApi.getAllColumns() || [];
+                const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
+                if (actionsIndex !== 0) {
+                  setTimeout(() => {
+                    if (gridRef.current?.api) {
+                      const columnState = gridRef.current.api.getColumnState();
+                      const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                      const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                      if (actionsCol) {
+                        gridRef.current.api.applyColumnState({
+                          state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                          applyOrder: true
+                        });
+                      }
+                    }
+                  }, 0);
+                  return;
+                }
+              }
+              saveColumnState();
+            }}
+            onSortChanged={saveColumnState}
+            pagination={true}
+            paginationPageSize={20}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            enableRtl={true}
+            getRowId={(params) => params.data.id}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+

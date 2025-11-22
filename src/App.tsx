@@ -6,14 +6,15 @@ import { AdminPDFManager } from './components/AdminPDFManager';
 import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
+import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
 import { CSVImport } from './components/CSVImport';
 import { AssetsCSVImport } from './components/AssetsCSVImport';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2 } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database } from 'lucide-react';
 import { api } from './lib/api';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'csv-import' | 'assets-csv-import' | 'asset-details';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'csv-import' | 'assets-csv-import' | 'asset-details';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -177,6 +178,20 @@ function App() {
 
     setTabs([buildingsTab, newTab]);
     setActiveTabId(validationRulesTabId);
+  }
+
+  function openAssetTypeFields() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const assetTypeFieldsTabId = 'asset-type-fields-panel';
+
+    const newTab: Tab = {
+      id: assetTypeFieldsTabId,
+      type: 'asset-type-fields',
+      label: 'שדות סוגי נכסים'
+    };
+
+    setTabs([buildingsTab, newTab]);
+    setActiveTabId(assetTypeFieldsTabId);
   }
 
   function openCSVImport() {
@@ -367,6 +382,13 @@ function App() {
                   <Settings className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
+                  onClick={openAssetTypeFields}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">שדות סוגי נכסים</span>
+                  <Database className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
                   onClick={() => setShowDeletePreferencesConfirm(true)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-red-50/50 hover:bg-red-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
@@ -404,6 +426,8 @@ function App() {
                       <Search className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'asset-type-fields' ? (
+                      <Database className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'csv-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'assets-csv-import' ? (
@@ -469,6 +493,9 @@ function App() {
             )}
             {activeTab?.type === 'validation-rules' && (
               <ValidationRulesManager />
+            )}
+            {activeTab?.type === 'asset-type-fields' && (
+              <AssetTypeFieldsManager />
             )}
             {activeTab?.type === 'csv-import' && (
               <CSVImport />

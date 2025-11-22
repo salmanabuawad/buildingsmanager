@@ -81,6 +81,16 @@ export interface AssetType {
   updated_at: string;
 }
 
+export interface AssetTypeField {
+  id: string;
+  field_name: string;
+  is_asset_level: boolean;
+  is_building_level: boolean;
+  is_asset_type_validation: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ValidationRule {
   id: string;
   rule_key: string;
@@ -597,6 +607,58 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Asset type deleted successfully' };
+    },
+  },
+  assetTypeFields: {
+    getAll: async (): Promise<AssetTypeField[]> => {
+      const { data, error } = await supabase
+        .from('asset_type_fields')
+        .select('*')
+        .order('field_name');
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: string): Promise<AssetTypeField> => {
+      const { data, error } = await supabase
+        .from('asset_type_fields')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) throw new Error('Asset type field not found');
+      return data;
+    },
+    create: async (input: Omit<AssetTypeField, 'id' | 'created_at' | 'updated_at'>): Promise<AssetTypeField> => {
+      const { data, error } = await supabase
+        .from('asset_type_fields')
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    update: async (id: string, input: Partial<AssetTypeField>): Promise<AssetTypeField> => {
+      const { data, error } = await supabase
+        .from('asset_type_fields')
+        .update(input)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id: string): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('asset_type_fields')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { message: 'Asset type field deleted successfully' };
     },
   },
   validationRules: {

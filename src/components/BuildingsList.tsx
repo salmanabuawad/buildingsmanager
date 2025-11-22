@@ -757,49 +757,35 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 wrapHeaderText: true,
                 autoHeaderHeight: true,
                 wrapText: true,
-                autoHeight: true,
+                autoHeight: false,
                 cellStyle: { textAlign: 'right', fontSize: '16px' },
                 headerClass: 'ag-right-aligned-header buildings-list-header'
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
-                // Ensure actions column is always pinned and in correct position
-                setTimeout(() => {
-                  const columnState = params.api.getColumnState();
-                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                  if (actionsCol) {
-                    params.api.applyColumnState({
-                      state: [{
-                        ...actionsCol,
-                        colId: 'actions',
-                        pinned: 'right',
-                        lockPosition: true,
-                        lockPinned: true
-                      }],
-                      defaultState: { pinned: null }
-                    });
-                  }
-                }, 10);
-                
                 // Load saved column state first
                 const hasSavedState = await loadColumnState();
                 
                 // If no saved state, apply default sizing
                 if (!hasSavedState) {
-                  const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                  // First auto-size columns based on content
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Then scale up to fit grid width
+                  // Wait for grid to fully render
                   setTimeout(() => {
-                    params.api.sizeColumnsToFit();
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map(col => col.getColId())
+                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                    
+                    if (allColumnIds.length > 0) {
+                      // Auto-size columns based on content
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    }
                   }, 100);
                 }
 
-                // Ensure actions column stays pinned after any operations
+                // Ensure actions column is always pinned and in correct position
                 setTimeout(() => {
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                  if (actionsCol && actionsCol.pinned !== 'right') {
+                  if (actionsCol) {
                     params.api.applyColumnState({
                       state: [{
                         ...actionsCol,
@@ -820,6 +806,25 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                     gridElement.scrollLeft = 0;
                   }
                 }, 200);
+              }}
+              onFirstDataRendered={async (params) => {
+                // Load saved column state if not already loaded
+                if (!columnStateLoaded) {
+                  const hasSavedState = await loadColumnState();
+                  
+                  // If no saved state, apply default sizing
+                  if (!hasSavedState) {
+                    setTimeout(() => {
+                      const allColumnIds = params.api.getAllDisplayedColumns()
+                        .map(col => col.getColId())
+                        .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                      
+                      if (allColumnIds.length > 0) {
+                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      }
+                    }, 50);
+                  }
+                }
               }}
               onColumnResized={saveColumnState}
               onColumnMoved={(params) => {
@@ -856,23 +861,15 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   
                   // If no saved state, apply default sizing
                   if (!hasSavedState) {
-                    const firstCol = params.api.getAllDisplayedColumns()[0];
-                    if (firstCol) {
-                      params.api.ensureColumnVisible(firstCol);
-                    }
-                    const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                    // First auto-size columns based on content
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale up to fit grid width
                     setTimeout(() => {
-                      params.api.sizeColumnsToFit();
-                    }, 100);
-                  }
-                } else {
-                  // If state was already loaded, ensure columns are visible
-                  const firstCol = params.api.getAllDisplayedColumns()[0];
-                  if (firstCol) {
-                    params.api.ensureColumnVisible(firstCol);
+                      const allColumnIds = params.api.getAllDisplayedColumns()
+                        .map(col => col.getColId())
+                        .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                      
+                      if (allColumnIds.length > 0) {
+                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      }
+                    }, 50);
                   }
                 }
 

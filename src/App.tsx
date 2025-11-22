@@ -586,13 +586,6 @@ function App() {
                   <span className="font-medium text-red-700">מחק כל העדפות משתמש</span>
                   <Trash2 className="h-3.5 w-3.5 text-red-600" />
                 </button>
-                <button
-                  onClick={handleBatchValidateAllAssets}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-blue-50/50 hover:bg-blue-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-blue-700">אמת את כל הנכסים</span>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                </button>
               </div>
             )}
           </div>

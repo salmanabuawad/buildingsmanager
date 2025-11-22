@@ -36,11 +36,11 @@ input[type="number"] {
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header {
-  font-size: 12px !important;
+  font-size: 10px !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
-  font-size: 12px !important;
+  font-size: 10px !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-cell {

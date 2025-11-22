@@ -761,7 +761,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 autoHeight: false,
                 cellStyle: { textAlign: 'right', fontSize: '16px' },
                 headerClass: 'ag-right-aligned-header buildings-list-header',
-                headerStyle: { fontSize: '12px' }
+                headerStyle: { fontSize: '10px' }
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {

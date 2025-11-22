@@ -156,7 +156,8 @@ export function AdminPDFManager() {
   const defaultColDef = useMemo(() => ({
     resizable: true,
     wrapText: true,
-    autoHeight: false
+    autoHeight: false,
+    minWidth: 30
   }), []);
 
   const apartmentsWithPDF = apartments.filter(a => a.dwg_file_url).length;

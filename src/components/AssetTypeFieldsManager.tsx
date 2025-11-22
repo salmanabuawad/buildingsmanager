@@ -319,6 +319,7 @@ export function AssetTypeFieldsManager() {
     autoHeaderHeight: true,
     wrapText: true,
     autoHeight: false,
+    minWidth: 30,
     cellStyle: { textAlign: 'right' },
     headerClass: 'ag-right-aligned-header'
   }), []);

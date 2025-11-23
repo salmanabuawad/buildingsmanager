@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye } from 'lucide-react';
+import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye, CheckCircle2 } from 'lucide-react';
 import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
@@ -316,6 +316,168 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
     setError(null);
+  }
+
+  async function handleValidateLatestRow() {
+    if (!latestMeasurementId) {
+      setToast({ message: 'לא נמצאה מדידה לאימות', type: 'error' });
+      return;
+    }
+
+    const latestRow = allMeasurements.find(m => m.id === latestMeasurementId);
+    if (!latestRow) {
+      setToast({ message: 'לא נמצאה מדידה אחרונה', type: 'error' });
+      return;
+    }
+
+    try {
+      const shouldValidateSubAssets = latestRow.main_asset_type === '199' || latestRow.main_asset_type === '299';
+      const validations = [
+        inputValidators.validateDateFormat(latestRow.measurement_date),
+        assetValidators.validateBuildingNumber(latestRow.building_number),
+        assetValidators.validateAssetId(latestRow.asset_id),
+        assetValidators.validatePayerId(latestRow.payer_id),
+        assetValidators.validateAssetType(latestRow.main_asset_type, 'main_asset_type'),
+        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size),
+        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(latestRow.main_asset_type, [
+          latestRow.sub_asset_type_1,
+          latestRow.sub_asset_type_2,
+          latestRow.sub_asset_type_3,
+          latestRow.sub_asset_type_4,
+          latestRow.sub_asset_type_5,
+          latestRow.sub_asset_type_6
+        ]),
+        assetValidators.validateComplexTypesMustHaveSubAssets(latestRow.main_asset_type, [
+          latestRow.sub_asset_type_1,
+          latestRow.sub_asset_type_2,
+          latestRow.sub_asset_type_3,
+          latestRow.sub_asset_type_4,
+          latestRow.sub_asset_type_5,
+          latestRow.sub_asset_type_6
+        ])
+      ];
+
+      if (shouldValidateSubAssets) {
+        validations.push(
+          assetValidators.validateMinimumSubAssets([
+            latestRow.sub_asset_type_1,
+            latestRow.sub_asset_type_2,
+            latestRow.sub_asset_type_3,
+            latestRow.sub_asset_type_4,
+            latestRow.sub_asset_type_5,
+            latestRow.sub_asset_type_6
+          ])
+        );
+      }
+
+      validations.push(
+        assetValidators.validateSubAssetSizeMatchesMain(
+          latestRow.asset_size,
+          [
+            latestRow.sub_asset_type_1,
+            latestRow.sub_asset_type_2,
+            latestRow.sub_asset_type_3,
+            latestRow.sub_asset_type_4,
+            latestRow.sub_asset_type_5,
+            latestRow.sub_asset_type_6
+          ],
+          [
+            latestRow.sub_asset_size_1,
+            latestRow.sub_asset_size_2,
+            latestRow.sub_asset_size_3,
+            latestRow.sub_asset_size_4,
+            latestRow.sub_asset_size_5,
+            latestRow.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateSubAssetsFor199Or299(
+          latestRow.building_number,
+          latestRow.main_asset_type,
+          latestRow.asset_size,
+          [
+            latestRow.sub_asset_type_1,
+            latestRow.sub_asset_type_2,
+            latestRow.sub_asset_type_3,
+            latestRow.sub_asset_type_4,
+            latestRow.sub_asset_type_5,
+            latestRow.sub_asset_type_6
+          ],
+          [
+            latestRow.sub_asset_size_1,
+            latestRow.sub_asset_size_2,
+            latestRow.sub_asset_size_3,
+            latestRow.sub_asset_size_4,
+            latestRow.sub_asset_size_5,
+            latestRow.sub_asset_size_6
+          ]
+        )
+      );
+
+      // Validate sub-asset types individually
+      if (latestRow.sub_asset_type_1) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_1, latestRow.sub_asset_size_1)
+        );
+      }
+      if (latestRow.sub_asset_type_2) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_2, latestRow.sub_asset_size_2)
+        );
+      }
+      if (latestRow.sub_asset_type_3) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_3, latestRow.sub_asset_size_3)
+        );
+      }
+      if (latestRow.sub_asset_type_4) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_4, latestRow.sub_asset_size_4)
+        );
+      }
+      if (latestRow.sub_asset_type_5) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_5, latestRow.sub_asset_size_5)
+        );
+      }
+      if (latestRow.sub_asset_type_6) {
+        validations.push(
+          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_6, latestRow.sub_asset_size_6)
+        );
+      }
+
+      const validation = await validateAll(validations);
+      
+      setValidationErrors(prev => {
+        const newMap = new Map(prev);
+        if (!validation.valid) {
+          const errorMap = new Map<string, string>();
+          errorMap.set('_row', validation.error || 'שגיאת אימות');
+          newMap.set(latestMeasurementId, errorMap);
+          setToast({ 
+            message: `שגיאת אימות: ${validation.error}`, 
+            type: 'error' 
+          });
+        } else {
+          newMap.delete(latestMeasurementId);
+          setToast({ 
+            message: 'המדידה האחרונה תקינה', 
+            type: 'success' 
+          });
+        }
+        return newMap;
+      });
+
+      // Refresh the grid to show validation styling
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    } catch (err) {
+      console.error('Validation error:', err);
+      setToast({ 
+        message: 'שגיאה בביצוע אימות', 
+        type: 'error' 
+      });
+    }
   }
 
   async function handleNewMeasurement() {
@@ -842,6 +1004,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 {t('measurementHistory')} ({allMeasurements.length})
               </h2>
               <div className="flex gap-2">
+                <button
+                  onClick={handleValidateLatestRow}
+                  disabled={isSaving || !latestMeasurementId}
+                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  title="אמת את המדידה האחרונה"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-sm">אמת מדידה</span>
+                </button>
                 <button
                   onClick={handleSaveChanges}
                   disabled={isSaving || !hasChanges || validationErrors.size > 0}

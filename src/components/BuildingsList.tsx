@@ -299,6 +299,19 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     });
   }, [buildingsToDelete]);
 
+  // Helper function to get cell style for dirty fields
+  const getCellStyle = (params: any, fieldName: string) => {
+    const building = params.data as Building;
+    const errors = validationErrors.get(building.building_number);
+    const hasError = errors && errors[fieldName];
+    const isDirty = dirtyBuildings.has(building.building_number) && dirtyBuildings.get(building.building_number)?.hasOwnProperty(fieldName);
+    return {
+      textAlign: 'right',
+      fontWeight: isDirty ? 'bold' : 'normal',
+      border: hasError ? '2px solid #dc2626' : undefined
+    };
+  };
+
   const columnDefs: ColDef<Building>[] = useMemo(() => [
     {
       colId: 'actions',
@@ -371,15 +384,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         }
         return value;
       },
-      cellStyle: (params) => {
-        const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
-        const hasError = errors && errors['building_number'];
-        return {
-          textAlign: 'right',
-          border: hasError ? '2px solid #dc2626' : undefined
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'building_number')
     },
     {
       field: 'tax_region',
@@ -403,15 +408,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         }
         return value;
       },
-      cellStyle: (params) => {
-        const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
-        const hasError = errors && errors['tax_region'];
-        return {
-          textAlign: 'right',
-          border: hasError ? '2px solid #dc2626' : undefined
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'tax_region')
     },
     {
       field: 'shared_area',
@@ -435,15 +432,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         }
         return value;
       },
-      cellStyle: (params) => {
-        const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
-        const hasError = errors && errors['shared_area'];
-        return {
-          textAlign: 'right',
-          border: hasError ? '2px solid #dc2626' : undefined
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'shared_area')
     },
     {
       field: 'total_building_area',
@@ -504,15 +493,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         }
         return value;
       },
-      cellStyle: (params) => {
-        const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
-        const hasError = errors && errors['area_for_control'];
-        return {
-          textAlign: 'right',
-          border: hasError ? '2px solid #dc2626' : undefined
-        };
-      }
+      cellStyle: (params) => getCellStyle(params, 'area_for_control')
     },
     {
       field: 'elevator',
@@ -676,7 +657,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         justifyContent: 'center'
       }
     }
-  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors]);
+  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings]);
 
   if (loading) {
     return (

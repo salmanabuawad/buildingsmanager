@@ -648,6 +648,20 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     }
   }
 
+  // Helper function to get cell style for dirty fields
+  const getCellStyle = (params: any, fieldName: string) => {
+    const assetId = params.data?.id;
+    if (!assetId) return {};
+    
+    const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
+    const isLatest = params.data.id === latestMeasurementId;
+    
+    return {
+      fontWeight: isDirty ? 'bold' : 'normal',
+      backgroundColor: isLatest ? undefined : '#f3f4f6'
+    };
+  };
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       headerName: t('structureDrawing'),
@@ -724,7 +738,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       editable: (params) => params.data.id === latestMeasurementId,
-      cellStyle: (params) => params.data.id === latestMeasurementId ? {} : { backgroundColor: '#f3f4f6' },
+      cellStyle: (params) => getCellStyle(params, 'measurement_date'),
       valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
       valueGetter: (params) => params.data.measurement_date,
       valueSetter: (params) => {
@@ -737,11 +751,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'payer_id',
       headerName: t('payerId'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -753,6 +769,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'asset_size'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
@@ -763,6 +780,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -774,6 +792,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
@@ -784,6 +803,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -795,6 +815,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
@@ -805,6 +826,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -816,6 +838,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
@@ -826,6 +849,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -837,6 +861,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
@@ -847,6 +872,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -858,6 +884,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
@@ -868,6 +895,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6'),
       tooltipValueGetter: (params) => {
         const code = params.value;
         if (!code) return '';
@@ -879,13 +907,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       editable: (params) => params.data.id === latestMeasurementId,
+      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
         return isNaN(num) ? '' : num.toFixed(2);
       },
     },
-  ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl]);
+  ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl, dirtyAssets]);
 
   useEffect(() => {
     fetchData();

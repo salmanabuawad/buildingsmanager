@@ -28,6 +28,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [dirtyAssets, setDirtyAssets] = useState<Map<number, Partial<Asset>>>(new Map());
   const [validationErrors, setValidationErrors] = useState<Map<number, Map<string, string>>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
@@ -330,6 +331,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       return;
     }
 
+    setIsValidating(true);
     try {
       const shouldValidateSubAssets = latestRow.main_asset_type === '199' || latestRow.main_asset_type === '299';
       const validations = [
@@ -447,36 +449,62 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
       const validation = await validateAll(validations);
       
-      setValidationErrors(prev => {
-        const newMap = new Map(prev);
-        if (!validation.valid) {
-          const errorMap = new Map<string, string>();
-          errorMap.set('_row', validation.error || 'שגיאת אימות');
+      console.log('[Validation] Result:', validation);
+      
+      // Update validation errors state first
+      if (!validation.valid) {
+        const errorMap = new Map<string, string>();
+        errorMap.set('_row', validation.error || 'שגיאת אימות');
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
           newMap.set(latestMeasurementId, errorMap);
-          setToast({ 
-            message: `שגיאת אימות: ${validation.error}`, 
-            type: 'error' 
-          });
-        } else {
+          return newMap;
+        });
+        
+        // Show error toast
+        setToast({ 
+          message: `שגיאת אימות: ${validation.error}`, 
+          type: 'error' 
+        });
+      } else {
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
           newMap.delete(latestMeasurementId);
-          setToast({ 
-            message: 'המדידה האחרונה תקינה', 
-            type: 'success' 
-          });
-        }
-        return newMap;
-      });
-
-      // Refresh the grid to show validation styling
-      if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: true });
+          return newMap;
+        });
+        
+        // Show success toast
+        setToast({ 
+          message: 'המדידה האחרונה תקינה - כל האימותים עברו בהצלחה', 
+          type: 'success' 
+        });
       }
+
+      // Force a small delay to ensure state updates, then refresh the grid
+      setTimeout(() => {
+        if (gridRef.current?.api) {
+          const rowNode = gridRef.current.api.getRowNode(String(latestMeasurementId));
+          if (rowNode) {
+            gridRef.current.api.refreshCells({ 
+              rowNodes: [rowNode], 
+              force: true 
+            });
+            // Also redraw the row to ensure styling updates
+            gridRef.current.api.redrawRows({ rowNodes: [rowNode] });
+          } else {
+            // Fallback: refresh all cells if row node not found
+            gridRef.current.api.refreshCells({ force: true });
+          }
+        }
+      }, 100);
     } catch (err) {
       console.error('Validation error:', err);
       setToast({ 
         message: 'שגיאה בביצוע אימות', 
         type: 'error' 
       });
+    } finally {
+      setIsValidating(false);
     }
   }
 
@@ -1006,12 +1034,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               <div className="flex gap-2">
                 <button
                   onClick={handleValidateLatestRow}
-                  disabled={isSaving || !latestMeasurementId}
+                  disabled={isSaving || isValidating || !latestMeasurementId}
                   className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                   title="אמת את המדידה האחרונה"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span className="text-sm">אמת מדידה</span>
+                  {isValidating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  <span className="text-sm">{isValidating ? 'מאמת...' : 'אמת מדידה'}</span>
                 </button>
                 <button
                   onClick={handleSaveChanges}

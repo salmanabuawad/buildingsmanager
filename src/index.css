@@ -219,3 +219,53 @@ button {
 input:focus, textarea:focus, select:focus {
   transition: all 0.2s ease-in-out;
 }
+
+/* Mobile responsive utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile responsive grid adjustments */
+@media (max-width: 640px) {
+  .ag-theme-alpine {
+    --ag-font-size: 10px;
+    --ag-row-height: 32px;
+    --ag-header-height: 48px;
+  }
+  
+  .ag-theme-alpine.buildings-list-grid .ag-header {
+    font-size: 8px !important;
+  }
+  
+  .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
+    font-size: 8px !important;
+  }
+  
+  .ag-theme-alpine.buildings-list-grid .ag-cell {
+    font-size: 12px !important;
+  }
+  
+  /* Ensure horizontal scrolling on mobile */
+  .ag-theme-alpine .ag-body-horizontal-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .ag-theme-alpine .ag-body-viewport {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Touch-friendly targets on mobile */
+@media (max-width: 640px) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

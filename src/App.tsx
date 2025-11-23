@@ -9,7 +9,7 @@ import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
 import { CSVImport } from './components/CSVImport';
 import { AssetsCSVImport } from './components/AssetsCSVImport';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 
@@ -36,6 +36,7 @@ function App() {
   const [showDeletePreferencesConfirm, setShowDeletePreferencesConfirm] = useState(false);
   const [deletePreferencesLoading, setDeletePreferencesLoading] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<{
     current: number;
@@ -455,8 +456,26 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex" dir="rtl">
-      <div className="w-48 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex flex-col md:flex-row" dir="rtl">
+      {/* Mobile menu button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-purple-200"
+      >
+        <Menu className="h-6 w-6 text-purple-700" />
+      </button>
+
+      {/* Sidebar - hidden on mobile, shown on desktop */}
+      <div className={`${sidebarOpen ? 'fixed inset-0 z-40 md:relative md:z-auto' : 'hidden md:flex'} md:w-48 bg-white/95 backdrop-blur-sm border-r border-purple-200 shadow-xl flex flex-col shrink-0`}>
+        {/* Mobile close button */}
+        {sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden absolute top-4 right-4 p-2 bg-white rounded-lg shadow-lg border border-purple-200"
+          >
+            <X className="h-6 w-6 text-purple-700" />
+          </button>
+        )}
         <div className="p-4 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
           <h2 className="text-lg font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
@@ -594,8 +613,8 @@ function App() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="bg-white/95 backdrop-blur-sm border-b border-purple-200 shadow-lg">
-          <div className="px-4 py-2">
-            <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="px-2 sm:px-4 py-2">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
@@ -703,8 +722,8 @@ function App() {
 
       {/* Delete All Preferences Confirmation Modal */}
       {showDeletePreferencesConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-slate-900 mb-4">מחיקת כל העדפות המשתמש</h3>
             <p className="text-sm text-slate-600 mb-6">
               האם אתה בטוח שברצונך למחוק את כל העדפות המשתמש? פעולה זו תמחק את כל הגדרות העמודות (רוחב, מיקום, מיון) בכל הטבלאות. פעולה זו אינה הפיכה.
@@ -739,7 +758,7 @@ function App() {
       )}
 
       {showBatchValidationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">אימות כל הנכסים במערכת</h3>

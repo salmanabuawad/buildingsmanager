@@ -1637,8 +1637,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       </div>
 
       {showBatchValidationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">
                 אימות נכסי בניין {buildingNumber}
@@ -1680,7 +1680,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               </div>
             ) : batchValidationResults ? (
               <div className="flex-1 overflow-y-auto">
-                <div className="mb-6 grid grid-cols-3 gap-4">
+                <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div className="bg-blue-50 rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-blue-700">{batchValidationResults.total}</div>
                     <div className="text-sm text-blue-600 mt-1">סה"כ נכסים</div>
@@ -1730,11 +1730,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               </div>
             ) : null}
 
-            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+            <div className="mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 border-t pt-4">
               {batchValidationResults && batchValidationResults.errors.length > 0 && (
                 <button
                   onClick={handleExportInvalidAssetsToCSV}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <Download className="h-4 w-4" />
                   ייצא ל-CSV
@@ -1742,7 +1742,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               )}
               <button
                 onClick={() => setShowBatchValidationModal(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors w-full sm:w-auto"
               >
                 סגור
               </button>

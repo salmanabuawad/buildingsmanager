@@ -698,13 +698,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
       )}
-      <div className="w-full px-4 sm:px-6 py-4">
+      <div className="w-full px-2 sm:px-4 md:px-6 py-2 sm:py-4">
         <div className="mb-4 bg-gradient-to-r from-teal-600 to-blue-600 rounded-xl shadow-lg p-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <img src="/buildings.png" alt="Buildings" className="w-8 h-8 bg-white rounded-lg p-1.5 shadow-sm" />
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl sm:text-2xl font-bold text-white">{t('propertyListings')}</h1>
-              <span className="text-sm text-teal-50 bg-white/20 px-3 py-1 rounded-lg font-semibold">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{t('propertyListings')}</h1>
+              <span className="text-xs sm:text-sm text-teal-50 bg-white/20 px-2 sm:px-3 py-1 rounded-lg font-semibold">
                 <span className="font-semibold">סה"כ בניינים:</span> {buildings.length}
               </span>
             </div>
@@ -712,7 +712,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         </div>
 
         <div className="mb-4">
-          <div className="relative max-w-xs">
+          <div className="relative w-full sm:max-w-xs">
             <input
               type="text"
               value={buildingFilter}
@@ -724,11 +724,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
 
-        <div className="mb-4 flex justify-end gap-3">
+        <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
           <button
             onClick={handleCancelAll}
             disabled={loading || dirtyBuildings.size === 0}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
           >
             <X className="h-4 w-4" />
             {t('cancel')}
@@ -736,7 +736,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           <button
             onClick={handleSaveAll}
             disabled={loading || dirtyBuildings.size === 0 || invalidTaxRegions.size > 0}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -748,7 +748,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 300px)', minHeight: '400px', width: '100%', minWidth: '100%' }}>
             <AgGridReact
               ref={gridRef}
               rowData={filteredBuildings}
@@ -952,7 +952,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6">
               <button
                 onClick={() => {
                   setShowCreateModal(false);

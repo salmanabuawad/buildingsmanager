@@ -288,11 +288,11 @@ export async function validateAssetTypeForBuildingTaxRegion(
 
     if (!assetTypes || assetTypes.length === 0) {
       if (assetTypeName === '199') {
-        return { valid: false, error: `סוג נכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
       } else if (assetTypeName === '299') {
-        return { valid: false, error: `סוג נכס "${assetTypeName}" לא קיים באזור מס 40` };
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
       }
-      return { valid: false, error: `סוג נכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
+      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
     }
 
     return { valid: true };
@@ -309,6 +309,12 @@ export async function validateAssetTypeComplete(
   assetData?: any
 ): Promise<ValidationResult> {
   try {
+    // First validate tax region (this will return early if invalid, avoiding duplicate errors)
+    const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName);
+    if (!taxRegionValidation.valid) {
+      return taxRegionValidation;
+    }
+
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
       .select('tax_region, has_elevator, elevator, shared_area, single_double_family, condo, basement, townhouses')
@@ -324,41 +330,23 @@ export async function validateAssetTypeComplete(
       return { valid: false, error: 'הבניין לא נמצא' };
     }
 
-    // Special validation for asset types 299 and 199
-    const buildingTaxRegions = building.tax_region != null
-      ? String(building.tax_region).split(',').map(r => r.trim())
-      : [];
-    
-    if (assetTypeName === '299') {
-      // Asset type 299 is only valid in tax region 40
-      if (!buildingTaxRegions.includes('40')) {
-        return { valid: false, error: 'סוג נכס 299 תקף רק בבניינים עם אזור מס 40' };
-      }
-    } else if (assetTypeName === '199') {
-      // Asset type 199 is valid in all tax regions EXCEPT 40
-      // If building has tax region 40 (alone or in combination), 199 is invalid
-      if (buildingTaxRegions.includes('40')) {
-        return { valid: false, error: 'סוג נכס 199 לא תקף בבניינים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
-      }
-    }
-
-    // Query asset types by name field, filtering by building's tax region
-
+    // Query asset types by name field (tax region validation already done above)
     let query = supabase
       .from('asset_types')
       .select('*')
       .eq('name', assetTypeName);
 
     // For asset type 199, it's valid in all tax regions except 40
-    // So we don't filter by building's tax region, just check it exists and is not in tax region 40
     if (assetTypeName === '199') {
-      // Check that asset type 199 exists and is not in tax region 40
       query = query.neq('tax_region', 40);
     } else if (assetTypeName === '299') {
       // For 299, it must be in tax region 40
       query = query.eq('tax_region', 40);
     } else {
       // For other asset types, filter by building's tax region
+      const buildingTaxRegions = building.tax_region != null
+        ? String(building.tax_region).split(',').map(r => r.trim())
+        : [];
       if (buildingTaxRegions.length > 0) {
         query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
       }
@@ -372,11 +360,7 @@ export async function validateAssetTypeComplete(
     }
 
     if (!assetTypes || assetTypes.length === 0) {
-      if (assetTypeName === '199') {
-        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
-      } else if (assetTypeName === '299') {
-        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
-      }
+      // This should not happen if tax region validation passed, but handle it anyway
       return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
     }
 

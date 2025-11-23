@@ -360,8 +360,10 @@ export async function validateAssetTypeComplete(
     }
 
     if (!assetTypes || assetTypes.length === 0) {
-      // This should not happen if tax region validation passed, but handle it anyway
-      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
+      // This should not happen if tax region validation passed, but if it does, log it
+      // and return a generic error to avoid duplicate messages
+      console.error(`Asset type ${assetTypeName} not found after tax region validation passed`);
+      return { valid: false, error: 'שגיאה באימות סוג הנכס' };
     }
 
     // Filter by elevator requirement to find the best match

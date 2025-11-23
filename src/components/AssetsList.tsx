@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2 } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
 interface AssetsListProps {
   buildingNumber: number;
@@ -690,6 +690,56 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       setBatchValidationLoading(false);
     }
   }
+
+  const handleExportInvalidAssetsToCSV = useCallback(() => {
+    if (!batchValidationResults || batchValidationResults.errors.length === 0) {
+      return;
+    }
+
+    // Create CSV header
+    const headers = ['מספר בניין', 'מספר נכס', 'שגיאות'];
+    const rows: string[][] = [headers];
+
+    // Add data rows
+    batchValidationResults.errors.forEach(error => {
+      // Join errors with newlines for multi-line display in CSV
+      const errorsText = error.errors.join('\n');
+      rows.push([
+        String(error.buildingNumber),
+        String(error.assetId),
+        errorsText
+      ]);
+    });
+
+    // Convert to CSV format
+    const csvContent = rows.map(row => {
+      return row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma, newline, or quote
+        const cellStr = String(cell || '');
+        // Always wrap in quotes if contains newline, comma, or quote
+        if (cellStr.includes(',') || cellStr.includes('\n') || cellStr.includes('"')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',');
+    }).join('\n');
+
+    // Add BOM for Hebrew support in Excel
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    link.download = `נכסים_לא_תקינים_${timestamp}.csv`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [batchValidationResults]);
 
   const handleSaveAll = async () => {
     if (dirtyAssets.size === 0 && deletedAssets.size === 0) {
@@ -1681,6 +1731,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             ) : null}
 
             <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+              {batchValidationResults && batchValidationResults.errors.length > 0 && (
+                <button
+                  onClick={handleExportInvalidAssetsToCSV}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  ייצא ל-CSV
+                </button>
+              )}
               <button
                 onClick={() => setShowBatchValidationModal(false)}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"

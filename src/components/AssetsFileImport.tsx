@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X } from 'lucide-react';
 import { api, Asset } from '../lib/api';
 import { assetValidators, validateAll } from '../lib/validation';
+import * as XLSX from 'xlsx';
 
 interface ImportResult {
   total: number;
@@ -11,43 +12,47 @@ interface ImportResult {
   errors: string[];
 }
 
-export function AssetsCSVImport() {
+export function AssetsFileImport() {
   const { t } = useTranslation();
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
+  const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function parseCSV(text: string): string[][] {
-    const lines = text.split('\n');
-    const result: string[][] = [];
-    
-    for (const line of lines) {
-      if (!line.trim()) continue;
+  async function parseExcelFile(file: File): Promise<string[][]> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
       
-      // Detect delimiter: check if line contains tabs (tab-separated) or commas (comma-separated)
-      const hasTabs = line.includes('\t');
-      const delimiter = hasTabs ? '\t' : ',';
-      
-      const values: string[] = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === delimiter && !inQuotes) {
-          values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          
+          // Get the first worksheet
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Convert to JSON array of arrays
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as string[][];
+          
+          // Convert all values to strings and trim
+          const result = jsonData.map(row => 
+            row.map(cell => String(cell || '').trim())
+          );
+          
+          resolve(result);
+        } catch (error) {
+          reject(new Error('שגיאה בקריאת קובץ Excel: ' + (error instanceof Error ? error.message : 'Unknown error')));
         }
-      }
-      values.push(current.trim());
-      result.push(values);
-    }
-    return result;
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('שגיאה בקריאת הקובץ'));
+      };
+      
+      reader.readAsBinaryString(file);
+    });
   }
 
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -58,11 +63,10 @@ export function AssetsCSVImport() {
     setImportResult(null);
 
     try {
-      const text = await file.text();
-      const lines = parseCSV(text);
+      const lines = await parseExcelFile(file);
 
       if (lines.length === 0) {
-        throw new Error('קובץ CSV ריק');
+        throw new Error('קובץ File ריק');
       }
 
       const headers = lines[0].map(h => h.trim().toLowerCase());
@@ -233,20 +237,24 @@ export function AssetsCSVImport() {
         }
       }
 
-      setImportResult({
+      const result = {
         total: lines.length - 1,
         successful: successCount,
         failed: failCount + errors.length,
         errors: errors.slice(0, 20)
-      });
+      };
+      setImportResult(result);
+      setShowResultModal(true);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'שגיאה בקריאת קובץ CSV';
-      setImportResult({
+      const errorMsg = error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File';
+      const result = {
         total: 0,
         successful: 0,
         failed: 1,
         errors: [errorMsg]
-      });
+      };
+      setImportResult(result);
+      setShowResultModal(true);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -256,23 +264,44 @@ export function AssetsCSVImport() {
   }
 
   function downloadTemplate() {
-    // Template matching the new format: comma-separated, no measurement_date column
+    // Create Excel template matching the new format
     // Columns: Building number, Payer ID, Asset ID, Main asset type, Asset size, 
     // Sub asset types 1-6, Sub asset sizes 1-6
-    const template = `מזהה בניין,מזהה משלם,מזהה נכס,סוג נכס ראשי,גודל נכס ראשי,סוג נכס משנה 1,גודל נכס משנה 1,סוג נכס משנה 2,גודל נכס משנה 2,סוג נכס משנה 3,גודל נכס משנה 3,סוג נכס משנה 4,גודל נכס משנה 4,סוג נכס משנה 5,גודל נכס משנה 5,סוג נכס משנה 6,גודל נכס משנה 6
-8268128,516144276,826812801,311,552.89,,,,,,,,,,,,
-8268128,516144276,826812802,299,264.29,311,248.2,702,10.36,702,5.73,,,,,,
-8268128,516144276,826812803,311,81.5,,,,,,,,,,,,
-8268128,516144276,826812804,299,126.36,311,21.06,311,21.06,311,21.06,311,21.06,311,21.06,311,21.06`;
-    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'assets_template.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const headers = [
+      'מזהה בניין',
+      'מזהה משלם',
+      'מזהה נכס',
+      'סוג נכס ראשי',
+      'גודל נכס ראשי',
+      'סוג נכס משנה 1',
+      'גודל נכס משנה 1',
+      'סוג נכס משנה 2',
+      'גודל נכס משנה 2',
+      'סוג נכס משנה 3',
+      'גודל נכס משנה 3',
+      'סוג נכס משנה 4',
+      'גודל נכס משנה 4',
+      'סוג נכס משנה 5',
+      'גודל נכס משנה 5',
+      'סוג נכס משנה 6',
+      'גודל נכס משנה 6'
+    ];
+
+    const data = [
+      headers,
+      [8268128, 516144276, 826812801, 311, 552.89, '', '', '', '', '', '', '', '', '', '', '', ''],
+      [8268128, 516144276, 826812802, 299, 264.29, 311, 248.2, 702, 10.36, 702, 5.73, '', '', '', '', '', ''],
+      [8268128, 516144276, 826812803, 311, 81.5, '', '', '', '', '', '', '', '', '', '', '', ''],
+      [8268128, 516144276, 826812804, 299, 126.36, 311, 21.06, 311, 21.06, 311, 21.06, 311, 21.06, 311, 21.06, 311, 21.06]
+    ];
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
+
+    // Write to file
+    XLSX.writeFile(workbook, 'assets_template.xlsx');
   }
 
   return (
@@ -281,60 +310,20 @@ export function AssetsCSVImport() {
         <div className="flex items-center gap-3">
           <Upload className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" />
           <div>
-            <h1 className="text-3xl font-bold text-white">ייבוא נכסים מקובץ CSV</h1>
-            <p className="text-indigo-50 mt-1">העלה קובץ CSV כדי לייבא נכסים במרוכז</p>
+            <h1 className="text-3xl font-bold text-white">ייבוא נכסים מקובץ Excel</h1>
+            <p className="text-indigo-50 mt-1">העלה קובץ Excel כדי לייבא נכסים במרוכז</p>
           </div>
         </div>
       </div>
-
-      {importResult && (
-        <div className={`mb-6 p-6 rounded-lg border-2 ${
-          importResult.failed === 0
-            ? 'bg-green-50 border-green-200'
-            : importResult.successful === 0
-              ? 'bg-red-50 border-red-200'
-              : 'bg-yellow-50 border-yellow-200'
-        }`}>
-          <div className="flex items-start gap-3 mb-4">
-            {importResult.failed === 0 ? (
-              <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
-            )}
-            <div className="flex-1">
-              <h3 className="font-bold text-lg mb-2">תוצאות ייבוא</h3>
-              <div className="space-y-1 text-sm">
-                <p><strong>סה"כ שורות:</strong> {importResult.total}</p>
-                <p className="text-green-700"><strong>יובאו בהצלחה:</strong> {importResult.successful}</p>
-                <p className="text-red-700"><strong>נכשלו:</strong> {importResult.failed}</p>
-              </div>
-            </div>
-          </div>
-
-          {importResult.errors.length > 0 && (
-            <div className="mt-4 p-4 bg-white rounded-lg border">
-              <h4 className="font-semibold text-red-900 mb-2">שגיאות:</h4>
-              <ul className="list-disc list-inside space-y-1 text-sm text-red-800 max-h-60 overflow-y-auto">
-                {importResult.errors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-                {importResult.errors.length === 20 && (
-                  <li className="text-red-600 font-semibold">...ועוד שגיאות נוספות</li>
-                )}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="bg-white rounded-xl shadow-lg border border-indigo-100 p-8">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FileText className="h-6 w-6 text-indigo-600" />
-            פורמט קובץ CSV
+            פורמט קובץ Excel
           </h2>
-          <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-            <p className="text-slate-700 mb-4 font-medium">העמודות הנדרשות בקובץ CSV:</p>
+            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+            <p className="text-slate-700 mb-4 font-medium">העמודות הנדרשות בקובץ Excel:</p>
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div>
                 <h3 className="font-semibold text-slate-900 mb-2">שדות חובה:</h3>
@@ -358,12 +347,12 @@ export function AssetsCSVImport() {
 
             <div className="bg-white rounded-lg p-4 border border-slate-300">
               <p className="font-semibold text-slate-900 mb-2">דוגמה:</p>
-              <pre className="font-mono text-xs text-slate-700 leading-relaxed overflow-x-auto">
-מזהה בניין,מזהה משלם,מזהה נכס,סוג נכס ראשי,גודל נכס ראשי,סוג נכס משנה 1,גודל נכס משנה 1,סוג נכס משנה 2,גודל נכס משנה 2
-8268128,516144276,826812801,311,552.89,,,,,
-8268128,516144276,826812802,299,264.29,311,248.2,702,10.36
-              </pre>
-              <p className="text-xs text-slate-600 mt-2">הערה: הקובץ יכול להיות מופרד בפסיקים או בטאבים</p>
+              <p className="text-sm text-slate-700 mb-2">הקובץ צריך להיות בפורמט Excel (.xlsx) עם העמודות הבאות:</p>
+              <div className="text-xs text-slate-600 space-y-1">
+                <p>שורה 1: מזהה בניין | מזהה משלם | מזהה נכס | סוג נכס ראשי | גודל נכס ראשי | סוג נכס משנה 1 | גודל נכס משנה 1 | ...</p>
+                <p>שורה 2: 8268128 | 516144276 | 826812801 | 311 | 552.89 | ...</p>
+                <p>שורה 3: 8268128 | 516144276 | 826812802 | 299 | 264.29 | 311 | 248.2 | 702 | 10.36 | ...</p>
+              </div>
             </div>
 
             <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
@@ -371,7 +360,7 @@ export function AssetsCSVImport() {
               <div className="text-sm text-amber-900">
                 <p className="font-semibold mb-1">שימו לב:</p>
                 <ul className="list-disc list-inside space-y-1 mr-4">
-                  <li>הקובץ צריך להיות מופרד בטאבים (Tab), לא בפסיקים</li>
+                  <li>הקובץ צריך להיות בפורמט Excel (.xlsx)</li>
                   <li>תאריך מדידה יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע בקובץ</li>
                   <li>נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה</li>
                   <li>סכום נכסי המשנה חייב להתאים לגודל הנכס הראשי</li>
@@ -388,7 +377,7 @@ export function AssetsCSVImport() {
             className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
           >
             <Download className="h-5 w-5" />
-            <span className="font-semibold">הורד קובץ דוגמה</span>
+            <span className="font-semibold">הורד קובץ Excel דוגמה</span>
           </button>
 
           <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -408,7 +397,7 @@ export function AssetsCSVImport() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".xlsx,.xls"
             onChange={handleFileUpload}
             disabled={isImporting}
             className="hidden"
@@ -426,7 +415,7 @@ export function AssetsCSVImport() {
             ) : (
               <>
                 <Upload className="h-5 w-5" />
-                <span className="font-semibold">בחר קובץ CSV לייבוא</span>
+                <span className="font-semibold">בחר קובץ Excel לייבוא</span>
               </>
             )}
           </button>
@@ -434,10 +423,90 @@ export function AssetsCSVImport() {
 
         <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
           <p className="text-sm text-indigo-900">
-            <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת הנכסים כדי לראות את הנכסים החדשים
+            <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת הנכסים כדי לראות את הנכסים החדשים. הקובץ צריך להיות בפורמט Excel (.xlsx)
           </p>
         </div>
       </div>
+
+      {/* Import Results Modal */}
+      {showResultModal && importResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className={`${importResult.failed === 0 ? 'bg-green-500' : importResult.successful === 0 ? 'bg-red-500' : 'bg-yellow-500'} px-6 py-4 flex items-center justify-between`}>
+              <h2 className="text-2xl font-bold text-white">תוצאות ייבוא</h2>
+              <button
+                onClick={() => {
+                  setShowResultModal(false);
+                  setImportResult(null);
+                }}
+                className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="flex items-start gap-3 mb-6">
+                {importResult.failed === 0 ? (
+                  <CheckCircle className="h-8 w-8 text-green-600 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="h-8 w-8 text-yellow-600 flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                      <p className="text-sm text-slate-600 mb-1">סה"כ שורות</p>
+                      <p className="text-2xl font-bold text-slate-900">{importResult.total}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <p className="text-sm text-green-700 mb-1">יובאו בהצלחה</p>
+                      <p className="text-2xl font-bold text-green-700">{importResult.successful}</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                      <p className="text-sm text-red-700 mb-1">נכשלו</p>
+                      <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {importResult.errors.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="font-semibold text-red-900 mb-3 text-lg">שגיאות:</h4>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <ul className="list-disc list-inside space-y-2 text-sm text-red-800">
+                      {importResult.errors.map((error, index) => (
+                        <li key={index} className="break-words">{error}</li>
+                      ))}
+                      {importResult.errors.length === 20 && (
+                        <li className="text-red-600 font-semibold">...ועוד שגיאות נוספות</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {importResult.failed === 0 && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-800 font-medium">כל הנכסים יובאו בהצלחה!</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowResultModal(false);
+                  setImportResult(null);
+                }}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

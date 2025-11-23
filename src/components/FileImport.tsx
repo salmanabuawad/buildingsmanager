@@ -80,7 +80,7 @@ export function FileImport() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'buildings_template.csv');
+    link.setAttribute('download', 'buildings_template.file');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

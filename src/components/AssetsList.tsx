@@ -690,18 +690,18 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     }
   }
 
-  const handleExportInvalidAssetsToCSV = useCallback(() => {
+  const handleExportInvalidAssetsToFile = useCallback(() => {
     if (!batchValidationResults || batchValidationResults.errors.length === 0) {
       return;
     }
 
-    // Create CSV header
+    // Create File header
     const headers = ['מספר בניין', 'מספר נכס', 'שגיאות'];
     const rows: string[][] = [headers];
 
     // Add data rows
     batchValidationResults.errors.forEach(error => {
-      // Join errors with newlines for multi-line display in CSV
+      // Join errors with newlines for multi-line display in File
       const errorsText = error.errors.join('\n');
       rows.push([
         String(error.buildingNumber),
@@ -710,8 +710,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       ]);
     });
 
-    // Convert to CSV format
-    const csvContent = rows.map(row => {
+    // Convert to File format
+    const fileContent = rows.map(row => {
       return row.map(cell => {
         // Escape quotes and wrap in quotes if contains comma, newline, or quote
         const cellStr = String(cell || '');
@@ -725,14 +725,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
     // Add BOM for Hebrew support in Excel
     const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([BOM + fileContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    link.download = `נכסים_לא_תקינים_${timestamp}.csv`;
+    link.download = `נכסים_לא_תקינים_${timestamp}.file`;
     
     document.body.appendChild(link);
     link.click();
@@ -1732,11 +1732,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             <div className="mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 border-t pt-4">
               {batchValidationResults && batchValidationResults.errors.length > 0 && (
                 <button
-                  onClick={handleExportInvalidAssetsToCSV}
+                  onClick={handleExportInvalidAssetsToFile}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <Download className="h-4 w-4" />
-                  ייצא ל-CSV
+                  ייצא ל-File
                 </button>
               )}
               <button

@@ -7,15 +7,15 @@ import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
-import { CSVImport } from './components/CSVImport';
-import { AssetsCSVImport } from './components/AssetsCSVImport';
+import { FileImport } from './components/FileImport';
+import { AssetsFileImport } from './components/AssetsFileImport';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'csv-import' | 'assets-csv-import' | 'asset-details';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'csv-import' | 'assets-file-import' | 'asset-details';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -209,32 +209,32 @@ function App() {
     setActiveTabId(assetTypeFieldsTabId);
   }
 
-  function openCSVImport() {
+  function openFileImport() {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-    const csvImportTabId = 'csv-import-panel';
+    const fileImportTabId = 'file-import-panel';
 
     const newTab: Tab = {
-      id: csvImportTabId,
+      id: fileImportTabId,
       type: 'csv-import',
-      label: 'ייבוא CSV'
+      label: 'ייבוא File'
     };
 
     setTabs([buildingsTab, newTab]);
-    setActiveTabId(csvImportTabId);
+    setActiveTabId(fileImportTabId);
   }
 
-  function openAssetsCSVImport() {
+  function openAssetsFileImport() {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
-    const assetsCSVImportTabId = 'assets-csv-import-panel';
+    const assetsFileImportTabId = 'assets-file-import-panel';
 
     const newTab: Tab = {
-      id: assetsCSVImportTabId,
-      type: 'assets-csv-import',
-      label: 'ייבוא נכסים CSV'
+      id: assetsFileImportTabId,
+      type: 'assets-file-import',
+      label: 'ייבוא נכסים File'
     };
 
     setTabs([buildingsTab, newTab]);
-    setActiveTabId(assetsCSVImportTabId);
+    setActiveTabId(assetsFileImportTabId);
   }
 
   function handleCloseTab(tabId: string) {
@@ -516,10 +516,10 @@ function App() {
                   <Plus className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
-                  onClick={openCSVImport}
+                  onClick={openFileImport}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700">ייבוא CSV</span>
+                  <span className="font-medium text-slate-700">ייבוא File</span>
                   <Upload className="h-3.5 w-3.5 text-purple-600" />
                 </button>
               </div>
@@ -550,10 +550,10 @@ function App() {
                   <Search className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <button
-                  onClick={openAssetsCSVImport}
+                  onClick={openAssetsFileImport}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700">ייבוא CSV</span>
+                  <span className="font-medium text-slate-700">ייבוא File</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
               </div>
@@ -639,7 +639,7 @@ function App() {
                       <Database className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'csv-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
-                    ) : tab.type === 'assets-csv-import' ? (
+                    ) : tab.type === 'assets-file-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
@@ -707,10 +707,10 @@ function App() {
               <AssetTypeFieldsManager />
             )}
             {activeTab?.type === 'csv-import' && (
-              <CSVImport />
+              <FileImport />
             )}
-            {activeTab?.type === 'assets-csv-import' && (
-              <AssetsCSVImport />
+            {activeTab?.type === 'assets-file-import' && (
+              <AssetsFileImport />
             )}
             {activeTab?.type === 'asset-details' && activeTab.assetId && (
               <AssetDetails assetId={parseInt(activeTab.assetId)} onDataUpdate={handleDataUpdate} />

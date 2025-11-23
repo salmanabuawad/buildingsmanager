@@ -381,7 +381,7 @@ export function AssetTypes() {
     }
   ], [t]);
 
-  async function handleCSVImport(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -425,8 +425,8 @@ export function AssetTypes() {
         showMessage('success', `יובאו בהצלחה ${successCount} רשומות`);
       }
     } catch (error) {
-      showMessage('error', 'שגיאה בקריאת קובץ CSV');
-      console.error('Error importing CSV:', error);
+      showMessage('error', 'שגיאה בקריאת קובץ File');
+      console.error('Error importing File:', error);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -481,7 +481,7 @@ export function AssetTypes() {
                 ref={fileInputRef}
                 type="file"
                 accept=".csv"
-                onChange={handleCSVImport}
+                onChange={handleFileImport}
                 className="hidden"
               />
               <button
@@ -670,7 +670,7 @@ export function AssetTypes() {
 
         {!isAdding && (
           <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-600">
-            <p className="font-semibold mb-1">פורמט CSV:</p>
+            <p className="font-semibold mb-1">פורמט File:</p>
             <p className="font-mono text-xs">123,תיאור לסוג 123</p>
             <p className="font-mono text-xs">456,תיאור לסוג 456</p>
             <p className="mt-1 text-xs">כל שורה: מספר בן 3 ספרות (נדרש), תיאור אופציונלי (מופרד בפסיק)</p>

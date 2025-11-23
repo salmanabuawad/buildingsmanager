@@ -305,29 +305,83 @@ export function AssetsFileImport() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg p-6">
-        <div className="flex items-center gap-3">
-          <Upload className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" />
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md p-4">
+        <div className="flex items-center gap-2">
+          <Upload className="w-6 h-6 text-white bg-white/20 rounded p-1" />
           <div>
-            <h1 className="text-3xl font-bold text-white">ייבוא נכסים מקובץ Excel</h1>
-            <p className="text-indigo-50 mt-1">העלה קובץ Excel כדי לייבא נכסים במרוכז</p>
+            <h1 className="text-xl font-bold text-white">ייבוא נכסים מקובץ Excel</h1>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-indigo-100 p-8">
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <FileText className="h-6 w-6 text-indigo-600" />
+      <div className="bg-white rounded-lg shadow-md border border-indigo-100 p-6">
+        {/* Buttons Section - Top */}
+        <div className="space-y-3 mb-6">
+          <div className="flex gap-3">
+            <button
+              onClick={downloadTemplate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              <Download className="h-4 w-4" />
+              <span>הורד תבנית</span>
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={isImporting}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>מייבא...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  <span>בחר קובץ לייבוא</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={validateBeforeImport}
+                onChange={(e) => setValidateBeforeImport(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-xs font-medium text-blue-900">
+                בצע ולידציה לפני ייבוא (מומלץ)
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Info and Tips Section - Bottom */}
+        <div className="border-t border-slate-200 pt-6 space-y-4">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-indigo-600" />
             פורמט קובץ Excel
           </h2>
-            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-            <p className="text-slate-700 mb-4 font-medium">העמודות הנדרשות בקובץ Excel:</p>
+          
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <p className="text-slate-700 mb-3 text-sm font-medium">העמודות הנדרשות בקובץ Excel:</p>
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div>
-                <h3 className="font-semibold text-slate-900 mb-2">שדות חובה:</h3>
-                <ul className="list-disc list-inside space-y-1 text-slate-700 text-sm mr-4">
+                <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
+                <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
                   <li><strong>מזהה בניין</strong> (Building number)</li>
                   <li><strong>מזהה משלם</strong> (Payer ID - אופציונלי)</li>
                   <li><strong>מזהה נכס</strong> (Asset ID)</li>
@@ -336,8 +390,8 @@ export function AssetsFileImport() {
                 </ul>
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900 mb-2">שדות אופציונליים:</h3>
-                <ul className="list-disc list-inside space-y-1 text-slate-700 text-sm mr-4">
+                <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
+                <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
                   <li><strong>סוג נכס משנה 1-6</strong> (Sub asset types)</li>
                   <li><strong>גודל נכס משנה 1-6</strong> (Sub asset sizes)</li>
                   <li><strong>תאריך מדידה</strong> (Measurement date - יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע)</li>
@@ -345,9 +399,9 @@ export function AssetsFileImport() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg p-4 border border-slate-300">
-              <p className="font-semibold text-slate-900 mb-2">דוגמה:</p>
-              <p className="text-sm text-slate-700 mb-2">הקובץ צריך להיות בפורמט Excel (.xlsx) עם העמודות הבאות:</p>
+            <div className="bg-white rounded-lg p-3 border border-slate-300 mb-4">
+              <p className="font-semibold text-slate-900 mb-2 text-sm">דוגמה:</p>
+              <p className="text-xs text-slate-700 mb-2">הקובץ צריך להיות בפורמט Excel (.xlsx) עם העמודות הבאות:</p>
               <div className="text-xs text-slate-600 space-y-1">
                 <p>שורה 1: מזהה בניין | מזהה משלם | מזהה נכס | סוג נכס ראשי | גודל נכס ראשי | סוג נכס משנה 1 | גודל נכס משנה 1 | ...</p>
                 <p>שורה 2: 8268128 | 516144276 | 826812801 | 311 | 552.89 | ...</p>
@@ -355,9 +409,9 @@ export function AssetsFileImport() {
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-900">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900">
                 <p className="font-semibold mb-1">שימו לב:</p>
                 <ul className="list-disc list-inside space-y-1 mr-4">
                   <li>הקובץ צריך להיות בפורמט Excel (.xlsx)</li>
@@ -369,62 +423,12 @@ export function AssetsFileImport() {
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-4">
-          <button
-            onClick={downloadTemplate}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
-          >
-            <Download className="h-5 w-5" />
-            <span className="font-semibold">הורד קובץ Excel דוגמה</span>
-          </button>
-
-          <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={validateBeforeImport}
-                onChange={(e) => setValidateBeforeImport(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium text-blue-900">
-                בצע ולידציה לפני ייבוא (מומלץ)
-              </span>
-            </label>
+          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <p className="text-xs text-indigo-900">
+              <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת הנכסים כדי לראות את הנכסים החדשים. הקובץ צריך להיות בפורמט Excel (.xlsx)
+            </p>
           </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileUpload}
-            disabled={isImporting}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isImporting ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span className="font-semibold">מייבא נכסים...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="h-5 w-5" />
-                <span className="font-semibold">בחר קובץ Excel לייבוא</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-          <p className="text-sm text-indigo-900">
-            <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת הנכסים כדי לראות את הנכסים החדשים. הקובץ צריך להיות בפורמט Excel (.xlsx)
-          </p>
         </div>
       </div>
 

@@ -232,11 +232,11 @@ export async function validateAssetTypeForBuildingTaxRegion(
 
     if (buildingError) {
       console.error('Error fetching building:', buildingError);
-      return { valid: false, error: 'Failed to validate building tax region' };
+      return { valid: false, error: 'שגיאה באימות אזור המס של הבניין' };
     }
 
     if (!building) {
-      return { valid: false, error: 'Building not found' };
+      return { valid: false, error: 'הבניין לא נמצא' };
     }
 
     if (building.tax_region == null) {
@@ -283,22 +283,22 @@ export async function validateAssetTypeForBuildingTaxRegion(
 
     if (assetTypeError) {
       console.error('Error fetching asset type:', assetTypeError);
-      return { valid: false, error: 'Failed to validate asset type' };
+      return { valid: false, error: 'שגיאה באימות סוג הנכס' };
     }
 
     if (!assetTypes || assetTypes.length === 0) {
       if (assetTypeName === '199') {
-        return { valid: false, error: `Asset type "${assetTypeName}" does not exist or is only available in tax region 40` };
+        return { valid: false, error: `סוג נכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
       } else if (assetTypeName === '299') {
-        return { valid: false, error: `Asset type "${assetTypeName}" does not exist in tax region 40` };
+        return { valid: false, error: `סוג נכס "${assetTypeName}" לא קיים באזור מס 40` };
       }
-      return { valid: false, error: `Asset type "${assetTypeName}" does not exist in building's tax region` };
+      return { valid: false, error: `סוג נכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
     }
 
     return { valid: true };
   } catch (error) {
     console.error('Asset type tax region validation error:', error);
-    return { valid: false, error: 'Validation failed' };
+    return { valid: false, error: 'אימות נכשל' };
   }
 }
 
@@ -739,7 +739,7 @@ export async function validateSubAssetsFor199Or299(
     .maybeSingle();
 
   if (buildingError || !building) {
-    return { valid: false, error: 'Failed to validate building' };
+    return { valid: false, error: 'שגיאה באימות הבניין' };
   }
 
   if (building.tax_region == null) {
@@ -762,7 +762,7 @@ export async function validateSubAssetsFor199Or299(
     const { data: assetTypes, error: assetTypeError } = await query;
 
     if (assetTypeError) {
-      return { valid: false, error: `Failed to validate sub-asset type ${subAssetType}` };
+      return { valid: false, error: `שגיאה באימות סוג נכס משנה ${subAssetType}` };
     }
 
     if (!assetTypes || assetTypes.length === 0) {

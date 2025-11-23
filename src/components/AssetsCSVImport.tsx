@@ -21,16 +21,23 @@ export function AssetsCSVImport() {
   function parseCSV(text: string): string[][] {
     const lines = text.split('\n');
     const result: string[][] = [];
+    
     for (const line of lines) {
       if (!line.trim()) continue;
+      
+      // Detect delimiter: check if line contains tabs (tab-separated) or commas (comma-separated)
+      const hasTabs = line.includes('\t');
+      const delimiter = hasTabs ? '\t' : ',';
+      
       const values: string[] = [];
       let current = '';
       let inQuotes = false;
+      
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
         if (char === '"') {
           inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
+        } else if (char === delimiter && !inQuotes) {
           values.push(current.trim());
           current = '';
         } else {
@@ -58,9 +65,16 @@ export function AssetsCSVImport() {
         throw new Error('קובץ CSV ריק');
       }
 
-      const headers = lines[0].map(h => h.trim());
+      const headers = lines[0].map(h => h.trim().toLowerCase());
       const assets: any[] = [];
       const errors: string[] = [];
+
+      // Get current date for default measurement_date
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const defaultMeasurementDate = `${day}/${month}/${year}`;
 
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i];
@@ -70,7 +84,7 @@ export function AssetsCSVImport() {
           building_number: null,
           payer_id: '',
           asset_id: '',
-          measurement_date: '',
+          measurement_date: defaultMeasurementDate,
           main_asset_type: '',
           asset_size: 0,
           sub_asset_type_1: '',
@@ -87,94 +101,82 @@ export function AssetsCSVImport() {
           sub_asset_size_6: 0,
         };
 
-        headers.forEach((header, index) => {
-          const value = values[index] || '';
-          switch (header) {
-            case 'building_number':
-            case 'מבנה':
-            case 'מספר בניין':
-            case 'מספר בנין':
+        // Check if we have the expected column count (17 columns: building, payer, asset_id, main_type, main_size, 6 pairs of sub)
+        // Or if headers are empty/garbled, use fixed position mapping
+        const expectedColumnCount = 17;
+        const hasExpectedColumns = values.length >= 5; // At least building, payer, asset_id, type, size
+        const headersAreValid = headers.length > 0 && headers.some(h => h && (h.includes('building') || h.includes('בניין') || h.includes('מזהה')));
+        
+        // Use fixed position mapping if:
+        // 1. Headers are empty/garbled, OR
+        // 2. We have exactly the expected column count and first value looks like a building number
+        if (!headersAreValid || (hasExpectedColumns && values.length >= expectedColumnCount && !isNaN(parseInt(values[0])))) {
+          // Fixed position mapping for the new format:
+          // Column 0: Building number, Column 1: Payer ID, Column 2: Asset ID, 
+          // Column 3: Main asset type, Column 4: Asset size,
+          // Columns 5-16: Sub asset types and sizes (6 pairs)
+          asset.building_number = values[0] ? parseInt(values[0]) : null;
+          asset.payer_id = values[1] || '';
+          asset.asset_id = values[2] || '';
+          asset.main_asset_type = values[3] || '';
+          asset.asset_size = values[4] ? parseFloat(values[4]) : 0;
+          asset.sub_asset_type_1 = values[5] || '';
+          asset.sub_asset_size_1 = values[6] ? parseFloat(values[6]) : 0;
+          asset.sub_asset_type_2 = values[7] || '';
+          asset.sub_asset_size_2 = values[8] ? parseFloat(values[8]) : 0;
+          asset.sub_asset_type_3 = values[9] || '';
+          asset.sub_asset_size_3 = values[10] ? parseFloat(values[10]) : 0;
+          asset.sub_asset_type_4 = values[11] || '';
+          asset.sub_asset_size_4 = values[12] ? parseFloat(values[12]) : 0;
+          asset.sub_asset_type_5 = values[13] || '';
+          asset.sub_asset_size_5 = values[14] ? parseFloat(values[14]) : 0;
+          asset.sub_asset_type_6 = values[15] || '';
+          asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
+        } else {
+          // Header-based mapping (for backward compatibility)
+          headers.forEach((header, index) => {
+            const value = values[index] || '';
+            const headerLower = header.toLowerCase();
+            
+            if (headerLower.includes('בניין') || headerLower.includes('building') || headerLower === 'building_number') {
               asset.building_number = value ? parseInt(value) : null;
-              break;
-            case 'payer_id':
-            case 'זיהוי משלם':
+            } else if (headerLower.includes('משלם') || headerLower.includes('payer') || headerLower === 'payer_id') {
               asset.payer_id = value;
-              break;
-            case 'asset_id':
-            case 'נכס':
-            case 'זיהוי נכס':
+            } else if (headerLower.includes('נכס') && !headerLower.includes('משנה') && !headerLower.includes('סוג') && (headerLower.includes('id') || headerLower.includes('זיהוי'))) {
               asset.asset_id = value;
-              break;
-            case 'measurement_date':
-            case 'תאריך מדידה':
-              asset.measurement_date = value || '';
-              break;
-            case 'main_asset_type':
-            case 'סוג נכס':
-            case 'סוג נכס ראשי':
+            } else if (headerLower.includes('תאריך') || headerLower.includes('date') || headerLower === 'measurement_date') {
+              asset.measurement_date = value || defaultMeasurementDate;
+            } else if ((headerLower.includes('סוג') || headerLower.includes('type')) && (headerLower.includes('ראשי') || headerLower.includes('main'))) {
               asset.main_asset_type = value;
-              break;
-            case 'asset_size':
-            case 'גודל נכס':
-            case 'גודל נכס ראשי':
+            } else if ((headerLower.includes('גודל') || headerLower.includes('size')) && (headerLower.includes('ראשי') || headerLower.includes('main') || headerLower === 'asset_size')) {
               asset.asset_size = value ? parseFloat(value) : 0;
-              break;
-            case 'sub_asset_type_1':
-            case 'נכס משנה 1':
-            case 'סוג נכס משנה 1':
+            } else if (headerLower.includes('משנה 1') || headerLower.includes('sub') && headerLower.includes('1') && headerLower.includes('type')) {
               asset.sub_asset_type_1 = value;
-              break;
-            case 'sub_asset_size_1':
-            case 'גודל נכס משנה 1':
+            } else if (headerLower.includes('משנה 1') || headerLower.includes('sub') && headerLower.includes('1') && headerLower.includes('size')) {
               asset.sub_asset_size_1 = value ? parseFloat(value) : 0;
-              break;
-            case 'sub_asset_type_2':
-            case 'נכס משנה 2':
-            case 'סוג נכס משנה 2':
+            } else if (headerLower.includes('משנה 2') || headerLower.includes('sub') && headerLower.includes('2') && headerLower.includes('type')) {
               asset.sub_asset_type_2 = value;
-              break;
-            case 'sub_asset_size_2':
-            case 'גודל נכס משנה 2':
+            } else if (headerLower.includes('משנה 2') || headerLower.includes('sub') && headerLower.includes('2') && headerLower.includes('size')) {
               asset.sub_asset_size_2 = value ? parseFloat(value) : 0;
-              break;
-            case 'sub_asset_type_3':
-            case 'נכס משנה 3':
-            case 'סוג נכס משנה 3':
+            } else if (headerLower.includes('משנה 3') || headerLower.includes('sub') && headerLower.includes('3') && headerLower.includes('type')) {
               asset.sub_asset_type_3 = value;
-              break;
-            case 'sub_asset_size_3':
-            case 'גודל נכס משנה 3':
+            } else if (headerLower.includes('משנה 3') || headerLower.includes('sub') && headerLower.includes('3') && headerLower.includes('size')) {
               asset.sub_asset_size_3 = value ? parseFloat(value) : 0;
-              break;
-            case 'sub_asset_type_4':
-            case 'נכס משנה 4':
-            case 'סוג נכס משנה 4':
+            } else if (headerLower.includes('משנה 4') || headerLower.includes('sub') && headerLower.includes('4') && headerLower.includes('type')) {
               asset.sub_asset_type_4 = value;
-              break;
-            case 'sub_asset_size_4':
-            case 'גודל נכס משנה 4':
+            } else if (headerLower.includes('משנה 4') || headerLower.includes('sub') && headerLower.includes('4') && headerLower.includes('size')) {
               asset.sub_asset_size_4 = value ? parseFloat(value) : 0;
-              break;
-            case 'sub_asset_type_5':
-            case 'נכס משנה 5':
-            case 'סוג נכס משנה 5':
+            } else if (headerLower.includes('משנה 5') || headerLower.includes('sub') && headerLower.includes('5') && headerLower.includes('type')) {
               asset.sub_asset_type_5 = value;
-              break;
-            case 'sub_asset_size_5':
-            case 'גודל נכס משנה 5':
+            } else if (headerLower.includes('משנה 5') || headerLower.includes('sub') && headerLower.includes('5') && headerLower.includes('size')) {
               asset.sub_asset_size_5 = value ? parseFloat(value) : 0;
-              break;
-            case 'sub_asset_type_6':
-            case 'נכס משנה 6':
-            case 'סוג נכס משנה 6':
+            } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('type')) {
               asset.sub_asset_type_6 = value;
-              break;
-            case 'sub_asset_size_6':
-            case 'גודל נכס משנה 6':
+            } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
               asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
-              break;
-          }
-        });
+            }
+          });
+        }
 
         if (validateBeforeImport) {
           try {
@@ -254,11 +256,14 @@ export function AssetsCSVImport() {
   }
 
   function downloadTemplate() {
-    const template = `building_number,asset_id,measurement_date,payer_id,main_asset_type,asset_size,sub_asset_type_1,sub_asset_size_1,sub_asset_type_2,sub_asset_size_2
-1001,101,01/01/2024,,199,120,40,100,30,20
-1001,102,01/01/2024,,299,85,40,70,30,15
-1002,201,01/01/2024,,40,95,,,
-1002,202,01/01/2024,12345,30,45,,,`;
+    // Template matching the new format: comma-separated, no measurement_date column
+    // Columns: Building number, Payer ID, Asset ID, Main asset type, Asset size, 
+    // Sub asset types 1-6, Sub asset sizes 1-6
+    const template = `מזהה בניין,מזהה משלם,מזהה נכס,סוג נכס ראשי,גודל נכס ראשי,סוג נכס משנה 1,גודל נכס משנה 1,סוג נכס משנה 2,גודל נכס משנה 2,סוג נכס משנה 3,גודל נכס משנה 3,סוג נכס משנה 4,גודל נכס משנה 4,סוג נכס משנה 5,גודל נכס משנה 5,סוג נכס משנה 6,גודל נכס משנה 6
+8268128,516144276,826812801,311,552.89,,,,,,,,,,,,
+8268128,516144276,826812802,299,264.29,311,248.2,702,10.36,702,5.73,,,,,,
+8268128,516144276,826812803,311,81.5,,,,,,,,,,,,
+8268128,516144276,826812804,299,126.36,311,21.06,311,21.06,311,21.06,311,21.06,311,21.06,311,21.06`;
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -334,19 +339,19 @@ export function AssetsCSVImport() {
               <div>
                 <h3 className="font-semibold text-slate-900 mb-2">שדות חובה:</h3>
                 <ul className="list-disc list-inside space-y-1 text-slate-700 text-sm mr-4">
-                  <li><strong>building_number</strong> (מספר בניין)</li>
-                  <li><strong>asset_id</strong> (זיהוי נכס)</li>
-                  <li><strong>measurement_date</strong> (תאריך מדידה - DD/MM/YYYY)</li>
-                  <li><strong>main_asset_type</strong> (סוג נכס ראשי)</li>
-                  <li><strong>asset_size</strong> (גודל נכס)</li>
+                  <li><strong>מזהה בניין</strong> (Building number)</li>
+                  <li><strong>מזהה משלם</strong> (Payer ID - אופציונלי)</li>
+                  <li><strong>מזהה נכס</strong> (Asset ID)</li>
+                  <li><strong>סוג נכס ראשי</strong> (Main asset type)</li>
+                  <li><strong>גודל נכס ראשי</strong> (Asset size)</li>
                 </ul>
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 mb-2">שדות אופציונליים:</h3>
                 <ul className="list-disc list-inside space-y-1 text-slate-700 text-sm mr-4">
-                  <li><strong>payer_id</strong> (זיהוי משלם)</li>
-                  <li><strong>sub_asset_type_1-6</strong> (סוגי נכס משנה)</li>
-                  <li><strong>sub_asset_size_1-6</strong> (גדלים של נכסי משנה)</li>
+                  <li><strong>סוג נכס משנה 1-6</strong> (Sub asset types)</li>
+                  <li><strong>גודל נכס משנה 1-6</strong> (Sub asset sizes)</li>
+                  <li><strong>תאריך מדידה</strong> (Measurement date - יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע)</li>
                 </ul>
               </div>
             </div>
@@ -354,10 +359,11 @@ export function AssetsCSVImport() {
             <div className="bg-white rounded-lg p-4 border border-slate-300">
               <p className="font-semibold text-slate-900 mb-2">דוגמה:</p>
               <pre className="font-mono text-xs text-slate-700 leading-relaxed overflow-x-auto">
-building_number,asset_id,measurement_date,main_asset_type,asset_size,sub_asset_type_1,sub_asset_size_1
-1001,101,01/01/2024,199,120,40,100
-1002,201,01/01/2024,40,95,,
+מזהה בניין,מזהה משלם,מזהה נכס,סוג נכס ראשי,גודל נכס ראשי,סוג נכס משנה 1,גודל נכס משנה 1,סוג נכס משנה 2,גודל נכס משנה 2
+8268128,516144276,826812801,311,552.89,,,,,
+8268128,516144276,826812802,299,264.29,311,248.2,702,10.36
               </pre>
+              <p className="text-xs text-slate-600 mt-2">הערה: הקובץ יכול להיות מופרד בפסיקים או בטאבים</p>
             </div>
 
             <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
@@ -365,7 +371,8 @@ building_number,asset_id,measurement_date,main_asset_type,asset_size,sub_asset_t
               <div className="text-sm text-amber-900">
                 <p className="font-semibold mb-1">שימו לב:</p>
                 <ul className="list-disc list-inside space-y-1 mr-4">
-                  <li>תאריך מדידה חייב להיות בפורמט DD/MM/YYYY</li>
+                  <li>הקובץ צריך להיות מופרד בטאבים (Tab), לא בפסיקים</li>
+                  <li>תאריך מדידה יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע בקובץ</li>
                   <li>נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה</li>
                   <li>סכום נכסי המשנה חייב להתאים לגודל הנכס הראשי</li>
                   <li>הבניין חייב להיות קיים במערכת לפני ייבוא הנכסים</li>

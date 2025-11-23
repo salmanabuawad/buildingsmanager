@@ -325,7 +325,6 @@ function App() {
           assetValidators.validateAssetId(String(asset.asset_id)),
           assetValidators.validatePayerId(asset.payer_id),
           assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-          assetValidators.validateMainAssetTypeForBuilding(asset.building_number, asset.main_asset_type),
           assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size),
           assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
             asset.sub_asset_type_1,

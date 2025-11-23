@@ -509,7 +509,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               assetValidators.validateAssetId(String(asset.asset_id)),
               assetValidators.validatePayerId(asset.payer_id),
               assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-              assetValidators.validateMainAssetTypeForBuilding(asset.building_number, asset.main_asset_type),
               assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size),
               assetValidators.validateSubAssetsFor199Or299(
                 asset.building_number,

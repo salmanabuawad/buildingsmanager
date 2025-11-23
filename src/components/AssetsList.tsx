@@ -41,7 +41,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     total: number;
     valid: number;
     invalid: number;
-    errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
+    errors: Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
   useEffect(() => {
     fetchData();
@@ -392,7 +392,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         total: assetsToValidate.length,
         valid: 0,
         invalid: 0,
-        errors: [] as Array<{ assetId: string; buildingNumber: number; errors: string[] }>
+        errors: [] as Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[] }>
       };
 
       // Validate each asset
@@ -528,6 +528,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           results.invalid++;
           results.errors.push({
             assetId: String(asset.asset_id),
+            assetDbId: String(asset.id), // Store database ID for grid marking
             buildingNumber: asset.building_number,
             errors: assetErrors
           });
@@ -538,6 +539,71 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
       setBatchValidationResults(results);
       console.log(`[Batch Validation] Completed: ${results.valid} valid, ${results.invalid} invalid out of ${results.total} total`);
+
+      // Mark invalid assets in the grid
+      if (results.errors.length > 0) {
+        const newValidationErrors = new Map<string, Map<string, string>>();
+
+        // Mark each invalid asset using database ID if available, otherwise fall back to asset_id lookup
+        for (const errorInfo of results.errors) {
+          let dbId = errorInfo.assetDbId;
+          
+          // If no database ID, try to find it by asset_id
+          if (!dbId) {
+            const asset = masterAssets.find(a => String(a.asset_id) === errorInfo.assetId);
+            if (asset) {
+              dbId = String(asset.id);
+            }
+          }
+          
+          if (dbId) {
+            const fieldErrors = new Map<string, string>();
+            // Combine all errors into a general validation error
+            fieldErrors.set('_batchValidation', errorInfo.errors.join('; '));
+            newValidationErrors.set(dbId, fieldErrors);
+          }
+        }
+
+        // Merge with existing validation errors
+        setValidationErrors(prevErrors => {
+          const merged = new Map(prevErrors);
+          for (const [assetId, errors] of newValidationErrors.entries()) {
+            const existing = merged.get(assetId) || new Map<string, string>();
+            // Merge batch validation errors with existing errors
+            for (const [field, error] of errors.entries()) {
+              existing.set(field, error);
+            }
+            merged.set(assetId, existing);
+          }
+          return merged;
+        });
+
+        // Also mark in invalidAssets set for row styling
+        setInvalidAssets(prevInvalid => {
+          const newInvalid = new Set(prevInvalid);
+          for (const errorInfo of results.errors) {
+            let dbId = errorInfo.assetDbId;
+            
+            // If no database ID, try to find it by asset_id
+            if (!dbId) {
+              const asset = masterAssets.find(a => String(a.asset_id) === errorInfo.assetId);
+              if (asset) {
+                dbId = String(asset.id);
+              }
+            }
+            
+            if (dbId) {
+              newInvalid.add(dbId);
+            }
+          }
+          return newInvalid;
+        });
+
+        // Refresh grid to show the validation errors
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: true });
+        }
+      }
     } catch (error) {
       console.error('Error during batch validation:', error);
       setBatchValidationResults({

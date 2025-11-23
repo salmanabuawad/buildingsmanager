@@ -372,14 +372,16 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     setBatchValidationProgress(null);
 
     try {
-      // Get only assets for this building
-      const buildingAssets = await api.assets.getAll(buildingNumber);
+      // Pre-fetch all required data once (performance optimization)
+      const [buildingAssets, assetTypesData, buildingData] = await Promise.all([
+        api.assets.getAll(buildingNumber),
+        api.assetTypes.getAll(),
+        api.buildings.getOne(buildingNumber).catch(() => null)
+      ]);
       
       // Filter by tax zone if specified
       let assetsToValidate = buildingAssets;
       if (taxZone) {
-        // Get asset types to filter by tax region
-        const assetTypesData = await api.assetTypes.getAll();
         assetsToValidate = buildingAssets.filter(asset => {
           const assetType = assetTypesData.find(at => at.name === asset.main_asset_type);
           return assetType && String(assetType.tax_region) === taxZone;
@@ -388,6 +390,28 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
       console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`);
 
+      // Cache building data to avoid repeated queries
+      const buildingCache = buildingData ? {
+        tax_region: buildingData.tax_region,
+        elevator: buildingData.elevator,
+        shared_area: buildingData.shared_area,
+        single_double_family: buildingData.single_double_family,
+        condo: buildingData.condo,
+        townhouses: buildingData.townhouses,
+        penthouse: buildingData.penthouse
+      } : null;
+
+      // Create asset types lookup map for faster access
+      const assetTypesMap = new Map<string, AssetType>();
+      assetTypesData.forEach(at => {
+        if (at.name) {
+          const existing = assetTypesMap.get(at.name);
+          if (!existing || (at.tax_region && !existing.tax_region)) {
+            assetTypesMap.set(at.name, at);
+          }
+        }
+      });
+
       const results = {
         total: assetsToValidate.length,
         valid: 0,
@@ -395,146 +419,192 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         errors: [] as Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[] }>
       };
 
-      // Validate each asset
-      for (let i = 0; i < assetsToValidate.length; i++) {
-        const asset = assetsToValidate[i];
-        
-        // Update progress
-        setBatchValidationProgress({
-          current: i + 1,
-          total: assetsToValidate.length,
-          currentAssetId: String(asset.asset_id)
-        });
-        
-        const assetErrors: string[] = [];
+      // Process assets in batches for better performance and progress updates
+      const BATCH_SIZE = 10;
+      for (let batchStart = 0; batchStart < assetsToValidate.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, assetsToValidate.length);
+        const batch = assetsToValidate.slice(batchStart, batchEnd);
 
-        // Validate all fields using validateEntity
-        const fieldValidations = await validateEntity('asset', asset);
-        for (const [fieldName, validationResults] of Object.entries(fieldValidations)) {
-          const invalidResults = validationResults.filter(r => !r.valid);
-          if (invalidResults.length > 0) {
-            invalidResults.forEach(r => {
-              if (r.error) assetErrors.push(`${fieldName}: ${r.error}`);
+        // Validate batch in parallel
+        const batchResults = await Promise.all(
+          batch.map(async (asset) => {
+            const assetErrors: string[] = [];
+
+            // Run synchronous validations first (no DB calls)
+            const syncValidations = [
+              assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
+                asset.sub_asset_type_1,
+                asset.sub_asset_type_2,
+                asset.sub_asset_type_3,
+                asset.sub_asset_type_4,
+                asset.sub_asset_type_5,
+                asset.sub_asset_type_6
+              ]),
+              assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
+                asset.sub_asset_type_1,
+                asset.sub_asset_type_2,
+                asset.sub_asset_type_3,
+                asset.sub_asset_type_4,
+                asset.sub_asset_type_5,
+                asset.sub_asset_type_6
+              ]),
+              assetValidators.validateSubAssetSizeMatchesMain(
+                asset.asset_size,
+                [
+                  asset.sub_asset_type_1,
+                  asset.sub_asset_type_2,
+                  asset.sub_asset_type_3,
+                  asset.sub_asset_type_4,
+                  asset.sub_asset_type_5,
+                  asset.sub_asset_type_6
+                ],
+                [
+                  asset.sub_asset_size_1,
+                  asset.sub_asset_size_2,
+                  asset.sub_asset_size_3,
+                  asset.sub_asset_size_4,
+                  asset.sub_asset_size_5,
+                  asset.sub_asset_size_6
+                ]
+              ),
+              assetValidators.validateSubAssetSizeRequiresType(
+                [
+                  asset.sub_asset_type_1,
+                  asset.sub_asset_type_2,
+                  asset.sub_asset_type_3,
+                  asset.sub_asset_type_4,
+                  asset.sub_asset_type_5,
+                  asset.sub_asset_type_6
+                ],
+                [
+                  asset.sub_asset_size_1,
+                  asset.sub_asset_size_2,
+                  asset.sub_asset_size_3,
+                  asset.sub_asset_size_4,
+                  asset.sub_asset_size_5,
+                  asset.sub_asset_size_6
+                ]
+              ),
+              assetValidators.validateSubAssetOrder([
+                asset.sub_asset_type_1,
+                asset.sub_asset_type_2,
+                asset.sub_asset_type_3,
+                asset.sub_asset_type_4,
+                asset.sub_asset_type_5,
+                asset.sub_asset_type_6
+              ])
+            ];
+
+            // Run synchronous validations in parallel
+            const syncResults = await Promise.all(syncValidations);
+            syncResults.forEach(result => {
+              if (!result.valid && result.error) {
+                assetErrors.push(result.error);
+              }
             });
-          }
-        }
 
-        // Validate asset-specific rules
-        const validations = [
-          assetValidators.validateBuildingNumber(asset.building_number),
-          assetValidators.validateAssetId(String(asset.asset_id)),
-          assetValidators.validatePayerId(asset.payer_id),
-          assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-          assetValidators.validateMainAssetTypeForBuilding(asset.building_number, asset.main_asset_type),
-          assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size),
-          assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ]),
-          assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ]),
-          assetValidators.validateSubAssetSizeMatchesMain(
-            asset.asset_size,
-            [
+            // Run DB-dependent validations (can be optimized further with cached data)
+            const dbValidations = [
+              assetValidators.validateBuildingNumber(asset.building_number),
+              assetValidators.validateAssetId(String(asset.asset_id)),
+              assetValidators.validatePayerId(asset.payer_id),
+              assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
+              assetValidators.validateMainAssetTypeForBuilding(asset.building_number, asset.main_asset_type),
+              assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size),
+              assetValidators.validateSubAssetsFor199Or299(
+                asset.building_number,
+                asset.main_asset_type,
+                asset.asset_size,
+                [
+                  asset.sub_asset_type_1,
+                  asset.sub_asset_type_2,
+                  asset.sub_asset_type_3,
+                  asset.sub_asset_type_4,
+                  asset.sub_asset_type_5,
+                  asset.sub_asset_type_6
+                ],
+                [
+                  asset.sub_asset_size_1,
+                  asset.sub_asset_size_2,
+                  asset.sub_asset_size_3,
+                  asset.sub_asset_size_4,
+                  asset.sub_asset_size_5,
+                  asset.sub_asset_size_6
+                ]
+              )
+            ];
+
+            // Run DB validations in parallel
+            const dbResults = await Promise.all(dbValidations);
+            dbResults.forEach(result => {
+              if (!result.valid && result.error) {
+                assetErrors.push(result.error);
+              }
+            });
+
+            // Validate sub asset types individually (only if they exist)
+            const subAssetTypes = [
               asset.sub_asset_type_1,
               asset.sub_asset_type_2,
               asset.sub_asset_type_3,
               asset.sub_asset_type_4,
               asset.sub_asset_type_5,
               asset.sub_asset_type_6
-            ],
-            [
+            ];
+            const subAssetSizes = [
               asset.sub_asset_size_1,
               asset.sub_asset_size_2,
               asset.sub_asset_size_3,
               asset.sub_asset_size_4,
               asset.sub_asset_size_5,
               asset.sub_asset_size_6
-            ]
-          ),
-          assetValidators.validateSubAssetsFor199Or299(
-            asset.building_number,
-            asset.main_asset_type,
-            asset.asset_size,
-            [
-              asset.sub_asset_type_1,
-              asset.sub_asset_type_2,
-              asset.sub_asset_type_3,
-              asset.sub_asset_type_4,
-              asset.sub_asset_type_5,
-              asset.sub_asset_type_6
-            ],
-            [
-              asset.sub_asset_size_1,
-              asset.sub_asset_size_2,
-              asset.sub_asset_size_3,
-              asset.sub_asset_size_4,
-              asset.sub_asset_size_5,
-              asset.sub_asset_size_6
-            ]
-          )
-        ];
+            ];
 
-        // Run all validations
-        for (const validation of validations) {
-          const result = await validation;
-          if (!result.valid && result.error) {
-            assetErrors.push(result.error);
+            // Validate sub-assets in parallel
+            const subValidations = subAssetTypes
+              .map((subType, idx) => subType ? 
+                assetValidators.validateSubAssetTypeComplete(
+                  asset.building_number,
+                  subType,
+                  subAssetSizes[idx]
+                ) : Promise.resolve({ valid: true })
+              );
+
+            const subResults = await Promise.all(subValidations);
+            subResults.forEach((result, idx) => {
+              if (!result.valid && result.error && subAssetTypes[idx]) {
+                assetErrors.push(`נכס משנה ${idx + 1}: ${result.error}`);
+              }
+            });
+
+            return {
+              asset,
+              errors: assetErrors
+            };
+          })
+        );
+
+        // Process batch results
+        batchResults.forEach(({ asset, errors }) => {
+          if (errors.length > 0) {
+            results.invalid++;
+            results.errors.push({
+              assetId: String(asset.asset_id),
+              assetDbId: String(asset.id),
+              buildingNumber: asset.building_number,
+              errors
+            });
+          } else {
+            results.valid++;
           }
-        }
+        });
 
-        // Validate sub asset types individually
-        const subAssetTypes = [
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ];
-        const subAssetSizes = [
-          asset.sub_asset_size_1,
-          asset.sub_asset_size_2,
-          asset.sub_asset_size_3,
-          asset.sub_asset_size_4,
-          asset.sub_asset_size_5,
-          asset.sub_asset_size_6
-        ];
-
-        for (let j = 0; j < subAssetTypes.length; j++) {
-          if (subAssetTypes[j]) {
-            const subValidation = await assetValidators.validateSubAssetTypeComplete(
-              asset.building_number,
-              subAssetTypes[j],
-              subAssetSizes[j]
-            );
-            if (!subValidation.valid && subValidation.error) {
-              assetErrors.push(`נכס משנה ${j + 1}: ${subValidation.error}`);
-            }
-          }
-        }
-
-        if (assetErrors.length > 0) {
-          results.invalid++;
-          results.errors.push({
-            assetId: String(asset.asset_id),
-            assetDbId: String(asset.id), // Store database ID for grid marking
-            buildingNumber: asset.building_number,
-            errors: assetErrors
-          });
-        } else {
-          results.valid++;
-        }
+        // Update progress after each batch
+        setBatchValidationProgress({
+          current: batchEnd,
+          total: assetsToValidate.length,
+          currentAssetId: String(batch[batch.length - 1]?.asset_id || '')
+        });
       }
 
       setBatchValidationResults(results);

@@ -503,220 +503,205 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         errors: [] as Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[] }>
       };
 
-      // Process assets in batches for better performance and progress updates
-      const BATCH_SIZE = 10;
-      for (let batchStart = 0; batchStart < assetsToValidate.length; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, assetsToValidate.length);
-        const batch = assetsToValidate.slice(batchStart, batchEnd);
+      // Process assets one by one to show detailed progress
+      // Track which asset_ids we've already processed to avoid duplicates
+      const processedAssetIds = new Set<string>();
+      
+      for (let i = 0; i < assetsToValidate.length; i++) {
+        const asset = assetsToValidate[i];
+        const assetIdKey = String(asset.asset_id);
+        
+        // Skip if we've already processed this asset_id
+        if (processedAssetIds.has(assetIdKey)) {
+          console.warn(`[Batch Validation] Skipping duplicate asset_id: ${assetIdKey}`);
+          continue;
+        }
+        
+        processedAssetIds.add(assetIdKey);
+        
+        // Update progress before validating this asset
+        setBatchValidationProgress({
+          current: i + 1,
+          total: assetsToValidate.length,
+          currentAssetId: assetIdKey
+        });
 
-        // Validate batch in parallel
-        const batchResults = await Promise.all(
-          batch.map(async (asset) => {
-            const assetErrors: string[] = [];
+        const assetErrors: string[] = [];
 
-            // Run synchronous validations first (no DB calls)
-            const syncValidations = [
-              assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
-                asset.sub_asset_type_1,
-                asset.sub_asset_type_2,
-                asset.sub_asset_type_3,
-                asset.sub_asset_type_4,
-                asset.sub_asset_type_5,
-                asset.sub_asset_type_6
-              ]),
-              assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
-                asset.sub_asset_type_1,
-                asset.sub_asset_type_2,
-                asset.sub_asset_type_3,
-                asset.sub_asset_type_4,
-                asset.sub_asset_type_5,
-                asset.sub_asset_type_6
-              ]),
-              assetValidators.validateSubAssetSizeMatchesMain(
-                asset.asset_size,
-                [
-                  asset.sub_asset_type_1,
-                  asset.sub_asset_type_2,
-                  asset.sub_asset_type_3,
-                  asset.sub_asset_type_4,
-                  asset.sub_asset_type_5,
-                  asset.sub_asset_type_6
-                ],
-                [
-                  asset.sub_asset_size_1,
-                  asset.sub_asset_size_2,
-                  asset.sub_asset_size_3,
-                  asset.sub_asset_size_4,
-                  asset.sub_asset_size_5,
-                  asset.sub_asset_size_6
-                ]
-              ),
-              assetValidators.validateSubAssetSizeRequiresType(
-                [
-                  asset.sub_asset_type_1,
-                  asset.sub_asset_type_2,
-                  asset.sub_asset_type_3,
-                  asset.sub_asset_type_4,
-                  asset.sub_asset_type_5,
-                  asset.sub_asset_type_6
-                ],
-                [
-                  asset.sub_asset_size_1,
-                  asset.sub_asset_size_2,
-                  asset.sub_asset_size_3,
-                  asset.sub_asset_size_4,
-                  asset.sub_asset_size_5,
-                  asset.sub_asset_size_6
-                ]
-              ),
-              assetValidators.validateSubAssetOrder([
-                asset.sub_asset_type_1,
-                asset.sub_asset_type_2,
-                asset.sub_asset_type_3,
-                asset.sub_asset_type_4,
-                asset.sub_asset_type_5,
-                asset.sub_asset_type_6
-              ])
-            ];
-
-            // Track seen errors to avoid duplicates across all validations
-            const seenErrors = new Set<string>();
-
-            // Run synchronous validations in parallel
-            const syncResults = await Promise.all(syncValidations);
-            syncResults.forEach(result => {
-              if (!result.valid && result.error) {
-                // Only add error if we haven't seen it before
-                if (!seenErrors.has(result.error)) {
-                  assetErrors.push(result.error);
-                  seenErrors.add(result.error);
-                }
-              }
-            });
-
-            // Run DB-dependent validations (can be optimized further with cached data)
-            const dbValidations = [
-              assetValidators.validateBuildingNumber(asset.building_number),
-              assetValidators.validateAssetId(String(asset.asset_id)),
-              assetValidators.validatePayerId(asset.payer_id),
-              assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-              assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset),
-              assetValidators.validateSubAssetsFor199Or299(
-                asset.building_number,
-                asset.main_asset_type,
-                asset.asset_size,
-                [
-                  asset.sub_asset_type_1,
-                  asset.sub_asset_type_2,
-                  asset.sub_asset_type_3,
-                  asset.sub_asset_type_4,
-                  asset.sub_asset_type_5,
-                  asset.sub_asset_type_6
-                ],
-                [
-                  asset.sub_asset_size_1,
-                  asset.sub_asset_size_2,
-                  asset.sub_asset_size_3,
-                  asset.sub_asset_size_4,
-                  asset.sub_asset_size_5,
-                  asset.sub_asset_size_6
-                ]
-              )
-            ];
-
-            // Run DB validations in parallel
-            const dbResults = await Promise.all(dbValidations);
-            dbResults.forEach(result => {
-              if (!result.valid && result.error) {
-                // Only add error if we haven't seen it before
-                if (!seenErrors.has(result.error)) {
-                  assetErrors.push(result.error);
-                  seenErrors.add(result.error);
-                }
-              }
-            });
-
-            // Validate sub asset types individually (only if they exist)
-            const subAssetTypes = [
+        // Run synchronous validations first (no DB calls)
+        const syncValidations = [
+          assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ]),
+          assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ]),
+          assetValidators.validateSubAssetSizeMatchesMain(
+            asset.asset_size,
+            [
               asset.sub_asset_type_1,
               asset.sub_asset_type_2,
               asset.sub_asset_type_3,
               asset.sub_asset_type_4,
               asset.sub_asset_type_5,
               asset.sub_asset_type_6
-            ];
-            const subAssetSizes = [
+            ],
+            [
               asset.sub_asset_size_1,
               asset.sub_asset_size_2,
               asset.sub_asset_size_3,
               asset.sub_asset_size_4,
               asset.sub_asset_size_5,
               asset.sub_asset_size_6
-            ];
+            ]
+          ),
+          assetValidators.validateSubAssetSizeRequiresType(
+            [
+              asset.sub_asset_type_1,
+              asset.sub_asset_type_2,
+              asset.sub_asset_type_3,
+              asset.sub_asset_type_4,
+              asset.sub_asset_type_5,
+              asset.sub_asset_type_6
+            ],
+            [
+              asset.sub_asset_size_1,
+              asset.sub_asset_size_2,
+              asset.sub_asset_size_3,
+              asset.sub_asset_size_4,
+              asset.sub_asset_size_5,
+              asset.sub_asset_size_6
+            ]
+          ),
+          assetValidators.validateSubAssetOrder([
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ])
+        ];
 
-            // Validate sub-assets in parallel
-            const subValidations = subAssetTypes
-              .map((subType, idx) => subType ? 
-                assetValidators.validateSubAssetTypeComplete(
-                  asset.building_number,
-                  subType,
-                  subAssetSizes[idx]
-                ) : Promise.resolve({ valid: true })
-              );
+        // Track seen errors to avoid duplicates across all validations
+        const seenErrors = new Set<string>();
 
-            const subResults = await Promise.all(subValidations);
-            subResults.forEach((result, idx) => {
-              if (!result.valid && result.error && subAssetTypes[idx]) {
-                const errorMsg = `נכס משנה ${idx + 1}: ${result.error}`;
-                // Only add error if we haven't seen it before
-                if (!seenErrors.has(errorMsg)) {
-                  assetErrors.push(errorMsg);
-                  seenErrors.add(errorMsg);
-                }
-              }
-            });
-
-            return {
-              asset,
-              errors: assetErrors
-            };
-          })
-        );
-
-        // Process batch results
-        // Track which asset_ids we've already processed to avoid duplicates
-        const processedAssetIds = new Set<string>();
-        
-        batchResults.forEach(({ asset, errors }) => {
-          const assetIdKey = String(asset.asset_id);
-          
-          // Skip if we've already processed this asset_id
-          if (processedAssetIds.has(assetIdKey)) {
-            console.warn(`[Batch Validation] Skipping duplicate asset_id: ${assetIdKey}`);
-            return;
-          }
-          
-          processedAssetIds.add(assetIdKey);
-          
-          if (errors.length > 0) {
-            results.invalid++;
-            results.errors.push({
-              assetId: assetIdKey,
-              assetDbId: String(asset.id),
-              buildingNumber: asset.building_number,
-              errors
-            });
-          } else {
-            results.valid++;
+        // Run synchronous validations in parallel
+        const syncResults = await Promise.all(syncValidations);
+        syncResults.forEach(result => {
+          if (!result.valid && result.error) {
+            // Only add error if we haven't seen it before
+            if (!seenErrors.has(result.error)) {
+              assetErrors.push(result.error);
+              seenErrors.add(result.error);
+            }
           }
         });
 
-        // Update progress after each batch
-        setBatchValidationProgress({
-          current: batchEnd,
-          total: assetsToValidate.length,
-          currentAssetId: String(batch[batch.length - 1]?.asset_id || '')
+        // Run DB-dependent validations (can be optimized further with cached data)
+        const dbValidations = [
+          assetValidators.validateBuildingNumber(asset.building_number),
+          assetValidators.validateAssetId(String(asset.asset_id)),
+          assetValidators.validatePayerId(asset.payer_id),
+          assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
+          assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset),
+          assetValidators.validateSubAssetsFor199Or299(
+            asset.building_number,
+            asset.main_asset_type,
+            asset.asset_size,
+            [
+              asset.sub_asset_type_1,
+              asset.sub_asset_type_2,
+              asset.sub_asset_type_3,
+              asset.sub_asset_type_4,
+              asset.sub_asset_type_5,
+              asset.sub_asset_type_6
+            ],
+            [
+              asset.sub_asset_size_1,
+              asset.sub_asset_size_2,
+              asset.sub_asset_size_3,
+              asset.sub_asset_size_4,
+              asset.sub_asset_size_5,
+              asset.sub_asset_size_6
+            ]
+          )
+        ];
+
+        // Run DB validations in parallel
+        const dbResults = await Promise.all(dbValidations);
+        dbResults.forEach(result => {
+          if (!result.valid && result.error) {
+            // Only add error if we haven't seen it before
+            if (!seenErrors.has(result.error)) {
+              assetErrors.push(result.error);
+              seenErrors.add(result.error);
+            }
+          }
         });
+
+        // Validate sub asset types individually (only if they exist)
+        const subAssetTypes = [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ];
+        const subAssetSizes = [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ];
+
+        // Validate sub-assets in parallel
+        const subValidations = subAssetTypes
+          .map((subType, idx) => subType ? 
+            assetValidators.validateSubAssetTypeComplete(
+              asset.building_number,
+              subType,
+              subAssetSizes[idx]
+            ) : Promise.resolve({ valid: true })
+          );
+
+        const subResults = await Promise.all(subValidations);
+        subResults.forEach((result, idx) => {
+          if (!result.valid && result.error && subAssetTypes[idx]) {
+            const errorMsg = `נכס משנה ${idx + 1}: ${result.error}`;
+            // Only add error if we haven't seen it before
+            if (!seenErrors.has(errorMsg)) {
+              assetErrors.push(errorMsg);
+              seenErrors.add(errorMsg);
+            }
+          }
+        });
+
+        // Process results for this asset
+        if (assetErrors.length > 0) {
+          results.invalid++;
+          results.errors.push({
+            assetId: assetIdKey,
+            assetDbId: String(asset.id),
+            buildingNumber: asset.building_number,
+            errors: assetErrors
+          });
+        } else {
+          results.valid++;
+        }
       }
 
       setBatchValidationResults(results);

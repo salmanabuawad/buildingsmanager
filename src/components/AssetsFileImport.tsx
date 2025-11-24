@@ -242,7 +242,7 @@ export function AssetsFileImport() {
       }
 
       let successCount = 0;
-      let failCount = 0;
+      const validationErrorCount = errors.length; // Count validation errors before import
 
       setProgress({ stage: 'importing', current: 0, total: assets.length });
 
@@ -261,14 +261,13 @@ export function AssetsFileImport() {
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
           errors.push(`נכס ${asset.asset_id}: ${errorMsg}`);
-          failCount++;
         }
       }
 
       const result = {
         total: lines.length - 1,
         successful: successCount,
-        failed: failCount + errors.length,
+        failed: errors.length, // Total errors (validation + import)
         errors: errors.slice(0, 20)
       };
       setImportResult(result);

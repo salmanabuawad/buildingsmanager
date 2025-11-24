@@ -471,6 +471,58 @@ export const api = {
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
     },
+    getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<{ master: Asset | null; details: Asset[] }> => {
+      // Fetch master record from assets table
+      let masterQuery = supabase
+        .from('assets')
+        .select('*')
+        .eq('asset_id', assetId);
+
+      if (buildingNumber) {
+        masterQuery = masterQuery.eq('building_number', buildingNumber);
+      }
+
+      const { data: masterData, error: masterError } = await masterQuery.maybeSingle();
+
+      if (masterError && masterError.code !== 'PGRST116') {
+        console.error('[API ERROR] Error fetching master asset:', masterError);
+        throw masterError;
+      }
+
+      // Fetch detail records from assets_history table
+      const { data: historyData, error: historyError } = await supabase
+        .from('assets_history')
+        .select('*')
+        .eq('asset_id', assetId)
+        .order('history_created_at', { ascending: false });
+
+      if (historyError) {
+        console.error('[API ERROR] Error fetching assets_history:', historyError);
+        // If table doesn't exist or RLS blocks it, return empty array for details
+        if (historyError.code === '42P01' || historyError.code === '42501') {
+          return { master: masterData || null, details: [] };
+        }
+        throw historyError;
+      }
+
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      // Sort history records by measurement_date (newest first)
+      const sortedHistory = (historyData || []).sort((a, b) =>
+        parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+      );
+
+      return {
+        master: masterData || null,
+        details: sortedHistory
+      };
+    },
     getOne: async (id: string): Promise<Asset> => {
       const { data, error } = await supabase
         .from('assets')

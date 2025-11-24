@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye, CheckCircle2 } from 'lucide-react';
+import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
@@ -19,7 +19,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
+  const [displayMeasurements, setDisplayMeasurements] = useState<Asset[]>([]);
   const [originalMeasurements, setOriginalMeasurements] = useState<Asset[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,10 +37,71 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
 
-  const latestMeasurementId = useMemo(() => {
+  const latestMeasurement = useMemo(() => {
     if (allMeasurements.length === 0) return null;
-    return allMeasurements[0]?.id;
+    const parseDate = (dateStr: string) => {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      }
+      return new Date(dateStr);
+    };
+    return [...allMeasurements].sort((a, b) => 
+      parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+    )[0];
   }, [allMeasurements]);
+
+  const latestMeasurementId = useMemo(() => {
+    return latestMeasurement?.id || null;
+  }, [latestMeasurement]);
+
+  const toggleRowExpansion = useCallback((assetId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(assetId)) {
+        newSet.delete(assetId);
+      } else {
+        newSet.add(assetId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Create display data with master-detail behavior (latest by default, expandable history)
+  useEffect(() => {
+    if (allMeasurements.length === 0) {
+      setDisplayMeasurements([]);
+      return;
+    }
+
+    const parseDate = (dateStr: string) => {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      }
+      return new Date(dateStr);
+    };
+
+    // Sort by measurement_date (newest first)
+    const sorted = [...allMeasurements].sort((a, b) => 
+      parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+    );
+
+    const latest = sorted[0];
+    const display: Asset[] = [];
+    
+    if (latest) {
+      display.push({ ...latest, _isMasterRow: true });
+      if (expandedRows.has(latest.asset_id)) {
+        const historicalRecords = sorted.filter(
+          (m, index) => index > 0
+        );
+        display.push(...historicalRecords.map(r => ({ ...r, _isMasterRow: false })));
+      }
+    }
+    
+    setDisplayMeasurements(display);
+  }, [allMeasurements, expandedRows]);
 
   const assetTaxRegion = useMemo(() => {
     if (!asset?.main_asset_type || assetTypes.length === 0) return null;

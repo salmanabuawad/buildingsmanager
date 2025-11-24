@@ -910,20 +910,18 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               errors.push(`נכס חדש: קוד נכס נדרש`);
               continue;
             }
-            if (!updatedData.payer_id) {
-              errors.push(`נכס ${updatedData.asset_id}: קוד משלם נדרש`);
-              continue;
-            }
             if (!updatedData.main_asset_type) {
               errors.push(`נכס ${updatedData.asset_id}: סוג נכס ראשי נדרש`);
               continue;
             }
 
-            // Validate payer_id
-            const payerValidation = await assetValidators.validatePayerId(updatedData.payer_id);
-            if (!payerValidation.valid) {
-              errors.push(`נכס ${updatedData.asset_id}: ${payerValidation.error}`);
-              continue;
+            // Validate payer_id (optional, but if provided, must be valid)
+            if (updatedData.payer_id) {
+              const payerValidation = await assetValidators.validatePayerId(updatedData.payer_id);
+              if (!payerValidation.valid) {
+                errors.push(`נכס ${updatedData.asset_id}: ${payerValidation.error}`);
+                continue;
+              }
             }
 
             // Validate asset_id

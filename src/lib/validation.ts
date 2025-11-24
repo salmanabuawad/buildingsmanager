@@ -886,7 +886,11 @@ export const assetValidators = {
     return firstError || { valid: true };
   },
 
-  validatePayerId: async (payerId: string): Promise<ValidationResult> => {
+  validatePayerId: async (payerId: string | null | undefined): Promise<ValidationResult> => {
+    // payer_id is optional, so skip validation if empty/null
+    if (!payerId || payerId === '' || payerId === null || payerId === undefined) {
+      return { valid: true };
+    }
     const results = await validateField('asset', 'payer_id', payerId);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };

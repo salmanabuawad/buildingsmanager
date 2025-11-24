@@ -295,7 +295,7 @@ export function ValidationRulesManager() {
     resizable: true,
     wrapText: true,
     autoHeight: true,
-    minWidth: 30
+    minWidth: 60
   }), []);
 
   const onGridReady = useCallback(async (params: any) => {

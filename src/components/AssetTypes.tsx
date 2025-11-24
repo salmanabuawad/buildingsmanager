@@ -1000,7 +1000,7 @@ export function AssetTypes() {
                 sortable: true,
                 wrapText: true,
                 autoHeight: false,
-                minWidth: 30
+                minWidth: 60
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}

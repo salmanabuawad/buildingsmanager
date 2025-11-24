@@ -957,7 +957,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 autoHeaderHeight: true,
                 wrapText: true,
                 autoHeight: false,
-                minWidth: 30,
+                minWidth: 60,
                 cellStyle: { textAlign: 'right', fontSize: '16px' },
                 headerClass: 'buildings-list-header',
                 headerStyle: { fontSize: '10px', textAlign: 'left' }

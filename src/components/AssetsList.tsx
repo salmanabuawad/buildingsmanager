@@ -1602,7 +1602,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
-              minWidth: 30,
+              minWidth: 60,
               headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}

@@ -154,23 +154,44 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       setAssets(filteredAssets);
       const assetsByAssetId = new Map<string, Asset[]>();
       for (const asset of filteredAssets) {
-        if (!assetsByAssetId.has(asset.asset_id)) {
-          assetsByAssetId.set(asset.asset_id, []);
+        const assetIdKey = String(asset.asset_id);
+        if (!assetsByAssetId.has(assetIdKey)) {
+          assetsByAssetId.set(assetIdKey, []);
         }
-        assetsByAssetId.get(asset.asset_id)!.push(asset);
+        assetsByAssetId.get(assetIdKey)!.push(asset);
       }
       const masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
+        const parseDate = (dateStr: string) => {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+          return new Date(dateStr);
+        };
         group.sort((a, b) => {
-          const parseDate = (dateStr: string) => {
-            const parts = dateStr.split('/');
-            if (parts.length === 3) {
-              return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-            }
-            return new Date(dateStr);
-          };
-          return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+          const dateA = parseDate(a.measurement_date);
+          const dateB = parseDate(b.measurement_date);
+          // Sort by date (newest first), then by id (highest first) as tiebreaker
+          const dateDiff = dateB.getTime() - dateA.getTime();
+          if (dateDiff !== 0) return dateDiff;
+          return b.id - a.id;
         });
-        return group[0];
+        const master = group[0];
+        // Debug log for asset 100501
+        if (master && String(master.asset_id) === '100501') {
+          console.log('[AssetsList] Asset 100501 group:', group.map(a => ({
+            id: a.id,
+            asset_id: a.asset_id,
+            measurement_date: a.measurement_date,
+            parsed_date: parseDate(a.measurement_date).toISOString()
+          })));
+          console.log('[AssetsList] Asset 100501 master selected:', {
+            id: master.id,
+            asset_id: master.asset_id,
+            measurement_date: master.measurement_date
+          });
+        }
+        return master;
       });
 
       setMasterAssets(masterAssetsList);

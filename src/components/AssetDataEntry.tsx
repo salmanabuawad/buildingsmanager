@@ -934,6 +934,37 @@ export function AssetDataEntry() {
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
+      field: 'penthouse',
+      headerName: 'דירת גג',
+      editable: true,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.setValue(newValue);
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueSetter: (params: any) => {
+        params.data.penthouse = params.newValue;
+        return true;
+      },
+      cellStyle: (params) => {
+        const baseStyle = getCellStyle(params, 'penthouse', false);
+        return { ...baseStyle, textAlign: 'center' };
+      },
+      headerClass: 'text-center'
+    },
+    {
       field: 'asset_id',
       headerName: t('assetId'),
       editable: true,
@@ -1138,37 +1169,6 @@ export function AssetDataEntry() {
         return isNaN(num) ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
-    },
-    {
-      field: 'penthouse',
-      headerName: 'דירת גג',
-      editable: true,
-      cellRenderer: (params: any) => {
-        const isChecked = params.value === 'כן';
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                params.setValue(newValue);
-              }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-            />
-          </div>
-        );
-      },
-      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
-      valueSetter: (params: any) => {
-        params.data.penthouse = params.newValue;
-        return true;
-      },
-      cellStyle: (params) => {
-        const baseStyle = getCellStyle(params, 'penthouse', false);
-        return { ...baseStyle, textAlign: 'center' };
-      },
-      headerClass: 'text-center'
     }
   ], [t, buildings, assetTypes, getCellStyle]);
   const filteredRowData = useMemo(() => {

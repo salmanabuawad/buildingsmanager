@@ -131,12 +131,11 @@ function sanitizeAssetInput(input: any): any {
     measurementDate = `${day}/${month}/${year}`;
   }
   
-  return {
-    ...input,
+  const sanitized: any = {
     building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
-    payer_id: input.payer_id != null ? sanitizeText(input.payer_id) : undefined,
+    payer_id: input.payer_id != null && input.payer_id !== '' ? sanitizeText(input.payer_id) : undefined,
     asset_id: input.asset_id != null ? sanitizeInteger(input.asset_id) : undefined,
-    measurement_date: measurementDate,
+    measurement_date: measurementDate, // Always include measurement_date
     main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
     asset_size: input.asset_size != null ? sanitizeNumber(input.asset_size) : undefined,
     sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,
@@ -157,7 +156,27 @@ function sanitizeAssetInput(input: any): any {
     townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
     basement: input.basement != null ? sanitizeText(input.basement) : undefined,
     penthouse: input.penthouse != null ? sanitizeText(input.penthouse) : undefined,
+    structure_drawing_url: input.structure_drawing_url != null ? sanitizeText(input.structure_drawing_url) : undefined,
   };
+  
+  // Remove undefined values to avoid sending them to the database
+  // But always keep measurement_date even if it's somehow undefined (shouldn't happen)
+  Object.keys(sanitized).forEach(key => {
+    if (key !== 'measurement_date' && sanitized[key] === undefined) {
+      delete sanitized[key];
+    }
+  });
+  
+  // Ensure measurement_date is always present
+  if (!sanitized.measurement_date) {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    sanitized.measurement_date = `${day}/${month}/${year}`;
+  }
+  
+  return sanitized;
 }
 
 /**

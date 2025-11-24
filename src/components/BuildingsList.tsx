@@ -323,16 +323,18 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   };
 
   const handleCancelAll = async () => {
+    // Capture current newBuildings before clearing
+    const currentNewBuildings = new Set(newBuildings);
+    
     // Remove new buildings (temp IDs) from buildings and filteredBuildings
-    setBuildings(prev => prev.filter(b => !newBuildings.has(b.building_number)));
-    setFilteredBuildings(prev => prev.filter(b => !newBuildings.has(b.building_number)));
+    setBuildings(prev => prev.filter(b => !currentNewBuildings.has(b.building_number)));
+    setFilteredBuildings(prev => prev.filter(b => !currentNewBuildings.has(b.building_number)));
     
     // Restore original data for existing buildings
     setBuildings(prev => {
-      const existingIds = new Set(prev.map(b => b.building_number));
       const restored = JSON.parse(JSON.stringify(originalBuildings));
-      const filtered = restored.filter((b: Building) => !newBuildings.has(b.building_number));
-      const merged = [...prev.filter(b => !newBuildings.has(b.building_number)), ...filtered];
+      const filtered = restored.filter((b: Building) => !currentNewBuildings.has(b.building_number));
+      const merged = [...prev.filter(b => !currentNewBuildings.has(b.building_number)), ...filtered];
       const unique = merged.filter((b, index, self) => 
         index === self.findIndex(bb => bb.building_number === b.building_number)
       );
@@ -340,8 +342,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     });
     setFilteredBuildings(prev => {
       const restored = JSON.parse(JSON.stringify(originalBuildings));
-      const filtered = restored.filter((b: Building) => !newBuildings.has(b.building_number));
-      const merged = [...prev.filter(b => !newBuildings.has(b.building_number)), ...filtered];
+      const filtered = restored.filter((b: Building) => !currentNewBuildings.has(b.building_number));
+      const merged = [...prev.filter(b => !currentNewBuildings.has(b.building_number)), ...filtered];
       const unique = merged.filter((b, index, self) => 
         index === self.findIndex(bb => bb.building_number === b.building_number)
       );
@@ -367,6 +369,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     if (gridRef.current?.api) {
       gridRef.current.api.refreshCells({ force: true });
+      gridRef.current.api.refreshClientSideRowModel('filter');
     }
 
     // Scroll to left after cancel

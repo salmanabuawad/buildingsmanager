@@ -132,15 +132,18 @@ export function AssetTypes() {
         const next = new Map(prev);
         const existingChanges = next.get(assetTypeId) || {};
         next.set(assetTypeId, { ...existingChanges, [field]: newValue });
+        
+        // Update context immediately with new dirtyAssetTypes
+        if (gridRef.current) {
+          gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+        }
+        
         return next;
       });
 
-      // Update local state immediately for UI responsiveness
-      setAssetTypes(prev => 
-        prev.map(at => at.id === assetTypeId ? { ...at, [field]: newValue } : at)
-      );
-      
-      // Force refresh only this specific cell to avoid affecting other cells
+      // Don't update assetTypes state - this causes all cells to re-render
+      // The grid node already has the updated value from setDataValue
+      // Only refresh the specific cell that changed
       if (gridRef.current) {
         gridRef.current.api.refreshCells({ 
           rowNodes: [event.node], 
@@ -294,8 +297,12 @@ export function AssetTypes() {
         // Get dirtyAssetTypes from context
         const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
-        // Use params.value which is the current cell value
-        const isChecked = params.value === 'כן';
+        // Get current value - check dirty state first, then data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'elevator' in dirtyChanges 
+          ? dirtyChanges.elevator 
+          : params.data?.elevator;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'elevator' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -310,15 +317,18 @@ export function AssetTypes() {
                   const next = new Map(prev);
                   const existingChanges = next.get(assetTypeId) || {};
                   next.set(assetTypeId, { ...existingChanges, elevator: newValue });
+                  
+                  // Update context immediately with new dirtyAssetTypes
+                  if (gridRef.current) {
+                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+                  }
+                  
                   return next;
                 });
-                // Update grid cell data directly first
+                // Update grid cell data directly
                 params.node.setDataValue('elevator', newValue);
-                // Update local state
-                setAssetTypes(prev => 
-                  prev.map(at => at.id === assetTypeId ? { ...at, elevator: newValue } : at)
-                );
-                // Force refresh only this cell
+                
+                // Refresh only this specific cell
                 if (gridRef.current) {
                   gridRef.current.api.refreshCells({ 
                     rowNodes: [params.node], 
@@ -345,8 +355,12 @@ export function AssetTypes() {
         // Get dirtyAssetTypes from context
         const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
-        // Use params.value which is the current cell value
-        const isChecked = params.value === 'כן';
+        // Get current value - check dirty state first, then data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'single_double_family' in dirtyChanges 
+          ? dirtyChanges.single_double_family 
+          : params.data?.single_double_family;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'single_double_family' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -361,15 +375,18 @@ export function AssetTypes() {
                   const next = new Map(prev);
                   const existingChanges = next.get(assetTypeId) || {};
                   next.set(assetTypeId, { ...existingChanges, single_double_family: newValue });
+                  
+                  // Update context immediately with new dirtyAssetTypes
+                  if (gridRef.current) {
+                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+                  }
+                  
                   return next;
                 });
-                // Update grid cell data directly first
+                // Update grid cell data directly
                 params.node.setDataValue('single_double_family', newValue);
-                // Update local state
-                setAssetTypes(prev => 
-                  prev.map(at => at.id === assetTypeId ? { ...at, single_double_family: newValue } : at)
-                );
-                // Force refresh only this cell
+                
+                // Refresh only this specific cell
                 if (gridRef.current) {
                   gridRef.current.api.refreshCells({ 
                     rowNodes: [params.node], 
@@ -398,8 +415,12 @@ export function AssetTypes() {
         // Get dirtyAssetTypes from context
         const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
-        // Use params.value which is the current cell value
-        const isChecked = params.value === 'כן';
+        // Get current value - check dirty state first, then data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
+          ? dirtyChanges.penthouse 
+          : params.data?.penthouse;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'penthouse' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -414,15 +435,18 @@ export function AssetTypes() {
                   const next = new Map(prev);
                   const existingChanges = next.get(assetTypeId) || {};
                   next.set(assetTypeId, { ...existingChanges, penthouse: newValue });
+                  
+                  // Update context immediately with new dirtyAssetTypes
+                  if (gridRef.current) {
+                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+                  }
+                  
                   return next;
                 });
-                // Update grid cell data directly first
+                // Update grid cell data directly
                 params.node.setDataValue('penthouse', newValue);
-                // Update local state
-                setAssetTypes(prev => 
-                  prev.map(at => at.id === assetTypeId ? { ...at, penthouse: newValue } : at)
-                );
-                // Force refresh only this cell
+                
+                // Refresh only this specific cell
                 if (gridRef.current) {
                   gridRef.current.api.refreshCells({ 
                     rowNodes: [params.node], 
@@ -450,8 +474,12 @@ export function AssetTypes() {
         // Get dirtyAssetTypes from context
         const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
-        // Use params.value which is the current cell value
-        const isChecked = params.value === 'כן';
+        // Get current value - check dirty state first, then data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'condo' in dirtyChanges 
+          ? dirtyChanges.condo 
+          : params.data?.condo;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'condo' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -466,15 +494,18 @@ export function AssetTypes() {
                   const next = new Map(prev);
                   const existingChanges = next.get(assetTypeId) || {};
                   next.set(assetTypeId, { ...existingChanges, condo: newValue });
+                  
+                  // Update context immediately with new dirtyAssetTypes
+                  if (gridRef.current) {
+                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+                  }
+                  
                   return next;
                 });
-                // Update grid cell data directly first
+                // Update grid cell data directly
                 params.node.setDataValue('condo', newValue);
-                // Update local state
-                setAssetTypes(prev => 
-                  prev.map(at => at.id === assetTypeId ? { ...at, condo: newValue } : at)
-                );
-                // Force refresh only this cell
+                
+                // Refresh only this specific cell
                 if (gridRef.current) {
                   gridRef.current.api.refreshCells({ 
                     rowNodes: [params.node], 
@@ -501,8 +532,12 @@ export function AssetTypes() {
         // Get dirtyAssetTypes from context
         const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
-        // Use params.value which is the current cell value
-        const isChecked = params.value === 'כן';
+        // Get current value - check dirty state first, then data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'townhouses' in dirtyChanges 
+          ? dirtyChanges.townhouses 
+          : params.data?.townhouses;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'townhouses' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -517,15 +552,18 @@ export function AssetTypes() {
                   const next = new Map(prev);
                   const existingChanges = next.get(assetTypeId) || {};
                   next.set(assetTypeId, { ...existingChanges, townhouses: newValue });
+                  
+                  // Update context immediately with new dirtyAssetTypes
+                  if (gridRef.current) {
+                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+                  }
+                  
                   return next;
                 });
-                // Update grid cell data directly first
+                // Update grid cell data directly
                 params.node.setDataValue('townhouses', newValue);
-                // Update local state
-                setAssetTypes(prev => 
-                  prev.map(at => at.id === assetTypeId ? { ...at, townhouses: newValue } : at)
-                );
-                // Force refresh only this cell
+                
+                // Refresh only this specific cell
                 if (gridRef.current) {
                   gridRef.current.api.refreshCells({ 
                     rowNodes: [params.node], 

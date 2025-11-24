@@ -886,7 +886,17 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const buildingData = await api.buildings.getOne(assetData.building_number);
       setBuilding(buildingData);
 
-      const allAssetMeasurements = await api.assets.getAllByAssetId(String(assetData.asset_id), assetData.building_number);
+      // Fetch master record from assets table and detail records from assets_history
+      const [masterRecord, historyRecords] = await Promise.all([
+        Promise.resolve([assetData]), // Master record is the current asset
+        api.assets.getHistoryByAssetId(assetData.asset_id).catch(err => {
+          console.error('Error fetching assets_history:', err);
+          return []; // Return empty array if history fetch fails
+        })
+      ]);
+
+      // Combine master (from assets) and details (from assets_history)
+      const allAssetMeasurements = [...masterRecord, ...historyRecords];
       setAllMeasurements(allAssetMeasurements || []);
       // Store original data only if dirtyAssets is empty (initial load or after save)
       if (dirtyAssets.size === 0) {

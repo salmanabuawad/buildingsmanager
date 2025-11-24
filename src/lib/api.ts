@@ -443,6 +443,34 @@ export const api = {
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
     },
+    getHistoryByAssetId: async (assetId: string | number): Promise<Asset[]> => {
+      const { data, error } = await supabase
+        .from('assets_history')
+        .select('*')
+        .eq('asset_id', assetId)
+        .order('history_created_at', { ascending: false });
+
+      if (error) {
+        console.error('[API ERROR] Error fetching assets_history:', error);
+        // If table doesn't exist or RLS blocks it, return empty array
+        if (error.code === '42P01' || error.code === '42501') {
+          return [];
+        }
+        throw error;
+      }
+
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      return (data || []).sort((a, b) =>
+        parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+      );
+    },
     getOne: async (id: string): Promise<Asset> => {
       const { data, error } = await supabase
         .from('assets')

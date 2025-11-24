@@ -54,9 +54,35 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       if (expandedRows.has(String(asset.asset_id))) {
         // Show all historical records for this asset_id, excluding the master row itself
         const masterId = String(asset.id);
+        // Debug for asset 100501
+        if (String(asset.asset_id) === '100501') {
+          console.log('[AssetsList] Asset 100501 - Expanding row');
+          console.log('[AssetsList] Asset 100501 - Master asset:', {
+            id: asset.id,
+            asset_id: asset.asset_id,
+            measurement_date: asset.measurement_date
+          });
+          console.log('[AssetsList] Asset 100501 - Total assets in state:', assets.length);
+          console.log('[AssetsList] Asset 100501 - Assets with same asset_id:', 
+            assets.filter(a => a.asset_id === asset.asset_id).map(a => ({
+              id: a.id,
+              asset_id: a.asset_id,
+              measurement_date: a.measurement_date
+            }))
+          );
+        }
         const historicalRecords = assets.filter(
           a => a.asset_id === asset.asset_id && String(a.id) !== masterId
         );
+        // Debug for asset 100501
+        if (String(asset.asset_id) === '100501') {
+          console.log('[AssetsList] Asset 100501 - Historical records found:', historicalRecords.length);
+          console.log('[AssetsList] Asset 100501 - Historical records:', historicalRecords.map(a => ({
+            id: a.id,
+            asset_id: a.asset_id,
+            measurement_date: a.measurement_date
+          })));
+        }
         // Sort historical records by measurement_date (newest first)
         const parseDate = (dateStr: string) => {
           const parts = dateStr.split('/');
@@ -152,6 +178,17 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       }
       
       setAssets(filteredAssets);
+      // Debug for asset 100501
+      const asset100501Records = filteredAssets.filter(a => String(a.asset_id) === '100501');
+      if (asset100501Records.length > 0) {
+        console.log('[AssetsList] Asset 100501 - After tax zone filtering:', asset100501Records.length, 'records');
+        console.log('[AssetsList] Asset 100501 - Records:', asset100501Records.map(a => ({
+          id: a.id,
+          asset_id: a.asset_id,
+          measurement_date: a.measurement_date,
+          main_asset_type: a.main_asset_type
+        })));
+      }
       const assetsByAssetId = new Map<string, Asset[]>();
       for (const asset of filteredAssets) {
         const assetIdKey = String(asset.asset_id);

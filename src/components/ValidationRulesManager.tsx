@@ -372,7 +372,7 @@ export function ValidationRulesManager() {
                 <option value="">בחר...</option>
                 <option value="asset_type">סוג נכס</option>
                 <option value="asset">נכס</option>
-                <option value="building">בניין</option>
+                <option value="building">מבנה</option>
                 <option value="measurement">מדידה</option>
               </select>
             </div>

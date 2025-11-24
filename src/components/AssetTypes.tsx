@@ -524,7 +524,7 @@ export function AssetTypes() {
     },
     {
       field: 'townhouses',
-      headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
+      headerName: 'מבנים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
@@ -929,7 +929,7 @@ export function AssetTypes() {
                     onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked ? 'כן' : undefined })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
-                  בניינים צמודי קרקע טוריים מעל 2 יחידות
+                  מבנים צמודי קרקע טוריים מעל 2 יחידות
                 </label>
               </div>
               <div>

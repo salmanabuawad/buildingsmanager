@@ -626,7 +626,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
         // Create DB validation names mapping
         const dbValidationNames = [
-          'מספר בניין תקין',
+          'מספר מבנה תקין',
           'מספר נכס תקין',
           'קוד משלם תקין',
           'סוג נכס ראשי תקין',
@@ -841,7 +841,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     }
 
     // Create File header
-    const headers = ['מספר בניין', 'מספר נכס', 'שגיאות'];
+    const headers = ['מספר מבנה', 'מספר נכס', 'שגיאות'];
     const rows: string[][] = [headers];
 
     // Add data rows
@@ -1964,7 +1964,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         </div>
         <div className="mt-3 bg-blue-50 border-r-4 border-blue-500 rounded-lg p-3">
           <p className="text-blue-900 text-sm font-medium">
-            <span className="font-bold">עצות:</span> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי. השתמש ב-Tab או Enter לניווט בין תאים.
+            <span className="font-bold">עצות:</span> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר מבנה וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי. השתמש ב-Tab או Enter לניווט בין תאים.
           </p>
         </div>
       </div>
@@ -1974,7 +1974,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">
-                אימות נכסי בניין {buildingNumber}
+                אימות נכסי מבנה {buildingNumber}
                 {taxZone && ` - אזור מס ${taxZone}`}
               </h3>
               <button
@@ -1989,7 +1989,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               <div className="flex-1 flex items-center justify-center py-12">
                 <div className="text-center w-full max-w-md">
                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
-                  <p className="text-slate-600 mb-4">מאמת את נכסי הבניין...</p>
+                  <p className="text-slate-600 mb-4">מאמת את נכסי המבנה...</p>
                   {batchValidationProgress && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
@@ -2046,7 +2046,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                             )}
                             <div className="flex-1">
                               <div className={`font-semibold ${error.errors.length > 0 ? 'text-red-900' : 'text-green-900'}`}>
-                                נכס {error.assetId} (בניין {error.buildingNumber})
+                                נכס {error.assetId} (מבנה {error.buildingNumber})
                               </div>
                               {error.passed && error.passed.length > 0 && (
                                 <div className="mt-2 mb-2">

@@ -458,7 +458,7 @@ export const api = {
           if (error.message.includes('assets_pkey') || error.message.includes('primary key')) {
             errorMessage = 'נכס עם זיהוי זה כבר קיים עם תאריך מדידה זה. כל שילוב של מספר נכס ותאריך מדידה חייב להיות ייחודי.';
           } else {
-            errorMessage = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+            errorMessage = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר המבנה.';
           }
         } else if (error.code === '23514') {
           if (error.message.includes('check_sub_asset_type_') && error.message.includes('not_composite')) {
@@ -474,7 +474,7 @@ export const api = {
           }
         } else if (error.code === '23503') {
           if (error.message.includes('building_number')) {
-            errorMessage = `בניין ${input.building_number} לא קיים. הבניין ייווצר אוטומטית אם הנתונים תקינים.`;
+            errorMessage = `מבנה ${input.building_number} לא קיים. המבנה ייווצר אוטומטית אם הנתונים תקינים.`;
           }
         }
 

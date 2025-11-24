@@ -233,11 +233,11 @@ export async function validateAssetTypeForBuildingTaxRegion(
 
     if (buildingError) {
       console.error('Error fetching building:', buildingError);
-      return { valid: false, error: 'שגיאה באימות אזור המס של הבניין' };
+      return { valid: false, error: 'שגיאה באימות אזור המס של המבנה' };
     }
 
     if (!building) {
-      return { valid: false, error: 'הבניין לא נמצא' };
+      return { valid: false, error: 'המבנה לא נמצא' };
     }
 
     if (building.tax_region == null) {
@@ -250,13 +250,13 @@ export async function validateAssetTypeForBuildingTaxRegion(
     if (assetTypeName === '299') {
       // Asset type 299 is only valid in tax region 40
       if (!buildingTaxRegions.includes('40')) {
-        return { valid: false, error: 'סוג נכס 299 תקף רק בבניינים עם אזור מס 40' };
+        return { valid: false, error: 'סוג נכס 299 תקף רק במבנים עם אזור מס 40' };
       }
     } else if (assetTypeName === '199') {
       // Asset type 199 is valid in all tax regions EXCEPT 40
       // If building has tax region 40 (alone or in combination), 199 is invalid
       if (buildingTaxRegions.includes('40')) {
-        return { valid: false, error: 'סוג נכס 199 לא תקף בבניינים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
+        return { valid: false, error: 'סוג נכס 199 לא תקף במבנים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
       }
     }
 
@@ -293,7 +293,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
       } else if (assetTypeName === '299') {
         return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
       }
-      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של הבניין` };
+      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של המבנה` };
     }
 
     return { valid: true };
@@ -324,11 +324,11 @@ export async function validateAssetTypeComplete(
 
     if (buildingError) {
       console.error('Error fetching building:', buildingError);
-      return { valid: false, error: 'שגיאה באימות פרטי הבניין' };
+      return { valid: false, error: 'שגיאה באימות פרטי המבנה' };
     }
 
     if (!building) {
-      return { valid: false, error: 'הבניין לא נמצא' };
+      return { valid: false, error: 'המבנה לא נמצא' };
     }
 
     // Query asset types by name field (tax region validation already done above)
@@ -413,11 +413,11 @@ export async function validateAssetTypeComplete(
 
         if (requiredValue === 'כן' || requiredValue === 'yes') {
           if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-            errors.push('דורש מעלית, אבל בבניין אין מעלית');
+            errors.push('דורש מעלית, אבל במבנה אין מעלית');
           }
         } else if (requiredValue === 'לא' || requiredValue === 'no') {
           if (buildingValue === 'כן' || buildingValue === 'yes') {
-            errors.push('מיועד לבניינים ללא מעלית, אבל בבניין יש מעלית');
+            errors.push('מיועד למבנים ללא מעלית, אבל במבנה יש מעלית');
           }
         }
       }
@@ -429,7 +429,7 @@ export async function validateAssetTypeComplete(
 
         if (requiredValue === 'כן' || requiredValue === 'yes') {
           if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-            errors.push('דורש משפחה יחידה/דו משפחתי, אבל הבניין לא מסומן ככזה');
+            errors.push('דורש משפחה יחידה/דו משפחתי, אבל המבנה לא מסומן ככזה');
           }
         }
       }
@@ -441,7 +441,7 @@ export async function validateAssetTypeComplete(
 
         if (requiredValue === 'כן' || requiredValue === 'yes') {
           if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-            errors.push('דורש דירת גן, אבל הבניין לא מסומן ככזה');
+            errors.push('דורש דירת גן, אבל המבנה לא מסומן ככזה');
           }
         }
       }
@@ -453,7 +453,7 @@ export async function validateAssetTypeComplete(
 
         if (requiredValue === 'כן' || requiredValue === 'yes') {
           if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-            errors.push('דורש טוריים, אבל הבניין לא מסומן ככזה');
+            errors.push('דורש טוריים, אבל המבנה לא מסומן ככזה');
           }
         }
       }
@@ -465,7 +465,7 @@ export async function validateAssetTypeComplete(
 
         if (requiredValue === 'כן' || requiredValue === 'yes') {
           if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-            errors.push('דורש מרתף, אבל הבניין לא מסומן ככזה');
+            errors.push('דורש מרתף, אבל המבנה לא מסומן ככזה');
           }
         }
       }
@@ -756,7 +756,7 @@ export async function validateSubAssetsFor199Or299(
     .maybeSingle();
 
   if (buildingError || !building) {
-    return { valid: false, error: 'שגיאה באימות הבניין' };
+    return { valid: false, error: 'שגיאה באימות המבנה' };
   }
 
   if (building.tax_region == null) {
@@ -783,7 +783,7 @@ export async function validateSubAssetsFor199Or299(
     }
 
     if (!assetTypes || assetTypes.length === 0) {
-      return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים באזור המס של הבניין` };
+      return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים באזור המס של המבנה` };
     }
   }
 

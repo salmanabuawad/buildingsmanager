@@ -304,12 +304,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         if (isNewBuilding) {
           // Validate required fields for new buildings
           if (!building.building_number || building.building_number < 0) {
-            setError('מספר בניין נדרש ו חייב להיות חיובי');
+            setError('מספר מבנה נדרש ו חייב להיות חיובי');
             setLoading(false);
             return;
           }
           if (!building.tax_region) {
-            setError(`בניין ${building.building_number}: אזור מיסים נדרש`);
+            setError(`מבנה ${building.building_number}: אזור מיסים נדרש`);
             setLoading(false);
             return;
           }
@@ -471,7 +471,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                   ? 'text-red-800 bg-red-100 rounded'
                   : 'text-red-600 hover:text-red-700'
               }`}
-              title={markedForDeletion ? 'מסומן למחיקה' : 'מחק בניין'}
+              title={markedForDeletion ? 'מסומן למחיקה' : 'מחק מבנה'}
             >
               <Trash2 className="h-5 w-5" />
             </button>
@@ -481,7 +481,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'building_number',
-      headerName: 'מספר בניין *',
+      headerName: 'מספר מבנה *',
       editable: (params: any) => {
         // Editable only for new buildings (negative building_number)
         return params.data.building_number < 0;
@@ -815,7 +815,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'townhouses',
-      headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
+      headerName: 'מבנים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -892,7 +892,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{t('propertyListings')}</h1>
               <span className="text-xs sm:text-sm text-teal-50 bg-white/20 px-2 sm:px-3 py-1 rounded-lg font-semibold">
-                <span className="font-semibold">סה"כ בניינים:</span> {buildings.length}
+                <span className="font-semibold">סה"כ מבנים:</span> {buildings.length}
               </span>
             </div>
           </div>

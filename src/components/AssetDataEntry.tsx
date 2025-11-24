@@ -267,7 +267,7 @@ export function AssetDataEntry() {
         const rowNum = index + 1;
         const missing: string[] = [];
         if (!row.building_number) {
-          missing.push('מספר בניין');
+          missing.push('מספר מבנה');
         }
         if (!row.asset_id) {
           missing.push('זיהוי נכס');
@@ -385,7 +385,7 @@ export function AssetDataEntry() {
               row._validationErrors = new Map<string, string>();
             }
             row._validationErrors.set('_row', detailedError);
-            errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
+            errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${detailedError}`);
             continue;
           }
           // If measurement_date is blank or 01/01/1900, use current date
@@ -425,7 +425,7 @@ export function AssetDataEntry() {
           row._isDirty = false;
           row._dirtyFields = new Set<string>();
           savedCount++;
-          savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - ${row.main_asset_type || 'ללא סוג'}`);
+          savedAssets.push(`נכס ${row.asset_id} במבנה ${row.building_number} - ${row.main_asset_type || 'ללא סוג'}`);
         } catch (err) {
           console.error('Error saving asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
@@ -438,14 +438,14 @@ export function AssetDataEntry() {
             console.error('Error object:', err);
             const errObj = err as any;
             if (errObj.code === '23505') {
-              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר המבנה.';
             } else {
               errorMsg = JSON.stringify(err, null, 2);
             }
           } else {
             errorMsg = String(err);
           }
-          errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
+          errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${errorMsg}`);
         }
       }
       for (const row of dirtyRows) {
@@ -533,7 +533,7 @@ export function AssetDataEntry() {
               row._validationErrors = new Map<string, string>();
             }
             row._validationErrors.set('_row', detailedError);
-            errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${detailedError}`);
+            errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${detailedError}`);
             continue;
           }
           const updateData: Partial<Asset> = {
@@ -559,7 +559,7 @@ export function AssetDataEntry() {
           row._isDirty = false;
           row._dirtyFields = new Set<string>();
           savedCount++;
-          savedAssets.push(`נכס ${row.asset_id} בבניין ${row.building_number} - עודכן`);
+          savedAssets.push(`נכס ${row.asset_id} במבנה ${row.building_number} - עודכן`);
         } catch (err) {
           console.error('Error updating asset:', row.asset_id, err);
           let errorMsg = 'Unknown error';
@@ -568,14 +568,14 @@ export function AssetDataEntry() {
           } else if (typeof err === 'object' && err !== null) {
             const errObj = err as any;
             if (errObj.code === '23505') {
-              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר הבניין.';
+              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר המבנה.';
             } else {
               errorMsg = JSON.stringify(err, null, 2);
             }
           } else {
             errorMsg = String(err);
           }
-          errors.push(`נכס ${row.asset_id} (בניין ${row.building_number}): ${errorMsg}`);
+          errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${errorMsg}`);
         }
       }
       setRowData(prev => [...prev]);
@@ -805,7 +805,7 @@ export function AssetDataEntry() {
     }
     // For existing DB rows, ask for confirmation
     const confirmed = window.confirm(
-      `האם אתה בטוח שברצונך למחוק נכס ${row.asset_id} בבניין ${row.building_number}?\nפעולה זו תמחק את הנכס מהמסד נתונים ולא ניתן לבטלה.`
+      `האם אתה בטוח שברצונך למחוק נכס ${row.asset_id} במבנה ${row.building_number}?\nפעולה זו תמחק את הנכס מהמסד נתונים ולא ניתן לבטלה.`
     );
     if (!confirmed) return;
     try {
@@ -1202,7 +1202,7 @@ export function AssetDataEntry() {
         <div className="border-b border-gray-200 bg-gray-50 p-1.5">
           <div className="mb-1.5">
             <label className="block text-xs font-medium text-gray-700 mb-0.5">
-              בחר בניין
+              בחר מבנה
             </label>
             <input
               type="text"
@@ -1219,13 +1219,13 @@ export function AssetDataEntry() {
                   }
                 }
               }}
-              placeholder="כל הבניינים"
+              placeholder="כל המבנים"
               className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
             />
             <datalist id="building-list">
               {buildings.map(building => (
                 <option key={building.building_number} value={building.building_number}>
-                  בניין {building.building_number}
+                  מבנה {building.building_number}
                 </option>
               ))}
             </datalist>
@@ -1361,7 +1361,7 @@ export function AssetDataEntry() {
       </div>
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר בניין וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי.
+          <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר מבנה וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי.
           השתמש ב-Tab או Enter לניווט בין תאים.
         </p>
       </div>

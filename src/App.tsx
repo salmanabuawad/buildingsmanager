@@ -26,7 +26,7 @@ interface Tab {
 
 function App() {
   const [tabs, setTabs] = useState<Tab[]>([
-    { id: 'buildings', type: 'buildings', label: 'בניינים' }
+    { id: 'buildings', type: 'buildings', label: 'מבנים' }
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
@@ -51,7 +51,7 @@ function App() {
   } | null>(null);
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const newTabs: Tab[] = [buildingsTab];
 
     if (taxRegions) {
@@ -64,7 +64,7 @@ function App() {
           type: 'assets',
           buildingNumber,
           taxZone: zones[0],
-          label: `בניין ${buildingNumber} - אזור מס ${zones[0]}`
+          label: `מבנה ${buildingNumber} - אזור מס ${zones[0]}`
         };
         newTabs.push(singleZoneTab);
         setTabs(newTabs);
@@ -75,7 +75,7 @@ function App() {
           id: allAssetsTabId,
           type: 'assets',
           buildingNumber,
-          label: `בניין ${buildingNumber} - כל הנכסים (אזורי מס: ${zones.join(', ')})`
+          label: `מבנה ${buildingNumber} - כל הנכסים (אזורי מס: ${zones.join(', ')})`
         };
         newTabs.push(allAssetsTab);
 
@@ -86,7 +86,7 @@ function App() {
             type: 'assets',
             buildingNumber,
             taxZone: zone,
-            label: `בניין ${buildingNumber} - אזור מס ${zone}`
+            label: `מבנה ${buildingNumber} - אזור מס ${zone}`
           };
           newTabs.push(zoneTab);
         });
@@ -100,7 +100,7 @@ function App() {
         id: allAssetsTabId,
         type: 'assets',
         buildingNumber,
-        label: `בניין ${buildingNumber} - כל הנכסים`
+        label: `מבנה ${buildingNumber} - כל הנכסים`
       };
       newTabs.push(allAssetsTab);
       setTabs(newTabs);
@@ -139,7 +139,7 @@ function App() {
   }
 
   function openAdminPanel() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const adminTabId = 'admin-panel';
 
     const newTab: Tab = {
@@ -153,7 +153,7 @@ function App() {
   }
 
   function openAssetTypes() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetTypesTabId = 'asset-types-panel';
 
     const newTab: Tab = {
@@ -167,7 +167,7 @@ function App() {
   }
 
   function openAssetSearch() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetSearchTabId = 'asset-search-panel';
 
     const newTab: Tab = {
@@ -182,7 +182,7 @@ function App() {
 
 
   function openValidationRules() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const validationRulesTabId = 'validation-rules-panel';
 
     const newTab: Tab = {
@@ -196,7 +196,7 @@ function App() {
   }
 
   function openAssetTypeFields() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetTypeFieldsTabId = 'asset-type-fields-panel';
 
     const newTab: Tab = {
@@ -210,7 +210,7 @@ function App() {
   }
 
   function openFileImport() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const fileImportTabId = 'file-import-panel';
 
     const newTab: Tab = {
@@ -224,7 +224,7 @@ function App() {
   }
 
   function openAssetsFileImport() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetsFileImportTabId = 'assets-file-import-panel';
 
     const newTab: Tab = {
@@ -241,7 +241,7 @@ function App() {
     setTabs(prevTabs => {
       const newTabs = prevTabs.filter(tab => tab.id !== tabId);
       if (newTabs.length === 0) {
-        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים' };
+        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
         return [buildingsTab];
       }
       return newTabs;
@@ -485,7 +485,7 @@ function App() {
               className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-purple-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-purple-300 group"
             >
               <div className="flex items-center gap-2">
-                <span className="font-medium text-sm text-slate-700 group-hover:text-purple-900">בניינים</span>
+                <span className="font-medium text-sm text-slate-700 group-hover:text-purple-900">מבנים</span>
                 <Building2 className="h-4 w-4 text-purple-600 group-hover:text-purple-700" />
               </div>
               {buildingsMenuOpen ? (
@@ -498,21 +498,21 @@ function App() {
               <div className="mr-2 mt-2 space-y-1.5">
                 <button
                   onClick={() => {
-                    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'בניינים', refreshKey: Date.now() };
+                    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
                     setTabs([buildingsTab]);
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700 text-xs">רשימת בניינים</span>
+                  <span className="font-medium text-slate-700 text-xs">רשימת מבנים</span>
                   <Building className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
                   onClick={() => setShowCreateBuildingModal(true)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700">צור בניין חדש</span>
+                  <span className="font-medium text-slate-700">צור מבנה חדש</span>
                   <Plus className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
@@ -822,7 +822,7 @@ function App() {
                             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
                               <div className="font-semibold text-red-900">
-                                נכס {error.assetId} (בניין {error.buildingNumber})
+                                נכס {error.assetId} (מבנה {error.buildingNumber})
                               </div>
                               <ul className="mt-2 space-y-1">
                                 {error.errors.map((err, errIdx) => (

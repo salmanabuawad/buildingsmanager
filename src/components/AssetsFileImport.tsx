@@ -127,7 +127,7 @@ export function AssetsFileImport() {
         // Or if headers are empty/garbled, use fixed position mapping
         const expectedColumnCount = 18;
         const hasExpectedColumns = values.length >= 5; // At least building, payer, asset_id, type, size
-        const headersAreValid = headers.length > 0 && headers.some(h => h && (h.includes('building') || h.includes('בניין') || h.includes('מזהה')));
+        const headersAreValid = headers.length > 0 && headers.some(h => h && (h.includes('building') || h.includes('מבנה') || h.includes('מזהה')));
         
         // Use fixed position mapping if:
         // 1. Headers are empty/garbled, OR
@@ -169,7 +169,7 @@ export function AssetsFileImport() {
             const value = values[index] || '';
             const headerLower = header.toLowerCase();
             
-            if (headerLower.includes('בניין') || headerLower.includes('building') || headerLower === 'building_number') {
+            if (headerLower.includes('מבנה') || headerLower.includes('building') || headerLower === 'building_number') {
               asset.building_number = value ? parseInt(value) : null;
             } else if (headerLower.includes('משלם') || headerLower.includes('payer') || headerLower === 'payer_id') {
               asset.payer_id = value;
@@ -453,7 +453,7 @@ export function AssetsFileImport() {
     // Columns: Building number, Payer ID, Asset ID, Main asset type, Asset size, 
     // Sub asset types 1-6, Sub asset sizes 1-6
     const headers = [
-      'מזהה בניין',
+      'מזהה מבנה',
       'מזהה משלם',
       'מזהה נכס',
       'סוג נכס ראשי',
@@ -592,7 +592,7 @@ export function AssetsFileImport() {
               <div>
                 <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
                 <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
-                  <li><strong>מזהה בניין</strong> (Building number)</li>
+                  <li><strong>מזהה מבנה</strong> (Building number)</li>
                   <li><strong>מזהה משלם</strong> (Payer ID - אופציונלי)</li>
                   <li><strong>מזהה נכס</strong> (Asset ID)</li>
                   <li><strong>סוג נכס ראשי</strong> (Main asset type)</li>
@@ -614,7 +614,7 @@ export function AssetsFileImport() {
               <p className="font-semibold text-slate-900 mb-2 text-sm">דוגמה:</p>
               <p className="text-xs text-slate-700 mb-2">הקובץ צריך להיות בפורמט Excel (.xlsx) עם העמודות הבאות:</p>
               <div className="text-xs text-slate-600 space-y-1">
-                <p>שורה 1: מזהה בניין | מזהה משלם | מזהה נכס | סוג נכס ראשי | גודל נכס ראשי | סוג נכס משנה 1 | גודל נכס משנה 1 | ...</p>
+                <p>שורה 1: מזהה מבנה | מזהה משלם | מזהה נכס | סוג נכס ראשי | גודל נכס ראשי | סוג נכס משנה 1 | גודל נכס משנה 1 | ...</p>
                 <p>שורה 2: 8268128 | 516144276 | 826812801 | 311 | 552.89 | ...</p>
                 <p>שורה 3: 8268128 | 516144276 | 826812802 | 299 | 264.29 | 311 | 248.2 | 702 | 10.36 | ...</p>
               </div>
@@ -629,7 +629,7 @@ export function AssetsFileImport() {
                   <li>תאריך מדידה יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע בקובץ</li>
                   <li>נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה</li>
                   <li>סכום נכסי המשנה חייב להתאים לגודל הנכס הראשי</li>
-                  <li>הבניין חייב להיות קיים במערכת לפני ייבוא הנכסים</li>
+                  <li>המבנה חייב להיות קיים במערכת לפני ייבוא הנכסים</li>
                 </ul>
               </div>
             </div>

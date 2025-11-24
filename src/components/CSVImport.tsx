@@ -36,7 +36,7 @@ export function FileImport() {
         const buildingNumber = parseInt(buildingNumberStr);
 
         if (isNaN(buildingNumber)) {
-          errors.push(`שורה ${i + 1}: מספר בניין לא תקין`);
+          errors.push(`שורה ${i + 1}: מספר מבנה לא תקין`);
           errorCount++;
           continue;
         }
@@ -56,9 +56,9 @@ export function FileImport() {
       }
 
       if (errors.length > 0) {
-        showMessage('error', `יובאו ${successCount} בניינים. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+        showMessage('error', `יובאו ${successCount} מבנים. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
       } else {
-        showMessage('success', `יובאו בהצלחה ${successCount} בניינים`);
+        showMessage('success', `יובאו בהצלחה ${successCount} מבנים`);
       }
     } catch (error) {
       showMessage('error', 'שגיאה בקריאת קובץ File');
@@ -93,8 +93,8 @@ export function FileImport() {
         <div className="flex items-center gap-3">
           <Upload className="w-10 h-10 text-white bg-white/20 rounded-lg p-2" />
           <div>
-            <h1 className="text-3xl font-bold text-white">ייבוא בניינים מקובץ File</h1>
-            <p className="text-blue-50 mt-1">העלה קובץ File כדי לייבא בניינים במרוכז</p>
+            <h1 className="text-3xl font-bold text-white">ייבוא מבנים מקובץ File</h1>
+            <p className="text-blue-50 mt-1">העלה קובץ File כדי לייבא מבנים במרוכז</p>
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ export function FileImport() {
           <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
             <p className="text-slate-700 mb-4 font-medium">כל שורה בקובץ File צריכה להכיל:</p>
             <ul className="list-disc list-inside space-y-2 text-slate-700 mb-4 mr-4">
-              <li><strong>מספר בניין</strong> (חובה) - מספר שלם</li>
+              <li><strong>מספר מבנה</strong> (חובה) - מספר שלם</li>
               <li><strong>אזור מס</strong> (אופציונלי) - יכול להיות ערך בודד או צירוף תקין</li>
             </ul>
 
@@ -138,8 +138,8 @@ export function FileImport() {
                 <p className="font-semibold mb-1">שימו לב:</p>
                 <ul className="list-disc list-inside space-y-1 mr-4">
                   <li>אזור מס יכול להיות ערך בודד או צירוף מ: 40,10 או 40,20 או 40,30</li>
-                  <li>אם אזור המס ריק, הבניין ייווצר ללא אזור מס</li>
-                  <li>בניינים עם מספר זהה יגרמו לשגיאה</li>
+                  <li>אם אזור המס ריק, המבנה ייווצר ללא אזור מס</li>
+                  <li>מבנים עם מספר זהה יגרמו לשגיאה</li>
                 </ul>
               </div>
             </div>
@@ -180,7 +180,7 @@ export function FileImport() {
 
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-900">
-            <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת הבניינים כדי לראות את הבניינים החדשים
+            <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת המבנים כדי לראות את המבנים החדשים
           </p>
         </div>
       </div>

@@ -263,7 +263,7 @@ export function AssetTypeFieldsManager() {
     },
     {
       field: 'is_building_level',
-      headerName: 'רמת בניין',
+      headerName: 'רמת מבנה',
       editable: true,
       width: 120,
       cellRenderer: (params: any) => {
@@ -422,7 +422,7 @@ export function AssetTypeFieldsManager() {
                     onChange={(e) => setFormData({ ...formData, is_building_level: e.target.checked })}
                     className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
                   />
-                  <span className="text-sm text-slate-700">רמת בניין</span>
+                  <span className="text-sm text-slate-700">רמת מבנה</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input

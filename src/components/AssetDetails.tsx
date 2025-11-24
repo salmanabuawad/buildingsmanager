@@ -469,7 +469,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       // Create validation names mapping
       const validationNames = [
         'תאריך מדידה תקין',
-        'מספר בניין תקין',
+        'מספר מבנה תקין',
         'מספר נכס תקין',
         'קוד משלם תקין',
         'סוג נכס ראשי תקין',

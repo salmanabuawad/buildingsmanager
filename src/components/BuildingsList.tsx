@@ -120,6 +120,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     const buildingNumber = data.building_number;
     const newValue = event.newValue;
 
+    // Skip checkbox fields - they're handled by cellRenderer
+    if (['elevator', 'single_double_family', 'condo', 'townhouses'].includes(field)) {
+      return;
+    }
+
     console.log(`[CELL CHANGED] Building ${buildingNumber}, field: ${field}, value:`, newValue);
 
     // Update local state first
@@ -134,13 +139,32 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       );
     });
 
-    // Update the dirty tracking
-    setDirtyBuildings(prev => {
-      const next = new Map(prev);
-      const existingChanges = next.get(buildingNumber) || {};
-      next.set(buildingNumber, { ...existingChanges, [field]: newValue });
-      return next;
-    });
+    // Update the dirty tracking - only mark as dirty if value is meaningful
+    // For new buildings, only mark dirty after user enters data (not on initial empty state)
+    const isNewBuilding = buildingNumber < 0;
+    const hasMeaningfulValue = newValue !== null && newValue !== undefined && newValue !== '';
+    
+    // For new buildings, only track changes if a meaningful value is entered
+    // For existing buildings, track all changes
+    if (!isNewBuilding || hasMeaningfulValue) {
+      setDirtyBuildings(prev => {
+        const next = new Map(prev);
+        const existingChanges = next.get(buildingNumber) || {};
+        if (hasMeaningfulValue) {
+          next.set(buildingNumber, { ...existingChanges, [field]: newValue });
+        } else {
+          // Remove the field from dirty tracking if value is cleared
+          const updatedChanges = { ...existingChanges };
+          delete updatedChanges[field];
+          if (Object.keys(updatedChanges).length > 0) {
+            next.set(buildingNumber, updatedChanges);
+          } else {
+            next.delete(buildingNumber);
+          }
+        }
+        return next;
+      });
+    }
 
     // Create updated building object with the new value
     const updatedBuilding = { ...data, [field]: newValue };
@@ -211,6 +235,8 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     setTimeout(() => {
       if (gridRef.current) {
+        // Refresh the grid to show the new row
+        gridRef.current.api.refreshCells({ force: true });
         gridRef.current.api.setFocusedCell(0, 'building_number');
         gridRef.current.api.startEditingCell({ rowIndex: 0, colKey: 'building_number' });
       }
@@ -492,8 +518,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
+        const isNewBuilding = building.building_number < 0;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['tax_region'];
+        
+        // Show blank for new buildings if value is null/undefined/empty
+        if (isNewBuilding && (params.value === null || params.value === undefined || params.value === '')) {
+          return '';
+        }
         const value = params.value != null ? params.value : '';
 
         if (errorMsg) {
@@ -516,8 +548,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
+        const isNewBuilding = building.building_number < 0;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['shared_area'];
+        
+        // Show blank for new buildings or if value is null/undefined
+        if (isNewBuilding && (params.value === null || params.value === undefined)) {
+          return '';
+        }
         const value = params.value ? params.value.toLocaleString() : '';
 
         if (errorMsg) {
@@ -577,8 +615,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
+        const isNewBuilding = building.building_number < 0;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['area_for_control'];
+        
+        // Show blank for new buildings or if value is null/undefined
+        if (isNewBuilding && (params.value === null || params.value === undefined)) {
+          return '';
+        }
         const value = params.value ? params.value.toLocaleString() : '';
 
         if (errorMsg) {
@@ -617,8 +661,28 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               checked={params.value === 'כן' || params.value === true}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : '';
+                const newValue = e.target.checked ? 'כן' : null;
+                const buildingNumber = building.building_number;
+                
+                // Update grid cell data directly
                 params.node.setDataValue('elevator', newValue);
+                
+                // Track the change in dirtyBuildings
+                setDirtyBuildings(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(buildingNumber) || {};
+                  next.set(buildingNumber, { ...existing, elevator: newValue });
+                  return next;
+                });
+                
+                // Refresh only this specific cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['elevator'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -653,8 +717,28 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               checked={isChecked}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : '';
+                const newValue = e.target.checked ? 'כן' : null;
+                const buildingNumber = building.building_number;
+                
+                // Update grid cell data directly
                 params.node.setDataValue('single_double_family', newValue);
+                
+                // Track the change in dirtyBuildings
+                setDirtyBuildings(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(buildingNumber) || {};
+                  next.set(buildingNumber, { ...existing, single_double_family: newValue });
+                  return next;
+                });
+                
+                // Refresh only this specific cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['single_double_family'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -683,8 +767,28 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               checked={isChecked}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : '';
+                const newValue = e.target.checked ? 'כן' : null;
+                const buildingNumber = building.building_number;
+                
+                // Update grid cell data directly
                 params.node.setDataValue('condo', newValue);
+                
+                // Track the change in dirtyBuildings
+                setDirtyBuildings(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(buildingNumber) || {};
+                  next.set(buildingNumber, { ...existing, condo: newValue });
+                  return next;
+                });
+                
+                // Refresh only this specific cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['condo'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -713,8 +817,28 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               checked={isChecked}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : '';
+                const newValue = e.target.checked ? 'כן' : null;
+                const buildingNumber = building.building_number;
+                
+                // Update grid cell data directly
                 params.node.setDataValue('townhouses', newValue);
+                
+                // Track the change in dirtyBuildings
+                setDirtyBuildings(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(buildingNumber) || {};
+                  next.set(buildingNumber, { ...existing, townhouses: newValue });
+                  return next;
+                });
+                
+                // Refresh only this specific cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['townhouses'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />

@@ -84,7 +84,8 @@ export function useGridPreferences(
         
         gridRef.current.api.applyColumnState({
           state: orderedColumns,
-          applyOrder: true  // This ensures column positions are restored
+          applyOrder: true,  // This ensures column positions are restored
+          defaultState: { hide: false }  // Ensure columns not in saved state remain visible
         });
         
         // Force actions column to be pinned and locked after applying state
@@ -105,7 +106,8 @@ export function useGridPreferences(
                   lockPinned: true,
                   suppressMovable: true
                 }, ...otherCols],
-                applyOrder: true
+                applyOrder: true,
+                defaultState: { hide: false }  // Ensure columns not in saved state remain visible
               });
             }
           }

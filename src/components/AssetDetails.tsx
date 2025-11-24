@@ -754,6 +754,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
     {
+      colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: (params) => params.data.id === latestMeasurementId,

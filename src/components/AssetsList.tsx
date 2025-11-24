@@ -1200,6 +1200,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
+      colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: true,

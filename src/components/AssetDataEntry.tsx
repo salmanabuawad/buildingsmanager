@@ -934,6 +934,7 @@ export function AssetDataEntry() {
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
+      colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: true,

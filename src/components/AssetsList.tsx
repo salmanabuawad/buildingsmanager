@@ -1386,9 +1386,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === 'כן';
+        const assetId = params.data?.id;
+        if (!assetId) return null;
+        
+        // Get current value from data
+        const currentValue = params.data?.penthouse;
+        const isChecked = currentValue === 'כן';
+        
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -1396,17 +1402,31 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               checked={isChecked}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
-                params.setValue(newValue);
+                // Update grid cell data directly
+                params.node.setDataValue('penthouse', newValue);
+                
+                // Track the change in dirtyAssets
+                const assetIdStr = String(assetId);
+                setDirtyAssets(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(assetIdStr) || {};
+                  next.set(assetIdStr, { ...existing, penthouse: newValue });
+                  return next;
+                });
+                
+                // Refresh only this specific cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['penthouse'],
+                    force: true 
+                  });
+                }
               }}
               className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
             />
           </div>
         );
-      },
-      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
-      valueSetter: (params: any) => {
-        params.data.penthouse = params.newValue;
-        return true;
       },
       cellStyle: (params) => {
         const baseStyle = getCellStyle(params, 'penthouse', false);

@@ -722,74 +722,59 @@ export function AssetTypes() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.elevator === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, elevator: e.target.checked ? 'כן' : undefined })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
                   מעלית
                 </label>
-                <select
-                  value={formData.elevator || ''}
-                  onChange={(e) => setFormData({ ...formData, elevator: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="">--</option>
-                  <option value="כן">כן</option>
-                  <option value="לא">לא</option>
-                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.single_double_family === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked ? 'כן' : undefined })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
                   בית פרטי חד משפחתי דו משפחתי
                 </label>
-                <select
-                  value={formData.single_double_family || ''}
-                  onChange={(e) => setFormData({ ...formData, single_double_family: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="">--</option>
-                  <option value="כן">כן</option>
-                  <option value="לא">לא</option>
-                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.penthouse === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked ? 'כן' : undefined })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
                   דירת גג
                 </label>
-                <select
-                  value={formData.penthouse || ''}
-                  onChange={(e) => setFormData({ ...formData, penthouse: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="">--</option>
-                  <option value="כן">כן</option>
-                  <option value="לא">לא</option>
-                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.condo === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, condo: e.target.checked ? 'כן' : undefined })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
                   בית משותף
                 </label>
-                <select
-                  value={formData.condo || ''}
-                  onChange={(e) => setFormData({ ...formData, condo: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="">--</option>
-                  <option value="כן">כן</option>
-                  <option value="לא">לא</option>
-                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.townhouses === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked ? 'כן' : undefined })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
                   בניינים צמודי קרקע טוריים מעל 2 יחידות
                 </label>
-                <select
-                  value={formData.townhouses || ''}
-                  onChange={(e) => setFormData({ ...formData, townhouses: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="">--</option>
-                  <option value="כן">כן</option>
-                  <option value="לא">לא</option>
-                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">

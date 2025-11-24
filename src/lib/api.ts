@@ -121,12 +121,22 @@ export interface UserPreference {
  * Sanitizes asset data before sending to the server
  */
 function sanitizeAssetInput(input: any): any {
+  // Default measurement_date to today if not provided or invalid
+  let measurementDate = input.measurement_date != null ? sanitizeDate(input.measurement_date) : '';
+  if (!measurementDate || measurementDate === '') {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    measurementDate = `${day}/${month}/${year}`;
+  }
+  
   return {
     ...input,
     building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
     payer_id: input.payer_id != null ? sanitizeText(input.payer_id) : undefined,
     asset_id: input.asset_id != null ? sanitizeInteger(input.asset_id) : undefined,
-    measurement_date: input.measurement_date != null ? sanitizeDate(input.measurement_date) : undefined,
+    measurement_date: measurementDate,
     main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
     asset_size: input.asset_size != null ? sanitizeNumber(input.asset_size) : undefined,
     sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,

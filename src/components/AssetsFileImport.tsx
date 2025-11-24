@@ -121,7 +121,6 @@ export function AssetsFileImport() {
           sub_asset_size_5: 0,
           sub_asset_type_6: '',
           sub_asset_size_6: 0,
-          penthouse: null,
         };
 
         // Check if we have the expected column count (18 columns: building, payer, asset_id, main_type, main_size, 6 pairs of sub, penthouse)
@@ -156,9 +155,14 @@ export function AssetsFileImport() {
           asset.sub_asset_size_5 = values[14] ? parseFloat(values[14]) : 0;
           asset.sub_asset_type_6 = values[15] || '';
           asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
-          // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> null
-          const penthouseValue = (values[17] || '').trim();
-          asset.penthouse = (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') ? 'כן' : null;
+          // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
+          if (values.length > 17) {
+            const penthouseValue = (values[17] || '').trim();
+            if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
+              asset.penthouse = 'כן';
+            }
+            // If not 'כן' or 'yes', don't set the field (will be null/undefined in DB)
+          }
         } else {
           // Header-based mapping (for backward compatibility)
           headers.forEach((header, index) => {
@@ -202,9 +206,12 @@ export function AssetsFileImport() {
             } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
               asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
             } else if (headerLower.includes('גג') || headerLower.includes('penthouse') || headerLower === 'penthouse') {
-              // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> null
+              // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
               const penthouseValue = (value || '').trim();
-              asset.penthouse = (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') ? 'כן' : null;
+              if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
+                asset.penthouse = 'כן';
+              }
+              // If not 'כן' or 'yes', don't set the field (will be null/undefined in DB)
             }
           });
         }
@@ -247,6 +254,11 @@ export function AssetsFileImport() {
           }
         }
 
+        // Clean up penthouse field - remove it if not 'כן' to avoid sending empty strings
+        if (asset.penthouse !== 'כן') {
+          delete asset.penthouse;
+        }
+        
         assets.push(asset);
       }
 

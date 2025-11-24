@@ -108,7 +108,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size),
+        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
           updatedAsset.sub_asset_type_1,
           updatedAsset.sub_asset_type_2,
@@ -352,7 +352,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         assetValidators.validateAssetId(latestRow.asset_id),
         assetValidators.validatePayerId(latestRow.payer_id),
         assetValidators.validateAssetType(latestRow.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size),
+        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size, latestRow),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(latestRow.main_asset_type, [
           latestRow.sub_asset_type_1,
           latestRow.sub_asset_type_2,
@@ -503,7 +503,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         assetValidators.validateBuildingNumber(latestRow.building_number),
         assetValidators.validateAssetId(latestRow.asset_id),
         assetValidators.validatePayerId(latestRow.payer_id),
-        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size),
+        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size, latestRow),
       ];
 
       // Validate sub-asset types if they exist

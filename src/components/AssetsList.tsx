@@ -291,7 +291,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size),
+        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
           updatedAsset.sub_asset_type_1,
           updatedAsset.sub_asset_type_2,
@@ -562,7 +562,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               assetValidators.validateAssetId(String(asset.asset_id)),
               assetValidators.validatePayerId(asset.payer_id),
               assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-              assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size),
+              assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset),
               assetValidators.validateSubAssetsFor199Or299(
                 asset.building_number,
                 asset.main_asset_type,

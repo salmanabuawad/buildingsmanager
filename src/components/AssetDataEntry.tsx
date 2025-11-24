@@ -141,7 +141,7 @@ export function AssetDataEntry() {
       assetValidators.validateAssetId(updatedRow.asset_id),
       assetValidators.validatePayerId(updatedRow.payer_id),
       assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
-      assetValidators.validateMainAssetTypeComplete(updatedRow.building_number, updatedRow.main_asset_type, updatedRow.asset_size),
+      assetValidators.validateMainAssetTypeComplete(updatedRow.building_number, updatedRow.main_asset_type, updatedRow.asset_size, updatedRow),
       assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedRow.main_asset_type, [
         updatedRow.sub_asset_type_1,
         updatedRow.sub_asset_type_2,
@@ -307,7 +307,7 @@ export function AssetDataEntry() {
             assetValidators.validateAssetId(row.asset_id),
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
+            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size, row),
             assetValidators.validateOnlyComplexTypesCanHaveSubAssets(row.main_asset_type, [
               row.sub_asset_type_1,
               row.sub_asset_type_2,
@@ -455,7 +455,7 @@ export function AssetDataEntry() {
             assetValidators.validateAssetId(row.asset_id),
             assetValidators.validatePayerId(row.payer_id),
             assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
+            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size, row),
             assetValidators.validateOnlyComplexTypesCanHaveSubAssets(row.main_asset_type, [
               row.sub_asset_type_1,
               row.sub_asset_type_2,

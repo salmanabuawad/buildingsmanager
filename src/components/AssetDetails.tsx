@@ -7,6 +7,7 @@ import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { supabase } from '../lib/supabase';
 import { useGridPreferences } from '../hooks/useGridPreferences';
 
@@ -352,179 +353,23 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setValidationProgress(null);
     setValidationModalOpen(true);
     try {
-      const shouldValidateSubAssets = latestRow.main_asset_type === '199' || latestRow.main_asset_type === '299';
-      const validations = [
-        inputValidators.validateDateFormat(latestRow.measurement_date),
-        assetValidators.validateBuildingNumber(latestRow.building_number),
-        assetValidators.validateAssetId(latestRow.asset_id),
-        assetValidators.validatePayerId(latestRow.payer_id),
-        assetValidators.validateAssetType(latestRow.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size, latestRow),
-        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(latestRow.main_asset_type, [
-          latestRow.sub_asset_type_1,
-          latestRow.sub_asset_type_2,
-          latestRow.sub_asset_type_3,
-          latestRow.sub_asset_type_4,
-          latestRow.sub_asset_type_5,
-          latestRow.sub_asset_type_6
-        ]),
-        assetValidators.validateComplexTypesMustHaveSubAssets(latestRow.main_asset_type, [
-          latestRow.sub_asset_type_1,
-          latestRow.sub_asset_type_2,
-          latestRow.sub_asset_type_3,
-          latestRow.sub_asset_type_4,
-          latestRow.sub_asset_type_5,
-          latestRow.sub_asset_type_6
-        ])
-      ];
-
-      if (shouldValidateSubAssets) {
-        validations.push(
-          assetValidators.validateMinimumSubAssets([
-            latestRow.sub_asset_type_1,
-            latestRow.sub_asset_type_2,
-            latestRow.sub_asset_type_3,
-            latestRow.sub_asset_type_4,
-            latestRow.sub_asset_type_5,
-            latestRow.sub_asset_type_6
-          ])
-        );
-      }
-
-      validations.push(
-        assetValidators.validateSubAssetSizeMatchesMain(
-          latestRow.asset_size,
-          [
-            latestRow.sub_asset_type_1,
-            latestRow.sub_asset_type_2,
-            latestRow.sub_asset_type_3,
-            latestRow.sub_asset_type_4,
-            latestRow.sub_asset_type_5,
-            latestRow.sub_asset_type_6
-          ],
-          [
-            latestRow.sub_asset_size_1,
-            latestRow.sub_asset_size_2,
-            latestRow.sub_asset_size_3,
-            latestRow.sub_asset_size_4,
-            latestRow.sub_asset_size_5,
-            latestRow.sub_asset_size_6
-          ]
-        ),
-        assetValidators.validateSubAssetsFor199Or299(
-          latestRow.building_number,
-          latestRow.main_asset_type,
-          latestRow.asset_size,
-          [
-            latestRow.sub_asset_type_1,
-            latestRow.sub_asset_type_2,
-            latestRow.sub_asset_type_3,
-            latestRow.sub_asset_type_4,
-            latestRow.sub_asset_type_5,
-            latestRow.sub_asset_type_6
-          ],
-          [
-            latestRow.sub_asset_size_1,
-            latestRow.sub_asset_size_2,
-            latestRow.sub_asset_size_3,
-            latestRow.sub_asset_size_4,
-            latestRow.sub_asset_size_5,
-            latestRow.sub_asset_size_6
-          ]
-        )
-      );
-
-      // Validate sub-asset types individually
-      if (latestRow.sub_asset_type_1) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_1, latestRow.sub_asset_size_1)
-        );
-      }
-      if (latestRow.sub_asset_type_2) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_2, latestRow.sub_asset_size_2)
-        );
-      }
-      if (latestRow.sub_asset_type_3) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_3, latestRow.sub_asset_size_3)
-        );
-      }
-      if (latestRow.sub_asset_type_4) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_4, latestRow.sub_asset_size_4)
-        );
-      }
-      if (latestRow.sub_asset_type_5) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_5, latestRow.sub_asset_size_5)
-        );
-      }
-      if (latestRow.sub_asset_type_6) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_6, latestRow.sub_asset_size_6)
-        );
-      }
-
-      // Create validation names mapping
-      const validationNames = [
-        'תאריך מדידה תקין',
-        'מספר מבנה תקין',
-        'מספר נכס תקין',
-        'קוד משלם תקין',
-        'סוג נכס ראשי תקין',
-        'אימות סוג נכס ראשי מלא',
-        'רק סוגים מורכבים יכולים לכלול נכסי משנה',
-        'סוגים מורכבים חייבים לכלול נכסי משנה',
-        ...(shouldValidateSubAssets ? ['מינימום נכסי משנה'] : []),
-        'גודל נכסי משנה תואם לגודל נכס ראשי',
-        'אימות נכסי משנה עבור 199/299',
-        ...(latestRow.sub_asset_type_1 ? ['נכס משנה 1'] : []),
-        ...(latestRow.sub_asset_type_2 ? ['נכס משנה 2'] : []),
-        ...(latestRow.sub_asset_type_3 ? ['נכס משנה 3'] : []),
-        ...(latestRow.sub_asset_type_4 ? ['נכס משנה 4'] : []),
-        ...(latestRow.sub_asset_type_5 ? ['נכס משנה 5'] : []),
-        ...(latestRow.sub_asset_type_6 ? ['נכס משנה 6'] : [])
-      ];
-
-      const totalSteps = validations.length;
-      setValidationProgress({ current: 0, total: totalSteps, currentStep: 'מתחיל אימות...' });
-
-      // Run validations sequentially to show progress
-      const validationResults = [];
-      const allErrors: string[] = [];
-      const passedRules: string[] = [];
-      let matchedAssetTypeRecord: string | undefined = undefined;
-      
-      for (let i = 0; i < validations.length; i++) {
-        setValidationProgress({
-          current: i + 1,
-          total: totalSteps,
-          currentStep: `בודק שלב ${i + 1} מתוך ${totalSteps}...`
-        });
-        
-        const result = await validations[i];
-        validationResults.push(result);
-        
-        if (result.valid) {
-          if (validationNames[i]) {
-            passedRules.push(validationNames[i]);
-          }
-          // Check if this is the main asset type complete validation and it has matched record info
-          if (result.matchedAssetTypeRecord && validationNames[i] === 'אימות סוג נכס ראשי מלא') {
-            matchedAssetTypeRecord = result.matchedAssetTypeRecord;
-          }
-        } else if (result.error) {
-          allErrors.push(result.error);
+      // Use unified validation handler
+      const result = await AssetValidationHandler.validateSingleAsset(latestRow, {
+        onProgress: (progress) => {
+          setValidationProgress({
+            current: progress.current,
+            total: progress.total,
+            currentStep: progress.currentStep || 'בודק...'
+          });
         }
-      }
+      });
 
-      // Show validation results in modal (don't mark row)
+      // Show validation results in modal
       setValidationResults({
-        valid: allErrors.length === 0,
-        errors: allErrors,
-        passed: passedRules,
-        matchedAssetTypeRecord
+        valid: result.valid,
+        errors: result.errors,
+        passed: result.passed,
+        matchedAssetTypeRecord: result.matchedAssetTypeRecord
       });
       setValidationProgress(null);
     } catch (err) {

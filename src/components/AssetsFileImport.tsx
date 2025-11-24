@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X } from 'lucide-react';
 import { api, Asset } from '../lib/api';
 import { assetValidators } from '../lib/validation';
+import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import * as XLSX from 'xlsx';
 
 interface ImportResult {
@@ -218,169 +219,12 @@ export function AssetsFileImport() {
 
         if (validateBeforeImport) {
           try {
-            // Use the same validation structure as batch validation in AssetsList
-            const assetErrors: string[] = [];
-            const seenErrors = new Set<string>();
-
-            // Synchronous validations (run in parallel)
-            const syncValidations = [
-              assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
-                asset.sub_asset_type_1,
-                asset.sub_asset_type_2,
-                asset.sub_asset_type_3,
-                asset.sub_asset_type_4,
-                asset.sub_asset_type_5,
-                asset.sub_asset_type_6
-              ]),
-              assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
-                asset.sub_asset_type_1,
-                asset.sub_asset_type_2,
-                asset.sub_asset_type_3,
-                asset.sub_asset_type_4,
-                asset.sub_asset_type_5,
-                asset.sub_asset_type_6
-              ]),
-              assetValidators.validateSubAssetSizeMatchesMain(
-                asset.asset_size,
-                [
-                  asset.sub_asset_type_1,
-                  asset.sub_asset_type_2,
-                  asset.sub_asset_type_3,
-                  asset.sub_asset_type_4,
-                  asset.sub_asset_type_5,
-                  asset.sub_asset_type_6
-                ],
-                [
-                  asset.sub_asset_size_1,
-                  asset.sub_asset_size_2,
-                  asset.sub_asset_size_3,
-                  asset.sub_asset_size_4,
-                  asset.sub_asset_size_5,
-                  asset.sub_asset_size_6
-                ]
-              ),
-              assetValidators.validateSubAssetSizeRequiresType(
-                [
-                  asset.sub_asset_type_1,
-                  asset.sub_asset_type_2,
-                  asset.sub_asset_type_3,
-                  asset.sub_asset_type_4,
-                  asset.sub_asset_type_5,
-                  asset.sub_asset_type_6
-                ],
-                [
-                  asset.sub_asset_size_1,
-                  asset.sub_asset_size_2,
-                  asset.sub_asset_size_3,
-                  asset.sub_asset_size_4,
-                  asset.sub_asset_size_5,
-                  asset.sub_asset_size_6
-                ]
-              ),
-              assetValidators.validateSubAssetOrder([
-                asset.sub_asset_type_1,
-                asset.sub_asset_type_2,
-                asset.sub_asset_type_3,
-                asset.sub_asset_type_4,
-                asset.sub_asset_type_5,
-                asset.sub_asset_type_6
-              ])
-            ];
-
-            // Run synchronous validations in parallel
-            const syncResults = await Promise.all(syncValidations);
-            syncResults.forEach(result => {
-              if (!result.valid && result.error) {
-                if (!seenErrors.has(result.error)) {
-                  assetErrors.push(result.error);
-                  seenErrors.add(result.error);
-                }
-              }
-            });
-
-            // DB-dependent validations (run in parallel)
-            const dbValidations = [
-              assetValidators.validateBuildingNumber(asset.building_number),
-              assetValidators.validateAssetId(String(asset.asset_id)),
-              assetValidators.validatePayerId(asset.payer_id),
-              assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-              assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size || 0, asset),
-              assetValidators.validateSubAssetsFor199Or299(
-                asset.building_number,
-                asset.main_asset_type,
-                asset.asset_size,
-                [
-                  asset.sub_asset_type_1,
-                  asset.sub_asset_type_2,
-                  asset.sub_asset_type_3,
-                  asset.sub_asset_type_4,
-                  asset.sub_asset_type_5,
-                  asset.sub_asset_type_6
-                ],
-                [
-                  asset.sub_asset_size_1,
-                  asset.sub_asset_size_2,
-                  asset.sub_asset_size_3,
-                  asset.sub_asset_size_4,
-                  asset.sub_asset_size_5,
-                  asset.sub_asset_size_6
-                ]
-              )
-            ];
-
-            // Run DB validations in parallel
-            const dbResults = await Promise.all(dbValidations);
-            dbResults.forEach(result => {
-              if (!result.valid && result.error) {
-                if (!seenErrors.has(result.error)) {
-                  assetErrors.push(result.error);
-                  seenErrors.add(result.error);
-                }
-              }
-            });
-
-            // Validate sub asset types individually (only if they exist)
-            const subAssetTypes = [
-              asset.sub_asset_type_1,
-              asset.sub_asset_type_2,
-              asset.sub_asset_type_3,
-              asset.sub_asset_type_4,
-              asset.sub_asset_type_5,
-              asset.sub_asset_type_6
-            ];
-            const subAssetSizes = [
-              asset.sub_asset_size_1,
-              asset.sub_asset_size_2,
-              asset.sub_asset_size_3,
-              asset.sub_asset_size_4,
-              asset.sub_asset_size_5,
-              asset.sub_asset_size_6
-            ];
-
-            // Validate sub-assets in parallel
-            const subValidations = subAssetTypes
-              .map((subType, idx) => subType ? 
-                assetValidators.validateSubAssetTypeComplete(
-                  asset.building_number,
-                  subType,
-                  subAssetSizes[idx]
-                ) : Promise.resolve({ valid: true })
-              );
-
-            const subResults = await Promise.all(subValidations);
-            subResults.forEach((result, idx) => {
-              if (!result.valid && result.error && subAssetTypes[idx]) {
-                const errorMsg = `נכס משנה ${idx + 1}: ${result.error}`;
-                if (!seenErrors.has(errorMsg)) {
-                  assetErrors.push(errorMsg);
-                  seenErrors.add(errorMsg);
-                }
-              }
-            });
-
+            // Use unified validation handler
+            const result = await AssetValidationHandler.validateSingleAsset(asset);
+            
             // If there are any errors, add them to the errors array
-            if (assetErrors.length > 0) {
-              errors.push(`שורה ${i + 1} (נכס ${asset.asset_id}): ${assetErrors.join('; ')}`);
+            if (!result.valid && result.errors.length > 0) {
+              errors.push(`שורה ${i + 1} (נכס ${asset.asset_id}): ${result.errors.join('; ')}`);
               continue;
             }
           } catch (err) {

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
+import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download } from 'lucide-react';
@@ -475,281 +476,41 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
       console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber} (only latest records per asset_id)`);
 
-      // Cache building data to avoid repeated queries
-      const buildingCache = buildingData ? {
-        tax_region: buildingData.tax_region,
-        elevator: buildingData.elevator,
-        shared_area: buildingData.shared_area,
-        single_double_family: buildingData.single_double_family,
-        condo: buildingData.condo,
-        townhouses: buildingData.townhouses,
-        penthouse: buildingData.penthouse
-      } : null;
-
-      // Create asset types lookup map for faster access
-      const assetTypesMap = new Map<string, AssetType>();
-      assetTypesData.forEach(at => {
-        if (at.name) {
-          const existing = assetTypesMap.get(at.name);
-          if (!existing || (at.tax_region && !existing.tax_region)) {
-            assetTypesMap.set(at.name, at);
+      // Use unified validation handler
+      const batchResult = await AssetValidationHandler.validateBuildingAssets(
+        assetsToValidate,
+        buildingNumber,
+        {
+          mode: 'building',
+          validateOnlyLatest: true,
+          onProgress: (progress) => {
+            setBatchValidationProgress({
+              current: progress.current,
+              total: progress.total,
+              currentAssetId: progress.currentAsset || undefined
+            });
           }
         }
-      });
+      );
 
+      // Map unified handler results to the expected format
       const results = {
-        total: assetsToValidate.length,
-        valid: 0,
-        invalid: 0,
-        errors: [] as Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[] }>
+        total: batchResult.total,
+        valid: batchResult.valid,
+        invalid: batchResult.invalid,
+        errors: batchResult.results.map(result => {
+          // Find the asset to get its database ID
+          const asset = assetsToValidate.find(a => String(a.asset_id) === String(result.assetId));
+          return {
+            assetId: String(result.assetId),
+            assetDbId: asset ? String(asset.id) : undefined,
+            buildingNumber: asset?.building_number || buildingNumber,
+            errors: result.errors,
+            passed: result.passed,
+            matchedAssetTypeRecord: result.matchedAssetTypeRecord
+          };
+        })
       };
-
-      // Process assets one by one to show detailed progress
-      // Track which asset_ids we've already processed to avoid duplicates
-      const processedAssetIds = new Set<string>();
-      
-      for (let i = 0; i < assetsToValidate.length; i++) {
-        const asset = assetsToValidate[i];
-        const assetIdKey = String(asset.asset_id);
-        
-        // Skip if we've already processed this asset_id
-        if (processedAssetIds.has(assetIdKey)) {
-          console.warn(`[Batch Validation] Skipping duplicate asset_id: ${assetIdKey}`);
-          continue;
-        }
-        
-        processedAssetIds.add(assetIdKey);
-        
-        // Update progress before validating this asset
-        setBatchValidationProgress({
-          current: i + 1,
-          total: assetsToValidate.length,
-          currentAssetId: assetIdKey
-        });
-
-        const assetErrors: string[] = [];
-        const passedRules: string[] = [];
-        let matchedAssetTypeRecord: string | undefined = undefined;
-
-        // Create validation names mapping
-        const syncValidationNames = [
-          'רק סוגים מורכבים יכולים לכלול נכסי משנה',
-          'סוגים מורכבים חייבים לכלול נכסי משנה',
-          'גודל נכסי משנה תואם לגודל נכס ראשי',
-          'גודל נכס משנה דורש סוג נכס משנה',
-          'סדר נכסי משנה תקין'
-        ];
-
-        // Run synchronous validations first (no DB calls)
-        const syncValidations = [
-          assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ]),
-          assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ]),
-          assetValidators.validateSubAssetSizeMatchesMain(
-            asset.asset_size,
-            [
-              asset.sub_asset_type_1,
-              asset.sub_asset_type_2,
-              asset.sub_asset_type_3,
-              asset.sub_asset_type_4,
-              asset.sub_asset_type_5,
-              asset.sub_asset_type_6
-            ],
-            [
-              asset.sub_asset_size_1,
-              asset.sub_asset_size_2,
-              asset.sub_asset_size_3,
-              asset.sub_asset_size_4,
-              asset.sub_asset_size_5,
-              asset.sub_asset_size_6
-            ]
-          ),
-          assetValidators.validateSubAssetSizeRequiresType(
-            [
-              asset.sub_asset_type_1,
-              asset.sub_asset_type_2,
-              asset.sub_asset_type_3,
-              asset.sub_asset_type_4,
-              asset.sub_asset_type_5,
-              asset.sub_asset_type_6
-            ],
-            [
-              asset.sub_asset_size_1,
-              asset.sub_asset_size_2,
-              asset.sub_asset_size_3,
-              asset.sub_asset_size_4,
-              asset.sub_asset_size_5,
-              asset.sub_asset_size_6
-            ]
-          ),
-          assetValidators.validateSubAssetOrder([
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ])
-        ];
-
-        // Track seen errors to avoid duplicates across all validations
-        const seenErrors = new Set<string>();
-
-        // Run synchronous validations in parallel
-        const syncResults = await Promise.all(syncValidations);
-        syncResults.forEach((result, idx) => {
-          if (result.valid) {
-            if (syncValidationNames[idx]) {
-              passedRules.push(syncValidationNames[idx]);
-            }
-          } else if (result.error) {
-            // Only add error if we haven't seen it before
-            if (!seenErrors.has(result.error)) {
-              assetErrors.push(result.error);
-              seenErrors.add(result.error);
-            }
-          }
-        });
-
-        // Create DB validation names mapping
-        const dbValidationNames = [
-          'מספר מבנה תקין',
-          'מספר נכס תקין',
-          'קוד משלם תקין',
-          'סוג נכס ראשי תקין',
-          'אימות סוג נכס ראשי מלא',
-          'אימות נכסי משנה עבור 199/299'
-        ];
-
-        // Run DB-dependent validations (can be optimized further with cached data)
-        const dbValidations = [
-          assetValidators.validateBuildingNumber(asset.building_number),
-          assetValidators.validateAssetId(String(asset.asset_id)),
-          assetValidators.validatePayerId(asset.payer_id),
-          assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-          assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset),
-          assetValidators.validateSubAssetsFor199Or299(
-            asset.building_number,
-            asset.main_asset_type,
-            asset.asset_size,
-            [
-              asset.sub_asset_type_1,
-              asset.sub_asset_type_2,
-              asset.sub_asset_type_3,
-              asset.sub_asset_type_4,
-              asset.sub_asset_type_5,
-              asset.sub_asset_type_6
-            ],
-            [
-              asset.sub_asset_size_1,
-              asset.sub_asset_size_2,
-              asset.sub_asset_size_3,
-              asset.sub_asset_size_4,
-              asset.sub_asset_size_5,
-              asset.sub_asset_size_6
-            ]
-          )
-        ];
-
-        // Run DB validations in parallel
-        const dbResults = await Promise.all(dbValidations);
-        dbResults.forEach((result, idx) => {
-          if (result.valid) {
-            if (dbValidationNames[idx]) {
-              passedRules.push(dbValidationNames[idx]);
-            }
-            // Check if this is the main asset type complete validation and it has matched record info
-            if (result.matchedAssetTypeRecord && dbValidationNames[idx] === 'אימות סוג נכס ראשי מלא') {
-              matchedAssetTypeRecord = result.matchedAssetTypeRecord;
-            }
-          } else if (result.error) {
-            // Only add error if we haven't seen it before
-            if (!seenErrors.has(result.error)) {
-              assetErrors.push(result.error);
-              seenErrors.add(result.error);
-            }
-          }
-        });
-
-        // Validate sub asset types individually (only if they exist)
-        const subAssetTypes = [
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ];
-        const subAssetSizes = [
-          asset.sub_asset_size_1,
-          asset.sub_asset_size_2,
-          asset.sub_asset_size_3,
-          asset.sub_asset_size_4,
-          asset.sub_asset_size_5,
-          asset.sub_asset_size_6
-        ];
-
-        // Validate sub-assets in parallel
-        const subValidations = subAssetTypes
-          .map((subType, idx) => subType ? 
-            assetValidators.validateSubAssetTypeComplete(
-              asset.building_number,
-              subType,
-              subAssetSizes[idx]
-            ) : Promise.resolve({ valid: true })
-          );
-
-        const subResults = await Promise.all(subValidations);
-        subResults.forEach((result, idx) => {
-          if (result.valid && subAssetTypes[idx]) {
-            passedRules.push(`נכס משנה ${idx + 1}`);
-          } else if (!result.valid && result.error && subAssetTypes[idx]) {
-            const errorMsg = `נכס משנה ${idx + 1}: ${result.error}`;
-            // Only add error if we haven't seen it before
-            if (!seenErrors.has(errorMsg)) {
-              assetErrors.push(errorMsg);
-              seenErrors.add(errorMsg);
-            }
-          }
-        });
-
-        // Process results for this asset
-        if (assetErrors.length > 0) {
-          results.invalid++;
-          results.errors.push({
-            assetId: assetIdKey,
-            assetDbId: String(asset.id),
-            buildingNumber: asset.building_number,
-            errors: assetErrors,
-            passed: passedRules,
-            matchedAssetTypeRecord
-          });
-        } else {
-          results.valid++;
-          // Also track passed rules for valid assets
-          results.errors.push({
-            assetId: assetIdKey,
-            assetDbId: String(asset.id),
-            buildingNumber: asset.building_number,
-            errors: [],
-            passed: passedRules,
-            matchedAssetTypeRecord
-          });
-        }
-      }
 
       setBatchValidationResults(results);
       console.log(`[Batch Validation] Completed: ${results.valid} valid, ${results.invalid} invalid out of ${results.total} total`);

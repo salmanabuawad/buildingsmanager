@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AssetType, api } from '../lib/api';
 import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Trash2, Save, X, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../hooks/useGridPreferences';
@@ -616,32 +617,103 @@ export function AssetTypes() {
 
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
+      // Check if it's Excel file
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      
+      let lines: string[] = [];
+      
+      if (isExcel) {
+        // Handle Excel file
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as any[][];
+        
+        // Skip header row and convert to CSV-like format
+        lines = jsonData.slice(1).map(row => row.map(cell => String(cell || '')).join(','));
+      } else {
+        // Handle CSV file
+        const text = await file.text();
+        lines = text.split('\n').filter(line => line.trim());
+      }
 
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
 
+      // First, truncate the table by deleting all records
+      try {
+        const allAssetTypes = await api.assetTypes.getAll();
+        for (const assetType of allAssetTypes) {
+          try {
+            await api.assetTypes.delete(assetType.id);
+          } catch (err) {
+            console.error(`Error deleting asset type ${assetType.id}:`, err);
+          }
+        }
+      } catch (err) {
+        console.error('Error truncating asset types:', err);
+        showMessage('error', 'שגיאה במחיקת רשומות קיימות');
+      }
+
+      // Parse and import each line
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const parts = line.split(',').map(s => s.trim());
-        const [name, description = ''] = parts;
+        // Parse CSV line - handle quoted values
+        const parts: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            parts.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        parts.push(current.trim()); // Add last part
 
-        const nameValidation = await assetTypeValidators.validateName(name || '');
+        // Map columns: name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, min_size, max_size
+        const [name, description = '', tax_region = '', elevator = '', single_double_family = '', penthouse = '', condo = '', townhouses = '', min_size = '', max_size = ''] = parts;
+
+        // Skip header row if it doesn't look like data
+        if (i === 0 && (name === 'סוג נכס' || name === 'name' || !name || isNaN(parseInt(name)))) {
+          continue;
+        }
+
+        if (!name) continue;
+
+        const nameValidation = await assetTypeValidators.validateName(name);
         if (!nameValidation.valid) {
-          errors.push(`Line ${i + 1}: ${nameValidation.error}`);
+          errors.push(`שורה ${i + 1}: ${nameValidation.error}`);
           errorCount++;
           continue;
         }
 
         try {
-          await api.assetTypes.create({ name, description });
+          const assetTypeData: Partial<AssetType> = {
+            name,
+            description: description || undefined,
+            tax_region: tax_region ? parseInt(tax_region) : undefined,
+            elevator: elevator || undefined,
+            single_double_family: single_double_family || undefined,
+            penthouse: penthouse || undefined,
+            condo: condo || undefined,
+            townhouses: townhouses || undefined,
+            min_size: min_size ? parseFloat(min_size) : undefined,
+            max_size: max_size ? parseFloat(max_size) : undefined,
+          };
+
+          await api.assetTypes.create(assetTypeData);
           successCount++;
         } catch (error) {
-          errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errors.push(`שורה ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           errorCount++;
         }
       }
@@ -711,7 +783,7 @@ export function AssetTypes() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleFileImport}
                 className="hidden"
               />

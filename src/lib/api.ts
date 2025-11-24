@@ -464,6 +464,97 @@ export const api = {
       console.log('[API] Creating asset with input:', input);
       const sanitizedInput = sanitizeAssetInput(input);
       console.log('[API] Sanitized input:', sanitizedInput);
+      
+      // Check if an asset with the same asset_id already exists
+      if (sanitizedInput.asset_id != null) {
+        const { data: existingAsset, error: checkError } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('asset_id', sanitizedInput.asset_id)
+          .maybeSingle();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('[API ERROR] Error checking for existing asset:', checkError);
+          throw new Error(`שגיאה בבדיקת נכס קיים: ${checkError.message}`);
+        }
+
+        // If asset exists, copy it to history and then update it
+        if (existingAsset) {
+          console.log('[API] Asset with asset_id exists, copying to history and updating:', existingAsset);
+          
+          // Copy existing asset to history
+          const { error: historyError } = await supabase
+            .from('assets_history')
+            .insert({
+              id: existingAsset.id,
+              building_number: existingAsset.building_number,
+              payer_id: existingAsset.payer_id,
+              asset_id: existingAsset.asset_id,
+              measurement_date: existingAsset.measurement_date,
+              main_asset_type: existingAsset.main_asset_type,
+              asset_size: existingAsset.asset_size,
+              sub_asset_type_1: existingAsset.sub_asset_type_1,
+              sub_asset_size_1: existingAsset.sub_asset_size_1,
+              sub_asset_type_2: existingAsset.sub_asset_type_2,
+              sub_asset_size_2: existingAsset.sub_asset_size_2,
+              sub_asset_type_3: existingAsset.sub_asset_type_3,
+              sub_asset_size_3: existingAsset.sub_asset_size_3,
+              sub_asset_type_4: existingAsset.sub_asset_type_4,
+              sub_asset_size_4: existingAsset.sub_asset_size_4,
+              sub_asset_type_5: existingAsset.sub_asset_type_5,
+              sub_asset_size_5: existingAsset.sub_asset_size_5,
+              sub_asset_type_6: existingAsset.sub_asset_type_6,
+              sub_asset_size_6: existingAsset.sub_asset_size_6,
+              structure_drawing_url: existingAsset.structure_drawing_url,
+              created_at: existingAsset.created_at,
+              updated_at: existingAsset.updated_at,
+              elevator: existingAsset.elevator,
+              single_double_family: existingAsset.single_double_family,
+              condo: existingAsset.condo,
+              townhouses: existingAsset.townhouses,
+              basement: existingAsset.basement,
+              penthouse: existingAsset.penthouse
+            })
+            .select();
+
+          if (historyError) {
+            // If it's a conflict error (duplicate), that's okay - it means it's already in history
+            if (historyError.code !== '23505') {
+              console.error('[API ERROR] Error copying asset to history:', historyError);
+              throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}`);
+            } else {
+              console.log('[API] Asset already exists in history, continuing with update');
+            }
+          } else {
+            console.log('[API] Asset copied to history successfully');
+          }
+
+          // Update the existing asset with new measurement data
+          const { data: updatedAsset, error: updateError } = await supabase
+            .from('assets')
+            .update(sanitizedInput)
+            .eq('asset_id', sanitizedInput.asset_id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('[API ERROR] Update asset failed:', {
+              input,
+              sanitizedInput,
+              message: updateError.message,
+              details: updateError.details,
+              hint: updateError.hint,
+              code: updateError.code
+            });
+            throw new Error(`שגיאה בעדכון נכס: ${updateError.message}`);
+          }
+
+          console.log('[API] Asset updated successfully:', updatedAsset);
+          return updatedAsset;
+        }
+      }
+
+      // If no existing asset, proceed with normal insert
       const { data, error } = await supabase
         .from('assets')
         .insert(sanitizedInput)

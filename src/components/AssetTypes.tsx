@@ -999,8 +999,7 @@ export function AssetTypes() {
                 resizable: true,
                 sortable: true,
                 wrapText: true,
-                autoHeight: false,
-                minWidth: 60
+                autoHeight: false
               }}
               domLayout="normal"
               onCellValueChanged={onCellValueChanged}

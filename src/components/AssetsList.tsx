@@ -1602,7 +1602,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
-              minWidth: 60,
               headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}
@@ -1621,17 +1620,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                     .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
                   
                   if (allColumnIds.length > 0) {
-                    // First, set minimum widths to prevent very small columns
-                    allColumns.forEach(col => {
-                      if (col.getColId() !== 'actions') {
-                        const currentWidth = col.getActualWidth();
-                        if (!currentWidth || currentWidth < 100) {
-                          col.setActualWidth(100); // Set minimum width of 100px
-                        }
-                      }
-                    });
-                    
-                    // Then auto-size based on content
+                    // Auto-size based on content (minimum width will be content width)
                     params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
                   }
                 }, 200);

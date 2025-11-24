@@ -294,8 +294,7 @@ export function ValidationRulesManager() {
   const defaultColDef = useMemo(() => ({
     resizable: true,
     wrapText: true,
-    autoHeight: true,
-    minWidth: 60
+    autoHeight: true
   }), []);
 
   const onGridReady = useCallback(async (params: any) => {

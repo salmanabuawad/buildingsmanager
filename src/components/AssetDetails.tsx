@@ -1161,7 +1161,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   autoHeaderHeight: true,
                   wrapText: true,
                   autoHeight: false,
-                  minWidth: 60,
                   sortable: false,
                   headerClass: 'ag-right-aligned-header'
                 }}

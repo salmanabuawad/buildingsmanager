@@ -1278,7 +1278,6 @@ export function AssetDataEntry() {
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
-              minWidth: 60,
               cellStyle: { textAlign: 'right' }
             }}
             onCellValueChanged={onCellValueChanged}

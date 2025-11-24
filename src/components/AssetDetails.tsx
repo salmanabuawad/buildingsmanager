@@ -914,6 +914,37 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         return isNaN(num) ? '' : num.toFixed(2);
       },
     },
+    {
+      field: 'penthouse',
+      headerName: 'דירת גג',
+      editable: (params) => params.data.id === latestMeasurementId,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.setValue(newValue);
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueSetter: (params: any) => {
+        params.data.penthouse = params.newValue;
+        return true;
+      },
+      cellStyle: (params) => {
+        const baseStyle = getCellStyle(params, 'penthouse');
+        return { ...baseStyle, textAlign: 'center' };
+      },
+      headerClass: 'text-center'
+    },
   ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl, dirtyAssets]);
 
   useEffect(() => {

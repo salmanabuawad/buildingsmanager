@@ -27,6 +27,7 @@ interface AssetRow {
   sub_asset_size_5: number;
   sub_asset_type_6: string;
   sub_asset_size_6: number;
+  penthouse?: string;
   _isNew?: boolean;
   _dbId?: number;
   _isDirty?: boolean;
@@ -90,6 +91,7 @@ export function AssetDataEntry() {
     sub_asset_size_5: 0,
     sub_asset_type_6: '',
     sub_asset_size_6: 0,
+    penthouse: undefined,
     _isNew: true
   });
   const addEmptyRow = () => {
@@ -414,7 +416,8 @@ export function AssetDataEntry() {
             sub_asset_type_5: row.sub_asset_type_5 || undefined,
             sub_asset_size_5: row.sub_asset_size_5 || 0,
             sub_asset_type_6: row.sub_asset_type_6 || undefined,
-            sub_asset_size_6: row.sub_asset_size_6 || 0
+            sub_asset_size_6: row.sub_asset_size_6 || 0,
+            penthouse: row.penthouse || undefined
           };
           const newAsset = await api.assets.create(assetData);
           row._dbId = newAsset.id;
@@ -1135,6 +1138,37 @@ export function AssetDataEntry() {
         return isNaN(num) ? '' : num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
+    },
+    {
+      field: 'penthouse',
+      headerName: 'דירת גג',
+      editable: true,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.setValue(newValue);
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueSetter: (params: any) => {
+        params.data.penthouse = params.newValue;
+        return true;
+      },
+      cellStyle: (params) => {
+        const baseStyle = getCellStyle(params, 'penthouse', false);
+        return { ...baseStyle, textAlign: 'center' };
+      },
+      headerClass: 'text-center'
     }
   ], [t, buildings, assetTypes, getCellStyle]);
   const filteredRowData = useMemo(() => {

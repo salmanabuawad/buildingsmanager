@@ -1630,26 +1630,33 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             onColumnResized={saveColumnState}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to first position
-              const actionsColumn = params.columnApi.getColumn('actions');
-              if (actionsColumn) {
-                const allColumns = params.columnApi.getAllColumns() || [];
-                const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
-                if (actionsIndex !== 0) {
-                  setTimeout(() => {
-                    if (gridRef.current?.api) {
-                      const columnState = gridRef.current.api.getColumnState();
-                      const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                      const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                      if (actionsCol) {
-                        gridRef.current.api.applyColumnState({
-                          state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
-                          applyOrder: true
-                        });
-                      }
+              try {
+                const columnApi = (params as any).columnApi || params.api;
+                if (columnApi && columnApi.getColumn) {
+                  const actionsColumn = columnApi.getColumn('actions');
+                  if (actionsColumn) {
+                    const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
+                    const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
+                    if (actionsIndex !== 0) {
+                      setTimeout(() => {
+                        if (gridRef.current?.api) {
+                          const columnState = gridRef.current.api.getColumnState();
+                          const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                          const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                          if (actionsCol) {
+                            gridRef.current.api.applyColumnState({
+                              state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                              applyOrder: true
+                            });
+                          }
+                        }
+                      }, 0);
+                      return;
                     }
-                  }, 0);
-                  return;
+                  }
                 }
+              } catch (error) {
+                console.warn('Error in onColumnMoved:', error);
               }
               saveColumnState();
             }}

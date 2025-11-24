@@ -366,157 +366,129 @@ export async function validateAssetTypeComplete(
       return { valid: false, error: 'שגיאה באימות סוג הנכס' };
     }
 
-    // Filter by elevator requirement to find the best match
-    let assetType = assetTypes[0];
+    // Helper function to check if a single asset type entry matches all requirements
+    const checkAssetTypeEntry = (assetType: any): { valid: boolean; errors: string[] } => {
+      const errors: string[] = [];
 
-    if (assetTypes.length > 1) {
-      // Find asset type that matches elevator requirement
-      const elevatorMatches = assetTypes.filter(at => {
-        if (!at.elevator || at.elevator.trim() === '') return true;
-        const elevatorValue = at.elevator.toLowerCase();
-        const buildingElevator = building.elevator ? building.elevator.toLowerCase() : '';
-        if (elevatorValue === 'כן' || elevatorValue === 'yes') {
-          return buildingElevator === 'כן' || buildingElevator === 'yes';
-        } else if (elevatorValue === 'לא' || elevatorValue === 'no') {
-          return buildingElevator !== 'כן' && buildingElevator !== 'yes';
+      // Step 2: Check asset area is within range (min_size/max_size from asset_types table)
+      if (assetSize != null && assetSize > 0) {
+        const minSize = assetType.min_size != null ? Number(assetType.min_size) : null;
+        const maxSize = assetType.max_size != null ? Number(assetType.max_size) : null;
+        const numericAssetSize = Number(assetSize);
+
+        if (minSize != null && numericAssetSize < minSize) {
+          errors.push(`גודל הנכס (${numericAssetSize}) קטן מהמינימום המותר (${minSize})`);
         }
-        return true;
-      });
 
-      if (elevatorMatches.length > 0) {
-        assetType = elevatorMatches[0];
+        if (maxSize != null && numericAssetSize > maxSize) {
+          errors.push(`גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר (${maxSize})`);
+        }
       }
+
+      // Step 3: Check penthouse requirement
+      if (assetType.penthouse != null && assetType.penthouse.trim() !== '') {
+        const requiredValue = assetType.penthouse.toLowerCase();
+        const assetPenthouse = assetData?.penthouse;
+        const assetPenthouseValue = assetPenthouse ? String(assetPenthouse).toLowerCase() : '';
+
+        if (requiredValue === 'כן' || requiredValue === 'yes') {
+          if (assetPenthouseValue !== 'כן' && assetPenthouseValue !== 'yes') {
+            errors.push('דורש דירת גג, אבל הנכס לא מסומן כדירת גג');
+          }
+        } else if (requiredValue === 'לא' || requiredValue === 'no') {
+          if (assetPenthouseValue === 'כן' || assetPenthouseValue === 'yes') {
+            errors.push('לא תקף לדירת גג, אבל הנכס מסומן כדירת גג');
+          }
+        }
+      }
+
+      // Step 4: Check building boolean values (elevator, single_double_family, condo, townhouses, etc.)
+      
+      // Step 4a: Check elevator requirement
+      if (assetType.elevator != null && assetType.elevator.trim() !== '') {
+        const requiredValue = assetType.elevator.toLowerCase();
+        const buildingValue = building.elevator ? building.elevator.toLowerCase() : '';
+
+        if (requiredValue === 'כן' || requiredValue === 'yes') {
+          if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            errors.push('דורש מעלית, אבל בבניין אין מעלית');
+          }
+        } else if (requiredValue === 'לא' || requiredValue === 'no') {
+          if (buildingValue === 'כן' || buildingValue === 'yes') {
+            errors.push('מיועד לבניינים ללא מעלית, אבל בבניין יש מעלית');
+          }
+        }
+      }
+
+      // Step 4b: Validate single_double_family
+      if (assetType.single_double_family != null && assetType.single_double_family.trim() !== '') {
+        const requiredValue = assetType.single_double_family.toLowerCase();
+        const buildingValue = building.single_double_family ? building.single_double_family.toLowerCase() : '';
+
+        if (requiredValue === 'כן' || requiredValue === 'yes') {
+          if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            errors.push('דורש משפחה יחידה/דו משפחתי, אבל הבניין לא מסומן ככזה');
+          }
+        }
+      }
+
+      // Step 4c: Validate condo
+      if (assetType.condo != null && assetType.condo.trim() !== '') {
+        const requiredValue = assetType.condo.toLowerCase();
+        const buildingValue = building.condo ? building.condo.toLowerCase() : '';
+
+        if (requiredValue === 'כן' || requiredValue === 'yes') {
+          if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            errors.push('דורש דירת גן, אבל הבניין לא מסומן ככזה');
+          }
+        }
+      }
+
+      // Step 4d: Validate townhouses
+      if (assetType.townhouses != null && assetType.townhouses.trim() !== '') {
+        const requiredValue = assetType.townhouses.toLowerCase();
+        const buildingValue = building.townhouses ? building.townhouses.toLowerCase() : '';
+
+        if (requiredValue === 'כן' || requiredValue === 'yes') {
+          if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            errors.push('דורש טוריים, אבל הבניין לא מסומן ככזה');
+          }
+        }
+      }
+
+      // Step 4e: Validate basement (if exists in asset_types)
+      if (assetType.basement != null && assetType.basement.trim() !== '') {
+        const requiredValue = assetType.basement.toLowerCase();
+        const buildingValue = building.basement ? building.basement.toLowerCase() : '';
+
+        if (requiredValue === 'כן' || requiredValue === 'yes') {
+          if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            errors.push('דורש מרתף, אבל הבניין לא מסומן ככזה');
+          }
+        }
+      }
+
+      return { valid: errors.length === 0, errors };
+    };
+
+    // Check all asset type entries - if ANY entry is valid, return valid
+    const allErrors: string[] = [];
+    for (const assetType of assetTypes) {
+      const result = checkAssetTypeEntry(assetType);
+      if (result.valid) {
+        // Found a matching entry, asset type is valid
+        return { valid: true };
+      }
+      // Collect errors from this entry (we'll use them if all entries fail)
+      allErrors.push(...result.errors);
     }
 
-    // Step 2: Check asset area is within range (min_size/max_size from asset_types table)
-    if (assetSize != null && assetSize > 0) {
-      const minSize = assetType.min_size != null ? Number(assetType.min_size) : null;
-      const maxSize = assetType.max_size != null ? Number(assetType.max_size) : null;
-      const numericAssetSize = Number(assetSize);
-
-      if (minSize != null && numericAssetSize < minSize) {
-        return {
-          valid: false,
-          error: `גודל הנכס (${numericAssetSize}) קטן מהמינימום המותר לסוג "${assetTypeName}" (${minSize})`
-        };
-      }
-
-      if (maxSize != null && numericAssetSize > maxSize) {
-        return {
-          valid: false,
-          error: `גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר לסוג "${assetTypeName}" (${maxSize})`
-        };
-      }
-    }
-
-    // Step 3: Check penthouse requirement
-    if (assetType.penthouse != null && assetType.penthouse.trim() !== '') {
-      const requiredValue = assetType.penthouse.toLowerCase();
-      const assetPenthouse = assetData?.penthouse;
-      const assetPenthouseValue = assetPenthouse ? String(assetPenthouse).toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (assetPenthouseValue !== 'כן' && assetPenthouseValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש דירת גג, אבל הנכס לא מסומן כדירת גג`
-          };
-        }
-      } else if (requiredValue === 'לא' || requiredValue === 'no') {
-        if (assetPenthouseValue === 'כן' || assetPenthouseValue === 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" לא תקף לדירת גג, אבל הנכס מסומן כדירת גג`
-          };
-        }
-      }
-    }
-
-    // Step 4: Check building boolean values (elevator, single_double_family, condo, townhouses, etc.)
-    
-    // Step 4a: Check elevator requirement
-    if (assetType.elevator != null && assetType.elevator.trim() !== '') {
-      const requiredValue = assetType.elevator.toLowerCase();
-      const buildingValue = building.elevator ? building.elevator.toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש מעלית, אבל בבניין אין מעלית`
-          };
-        }
-      } else if (requiredValue === 'לא' || requiredValue === 'no') {
-        if (buildingValue === 'כן' || buildingValue === 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" מיועד לבניינים ללא מעלית, אבל בבניין יש מעלית`
-          };
-        }
-      }
-    }
-
-    // Step 4b: Validate single_double_family
-    if (assetType.single_double_family != null && assetType.single_double_family.trim() !== '') {
-      const requiredValue = assetType.single_double_family.toLowerCase();
-      const buildingValue = building.single_double_family ? building.single_double_family.toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש משפחה יחידה/דו משפחתי, אבל הבניין לא מסומן ככזה`
-          };
-        }
-      }
-    }
-
-    // Step 4c: Validate condo
-    if (assetType.condo != null && assetType.condo.trim() !== '') {
-      const requiredValue = assetType.condo.toLowerCase();
-      const buildingValue = building.condo ? building.condo.toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש דירת גן, אבל הבניין לא מסומן ככזה`
-          };
-        }
-      }
-    }
-
-    // Step 4d: Validate townhouses
-    if (assetType.townhouses != null && assetType.townhouses.trim() !== '') {
-      const requiredValue = assetType.townhouses.toLowerCase();
-      const buildingValue = building.townhouses ? building.townhouses.toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש טוריים, אבל הבניין לא מסומן ככזה`
-          };
-        }
-      }
-    }
-
-    // Step 4e: Validate basement (if exists in asset_types)
-    if (assetType.basement != null && assetType.basement.trim() !== '') {
-      const requiredValue = assetType.basement.toLowerCase();
-      const buildingValue = building.basement ? building.basement.toLowerCase() : '';
-
-      if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-          return {
-            valid: false,
-            error: `סוג הנכס "${assetTypeName}" דורש מרתף, אבל הבניין לא מסומן ככזה`
-          };
-        }
-      }
-    }
-
-    return { valid: true };
+    // All entries failed validation - return error with unique error messages
+    const uniqueErrors = Array.from(new Set(allErrors));
+    return {
+      valid: false,
+      error: `סוג הנכס "${assetTypeName}" לא תקין: ${uniqueErrors.join('; ')}`
+    };
   } catch (error) {
     console.error('Complete asset type validation error:', error);
     return { valid: false, error: 'שגיאה באימות סוג הנכס' };

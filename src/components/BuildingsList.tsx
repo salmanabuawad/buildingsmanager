@@ -598,36 +598,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
     },
     {
-      field: 'penthouse',
-      headerName: 'דירת גג',
-      editable: false,
-      cellRenderer: (params: any) => {
-        const building = params.data as Building;
-        const markedForDeletion = buildingsToDelete.has(building.building_number);
-        const isChecked = params.value === 'כן' || params.value === true;
-
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <input
-              type="checkbox"
-              checked={isChecked}
-              disabled={markedForDeletion}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : '';
-                params.node.setDataValue('penthouse', newValue);
-              }}
-              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }
-    },
-    {
       field: 'townhouses',
       headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,

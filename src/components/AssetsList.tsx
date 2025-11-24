@@ -14,6 +14,7 @@ interface AssetsListProps {
 export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [allAssets, setAllAssets] = useState<Asset[]>([]); // Store all assets before tax zone filtering
   const [masterAssets, setMasterAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -52,37 +53,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     for (const asset of masterAssets) {
       display.push({ ...asset, _isMasterRow: true });
       if (expandedRows.has(String(asset.asset_id))) {
-        // Show all historical records for this asset_id, excluding the master row itself
+        // Show all historical records for this asset_id from allAssets (unfiltered),
+        // excluding the master row itself
+        // This ensures all historical measurements are shown regardless of tax zone filtering
         const masterId = String(asset.id);
-        // Debug for asset 100501
-        if (String(asset.asset_id) === '100501') {
-          console.log('[AssetsList] Asset 100501 - Expanding row');
-          console.log('[AssetsList] Asset 100501 - Master asset:', {
-            id: asset.id,
-            asset_id: asset.asset_id,
-            measurement_date: asset.measurement_date
-          });
-          console.log('[AssetsList] Asset 100501 - Total assets in state:', assets.length);
-          console.log('[AssetsList] Asset 100501 - Assets with same asset_id:', 
-            assets.filter(a => a.asset_id === asset.asset_id).map(a => ({
-              id: a.id,
-              asset_id: a.asset_id,
-              measurement_date: a.measurement_date
-            }))
-          );
-        }
-        const historicalRecords = assets.filter(
+        // Look for historical records in allAssets (unfiltered) to show all measurements
+        // regardless of tax zone, but exclude the master row
+        const historicalRecords = allAssets.filter(
           a => a.asset_id === asset.asset_id && String(a.id) !== masterId
         );
-        // Debug for asset 100501
-        if (String(asset.asset_id) === '100501') {
-          console.log('[AssetsList] Asset 100501 - Historical records found:', historicalRecords.length);
-          console.log('[AssetsList] Asset 100501 - Historical records:', historicalRecords.map(a => ({
-            id: a.id,
-            asset_id: a.asset_id,
-            measurement_date: a.measurement_date
-          })));
-        }
         // Sort historical records by measurement_date (newest first)
         const parseDate = (dateStr: string) => {
           const parts = dateStr.split('/');
@@ -114,6 +93,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       ]);
       setBuilding(buildingData);
       setAssetTypes(assetTypesData || []);
+      
+      // Store all assets before filtering (for historical records lookup)
+      setAllAssets(assetsData || []);
       
       // Filter assets by tax region if taxZone is provided
       let filteredAssets = assetsData || [];

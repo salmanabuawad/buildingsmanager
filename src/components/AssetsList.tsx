@@ -29,6 +29,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [originalMasterAssets, setOriginalMasterAssets] = useState<Asset[]>([]);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
+  const [newAssets, setNewAssets] = useState<Set<string>>(new Set()); // Track new assets with temp IDs
   const [success, setSuccess] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Map<string, Map<string, string>>>(new Map());
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
@@ -875,50 +876,76 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         }
       }
 
+      // Process new assets that haven't been edited yet (in newAssets but not in dirtyAssets)
+      for (const newAssetId of newAssets) {
+        if (!dirtyAssets.has(newAssetId) && !deletedAssets.has(newAssetId)) {
+          // Add to dirtyAssets so it gets processed below
+          const asset = displayAssets.find(a => String(a.id) === newAssetId);
+          if (asset) {
+            setDirtyAssets(prev => {
+              const next = new Map(prev);
+              next.set(newAssetId, {}); // Empty changes object, will use full asset data
+              return next;
+            });
+          }
+        }
+      }
+
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
           // Skip if marked for deletion
           if (deletedAssets.has(assetId)) continue;
 
           // Get the full asset data
-          const asset = displayAssets.find(a => a.id === assetId);
+          const asset = displayAssets.find(a => String(a.id) === String(assetId));
           if (!asset) continue;
 
           const updatedData = { ...asset, ...changes };
-          const isNewAsset = String(assetId).startsWith('temp-');
+          const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
 
-          // Validate based on what fields changed
-          if (changes.hasOwnProperty('payer_id')) {
-            const validation = await assetValidators.validatePayerId(changes.payer_id as string);
-            if (!validation.valid) {
-              errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+          // For new assets, validate all required fields
+          if (isNewAsset) {
+            // Validate required fields
+            if (!updatedData.asset_id) {
+              errors.push(`נכס חדש: קוד נכס נדרש`);
               continue;
             }
-          }
-
-          if (changes.hasOwnProperty('asset_id')) {
-            const validation = await assetValidators.validateAssetId(changes.asset_id as string);
-            if (!validation.valid) {
-              errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+            if (!updatedData.payer_id) {
+              errors.push(`נכס ${updatedData.asset_id}: קוד משלם נדרש`);
               continue;
             }
-          }
+            if (!updatedData.main_asset_type) {
+              errors.push(`נכס ${updatedData.asset_id}: סוג נכס ראשי נדרש`);
+              continue;
+            }
 
-          // Validate asset types if any asset type field changed
-          const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
-          for (const field of assetTypeFields) {
-            if (changes.hasOwnProperty(field)) {
-              const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field);
-              if (!validation.valid) {
-                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
-                continue;
+            // Validate payer_id
+            const payerValidation = await assetValidators.validatePayerId(updatedData.payer_id);
+            if (!payerValidation.valid) {
+              errors.push(`נכס ${updatedData.asset_id}: ${payerValidation.error}`);
+              continue;
+            }
+
+            // Validate asset_id
+            const assetIdValidation = await assetValidators.validateAssetId(updatedData.asset_id);
+            if (!assetIdValidation.valid) {
+              errors.push(`נכס ${updatedData.asset_id}: ${assetIdValidation.error}`);
+              continue;
+            }
+
+            // Validate asset types
+            const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
+            for (const field of assetTypeFields) {
+              if (updatedData[field as keyof Asset]) {
+                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field);
+                if (!validation.valid) {
+                  errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
+                  continue;
+                }
               }
             }
-          }
 
-          // Validate 199/299 rules if relevant fields changed
-          if (changes.hasOwnProperty('main_asset_type') || changes.hasOwnProperty('asset_size') ||
-              assetTypeFields.some(f => changes.hasOwnProperty(f))) {
+            // Validate 199/299 rules
             const validation = await assetValidators.validateSubAssetsFor199Or299(
               updatedData.building_number,
               updatedData.main_asset_type,
@@ -941,31 +968,89 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               ]
             );
             if (!validation.valid) {
-              errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+              errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
               continue;
             }
-          }
 
-          // Save the changes
-          if (isNewAsset) {
             // Create new asset
             const { id, _isMasterRow, created_at, ...assetData } = updatedData;
             await api.assets.create(assetData);
+            savedCount++;
           } else {
+            // Validate based on what fields changed for existing assets
+            if (changes.hasOwnProperty('payer_id')) {
+              const validation = await assetValidators.validatePayerId(changes.payer_id as string);
+              if (!validation.valid) {
+                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+                continue;
+              }
+            }
+
+            if (changes.hasOwnProperty('asset_id')) {
+              const validation = await assetValidators.validateAssetId(changes.asset_id as string);
+              if (!validation.valid) {
+                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+                continue;
+              }
+            }
+
+            // Validate asset types if any asset type field changed
+            const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
+            for (const field of assetTypeFields) {
+              if (changes.hasOwnProperty(field)) {
+                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field);
+                if (!validation.valid) {
+                  errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+                  continue;
+                }
+              }
+            }
+
+            // Validate 199/299 rules if relevant fields changed
+            if (changes.hasOwnProperty('main_asset_type') || changes.hasOwnProperty('asset_size') ||
+                assetTypeFields.some(f => changes.hasOwnProperty(f))) {
+              const validation = await assetValidators.validateSubAssetsFor199Or299(
+                updatedData.building_number,
+                updatedData.main_asset_type,
+                updatedData.asset_size,
+                [
+                  updatedData.sub_asset_type_1,
+                  updatedData.sub_asset_type_2,
+                  updatedData.sub_asset_type_3,
+                  updatedData.sub_asset_type_4,
+                  updatedData.sub_asset_type_5,
+                  updatedData.sub_asset_type_6
+                ],
+                [
+                  updatedData.sub_asset_size_1,
+                  updatedData.sub_asset_size_2,
+                  updatedData.sub_asset_size_3,
+                  updatedData.sub_asset_size_4,
+                  updatedData.sub_asset_size_5,
+                  updatedData.sub_asset_size_6
+                ]
+              );
+              if (!validation.valid) {
+                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+                continue;
+              }
+            }
+
             // Update existing asset
             await api.assets.update(assetId, changes);
+            savedCount++;
           }
-          savedCount++;
         } catch (err) {
-          const asset = displayAssets.find(a => a.id === assetId);
+          const asset = displayAssets.find(a => String(a.id) === String(assetId));
           const assetIdent = asset?.asset_id || assetId;
           errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
         }
       }
 
-      // Clear dirty assets and deleted assets after save
+      // Clear dirty assets, deleted assets, and new assets after save
       setDirtyAssets(new Map());
       setDeletedAssets(new Set());
+      setNewAssets(new Set());
 
       if (errors.length > 0) {
         const successMsg = [];
@@ -992,9 +1077,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const addEmptyRow = () => {
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    const tempId = `temp-${Date.now()}`;
 
     const newAsset: Asset = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       building_number: buildingNumber,
       asset_id: '',
       payer_id: '',
@@ -1019,6 +1105,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
     setDisplayAssets(prev => [newAsset, ...prev]);
     setMasterAssets(prev => [newAsset, ...prev]);
+    setNewAssets(prev => new Set(prev).add(tempId)); // Track the new asset
 
     setTimeout(() => {
       if (gridRef.current) {
@@ -1591,10 +1678,37 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           <div className="flex gap-2">
           <button
             onClick={() => {
-              setDisplayAssets(JSON.parse(JSON.stringify(originalDisplayAssets)));
-              setMasterAssets(JSON.parse(JSON.stringify(originalMasterAssets)));
+              // Remove new assets (temp IDs) from display and master assets
+              setDisplayAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
+              setMasterAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
+              
+              // Restore original data for existing assets
+              setDisplayAssets(prev => {
+                const existingIds = new Set(prev.map(a => String(a.id)));
+                const restored = JSON.parse(JSON.stringify(originalDisplayAssets));
+                // Only add restored assets that aren't new
+                const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.id)));
+                // Merge with existing non-new assets
+                const merged = [...prev.filter(a => !newAssets.has(String(a.id))), ...filtered];
+                // Remove duplicates by id
+                const unique = merged.filter((a, index, self) => 
+                  index === self.findIndex(b => String(b.id) === String(a.id))
+                );
+                return unique;
+              });
+              setMasterAssets(prev => {
+                const restored = JSON.parse(JSON.stringify(originalMasterAssets));
+                const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.id)));
+                const merged = [...prev.filter(a => !newAssets.has(String(a.id))), ...filtered];
+                const unique = merged.filter((a, index, self) => 
+                  index === self.findIndex(b => String(b.id) === String(a.id))
+                );
+                return unique;
+              });
+              
               setDirtyAssets(new Map());
               setDeletedAssets(new Set());
+              setNewAssets(new Set()); // Clear new assets tracking
               setValidationErrors(new Map());
               setError(null);
               setSuccess('השינויים בוטלו');
@@ -1603,6 +1717,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               // Refresh the grid to show the reset data
               if (gridRef.current?.api) {
                 gridRef.current.api.refreshCells({ force: true });
+                gridRef.current.api.refreshClientSideRowModel('filter');
               }
 
               // Scroll to left after cancel
@@ -1613,7 +1728,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 }
               }, 100);
             }}
-            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0)}
+            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             <X className="h-4 w-4" />
@@ -1621,7 +1736,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           </button>
           <button
             onClick={handleSaveAll}
-            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0)}
+            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             {loading ? (
@@ -1629,7 +1744,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             ) : (
               <Save className="h-4 w-4" />
             )}
-            {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size})` : ''}`}
+            {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size + newAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size + newAssets.size})` : ''}`}
           </button>
           </div>
         </div>

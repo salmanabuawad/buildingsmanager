@@ -31,7 +31,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [isValidating, setIsValidating] = useState(false);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
-  const [validationResults, setValidationResults] = useState<{ valid: boolean; errors: string[] } | null>(null);
+  const [validationResults, setValidationResults] = useState<{ valid: boolean; errors: string[]; passed: string[]; matchedAssetTypeRecord?: string } | null>(null);
   const [validationProgress, setValidationProgress] = useState<{
     current: number;
     total: number;
@@ -466,12 +466,35 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         );
       }
 
+      // Create validation names mapping
+      const validationNames = [
+        'תאריך מדידה תקין',
+        'מספר בניין תקין',
+        'מספר נכס תקין',
+        'קוד משלם תקין',
+        'סוג נכס ראשי תקין',
+        'אימות סוג נכס ראשי מלא',
+        'רק סוגים מורכבים יכולים לכלול נכסי משנה',
+        'סוגים מורכבים חייבים לכלול נכסי משנה',
+        ...(shouldValidateSubAssets ? ['מינימום נכסי משנה'] : []),
+        'גודל נכסי משנה תואם לגודל נכס ראשי',
+        'אימות נכסי משנה עבור 199/299',
+        ...(latestRow.sub_asset_type_1 ? ['נכס משנה 1'] : []),
+        ...(latestRow.sub_asset_type_2 ? ['נכס משנה 2'] : []),
+        ...(latestRow.sub_asset_type_3 ? ['נכס משנה 3'] : []),
+        ...(latestRow.sub_asset_type_4 ? ['נכס משנה 4'] : []),
+        ...(latestRow.sub_asset_type_5 ? ['נכס משנה 5'] : []),
+        ...(latestRow.sub_asset_type_6 ? ['נכס משנה 6'] : [])
+      ];
+
       const totalSteps = validations.length;
       setValidationProgress({ current: 0, total: totalSteps, currentStep: 'מתחיל אימות...' });
 
       // Run validations sequentially to show progress
       const validationResults = [];
       const allErrors: string[] = [];
+      const passedRules: string[] = [];
+      let matchedAssetTypeRecord: string | undefined = undefined;
       
       for (let i = 0; i < validations.length; i++) {
         setValidationProgress({
@@ -483,7 +506,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         const result = await validations[i];
         validationResults.push(result);
         
-        if (!result.valid && result.error) {
+        if (result.valid) {
+          if (validationNames[i]) {
+            passedRules.push(validationNames[i]);
+          }
+          // Check if this is the main asset type complete validation and it has matched record info
+          if (result.matchedAssetTypeRecord && validationNames[i] === 'אימות סוג נכס ראשי מלא') {
+            matchedAssetTypeRecord = result.matchedAssetTypeRecord;
+          }
+        } else if (result.error) {
           allErrors.push(result.error);
         }
       }
@@ -491,7 +522,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       // Show validation results in modal (don't mark row)
       setValidationResults({
         valid: allErrors.length === 0,
-        errors: allErrors
+        errors: allErrors,
+        passed: passedRules,
+        matchedAssetTypeRecord
       });
       setValidationProgress(null);
     } catch (err) {
@@ -1113,10 +1146,48 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     <div className="flex flex-col items-center justify-center py-8">
                       <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
                       <p className="text-xl font-semibold text-green-700 mb-2">הנכס תקין</p>
-                      <p className="text-slate-600">כל האימותים עברו בהצלחה</p>
+                      <p className="text-slate-600 mb-4">כל האימותים עברו בהצלחה</p>
+                      {validationResults.passed && validationResults.passed.length > 0 && (
+                        <div className="w-full mt-4">
+                          <p className="text-sm font-semibold text-slate-700 mb-2">כללי אימות שעברו:</p>
+                          <ul className="space-y-1">
+                            {validationResults.passed.map((rule, index) => (
+                              <li key={index} className="flex items-center gap-2 text-sm text-green-700">
+                                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                <span>{rule}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {validationResults.matchedAssetTypeRecord && (
+                        <div className="w-full mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
+                          <p className="text-xs text-blue-700">{validationResults.matchedAssetTypeRecord}</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>
+                      {validationResults.passed && validationResults.passed.length > 0 && (
+                        <div className="mb-6">
+                          <p className="text-sm font-semibold text-slate-700 mb-2">כללי אימות שעברו:</p>
+                          <ul className="space-y-1 mb-4">
+                            {validationResults.passed.map((rule, index) => (
+                              <li key={index} className="flex items-center gap-2 text-sm text-green-700">
+                                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                <span>{rule}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {validationResults.matchedAssetTypeRecord && (
+                        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
+                          <p className="text-xs text-blue-700">{validationResults.matchedAssetTypeRecord}</p>
+                        </div>
+                      )}
                       <p className="text-lg font-semibold text-slate-800 mb-4">
                         נמצאו {validationResults.errors.length} שגיאות:
                       </p>

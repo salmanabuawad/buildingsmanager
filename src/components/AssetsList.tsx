@@ -43,7 +43,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     total: number;
     valid: number;
     invalid: number;
-    errors: Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[] }>;
+    errors: Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[]; passed?: string[]; matchedAssetTypeRecord?: string }>;
   } | null>(null);
   useEffect(() => {
     fetchData();
@@ -528,6 +528,17 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         });
 
         const assetErrors: string[] = [];
+        const passedRules: string[] = [];
+        let matchedAssetTypeRecord: string | undefined = undefined;
+
+        // Create validation names mapping
+        const syncValidationNames = [
+          'רק סוגים מורכבים יכולים לכלול נכסי משנה',
+          'סוגים מורכבים חייבים לכלול נכסי משנה',
+          'גודל נכסי משנה תואם לגודל נכס ראשי',
+          'גודל נכס משנה דורש סוג נכס משנה',
+          'סדר נכסי משנה תקין'
+        ];
 
         // Run synchronous validations first (no DB calls)
         const syncValidations = [
@@ -599,8 +610,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
         // Run synchronous validations in parallel
         const syncResults = await Promise.all(syncValidations);
-        syncResults.forEach(result => {
-          if (!result.valid && result.error) {
+        syncResults.forEach((result, idx) => {
+          if (result.valid) {
+            if (syncValidationNames[idx]) {
+              passedRules.push(syncValidationNames[idx]);
+            }
+          } else if (result.error) {
             // Only add error if we haven't seen it before
             if (!seenErrors.has(result.error)) {
               assetErrors.push(result.error);
@@ -608,6 +623,16 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             }
           }
         });
+
+        // Create DB validation names mapping
+        const dbValidationNames = [
+          'מספר בניין תקין',
+          'מספר נכס תקין',
+          'קוד משלם תקין',
+          'סוג נכס ראשי תקין',
+          'אימות סוג נכס ראשי מלא',
+          'אימות נכסי משנה עבור 199/299'
+        ];
 
         // Run DB-dependent validations (can be optimized further with cached data)
         const dbValidations = [
@@ -641,8 +666,16 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
         // Run DB validations in parallel
         const dbResults = await Promise.all(dbValidations);
-        dbResults.forEach(result => {
-          if (!result.valid && result.error) {
+        dbResults.forEach((result, idx) => {
+          if (result.valid) {
+            if (dbValidationNames[idx]) {
+              passedRules.push(dbValidationNames[idx]);
+            }
+            // Check if this is the main asset type complete validation and it has matched record info
+            if (result.matchedAssetTypeRecord && dbValidationNames[idx] === 'אימות סוג נכס ראשי מלא') {
+              matchedAssetTypeRecord = result.matchedAssetTypeRecord;
+            }
+          } else if (result.error) {
             // Only add error if we haven't seen it before
             if (!seenErrors.has(result.error)) {
               assetErrors.push(result.error);
@@ -681,7 +714,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
         const subResults = await Promise.all(subValidations);
         subResults.forEach((result, idx) => {
-          if (!result.valid && result.error && subAssetTypes[idx]) {
+          if (result.valid && subAssetTypes[idx]) {
+            passedRules.push(`נכס משנה ${idx + 1}`);
+          } else if (!result.valid && result.error && subAssetTypes[idx]) {
             const errorMsg = `נכס משנה ${idx + 1}: ${result.error}`;
             // Only add error if we haven't seen it before
             if (!seenErrors.has(errorMsg)) {
@@ -698,10 +733,21 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             assetId: assetIdKey,
             assetDbId: String(asset.id),
             buildingNumber: asset.building_number,
-            errors: assetErrors
+            errors: assetErrors,
+            passed: passedRules,
+            matchedAssetTypeRecord
           });
         } else {
           results.valid++;
+          // Also track passed rules for valid assets
+          results.errors.push({
+            assetId: assetIdKey,
+            assetDbId: String(asset.id),
+            buildingNumber: asset.building_number,
+            errors: [],
+            passed: passedRules,
+            matchedAssetTypeRecord
+          });
         }
       }
 
@@ -1984,24 +2030,53 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
                 {batchValidationResults.errors.length > 0 ? (
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-700 mb-3">נכסים עם שגיאות:</h4>
+                    <h4 className="font-semibold text-slate-700 mb-3">
+                      {batchValidationResults.errors.some(e => e.errors.length > 0) 
+                        ? 'נכסים עם שגיאות:' 
+                        : 'תוצאות אימות:'}
+                    </h4>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {batchValidationResults.errors.map((error, idx) => (
-                        <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div key={idx} className={`${error.errors.length > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4`}>
                           <div className="flex items-start gap-2 mb-2">
-                            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            {error.errors.length > 0 ? (
+                              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                            )}
                             <div className="flex-1">
-                              <div className="font-semibold text-red-900">
+                              <div className={`font-semibold ${error.errors.length > 0 ? 'text-red-900' : 'text-green-900'}`}>
                                 נכס {error.assetId} (בניין {error.buildingNumber})
                               </div>
-                              <ul className="mt-2 space-y-1">
-                                {error.errors.map((err, errIdx) => (
-                                  <li key={errIdx} className="text-sm text-red-700 flex items-start gap-2">
-                                    <span className="text-red-500">•</span>
-                                    <span>{err}</span>
-                                  </li>
-                                ))}
-                              </ul>
+                              {error.passed && error.passed.length > 0 && (
+                                <div className="mt-2 mb-2">
+                                  <p className="text-xs font-semibold text-slate-600 mb-1">כללי אימות שעברו:</p>
+                                  <ul className="space-y-0.5">
+                                    {error.passed.map((rule, ruleIdx) => (
+                                      <li key={ruleIdx} className="text-xs text-green-700 flex items-center gap-1">
+                                        <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />
+                                        <span>{rule}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {error.matchedAssetTypeRecord && (
+                                <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                  <p className="text-xs font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
+                                  <p className="text-xs text-blue-700">{error.matchedAssetTypeRecord}</p>
+                                </div>
+                              )}
+                              {error.errors.length > 0 && (
+                                <ul className="mt-2 space-y-1">
+                                  {error.errors.map((err, errIdx) => (
+                                    <li key={errIdx} className="text-sm text-red-700 flex items-start gap-2">
+                                      <span className="text-red-500">•</span>
+                                      <span>{err}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
                           </div>
                         </div>

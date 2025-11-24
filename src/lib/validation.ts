@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 export interface ValidationResult {
   valid: boolean;
   error?: string;
+  matchedAssetTypeRecord?: string; // Information about which asset type record matched
 }
 
 export interface CrossTableValidationContext {
@@ -477,7 +478,9 @@ export async function validateAssetTypeComplete(
       const result = checkAssetTypeEntry(assetType);
       if (result.valid) {
         // Found a matching entry, asset type is valid
-        return { valid: true };
+        // Return information about which asset type record matched
+        const matchedRecordInfo = `תואם לרישום מסוג נכס: ID=${assetType.id || assetType.asset_type || 'N/A'}, אזור מיסים=${assetType.tax_region || 'N/A'}, מעלית=${assetType.elevator || 'לא מוגדר'}, מינימום=${assetType.min_size || 'לא מוגדר'}, מקסימום=${assetType.max_size || 'לא מוגדר'}, דירת גג=${assetType.penthouse || 'לא מוגדר'}`;
+        return { valid: true, matchedAssetTypeRecord: matchedRecordInfo };
       }
       // Collect errors from this entry (we'll use them if all entries fail)
       allErrors.push(...result.errors);

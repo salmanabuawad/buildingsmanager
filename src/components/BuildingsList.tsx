@@ -667,6 +667,18 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
                 // Update grid cell data directly
                 params.node.setDataValue('elevator', newValue);
                 
+                // Update local state
+                setBuildings(prevBuildings => {
+                  return prevBuildings.map(b =>
+                    b.building_number === buildingNumber ? { ...b, elevator: newValue } : b
+                  );
+                });
+                setFilteredBuildings(prevBuildings => {
+                  return prevBuildings.map(b =>
+                    b.building_number === buildingNumber ? { ...b, elevator: newValue } : b
+                  );
+                });
+                
                 // Track the change in dirtyBuildings
                 setDirtyBuildings(prev => {
                   const next = new Map(prev);

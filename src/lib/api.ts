@@ -171,20 +171,42 @@ function sanitizeBuildingInput(input: any): any {
   if (input.total_building_area != null) {
     sanitized.total_building_area = sanitizeNumber(input.total_building_area);
   }
-  if (input.elevator != null && input.elevator !== '') {
-    sanitized.elevator = sanitizeText(input.elevator);
+  // Handle elevator: if explicitly set to null, include it; otherwise only if it has a value
+  if ('elevator' in input) {
+    if (input.elevator === null || input.elevator === '') {
+      sanitized.elevator = null;
+    } else {
+      sanitized.elevator = sanitizeText(input.elevator);
+    }
   }
-  if (input.single_double_family != null && input.single_double_family !== '') {
-    sanitized.single_double_family = sanitizeText(input.single_double_family);
+  // Handle checkbox fields: if explicitly set to null, include it; otherwise only if it has a value
+  if ('single_double_family' in input) {
+    if (input.single_double_family === null || input.single_double_family === '') {
+      sanitized.single_double_family = null;
+    } else {
+      sanitized.single_double_family = sanitizeText(input.single_double_family);
+    }
   }
-  if (input.condo != null && input.condo !== '') {
-    sanitized.condo = sanitizeText(input.condo);
+  if ('condo' in input) {
+    if (input.condo === null || input.condo === '') {
+      sanitized.condo = null;
+    } else {
+      sanitized.condo = sanitizeText(input.condo);
+    }
   }
-  if (input.basement != null && input.basement !== '') {
-    sanitized.basement = sanitizeText(input.basement);
+  if ('basement' in input) {
+    if (input.basement === null || input.basement === '') {
+      sanitized.basement = null;
+    } else {
+      sanitized.basement = sanitizeText(input.basement);
+    }
   }
-  if (input.townhouses != null && input.townhouses !== '') {
-    sanitized.townhouses = sanitizeText(input.townhouses);
+  if ('townhouses' in input) {
+    if (input.townhouses === null || input.townhouses === '') {
+      sanitized.townhouses = null;
+    } else {
+      sanitized.townhouses = sanitizeText(input.townhouses);
+    }
   }
   
   return sanitized;

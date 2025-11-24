@@ -31,6 +31,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<number, Record<string, string>>>(new Map());
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<number>>(new Set());
+  const [newBuildings, setNewBuildings] = useState<Set<number>>(new Set()); // Track new buildings with temp IDs
 
   const fetchBuildings = useCallback(async (showLoading = true) => {
     try {
@@ -128,6 +129,11 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
       );
     });
+    setFilteredBuildings(prevBuildings => {
+      return prevBuildings.map(b =>
+        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
+      );
+    });
 
     // Update the dirty tracking
     setDirtyBuildings(prev => {
@@ -183,8 +189,37 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
   }, []);
 
+  const addEmptyBuildingRow = () => {
+    const tempId = -Date.now(); // Use negative timestamp as temp ID
+
+    const newBuilding: Building = {
+      building_number: tempId,
+      tax_region: null,
+      shared_area: null,
+      area_for_control: null,
+      total_building_area: null,
+      elevator: null,
+      single_double_family: null,
+      condo: null,
+      townhouses: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    setBuildings(prev => [newBuilding, ...prev]);
+    setFilteredBuildings(prev => [newBuilding, ...prev]);
+    setNewBuildings(prev => new Set(prev).add(tempId)); // Track the new building
+
+    setTimeout(() => {
+      if (gridRef.current) {
+        gridRef.current.api.setFocusedCell(0, 'building_number');
+        gridRef.current.api.startEditingCell({ rowIndex: 0, colKey: 'building_number' });
+      }
+    }, 100);
+  };
+
   const handleSaveAll = async () => {
-    if (dirtyBuildings.size === 0) return;
+    if (dirtyBuildings.size === 0 && buildingsToDelete.size === 0 && newBuildings.size === 0) return;
 
     // Check if there are any validation errors (skip for buildings marked for deletion)
     const nonDeletedErrors = new Map();
@@ -211,15 +246,64 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     try {
       // Process deletions first
       for (const buildingNumber of buildingsToDelete) {
+        // Skip deletion if it's a temp building (not saved to database yet)
+        if (newBuildings.has(buildingNumber)) {
+          continue;
+        }
         // Delete all assets for this building first
         await api.deleteAssetsByBuilding(buildingNumber);
         // Delete the building
         await api.deleteBuilding(buildingNumber);
       }
 
-      // Process updates for non-deleted buildings
-      for (const [buildingNumber, changes] of dirtyBuildings.entries()) {
+      // Process new buildings and updates
+      const allBuildingsToSave = new Set<number>();
+      for (const [buildingNumber] of dirtyBuildings.entries()) {
         if (!buildingsToDelete.has(buildingNumber)) {
+          allBuildingsToSave.add(buildingNumber);
+        }
+      }
+      for (const newBuildingNumber of newBuildings) {
+        if (!buildingsToDelete.has(newBuildingNumber)) {
+          allBuildingsToSave.add(newBuildingNumber);
+        }
+      }
+
+      for (const buildingNumber of allBuildingsToSave) {
+        const building = buildings.find(b => b.building_number === buildingNumber);
+        if (!building) continue;
+
+        const changes = dirtyBuildings.get(buildingNumber) || {};
+        const isNewBuilding = newBuildings.has(buildingNumber);
+
+        if (isNewBuilding) {
+          // Validate required fields for new buildings
+          if (!building.building_number || building.building_number < 0) {
+            setError('מספר בניין נדרש ו חייב להיות חיובי');
+            setLoading(false);
+            return;
+          }
+          if (!building.tax_region) {
+            setError(`בניין ${building.building_number}: אזור מיסים נדרש`);
+            setLoading(false);
+            return;
+          }
+
+          // Create new building
+          const { building_number, tax_region, shared_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = building;
+          await api.buildings.create({
+            building_number,
+            tax_region,
+            shared_area,
+            area_for_control,
+            total_building_area,
+            elevator,
+            single_double_family,
+            condo,
+            townhouses
+          });
+        } else {
+          // Update existing building
           await api.buildings.update(buildingNumber, changes);
         }
       }
@@ -227,6 +311,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       setDirtyBuildings(new Map());
       setValidationErrors(new Map());
       setBuildingsToDelete(new Set());
+      setNewBuildings(new Set()); // Clear new buildings tracking
       await fetchBuildings(false);
       setError(null);
     } catch (error: any) {
@@ -239,11 +324,35 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   };
 
   const handleCancelAll = async () => {
-    setBuildings(JSON.parse(JSON.stringify(originalBuildings)));
-    setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
+    // Remove new buildings (temp IDs) from buildings and filteredBuildings
+    setBuildings(prev => prev.filter(b => !newBuildings.has(b.building_number)));
+    setFilteredBuildings(prev => prev.filter(b => !newBuildings.has(b.building_number)));
+    
+    // Restore original data for existing buildings
+    setBuildings(prev => {
+      const existingIds = new Set(prev.map(b => b.building_number));
+      const restored = JSON.parse(JSON.stringify(originalBuildings));
+      const filtered = restored.filter((b: Building) => !newBuildings.has(b.building_number));
+      const merged = [...prev.filter(b => !newBuildings.has(b.building_number)), ...filtered];
+      const unique = merged.filter((b, index, self) => 
+        index === self.findIndex(bb => bb.building_number === b.building_number)
+      );
+      return unique;
+    });
+    setFilteredBuildings(prev => {
+      const restored = JSON.parse(JSON.stringify(originalBuildings));
+      const filtered = restored.filter((b: Building) => !newBuildings.has(b.building_number));
+      const merged = [...prev.filter(b => !newBuildings.has(b.building_number)), ...filtered];
+      const unique = merged.filter((b, index, self) => 
+        index === self.findIndex(bb => bb.building_number === b.building_number)
+      );
+      return unique;
+    });
+    
     setDirtyBuildings(new Map());
     setValidationErrors(new Map());
     setBuildingsToDelete(new Set());
+    setNewBuildings(new Set()); // Clear new buildings tracking
     setError(null);
 
     const newInvalidSet = new Set<number>();
@@ -364,13 +473,22 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'building_number',
-      headerName: 'מספר בניין',
-      editable: false,
+      headerName: 'מספר בניין *',
+      editable: (params: any) => {
+        // Editable only for new buildings (negative building_number)
+        return params.data.building_number < 0;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
+        const isNewBuilding = building.building_number < 0;
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['building_number'];
         const value = params.value != null ? String(params.value) : '';
+        
+        // Show empty string for new buildings
+        if (isNewBuilding && params.value < 0) {
+          return '';
+        }
 
         if (errorMsg) {
           return (
@@ -675,27 +793,38 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           </div>
         </div>
 
-        <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-          <button
-            onClick={handleCancelAll}
-            disabled={loading || dirtyBuildings.size === 0}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
-          >
-            <X className="h-4 w-4" />
-            {t('cancel')}
-          </button>
-          <button
-            onClick={handleSaveAll}
-            disabled={loading || dirtyBuildings.size === 0 || invalidTaxRegions.size > 0}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {loading ? t('saving') : `${t('saveAll')}${dirtyBuildings.size > 0 ? ` (${dirtyBuildings.size})` : ''}`}
-          </button>
+        <div className="mb-4 flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
+          <div className="flex gap-2">
+            <button
+              onClick={addEmptyBuildingRow}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              הוסף שורה
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancelAll}
+              disabled={loading || (dirtyBuildings.size === 0 && buildingsToDelete.size === 0 && newBuildings.size === 0)}
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+            >
+              <X className="h-4 w-4" />
+              {t('cancel')}
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={loading || (dirtyBuildings.size === 0 && buildingsToDelete.size === 0 && newBuildings.size === 0) || invalidTaxRegions.size > 0}
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {loading ? t('saving') : `${t('saveAll')}${dirtyBuildings.size + buildingsToDelete.size + newBuildings.size > 0 ? ` (${dirtyBuildings.size + buildingsToDelete.size + newBuildings.size})` : ''}`}
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">

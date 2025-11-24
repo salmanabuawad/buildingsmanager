@@ -32,6 +32,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
   const [validationResults, setValidationResults] = useState<{ valid: boolean; errors: string[] } | null>(null);
+  const [validationProgress, setValidationProgress] = useState<{
+    current: number;
+    total: number;
+    currentStep: string;
+  } | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
 
@@ -344,6 +349,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     }
 
     setIsValidating(true);
+    setValidationProgress(null);
+    setValidationModalOpen(true);
     try {
       const shouldValidateSubAssets = latestRow.main_asset_type === '199' || latestRow.main_asset_type === '299';
       const validations = [
@@ -459,22 +466,34 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         );
       }
 
-      // Run all validations and collect all results (don't stop at first error)
-      const validationResults = await Promise.all(validations);
+      const totalSteps = validations.length;
+      setValidationProgress({ current: 0, total: totalSteps, currentStep: 'מתחיל אימות...' });
+
+      // Run validations sequentially to show progress
+      const validationResults = [];
       const allErrors: string[] = [];
       
-      validationResults.forEach(result => {
+      for (let i = 0; i < validations.length; i++) {
+        setValidationProgress({
+          current: i + 1,
+          total: totalSteps,
+          currentStep: `בודק שלב ${i + 1} מתוך ${totalSteps}...`
+        });
+        
+        const result = await validations[i];
+        validationResults.push(result);
+        
         if (!result.valid && result.error) {
           allErrors.push(result.error);
         }
-      });
+      }
 
       // Show validation results in modal (don't mark row)
-      setValidationModalOpen(true);
       setValidationResults({
         valid: allErrors.length === 0,
         errors: allErrors
       });
+      setValidationProgress(null);
     } catch (err) {
       console.error('Validation error:', err);
       setToast({ 
@@ -1036,59 +1055,96 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       )}
 
       {/* Validation Results Modal */}
-      {validationModalOpen && validationResults && (
+      {validationModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className={`${validationResults.valid ? 'bg-green-500' : 'bg-red-500'} px-6 py-4 flex items-center justify-between`}>
-              <h2 className="text-2xl font-bold text-white">
-                {validationResults.valid ? 'אימות הצליח' : 'שגיאות אימות'}
-              </h2>
-              <button
-                onClick={() => {
-                  setValidationModalOpen(false);
-                  setValidationResults(null);
-                }}
-                className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              {validationResults.valid ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                  <p className="text-xl font-semibold text-green-700 mb-2">הנכס תקין</p>
-                  <p className="text-slate-600">כל האימותים עברו בהצלחה</p>
+            {isValidating ? (
+              <>
+                <div className="bg-blue-500 px-6 py-4 flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">מאמת נכס...</h2>
+                  <Loader2 className="h-6 w-6 text-white animate-spin" />
                 </div>
-              ) : (
-                <div>
-                  <p className="text-lg font-semibold text-slate-800 mb-4">
-                    נמצאו {validationResults.errors.length} שגיאות:
-                  </p>
-                  <ul className="space-y-2">
-                    {validationResults.errors.map((error, index) => (
-                      <li key={index} className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-red-800 flex-1">{error}</span>
-                      </li>
-                    ))}
-                  </ul>
+                
+                <div className="p-6 flex-1 flex items-center justify-center">
+                  <div className="text-center w-full max-w-md">
+                    <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                    <p className="text-slate-600 mb-4">מאמת את הנכס...</p>
+                    {validationProgress && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
+                          <span>שלב {validationProgress.current} מתוך {validationProgress.total}</span>
+                          <span>{Math.round((validationProgress.current / validationProgress.total) * 100)}%</span>
+                        </div>
+                        {validationProgress.currentStep && (
+                          <p className="text-xs text-slate-500 mb-3">
+                            {validationProgress.currentStep}
+                          </p>
+                        )}
+                        <div className="w-full bg-slate-200 rounded-full h-2.5">
+                          <div
+                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${(validationProgress.current / validationProgress.total) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-            
-            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
-              <button
-                onClick={() => {
-                  setValidationModalOpen(false);
-                  setValidationResults(null);
-                }}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-              >
-                סגור
-              </button>
-            </div>
+              </>
+            ) : validationResults ? (
+              <>
+                <div className={`${validationResults.valid ? 'bg-green-500' : 'bg-red-500'} px-6 py-4 flex items-center justify-between`}>
+                  <h2 className="text-2xl font-bold text-white">
+                    {validationResults.valid ? 'אימות הצליח' : 'שגיאות אימות'}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setValidationModalOpen(false);
+                      setValidationResults(null);
+                    }}
+                    className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1">
+                  {validationResults.valid ? (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+                      <p className="text-xl font-semibold text-green-700 mb-2">הנכס תקין</p>
+                      <p className="text-slate-600">כל האימותים עברו בהצלחה</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-lg font-semibold text-slate-800 mb-4">
+                        נמצאו {validationResults.errors.length} שגיאות:
+                      </p>
+                      <ul className="space-y-2">
+                        {validationResults.errors.map((error, index) => (
+                          <li key={index} className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <span className="text-red-800 flex-1">{error}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setValidationModalOpen(false);
+                      setValidationResults(null);
+                    }}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                  >
+                    סגור
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       )}

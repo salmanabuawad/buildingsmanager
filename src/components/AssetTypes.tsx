@@ -291,6 +291,9 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
+        // Get dirtyAssetTypes from context
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
+        
         // Use params.value which is the current cell value
         const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'elevator' in (dirtyAssetTypes.get(assetTypeId) || {});
@@ -338,6 +341,9 @@ export function AssetTypes() {
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
+        
+        // Get dirtyAssetTypes from context
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
         // Use params.value which is the current cell value
         const isChecked = params.value === 'כן';
@@ -389,6 +395,9 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
+        // Get dirtyAssetTypes from context
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
+        
         // Use params.value which is the current cell value
         const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'penthouse' in (dirtyAssetTypes.get(assetTypeId) || {});
@@ -438,6 +447,9 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
+        // Get dirtyAssetTypes from context
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
+        
         // Use params.value which is the current cell value
         const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'condo' in (dirtyAssetTypes.get(assetTypeId) || {});
@@ -485,6 +497,9 @@ export function AssetTypes() {
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
+        
+        // Get dirtyAssetTypes from context
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         
         // Use params.value which is the current cell value
         const isChecked = params.value === 'כן';
@@ -535,6 +550,7 @@ export function AssetTypes() {
       cellStyle: (params) => {
         const baseStyle = { textAlign: 'left' as const };
         const assetTypeId = params.data?.id;
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         const isDirty = assetTypeId && dirtyAssetTypes.has(assetTypeId) && 'min_size' in (dirtyAssetTypes.get(assetTypeId) || {});
         return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
       },
@@ -548,12 +564,13 @@ export function AssetTypes() {
       cellStyle: (params) => {
         const baseStyle = { textAlign: 'left' as const };
         const assetTypeId = params.data?.id;
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
         const isDirty = assetTypeId && dirtyAssetTypes.has(assetTypeId) && 'max_size' in (dirtyAssetTypes.get(assetTypeId) || {});
         return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
       },
       headerClass: 'text-left'
     },
-  ], [t, dirtyAssetTypes]);
+  ], [t]);
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -867,6 +884,7 @@ export function AssetTypes() {
               ref={gridRef}
               rowData={assetTypes}
               columnDefs={columnDefs}
+              context={{ dirtyAssetTypes }}
               defaultColDef={{
                 resizable: true,
                 sortable: true,

@@ -597,14 +597,40 @@ export const api = {
         .order('name');
 
       if (error) throw error;
-      return data || [];
+      
+      // Map asset_type to id if the column was renamed
+      const mappedData = (data || []).map((item: any) => {
+        if (item.asset_type !== undefined && item.id === undefined) {
+          return { ...item, id: item.asset_type };
+        }
+        return item;
+      });
+      
+      return mappedData;
     },
     getOne: async (id: number): Promise<AssetType> => {
-      const { data, error } = await supabase
+      // Try id first, then asset_type as fallback
+      let { data, error } = await supabase
         .from('asset_types')
         .select('*')
         .eq('id', id)
         .maybeSingle();
+
+      // If id column doesn't exist, try asset_type
+      if (error && error.code === '42703') {
+        const result = await supabase
+          .from('asset_types')
+          .select('*')
+          .eq('asset_type', id)
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+        
+        // Map asset_type to id
+        if (data && data.asset_type !== undefined) {
+          data = { ...data, id: data.asset_type };
+        }
+      }
 
       if (error) throw error;
       if (!data) throw new Error('Asset type not found');
@@ -617,7 +643,16 @@ export const api = {
         .eq('name', name);
 
       if (error) throw error;
-      return data || [];
+      
+      // Map asset_type to id if the column was renamed
+      const mappedData = (data || []).map((item: any) => {
+        if (item.asset_type !== undefined && item.id === undefined) {
+          return { ...item, id: item.asset_type };
+        }
+        return item;
+      });
+      
+      return mappedData;
     },
     formatWithDescription: (code: string | number | undefined | null, assetTypes: AssetType[]): string => {
       if (!code) return '';
@@ -639,21 +674,49 @@ export const api = {
       return data;
     },
     update: async (id: number, input: Partial<AssetType>): Promise<AssetType> => {
-      const { data, error } = await supabase
+      // Try id first, then asset_type as fallback
+      let { data, error } = await supabase
         .from('asset_types')
         .update(input)
         .eq('id', id)
         .select()
         .single();
 
+      // If id column doesn't exist, try asset_type
+      if (error && error.code === '42703') {
+        const result = await supabase
+          .from('asset_types')
+          .update(input)
+          .eq('asset_type', id)
+          .select()
+          .single();
+        data = result.data;
+        error = result.error;
+        
+        // Map asset_type to id
+        if (data && data.asset_type !== undefined) {
+          data = { ...data, id: data.asset_type };
+        }
+      }
+
       if (error) throw error;
       return data;
     },
     delete: async (id: number): Promise<{ message: string }> => {
-      const { error } = await supabase
+      // Try id first, then asset_type as fallback
+      let { error } = await supabase
         .from('asset_types')
         .delete()
         .eq('id', id);
+
+      // If id column doesn't exist, try asset_type
+      if (error && error.code === '42703') {
+        const result = await supabase
+          .from('asset_types')
+          .delete()
+          .eq('asset_type', id);
+        error = result.error;
+      }
 
       if (error) throw error;
       return { message: 'Asset type deleted successfully' };

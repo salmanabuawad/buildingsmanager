@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AssetType, api } from '../lib/api';
 import { assetTypeValidators, inputValidators } from '../lib/validation';
-import { Plus, Tag, Upload, Trash2 } from 'lucide-react';
+import { Plus, Tag, Upload, Trash2, Save, X, Loader2 } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../hooks/useGridPreferences';
@@ -10,11 +10,14 @@ import { useGridPreferences } from '../hooks/useGridPreferences';
 export function AssetTypes() {
   const { t } = useTranslation();
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [originalAssetTypes, setOriginalAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [dirtyAssetTypes, setDirtyAssetTypes] = useState<Map<number, Partial<AssetType>>>(new Map());
+  const [deletedAssetTypes, setDeletedAssetTypes] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_types_column_state');
@@ -41,6 +44,10 @@ export function AssetTypes() {
       if (showLoading) setLoading(true);
       const data = await api.assetTypes.getAll();
       setAssetTypes(data);
+      // Store original data only if dirtyAssetTypes is empty (initial load or after save)
+      if (dirtyAssetTypes.size === 0) {
+        setOriginalAssetTypes(JSON.parse(JSON.stringify(data)));
+      }
     } catch (error) {
       console.error('Error fetching asset types:', error);
       showMessage('error', t('error'));
@@ -49,7 +56,7 @@ export function AssetTypes() {
     }
   }
 
-  function showMessage(type: 'success' | 'error', text: string) {
+  function showMessage(type: 'success' | 'error' | 'info', text: string) {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
   }
@@ -112,40 +119,102 @@ export function AssetTypes() {
 
       if (field === 'name') {
         showMessage('error', 'לא ניתן לערוך את קוד הנכס');
-        await fetchAssetTypes(false);
-        return;
-      } else if (field === 'tax_region') {
-        const validation = await assetTypeValidators.validateTaxRegion(newValue);
-        if (!validation.valid) {
-          showMessage('error', validation.error!);
-          await fetchAssetTypes(false);
-          return;
+        // Revert the change
+        const originalAssetType = originalAssetTypes.find(at => at.id === assetTypeId);
+        if (originalAssetType) {
+          event.node.setDataValue('name', originalAssetType.name);
         }
+        return;
       }
 
-      const updateData: Partial<AssetType> = {
-        [field]: newValue
-      };
+      // Track the change in dirtyAssetTypes
+      setDirtyAssetTypes(prev => {
+        const next = new Map(prev);
+        const existingChanges = next.get(assetTypeId) || {};
+        next.set(assetTypeId, { ...existingChanges, [field]: newValue });
+        return next;
+      });
 
-      await api.assetTypes.update(assetTypeId, updateData);
-      await fetchAssetTypes(false);
+      // Update local state immediately for UI responsiveness
+      setAssetTypes(prev => 
+        prev.map(at => at.id === assetTypeId ? { ...at, [field]: newValue } : at)
+      );
     } catch (error) {
       console.error('Error updating asset type:', error);
-      showMessage('error', 'עדכון נכשל');
-      await fetchAssetTypes(false);
+      showMessage('error', 'שגיאה בעדכון');
     }
-  }, []);
+  }, [originalAssetTypes]);
 
   async function handleDelete(id: number) {
     if (!confirm(t('confirmDeleteAssetType'))) return;
 
+    // Mark for deletion (don't delete immediately)
+    setDeletedAssetTypes(prev => new Set(prev).add(id));
+    setDirtyAssetTypes(prev => {
+      const next = new Map(prev);
+      next.delete(id); // Remove from dirty changes if exists
+      return next;
+    });
+    
+    // Update local state to hide the row
+    setAssetTypes(prev => prev.filter(at => at.id !== id));
+  }
+
+  async function handleSaveAll() {
+    if (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0) {
+      showMessage('info', 'אין שינויים לשמירה');
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      await api.assetTypes.delete(id);
-      showMessage('success', t('assetTypeDeleted'));
+      // Process deletions first
+      for (const id of deletedAssetTypes) {
+        await api.assetTypes.delete(id);
+      }
+
+      // Process updates
+      for (const [id, changes] of dirtyAssetTypes.entries()) {
+        if (!deletedAssetTypes.has(id)) {
+          // Validate tax_region if it's being changed
+          if ('tax_region' in changes) {
+            const validation = await assetTypeValidators.validateTaxRegion(changes.tax_region);
+            if (!validation.valid) {
+              showMessage('error', `שגיאה בנכס ${id}: ${validation.error}`);
+              setIsSaving(false);
+              return;
+            }
+          }
+
+          await api.assetTypes.update(id, changes);
+        }
+      }
+
+      showMessage('success', 'כל השינויים נשמרו בהצלחה');
+      setDirtyAssetTypes(new Map());
+      setDeletedAssetTypes(new Set());
       await fetchAssetTypes();
     } catch (error) {
-      showMessage('error', t('error'));
-      console.error('Error deleting asset type:', error);
+      console.error('Error saving changes:', error);
+      showMessage('error', 'שגיאה בשמירת השינויים');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleCancelAll() {
+    if (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0) {
+      return;
+    }
+
+    // Restore original data
+    setAssetTypes(JSON.parse(JSON.stringify(originalAssetTypes)));
+    setDirtyAssetTypes(new Map());
+    setDeletedAssetTypes(new Set());
+    
+    // Refresh grid
+    if (gridRef.current) {
+      gridRef.current.api.refreshCells({ force: true });
     }
   }
 
@@ -204,24 +273,30 @@ export function AssetTypes() {
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
+        const assetTypeId = params.data.id;
         const isChecked = params.value === 'כן';
+        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'elevator' in (dirtyAssetTypes.get(assetTypeId) || {});
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={async (e) => {
+              onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.data.elevator = newValue;
-                try {
-                  await api.assetTypes.update(params.data.id, { elevator: newValue });
-                  await fetchAssetTypes(false);
-                } catch (error) {
-                  console.error('Error updating elevator:', error);
-                  showMessage('error', 'עדכון נכשל');
-                }
+                // Track the change in dirtyAssetTypes
+                setDirtyAssetTypes(prev => {
+                  const next = new Map(prev);
+                  const existingChanges = next.get(assetTypeId) || {};
+                  next.set(assetTypeId, { ...existingChanges, elevator: newValue });
+                  return next;
+                });
+                // Update local state
+                setAssetTypes(prev => 
+                  prev.map(at => at.id === assetTypeId ? { ...at, elevator: newValue } : at)
+                );
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -233,24 +308,30 @@ export function AssetTypes() {
       headerName: 'בית פרטי חד משפחתי דו משפחתי',
       editable: false,
       cellRenderer: (params: any) => {
+        const assetTypeId = params.data.id;
         const isChecked = params.value === 'כן';
+        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'single_double_family' in (dirtyAssetTypes.get(assetTypeId) || {});
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={async (e) => {
+              onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.data.single_double_family = newValue;
-                try {
-                  await api.assetTypes.update(params.data.id, { single_double_family: newValue });
-                  await fetchAssetTypes(false);
-                } catch (error) {
-                  console.error('Error updating single_double_family:', error);
-                  showMessage('error', 'עדכון נכשל');
-                }
+                // Track the change in dirtyAssetTypes
+                setDirtyAssetTypes(prev => {
+                  const next = new Map(prev);
+                  const existingChanges = next.get(assetTypeId) || {};
+                  next.set(assetTypeId, { ...existingChanges, single_double_family: newValue });
+                  return next;
+                });
+                // Update local state
+                setAssetTypes(prev => 
+                  prev.map(at => at.id === assetTypeId ? { ...at, single_double_family: newValue } : at)
+                );
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -264,24 +345,30 @@ export function AssetTypes() {
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
+        const assetTypeId = params.data.id;
         const isChecked = params.value === 'כן';
+        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'penthouse' in (dirtyAssetTypes.get(assetTypeId) || {});
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={async (e) => {
+              onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.data.penthouse = newValue;
-                try {
-                  await api.assetTypes.update(params.data.id, { penthouse: newValue });
-                  await fetchAssetTypes(false);
-                } catch (error) {
-                  console.error('Error updating penthouse:', error);
-                  showMessage('error', 'עדכון נכשל');
-                }
+                // Track the change in dirtyAssetTypes
+                setDirtyAssetTypes(prev => {
+                  const next = new Map(prev);
+                  const existingChanges = next.get(assetTypeId) || {};
+                  next.set(assetTypeId, { ...existingChanges, penthouse: newValue });
+                  return next;
+                });
+                // Update local state
+                setAssetTypes(prev => 
+                  prev.map(at => at.id === assetTypeId ? { ...at, penthouse: newValue } : at)
+                );
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -294,24 +381,30 @@ export function AssetTypes() {
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
+        const assetTypeId = params.data.id;
         const isChecked = params.value === 'כן';
+        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'condo' in (dirtyAssetTypes.get(assetTypeId) || {});
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={async (e) => {
+              onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.data.condo = newValue;
-                try {
-                  await api.assetTypes.update(params.data.id, { condo: newValue });
-                  await fetchAssetTypes(false);
-                } catch (error) {
-                  console.error('Error updating condo:', error);
-                  showMessage('error', 'עדכון נכשל');
-                }
+                // Track the change in dirtyAssetTypes
+                setDirtyAssetTypes(prev => {
+                  const next = new Map(prev);
+                  const existingChanges = next.get(assetTypeId) || {};
+                  next.set(assetTypeId, { ...existingChanges, condo: newValue });
+                  return next;
+                });
+                // Update local state
+                setAssetTypes(prev => 
+                  prev.map(at => at.id === assetTypeId ? { ...at, condo: newValue } : at)
+                );
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -323,24 +416,30 @@ export function AssetTypes() {
       headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
       cellRenderer: (params: any) => {
+        const assetTypeId = params.data.id;
         const isChecked = params.value === 'כן';
+        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'townhouses' in (dirtyAssetTypes.get(assetTypeId) || {});
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={async (e) => {
+              onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.data.townhouses = newValue;
-                try {
-                  await api.assetTypes.update(params.data.id, { townhouses: newValue });
-                  await fetchAssetTypes(false);
-                } catch (error) {
-                  console.error('Error updating townhouses:', error);
-                  showMessage('error', 'עדכון נכשל');
-                }
+                // Track the change in dirtyAssetTypes
+                setDirtyAssetTypes(prev => {
+                  const next = new Map(prev);
+                  const existingChanges = next.get(assetTypeId) || {};
+                  next.set(assetTypeId, { ...existingChanges, townhouses: newValue });
+                  return next;
+                });
+                // Update local state
+                setAssetTypes(prev => 
+                  prev.map(at => at.id === assetTypeId ? { ...at, townhouses: newValue } : at)
+                );
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
           </div>
         );
@@ -353,7 +452,12 @@ export function AssetTypes() {
       headerName: 'שטח מ',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' },
+      cellStyle: (params) => {
+        const baseStyle = { textAlign: 'left' as const };
+        const assetTypeId = params.data?.id;
+        const isDirty = assetTypeId && dirtyAssetTypes.has(assetTypeId) && 'min_size' in (dirtyAssetTypes.get(assetTypeId) || {});
+        return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
+      },
       headerClass: 'text-left'
     },
     {
@@ -361,7 +465,12 @@ export function AssetTypes() {
       headerName: 'שטח עד',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'left' },
+      cellStyle: (params) => {
+        const baseStyle = { textAlign: 'left' as const };
+        const assetTypeId = params.data?.id;
+        const isDirty = assetTypeId && dirtyAssetTypes.has(assetTypeId) && 'max_size' in (dirtyAssetTypes.get(assetTypeId) || {});
+        return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
+      },
       headerClass: 'text-left'
     },
     {
@@ -379,7 +488,7 @@ export function AssetTypes() {
         );
       }
     }
-  ], [t]);
+  ], [t, dirtyAssetTypes]);
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -463,7 +572,9 @@ export function AssetTypes() {
       {message && (
         <div
           className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+            message.type === 'success' ? 'bg-green-50 text-green-800' : 
+            message.type === 'error' ? 'bg-red-50 text-red-800' : 
+            'bg-blue-50 text-blue-800'
           }`}
         >
           {message.text}
@@ -502,6 +613,32 @@ export function AssetTypes() {
             </div>
           )}
         </div>
+
+        {/* Save All / Cancel buttons */}
+        {!isAdding && (dirtyAssetTypes.size > 0 || deletedAssetTypes.size > 0) && (
+          <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+            <button
+              onClick={handleCancelAll}
+              disabled={isSaving}
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+            >
+              <X className="h-4 w-4" />
+              {t('cancel')}
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={isSaving}
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {isSaving ? 'שומר...' : `שמור הכל${dirtyAssetTypes.size + deletedAssetTypes.size > 0 ? ` (${dirtyAssetTypes.size + deletedAssetTypes.size})` : ''}`}
+            </button>
+          </div>
+        )}
 
         {isAdding && (
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">

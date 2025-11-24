@@ -121,11 +121,12 @@ export function AssetsFileImport() {
           sub_asset_size_5: 0,
           sub_asset_type_6: '',
           sub_asset_size_6: 0,
+          penthouse: null,
         };
 
-        // Check if we have the expected column count (17 columns: building, payer, asset_id, main_type, main_size, 6 pairs of sub)
+        // Check if we have the expected column count (18 columns: building, payer, asset_id, main_type, main_size, 6 pairs of sub, penthouse)
         // Or if headers are empty/garbled, use fixed position mapping
-        const expectedColumnCount = 17;
+        const expectedColumnCount = 18;
         const hasExpectedColumns = values.length >= 5; // At least building, payer, asset_id, type, size
         const headersAreValid = headers.length > 0 && headers.some(h => h && (h.includes('building') || h.includes('בניין') || h.includes('מזהה')));
         
@@ -137,6 +138,7 @@ export function AssetsFileImport() {
           // Column 0: Building number, Column 1: Payer ID, Column 2: Asset ID, 
           // Column 3: Main asset type, Column 4: Asset size,
           // Columns 5-16: Sub asset types and sizes (6 pairs)
+          // Column 17: Penthouse (דירת גג)
           asset.building_number = values[0] ? parseInt(values[0]) : null;
           asset.payer_id = values[1] || '';
           asset.asset_id = values[2] || '';
@@ -154,6 +156,9 @@ export function AssetsFileImport() {
           asset.sub_asset_size_5 = values[14] ? parseFloat(values[14]) : 0;
           asset.sub_asset_type_6 = values[15] || '';
           asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
+          // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> null
+          const penthouseValue = (values[17] || '').trim();
+          asset.penthouse = (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') ? 'כן' : null;
         } else {
           // Header-based mapping (for backward compatibility)
           headers.forEach((header, index) => {
@@ -196,6 +201,10 @@ export function AssetsFileImport() {
               asset.sub_asset_type_6 = value;
             } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
               asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
+            } else if (headerLower.includes('גג') || headerLower.includes('penthouse') || headerLower === 'penthouse') {
+              // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> null
+              const penthouseValue = (value || '').trim();
+              asset.penthouse = (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') ? 'כן' : null;
             }
           });
         }
@@ -312,7 +321,8 @@ export function AssetsFileImport() {
       'סוג נכס משנה 5',
       'גודל נכס משנה 5',
       'סוג נכס משנה 6',
-      'גודל נכס משנה 6'
+      'גודל נכס משנה 6',
+      'דירת גג'
     ];
 
     const data = [headers];
@@ -446,6 +456,7 @@ export function AssetsFileImport() {
                 <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
                   <li><strong>סוג נכס משנה 1-6</strong> (Sub asset types)</li>
                   <li><strong>גודל נכס משנה 1-6</strong> (Sub asset sizes)</li>
+                  <li><strong>דירת גג</strong> (Penthouse)</li>
                   <li><strong>תאריך מדידה</strong> (Measurement date - יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע)</li>
                 </ul>
               </div>

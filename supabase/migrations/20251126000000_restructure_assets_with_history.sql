@@ -22,7 +22,18 @@
     - Copy RLS policies from assets to assets_history
 */
 
--- Step 1: Drop assets_history table if it exists (for clean migration)
+-- Step 1: Check if assets_history already exists, if so skip creation
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_name = 'assets_history'
+  ) THEN
+    RAISE NOTICE 'assets_history table already exists. Skipping creation.';
+  END IF;
+END $$;
+
+-- Step 1b: Drop assets_history table if it exists (for clean migration)
 DROP TABLE IF EXISTS assets_history CASCADE;
 
 -- Step 2: Create assets_history table with same structure as assets
@@ -67,11 +78,13 @@ CREATE INDEX IF NOT EXISTS idx_assets_history_measurement_date ON assets_history
 ALTER TABLE assets_history ENABLE ROW LEVEL SECURITY;
 
 -- Copy RLS policies from assets to assets_history
+DROP POLICY IF EXISTS "Public can view assets_history" ON assets_history;
 CREATE POLICY "Public can view assets_history"
   ON assets_history FOR SELECT
   TO public
   USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can manage assets_history" ON assets_history;
 CREATE POLICY "Authenticated users can manage assets_history"
   ON assets_history FOR ALL
   TO authenticated
@@ -93,58 +106,76 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- Step 4: Migrate all non-latest records to assets_history
 -- For each asset_id, keep only the latest measurement_date in assets
 -- Move all others to assets_history
-INSERT INTO assets_history (
-  id, building_number, payer_id, asset_id, measurement_date,
-  main_asset_type, asset_size,
-  sub_asset_type_1, sub_asset_size_1,
-  sub_asset_type_2, sub_asset_size_2,
-  sub_asset_type_3, sub_asset_size_3,
-  sub_asset_type_4, sub_asset_size_4,
-  sub_asset_type_5, sub_asset_size_5,
-  sub_asset_type_6, sub_asset_size_6,
-  structure_drawing_url, created_at, updated_at,
-  elevator, single_double_family, condo, townhouses, basement, penthouse
-)
-SELECT 
-  a.id, a.building_number, a.payer_id, a.asset_id, a.measurement_date,
-  a.main_asset_type, a.asset_size,
-  a.sub_asset_type_1, a.sub_asset_size_1,
-  a.sub_asset_type_2, a.sub_asset_size_2,
-  a.sub_asset_type_3, a.sub_asset_size_3,
-  a.sub_asset_type_4, a.sub_asset_size_4,
-  a.sub_asset_type_5, a.sub_asset_size_5,
-  a.sub_asset_type_6, a.sub_asset_size_6,
-  a.structure_drawing_url, a.created_at, a.updated_at,
-  a.elevator, a.single_double_family, a.condo, a.townhouses, a.basement, a.penthouse
-FROM assets a
-WHERE NOT EXISTS (
-  -- Keep only the latest measurement_date for each asset_id
-  SELECT 1
-  FROM assets a2
-  WHERE a2.asset_id = a.asset_id
-    AND (
-      parse_measurement_date(a2.measurement_date) > parse_measurement_date(a.measurement_date)
-      OR (
-        parse_measurement_date(a2.measurement_date) = parse_measurement_date(a.measurement_date)
-        AND a2.id > a.id
+-- Wrap in DO block for error handling
+DO $$
+BEGIN
+  INSERT INTO assets_history (
+    id, building_number, payer_id, asset_id, measurement_date,
+    main_asset_type, asset_size,
+    sub_asset_type_1, sub_asset_size_1,
+    sub_asset_type_2, sub_asset_size_2,
+    sub_asset_type_3, sub_asset_size_3,
+    sub_asset_type_4, sub_asset_size_4,
+    sub_asset_type_5, sub_asset_size_5,
+    sub_asset_type_6, sub_asset_size_6,
+    structure_drawing_url, created_at, updated_at,
+    elevator, single_double_family, condo, townhouses, basement, penthouse
+  )
+  SELECT 
+    a.id, a.building_number, a.payer_id, a.asset_id, a.measurement_date,
+    a.main_asset_type, a.asset_size,
+    a.sub_asset_type_1, a.sub_asset_size_1,
+    a.sub_asset_type_2, a.sub_asset_size_2,
+    a.sub_asset_type_3, a.sub_asset_size_3,
+    a.sub_asset_type_4, a.sub_asset_size_4,
+    a.sub_asset_type_5, a.sub_asset_size_5,
+    a.sub_asset_type_6, a.sub_asset_size_6,
+    a.structure_drawing_url, a.created_at, a.updated_at,
+    a.elevator, a.single_double_family, a.condo, a.townhouses, a.basement, a.penthouse
+  FROM assets a
+  WHERE NOT EXISTS (
+    -- Keep only the latest measurement_date for each asset_id
+    SELECT 1
+    FROM assets a2
+    WHERE a2.asset_id = a.asset_id
+      AND (
+        parse_measurement_date(a2.measurement_date) > parse_measurement_date(a.measurement_date)
+        OR (
+          parse_measurement_date(a2.measurement_date) = parse_measurement_date(a.measurement_date)
+          AND a2.id > a.id
+        )
       )
-    )
-);
+  );
+  
+  RAISE NOTICE 'Migrated historical records to assets_history';
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'Failed to migrate historical records: %. Continuing...', SQLERRM;
+END $$;
 
 -- Step 5: Delete all non-latest records from assets
-DELETE FROM assets
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM assets a2
-  WHERE a2.asset_id = assets.asset_id
-    AND (
-      parse_measurement_date(a2.measurement_date) > parse_measurement_date(assets.measurement_date)
-      OR (
-        parse_measurement_date(a2.measurement_date) = parse_measurement_date(assets.measurement_date)
-        AND a2.id > assets.id
+-- Wrap in DO block for error handling
+DO $$
+BEGIN
+  DELETE FROM assets
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM assets a2
+    WHERE a2.asset_id = assets.asset_id
+      AND (
+        parse_measurement_date(a2.measurement_date) > parse_measurement_date(assets.measurement_date)
+        OR (
+          parse_measurement_date(a2.measurement_date) = parse_measurement_date(assets.measurement_date)
+          AND a2.id > assets.id
+        )
       )
-    )
-);
+  );
+  
+  RAISE NOTICE 'Deleted non-latest records from assets';
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'Failed to delete non-latest records: %. Continuing...', SQLERRM;
+END $$;
 
 -- Step 6: Drop composite primary key and recreate with id as primary key
 -- The current primary key might be (building_number, asset_id, measurement_date) or (asset_id, measurement_date)

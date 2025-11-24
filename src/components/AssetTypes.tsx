@@ -139,6 +139,15 @@ export function AssetTypes() {
       setAssetTypes(prev => 
         prev.map(at => at.id === assetTypeId ? { ...at, [field]: newValue } : at)
       );
+      
+      // Force refresh only this specific cell to avoid affecting other cells
+      if (gridRef.current) {
+        gridRef.current.api.refreshCells({ 
+          rowNodes: [event.node], 
+          columns: [field],
+          force: true 
+        });
+      }
     } catch (error) {
       console.error('Error updating asset type:', error);
       showMessage('error', 'שגיאה בעדכון');
@@ -282,12 +291,8 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
-        // Get current value from dirty state if exists, otherwise from data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'elevator' in dirtyChanges 
-          ? dirtyChanges.elevator 
-          : params.data.elevator;
-        const isChecked = currentValue === 'כן';
+        // Use params.value which is the current cell value
+        const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'elevator' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -304,12 +309,20 @@ export function AssetTypes() {
                   next.set(assetTypeId, { ...existingChanges, elevator: newValue });
                   return next;
                 });
+                // Update grid cell data directly first
+                params.node.setDataValue('elevator', newValue);
                 // Update local state
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, elevator: newValue } : at)
                 );
-                // Update grid cell
-                params.node.setDataValue('elevator', newValue);
+                // Force refresh only this cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['elevator'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -326,12 +339,8 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
-        // Get current value from dirty state if exists, otherwise from data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'single_double_family' in dirtyChanges 
-          ? dirtyChanges.single_double_family 
-          : params.data.single_double_family;
-        const isChecked = currentValue === 'כן';
+        // Use params.value which is the current cell value
+        const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'single_double_family' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -348,12 +357,20 @@ export function AssetTypes() {
                   next.set(assetTypeId, { ...existingChanges, single_double_family: newValue });
                   return next;
                 });
+                // Update grid cell data directly first
+                params.node.setDataValue('single_double_family', newValue);
                 // Update local state
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, single_double_family: newValue } : at)
                 );
-                // Update grid cell
-                params.node.setDataValue('single_double_family', newValue);
+                // Force refresh only this cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['single_double_family'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -372,12 +389,8 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
-        // Get current value from dirty state if exists, otherwise from data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
-          ? dirtyChanges.penthouse 
-          : params.data.penthouse;
-        const isChecked = currentValue === 'כן';
+        // Use params.value which is the current cell value
+        const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'penthouse' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -394,12 +407,20 @@ export function AssetTypes() {
                   next.set(assetTypeId, { ...existingChanges, penthouse: newValue });
                   return next;
                 });
+                // Update grid cell data directly first
+                params.node.setDataValue('penthouse', newValue);
                 // Update local state
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, penthouse: newValue } : at)
                 );
-                // Update grid cell
-                params.node.setDataValue('penthouse', newValue);
+                // Force refresh only this cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['penthouse'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -417,12 +438,8 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
-        // Get current value from dirty state if exists, otherwise from data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'condo' in dirtyChanges 
-          ? dirtyChanges.condo 
-          : params.data.condo;
-        const isChecked = currentValue === 'כן';
+        // Use params.value which is the current cell value
+        const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'condo' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -439,12 +456,20 @@ export function AssetTypes() {
                   next.set(assetTypeId, { ...existingChanges, condo: newValue });
                   return next;
                 });
+                // Update grid cell data directly first
+                params.node.setDataValue('condo', newValue);
                 // Update local state
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, condo: newValue } : at)
                 );
-                // Update grid cell
-                params.node.setDataValue('condo', newValue);
+                // Force refresh only this cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['condo'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -461,12 +486,8 @@ export function AssetTypes() {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
         
-        // Get current value from dirty state if exists, otherwise from data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'townhouses' in dirtyChanges 
-          ? dirtyChanges.townhouses 
-          : params.data.townhouses;
-        const isChecked = currentValue === 'כן';
+        // Use params.value which is the current cell value
+        const isChecked = params.value === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'townhouses' in (dirtyAssetTypes.get(assetTypeId) || {});
         
         return (
@@ -483,12 +504,20 @@ export function AssetTypes() {
                   next.set(assetTypeId, { ...existingChanges, townhouses: newValue });
                   return next;
                 });
+                // Update grid cell data directly first
+                params.node.setDataValue('townhouses', newValue);
                 // Update local state
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, townhouses: newValue } : at)
                 );
-                // Update grid cell
-                params.node.setDataValue('townhouses', newValue);
+                // Force refresh only this cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['townhouses'],
+                    force: true 
+                  });
+                }
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />

@@ -315,13 +315,7 @@ export function AssetsFileImport() {
       'גודל נכס משנה 6'
     ];
 
-    const data = [
-      headers,
-      [8268128, 516144276, 826812801, 311, 552.89, '', '', '', '', '', '', '', '', '', '', '', ''],
-      [8268128, 516144276, 826812802, 299, 264.29, 311, 248.2, 702, 10.36, 702, 5.73, '', '', '', '', '', ''],
-      [8268128, 516144276, 826812803, 311, 81.5, '', '', '', '', '', '', '', '', '', '', '', ''],
-      [8268128, 516144276, 826812804, 299, 126.36, 311, 21.06, 311, 21.06, 311, 21.06, 311, 21.06, 311, 21.06, 311, 21.06]
-    ];
+    const data = [headers];
 
     // Create workbook and worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(data);
@@ -347,14 +341,6 @@ export function AssetsFileImport() {
         {/* Buttons Section - Top */}
         <div className="space-y-3 mb-6">
           <div className="flex gap-3">
-            <button
-              onClick={downloadTemplate}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-            >
-              <Download className="h-4 w-4" />
-              <span>הורד תבנית</span>
-            </button>
-
             <input
               ref={fileInputRef}
               type="file"
@@ -368,19 +354,27 @@ export function AssetsFileImport() {
               disabled={isImporting}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
-            {isImporting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>מייבא...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4" />
-                <span>בחר קובץ לייבוא</span>
-              </>
-            )}
-          </button>
-        </div>
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>מייבא...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  <span>בחר קובץ לייבוא</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={downloadTemplate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              <Download className="h-4 w-4" />
+              <span>הורד תבנית</span>
+            </button>
+          </div>
 
         {/* Progress Indicator */}
         {progress && (

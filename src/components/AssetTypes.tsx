@@ -650,12 +650,12 @@ export function AssetTypes() {
           )}
         </div>
 
-        {/* Save All / Cancel buttons */}
-        {!isAdding && (dirtyAssetTypes.size > 0 || deletedAssetTypes.size > 0) && (
+        {/* Save All / Cancel buttons - always visible */}
+        {!isAdding && (
           <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button
               onClick={handleCancelAll}
-              disabled={isSaving}
+              disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
             >
               <X className="h-4 w-4" />
@@ -663,7 +663,7 @@ export function AssetTypes() {
             </button>
             <button
               onClick={handleSaveAll}
-              disabled={isSaving}
+              disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
             >
               {isSaving ? (

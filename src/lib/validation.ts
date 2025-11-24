@@ -332,6 +332,7 @@ export async function validateAssetTypeComplete(
     }
 
     // Query asset types by name field (tax region validation already done above)
+    // Select all fields to show complete record information
     let query = supabase
       .from('asset_types')
       .select('*')
@@ -479,7 +480,21 @@ export async function validateAssetTypeComplete(
       if (result.valid) {
         // Found a matching entry, asset type is valid
         // Return information about which asset type record matched
-        const matchedRecordInfo = `תואם לרישום מסוג נכס: ID=${assetType.id || assetType.asset_type || 'N/A'}, אזור מיסים=${assetType.tax_region || 'N/A'}, מעלית=${assetType.elevator || 'לא מוגדר'}, מינימום=${assetType.min_size || 'לא מוגדר'}, מקסימום=${assetType.max_size || 'לא מוגדר'}, דירת גג=${assetType.penthouse || 'לא מוגדר'}`;
+        // Build comprehensive matched record info with all asset type fields
+        const fields: string[] = [];
+        fields.push(`סוג נכס=${assetType.name || assetTypeName || 'N/A'}`);
+        if (assetType.description) fields.push(`תיאור=${assetType.description}`);
+        if (assetType.tax_region != null) fields.push(`אזור מיסים=${assetType.tax_region}`);
+        if (assetType.elevator) fields.push(`מעלית=${assetType.elevator}`);
+        if (assetType.single_double_family) fields.push(`בית פרטי חד/דו משפחתי=${assetType.single_double_family}`);
+        if (assetType.penthouse) fields.push(`דירת גג=${assetType.penthouse}`);
+        if (assetType.condo) fields.push(`בית משותף=${assetType.condo}`);
+        if (assetType.townhouses) fields.push(`טוריים=${assetType.townhouses}`);
+        if (assetType.basement || assetType.shelter) fields.push(`מרתף=${assetType.basement || assetType.shelter || 'לא מוגדר'}`);
+        if (assetType.min_size != null) fields.push(`מינימום=${assetType.min_size}`);
+        if (assetType.max_size != null) fields.push(`מקסימום=${assetType.max_size}`);
+        
+        const matchedRecordInfo = `תואם לרישום מסוג נכס: ${fields.join(', ')}`;
         return { valid: true, matchedAssetTypeRecord: matchedRecordInfo };
       }
       // Collect errors from this entry (we'll use them if all entries fail)

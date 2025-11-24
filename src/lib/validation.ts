@@ -226,7 +226,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
   try {
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region, has_elevator')
+      .select('tax_region')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -317,7 +317,7 @@ export async function validateAssetTypeComplete(
 
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('tax_region, has_elevator, elevator, shared_area, single_double_family, condo, basement, townhouses')
+      .select('tax_region, elevator, shared_area, single_double_family, condo, basement, townhouses')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -374,10 +374,11 @@ export async function validateAssetTypeComplete(
       const elevatorMatches = assetTypes.filter(at => {
         if (!at.elevator || at.elevator.trim() === '') return true;
         const elevatorValue = at.elevator.toLowerCase();
+        const buildingElevator = building.elevator ? building.elevator.toLowerCase() : '';
         if (elevatorValue === 'כן' || elevatorValue === 'yes') {
-          return building.has_elevator;
+          return buildingElevator === 'כן' || buildingElevator === 'yes';
         } else if (elevatorValue === 'לא' || elevatorValue === 'no') {
-          return !building.has_elevator;
+          return buildingElevator !== 'כן' && buildingElevator !== 'yes';
         }
         return true;
       });
@@ -439,14 +440,14 @@ export async function validateAssetTypeComplete(
       const buildingValue = building.elevator ? building.elevator.toLowerCase() : '';
 
       if (requiredValue === 'כן' || requiredValue === 'yes') {
-        if (buildingValue !== 'כן' && buildingValue !== 'yes' && !building.has_elevator) {
+        if (buildingValue !== 'כן' && buildingValue !== 'yes') {
           return {
             valid: false,
             error: `סוג הנכס "${assetTypeName}" דורש מעלית, אבל בבניין אין מעלית`
           };
         }
       } else if (requiredValue === 'לא' || requiredValue === 'no') {
-        if ((buildingValue === 'כן' || buildingValue === 'yes') || building.has_elevator) {
+        if (buildingValue === 'כן' || buildingValue === 'yes') {
           return {
             valid: false,
             error: `סוג הנכס "${assetTypeName}" מיועד לבניינים ללא מעלית, אבל בבניין יש מעלית`
@@ -1230,10 +1231,6 @@ export const buildingValidators = {
       }
     }
 
-    // Validate has_elevator (should be boolean)
-    if (building.has_elevator !== true && building.has_elevator !== false) {
-      errors.has_elevator = 'Elevator field must be yes or no';
-    }
 
     // Validate area_for_control (should be positive number if provided)
     if (building.area_for_control != null) {

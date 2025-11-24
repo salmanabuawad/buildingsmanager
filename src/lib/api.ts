@@ -6,7 +6,6 @@ export interface Building {
   building_number: number;
   tax_region?: string;
   shared_area?: number;
-  has_elevator: boolean;
   elevator?: string;
   area_for_control?: number;
   created_at: string;

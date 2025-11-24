@@ -87,7 +87,6 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       await api.buildings.create({
         building_number: buildingNumber,
         tax_region: taxRegion,
-        has_elevator: false,
         elevator: undefined
       });
       console.log('[CREATE] Building created successfully');

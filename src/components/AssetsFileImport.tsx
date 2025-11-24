@@ -25,6 +25,7 @@ export function AssetsFileImport() {
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
+  const [importPenthouse, setImportPenthouse] = useState(true);
   const [showResultModal, setShowResultModal] = useState(false);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,7 +158,8 @@ export function AssetsFileImport() {
           asset.sub_asset_type_6 = values[15] || '';
           asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
           // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
-          if (values.length > 17) {
+          // Only process penthouse if importPenthouse flag is enabled
+          if (values.length > 17 && importPenthouse) {
             const penthouseValue = (values[17] || '').trim();
             if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
               asset.penthouse = 'כן';
@@ -207,12 +209,15 @@ export function AssetsFileImport() {
             } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
               asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
             } else if (headerLower.includes('גג') || headerLower.includes('penthouse') || headerLower === 'penthouse') {
-              // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
-              const penthouseValue = (value || '').trim();
-              if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
-                asset.penthouse = 'כן';
+              // Only process penthouse if importPenthouse flag is enabled
+              if (importPenthouse) {
+                // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
+                const penthouseValue = (value || '').trim();
+                if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
+                  asset.penthouse = 'כן';
+                }
+                // If not 'כן' or 'yes', don't set the field (will be null/undefined in DB)
               }
-              // If not 'כן' or 'yes', don't set the field (will be null/undefined in DB)
             }
           });
         }
@@ -408,18 +413,33 @@ export function AssetsFileImport() {
           </div>
         )}
 
-          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={validateBeforeImport}
-                onChange={(e) => setValidateBeforeImport(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-xs font-medium text-blue-900">
-                בצע ולידציה לפני ייבוא (מומלץ)
-              </span>
-            </label>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={validateBeforeImport}
+                  onChange={(e) => setValidateBeforeImport(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-xs font-medium text-blue-900">
+                  בצע ולידציה לפני ייבוא (מומלץ)
+                </span>
+              </label>
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={importPenthouse}
+                  onChange={(e) => setImportPenthouse(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-xs font-medium text-blue-900">
+                  ייבא דירת גג (אופציונלי)
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 

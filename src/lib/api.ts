@@ -154,17 +154,40 @@ function sanitizeAssetInput(input: any): any {
  * Sanitizes building data before sending to the server
  */
 function sanitizeBuildingInput(input: any): any {
-  return {
-    ...input,
-    building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
-    tax_region: input.tax_region != null ? sanitizeText(input.tax_region) : undefined,
-    shared_area: input.shared_area != null ? sanitizeNumber(input.shared_area) : undefined,
-    elevator: input.elevator != null ? sanitizeText(input.elevator) : undefined,
-    single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
-    condo: input.condo != null ? sanitizeText(input.condo) : undefined,
-    basement: input.basement != null ? sanitizeText(input.basement) : undefined,
-    townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
-  };
+  const sanitized: any = {};
+  
+  if (input.building_number != null) {
+    sanitized.building_number = sanitizeInteger(input.building_number);
+  }
+  if (input.tax_region != null && input.tax_region !== '') {
+    sanitized.tax_region = sanitizeText(input.tax_region);
+  }
+  if (input.shared_area != null) {
+    sanitized.shared_area = sanitizeNumber(input.shared_area);
+  }
+  if (input.area_for_control != null) {
+    sanitized.area_for_control = sanitizeNumber(input.area_for_control);
+  }
+  if (input.total_building_area != null) {
+    sanitized.total_building_area = sanitizeNumber(input.total_building_area);
+  }
+  if (input.elevator != null && input.elevator !== '') {
+    sanitized.elevator = sanitizeText(input.elevator);
+  }
+  if (input.single_double_family != null && input.single_double_family !== '') {
+    sanitized.single_double_family = sanitizeText(input.single_double_family);
+  }
+  if (input.condo != null && input.condo !== '') {
+    sanitized.condo = sanitizeText(input.condo);
+  }
+  if (input.basement != null && input.basement !== '') {
+    sanitized.basement = sanitizeText(input.basement);
+  }
+  if (input.townhouses != null && input.townhouses !== '') {
+    sanitized.townhouses = sanitizeText(input.townhouses);
+  }
+  
+  return sanitized;
 }
 
 export const api = {
@@ -207,9 +230,13 @@ export const api = {
     create: async (input: Omit<Building, 'created_at'>): Promise<Building> => {
       console.log('[API] Creating building with input:', input);
       const sanitizedInput = sanitizeBuildingInput(input);
+      // Remove undefined values to prevent Supabase errors
+      const cleanedInput = Object.fromEntries(
+        Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
+      );
       const { data, error } = await supabase
         .from('buildings')
-        .insert(sanitizedInput)
+        .insert(cleanedInput)
         .select()
         .single();
 
@@ -228,9 +255,19 @@ export const api = {
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
       console.log('[API] Updating building:', buildingNumber, 'with data:', input);
       const sanitizedInput = sanitizeBuildingInput(input);
+      // Remove undefined values to prevent Supabase errors
+      const cleanedInput = Object.fromEntries(
+        Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
+      );
+      
+      // If no fields to update, return the existing building
+      if (Object.keys(cleanedInput).length === 0) {
+        return api.buildings.getOne(buildingNumber);
+      }
+      
       const { data, error } = await supabase
         .from('buildings')
-        .update(sanitizedInput)
+        .update(cleanedInput)
         .eq('building_number', buildingNumber)
         .select()
         .single();

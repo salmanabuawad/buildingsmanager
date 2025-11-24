@@ -323,32 +323,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   };
 
   const handleCancelAll = async () => {
-    // Capture current newBuildings before clearing
-    const currentNewBuildings = new Set(newBuildings);
-    
-    // Remove new buildings (temp IDs) from buildings and filteredBuildings
-    setBuildings(prev => prev.filter(b => !currentNewBuildings.has(b.building_number)));
-    setFilteredBuildings(prev => prev.filter(b => !currentNewBuildings.has(b.building_number)));
-    
-    // Restore original data for existing buildings
-    setBuildings(prev => {
-      const restored = JSON.parse(JSON.stringify(originalBuildings));
-      const filtered = restored.filter((b: Building) => !currentNewBuildings.has(b.building_number));
-      const merged = [...prev.filter(b => !currentNewBuildings.has(b.building_number)), ...filtered];
-      const unique = merged.filter((b, index, self) => 
-        index === self.findIndex(bb => bb.building_number === b.building_number)
-      );
-      return unique;
-    });
-    setFilteredBuildings(prev => {
-      const restored = JSON.parse(JSON.stringify(originalBuildings));
-      const filtered = restored.filter((b: Building) => !currentNewBuildings.has(b.building_number));
-      const merged = [...prev.filter(b => !currentNewBuildings.has(b.building_number)), ...filtered];
-      const unique = merged.filter((b, index, self) => 
-        index === self.findIndex(bb => bb.building_number === b.building_number)
-      );
-      return unique;
-    });
+    // Simply restore original buildings (this automatically excludes new buildings)
+    setBuildings(JSON.parse(JSON.stringify(originalBuildings)));
+    setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
     
     setDirtyBuildings(new Map());
     setValidationErrors(new Map());
@@ -367,7 +344,10 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     }
     setInvalidTaxRegions(newInvalidSet);
 
+    // Force grid to update with new data
     if (gridRef.current?.api) {
+      // Set the row data directly to ensure new buildings are removed
+      gridRef.current.api.setRowData(JSON.parse(JSON.stringify(originalBuildings)));
       gridRef.current.api.refreshCells({ force: true });
       gridRef.current.api.refreshClientSideRowModel('filter');
     }

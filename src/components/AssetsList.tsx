@@ -51,9 +51,22 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     const display: Asset[] = [];
     for (const asset of masterAssets) {
       display.push({ ...asset, _isMasterRow: true });
-      if (expandedRows.has(asset.asset_id)) {
+      if (expandedRows.has(String(asset.asset_id))) {
+        // Show all historical records for this asset_id, excluding the master row itself
+        const masterId = String(asset.id);
         const historicalRecords = assets.filter(
-          a => a.asset_id === asset.asset_id && a.measurement_date !== asset.measurement_date
+          a => a.asset_id === asset.asset_id && String(a.id) !== masterId
+        );
+        // Sort historical records by measurement_date (newest first)
+        const parseDate = (dateStr: string) => {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+          return new Date(dateStr);
+        };
+        historicalRecords.sort((a, b) => 
+          parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
         );
         display.push(...historicalRecords.map(r => ({ ...r, _isMasterRow: false })));
       }
@@ -1112,7 +1125,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const assetId = asset.id;
         const isDeleted = deletedAssets.has(assetId);
         const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
-        const isExpanded = expandedRows.has(params.data.asset_id);
+        const isExpanded = expandedRows.has(String(params.data.asset_id));
 
         const errors: string[] = [];
         if (validationErrors.has(assetId)) {
@@ -1162,7 +1175,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  toggleRowExpansion(params.data.asset_id);
+                  toggleRowExpansion(String(params.data.asset_id));
                 }}
                 className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
                 title={isExpanded ? t('collapse') : t('expand')}

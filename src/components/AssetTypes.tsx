@@ -194,6 +194,12 @@ export function AssetTypes() {
       setDirtyAssetTypes(new Map());
       setDeletedAssetTypes(new Set());
       await fetchAssetTypes();
+      
+      // Refresh grid to show updated data
+      if (gridRef.current) {
+        gridRef.current.api.refreshCells({ force: true });
+        gridRef.current.api.redrawRows();
+      }
     } catch (error) {
       console.error('Error saving changes:', error);
       showMessage('error', 'שגיאה בשמירת השינויים');
@@ -273,9 +279,17 @@ export function AssetTypes() {
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
-        const assetTypeId = params.data.id;
-        const isChecked = params.value === 'כן';
+        const assetTypeId = params.data?.id;
+        if (!assetTypeId) return null;
+        
+        // Get current value from dirty state if exists, otherwise from data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'elevator' in dirtyChanges 
+          ? dirtyChanges.elevator 
+          : params.data.elevator;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'elevator' in (dirtyAssetTypes.get(assetTypeId) || {});
+        
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -283,7 +297,6 @@ export function AssetTypes() {
               checked={isChecked}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
-                params.data.elevator = newValue;
                 // Track the change in dirtyAssetTypes
                 setDirtyAssetTypes(prev => {
                   const next = new Map(prev);
@@ -295,6 +308,8 @@ export function AssetTypes() {
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, elevator: newValue } : at)
                 );
+                // Update grid cell
+                params.node.setDataValue('elevator', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -308,9 +323,17 @@ export function AssetTypes() {
       headerName: 'בית פרטי חד משפחתי דו משפחתי',
       editable: false,
       cellRenderer: (params: any) => {
-        const assetTypeId = params.data.id;
-        const isChecked = params.value === 'כן';
+        const assetTypeId = params.data?.id;
+        if (!assetTypeId) return null;
+        
+        // Get current value from dirty state if exists, otherwise from data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'single_double_family' in dirtyChanges 
+          ? dirtyChanges.single_double_family 
+          : params.data.single_double_family;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'single_double_family' in (dirtyAssetTypes.get(assetTypeId) || {});
+        
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -318,7 +341,6 @@ export function AssetTypes() {
               checked={isChecked}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
-                params.data.single_double_family = newValue;
                 // Track the change in dirtyAssetTypes
                 setDirtyAssetTypes(prev => {
                   const next = new Map(prev);
@@ -330,6 +352,8 @@ export function AssetTypes() {
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, single_double_family: newValue } : at)
                 );
+                // Update grid cell
+                params.node.setDataValue('single_double_family', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -345,9 +369,17 @@ export function AssetTypes() {
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
-        const assetTypeId = params.data.id;
-        const isChecked = params.value === 'כן';
+        const assetTypeId = params.data?.id;
+        if (!assetTypeId) return null;
+        
+        // Get current value from dirty state if exists, otherwise from data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
+          ? dirtyChanges.penthouse 
+          : params.data.penthouse;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'penthouse' in (dirtyAssetTypes.get(assetTypeId) || {});
+        
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -355,7 +387,6 @@ export function AssetTypes() {
               checked={isChecked}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
-                params.data.penthouse = newValue;
                 // Track the change in dirtyAssetTypes
                 setDirtyAssetTypes(prev => {
                   const next = new Map(prev);
@@ -367,6 +398,8 @@ export function AssetTypes() {
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, penthouse: newValue } : at)
                 );
+                // Update grid cell
+                params.node.setDataValue('penthouse', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -381,9 +414,17 @@ export function AssetTypes() {
       editable: false,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {
-        const assetTypeId = params.data.id;
-        const isChecked = params.value === 'כן';
+        const assetTypeId = params.data?.id;
+        if (!assetTypeId) return null;
+        
+        // Get current value from dirty state if exists, otherwise from data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'condo' in dirtyChanges 
+          ? dirtyChanges.condo 
+          : params.data.condo;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'condo' in (dirtyAssetTypes.get(assetTypeId) || {});
+        
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -391,7 +432,6 @@ export function AssetTypes() {
               checked={isChecked}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
-                params.data.condo = newValue;
                 // Track the change in dirtyAssetTypes
                 setDirtyAssetTypes(prev => {
                   const next = new Map(prev);
@@ -403,6 +443,8 @@ export function AssetTypes() {
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, condo: newValue } : at)
                 );
+                // Update grid cell
+                params.node.setDataValue('condo', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -416,9 +458,17 @@ export function AssetTypes() {
       headerName: 'בניינים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
       cellRenderer: (params: any) => {
-        const assetTypeId = params.data.id;
-        const isChecked = params.value === 'כן';
+        const assetTypeId = params.data?.id;
+        if (!assetTypeId) return null;
+        
+        // Get current value from dirty state if exists, otherwise from data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'townhouses' in dirtyChanges 
+          ? dirtyChanges.townhouses 
+          : params.data.townhouses;
+        const isChecked = currentValue === 'כן';
         const isDirty = dirtyAssetTypes.has(assetTypeId) && 'townhouses' in (dirtyAssetTypes.get(assetTypeId) || {});
+        
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -426,7 +476,6 @@ export function AssetTypes() {
               checked={isChecked}
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
-                params.data.townhouses = newValue;
                 // Track the change in dirtyAssetTypes
                 setDirtyAssetTypes(prev => {
                   const next = new Map(prev);
@@ -438,6 +487,8 @@ export function AssetTypes() {
                 setAssetTypes(prev => 
                   prev.map(at => at.id === assetTypeId ? { ...at, townhouses: newValue } : at)
                 );
+                // Update grid cell
+                params.node.setDataValue('townhouses', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -473,21 +524,6 @@ export function AssetTypes() {
       },
       headerClass: 'text-left'
     },
-    {
-      headerName: t('actions'),
-      editable: false,
-      headerClass: 'text-left',
-      cellRenderer: (params: any) => {
-        return (
-          <button
-            onClick={() => handleDelete(params.data.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        );
-      }
-    }
   ], [t, dirtyAssetTypes]);
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
@@ -805,14 +841,6 @@ export function AssetTypes() {
           </div>
         )}
 
-        {!isAdding && (
-          <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-600">
-            <p className="font-semibold mb-1">פורמט File:</p>
-            <p className="font-mono text-xs">123,תיאור לסוג 123</p>
-            <p className="font-mono text-xs">456,תיאור לסוג 456</p>
-            <p className="mt-1 text-xs">כל שורה: מספר בן 3 ספרות (נדרש), תיאור אופציונלי (מופרד בפסיק)</p>
-          </div>
-        )}
 
         {assetTypes.length === 0 ? (
           <div className="text-center py-12 text-slate-500">

@@ -12,12 +12,20 @@ interface ImportResult {
   errors: string[];
 }
 
+interface ImportProgress {
+  stage: 'parsing' | 'validating' | 'importing';
+  current: number;
+  total: number;
+  currentAssetId?: string;
+}
+
 export function AssetsFileImport() {
   const { t } = useTranslation();
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function parseExcelFile(file: File): Promise<string[][]> {
@@ -61,6 +69,7 @@ export function AssetsFileImport() {
 
     setIsImporting(true);
     setImportResult(null);
+    setProgress({ stage: 'parsing', current: 0, total: 1 });
 
     try {
       const lines = await parseExcelFile(file);
@@ -69,6 +78,7 @@ export function AssetsFileImport() {
         throw new Error('קובץ File ריק');
       }
 
+      const totalRows = lines.length - 1;
       const headers = lines[0].map(h => h.trim().toLowerCase());
       const assets: any[] = [];
       const errors: string[] = [];
@@ -80,8 +90,16 @@ export function AssetsFileImport() {
       const year = today.getFullYear();
       const defaultMeasurementDate = `${day}/${month}/${year}`;
 
+      setProgress({ stage: 'validating', current: 0, total: totalRows });
+
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i];
+        setProgress({ 
+          stage: 'validating', 
+          current: i - 1, 
+          total: totalRows,
+          currentAssetId: values[2] || undefined
+        });
         if (values.length === 0 || values.every(v => !v)) continue;
 
         const asset: any = {
@@ -226,7 +244,17 @@ export function AssetsFileImport() {
       let successCount = 0;
       let failCount = 0;
 
-      for (const asset of assets) {
+      setProgress({ stage: 'importing', current: 0, total: assets.length });
+
+      for (let idx = 0; idx < assets.length; idx++) {
+        const asset = assets[idx];
+        setProgress({ 
+          stage: 'importing', 
+          current: idx, 
+          total: assets.length,
+          currentAssetId: asset.asset_id
+        });
+        
         try {
           await api.assets.create(asset);
           successCount++;
@@ -257,6 +285,7 @@ export function AssetsFileImport() {
       setShowResultModal(true);
     } finally {
       setIsImporting(false);
+      setProgress(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -340,19 +369,49 @@ export function AssetsFileImport() {
               disabled={isImporting}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
-              {isImporting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>מייבא...</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  <span>בחר קובץ לייבוא</span>
-                </>
-              )}
-            </button>
+            {isImporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>מייבא...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                <span>בחר קובץ לייבוא</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Progress Indicator */}
+        {progress && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  {progress.stage === 'parsing' && 'קורא קובץ...'}
+                  {progress.stage === 'validating' && 'מאמת נתונים...'}
+                  {progress.stage === 'importing' && 'מייבא נכסים...'}
+                </span>
+              </div>
+              <span className="text-xs text-blue-700">
+                {progress.current} / {progress.total}
+              </span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+            {progress.currentAssetId && (
+              <p className="text-xs text-blue-700">
+                מעבד נכס: {progress.currentAssetId}
+              </p>
+            )}
           </div>
+        )}
 
           <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <label className="flex items-center gap-2 cursor-pointer">

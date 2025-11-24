@@ -22,12 +22,15 @@
     - Copy RLS policies from assets to assets_history
 */
 
--- Step 1: Create assets_history table with same structure as assets
-CREATE TABLE IF NOT EXISTS assets_history (
+-- Step 1: Drop assets_history table if it exists (for clean migration)
+DROP TABLE IF EXISTS assets_history CASCADE;
+
+-- Step 2: Create assets_history table with same structure as assets
+CREATE TABLE assets_history (
   id bigint,
   building_number bigint,
   payer_id text,
-  asset_id bigint,
+  asset_id bigint NOT NULL,
   measurement_date text NOT NULL,
   main_asset_type text,
   asset_size numeric,
@@ -75,7 +78,7 @@ CREATE POLICY "Authenticated users can manage assets_history"
   USING (true)
   WITH CHECK (true);
 
--- Step 2: Helper function to parse DD/MM/YYYY date for sorting
+-- Step 3: Helper function to parse DD/MM/YYYY date for sorting
 CREATE OR REPLACE FUNCTION parse_measurement_date(date_str text)
 RETURNS date AS $$
 BEGIN
@@ -87,7 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Step 3: Migrate all non-latest records to assets_history
+-- Step 4: Migrate all non-latest records to assets_history
 -- For each asset_id, keep only the latest measurement_date in assets
 -- Move all others to assets_history
 INSERT INTO assets_history (
@@ -128,7 +131,7 @@ WHERE NOT EXISTS (
     )
 );
 
--- Step 4: Delete all non-latest records from assets
+-- Step 5: Delete all non-latest records from assets
 DELETE FROM assets
 WHERE NOT EXISTS (
   SELECT 1
@@ -143,16 +146,42 @@ WHERE NOT EXISTS (
     )
 );
 
--- Step 5: Drop composite primary key and recreate with id as primary key
+-- Step 6: Drop composite primary key and recreate with id as primary key
+-- The current primary key might be (building_number, asset_id, measurement_date) or (asset_id, measurement_date)
+-- Drop the existing primary key constraint
 ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_pkey;
+
+-- Drop any existing unique constraint on asset_id
+ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_asset_id_unique;
+ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_asset_id_key;
+
+-- Add unique constraint on asset_id (this will fail if there are duplicates, which is expected)
+-- We need to ensure uniqueness before adding the constraint
+DO $$
+DECLARE
+  duplicate_count integer;
+BEGIN
+  -- Check for duplicate asset_ids
+  SELECT COUNT(*) INTO duplicate_count
+  FROM (
+    SELECT asset_id, COUNT(*) as cnt
+    FROM assets
+    GROUP BY asset_id
+    HAVING COUNT(*) > 1
+  ) duplicates;
+  
+  IF duplicate_count > 0 THEN
+    RAISE EXCEPTION 'Cannot add unique constraint: Found % duplicate asset_ids. Please resolve duplicates first.', duplicate_count;
+  END IF;
+END $$;
 
 -- Add unique constraint on asset_id
 ALTER TABLE assets ADD CONSTRAINT assets_asset_id_unique UNIQUE (asset_id);
 
--- Make id the primary key (assuming id is bigserial)
+-- Make id the primary key
 ALTER TABLE assets ADD CONSTRAINT assets_pkey PRIMARY KEY (id);
 
--- Step 6: Create trigger function to copy old data to history before update
+-- Step 7: Create trigger function to copy old data to history before update
 CREATE OR REPLACE FUNCTION copy_asset_to_history()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -209,4 +238,17 @@ CREATE TRIGGER copy_asset_to_history_trigger
 -- Add comment to document the change
 COMMENT ON TABLE assets IS 'Current/latest asset measurements. Each asset_id appears only once. Historical measurements are in assets_history.';
 COMMENT ON TABLE assets_history IS 'Historical asset measurements. Contains all previous measurements for assets that have been updated.';
+
+-- Verify table creation
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_name = 'assets_history'
+  ) THEN
+    RAISE EXCEPTION 'assets_history table was not created successfully';
+  END IF;
+  
+  RAISE NOTICE 'assets_history table created successfully';
+END $$;
 

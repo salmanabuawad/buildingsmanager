@@ -627,7 +627,7 @@ export function AssetDataEntry() {
         assetValidators.validateBuildingNumber(row.building_number),
         assetValidators.validateAssetId(row.asset_id),
         assetValidators.validatePayerId(row.payer_id),
-        assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size),
+        assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size, row),
       ];
 
       // Validate sub-asset types if they exist

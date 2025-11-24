@@ -433,15 +433,46 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       ]);
       
       // Filter by tax zone if specified
-      let assetsToValidate = buildingAssets;
+      let filteredAssets = buildingAssets;
       if (taxZone) {
-        assetsToValidate = buildingAssets.filter(asset => {
+        filteredAssets = buildingAssets.filter(asset => {
           const assetType = assetTypesData.find(at => at.name === asset.main_asset_type);
           return assetType && String(assetType.tax_region) === taxZone;
         });
       }
 
-      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`);
+      // Group by asset_id and select only the latest record per asset_id (same logic as masterAssets)
+      const assetsByAssetId = new Map<string, Asset[]>();
+      for (const asset of filteredAssets) {
+        const assetIdKey = String(asset.asset_id);
+        if (!assetsByAssetId.has(assetIdKey)) {
+          assetsByAssetId.set(assetIdKey, []);
+        }
+        assetsByAssetId.get(assetIdKey)!.push(asset);
+      }
+      
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+      
+      // Select only the latest record per asset_id (same as masterAssets logic)
+      const assetsToValidate = Array.from(assetsByAssetId.values()).map(group => {
+        group.sort((a, b) => {
+          const dateA = parseDate(a.measurement_date);
+          const dateB = parseDate(b.measurement_date);
+          // Sort by date (newest first), then by id (highest first) as tiebreaker
+          const dateDiff = dateB.getTime() - dateA.getTime();
+          if (dateDiff !== 0) return dateDiff;
+          return b.id - a.id;
+        });
+        return group[0]; // Return the latest record
+      });
+
+      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber} (only latest records per asset_id)`);
 
       // Cache building data to avoid repeated queries
       const buildingCache = buildingData ? {
@@ -548,11 +579,18 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               ])
             ];
 
+            // Track seen errors to avoid duplicates across all validations
+            const seenErrors = new Set<string>();
+
             // Run synchronous validations in parallel
             const syncResults = await Promise.all(syncValidations);
             syncResults.forEach(result => {
               if (!result.valid && result.error) {
-                assetErrors.push(result.error);
+                // Only add error if we haven't seen it before
+                if (!seenErrors.has(result.error)) {
+                  assetErrors.push(result.error);
+                  seenErrors.add(result.error);
+                }
               }
             });
 
@@ -590,7 +628,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             const dbResults = await Promise.all(dbValidations);
             dbResults.forEach(result => {
               if (!result.valid && result.error) {
-                assetErrors.push(result.error);
+                // Only add error if we haven't seen it before
+                if (!seenErrors.has(result.error)) {
+                  assetErrors.push(result.error);
+                  seenErrors.add(result.error);
+                }
               }
             });
 
@@ -625,7 +667,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             const subResults = await Promise.all(subValidations);
             subResults.forEach((result, idx) => {
               if (!result.valid && result.error && subAssetTypes[idx]) {
-                assetErrors.push(`נכס משנה ${idx + 1}: ${result.error}`);
+                const errorMsg = `נכס משנה ${idx + 1}: ${result.error}`;
+                // Only add error if we haven't seen it before
+                if (!seenErrors.has(errorMsg)) {
+                  assetErrors.push(errorMsg);
+                  seenErrors.add(errorMsg);
+                }
               }
             });
 
@@ -637,11 +684,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         );
 
         // Process batch results
+        // Track which asset_ids we've already processed to avoid duplicates
+        const processedAssetIds = new Set<string>();
+        
         batchResults.forEach(({ asset, errors }) => {
+          const assetIdKey = String(asset.asset_id);
+          
+          // Skip if we've already processed this asset_id
+          if (processedAssetIds.has(assetIdKey)) {
+            console.warn(`[Batch Validation] Skipping duplicate asset_id: ${assetIdKey}`);
+            return;
+          }
+          
+          processedAssetIds.add(assetIdKey);
+          
           if (errors.length > 0) {
             results.invalid++;
             results.errors.push({
-              assetId: String(asset.asset_id),
+              assetId: assetIdKey,
               assetDbId: String(asset.id),
               buildingNumber: asset.building_number,
               errors

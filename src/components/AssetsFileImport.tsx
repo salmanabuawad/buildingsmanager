@@ -222,7 +222,8 @@ export function AssetsFileImport() {
               assetValidators.validateBuildingNumber(asset.building_number),
               assetValidators.validateAssetId(asset.asset_id),
               assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-              assetValidators.validateMainAssetTypeForBuilding(asset.building_number, asset.main_asset_type),
+              // Note: validateMainAssetTypeComplete already includes tax region validation, so we don't need validateMainAssetTypeForBuilding
+              assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size || 0, asset),
               assetValidators.validateSubAssetSizeMatchesMain(
                 asset.asset_size,
                 [

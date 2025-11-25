@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2 } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy } from 'lucide-react';
 import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
@@ -35,6 +35,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [validationModalOpen, setValidationModalOpen] = useState(false);
   const [validationResults, setValidationResults] = useState<SingleAssetValidationResult | null>(null);
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
+  const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
+  const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
@@ -296,7 +298,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     setIsSaving(true);
     try {
       for (const [assetId, changes] of dirtyAssets.entries()) {
-        // If measurement_date is being changed, we need special handling
+        // Normal update - the trigger will handle moving to history if measurement_date changes
+        // If measurement_date is being changed, validate it first
         if ('measurement_date' in changes) {
           // If date is blank or 01/01/1900, use current date
           if (!changes.measurement_date || changes.measurement_date === '01/01/1900') {
@@ -306,27 +309,10 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             const year = today.getFullYear();
             changes.measurement_date = `${day}/${month}/${year}`;
           }
-
-          // Find the asset to get all its data
-          const asset = allMeasurements.find(a => a.id === assetId);
-          if (!asset) continue;
-
-          // Delete the old record and create a new one with the new date
-          await api.assets.delete(assetId);
-
-          const newAssetData = {
-            ...asset,
-            ...changes,
-            updated_at: new Date().toISOString()
-          };
-          delete (newAssetData as any).id;
-          delete (newAssetData as any).created_at;
-
-          await api.assets.create(newAssetData as any);
-        } else {
-          // Normal update for other fields
-          await api.assets.update(assetId, changes);
         }
+        
+        // Just update - the database trigger will automatically move to history if measurement_date changes
+        await api.assets.update(assetId, changes);
       }
 
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
@@ -395,6 +381,177 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       // Don't clear error automatically - let user see it
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  function handleOpenSaveAsNewMeasurementModal() {
+    if (!latestMeasurement) {
+      setToast({ message: 'לא נמצא נכס לשמירה', type: 'error' });
+      return;
+    }
+
+    if (validationErrors.size > 0) {
+      setError('Please fix all validation errors before saving');
+      setToast({ message: 'תקן שגיאות לפני שמירה', type: 'error' });
+      return;
+    }
+
+    // Set default date to today
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    setNewMeasurementDate(`${day}/${month}/${year}`);
+    setMeasurementDateModalOpen(true);
+  }
+
+  async function handleSaveAsNewMeasurement() {
+    if (!latestMeasurement) {
+      setToast({ message: 'לא נמצא נכס לשמירה', type: 'error' });
+      return;
+    }
+
+    // Validate date format if provided
+    let finalMeasurementDate: string;
+    if (newMeasurementDate && newMeasurementDate.trim() !== '') {
+      // Validate DD/MM/YYYY format
+      const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      const match = newMeasurementDate.trim().match(dateFormatPattern);
+      
+      if (!match) {
+        setToast({ message: 'תאריך לא תקין. נא להזין בפורמט DD/MM/YYYY', type: 'error' });
+        return;
+      }
+
+      const [, day, month, year] = match;
+      const dayNum = parseInt(day, 10);
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+
+      // Validate date ranges
+      if (monthNum < 1 || monthNum > 12) {
+        setToast({ message: 'חודש לא תקין (1-12)', type: 'error' });
+        return;
+      }
+
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        setToast({ message: `יום לא תקין לחודש ${monthNum} (1-${daysInMonth})`, type: 'error' });
+        return;
+      }
+
+      if (yearNum < 1900 || yearNum > 2100) {
+        setToast({ message: 'שנה לא תקינה (1900-2100)', type: 'error' });
+        return;
+      }
+
+      finalMeasurementDate = newMeasurementDate.trim();
+    } else {
+      // Use system date if no date provided
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      finalMeasurementDate = `${day}/${month}/${year}`;
+    }
+
+    setMeasurementDateModalOpen(false);
+    setIsSaving(true);
+    try {
+      // Get the current measurement with all changes applied
+      const currentAsset = latestMeasurement;
+      const changes = dirtyAssets.get(currentAsset.id) || {};
+      
+      // Merge current asset with changes
+      const newAssetData = {
+        ...currentAsset,
+        ...changes,
+      };
+
+      // Set new measurement date
+      newAssetData.measurement_date = finalMeasurementDate;
+
+      // Store the old asset ID before updating it
+      const oldAssetId = currentAsset.id;
+
+      // Remove id and created_at to create a new record
+      delete (newAssetData as any).id;
+      delete (newAssetData as any).created_at;
+      delete (newAssetData as any).updated_at;
+      delete (newAssetData as any).is_latest;
+      delete (newAssetData as any).history_created_at;
+
+      // First, update the old record with is_new_measurement flag set to true
+      // The database trigger will automatically move it to assets_history
+      await api.assets.update(oldAssetId, { is_new_measurement: true });
+
+      // Then create the new measurement in assets table (without the flag)
+      delete (newAssetData as any).is_new_measurement;
+      await api.assets.create(newAssetData as any);
+
+      setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
+      setDirtyAssets(new Map());
+      setValidationErrors(new Map());
+      setError(null);
+      
+      // Refresh data from server
+      if (asset && asset.asset_id) {
+        try {
+          setLoading(true);
+          const assetTypesData = await api.assetTypes.getAll();
+          setAssetTypes(assetTypesData || []);
+          
+          const buildingData = await api.buildings.getOne(asset.building_number);
+          setBuilding(buildingData);
+          
+          // Fetch all records using asset_id
+          let allAssetMeasurements: Asset[] = [];
+          try {
+            allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
+            
+            console.log('[AssetDetails] Fetched measurements after save as new:', {
+              totalCount: allAssetMeasurements.length,
+              latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+              historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+            });
+          } catch (historyErr) {
+            console.error('[AssetDetails] Error fetching asset history after save as new:', historyErr);
+            const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
+            if (assetsByAssetId && assetsByAssetId.length > 0) {
+              const masterRecord = { ...assetsByAssetId[0], is_latest: true };
+              allAssetMeasurements = [masterRecord];
+            }
+          }
+          
+          // Update asset state with the latest measurement
+          if (allAssetMeasurements.length > 0) {
+            const latestMeasurement = allAssetMeasurements.find(m => m.is_latest === true) || allAssetMeasurements[0];
+            setAsset(latestMeasurement);
+          }
+          
+          setAllMeasurements(allAssetMeasurements);
+          setOriginalMeasurements(allAssetMeasurements);
+        } catch (fetchErr) {
+          const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data after save';
+          console.error('[AssetDetails] Error fetching data after save as new:', fetchErr);
+          setError(fetchErrorMessage);
+          setToast({ message: fetchErrorMessage, type: 'error' });
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        await fetchData();
+      }
+      
+      if (onDataUpdate) onDataUpdate();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save as new measurement';
+      console.error('[AssetDetails] Error saving as new measurement:', err);
+      setError(errorMessage);
+      setToast({ message: errorMessage, type: 'error' });
+    } finally {
+      setIsSaving(false);
+      setNewMeasurementDate('');
     }
   }
 
@@ -1117,6 +1274,19 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       <CheckCircle2 className="h-4 w-4" />
                     )}
                     <span className="text-sm">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
+                  </button>
+                  <button
+                    onClick={handleOpenSaveAsNewMeasurementModal}
+                    disabled={isSaving || isValidating || !latestMeasurement || validationErrors.size > 0}
+                    className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : 'שמור כמדידה חדשה'}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    <span className="text-sm">שמור כמדידה חדשה</span>
                   </button>
                   <button
                     onClick={handleSaveChanges}

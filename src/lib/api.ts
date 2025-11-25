@@ -50,6 +50,7 @@ export interface Asset {
   penthouse?: string;
   is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
   history_created_at?: string; // Only present for assets_history records
+  is_new_measurement?: boolean; // Flag to mark as new measurement - when true, UPDATE will move old record to history
 }
 
 export interface AssetMeasurement {

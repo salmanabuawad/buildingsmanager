@@ -1222,10 +1222,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         )}
         <div className="mb-2 flex justify-between items-center gap-2">
           <div className="flex gap-2">
-            {/* Hide add button if building has more than one tax zone */}
+            {/* Hide add button if building has more than one tax zone and no specific taxZone is selected */}
             {(() => {
               const hasMultipleTaxZones = building?.tax_region && building.tax_region.includes(',');
-              if (hasMultipleTaxZones) return null;
+              // If a specific taxZone is selected (we're in a tax zone tab), show buttons
+              // If no taxZone but building has multiple zones, hide buttons
+              if (hasMultipleTaxZones && !taxZone) return null;
               return (
                 <button
                   onClick={addEmptyRow}
@@ -1244,10 +1246,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               אמת נכסים
             </button>
           </div>
-          {/* Hide save and cancel buttons if building has more than one tax zone */}
+          {/* Hide save and cancel buttons if building has more than one tax zone and no specific taxZone is selected */}
           {(() => {
             const hasMultipleTaxZones = building?.tax_region && building.tax_region.includes(',');
-            if (hasMultipleTaxZones) return null;
+            // If a specific taxZone is selected (we're in a tax zone tab), show buttons
+            // If no taxZone but building has multiple zones, hide buttons
+            if (hasMultipleTaxZones && !taxZone) return null;
             return (
               <div className="flex gap-2">
                 <button

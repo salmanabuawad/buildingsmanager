@@ -19,7 +19,7 @@ interface Tab {
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
-  taxZone?: string;
+  taxRegion?: string;
   assetId?: string;
   assetIdentifier?: string;
 }
@@ -55,18 +55,18 @@ function App() {
     const newTabs: Tab[] = [buildingsTab];
 
     if (taxRegions) {
-      const zones = taxRegions.split(',').map(z => z.trim()).filter(z => z);
+      const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
 
-      if (zones.length === 1) {
-        const singleZoneTabId = `assets-${buildingNumber}-zone-${zones[0]}`;
-        const singleZoneTab: Tab = {
-          id: singleZoneTabId,
+      if (regions.length === 1) {
+        const singleRegionTabId = `assets-${buildingNumber}-region-${regions[0]}`;
+        const singleRegionTab: Tab = {
+          id: singleRegionTabId,
           type: 'assets',
           buildingNumber,
-          taxZone: zones[0],
-          label: `מבנה ${buildingNumber} - אזור מס ${zones[0]}`
+          taxRegion: regions[0],
+          label: `מבנה ${buildingNumber} - אזור מס ${regions[0]}`
         };
-        newTabs.push(singleZoneTab);
+        newTabs.push(singleRegionTab);
         setTabs(newTabs);
         setActiveTabId(singleZoneTabId);
       } else {
@@ -75,20 +75,20 @@ function App() {
           id: allAssetsTabId,
           type: 'assets',
           buildingNumber,
-          label: `מבנה ${buildingNumber} - כל הנכסים (אזורי מס: ${zones.join(', ')})`
+          label: `מבנה ${buildingNumber} - כל הנכסים (אזורי מס: ${regions.join(', ')})`
         };
         newTabs.push(allAssetsTab);
 
-        zones.forEach(zone => {
-          const zoneTabId = `assets-${buildingNumber}-zone-${zone}`;
-          const zoneTab: Tab = {
-            id: zoneTabId,
+        regions.forEach(region => {
+          const regionTabId = `assets-${buildingNumber}-region-${region}`;
+          const regionTab: Tab = {
+            id: regionTabId,
             type: 'assets',
             buildingNumber,
-            taxZone: zone,
-            label: `מבנה ${buildingNumber} - אזור מס ${zone}`
+            taxRegion: region,
+            label: `מבנה ${buildingNumber} - אזור מס ${region}`
           };
-          newTabs.push(zoneTab);
+          newTabs.push(regionTab);
         });
 
         setTabs(newTabs);
@@ -687,7 +687,7 @@ function App() {
               <AssetsList
                 key={activeTab.refreshKey}
                 buildingNumber={activeTab.buildingNumber}
-                taxZone={activeTab.taxZone}
+                taxRegion={activeTab.taxRegion}
                 onSelectAsset={handleSelectAsset}
               />
             )}

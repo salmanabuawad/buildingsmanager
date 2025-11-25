@@ -31,6 +31,7 @@ export interface ValidationOptions {
   mode: ValidationMode;
   onProgress?: (progress: AssetValidationProgress) => void;
   validateOnlyLatest?: boolean; // For building mode: validate only latest record per asset_id
+  taxRegion?: string; // Optional tax region for filtering validation
 }
 
 /**
@@ -43,11 +44,11 @@ export class AssetValidationHandler {
    */
   static async validateSingleAsset(
     asset: Asset,
-    options?: { onProgress?: (progress: AssetValidationProgress) => void }
+    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string }
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
-    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress);
+    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion);
   }
 
   /**
@@ -106,7 +107,7 @@ export class AssetValidationHandler {
         });
       }
 
-      const result = await this.validateAssetInternal(asset, assetIdentifier);
+      const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
       results.push(result);
     }
 
@@ -234,7 +235,8 @@ export class AssetValidationHandler {
   private static async validateAssetInternal(
     asset: Asset,
     assetIdentifier: string,
-    onProgress?: (progress: AssetValidationProgress) => void
+    onProgress?: (progress: AssetValidationProgress) => void,
+    taxRegion?: string
   ): Promise<AssetValidationResult> {
     const allErrors: string[] = [];
     const passedRules: string[] = [];
@@ -382,7 +384,8 @@ export class AssetValidationHandler {
         asset.building_number,
         asset.main_asset_type,
         asset.asset_size || 0,
-        asset
+        asset,
+        taxRegion
       )
     );
 
@@ -407,7 +410,8 @@ export class AssetValidationHandler {
           asset.sub_asset_size_4,
           asset.sub_asset_size_5,
           asset.sub_asset_size_6
-        ]
+        ],
+        taxRegion
       )
     );
 

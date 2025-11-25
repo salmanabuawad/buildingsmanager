@@ -10,10 +10,10 @@ import { useGridPreferences } from '../hooks/useGridPreferences';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 interface AssetsListProps {
   buildingNumber: number;
-  taxZone?: string;
+  taxRegion?: string;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
 }
-export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsListProps) {
+export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -34,7 +34,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
   useEffect(() => {
     fetchData();
-  }, [buildingNumber, taxZone]);
+  }, [buildingNumber, taxRegion]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
@@ -46,11 +46,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       setBuilding(buildingData);
       setAssetTypes(assetTypesData || []);
       
-      // Filter by tax zone if provided
+      // Filter by tax region if provided
       let filteredAssets = assetsData || [];
-      if (taxZone) {
-        const taxZoneNum = parseInt(taxZone.trim());
-        const taxZoneStr = taxZone.trim();
+      if (taxRegion) {
+        const taxRegionNum = parseInt(taxRegion.trim());
+        const taxRegionStr = taxRegion.trim();
         
         filteredAssets = [];
         
@@ -75,8 +75,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             continue;
           }
           
-          // Check if the tax_region matches the requested taxZone
-          const taxRegionMatches = assetTaxRegion === taxZoneNum || String(assetTaxRegion) === taxZoneStr;
+          // Check if the tax_region matches the requested taxRegion
+          const taxRegionMatches = assetTaxRegion === taxRegionNum || String(assetTaxRegion) === taxRegionStr;
           
           if (taxRegionMatches) {
             filteredAssets.push(asset);
@@ -132,7 +132,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset),
+        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, taxRegion),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
           updatedAsset.sub_asset_type_1,
           updatedAsset.sub_asset_type_2,
@@ -203,7 +203,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             updatedAsset.sub_asset_size_4,
             updatedAsset.sub_asset_size_5,
             updatedAsset.sub_asset_size_6
-          ]
+          ],
+          taxRegion
         ),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
@@ -211,12 +212,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, taxRegion),
       );
 
       // Run all validations
@@ -273,12 +274,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
       
-      // Filter by tax zone if specified
+      // Filter by tax region if specified
       let filteredAssets = buildingAssets;
-      if (taxZone) {
+      if (taxRegion) {
         filteredAssets = buildingAssets.filter(asset => {
           const assetType = assetTypesData.find(at => at.name === asset.main_asset_type);
-          return assetType && String(assetType.tax_region) === taxZone;
+          return assetType && String(assetType.tax_region) === taxRegion;
         });
       }
 
@@ -294,6 +295,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         {
           mode: 'building',
           validateOnlyLatest: true,
+          taxRegion: taxRegion,
           onProgress: (progress) => {
             setBatchValidationProgress({
               current: progress.current,
@@ -908,6 +910,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const isDeleted = deletedAssets.has(assetId);
         const hasValidationError = validationErrors.has(assetId);
         
+        // Hide delete button if building has more than one tax region and no specific taxRegion is selected
+        const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
+        const shouldShowDeleteButton = isNew && (!hasMultipleTaxRegions || taxRegion);
+        
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             {hasValidationError && (
@@ -924,7 +930,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                 <AlertCircle className="h-5 w-5" />
               </button>
             )}
-            {isNew && (
+            {shouldShowDeleteButton && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1168,7 +1174,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
-  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1203,9 +1209,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               <h1 className="text-lg sm:text-xl font-bold text-white">
                 {t('buildingNumber')} {building?.building_number}
               </h1>
-              {taxZone ? (
+              {taxRegion ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
-                  אזור מס: {taxZone}
+                  אזור מס: {taxRegion}
                 </p>
               ) : building?.tax_region ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
@@ -1222,12 +1228,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         )}
         <div className="mb-2 flex justify-between items-center gap-2">
           <div className="flex gap-2">
-            {/* Hide add button if building has more than one tax zone and no specific taxZone is selected */}
+            {/* Hide add button if building has more than one tax region and no specific taxRegion is selected */}
             {(() => {
-              const hasMultipleTaxZones = building?.tax_region && building.tax_region.includes(',');
-              // If a specific taxZone is selected (we're in a tax zone tab), show buttons
-              // If no taxZone but building has multiple zones, hide buttons
-              if (hasMultipleTaxZones && !taxZone) return null;
+              const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
+              // If a specific taxRegion is selected (we're in a tax region tab), show buttons
+              // If no taxRegion but building has multiple regions, hide buttons
+              if (hasMultipleTaxRegions && !taxRegion) return null;
               return (
                 <button
                   onClick={addEmptyRow}
@@ -1246,12 +1252,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               אמת נכסים
             </button>
           </div>
-          {/* Hide save and cancel buttons if building has more than one tax zone and no specific taxZone is selected */}
+          {/* Hide save and cancel buttons if building has more than one tax region and no specific taxRegion is selected */}
           {(() => {
-            const hasMultipleTaxZones = building?.tax_region && building.tax_region.includes(',');
-            // If a specific taxZone is selected (we're in a tax zone tab), show buttons
-            // If no taxZone but building has multiple zones, hide buttons
-            if (hasMultipleTaxZones && !taxZone) return null;
+            const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
+            // If a specific taxRegion is selected (we're in a tax region tab), show buttons
+            // If no taxRegion but building has multiple regions, hide buttons
+            if (hasMultipleTaxRegions && !taxRegion) return null;
             return (
               <div className="flex gap-2">
                 <button
@@ -1417,7 +1423,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         progress={batchValidationProgress}
         context="building"
         batchResults={batchValidationResults}
-        batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxZone ? ` - אזור מס ${taxZone}` : ''}`}
+        batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`}
         buildingNumber={buildingNumber}
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
       />

@@ -1170,7 +1170,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Tax Region (comma-separated for multiple zones)
+                  Tax Region (comma-separated for multiple regions)
                 </label>
                 <input
                   type="text"

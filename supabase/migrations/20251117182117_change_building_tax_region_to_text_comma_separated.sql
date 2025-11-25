@@ -2,8 +2,8 @@
   # Change Building tax_region to Support Multiple Values
 
   1. Purpose
-    - Allow buildings to have one or more tax zones
-    - Store multiple tax zones as comma-separated values in a text field
+    - Allow buildings to have one or more tax regions
+    - Store multiple tax regions as comma-separated values in a text field
     
   2. Changes
     - Convert building.tax_region from integer to text

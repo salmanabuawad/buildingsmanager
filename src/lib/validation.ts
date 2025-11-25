@@ -222,7 +222,8 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
 
 export async function validateAssetTypeForBuildingTaxRegion(
   buildingNumber: number,
-  assetTypeName: string
+  assetTypeName: string,
+  taxRegion?: string
 ): Promise<ValidationResult> {
   try {
     const { data: building, error: buildingError } = await supabase
@@ -244,8 +245,14 @@ export async function validateAssetTypeForBuildingTaxRegion(
       return { valid: true };
     }
 
-    // Special validation for asset types 299 and 199
-    const buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+    // If a specific taxRegion is provided, use only that tax region for validation
+    // Otherwise, use all tax regions from the building
+    let buildingTaxRegions: string[];
+    if (taxRegion) {
+      buildingTaxRegions = [taxRegion.trim()];
+    } else {
+      buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+    }
     
     if (assetTypeName === '299') {
       // Asset type 299 is only valid in tax region 40
@@ -308,11 +315,12 @@ export async function validateAssetTypeComplete(
   buildingNumber: number,
   assetTypeName: string,
   assetSize: number,
-  assetData?: any
+  assetData?: any,
+  taxRegion?: string
 ): Promise<ValidationResult> {
   try {
     // First validate tax region (this will return early if invalid, avoiding duplicate errors)
-    const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName);
+    const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName, taxRegion);
     if (!taxRegionValidation.valid) {
       return taxRegionValidation;
     }
@@ -341,6 +349,17 @@ export async function validateAssetTypeComplete(
       .eq('name', assetTypeName)
       .eq('active', 'כן'); // Only check active asset types
 
+    // If a specific taxRegion is provided, use only that tax region for validation
+    // Otherwise, use all tax regions from the building
+    let buildingTaxRegions: string[];
+    if (taxRegion) {
+      buildingTaxRegions = [taxRegion.trim()];
+    } else {
+      buildingTaxRegions = building.tax_region != null
+        ? String(building.tax_region).split(',').map(r => r.trim())
+        : [];
+    }
+
     // For asset type 199, it's valid in all tax regions except 40
     if (assetTypeName === '199') {
       query = query.neq('tax_region', 40);
@@ -348,10 +367,7 @@ export async function validateAssetTypeComplete(
       // For 299, it must be in tax region 40
       query = query.eq('tax_region', 40);
     } else {
-      // For other asset types, filter by building's tax region
-      const buildingTaxRegions = building.tax_region != null
-        ? String(building.tax_region).split(',').map(r => r.trim())
-        : [];
+      // For other asset types, filter by building's tax region (or specific taxRegion if provided)
       if (buildingTaxRegions.length > 0) {
         query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
       }
@@ -687,7 +703,8 @@ export async function validateSubAssetsFor199Or299(
   mainAssetType: string | undefined,
   mainAssetSize: number | undefined,
   subAssetTypes: (string | undefined)[],
-  subAssetSizes: (number | undefined)[]
+  subAssetSizes: (number | undefined)[],
+  taxRegion?: string
 ): Promise<ValidationResult> {
   if (!mainAssetType || !buildingNumber) {
     return { valid: true };
@@ -954,30 +971,33 @@ export const assetValidators = {
 
   validateMainAssetTypeForBuilding: async (
     buildingNumber: number | null,
-    mainAssetType: string | undefined
+    mainAssetType: string | undefined,
+    taxRegion?: string
   ): Promise<ValidationResult> => {
     if (!mainAssetType || !buildingNumber) {
       return { valid: true };
     }
-    return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType);
+    return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType, taxRegion);
   },
 
   validateMainAssetTypeComplete: async (
     buildingNumber: number | null,
     mainAssetType: string | undefined,
     assetSize: number | undefined,
-    assetData?: any
+    assetData?: any,
+    taxRegion?: string
   ): Promise<ValidationResult> => {
     if (!mainAssetType || !buildingNumber) {
       return { valid: true };
     }
-    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize || 0, assetData);
+    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize || 0, assetData, taxRegion);
   },
 
   validateSubAssetTypeComplete: async (
     buildingNumber: number | null,
     subAssetType: string | undefined,
-    subAssetSize: number | undefined
+    subAssetSize: number | undefined,
+    taxRegion?: string
   ): Promise<ValidationResult> => {
     if (!subAssetType || !buildingNumber) {
       return { valid: true };
@@ -991,7 +1011,7 @@ export const assetValidators = {
       };
     }
 
-    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0);
+    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0, undefined, taxRegion);
   },
 
   validateSubAssetsFor199Or299: async (
@@ -999,9 +1019,10 @@ export const assetValidators = {
     mainAssetType: string | undefined,
     mainAssetSize: number | undefined,
     subAssetTypes: (string | undefined)[],
-    subAssetSizes: (number | undefined)[]
+    subAssetSizes: (number | undefined)[],
+    taxRegion?: string
   ): Promise<ValidationResult> => {
-    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes);
+    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes, taxRegion);
   },
 
   validateSubAssetSizeRequiresType: async (

@@ -75,6 +75,7 @@ export interface AssetType {
   penthouse?: string;
   condo?: string;
   townhouses?: string;
+  active?: string;
   min_size?: number;
   max_size?: number;
   created_at: string;

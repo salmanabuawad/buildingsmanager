@@ -263,7 +263,8 @@ export async function validateAssetTypeForBuildingTaxRegion(
     let query = supabase
       .from('asset_types')
       .select('*')
-      .eq('name', assetTypeName);
+      .eq('name', assetTypeName)
+      .eq('active', 'כן'); // Only check active asset types
 
     // For asset type 199, it's valid in all tax regions except 40
     // So we don't filter by building's tax region, just check it exists and is not in tax region 40
@@ -333,10 +334,12 @@ export async function validateAssetTypeComplete(
 
     // Query asset types by name field (tax region validation already done above)
     // Select all fields to show complete record information
+    // Only check active asset types (active = 'כן')
     let query = supabase
       .from('asset_types')
       .select('*')
-      .eq('name', assetTypeName);
+      .eq('name', assetTypeName)
+      .eq('active', 'כן'); // Only check active asset types
 
     // For asset type 199, it's valid in all tax regions except 40
     if (assetTypeName === '199') {
@@ -769,7 +772,8 @@ export async function validateSubAssetsFor199Or299(
     let query = supabase
       .from('asset_types')
       .select('*')
-      .eq('name', subAssetType);
+      .eq('name', subAssetType)
+      .eq('active', 'כן'); // Only check active asset types
 
     // Filter by building's tax region
     if (buildingTaxRegions.length > 0) {

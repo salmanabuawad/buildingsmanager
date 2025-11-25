@@ -267,8 +267,71 @@ export function AssetTypes() {
       field: 'name',
       headerName: 'סוג נכס',
       editable: false,
+      pinned: 'left',
+      lockPinned: true,
       cellStyle: { textAlign: 'left' },
       headerClass: 'text-left'
+    },
+    {
+      field: 'active',
+      headerName: 'פעיל',
+      editable: false,
+      pinned: 'left',
+      lockPinned: true,
+      headerClass: 'text-left',
+      cellRenderer: (params: any) => {
+        const assetTypeId = params.data?.id;
+        if (!assetTypeId) return null;
+        
+        // Get dirtyAssetTypes from context
+        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
+        
+        // Get current value - check dirty state first, then data
+        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
+        const currentValue = dirtyChanges && 'active' in dirtyChanges 
+          ? dirtyChanges.active 
+          : params.data?.active;
+        const isChecked = currentValue === 'כן';
+        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'active' in (dirtyAssetTypes.get(assetTypeId) || {});
+        
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                // Track the change in dirtyAssetTypes
+                setDirtyAssetTypes(prev => {
+                  const next = new Map(prev);
+                  const existingChanges = next.get(assetTypeId) || {};
+                  next.set(assetTypeId, { ...existingChanges, active: newValue });
+                  
+                  // Update context immediately with new dirtyAssetTypes
+                  if (gridRef.current) {
+                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
+                  }
+                  
+                  return next;
+                });
+                // Update grid cell data directly
+                params.node.setDataValue('active', newValue);
+                
+                // Refresh only this specific cell
+                if (gridRef.current) {
+                  gridRef.current.api.refreshCells({ 
+                    rowNodes: [params.node], 
+                    columns: ['active'],
+                    force: true 
+                  });
+                }
+              }}
+              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' }
     },
     {
       field: 'description',
@@ -998,6 +1061,7 @@ export function AssetTypes() {
               defaultColDef={{
                 resizable: true,
                 sortable: true,
+                filter: true,
                 wrapText: true,
                 autoHeight: false
               }}
@@ -1078,9 +1142,11 @@ export function AssetTypes() {
                 saveColumnState();
               }}
               onSortChanged={saveColumnState}
+              onFilterChanged={saveColumnState}
               pagination={false}
               suppressHorizontalScroll={false}
               enableRtl={true}
+              sideBar={false}
               rowClass="ag-row"
               getRowStyle={(params) => {
                 if (params.node.rowIndex % 2 === 0) {

@@ -134,16 +134,9 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       setAssets(fetchedAssets);
       
-      // Calculate initial total area
+      // Calculate initial total area (sum of asset_size only)
       const totalArea = fetchedAssets.reduce((sum, asset) => {
-        const assetTotal = (asset.asset_size || 0) +
-          (asset.sub_asset_size_1 || 0) +
-          (asset.sub_asset_size_2 || 0) +
-          (asset.sub_asset_size_3 || 0) +
-          (asset.sub_asset_size_4 || 0) +
-          (asset.sub_asset_size_5 || 0) +
-          (asset.sub_asset_size_6 || 0);
-        return sum + assetTotal;
+        return sum + (asset.asset_size || 0);
       }, 0);
       setInitialTotalArea(totalArea);
     } catch (err) {
@@ -289,7 +282,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       // Run all validations
       const validation = await validateAll(validations);
 
-      // Calculate current total area after this change
+      // Calculate current total area after this change (only if asset_size field was changed)
+      // Check total area validation for all assets when any size field changes
       const updatedAssets = assets.map(a => {
         if (String(a.id) === assetId) {
           return updatedAsset;
@@ -299,39 +293,42 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       });
       
       const newTotalArea = updatedAssets.reduce((sum, a) => {
-        const assetTotal = (a.asset_size || 0) +
-          (a.sub_asset_size_1 || 0) +
-          (a.sub_asset_size_2 || 0) +
-          (a.sub_asset_size_3 || 0) +
-          (a.sub_asset_size_4 || 0) +
-          (a.sub_asset_size_5 || 0) +
-          (a.sub_asset_size_6 || 0);
-        return sum + assetTotal;
+        return sum + (a.asset_size || 0);
       }, 0);
 
-      // Check if total area validation fails
-      if (initialTotalArea !== null && Math.abs(newTotalArea - initialTotalArea) > 0.01) {
-        const areaError = `השטח הכולל השתנה מ-${initialTotalArea.toLocaleString('he-IL')} ל-${newTotalArea.toLocaleString('he-IL')}. השטח הכולל חייב להישאר שווה`;
-        if (!validation.valid) {
-          // Combine errors
-          const combinedError = `${validation.error || 'Unknown validation error'}\n${areaError}`;
-          setError(combinedError);
-          setTimeout(() => setError(null), 5000);
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            newMap.set(String(assetId), combinedError);
-            return newMap;
-          });
-        } else {
-          setError(areaError);
-          setTimeout(() => setError(null), 5000);
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            newMap.set(String(assetId), areaError);
-            return newMap;
-          });
+      // Validate total area - check if it equals the initial total area
+      // This validation runs whenever asset_size is changed
+      const isSizeField = field === 'asset_size';
+      let totalAreaError: string | null = null;
+      
+      if (isSizeField && initialTotalArea !== null) {
+        if (Math.abs(newTotalArea - initialTotalArea) > 0.01) {
+          totalAreaError = `השטח הכולל של הנכסים המקושרים חייב להישאר ${initialTotalArea.toLocaleString('he-IL')}. השטח הכולל הנוכחי הוא ${newTotalArea.toLocaleString('he-IL')}`;
         }
+      }
+
+      // Combine validation errors
+      if (totalAreaError && !validation.valid) {
+        // Both total area and other validations failed
+        const combinedError = `${validation.error || 'Unknown validation error'}\n${totalAreaError}`;
+        setError(combinedError);
+        setTimeout(() => setError(null), 5000);
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.set(String(assetId), combinedError);
+          return newMap;
+        });
+      } else if (totalAreaError) {
+        // Only total area validation failed
+        setError(totalAreaError);
+        setTimeout(() => setError(null), 5000);
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.set(String(assetId), totalAreaError!);
+          return newMap;
+        });
       } else if (!validation.valid) {
+        // Only other validations failed
         const detailedError = validation.error || 'Unknown validation error';
         setError(detailedError);
         setTimeout(() => setError(null), 5000);
@@ -342,7 +339,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           return newMap;
         });
       } else {
-        // Clear validation error if validation passes
+        // All validations passed - clear validation error
         setValidationErrors(prev => {
           const newMap = new Map(prev);
           newMap.delete(String(assetId));
@@ -645,26 +642,22 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   const hasChanges = dirtyAssets.size > 0;
 
-  // Calculate current total area (with dirty changes applied)
+  // Calculate current total area (sum of asset_size only, with dirty changes applied)
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
       const assetId = String(asset.id);
       const dirtyChanges = dirtyAssets.get(assetId) || {};
       const assetWithChanges = { ...asset, ...dirtyChanges };
       
-      const assetTotal = (assetWithChanges.asset_size || 0) +
-        (assetWithChanges.sub_asset_size_1 || 0) +
-        (assetWithChanges.sub_asset_size_2 || 0) +
-        (assetWithChanges.sub_asset_size_3 || 0) +
-        (assetWithChanges.sub_asset_size_4 || 0) +
-        (assetWithChanges.sub_asset_size_5 || 0) +
-        (assetWithChanges.sub_asset_size_6 || 0);
-      return sum + assetTotal;
+      return sum + (assetWithChanges.asset_size || 0);
     }, 0);
   }, [assets, dirtyAssets]);
 
-  // Check if total area has changed
+  // Check if total area has changed (validation will prevent saving if changed)
   const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;
+  
+  // Display total area - always show initial value (calculated once and not changeable)
+  const displayTotalArea = initialTotalArea !== null ? initialTotalArea : currentTotalArea;
 
   // Helper function to get cell style for dirty fields and validation errors
   const getCellStyle = useCallback((params: any, fieldName: string) => {
@@ -759,7 +752,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     },
     {
       field: 'asset_size',
-      headerName: t('assetSize'),
+      headerName: 'גודל נכס',
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -940,13 +933,13 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         </div>
       )}
 
-      {/* Total Area Display */}
+      {/* Total Area Display - Calculated once and not changeable */}
       <div className="mb-2 flex items-center justify-end gap-4">
         <div className="flex items-center gap-2">
           <label className="text-sm font-semibold text-slate-700">שטח כולל של הנכסים המקושרים:</label>
           <input
             type="text"
-            value={currentTotalArea !== null ? currentTotalArea.toLocaleString('he-IL') : ''}
+            value={displayTotalArea !== null ? displayTotalArea.toLocaleString('he-IL') : ''}
             readOnly
             className={`px-3 py-2 border rounded-lg text-right font-semibold ${
               totalAreaChanged
@@ -954,10 +947,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 : 'border-slate-300 bg-slate-50 text-slate-700'
             }`}
             style={{ minWidth: '150px' }}
+            title="שטח כולל מחושב פעם אחת ולא ניתן לשינוי"
           />
           {totalAreaChanged && (
             <span className="text-xs text-red-600 font-medium">
-              (שונה מ-{initialTotalArea?.toLocaleString('he-IL')})
+              (השטח הכולל השתנה - חייב להישאר {initialTotalArea?.toLocaleString('he-IL')})
             </span>
           )}
         </div>

@@ -474,48 +474,59 @@ export const api = {
       );
     },
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
-      // Use the database view to get all records (latest from assets + history from assets_history)
-      let query = supabase
-        .from('assets_with_history')
-        .select('*')
-        .eq('asset_id', assetId);
+      try {
+        // Use the database view to get all records (latest from assets + history from assets_history)
+        let query = supabase
+          .from('assets_with_history')
+          .select('*')
+          .eq('asset_id', assetId);
 
-      if (buildingNumber) {
-        query = query.eq('building_number', buildingNumber);
+        if (buildingNumber) {
+          query = query.eq('building_number', buildingNumber);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('[API ERROR] Error fetching assets_with_history:', error);
+          // Fallback to old method if view doesn't exist
+          // PostgREST error codes: PGRST202 = function/relation not found, 42P01 = relation does not exist
+          if (error.code === 'PGRST202' || error.code === '42P01' || 
+              error.message?.includes('does not exist') || 
+              error.message?.includes('relation') ||
+              error.message?.includes('not found')) {
+            console.warn('[API] assets_with_history view not found, falling back to separate queries');
+            return api.assets.getAssetWithHistoryFallback(assetId, buildingNumber);
+          }
+          throw error;
+        }
+
+        // Parse dates and sort by measurement_date (newest first)
+        const parseDate = (dateStr: string) => {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+          return new Date(dateStr);
+        };
+
+        // Sort: latest first (is_latest=true), then by measurement_date descending
+        const sorted = (data || []).sort((a, b) => {
+          // First sort by is_latest (true first)
+          if (a.is_latest !== b.is_latest) {
+            return a.is_latest ? -1 : 1;
+          }
+          // Then by measurement_date (newest first)
+          return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+        });
+
+        return sorted;
+      } catch (err) {
+        console.error('[API ERROR] Unexpected error in getAssetWithHistory:', err);
+        // Fallback to old method on any error
+        console.warn('[API] Falling back to separate queries due to error');
+        return api.assets.getAssetWithHistoryFallback(assetId, buildingNumber);
       }
-
-      const { data, error } = await query.order('is_latest', { ascending: false }).order('measurement_date', { ascending: false });
-
-      if (error) {
-        console.error('[API ERROR] Error fetching assets_with_history:', error);
-        // Fallback to old method if view doesn't exist
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn('[API] assets_with_history view not found, falling back to separate queries');
-          return api.assets.getAssetWithHistoryFallback(assetId, buildingNumber);
-        }
-        throw error;
-      }
-
-      // Parse dates and sort by measurement_date (newest first)
-      const parseDate = (dateStr: string) => {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        }
-        return new Date(dateStr);
-      };
-
-      // Sort: latest first (is_latest=true), then by measurement_date descending
-      const sorted = (data || []).sort((a, b) => {
-        // First sort by is_latest (true first)
-        if (a.is_latest !== b.is_latest) {
-          return a.is_latest ? -1 : 1;
-        }
-        // Then by measurement_date (newest first)
-        return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
-      });
-
-      return sorted;
     },
     getAssetWithHistoryFallback: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       // Fallback method using separate queries (old implementation)

@@ -874,20 +874,29 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setBuilding(buildingData);
 
       // Fetch all records (latest from assets + history from assets_history) using the view
-      const allAssetMeasurements = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
+      let allAssetMeasurements: Asset[] = [];
+      try {
+        allAssetMeasurements = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
+        
+        // Log for debugging
+        console.log('[AssetDetails] Fetched measurements:', {
+          totalCount: allAssetMeasurements.length,
+          latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+          historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+          allIds: allAssetMeasurements.map(m => ({ id: m.id, measurement_date: m.measurement_date, is_latest: m.is_latest }))
+        });
+      } catch (historyErr) {
+        console.error('[AssetDetails] Error fetching asset history:', historyErr);
+        // If history fetch fails, at least show the master record
+        const masterRecord = { ...assetData, is_latest: true };
+        allAssetMeasurements = [masterRecord];
+        console.warn('[AssetDetails] Using master record only due to history fetch error');
+      }
       
-      // Log for debugging
-      console.log('[AssetDetails] Fetched measurements:', {
-        totalCount: allAssetMeasurements.length,
-        latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-        historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-        allIds: allAssetMeasurements.map(m => ({ id: m.id, measurement_date: m.measurement_date, is_latest: m.is_latest }))
-      });
-      
-      setAllMeasurements(allAssetMeasurements || []);
+      setAllMeasurements(allAssetMeasurements);
       // Store original data only if dirtyAssets is empty (initial load or after save)
       if (dirtyAssets.size === 0) {
-        setOriginalMeasurements(JSON.parse(JSON.stringify(allAssetMeasurements || [])));
+        setOriginalMeasurements(JSON.parse(JSON.stringify(allAssetMeasurements)));
       }
 
     } catch (err) {

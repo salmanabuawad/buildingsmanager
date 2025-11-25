@@ -840,6 +840,24 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   };
 
+  // Helper function to get cell style for validation errors
+  const getCellStyle = useCallback((params: any) => {
+    const assetId = String(params.data?.id);
+    if (!assetId) return { textAlign: 'right' };
+    
+    const hasValidationError = validationErrors.has(assetId);
+    
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        textAlign: 'right'
+      };
+    }
+    
+    return { textAlign: 'right' };
+  }, [validationErrors]);
+
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       field: 'measurement_date',
@@ -958,24 +976,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       </div>
     );
   }, [newAssets, dirtyAssets]);
-
-  // Helper function to get cell style for validation errors
-  const getCellStyle = useCallback((params: any) => {
-    const assetId = String(params.data?.id);
-    if (!assetId) return { textAlign: 'right' };
-    
-    const hasValidationError = validationErrors.has(assetId);
-    
-    if (hasValidationError) {
-      return {
-        backgroundColor: '#fee2e2',
-        border: '2px solid #ef4444',
-        textAlign: 'right'
-      };
-    }
-    
-    return { textAlign: 'right' };
-  }, [validationErrors]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {

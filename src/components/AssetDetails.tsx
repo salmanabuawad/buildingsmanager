@@ -1277,9 +1277,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   </button>
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
-                    disabled={isSaving || isValidating || !latestMeasurement || validationErrors.size > 0}
+                    disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
                     className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : 'שמור כמדידה חדשה'}
+                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

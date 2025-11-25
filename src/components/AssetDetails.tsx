@@ -85,21 +85,23 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
-      const { data, colDef } = event;
+      const { data, colDef, node } = event;
       const field = colDef.field;
       const assetId = data.id;
       
       // Only allow editing for latest records
       if (data.is_latest !== true) {
         console.warn('[AssetDetails] Attempted to edit non-latest record, ignoring change');
-        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
         return;
       }
       
       let newValue = event.newValue;
 
-      const updatedAsset = { ...data, [field]: newValue };
+      // Update the data directly in the node (AG-Grid already does this, but ensure it's set)
+      data[field] = newValue;
 
+      // Track the change in dirtyAssets (for saving later)
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
         const existing = newMap.get(assetId) || {};
@@ -107,11 +109,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         return newMap;
       });
 
+      // Clear validation errors for this asset (will be re-validated)
       setValidationErrors(prev => {
         const newMap = new Map(prev);
         newMap.delete(assetId);
         return newMap;
       });
+
+      // Use the current node data (which AG-Grid has already updated)
+      const updatedAsset = data;
 
       const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
       const validations = [
@@ -225,17 +231,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           newMap.set(assetId, errorMap);
           return newMap;
         });
-        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        // Refresh only the specific cell that has the error
+        event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
         return;
       }
 
-      setAllMeasurements(prevAssets =>
-        prevAssets.map(asset =>
-          asset.id === assetId ? updatedAsset : asset
-        )
-      );
-
-      event.api.refreshCells({ rowNodes: [event.node!], force: true });
+      // Don't update allMeasurements state - AG-Grid already updated the node data
+      // Only refresh the specific cell that changed to update styling
+      event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
     } catch (err) {
       console.error('Validation error:', err);
     }

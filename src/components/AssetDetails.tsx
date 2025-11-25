@@ -616,12 +616,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create new measurement';
       console.error('[AssetDetails] Error creating new measurement:', error);
-      setError(errorMessage);
+      
+      // Show error as toast only - don't set error state to keep page editable
       setToast({
         message: errorMessage,
         type: 'error'
       });
-      // Don't clear error automatically - let user see it
+      
+      // Don't clear dirtyAssets or validationErrors - let user modify and try again
+      // Don't clear the form - keep all data so user can modify date or save as change
+      // Don't set error state - only show toast so page remains fully functional
     } finally {
       setIsSaving(false);
     }

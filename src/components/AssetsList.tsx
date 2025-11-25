@@ -97,10 +97,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
         }
       }
       
-      setAssets(filteredAssets);
+      // Preserve new assets that haven't been saved yet (failed saves remain visible)
+      const existingNewAssets = assets.filter(a => newAssets.has(String(a.id)));
+      const mergedAssets = [...filteredAssets, ...existingNewAssets];
+      setAssets(mergedAssets);
+      
       // Store original assets for cancel functionality
       if (dirtyAssets.size === 0 && newAssets.size === 0 && deletedAssets.size === 0) {
-        setOriginalAssets(JSON.parse(JSON.stringify(filteredAssets)));
+        setOriginalAssets(JSON.parse(JSON.stringify(mergedAssets)));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
@@ -454,6 +458,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
       let savedCount = 0;
       let deletedCount = 0;
       const errors: string[] = [];
+      
+      // Track successfully processed assets to remove from state
+      const successfullyDeleted = new Set<string>();
+      const successfullySaved = new Set<string>();
 
       // Process deletions first
       for (const assetId of deletedAssets) {
@@ -464,11 +472,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
           // Skip deletion if it's a temp asset (not saved to database yet)
           if (String(assetId).startsWith('temp-')) {
             deletedCount++;
+            successfullyDeleted.add(String(assetId));
             continue;
           }
 
           await api.assets.delete(assetId);
           deletedCount++;
+          successfullyDeleted.add(String(assetId));
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));
           const assetIdent = asset?.asset_id || assetId;
@@ -582,6 +592,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
             const { id, _isMasterRow, created_at, ...assetData } = updatedData;
             await api.assets.create(assetData);
             savedCount++;
+            successfullySaved.add(String(assetId));
           } else {
             // Validate based on what fields changed for existing assets
             if (changes.hasOwnProperty('payer_id')) {
@@ -652,6 +663,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
             // Update existing asset
             await api.assets.update(assetId, changes);
             savedCount++;
+            successfullySaved.add(String(assetId));
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));
@@ -660,10 +672,31 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
         }
       }
 
-      // Clear dirty assets, deleted assets, and new assets after save
-      setDirtyAssets(new Map());
-      setDeletedAssets(new Set());
-      setNewAssets(new Set());
+      // Only clear successfully processed assets from state
+      // Keep failed assets in state so they remain visible on screen
+      setDirtyAssets(prev => {
+        const next = new Map(prev);
+        for (const assetId of successfullySaved) {
+          next.delete(assetId);
+        }
+        return next;
+      });
+      
+      setDeletedAssets(prev => {
+        const next = new Set(prev);
+        for (const assetId of successfullyDeleted) {
+          next.delete(assetId);
+        }
+        return next;
+      });
+      
+      setNewAssets(prev => {
+        const next = new Set(prev);
+        for (const assetId of successfullySaved) {
+          next.delete(assetId);
+        }
+        return next;
+      });
 
       if (errors.length > 0) {
         const successMsg = [];

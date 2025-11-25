@@ -35,6 +35,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
   
+  // Save tax region in a variable for validation handler
+  // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
+  const validationTaxRegion = useMemo(() => taxRegion, [taxRegion]);
+  
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
   const totalChanges = useMemo(() => {
@@ -152,8 +156,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
-        // Use taxRegion from the current tab for validation
-        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, taxRegion),
+        // Use validationTaxRegion from the current tab for validation - this overrides building tax_region
+        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, validationTaxRegion),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
           updatedAsset.sub_asset_type_1,
           updatedAsset.sub_asset_type_2,
@@ -225,7 +229,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             updatedAsset.sub_asset_size_5,
             updatedAsset.sub_asset_size_6
           ],
-          taxRegion
+          validationTaxRegion
         ),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
@@ -233,13 +237,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
-        // Use taxRegion from the current tab for validation
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, taxRegion),
+        // Use validationTaxRegion from the current tab for validation - this overrides building tax_region
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, validationTaxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, validationTaxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, validationTaxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, validationTaxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, validationTaxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, validationTaxRegion),
       );
 
       // Run all validations
@@ -317,7 +321,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         {
           mode: 'building',
           validateOnlyLatest: true,
-          taxRegion: taxRegion,
+          taxRegion: validationTaxRegion, // Use validationTaxRegion - this overrides building tax_region
           onProgress: (progress) => {
             setBatchValidationProgress({
               current: progress.current,
@@ -760,12 +764,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setNewAssets(prev => new Set(prev).add(tempId));
 
     // Run validation rules on the new asset (async, don't block UI)
-    // IMPORTANT: taxRegion is taken from the tab data (component prop) for validation
-    // This taxRegion will OVERRIDE the building's tax_region field during validation
+    // IMPORTANT: validationTaxRegion is taken from the tab data (component prop) for validation
+    // This validationTaxRegion will OVERRIDE the building's tax_region field during validation
     AssetValidationHandler.validateSingleAsset(
       newAsset,
       {
-        taxRegion: taxRegion // Use taxRegion from the current tab - this overrides building tax_region
+        taxRegion: validationTaxRegion // Use validationTaxRegion from the current tab - this overrides building tax_region
       }
     ).then(validationResult => {
       if (!validationResult.valid && validationResult.errors.length > 0) {

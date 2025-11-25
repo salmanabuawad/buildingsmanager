@@ -4,7 +4,7 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon, Loader2, Save, X, AlertCircle } from 'lucide-react';
+import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
 
 interface TransferAreasProps {
@@ -23,6 +23,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [success, setSuccess] = useState<string | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
+  const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
+  const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'transfer_areas_column_state');
 
@@ -83,9 +85,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return asset;
       });
     });
-  }, []);
 
-  const handleSaveAll = async () => {
+    // Refresh the cell to update styling
+    if (event.api) {
+      event.api.refreshCells({ rowNodes: [event.node], columns: [field], force: true });
+    }
+  }, [assets, dirtyAssets, taxRegion]);
+
+  const handleOpenSaveAsNewMeasurementModal = useCallback(() => {
     if (dirtyAssets.size === 0) {
       setSuccess('אין שינויים לשמירה');
       setTimeout(() => setSuccess(null), 3000);
@@ -98,6 +105,72 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       setError(`תקן שגיאות אימות לפני שמירה:\n${errorList}${validationErrors.size > 3 ? `\n...ועוד ${validationErrors.size - 3} שגיאות` : ''}`);
       return;
     }
+
+    // Set default date to today
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    setNewMeasurementDate(`${day}/${month}/${year}`);
+    setMeasurementDateModalOpen(true);
+  }, [dirtyAssets, validationErrors]);
+
+  const handleSaveAsNewMeasurements = async () => {
+    if (dirtyAssets.size === 0) {
+      setSuccess('אין שינויים לשמירה');
+      setTimeout(() => setSuccess(null), 3000);
+      return;
+    }
+
+    // Validate date format if provided
+    let finalMeasurementDate: string;
+    if (newMeasurementDate && newMeasurementDate.trim() !== '') {
+      // Validate DD/MM/YYYY format
+      const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      const match = newMeasurementDate.trim().match(dateFormatPattern);
+      
+      if (!match) {
+        setError('תאריך לא תקין. נא להזין בפורמט DD/MM/YYYY');
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
+
+      const [, day, month, year] = match;
+      const dayNum = parseInt(day, 10);
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+
+      // Validate date ranges
+      if (monthNum < 1 || monthNum > 12) {
+        setError('חודש לא תקין (1-12)');
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
+
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        setError(`יום לא תקין לחודש ${monthNum} (1-${daysInMonth})`);
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
+
+      if (yearNum < 1900 || yearNum > 2100) {
+        setError('שנה לא תקינה (1900-2100)');
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
+
+      finalMeasurementDate = newMeasurementDate.trim();
+    } else {
+      // Use system date if no date provided
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      finalMeasurementDate = `${day}/${month}/${year}`;
+    }
+
+    setMeasurementDateModalOpen(false);
 
     setLoading(true);
     try {
@@ -216,7 +289,27 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             continue;
           }
 
-          await api.assets.update(Number(assetId), changes);
+          // Prepare new asset data with updated measurement date
+          const newAssetData = {
+            ...updatedData,
+            measurement_date: finalMeasurementDate
+          };
+
+          // Remove fields that shouldn't be in new record
+          delete (newAssetData as any).id;
+          delete (newAssetData as any).created_at;
+          delete (newAssetData as any).updated_at;
+          delete (newAssetData as any).is_latest;
+          delete (newAssetData as any).history_created_at;
+          delete (newAssetData as any).is_new_measurement;
+
+          // First, update the old record with is_new_measurement flag set to true
+          // The database trigger will automatically move it to assets_history
+          await api.assets.update(Number(assetId), { is_new_measurement: true });
+
+          // Then create the new measurement in assets table
+          await api.assets.create(newAssetData as any);
+
           savedCount++;
         } catch (err) {
           errors.push(`נכס ${assetId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -224,10 +317,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       }
 
       if (errors.length > 0) {
-        const successMsg = savedCount > 0 ? `נשמרו ${savedCount} נכסים. ` : '';
+        const successMsg = savedCount > 0 ? `נשמרו ${savedCount} נכסים כמדידות חדשות. ` : '';
         setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
       } else {
-        setSuccess(`✓ נשמרו ${savedCount} נכסים בהצלחה`);
+        setSuccess(`✓ נשמרו ${savedCount} נכסים כמדידות חדשות בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
       }
 
@@ -236,7 +329,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       await fetchData();
     } catch (err) {
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
-      console.error('[TransferAreas] Error saving:', err);
+      console.error('[TransferAreas] Error saving as new measurements:', err);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -249,6 +342,34 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   };
 
   const hasChanges = dirtyAssets.size > 0;
+
+  // Helper function to get cell style for dirty fields and validation errors
+  const getCellStyle = useCallback((params: any, fieldName: string) => {
+    const assetId = String(params.data?.id);
+    if (!assetId) return { textAlign: 'right' };
+    
+    const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
+    const hasValidationError = validationErrors.has(assetId);
+    
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        fontWeight: isDirty ? 'bold' : 'normal',
+        textAlign: 'right'
+      };
+    }
+    
+    if (isDirty) {
+      return {
+        backgroundColor: '#fef3c7',
+        fontWeight: 'bold',
+        textAlign: 'right'
+      };
+    }
+    
+    return { textAlign: 'right' };
+  }, [dirtyAssets, validationErrors]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -297,21 +418,21 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       headerName: t('assetId'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'asset_id')
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'payer_id')
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'main_asset_type')
     },
     {
       field: 'asset_size',
@@ -325,14 +446,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'asset_size')
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_1')
     },
     {
       field: 'sub_asset_size_1',
@@ -346,14 +467,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_1')
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_2')
     },
     {
       field: 'sub_asset_size_2',
@@ -367,14 +488,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_2')
     },
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_3')
     },
     {
       field: 'sub_asset_size_3',
@@ -388,14 +509,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_3')
     },
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_4')
     },
     {
       field: 'sub_asset_size_4',
@@ -409,14 +530,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_4')
     },
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_5')
     },
     {
       field: 'sub_asset_size_5',
@@ -430,14 +551,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_5')
     },
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       editable: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_6')
     },
     {
       field: 'sub_asset_size_6',
@@ -451,9 +572,9 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_6')
     },
-  ], [t, validationErrors]);
+  ], [t, validationErrors, getCellStyle]);
 
   if (loading) {
     return (
@@ -506,17 +627,17 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           ביטול
         </button>
         <button
-          onClick={handleSaveAll}
+          onClick={handleOpenSaveAsNewMeasurementModal}
           disabled={loading || !hasChanges || validationErrors.size > 0}
           className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-          title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור שינויים'}
+          title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Save className="h-4 w-4" />
+            <Copy className="h-4 w-4" />
           )}
-          {loading ? 'שומר...' : `שמור הכל${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}
+          {loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}
         </button>
       </div>
 
@@ -579,6 +700,84 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           </div>
         </div>
       </div>
+
+      {/* Measurement Date Input Modal */}
+      {measurementDateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setMeasurementDateModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">שמור כמדידות חדשות</h3>
+              <button
+                onClick={() => {
+                  setMeasurementDateModalOpen(false);
+                  setNewMeasurementDate('');
+                }}
+                className="text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="newMeasurementDate" className="block text-sm font-medium text-slate-700 mb-1">
+                תאריך מדידה (DD/MM/YYYY)
+              </label>
+              <input
+                type="text"
+                id="newMeasurementDate"
+                value={newMeasurementDate}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Allow only digits and slashes
+                  value = value.replace(/[^\d/]/g, '');
+                  // Auto-format as user types
+                  if (value.length > 10) {
+                    value = value.slice(0, 10);
+                  }
+                  // Auto-add slashes
+                  if (value.length === 2 && !value.includes('/')) {
+                    value = value + '/';
+                  } else if (value.length === 5 && value.split('/').length === 2) {
+                    value = value + '/';
+                  }
+                  setNewMeasurementDate(value);
+                }}
+                placeholder="DD/MM/YYYY"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                maxLength={10}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                השאר ריק לשימוש בתאריך המערכת
+              </p>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setMeasurementDateModalOpen(false);
+                  setNewMeasurementDate('');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                <X className="h-4 w-4" />
+                ביטול
+              </button>
+              <button
+                onClick={handleSaveAsNewMeasurements}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

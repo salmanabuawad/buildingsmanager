@@ -82,24 +82,24 @@ export function ValidationResultModal({
   const contextConfig = {
     single: {
       title: singleAssetTitle || 'תוצאות אימות נכס',
-      loadingTitle: assetId ? `מאמת נכס ${assetId}...` : 'מאמת נכס...',
-      loadingMessage: assetId ? `מאמת את הנכס ${assetId}...` : 'מאמת את הנכס...',
+      loadingTitle: assetId ? `מאמת נכס ${assetId}` : 'מאמת נכס',
+      loadingMessage: assetId ? `מאמת את הנכס ${assetId}` : 'מאמת את הנכס',
       progressLabel: (current: number, total: number) => `שלב ${current} מתוך ${total}`,
       showExport: false,
       icon: 'single'
     },
     building: {
       title: batchTitle || 'תוצאות אימות נכסי מבנה',
-      loadingTitle: buildingNumber ? `מאמת נכסי מבנה ${buildingNumber}...` : 'מאמת נכסי מבנה...',
-      loadingMessage: buildingNumber ? `מאמת את נכסי המבנה ${buildingNumber}...` : 'מאמת את נכסי המבנה...',
+      loadingTitle: buildingNumber ? `מאמת נכסי מבנה ${buildingNumber}` : 'מאמת נכסי מבנה',
+      loadingMessage: buildingNumber ? `מאמת את נכסי המבנה ${buildingNumber}` : 'מאמת את נכסי המבנה',
       progressLabel: (current: number, total: number) => `נכס ${current} מתוך ${total}`,
       showExport: true,
       icon: 'building'
     },
     import: {
       title: batchTitle || 'תוצאות אימות ייבוא',
-      loadingTitle: 'מאמת נכסים מיובאים...',
-      loadingMessage: 'מאמת את הנכסים המיובאים...',
+      loadingTitle: 'מאמת נכסים מיובאים',
+      loadingMessage: 'מאמת את הנכסים המיובאים',
       progressLabel: (current: number, total: number) => `שורה ${current} מתוך ${total}`,
       showExport: false,
       icon: 'import'

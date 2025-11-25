@@ -63,32 +63,176 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   }
 
   const onCellValueChanged = useCallback(async (event: any) => {
-    const { data, colDef } = event;
-    const field = colDef.field;
-    const assetId = String(data.id);
-    const newValue = event.newValue;
+    try {
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const assetId = String(data.id);
+      const newValue = event.newValue;
 
-    // Track the change in dirtyAssets
-    setDirtyAssets(prev => {
-      const next = new Map(prev);
-      const existing = next.get(assetId) || {};
-      next.set(assetId, { ...existing, [field]: newValue });
-      return next;
-    });
+      // Get the original asset from state
+      const originalAsset = assets.find(a => String(a.id) === assetId);
+      if (!originalAsset) return;
 
-    // Update local state
-    setAssets(prevAssets => {
-      return prevAssets.map(asset => {
-        if (String(asset.id) === assetId) {
-          return { ...asset, [field]: newValue };
+      // Build updated asset with dirty changes
+      const dirtyChanges = dirtyAssets.get(assetId) || {};
+      const updatedAsset: Asset = {
+        ...originalAsset,
+        ...dirtyChanges,
+        [field]: newValue
+      };
+
+      // Validate date format if measurement_date is being changed
+      if (field === 'measurement_date' && newValue) {
+        const dateValidation = inputValidators.validateDate(newValue);
+        if (!dateValidation.valid) {
+          setError(dateValidation.error || 'Invalid date format');
+          setTimeout(() => setError(null), 3000);
+          event.api.refreshCells({ rowNodes: [event.node!], force: true });
+          return;
         }
-        return asset;
-      });
-    });
+      }
 
-    // Refresh the cell to update styling
-    if (event.api) {
-      event.api.refreshCells({ rowNodes: [event.node], columns: [field], force: true });
+      // Track the change in dirtyAssets
+      setDirtyAssets(prev => {
+        const next = new Map(prev);
+        const existing = next.get(assetId) || {};
+        next.set(assetId, { ...existing, [field]: newValue });
+        return next;
+      });
+
+      // Build comprehensive validation list
+      const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
+      const validations = [
+        assetValidators.validateBuildingNumber(updatedAsset.building_number),
+        assetValidators.validateAssetId(updatedAsset.asset_id),
+        assetValidators.validatePayerId(updatedAsset.payer_id),
+        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
+        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, taxRegion),
+        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
+          updatedAsset.sub_asset_type_1,
+          updatedAsset.sub_asset_type_2,
+          updatedAsset.sub_asset_type_3,
+          updatedAsset.sub_asset_type_4,
+          updatedAsset.sub_asset_type_5,
+          updatedAsset.sub_asset_type_6
+        ]),
+        assetValidators.validateComplexTypesMustHaveSubAssets(updatedAsset.main_asset_type, [
+          updatedAsset.sub_asset_type_1,
+          updatedAsset.sub_asset_type_2,
+          updatedAsset.sub_asset_type_3,
+          updatedAsset.sub_asset_type_4,
+          updatedAsset.sub_asset_type_5,
+          updatedAsset.sub_asset_type_6
+        ])
+      ];
+
+      if (shouldValidateSubAssets) {
+        validations.push(
+          assetValidators.validateMinimumSubAssets([
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ])
+        );
+      }
+
+      validations.push(
+        assetValidators.validateSubAssetSizeMatchesMain(
+          updatedAsset.asset_size,
+          [
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ],
+          [
+            updatedAsset.sub_asset_size_1,
+            updatedAsset.sub_asset_size_2,
+            updatedAsset.sub_asset_size_3,
+            updatedAsset.sub_asset_size_4,
+            updatedAsset.sub_asset_size_5,
+            updatedAsset.sub_asset_size_6
+          ]
+        ),
+        assetValidators.validateSubAssetsFor199Or299(
+          updatedAsset.building_number,
+          updatedAsset.main_asset_type,
+          updatedAsset.asset_size,
+          [
+            updatedAsset.sub_asset_type_1,
+            updatedAsset.sub_asset_type_2,
+            updatedAsset.sub_asset_type_3,
+            updatedAsset.sub_asset_type_4,
+            updatedAsset.sub_asset_type_5,
+            updatedAsset.sub_asset_type_6
+          ],
+          [
+            updatedAsset.sub_asset_size_1,
+            updatedAsset.sub_asset_size_2,
+            updatedAsset.sub_asset_size_3,
+            updatedAsset.sub_asset_size_4,
+            updatedAsset.sub_asset_size_5,
+            updatedAsset.sub_asset_size_6
+          ],
+          taxRegion
+        ),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_3, 'sub_asset_type_3'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, taxRegion),
+      );
+
+      // Run all validations
+      const validation = await validateAll(validations);
+
+      if (!validation.valid) {
+        const detailedError = validation.error || 'Unknown validation error';
+        setError(detailedError);
+        setTimeout(() => setError(null), 5000);
+        // Store validation error for this asset
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.set(String(assetId), detailedError);
+          return newMap;
+        });
+      } else {
+        // Clear validation error if validation passes
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(String(assetId));
+          return newMap;
+        });
+      }
+
+      // Update local state
+      setAssets(prevAssets => {
+        return prevAssets.map(asset => {
+          if (String(asset.id) === assetId) {
+            return { ...asset, [field]: newValue };
+          }
+          return asset;
+        });
+      });
+
+      // Refresh the cell to update styling
+      if (event.api) {
+        event.api.refreshCells({ rowNodes: [event.node], columns: [field], force: true });
+      }
+    } catch (err) {
+      console.error('[TransferAreas] Validation error:', err);
     }
   }, [assets, dirtyAssets, taxRegion]);
 

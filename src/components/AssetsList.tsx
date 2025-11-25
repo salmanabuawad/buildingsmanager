@@ -119,26 +119,38 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       setAllAssets(assetsData || []);
       
       // Separate master records (from assets table) from history records (from assets_history table)
-      // The API returns: master1, history1, history2, master2, history1, etc.
-      // So the first occurrence of each asset_id is the master record
-      const masterRecords: Asset[] = [];
-      const historyRecords: Asset[] = [];
-      const seenAssetIds = new Set<number>();
+      // The API returns data with 'master' and 'details' arrays
+      // If the API structure is different, we need to handle it
+      let masterRecords: Asset[] = [];
+      let historyRecords: Asset[] = [];
       
       console.log('[AssetsList] Total assetsData received:', (assetsData || []).length);
+      console.log('[AssetsList] Sample asset data:', assetsData?.[0]);
       
-      for (const asset of assetsData || []) {
-        if (!seenAssetIds.has(asset.asset_id)) {
-          // First occurrence of this asset_id is the master record
-          masterRecords.push(asset);
-          seenAssetIds.add(asset.asset_id);
-        } else {
-          // Subsequent occurrences are history records
-          historyRecords.push(asset);
+      // Check if assetsData is an array of assets or has a different structure
+      if (Array.isArray(assetsData)) {
+        // If it's a flat array, separate by checking if it's the first occurrence of each asset_id
+        const seenAssetIds = new Set<number>();
+        
+        for (const asset of assetsData) {
+          if (!seenAssetIds.has(asset.asset_id)) {
+            // First occurrence of this asset_id is the master record
+            masterRecords.push(asset);
+            seenAssetIds.add(asset.asset_id);
+          } else {
+            // Subsequent occurrences are history records
+            historyRecords.push(asset);
+          }
         }
+      } else if (assetsData && typeof assetsData === 'object' && 'master' in assetsData && 'details' in assetsData) {
+        // If it's an object with master and details arrays
+        masterRecords = (assetsData as any).master || [];
+        historyRecords = (assetsData as any).details || [];
       }
       
       console.log('[AssetsList] Separated records - Masters:', masterRecords.length, 'History:', historyRecords.length);
+      console.log('[AssetsList] Sample master record:', masterRecords[0]);
+      console.log('[AssetsList] Sample history record:', historyRecords[0]);
       
       // Filter only master records by tax region if taxZone is provided
       // History records should NOT be filtered by tax zone
@@ -989,13 +1001,20 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     setExpandedRows(prev => {
       const newSet = new Set(prev);
       if (newSet.has(assetId)) {
+        console.log('[AssetsList] Collapsing asset_id:', assetId);
         newSet.delete(assetId);
       } else {
+        console.log('[AssetsList] Expanding asset_id:', assetId);
+        // Check if there are history records for this asset_id
+        const historyCount = allAssets.filter(a => 
+          String(a.asset_id) === assetId && String(a.id) !== String(masterAssets.find(m => String(m.asset_id) === assetId)?.id)
+        ).length;
+        console.log('[AssetsList] Found', historyCount, 'history records for asset_id:', assetId);
         newSet.add(assetId);
       }
       return newSet;
     });
-  }, []);
+  }, [allAssets, masterAssets]);
 
   const getCellStyle = useCallback((params: any, fieldName: string, isRequired: boolean = false) => {
     const assetId = params.data?.id;
@@ -1168,7 +1187,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const asset = params.data as Asset;
         const assetId = asset.id;
         const isDeleted = deletedAssets.has(assetId);
-        const hasHistory = assets.filter(a => a.asset_id === params.data.asset_id).length > 1;
+        // Check if there are history records for this asset_id in allAssets (unfiltered)
+        // History records are those with the same asset_id but different id than the master
+        const masterId = String(asset.id);
+        const hasHistory = allAssets.some(a => 
+          a.asset_id === params.data.asset_id && String(a.id) !== masterId
+        );
         const isExpanded = expandedRows.has(String(params.data.asset_id));
 
         const errors: string[] = [];
@@ -1450,7 +1474,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
     },
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete, penthouseCellRenderer]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, allAssets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete, penthouseCellRenderer]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1615,7 +1639,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               headerClass: 'ag-right-aligned-header'
             }}
             onCellValueChanged={onCellValueChanged}
-            getRowId={(params) => params.data.id}
+            getRowId={(params) => {
+              // Use id + measurement_date to ensure uniqueness for master and detail rows
+              // This prevents AG-Grid from collapsing rows with the same id but different measurement_date
+              return `${params.data.id}-${params.data.measurement_date || ''}`;
+            }}
             getRowStyle={getRowStyle}
             onGridReady={async (params) => {
               // Load saved column state first

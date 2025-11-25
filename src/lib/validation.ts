@@ -232,8 +232,10 @@ export async function validateAssetTypeForBuildingTaxRegion(
     
     if (taxRegion) {
       // Use ONLY the provided taxRegion - IGNORE building tax_region completely
+      console.log('[validateAssetTypeForBuildingTaxRegion] Using passed taxRegion, IGNORING building tax_region:', taxRegion);
       buildingTaxRegions = [taxRegion.trim()];
     } else {
+      console.log('[validateAssetTypeForBuildingTaxRegion] No taxRegion provided, will fetch building tax_region');
       // Fallback: if no taxRegion provided, fetch building and use its tax_region
       const { data: building, error: buildingError } = await supabase
         .from('buildings')
@@ -366,9 +368,15 @@ export async function validateAssetTypeComplete(
     let buildingTaxRegions: string[];
     if (taxRegion) {
       // Use ONLY the provided taxRegion - IGNORE building tax_region completely
+      console.log('[validateAssetTypeComplete] Using passed taxRegion, IGNORING building tax_region:', taxRegion, {
+        buildingNumber,
+        assetTypeName,
+        buildingTaxRegion: building.tax_region
+      });
       buildingTaxRegions = [taxRegion.trim()];
     } else {
       // Fallback: if no taxRegion provided, use all tax regions from the building
+      console.log('[validateAssetTypeComplete] No taxRegion provided, using building tax_region:', building.tax_region);
       buildingTaxRegions = building.tax_region != null
         ? String(building.tax_region).split(',').map(r => r.trim())
         : [];
@@ -790,9 +798,14 @@ export async function validateSubAssetsFor199Or299(
   
   if (taxRegion) {
     // Use ONLY the provided taxRegion - IGNORE building tax_region completely
+    console.log('[validateSubAssetsFor199Or299] Using passed taxRegion, IGNORING building tax_region:', taxRegion, {
+      buildingNumber,
+      mainAssetType
+    });
     buildingTaxRegions = [taxRegion.trim()];
   } else {
     // Fallback: if no taxRegion provided, fetch building and use its tax_region
+    console.log('[validateSubAssetsFor199Or299] No taxRegion provided, will fetch building tax_region');
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
       .select('tax_region')
@@ -808,6 +821,7 @@ export async function validateSubAssetsFor199Or299(
     }
 
     // Use all tax regions from the building (only when taxRegion is not provided)
+    console.log('[validateSubAssetsFor199Or299] Using building tax_region:', building.tax_region);
     buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
   }
 

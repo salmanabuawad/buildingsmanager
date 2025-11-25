@@ -840,12 +840,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   };
 
-  // Helper function to get cell style for validation errors
+  // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {
     const assetId = String(params.data?.id);
     if (!assetId) return { textAlign: 'right' };
     
     const hasValidationError = validationErrors.has(assetId);
+    const isNewAsset = newAssets.has(assetId);
     
     if (hasValidationError) {
       return {
@@ -855,8 +856,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       };
     }
     
+    // Add visual indication for read-only cells (existing assets)
+    if (!isNewAsset) {
+      return {
+        textAlign: 'right',
+        backgroundColor: '#f9fafb', // Light gray background for read-only
+        opacity: 0.8, // Slightly faded
+        cursor: 'not-allowed'
+      };
+    }
+    
     return { textAlign: 'right' };
-  }, [validationErrors]);
+  }, [validationErrors, newAssets]);
 
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -1092,8 +1103,27 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      editable: false,
-      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46' }
+      editable: (params) => newAssets.has(String(params.data?.id)),
+      cellStyle: (params: any) => {
+        const assetId = String(params.data?.id);
+        const isNewAsset = newAssets.has(assetId);
+        
+        // For new assets, use the standard cell style (with validation/read-only indication)
+        if (isNewAsset) {
+          return getCellStyle(params);
+        }
+        
+        // For existing assets, use the special green background style (read-only)
+        return { 
+          textAlign: 'right', 
+          backgroundColor: '#ecfdf5', 
+          fontWeight: '700', 
+          color: '#065f46',
+          opacity: 0.8,
+          cursor: 'not-allowed'
+        };
+      },
+      headerClass: 'ag-right-aligned-header'
     },
     {
       field: 'payer_id',

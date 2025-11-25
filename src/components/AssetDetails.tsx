@@ -999,7 +999,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
     {
@@ -1022,7 +1023,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
     {
@@ -1045,7 +1047,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
     {
@@ -1068,7 +1071,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
     {
@@ -1091,7 +1095,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
     {
@@ -1114,7 +1119,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
     {
@@ -1137,7 +1143,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
     },
   ], [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets]);

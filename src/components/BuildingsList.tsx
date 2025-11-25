@@ -755,7 +755,18 @@ export function BuildingsList({
     {
       field: 'shared_area',
       headerName: 'שטח משותף מגורים',
-      editable: false,
+      editable: (params: any) => {
+        if (!params || !params.data) return false;
+        const building = params.data as Building;
+        return isNewBuilding(building);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
@@ -784,7 +795,18 @@ export function BuildingsList({
     {
       field: 'shared_business_area',
       headerName: 'שטח משותף עסקים',
-      editable: false,
+      editable: (params: any) => {
+        if (!params || !params.data) return false;
+        const building = params.data as Building;
+        return isNewBuilding(building);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
@@ -813,7 +835,18 @@ export function BuildingsList({
     {
       field: 'total_building_area',
       headerName: 'ס"כ גודל',
-      editable: false,
+      editable: (params: any) => {
+        if (!params || !params.data) return false;
+        const building = params.data as Building;
+        return isNewBuilding(building);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '0';
@@ -851,10 +884,19 @@ export function BuildingsList({
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
       editable: (params) => {
+        if (!params || !params.data) return false;
         const building = params.data as Building;
         if (!building) return false;
         const buildingKey = getBuildingKey(building);
-        return !buildingsToDelete.has(buildingKey);
+        const isNew = isNewBuilding(building);
+        return isNew || !buildingsToDelete.has(buildingKey);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;

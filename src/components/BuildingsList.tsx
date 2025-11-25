@@ -221,9 +221,7 @@ export function BuildingsList({
           const updated = { ...b, [field]: newValue };
           if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
             updated.building_number = Number(newValue);
-            // Remove tempId and _isNew when real building_number is set
-            delete updated._tempId;
-            delete updated._isNew;
+            // Keep _isNew and _tempId until saved to database
           }
           return updated;
         }
@@ -237,8 +235,7 @@ export function BuildingsList({
           const updated = { ...b, [field]: newValue };
           if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
             updated.building_number = Number(newValue);
-            delete updated._tempId;
-            delete updated._isNew;
+            // Keep _isNew and _tempId until saved to database
           }
           return updated;
         }
@@ -400,6 +397,21 @@ export function BuildingsList({
         }
       }
 
+      // Process new buildings that haven't been edited yet (in newBuildings but not in dirtyBuildings)
+      for (const newBuildingKey of newBuildings) {
+        if (!dirtyBuildings.has(newBuildingKey) && !buildingsToDelete.has(newBuildingKey)) {
+          // Add to dirtyBuildings so it gets processed below
+          const building = findBuildingByKey(newBuildingKey);
+          if (building) {
+            setDirtyBuildings(prev => {
+              const next = new Map(prev);
+              next.set(newBuildingKey, {}); // Empty changes object, will use full building data
+              return next;
+            });
+          }
+        }
+      }
+
       // Collect buildings to save
       const allBuildingsToSave = new Set<string | number>();
       for (const [buildingKey] of dirtyBuildings.entries()) {
@@ -436,7 +448,7 @@ export function BuildingsList({
             }
 
             const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = finalBuilding;
-            await api.buildings.create({
+            const createdBuilding = await api.buildings.create({
               building_number,
               tax_region,
               shared_area,
@@ -448,6 +460,23 @@ export function BuildingsList({
               condo,
               townhouses
             });
+            
+            // Update the building in state to remove _isNew and _tempId, similar to AssetDataEntry
+            setBuildings(prev => prev.map(b => {
+              const bKey = getBuildingKey(b);
+              if (bKey === buildingKey) {
+                return { ...createdBuilding, _isNew: false };
+              }
+              return b;
+            }));
+            setFilteredBuildings(prev => prev.map(b => {
+              const bKey = getBuildingKey(b);
+              if (bKey === buildingKey) {
+                return { ...createdBuilding, _isNew: false };
+              }
+              return b;
+            }));
+            
             savedCount++;
             successfullySaved.add(buildingKey);
           } else {
@@ -491,11 +520,11 @@ export function BuildingsList({
       });
       setValidationErrors(prev => {
         const next = new Map(prev);
-        for (const buildingNumber of successfullySaved) {
-          next.delete(buildingNumber);
+        for (const buildingKey of successfullySaved) {
+          next.delete(buildingKey);
         }
-        for (const buildingNumber of successfullyDeleted) {
-          next.delete(buildingNumber);
+        for (const buildingKey of successfullyDeleted) {
+          next.delete(buildingKey);
         }
         return next;
       });
@@ -521,14 +550,60 @@ export function BuildingsList({
 
   // Cancel all changes
   const handleCancelAll = async () => {
-    setBuildings(JSON.parse(JSON.stringify(originalBuildings)));
-    setFilteredBuildings(JSON.parse(JSON.stringify(originalBuildings)));
+    // Remove new buildings (temp IDs) from buildings
+    setBuildings(prev => prev.filter(b => {
+      const key = getBuildingKey(b);
+      return !newBuildings.has(key);
+    }));
+    setFilteredBuildings(prev => prev.filter(b => {
+      const key = getBuildingKey(b);
+      return !newBuildings.has(key);
+    }));
+    
+    // Restore original buildings
+    setBuildings(prev => {
+      const existingKeys = new Set(prev.map(b => getBuildingKey(b)));
+      const restored = JSON.parse(JSON.stringify(originalBuildings));
+      // Only add restored buildings that aren't new
+      const filtered = restored.filter((b: Building) => {
+        const key = getBuildingKey(b);
+        return !newBuildings.has(key);
+      });
+      // Merge with existing non-new buildings
+      const merged = [...prev.filter(b => {
+        const key = getBuildingKey(b);
+        return !newBuildings.has(key);
+      }), ...filtered];
+      // Remove duplicates by building_number
+      const unique = merged.filter((b, index, self) => 
+        index === self.findIndex(a => getBuildingKey(a) === getBuildingKey(b))
+      );
+      return unique;
+    });
+    setFilteredBuildings(prev => {
+      const existingKeys = new Set(prev.map(b => getBuildingKey(b)));
+      const restored = JSON.parse(JSON.stringify(originalBuildings));
+      const filtered = restored.filter((b: Building) => {
+        const key = getBuildingKey(b);
+        return !newBuildings.has(key);
+      });
+      const merged = [...prev.filter(b => {
+        const key = getBuildingKey(b);
+        return !newBuildings.has(key);
+      }), ...filtered];
+      const unique = merged.filter((b, index, self) => 
+        index === self.findIndex(a => getBuildingKey(a) === getBuildingKey(b))
+      );
+      return unique;
+    });
+    
     setDirtyBuildings(new Map());
-    setValidationErrors(new Map());
     setBuildingsToDelete(new Set());
     setNewBuildings(new Set());
+    setValidationErrors(new Map());
     setError(null);
 
+    // Re-validate tax regions for original buildings
     const newInvalidSet = new Set<number>();
     for (const building of originalBuildings) {
       if (building.tax_region) {
@@ -540,6 +615,7 @@ export function BuildingsList({
     }
     setInvalidTaxRegions(newInvalidSet);
 
+    // Refresh the grid
     if (gridRef.current?.api) {
       gridRef.current.api.refreshCells({ force: true });
       gridRef.current.api.refreshClientSideRowModel('filter');

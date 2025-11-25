@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
+import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon, Loader2, Save, X } from 'lucide-react';
+import { Building as BuildingIcon, Loader2, Save, X, AlertCircle } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
 
 interface TransferAreasProps {
@@ -21,6 +22,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
+  const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'transfer_areas_column_state');
 
@@ -90,6 +92,13 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       return;
     }
 
+    // Check for validation errors before saving
+    if (validationErrors.size > 0) {
+      const errorList = Array.from(validationErrors.values()).slice(0, 3).join('\n');
+      setError(`תקן שגיאות אימות לפני שמירה:\n${errorList}${validationErrors.size > 3 ? `\n...ועוד ${validationErrors.size - 3} שגיאות` : ''}`);
+      return;
+    }
+
     setLoading(true);
     try {
       let savedCount = 0;
@@ -97,6 +106,116 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
+          // Get the full asset data with changes
+          const originalAsset = assets.find(a => String(a.id) === assetId);
+          if (!originalAsset) {
+            errors.push(`נכס ${assetId}: לא נמצא`);
+            continue;
+          }
+
+          const updatedData = { ...originalAsset, ...changes };
+
+          // Validate before saving
+          const shouldValidateSubAssets = updatedData.main_asset_type === '199' || updatedData.main_asset_type === '299';
+          const validations = [
+            assetValidators.validateBuildingNumber(updatedData.building_number),
+            assetValidators.validateAssetId(updatedData.asset_id),
+            assetValidators.validatePayerId(updatedData.payer_id),
+            assetValidators.validateAssetType(updatedData.main_asset_type, 'main_asset_type'),
+            assetValidators.validateMainAssetTypeComplete(updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size, updatedData, taxRegion),
+            assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedData.main_asset_type, [
+              updatedData.sub_asset_type_1,
+              updatedData.sub_asset_type_2,
+              updatedData.sub_asset_type_3,
+              updatedData.sub_asset_type_4,
+              updatedData.sub_asset_type_5,
+              updatedData.sub_asset_type_6
+            ]),
+            assetValidators.validateComplexTypesMustHaveSubAssets(updatedData.main_asset_type, [
+              updatedData.sub_asset_type_1,
+              updatedData.sub_asset_type_2,
+              updatedData.sub_asset_type_3,
+              updatedData.sub_asset_type_4,
+              updatedData.sub_asset_type_5,
+              updatedData.sub_asset_type_6
+            ])
+          ];
+
+          if (shouldValidateSubAssets) {
+            validations.push(
+              assetValidators.validateMinimumSubAssets([
+                updatedData.sub_asset_type_1,
+                updatedData.sub_asset_type_2,
+                updatedData.sub_asset_type_3,
+                updatedData.sub_asset_type_4,
+                updatedData.sub_asset_type_5,
+                updatedData.sub_asset_type_6
+              ])
+            );
+          }
+
+          validations.push(
+            assetValidators.validateSubAssetSizeMatchesMain(
+              updatedData.asset_size,
+              [
+                updatedData.sub_asset_type_1,
+                updatedData.sub_asset_type_2,
+                updatedData.sub_asset_type_3,
+                updatedData.sub_asset_type_4,
+                updatedData.sub_asset_type_5,
+                updatedData.sub_asset_type_6
+              ],
+              [
+                updatedData.sub_asset_size_1,
+                updatedData.sub_asset_size_2,
+                updatedData.sub_asset_size_3,
+                updatedData.sub_asset_size_4,
+                updatedData.sub_asset_size_5,
+                updatedData.sub_asset_size_6
+              ]
+            ),
+            assetValidators.validateSubAssetsFor199Or299(
+              updatedData.building_number,
+              updatedData.main_asset_type,
+              updatedData.asset_size,
+              [
+                updatedData.sub_asset_type_1,
+                updatedData.sub_asset_type_2,
+                updatedData.sub_asset_type_3,
+                updatedData.sub_asset_type_4,
+                updatedData.sub_asset_type_5,
+                updatedData.sub_asset_type_6
+              ],
+              [
+                updatedData.sub_asset_size_1,
+                updatedData.sub_asset_size_2,
+                updatedData.sub_asset_size_3,
+                updatedData.sub_asset_size_4,
+                updatedData.sub_asset_size_5,
+                updatedData.sub_asset_size_6
+              ],
+              taxRegion
+            ),
+            assetValidators.validateAssetType(updatedData.sub_asset_type_1, 'sub_asset_type_1'),
+            assetValidators.validateAssetType(updatedData.sub_asset_type_2, 'sub_asset_type_2'),
+            assetValidators.validateAssetType(updatedData.sub_asset_type_3, 'sub_asset_type_3'),
+            assetValidators.validateAssetType(updatedData.sub_asset_type_4, 'sub_asset_type_4'),
+            assetValidators.validateAssetType(updatedData.sub_asset_type_5, 'sub_asset_type_5'),
+            assetValidators.validateAssetType(updatedData.sub_asset_type_6, 'sub_asset_type_6'),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_1, updatedData.sub_asset_size_1, taxRegion),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_2, updatedData.sub_asset_size_2, taxRegion),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_3, updatedData.sub_asset_size_3, taxRegion),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_4, updatedData.sub_asset_size_4, taxRegion),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_5, updatedData.sub_asset_size_5, taxRegion),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_6, updatedData.sub_asset_size_6, taxRegion),
+          );
+
+          const validation = await validateAll(validations);
+          if (!validation.valid) {
+            errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
+            continue;
+          }
+
           await api.assets.update(Number(assetId), changes);
           savedCount++;
         } catch (err) {
@@ -105,13 +224,15 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       }
 
       if (errors.length > 0) {
-        setError(`נשמרו ${savedCount} נכסים. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
+        const successMsg = savedCount > 0 ? `נשמרו ${savedCount} נכסים. ` : '';
+        setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
       } else {
         setSuccess(`✓ נשמרו ${savedCount} נכסים בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
       }
 
       setDirtyAssets(new Map());
+      setValidationErrors(new Map());
       await fetchData();
     } catch (err) {
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
@@ -130,6 +251,47 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const hasChanges = dirtyAssets.size > 0;
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
+    {
+      colId: 'actions',
+      headerName: t('actions'),
+      editable: false,
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressSizeToFit: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        if (!asset) return null;
+        
+        const assetId = String(asset.id);
+        const hasValidationError = validationErrors.has(assetId);
+        
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            {hasValidationError && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const errorMsg = validationErrors.get(assetId);
+                  setError(errorMsg || 'שגיאת אימות');
+                  setTimeout(() => setError(null), 5000);
+                }}
+                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                title={validationErrors.get(assetId) || 'שגיאת אימות'}
+              >
+                <AlertCircle className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
     {
       field: 'asset_id',
       headerName: t('assetId'),
@@ -291,7 +453,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
-  ], [t]);
+  ], [t, validationErrors]);
 
   if (loading) {
     return (
@@ -345,15 +507,16 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         </button>
         <button
           onClick={handleSaveAll}
-          disabled={loading || !hasChanges}
+          disabled={loading || !hasChanges || validationErrors.size > 0}
           className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור שינויים'}
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Save className="h-4 w-4" />
           )}
-          {loading ? 'שומר...' : `שמור הכל${hasChanges ? ` (${dirtyAssets.size})` : ''}`}
+          {loading ? 'שומר...' : `שמור הכל${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}
         </button>
       </div>
 
@@ -374,6 +537,13 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               }}
               getRowId={(params) => String(params.data.id)}
               onCellValueChanged={onCellValueChanged}
+              getRowStyle={(params) => {
+                const assetId = String(params.data?.id);
+                if (validationErrors.has(assetId)) {
+                  return { backgroundColor: '#fef2f2' }; // Light red for validation errors
+                }
+                return null;
+              }}
               onGridReady={async (params) => {
                 const hasSavedState = await loadColumnState();
                 if (!hasSavedState) {

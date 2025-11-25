@@ -6,6 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
+import { Toast } from './Toast';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -21,6 +22,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
@@ -169,8 +171,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       if (field === 'measurement_date' && newValue) {
         const dateValidation = inputValidators.validateDate(newValue);
         if (!dateValidation.valid) {
-          setError(dateValidation.error || 'Invalid date format');
-          setTimeout(() => setError(null), 3000);
+          setToast({ message: dateValidation.error || 'Invalid date format', type: 'error' });
+          setTimeout(() => setToast(null), 5000);
           event.api.refreshCells({ rowNodes: [event.node!], force: true });
           return;
         }
@@ -311,8 +313,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       if (totalAreaError && !validation.valid) {
         // Both total area and other validations failed
         const combinedError = `${validation.error || 'Unknown validation error'}\n${totalAreaError}`;
-        setError(combinedError);
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: combinedError, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setValidationErrors(prev => {
           const newMap = new Map(prev);
           newMap.set(String(assetId), combinedError);
@@ -320,8 +322,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         });
       } else if (totalAreaError) {
         // Only total area validation failed
-        setError(totalAreaError);
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: totalAreaError, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         setValidationErrors(prev => {
           const newMap = new Map(prev);
           newMap.set(String(assetId), totalAreaError!);
@@ -330,8 +332,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       } else if (!validation.valid) {
         // Only other validations failed
         const detailedError = validation.error || 'Unknown validation error';
-        setError(detailedError);
-        setTimeout(() => setError(null), 5000);
+        setToast({ message: detailedError, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
         // Store validation error for this asset
         setValidationErrors(prev => {
           const newMap = new Map(prev);
@@ -1117,6 +1119,15 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
 
     </div>

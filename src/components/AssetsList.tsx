@@ -1364,19 +1364,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                               <div className={`font-semibold ${error.errors.length > 0 ? 'text-red-900' : 'text-green-900'}`}>
                                 נכס {error.assetId} (מבנה {error.buildingNumber})
                               </div>
-                              {error.passed && error.passed.length > 0 && (
-                                <div className="mt-2 mb-2">
-                                  <p className="text-xs font-semibold text-slate-600 mb-1">כללי אימות שעברו:</p>
-                                  <ul className="space-y-0.5">
-                                    {error.passed.map((rule, ruleIdx) => (
-                                      <li key={ruleIdx} className="text-xs text-green-700 flex items-center gap-1">
-                                        <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />
-                                        <span>{rule}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
                               {error.matchedAssetTypeRecord && (
                                 <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
                                   <p className="text-xs font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>

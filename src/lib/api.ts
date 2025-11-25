@@ -866,12 +866,16 @@ export const api = {
             .select();
 
           if (historyError) {
-            // If it's a conflict error (duplicate), that's okay - it means it's already in history
-            if (historyError.code !== '23505') {
-              console.error('[API ERROR] Error copying asset to history:', historyError);
-              throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}`);
+            // Always throw errors - never silently ignore them
+            console.error('[API ERROR] Error copying asset to history:', historyError);
+            
+            // Provide a clear error message based on the error type
+            if (historyError.code === '23505') {
+              // Duplicate key error - record already exists in history
+              throw new Error(`שגיאה: נכס עם asset_id ${existingAsset.asset_id} ותאריך מדידה ${existingAsset.measurement_date} כבר קיים בטבלת ההיסטוריה. לא ניתן להעתיק אותו שוב.`);
             } else {
-              console.log('[API] Asset already exists in history, continuing with delete and insert');
+              // Any other error
+              throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}${historyError.details ? ` (${historyError.details})` : ''}${historyError.hint ? ` - ${historyError.hint}` : ''}`);
             }
           } else {
             console.log('[API] Asset copied to history successfully');

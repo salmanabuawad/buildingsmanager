@@ -1045,8 +1045,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const shouldShowDeleteButton = !hasMultipleTaxRegions || taxRegion;
         
         // Show checkbox only when a specific tax region is selected (single tax region tab)
-        // Checkbox should be visible for both new and existing assets
-        const shouldShowCheckbox = !!taxRegion;
+        // Checkbox should be hidden for new assets, same as view icon
+        const shouldShowCheckbox = !!taxRegion && !isNew;
         const isSelected = safeSelectedAssets.has(assetId);
         
         return (

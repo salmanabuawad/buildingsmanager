@@ -54,7 +54,16 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       
       // If we have asset identifiers (after save), use them
       if (assetIdentifiers.size > 0) {
-        for (const [oldId, identifier] of assetIdentifiers.entries()) {
+        // Collect unique asset identifiers to avoid duplicates
+        const uniqueIdentifiers = new Map<string, { asset_id: number; building_number: number }>();
+        for (const identifier of assetIdentifiers.values()) {
+          const key = `${identifier.asset_id}_${identifier.building_number}`;
+          if (!uniqueIdentifiers.has(key)) {
+            uniqueIdentifiers.set(key, identifier);
+          }
+        }
+
+        for (const identifier of uniqueIdentifiers.values()) {
           try {
             // Get all assets with this asset_id and building_number, then take the latest
             const allAssets = await api.assets.getAllByAssetId(String(identifier.asset_id), identifier.building_number);
@@ -71,10 +80,39 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               }
               if (latestAsset) {
                 fetchedAssets.push(latestAsset);
+                // Update asset identifiers with the new ID
+                setAssetIdentifiers(prev => {
+                  const next = new Map(prev);
+                  next.set(String(latestAsset!.id), { asset_id: latestAsset!.asset_id, building_number: latestAsset!.building_number });
+                  return next;
+                });
               }
+            } else {
+              console.warn(`No assets found for asset_id ${identifier.asset_id}, building_number ${identifier.building_number}`);
             }
           } catch (err) {
-            console.error(`Error fetching asset by asset_id ${identifier.asset_id}:`, err);
+            console.error(`Error fetching asset by asset_id ${identifier.asset_id}, building_number ${identifier.building_number}:`, err);
+            // If error, try to get all assets for this building and find by asset_id
+            try {
+              const allBuildingAssets = await api.assets.getAll(buildingNumber);
+              const matchingAsset = allBuildingAssets.find(a => 
+                a.asset_id === identifier.asset_id && 
+                a.building_number === identifier.building_number &&
+                (a.is_latest === true || !a.is_latest) // Prefer latest, but accept any
+              );
+              if (matchingAsset) {
+                fetchedAssets.push(matchingAsset);
+                setAssetIdentifiers(prev => {
+                  const next = new Map(prev);
+                  next.set(String(matchingAsset.id), { asset_id: matchingAsset.asset_id, building_number: matchingAsset.building_number });
+                  return next;
+                });
+              } else {
+                console.warn(`Asset with asset_id ${identifier.asset_id} not found in building ${identifier.building_number}`);
+              }
+            } catch (fallbackErr) {
+              console.error(`Fallback fetch also failed:`, fallbackErr);
+            }
           }
         }
       } else {
@@ -91,6 +129,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             });
           } catch (err) {
             console.error(`Error fetching asset ${assetId}:`, err);
+            // Don't add to errors array here - just log it
           }
         }
       }
@@ -488,24 +527,35 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           delete (newAssetData as any).history_created_at;
           delete (newAssetData as any).is_new_measurement;
 
-          // First, update the old record with is_new_measurement flag set to true
+          // First, try to update the old record with is_new_measurement flag set to true
           // The database trigger will automatically move it to assets_history
-          await api.assets.update(Number(assetId), { is_new_measurement: true });
+          try {
+            await api.assets.update(Number(assetId), { is_new_measurement: true });
+          } catch (updateErr) {
+            // If update fails (e.g., asset already moved to history), that's okay
+            // We'll just create the new measurement
+            console.warn(`Could not update old asset ${assetId} (might already be in history):`, updateErr);
+          }
 
           // Then create the new measurement in assets table
           const createdAsset = await api.assets.create(newAssetData as any);
 
-          // Update asset identifiers with the new asset ID
+          // Update asset identifiers with the new asset ID and also store the new ID for direct access
           setAssetIdentifiers(prev => {
             const next = new Map(prev);
             // Update the mapping: old ID -> new asset identifier
             next.set(assetId, { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
+            // Also add mapping from new ID to identifier for direct access
+            next.set(String(createdAsset.id), { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
             return next;
           });
 
           savedCount++;
         } catch (err) {
-          errors.push(`נכס ${assetId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          const originalAsset = assets.find(a => String(a.id) === assetId);
+          const assetIdentifier = originalAsset?.asset_id || assetId;
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          errors.push(`נכס ${assetIdentifier}: ${errorMsg}`);
         }
       }
 
@@ -519,6 +569,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
+      
+      // Wait a bit for the database trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await fetchData();
     } catch (err) {
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;

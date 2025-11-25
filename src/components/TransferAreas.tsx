@@ -27,6 +27,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   // Store asset_id and building_number for each asset to reload after save
   const [assetIdentifiers, setAssetIdentifiers] = useState<Map<string, { asset_id: number; building_number: number }>>(new Map());
+  // Store initial total area for validation
+  const [initialTotalArea, setInitialTotalArea] = useState<number | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'transfer_areas_column_state');
 
@@ -131,6 +133,19 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       }
 
       setAssets(fetchedAssets);
+      
+      // Calculate initial total area
+      const totalArea = fetchedAssets.reduce((sum, asset) => {
+        const assetTotal = (asset.asset_size || 0) +
+          (asset.sub_asset_size_1 || 0) +
+          (asset.sub_asset_size_2 || 0) +
+          (asset.sub_asset_size_3 || 0) +
+          (asset.sub_asset_size_4 || 0) +
+          (asset.sub_asset_size_5 || 0) +
+          (asset.sub_asset_size_6 || 0);
+        return sum + assetTotal;
+      }, 0);
+      setInitialTotalArea(totalArea);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load assets');
     } finally {
@@ -274,7 +289,49 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       // Run all validations
       const validation = await validateAll(validations);
 
-      if (!validation.valid) {
+      // Calculate current total area after this change
+      const updatedAssets = assets.map(a => {
+        if (String(a.id) === assetId) {
+          return updatedAsset;
+        }
+        const assetDirtyChanges = dirtyAssets.get(String(a.id)) || {};
+        return { ...a, ...assetDirtyChanges };
+      });
+      
+      const newTotalArea = updatedAssets.reduce((sum, a) => {
+        const assetTotal = (a.asset_size || 0) +
+          (a.sub_asset_size_1 || 0) +
+          (a.sub_asset_size_2 || 0) +
+          (a.sub_asset_size_3 || 0) +
+          (a.sub_asset_size_4 || 0) +
+          (a.sub_asset_size_5 || 0) +
+          (a.sub_asset_size_6 || 0);
+        return sum + assetTotal;
+      }, 0);
+
+      // Check if total area validation fails
+      if (initialTotalArea !== null && Math.abs(newTotalArea - initialTotalArea) > 0.01) {
+        const areaError = `השטח הכולל השתנה מ-${initialTotalArea.toLocaleString('he-IL')} ל-${newTotalArea.toLocaleString('he-IL')}. השטח הכולל חייב להישאר שווה`;
+        if (!validation.valid) {
+          // Combine errors
+          const combinedError = `${validation.error || 'Unknown validation error'}\n${areaError}`;
+          setError(combinedError);
+          setTimeout(() => setError(null), 5000);
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            newMap.set(String(assetId), combinedError);
+            return newMap;
+          });
+        } else {
+          setError(areaError);
+          setTimeout(() => setError(null), 5000);
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            newMap.set(String(assetId), areaError);
+            return newMap;
+          });
+        }
+      } else if (!validation.valid) {
         const detailedError = validation.error || 'Unknown validation error';
         setError(detailedError);
         setTimeout(() => setError(null), 5000);
@@ -581,11 +638,33 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   const handleCancelAll = () => {
     setDirtyAssets(new Map());
+    setValidationErrors(new Map());
     fetchData();
   };
 
 
   const hasChanges = dirtyAssets.size > 0;
+
+  // Calculate current total area (with dirty changes applied)
+  const currentTotalArea = useMemo(() => {
+    return assets.reduce((sum, asset) => {
+      const assetId = String(asset.id);
+      const dirtyChanges = dirtyAssets.get(assetId) || {};
+      const assetWithChanges = { ...asset, ...dirtyChanges };
+      
+      const assetTotal = (assetWithChanges.asset_size || 0) +
+        (assetWithChanges.sub_asset_size_1 || 0) +
+        (assetWithChanges.sub_asset_size_2 || 0) +
+        (assetWithChanges.sub_asset_size_3 || 0) +
+        (assetWithChanges.sub_asset_size_4 || 0) +
+        (assetWithChanges.sub_asset_size_5 || 0) +
+        (assetWithChanges.sub_asset_size_6 || 0);
+      return sum + assetTotal;
+    }, 0);
+  }, [assets, dirtyAssets]);
+
+  // Check if total area has changed
+  const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;
 
   // Helper function to get cell style for dirty fields and validation errors
   const getCellStyle = useCallback((params: any, fieldName: string) => {
@@ -860,6 +939,29 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           <p className="text-green-800 text-sm font-medium">{success}</p>
         </div>
       )}
+
+      {/* Total Area Display */}
+      <div className="mb-2 flex items-center justify-end gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-semibold text-slate-700">שטח כולל של הנכסים המקושרים:</label>
+          <input
+            type="text"
+            value={currentTotalArea !== null ? currentTotalArea.toLocaleString('he-IL') : ''}
+            readOnly
+            className={`px-3 py-2 border rounded-lg text-right font-semibold ${
+              totalAreaChanged
+                ? 'border-red-500 bg-red-50 text-red-700'
+                : 'border-slate-300 bg-slate-50 text-slate-700'
+            }`}
+            style={{ minWidth: '150px' }}
+          />
+          {totalAreaChanged && (
+            <span className="text-xs text-red-600 font-medium">
+              (שונה מ-{initialTotalArea?.toLocaleString('he-IL')})
+            </span>
+          )}
+        </div>
+      </div>
 
       <div className="mb-2 flex justify-end gap-2">
         <button

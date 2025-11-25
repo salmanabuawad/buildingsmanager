@@ -532,7 +532,8 @@ export const api = {
       if (error) {
         console.error('[API ERROR] Error calling get_assets_with_history:', error);
         // Fallback to separate queries if function doesn't exist
-        if (error.code === '42883' || error.message.includes('function') || error.message.includes('does not exist')) {
+        // PGRST202 = function not found in schema cache
+        if (error.code === '42883' || error.code === 'PGRST202' || error.message.includes('function') || error.message.includes('does not exist') || error.message.includes('Could not find the function')) {
           console.log('[API] Function not found, falling back to separate queries');
           
           // Fallback: Fetch all master records from assets table for the building

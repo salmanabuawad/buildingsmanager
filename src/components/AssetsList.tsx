@@ -34,6 +34,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
+  const [showTaxRegionModal, setShowTaxRegionModal] = useState(false);
   
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
@@ -50,6 +51,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxRegion]);
+
+  // Show tax region modal when component opens and taxRegion is available
+  useEffect(() => {
+    if (taxRegion && !loading) {
+      setShowTaxRegionModal(true);
+    }
+  }, [taxRegion, loading]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
@@ -1647,6 +1655,38 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
       />
 
+      {/* Tax Region Modal */}
+      {showTaxRegionModal && taxRegion && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">אזור מס</h2>
+              <button
+                onClick={() => setShowTaxRegionModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-4">
+              <p className="text-gray-700 text-lg">
+                <span className="font-semibold">אזור מס נבחר:</span> {taxRegion}
+              </p>
+              <p className="text-gray-600 text-sm mt-2">
+                האימות יתבצע לפי אזור המס הזה ולא לפי אזורי המס של המבנה
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowTaxRegionModal(false)}
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-semibold"
+              >
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

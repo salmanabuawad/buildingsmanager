@@ -890,7 +890,17 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const { master, details } = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
 
       // Combine master (from assets) and details (from assets_history)
+      // Ensure all records have unique identifiers for the grid
       const allAssetMeasurements = master ? [master, ...details] : details;
+      
+      // Log for debugging
+      console.log('[AssetDetails] Fetched measurements:', {
+        master: master ? { id: master.id, measurement_date: master.measurement_date } : null,
+        detailsCount: details.length,
+        totalCount: allAssetMeasurements.length,
+        allIds: allAssetMeasurements.map(m => ({ id: m.id, measurement_date: m.measurement_date }))
+      });
+      
       setAllMeasurements(allAssetMeasurements || []);
       // Store original data only if dirtyAssets is empty (initial load or after save)
       if (dirtyAssets.size === 0) {
@@ -1168,7 +1178,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   sortable: false,
                   headerClass: 'ag-right-aligned-header'
                 }}
-                getRowId={(params) => String(params.data.id)}
+                getRowId={(params) => {
+                  // Use id + measurement_date to ensure uniqueness
+                  // History records might have the same id as master record
+                  return `${params.data.id}-${params.data.measurement_date}`;
+                }}
                 getRowStyle={getRowStyle}
                 onGridReady={async (params) => {
                   // Load saved column state first

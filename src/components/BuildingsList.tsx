@@ -34,11 +34,14 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   const [newBuildings, setNewBuildings] = useState<Set<number>>(new Set()); // Track new buildings with temp IDs
 
   // Calculate total changes: new buildings count as 1 each, even if edited
-  // Edited existing buildings (not in newBuildings) + new buildings + deleted buildings
+  // Edited existing buildings (not in newBuildings and not temp IDs) + new buildings + deleted buildings
   const totalChanges = useMemo(() => {
     let editedExistingBuildings = 0;
     for (const buildingNumber of dirtyBuildings.keys()) {
-      if (!newBuildings.has(buildingNumber)) {
+      // Count as existing building edit if:
+      // 1. Not in newBuildings (not a new building)
+      // 2. Not a temp ID (buildingNumber >= 0)
+      if (!newBuildings.has(buildingNumber) && buildingNumber >= 0) {
         editedExistingBuildings++;
       }
     }
@@ -147,43 +150,90 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     console.log(`[CELL CHANGED] Building ${buildingNumber}, field: ${field}, value:`, newValue);
 
+    // Special handling for building_number changes in new buildings
+    // If building_number changes for a new building, we need to update tracking
+    const isNewBuilding = buildingNumber < 0 || newBuildings.has(buildingNumber);
+    let newBuildingNumber = buildingNumber;
+    
+    if (field === 'building_number' && isNewBuilding && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
+      const newValueNum = Number(newValue);
+      // Update newBuildings tracking to use the new building_number
+      setNewBuildings(prev => {
+        const next = new Set(prev);
+        next.delete(buildingNumber);
+        next.add(newValueNum);
+        return next;
+      });
+      // Update dirtyBuildings tracking to use the new building_number
+      // Merge all existing changes (not just building_number) to the new key
+      setDirtyBuildings(prev => {
+        const next = new Map(prev);
+        const existingChanges = next.get(buildingNumber) || {};
+        // Merge all changes including the new building_number
+        const mergedChanges = { ...existingChanges, [field]: newValue };
+        next.delete(buildingNumber);
+        next.set(newValueNum, mergedChanges);
+        return next;
+      });
+      newBuildingNumber = newValueNum;
+    }
+
     // Update local state first
+    // If building_number changed for a new building, update the building_number in the object
     setBuildings(prevBuildings => {
-      return prevBuildings.map(b =>
-        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
-      );
+      return prevBuildings.map(b => {
+        if (b.building_number === buildingNumber) {
+          const updated = { ...b, [field]: newValue };
+          // If building_number field changed and it's a new building, update the building_number property
+          if (field === 'building_number' && isNewBuilding && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
+            updated.building_number = Number(newValue);
+          }
+          return updated;
+        }
+        return b;
+      });
     });
     setFilteredBuildings(prevBuildings => {
-      return prevBuildings.map(b =>
-        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
-      );
+      return prevBuildings.map(b => {
+        if (b.building_number === buildingNumber) {
+          const updated = { ...b, [field]: newValue };
+          // If building_number field changed and it's a new building, update the building_number property
+          if (field === 'building_number' && isNewBuilding && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
+            updated.building_number = Number(newValue);
+          }
+          return updated;
+        }
+        return b;
+      });
     });
 
     // Update the dirty tracking - only mark as dirty if value is meaningful
     // For new buildings, only mark dirty after user enters data (not on initial empty state)
-    const isNewBuilding = buildingNumber < 0;
     const hasMeaningfulValue = newValue !== null && newValue !== undefined && newValue !== '';
     
     // For new buildings, only track changes if a meaningful value is entered
     // For existing buildings, track all changes
-    if (!isNewBuilding || hasMeaningfulValue) {
-      setDirtyBuildings(prev => {
-        const next = new Map(prev);
-        const existingChanges = next.get(buildingNumber) || {};
-        if (hasMeaningfulValue) {
-          next.set(buildingNumber, { ...existingChanges, [field]: newValue });
-        } else {
-          // Remove the field from dirty tracking if value is cleared
-          const updatedChanges = { ...existingChanges };
-          delete updatedChanges[field];
-          if (Object.keys(updatedChanges).length > 0) {
-            next.set(buildingNumber, updatedChanges);
+    // Skip if we already handled building_number change above
+    if (field !== 'building_number' || !isNewBuilding) {
+      if (!isNewBuilding || hasMeaningfulValue) {
+        setDirtyBuildings(prev => {
+          const next = new Map(prev);
+          const existingChanges = next.get(newBuildingNumber) || {};
+          if (hasMeaningfulValue) {
+            next.set(newBuildingNumber, { ...existingChanges, [field]: newValue });
           } else {
-            next.delete(buildingNumber);
+            // Remove the field from dirty tracking if value is cleared
+            const updatedChanges = { ...existingChanges };
+            delete updatedChanges[field];
+            if (Object.keys(updatedChanges).length > 0) {
+              next.set(newBuildingNumber, updatedChanges);
+            } else {
+              next.delete(newBuildingNumber);
+            }
           }
-        }
-        return next;
-      });
+          return next;
+        });
+      }
     }
 
     // Create updated building object with the new value
@@ -323,6 +373,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       }
 
       // Process new buildings and updates
+      // Collect all buildings that need to be saved
       const allBuildingsToSave = new Set<number>();
       for (const [buildingNumber] of dirtyBuildings.entries()) {
         if (!buildingsToDelete.has(buildingNumber)) {
@@ -337,25 +388,37 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
       for (const buildingNumber of allBuildingsToSave) {
         try {
-          const building = buildings.find(b => b.building_number === buildingNumber);
+          // Find building by the tracking number (could be temp ID or actual building_number)
+          let building = buildings.find(b => b.building_number === buildingNumber);
+          
+          // If not found and it's a new building, it might have had its building_number changed
+          // Try to find it by checking if it's in newBuildings and has a different building_number
+          if (!building && newBuildings.has(buildingNumber)) {
+            // This shouldn't happen if tracking was updated correctly, but handle it anyway
+            building = buildings.find(b => newBuildings.has(b.building_number));
+          }
+          
           if (!building) continue;
 
           const changes = dirtyBuildings.get(buildingNumber) || {};
-          const isNewBuilding = newBuildings.has(buildingNumber);
+          const isNewBuilding = newBuildings.has(buildingNumber) || buildingNumber < 0;
 
           if (isNewBuilding) {
+            // For new buildings, merge changes with building data to get final values
+            const finalBuilding = { ...building, ...changes };
+            
             // Validate required fields for new buildings
-            if (!building.building_number || building.building_number < 0) {
+            if (!finalBuilding.building_number || finalBuilding.building_number < 0) {
               errors.push(`מבנה חדש: מספר מבנה נדרש ו חייב להיות חיובי`);
               continue;
             }
-            if (!building.tax_region) {
-              errors.push(`מבנה ${building.building_number}: אזור מיסים נדרש`);
+            if (!finalBuilding.tax_region) {
+              errors.push(`מבנה ${finalBuilding.building_number}: אזור מיסים נדרש`);
               continue;
             }
 
-            // Create new building
-            const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = building;
+            // Create new building with final values
+            const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = finalBuilding;
             await api.buildings.create({
               building_number,
               tax_region,
@@ -371,8 +434,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
             savedCount++;
             successfullySaved.add(buildingNumber);
           } else {
-            // Update existing building
-            await api.buildings.update(buildingNumber, changes);
+            // Update existing building - use the original building_number, not the temp ID
+            const actualBuildingNumber = building.building_number;
+            if (!actualBuildingNumber || actualBuildingNumber < 0) {
+              errors.push(`מבנה ${buildingNumber}: לא ניתן לעדכן מבנה עם מספר מבנה לא תקין`);
+              continue;
+            }
+            await api.buildings.update(actualBuildingNumber, changes);
             savedCount++;
             successfullySaved.add(buildingNumber);
           }
@@ -469,8 +537,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     // Force grid to update with new data
     if (gridRef.current?.api) {
-      // Set the row data directly to ensure new buildings are removed
-      gridRef.current.api.setRowData(JSON.parse(JSON.stringify(originalBuildings)));
+      // Grid will automatically update when state changes, just refresh cells
       gridRef.current.api.refreshCells({ force: true });
       gridRef.current.api.refreshClientSideRowModel('filter');
     }
@@ -580,18 +647,19 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'building_number',
       headerName: 'מספר מבנה *',
       editable: (params: any) => {
-        // Editable only for new buildings (negative building_number)
-        return params.data.building_number < 0;
+        // Editable only for new buildings (negative building_number or in newBuildings)
+        const building = params.data as Building;
+        return building.building_number < 0 || newBuildings.has(building.building_number);
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const isNewBuilding = building.building_number < 0;
+        const isNewBuilding = building.building_number < 0 || newBuildings.has(building.building_number);
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['building_number'];
         const value = params.value != null ? String(params.value) : '';
         
-        // Show empty string for new buildings
-        if (isNewBuilding && params.value < 0) {
+        // Show empty string for new buildings (temp ID or if in newBuildings)
+        if (isNewBuilding && (params.value < 0 || params.value === null || params.value === undefined)) {
           return '';
         }
 

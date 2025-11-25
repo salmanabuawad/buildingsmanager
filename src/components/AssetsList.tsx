@@ -131,17 +131,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           });
           setError(dateValidation.error || 'Invalid date format');
           setTimeout(() => setError(null), 3000);
-          // Still update the display to show the invalid value
-          setDisplayAssets(prevAssets =>
-            prevAssets.map(asset =>
-              asset.id === assetId ? updatedAsset : asset
-            )
-          );
-          setMasterAssets(prevMasterAssets =>
-            prevMasterAssets.map(asset =>
-              asset.id === assetId ? updatedAsset : asset
-            )
-          );
           event.api.refreshCells({ rowNodes: [event.node!], force: true });
           return;
         }
@@ -257,19 +246,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         setTimeout(() => setError(null), 5000);
       }
 
-      // Update the display data with the new value
-      setDisplayAssets(prevAssets =>
-        prevAssets.map(asset =>
-          asset.id === assetId ? updatedAsset : asset
-        )
-      );
-
-      // Also update masterAssets if this is a master row
-      setMasterAssets(prevMasterAssets =>
-        prevMasterAssets.map(asset =>
-          asset.id === assetId ? updatedAsset : asset
-        )
-      );
 
       // Refresh the grid cells to show validation styling
       event.api.refreshCells({ rowNodes: [event.node!], force: true });
@@ -372,40 +348,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           }
         }
 
-        // Merge with existing validation errors
-        setValidationErrors(prevErrors => {
-          const merged = new Map(prevErrors);
-          for (const [assetId, errors] of newValidationErrors.entries()) {
-            const existing = merged.get(assetId) || new Map<string, string>();
-            // Merge batch validation errors with existing errors
-            for (const [field, error] of errors.entries()) {
-              existing.set(field, error);
-            }
-            merged.set(assetId, existing);
-          }
-          return merged;
-        });
 
-        // Also mark in invalidAssets set for row styling
-        setInvalidAssets(prevInvalid => {
-          const newInvalid = new Set(prevInvalid);
-          for (const errorInfo of results.errors) {
-            let dbId = errorInfo.assetDbId;
-            
-            // If no database ID, try to find it by asset_id
-            if (!dbId) {
-              const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
-              if (asset) {
-                dbId = String(asset.id);
-              }
-            }
-            
-            if (dbId) {
-              newInvalid.add(dbId);
-            }
-          }
-          return newInvalid;
-        });
 
         // Refresh grid to show the validation errors
         if (gridRef.current?.api) {
@@ -808,117 +751,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       cellStyle: { textAlign: 'right' }
     }
   ], [t, assetTypes]);
-  const toggleRowExpansion = useCallback((assetId: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(assetId)) {
-        console.log('[AssetsList] Collapsing asset_id:', assetId);
-        newSet.delete(assetId);
-      } else {
-        console.log('[AssetsList] Expanding asset_id:', assetId);
-        // Check if there are history records for this asset_id
-        const historyCount = allAssets.filter(a => 
-          String(a.asset_id) === assetId && String(a.id) !== String(masterAssets.find(m => String(m.asset_id) === assetId)?.id)
-        ).length;
-        console.log('[AssetsList] Found', historyCount, 'history records for asset_id:', assetId);
-        newSet.add(assetId);
-      }
-      return newSet;
-    });
-  }, [allAssets, masterAssets]);
 
-  const getCellStyle = useCallback((params: any, fieldName: string, isRequired: boolean = false) => {
-    const assetId = params.data?.id;
-    const assetErrors = validationErrors.get(assetId);
-    const hasValidationError = assetErrors && assetErrors.has(fieldName);
-    const isDirty = assetId && dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
 
-    if (hasValidationError) {
-      return {
-        backgroundColor: '#fee2e2',
-        border: '2px solid #ef4444',
-        fontWeight: isDirty ? 'bold' : 'normal',
-        textAlign: 'right'
-      };
-    }
 
-    if (isDirty) {
-      return {
-        backgroundColor: '#fef3c7',
-        fontWeight: 'bold',
-        textAlign: 'right'
-      };
-    }
-
-    if (isRequired) {
-      return {
-        backgroundColor: '#fff9e6',
-        textAlign: 'right'
-      };
-    }
-
-    return { textAlign: 'right' };
-  }, [dirtyAssets, validationErrors]);
-
-  const toggleDelete = useCallback((assetId: string) => {
-    setDeletedAssets(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(assetId)) {
-        newSet.delete(assetId);
-      } else {
-        newSet.add(assetId);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const getRowStyle = useCallback((params: any) => {
-    const assetId = params.data?.id;
-    if (!assetId) return undefined;
-
-    // Check if marked for deletion
-    const isDeleted = deletedAssets.has(assetId);
-    if (isDeleted) {
-      return {
-        background: '#fee2e2',
-        textDecoration: 'line-through',
-        opacity: 0.6
-      };
-    }
-
-    const assetErrors = validationErrors.get(assetId);
-    const hasErrors = assetErrors && assetErrors.size > 0;
-
-    // Also check for numeric validation errors
-    const asset = params.data as Asset;
-    const numericRegex = /^[0-9]+$/;
-    const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-    const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
-    // Check if this is invalid (for backwards compatibility)
-    const isInvalid = invalidAssets.has(assetId);
-
-    // Check if this is a historical record (not in masterAssets)
-    const isMaster = masterAssets.some(m => m.id === assetId);
-
-    if (hasErrors || hasInvalidPayerId || hasInvalidAssetId || isInvalid) {
-      return {
-        border: '3px solid #ef4444',
-        borderRadius: '4px',
-        background: '#fee2e2'
-      };
-    }
-
-    if (!isMaster) {
-      return {
-        background: 'linear-gradient(to right, #dbeafe 0%, #e0f2fe 100%)',
-        fontStyle: 'italic',
-        fontSize: '0.9em'
-      };
-    }
-
-    return undefined;
-  }, [validationErrors, invalidAssets, masterAssets, deletedAssets]);
 
   // Create stable penthouse checkbox cellRenderer
   const penthouseCellRenderer = useCallback((params: any) => {

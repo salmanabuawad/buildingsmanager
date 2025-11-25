@@ -15,24 +15,12 @@ interface AssetsListProps {
 export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [allAssets, setAllAssets] = useState<Asset[]>([]); // Store all assets before tax zone filtering
-  const [masterAssets, setMasterAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [invalidAssets, setInvalidAssets] = useState<Set<string>>(new Set());
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
-  const [displayAssets, setDisplayAssets] = useState<Asset[]>([]);
-  const [originalDisplayAssets, setOriginalDisplayAssets] = useState<Asset[]>([]);
-  const [originalMasterAssets, setOriginalMasterAssets] = useState<Asset[]>([]);
-  const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
-  const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
-  const [newAssets, setNewAssets] = useState<Set<string>>(new Set()); // Track new assets with temp IDs
-  const [success, setSuccess] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Map<string, Map<string, string>>>(new Map());
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<{
@@ -46,139 +34,29 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     invalid: number;
     errors: Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[]; passed?: string[]; matchedAssetTypeRecord?: string }>;
   } | null>(null);
-  const [showDataModal, setShowDataModal] = useState(false);
-  const [retrievedData, setRetrievedData] = useState<{
-    allAssets: Asset[];
-    masterRecords: Asset[];
-    historyRecords: Asset[];
-    filteredMasterAssets: Asset[];
-    masterAssets: Asset[];
-    displayAssets: Asset[];
-  } | null>(null);
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxZone]);
-
-  // Refresh grid cells when allAssets or masterAssets change to update hasHistory indicators
-  useEffect(() => {
-    if (gridRef.current && columnStateLoaded) {
-      // Small delay to ensure grid is ready
-      setTimeout(() => {
-        gridRef.current?.api.refreshCells({ 
-          columns: ['actions'],
-          force: true 
-        });
-      }, 100);
-    }
-  }, [allAssets, masterAssets, columnStateLoaded]);
-  useEffect(() => {
-    // Create display data with expanded rows
-    const display: Asset[] = [];
-    console.log('[AssetsList] useEffect - masterAssets count:', masterAssets.length, 'expandedRows:', Array.from(expandedRows));
-    
-    for (const asset of masterAssets) {
-      display.push({ ...asset, _isMasterRow: true });
-      if (expandedRows.has(String(asset.asset_id))) {
-        // Show all historical records for this asset_id from allAssets (unfiltered),
-        // excluding the master row itself
-        // This ensures all historical measurements are shown regardless of tax zone filtering
-        const masterId = String(asset.id);
-        // Look for historical records in allAssets (unfiltered) to show all measurements
-        // regardless of tax zone, but exclude the master row
-        const historicalRecords = allAssets.filter(
-          a => a.asset_id === asset.asset_id && String(a.id) !== masterId
-        );
-        console.log('[AssetsList] Found', historicalRecords.length, 'history records for asset_id', asset.asset_id);
-        // Sort historical records by measurement_date (newest first)
-        const parseDate = (dateStr: string) => {
-          const parts = dateStr.split('/');
-          if (parts.length === 3) {
-            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-          }
-          return new Date(dateStr);
-        };
-        historicalRecords.sort((a, b) => 
-          parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
-        );
-        display.push(...historicalRecords.map(r => ({ ...r, _isMasterRow: false })));
-      }
-    }
-    
-    console.log('[AssetsList] Setting displayAssets with', display.length, 'rows');
-    setDisplayAssets(display);
-    
-    // Update retrieved data with displayAssets
-    setRetrievedData(prev => prev ? { ...prev, displayAssets: display } : null);
-    
-    // Store original data only if dirtyAssets is empty (initial load or after save)
-    if (dirtyAssets.size === 0) {
-      setOriginalDisplayAssets(JSON.parse(JSON.stringify(display)));
-      setOriginalMasterAssets(JSON.parse(JSON.stringify(masterAssets)));
-    }
-  }, [masterAssets, allAssets, expandedRows, dirtyAssets.size]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
       const [buildingData, assetsData, assetTypesData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
-        api.assets.getAllAssetsWithHistory(buildingNumber),
+        api.assets.getAll(buildingNumber),
         api.assetTypes.getAll()
       ]);
       setBuilding(buildingData);
       setAssetTypes(assetTypesData || []);
       
-      // Store all assets before filtering (for historical records lookup)
-      // This now includes both master records from assets and detail records from assets_history
-      setAllAssets(assetsData || []);
-      
-      // Separate master records (from assets table) from history records (from assets_history table)
-      // The API returns data with 'master' and 'details' arrays
-      // If the API structure is different, we need to handle it
-      let masterRecords: Asset[] = [];
-      let historyRecords: Asset[] = [];
-      
-      console.log('[AssetsList] Total assetsData received:', (assetsData || []).length);
-      console.log('[AssetsList] Sample asset data:', assetsData?.[0]);
-      
-      // Check if assetsData is an array of assets or has a different structure
-      if (Array.isArray(assetsData)) {
-        // If it's a flat array, separate by checking if it's the first occurrence of each asset_id
-        const seenAssetIds = new Set<number>();
-        
-        for (const asset of assetsData) {
-          if (!seenAssetIds.has(asset.asset_id)) {
-            // First occurrence of this asset_id is the master record
-            masterRecords.push(asset);
-            seenAssetIds.add(asset.asset_id);
-          } else {
-            // Subsequent occurrences are history records
-            historyRecords.push(asset);
-          }
-        }
-      } else if (assetsData && typeof assetsData === 'object' && 'master' in assetsData && 'details' in assetsData) {
-        // If it's an object with master and details arrays
-        masterRecords = (assetsData as any).master || [];
-        historyRecords = (assetsData as any).details || [];
-      }
-      
-      console.log('[AssetsList] Separated records - Masters:', masterRecords.length, 'History:', historyRecords.length);
-      console.log('[AssetsList] Sample master record:', masterRecords[0]);
-      console.log('[AssetsList] Sample history record:', historyRecords[0]);
-      
-      // Filter only master records by tax region if taxZone is provided
-      // History records should NOT be filtered by tax zone
-      let filteredMasterAssets = masterRecords;
+      // Filter by tax zone if provided
+      let filteredAssets = assetsData || [];
       if (taxZone) {
         const taxZoneNum = parseInt(taxZone.trim());
         const taxZoneStr = taxZone.trim();
         
-        console.log('[AssetsList] Filtering master records by taxZone:', taxZone);
-        console.log('[AssetsList] Total master records before filtering:', masterRecords.length);
-        console.log('[AssetsList] Total history records (unfiltered):', historyRecords.length);
+        filteredAssets = [];
         
-        filteredMasterAssets = [];
-        
-        for (const asset of masterRecords) {
+        for (const asset of assetsData || []) {
           // Skip assets without main_asset_type
           if (!asset.main_asset_type) {
             continue;
@@ -190,14 +68,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           });
           
           if (!assetType) {
-            console.log('[AssetsList] Asset type not found:', asset.main_asset_type, 'for asset:', asset.asset_id);
             continue;
           }
           
           const assetTaxRegion = assetType.tax_region;
           
           if (assetTaxRegion == null) {
-            console.log('[AssetsList] Asset type', asset.main_asset_type, 'has no tax_region for asset:', asset.asset_id);
             continue;
           }
           
@@ -205,62 +81,12 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           const taxRegionMatches = assetTaxRegion === taxZoneNum || String(assetTaxRegion) === taxZoneStr;
           
           if (taxRegionMatches) {
-            filteredMasterAssets.push(asset);
+            filteredAssets.push(asset);
           }
         }
-        
-        console.log('[AssetsList] Total master records after filtering:', filteredMasterAssets.length);
       }
       
-      // Combine filtered master records with all history records
-      // History records are not filtered by tax zone
-      const filteredAssets = [...filteredMasterAssets, ...historyRecords];
       setAssets(filteredAssets);
-      
-      // Debug for asset 100501
-      const asset100501Records = filteredAssets.filter(a => String(a.asset_id) === '100501');
-      if (asset100501Records.length > 0) {
-        console.log('[AssetsList] Asset 100501 - After tax zone filtering:', asset100501Records.length, 'records');
-        console.log('[AssetsList] Asset 100501 - Records:', asset100501Records.map(a => ({
-          id: a.id,
-          asset_id: a.asset_id,
-          measurement_date: a.measurement_date,
-          main_asset_type: a.main_asset_type
-        })));
-      }
-      
-      // filteredMasterAssets already contains only the master records (filtered by tax zone)
-      // These are the records that should appear as master rows in the grid
-      console.log('[AssetsList] Setting masterAssets with', filteredMasterAssets.length, 'masters');
-      console.log('[AssetsList] Master assets:', filteredMasterAssets.map(a => ({ 
-        id: a.id, 
-        asset_id: a.asset_id, 
-        measurement_date: a.measurement_date 
-      })));
-      setMasterAssets(filteredMasterAssets);
-      
-      // Store retrieved data for modal display
-      setRetrievedData({
-        allAssets: assetsData || [],
-        masterRecords,
-        historyRecords,
-        filteredMasterAssets,
-        masterAssets: filteredMasterAssets,
-        displayAssets: [] // Will be set by useEffect
-      });
-      
-      // Show modal after data is retrieved
-      setShowDataModal(true);
-      const invalidSet = new Set<string>();
-      const numericRegex = /^[0-9]+$/;
-      for (const asset of filteredAssets) {
-        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-        if (hasInvalidPayerId || hasInvalidAssetId) {
-          invalidSet.add(asset.id);
-        }
-      }
-      setInvalidAssets(invalidSet);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
@@ -464,7 +290,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     try {
       // Pre-fetch all required data once (performance optimization)
       const [buildingAssets, assetTypesData, buildingData] = await Promise.all([
-        api.assets.getAllAssetsWithHistory(buildingNumber),
+        api.assets.getAll(buildingNumber),
         api.assetTypes.getAll(),
         api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
@@ -478,38 +304,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         });
       }
 
-      // Group by asset_id and select only the latest record per asset_id (same logic as masterAssets)
-      const assetsByAssetId = new Map<string, Asset[]>();
-      for (const asset of filteredAssets) {
-        const assetIdKey = String(asset.asset_id);
-        if (!assetsByAssetId.has(assetIdKey)) {
-          assetsByAssetId.set(assetIdKey, []);
-        }
-        assetsByAssetId.get(assetIdKey)!.push(asset);
-      }
-      
-      const parseDate = (dateStr: string) => {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        }
-        return new Date(dateStr);
-      };
-      
-      // Select only the latest record per asset_id (same as masterAssets logic)
-      const assetsToValidate = Array.from(assetsByAssetId.values()).map(group => {
-        group.sort((a, b) => {
-          const dateA = parseDate(a.measurement_date);
-          const dateB = parseDate(b.measurement_date);
-          // Sort by date (newest first), then by id (highest first) as tiebreaker
-          const dateDiff = dateB.getTime() - dateA.getTime();
-          if (dateDiff !== 0) return dateDiff;
-          return b.id - a.id;
-        });
-        return group[0]; // Return the latest record
-      });
+      // Use all assets directly (getAll returns only latest records from assets table)
+      const assetsToValidate = filteredAssets;
 
-      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber} (only latest records per asset_id)`);
+      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`);
 
       // Use unified validation handler
       const batchResult = await AssetValidationHandler.validateBuildingAssets(
@@ -560,7 +358,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           
           // If no database ID, try to find it by asset_id
           if (!dbId) {
-            const asset = masterAssets.find(a => String(a.asset_id) === errorInfo.assetId);
+            const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
             if (asset) {
               dbId = String(asset.id);
             }
@@ -596,7 +394,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             
             // If no database ID, try to find it by asset_id
             if (!dbId) {
-              const asset = masterAssets.find(a => String(a.asset_id) === errorInfo.assetId);
+              const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
               if (asset) {
                 dbId = String(asset.id);
               }
@@ -1124,57 +922,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
   // Create stable penthouse checkbox cellRenderer
   const penthouseCellRenderer = useCallback((params: any) => {
-    const assetId = params.data?.id;
-    if (!assetId) return null;
-    
-    // Get dirtyAssets from context to avoid re-renders
-    const contextDirtyAssets = params.context?.dirtyAssets || new Map();
-    const assetIdStr = String(assetId);
-    
-    // Get current value - check dirty state first, then data
-    const dirtyChanges = contextDirtyAssets.get(assetIdStr);
-    const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
-      ? dirtyChanges.penthouse 
-      : params.data?.penthouse;
-    const isChecked = currentValue === 'כן';
-    const isDirty = contextDirtyAssets.has(assetIdStr) && 'penthouse' in (contextDirtyAssets.get(assetIdStr) || {});
-    
+    const value = params.data?.penthouse;
     return (
       <div className="flex items-center justify-center h-full">
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={(e) => {
-            const newValue = e.target.checked ? 'כן' : null;
-            
-            // Track the change in dirtyAssets
-            setDirtyAssets(prev => {
-              const next = new Map(prev);
-              const existing = next.get(assetIdStr) || {};
-              next.set(assetIdStr, { ...existing, penthouse: newValue });
-              
-              // Update context immediately with new dirtyAssets
-              if (gridRef.current) {
-                gridRef.current.api.setGridOption('context', { dirtyAssets: next });
-              }
-              
-              return next;
-            });
-            
-            // Update grid cell data directly
-            params.node.setDataValue('penthouse', newValue);
-            
-            // Refresh only this specific cell
-            if (gridRef.current) {
-              gridRef.current.api.refreshCells({ 
-                rowNodes: [params.node], 
-                columns: ['penthouse'],
-                force: true 
-              });
-            }
-          }}
-          className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-        />
+        {value === 'כן' ? '✓' : ''}
       </div>
     );
   }, []);
@@ -1195,73 +946,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       filter: false,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
-        if (params.data._isMasterRow === false) return null;
-
         const asset = params.data as Asset;
         const assetId = asset.id;
-        const isDeleted = deletedAssets.has(assetId);
-        // Check if there are history records for this asset_id in allAssets (unfiltered)
-        // History records are those with the same asset_id but different id than the master
-        const masterId = String(asset.id);
-        const assetIdToCheck = params.data.asset_id;
-        
-        // Debug logging
-        console.log('[AssetsList] cellRenderer - Checking history for asset_id:', assetIdToCheck, 'masterId:', masterId);
-        console.log('[AssetsList] cellRenderer - allAssets length:', allAssets.length);
-        
-        // Find the master record for this asset_id
-        // First try from masterAssets state, then fallback to finding first occurrence in allAssets
-        let masterRecord = masterAssets.find(m => m.asset_id === assetIdToCheck);
-        if (!masterRecord) {
-          // Fallback: find first occurrence in allAssets (should be the master)
-          masterRecord = allAssets.find(a => a.asset_id === assetIdToCheck);
-        }
-        const masterRecordId = masterRecord ? String(masterRecord.id) : masterId;
-        
-        // Check if there are history records (records with same asset_id but different id)
-        const historyRecords = allAssets.filter(a => {
-          // Compare asset_id (number comparison)
-          const assetIdMatch = a.asset_id === assetIdToCheck;
-          // Exclude the master record itself
-          const isNotMaster = String(a.id) !== masterRecordId;
-          return assetIdMatch && isNotMaster;
-        });
-        
-        const hasHistory = historyRecords.length > 0;
-        
-        if (hasHistory) {
-          console.log('[AssetsList] cellRenderer - Found', historyRecords.length, 'history records for asset_id:', assetIdToCheck, 'masterRecordId:', masterRecordId);
-        } else {
-          console.log('[AssetsList] cellRenderer - No history for asset_id:', assetIdToCheck, 'masterRecordId:', masterRecordId, 'allAssets count:', allAssets.length);
-        }
-        
-        const isExpanded = expandedRows.has(String(params.data.asset_id));
-
-        const errors: string[] = [];
-        if (validationErrors.has(assetId)) {
-          const fieldErrors = validationErrors.get(assetId);
-          if (fieldErrors && fieldErrors.size > 0) {
-            fieldErrors.forEach((errorMsg) => {
-              errors.push(errorMsg);
-            });
-          }
-        }
-
-        const numericRegex = /^[0-9]+$/;
-        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-        if (hasInvalidPayerId) errors.push('מזהה משלם לא נומרי');
-        if (hasInvalidAssetId) errors.push('מזהה נכס לא נומרי');
-
-        const hasErrors = errors.length > 0;
 
         return (
           <div className="flex items-center justify-center gap-1">
-            {hasErrors && (
-              <div className="flex items-center justify-center" title={errors.join('\n')}>
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </div>
-            )}
             <button
               onClick={() => onSelectAsset(assetId, asset.asset_id, buildingNumber)}
               className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
@@ -1269,40 +958,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             >
               <Eye className="h-5 w-5" />
             </button>
-            <button
-              onClick={() => toggleDelete(assetId)}
-              className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
-                isDeleted
-                  ? 'bg-red-200 hover:bg-red-300 text-red-700'
-                  : 'hover:bg-red-100 text-red-500 hover:text-red-700'
-              }`}
-              title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            {hasHistory ? (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('[AssetsList] Expand/collapse button clicked for asset_id:', params.data.asset_id);
-                  toggleRowExpansion(String(params.data.asset_id));
-                }}
-                className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
-                title={isExpanded ? t('collapse') : t('expand')}
-                style={{ display: 'flex' }}
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-5 h-5 text-teal-700" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-teal-700 scale-x-[-1]" />
-                )}
-              </button>
-            ) : (
-              <div className="w-8 h-8 flex items-center justify-center" title="אין רשומות היסטוריה">
-                <span className="text-xs text-slate-400">-</span>
-              </div>
-            )}
           </div>
         );
       },
@@ -1311,9 +966,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      editable: true,
+      editable: false,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'asset_id', true)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'measurement_date',
@@ -1324,9 +979,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      editable: true,
+      editable: false,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'payer_id', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       colId: 'penthouse',
@@ -1334,28 +989,25 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       headerName: 'דירת גג',
       editable: false,
       cellRenderer: penthouseCellRenderer,
-      cellStyle: (params) => {
-        const baseStyle = getCellStyle(params, 'penthouse', false);
-        return { ...baseStyle, textAlign: 'center' };
-      },
+      cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'main_asset_type', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1364,24 +1016,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'asset_size', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1390,24 +1042,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1416,24 +1068,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1442,24 +1094,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1468,24 +1120,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1494,24 +1146,24 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      editable: true,
+      editable: false,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6', false)
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      editable: true,
+      editable: false,
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1520,9 +1172,9 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
+      cellStyle: { textAlign: 'right' }
     },
-  ], [t, onSelectAsset, buildingNumber, assetTypes, assets, allAssets, expandedRows, toggleRowExpansion, getCellStyle, validationErrors, deletedAssets, toggleDelete, penthouseCellRenderer]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1568,116 +1220,26 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               ) : null}
               <div className="flex items-center gap-3">
                 <p className="text-xs text-teal-50">
-                  <span className="font-semibold">{t('uniqueAssets')}:</span> {masterAssets.length}
-                </p>
-                <p className="text-xs text-teal-50">
                   <span className="font-semibold">{t('totalMeasurements')}:</span> {assets.length}
                 </p>
               </div>
             </div>
           </div>
         </div>
-        {success && (
-          <div className="mb-2 bg-green-50 border-l-4 border-green-500 rounded-lg p-2">
-            <p className="text-green-800 text-sm font-medium">{success}</p>
-          </div>
-        )}
-        <div className="mb-2 flex justify-between items-center gap-2">
-          <div className="flex gap-2">
-            <button
-              onClick={addEmptyRow}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-            >
-              <Plus className="h-4 w-4" />
-              הוסף שורה
-            </button>
-            <button
-              onClick={handleBatchValidateBuildingAssets}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              אמת נכסים
-            </button>
-          </div>
-          <div className="flex gap-2">
+        <div className="mb-2 flex justify-end items-center gap-2">
           <button
-            onClick={() => {
-              // Remove new assets (temp IDs) from display and master assets
-              setDisplayAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
-              setMasterAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
-              
-              // Restore original data for existing assets
-              setDisplayAssets(prev => {
-                const existingIds = new Set(prev.map(a => String(a.id)));
-                const restored = JSON.parse(JSON.stringify(originalDisplayAssets));
-                // Only add restored assets that aren't new
-                const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.id)));
-                // Merge with existing non-new assets
-                const merged = [...prev.filter(a => !newAssets.has(String(a.id))), ...filtered];
-                // Remove duplicates by id
-                const unique = merged.filter((a, index, self) => 
-                  index === self.findIndex(b => String(b.id) === String(a.id))
-                );
-                return unique;
-              });
-              setMasterAssets(prev => {
-                const restored = JSON.parse(JSON.stringify(originalMasterAssets));
-                const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.id)));
-                const merged = [...prev.filter(a => !newAssets.has(String(a.id))), ...filtered];
-                const unique = merged.filter((a, index, self) => 
-                  index === self.findIndex(b => String(b.id) === String(a.id))
-                );
-                return unique;
-              });
-              
-              setDirtyAssets(new Map());
-              setDeletedAssets(new Set());
-              setNewAssets(new Set()); // Clear new assets tracking
-              setValidationErrors(new Map());
-              setError(null);
-              setSuccess('השינויים בוטלו');
-              setTimeout(() => setSuccess(null), 3000);
-
-              // Refresh the grid to show the reset data
-              if (gridRef.current?.api) {
-                gridRef.current.api.refreshCells({ force: true });
-                gridRef.current.api.refreshClientSideRowModel('filter');
-              }
-
-              // Scroll to left after cancel
-              setTimeout(() => {
-                const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
-                if (gridElement) {
-                  gridElement.scrollLeft = 0;
-                }
-              }, 100);
-            }}
-            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            onClick={handleBatchValidateBuildingAssets}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
           >
-            <X className="h-4 w-4" />
-            ביטול
+            <CheckCircle2 className="h-4 w-4" />
+            אמת נכסים
           </button>
-          <button
-            onClick={handleSaveAll}
-            disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size + newAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size + newAssets.size})` : ''}`}
-          </button>
-          </div>
         </div>
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={displayAssets}
+            rowData={assets}
             columnDefs={columnDefs}
-            context={{ dirtyAssets }}
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,
@@ -1686,13 +1248,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               autoHeight: false,
               headerClass: 'ag-right-aligned-header'
             }}
-            onCellValueChanged={onCellValueChanged}
-            getRowId={(params) => {
-              // Use id + measurement_date to ensure uniqueness for master and detail rows
-              // This prevents AG-Grid from collapsing rows with the same id but different measurement_date
-              return `${params.data.id}-${params.data.measurement_date || ''}`;
-            }}
-            getRowStyle={getRowStyle}
+            getRowId={(params) => String(params.data.id)}
             onGridReady={async (params) => {
               // Load saved column state first
               const hasSavedState = await loadColumnState();
@@ -1797,11 +1353,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             enableRtl={true}
             suppressHorizontalScroll={false}
           />
-        </div>
-        <div className="mt-3 bg-blue-50 border-r-4 border-blue-500 rounded-lg p-3">
-          <p className="text-blue-900 text-sm font-medium">
-            <span className="font-bold">עצות:</span> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר מבנה וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי. השתמש ב-Tab או Enter לניווט בין תאים.
-          </p>
         </div>
       </div>
 
@@ -1949,160 +1500,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         </div>
       )}
 
-      {/* Data Retrieval Modal */}
-      {showDataModal && retrievedData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="bg-teal-600 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">נתונים שנטענו</h2>
-              <button
-                onClick={() => setShowDataModal(false)}
-                className="text-white hover:text-teal-100 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-blue-900 mb-2">סיכום נתונים</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium">סה"כ נכסים (כולל היסטוריה):</span> {retrievedData.allAssets.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">רשומות מאסטר:</span> {retrievedData.masterRecords.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">רשומות היסטוריה:</span> {retrievedData.historyRecords.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">מאסטרים מסוננים (לפי אזור מס):</span> {retrievedData.filteredMasterAssets.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">מאסטרים סופיים:</span> {retrievedData.masterAssets.length}
-                    </div>
-                    <div>
-                      <span className="font-medium">שורות בתצוגה:</span> {retrievedData.displayAssets.length}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-slate-900 mb-2">רשומות מאסטר ({retrievedData.masterAssets.length})</h3>
-                  <div className="max-h-60 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-200 sticky top-0">
-                        <tr>
-                          <th className="px-2 py-1 text-right">ID</th>
-                          <th className="px-2 py-1 text-right">מזהה נכס</th>
-                          <th className="px-2 py-1 text-right">תאריך מדידה</th>
-                          <th className="px-2 py-1 text-right">סוג נכס</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {retrievedData.masterAssets.slice(0, 20).map((asset, idx) => (
-                          <tr key={idx} className="border-b border-slate-200">
-                            <td className="px-2 py-1">{asset.id}</td>
-                            <td className="px-2 py-1">{asset.asset_id}</td>
-                            <td className="px-2 py-1">{asset.measurement_date}</td>
-                            <td className="px-2 py-1">{asset.main_asset_type}</td>
-                          </tr>
-                        ))}
-                        {retrievedData.masterAssets.length > 20 && (
-                          <tr>
-                            <td colSpan={4} className="px-2 py-1 text-center text-slate-500">
-                              ... ועוד {retrievedData.masterAssets.length - 20} רשומות
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-slate-900 mb-2">רשומות היסטוריה ({retrievedData.historyRecords.length})</h3>
-                  <div className="max-h-60 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-200 sticky top-0">
-                        <tr>
-                          <th className="px-2 py-1 text-right">ID</th>
-                          <th className="px-2 py-1 text-right">מזהה נכס</th>
-                          <th className="px-2 py-1 text-right">תאריך מדידה</th>
-                          <th className="px-2 py-1 text-right">סוג נכס</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {retrievedData.historyRecords.slice(0, 20).map((asset, idx) => (
-                          <tr key={idx} className="border-b border-slate-200">
-                            <td className="px-2 py-1">{asset.id}</td>
-                            <td className="px-2 py-1">{asset.asset_id}</td>
-                            <td className="px-2 py-1">{asset.measurement_date}</td>
-                            <td className="px-2 py-1">{asset.main_asset_type}</td>
-                          </tr>
-                        ))}
-                        {retrievedData.historyRecords.length > 20 && (
-                          <tr>
-                            <td colSpan={4} className="px-2 py-1 text-center text-slate-500">
-                              ... ועוד {retrievedData.historyRecords.length - 20} רשומות
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-slate-900 mb-2">שורות בתצוגה ({retrievedData.displayAssets.length})</h3>
-                  <div className="max-h-60 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-200 sticky top-0">
-                        <tr>
-                          <th className="px-2 py-1 text-right">ID</th>
-                          <th className="px-2 py-1 text-right">מזהה נכס</th>
-                          <th className="px-2 py-1 text-right">תאריך מדידה</th>
-                          <th className="px-2 py-1 text-right">סוג נכס</th>
-                          <th className="px-2 py-1 text-right">סוג שורה</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {retrievedData.displayAssets.slice(0, 20).map((asset, idx) => (
-                          <tr key={idx} className="border-b border-slate-200">
-                            <td className="px-2 py-1">{asset.id}</td>
-                            <td className="px-2 py-1">{asset.asset_id}</td>
-                            <td className="px-2 py-1">{asset.measurement_date}</td>
-                            <td className="px-2 py-1">{asset.main_asset_type}</td>
-                            <td className="px-2 py-1">
-                              {(asset as any)._isMasterRow ? 'מאסטר' : 'היסטוריה'}
-                            </td>
-                          </tr>
-                        ))}
-                        {retrievedData.displayAssets.length > 20 && (
-                          <tr>
-                            <td colSpan={5} className="px-2 py-1 text-center text-slate-500">
-                              ... ועוד {retrievedData.displayAssets.length - 20} שורות
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
-              <button
-                onClick={() => setShowDataModal(false)}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-medium"
-              >
-                סגור
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -25,6 +25,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [newAssets, setNewAssets] = useState<Set<string>>(new Set());
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
+  const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
@@ -225,6 +226,19 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const detailedError = validation.error || 'Unknown validation error';
         setError(detailedError);
         setTimeout(() => setError(null), 5000);
+        // Store validation error for this asset
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.set(String(assetId), detailedError);
+          return newMap;
+        });
+      } else {
+        // Clear validation error if validation passes
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(String(assetId));
+          return newMap;
+        });
       }
 
 
@@ -683,6 +697,23 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     }, 100);
   };
 
+  const toggleDelete = useCallback((assetId: string) => {
+    setDeletedAssets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(assetId)) {
+        newSet.delete(assetId);
+      } else {
+        newSet.add(assetId);
+      }
+      return newSet;
+    });
+    
+    // Refresh the grid to update row styling
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
+  }, []);
+
   const handleCancelAll = () => {
     // Remove new assets (temp IDs) from assets
     setAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
@@ -705,6 +736,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     setDirtyAssets(new Map());
     setDeletedAssets(new Set());
     setNewAssets(new Set());
+    setValidationErrors(new Map());
     setError(null);
     setSuccess('השינויים בוטלו');
     setTimeout(() => setSuccess(null), 3000);
@@ -849,7 +881,62 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       sortable: false,
       filter: false,
       headerClass: 'ag-right-aligned-header',
-      cellRenderer: () => null,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        if (!asset) return null;
+        
+        const assetId = String(asset.id);
+        const isNew = newAssets.has(assetId);
+        const isDeleted = deletedAssets.has(assetId);
+        const hasValidationError = validationErrors.has(assetId);
+        
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            {hasValidationError && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const errorMsg = validationErrors.get(assetId);
+                  setError(errorMsg || 'שגיאת אימות');
+                  setTimeout(() => setError(null), 5000);
+                }}
+                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                title={validationErrors.get(assetId) || 'שגיאת אימות'}
+              >
+                <AlertCircle className="h-5 w-5" />
+              </button>
+            )}
+            {isNew && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDelete(assetId);
+                }}
+                className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 ${
+                  isDeleted
+                    ? 'bg-red-200 hover:bg-red-300 text-red-700'
+                    : 'hover:bg-red-100 text-red-500 hover:text-red-700'
+                }`}
+                title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            {!isNew && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectAsset(assetId, asset.asset_id, buildingNumber);
+                }}
+                className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
+                title={t('viewDetails')}
+              >
+                <Eye className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        );
+      },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
     {
@@ -1160,6 +1247,16 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             ref={gridRef}
             rowData={assets}
             columnDefs={columnDefs}
+            getRowStyle={(params) => {
+              const assetId = String(params.data?.id);
+              if (deletedAssets.has(assetId)) {
+                return { backgroundColor: '#fee2e2', opacity: 0.7 }; // Light red for deleted
+              }
+              if (validationErrors.has(assetId)) {
+                return { backgroundColor: '#fef2f2' }; // Light red for validation errors
+              }
+              return null;
+            }}
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,

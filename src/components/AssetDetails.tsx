@@ -384,7 +384,13 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     }
   }
 
-  function handleOpenSaveAsNewMeasurementModal() {
+  const handleOpenSaveAsNewMeasurementModal = useCallback(() => {
+    console.log('[AssetDetails] handleOpenSaveAsNewMeasurementModal called', {
+      latestMeasurement: !!latestMeasurement,
+      hasChanges,
+      validationErrorsSize: validationErrors.size
+    });
+    
     if (!latestMeasurement) {
       setToast({ message: 'לא נמצא נכס לשמירה', type: 'error' });
       return;
@@ -403,7 +409,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     const year = today.getFullYear();
     setNewMeasurementDate(`${day}/${month}/${year}`);
     setMeasurementDateModalOpen(true);
-  }
+    console.log('[AssetDetails] Modal opened');
+  }, [latestMeasurement, hasChanges, validationErrors.size]);
 
   async function handleSaveAsNewMeasurement() {
     if (!latestMeasurement) {
@@ -1225,6 +1232,83 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         singleAssetTitle={asset ? `אימות נכס ${asset.asset_id}` : undefined}
         assetId={asset?.asset_id}
       />
+
+      {/* Measurement Date Modal */}
+      {measurementDateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">שמור כמדידה חדשה</h3>
+              <button
+                onClick={() => {
+                  setMeasurementDateModalOpen(false);
+                  setNewMeasurementDate('');
+                }}
+                className="text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                תאריך מדידה (DD/MM/YYYY)
+              </label>
+              <input
+                type="text"
+                value={newMeasurementDate}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Allow only digits and slashes
+                  value = value.replace(/[^\d/]/g, '');
+                  // Auto-format as user types
+                  if (value.length > 10) {
+                    value = value.slice(0, 10);
+                  }
+                  // Auto-add slashes
+                  if (value.length === 2 && !value.includes('/')) {
+                    value = value + '/';
+                  } else if (value.length === 5 && value.split('/').length === 2) {
+                    value = value + '/';
+                  }
+                  setNewMeasurementDate(value);
+                }}
+                placeholder="DD/MM/YYYY"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                maxLength={10}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                השאר ריק לשימוש בתאריך המערכת
+              </p>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setMeasurementDateModalOpen(false);
+                  setNewMeasurementDate('');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                <X className="h-4 w-4" />
+                ביטול
+              </button>
+              <button
+                onClick={handleSaveAsNewMeasurement}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
       <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">
         <div className="flex items-center gap-3">

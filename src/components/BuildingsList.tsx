@@ -157,6 +157,37 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       return;
     }
 
+    // Prevent AG-Grid from randomly updating building_number for existing buildings
+    // Only allow building_number changes for new buildings (temp ID < 0)
+    if (field === 'building_number' && buildingNumber >= 0 && !newBuildings.has(buildingNumber)) {
+      console.warn(`[CELL CHANGED] Attempted to change building_number for existing building ${buildingNumber}, ignoring`);
+      // Revert the change
+      event.node.setDataValue('building_number', buildingNumber);
+      return;
+    }
+
+    // Prevent invalid building_number values
+    if (field === 'building_number') {
+      // For new buildings, only allow positive numbers
+      const isNewBuilding = buildingNumber < 0 || newBuildings.has(buildingNumber);
+      if (isNewBuilding) {
+        // Allow empty/null/undefined for new buildings (they start with temp ID)
+        if (newValue !== null && newValue !== undefined && newValue !== '') {
+          const numValue = Number(newValue);
+          if (isNaN(numValue) || numValue <= 0) {
+            console.warn(`[CELL CHANGED] Invalid building_number value: ${newValue}, reverting`);
+            event.node.setDataValue('building_number', buildingNumber);
+            return;
+          }
+        }
+      } else {
+        // For existing buildings, don't allow changes to building_number
+        console.warn(`[CELL CHANGED] Cannot change building_number for existing building ${buildingNumber}, reverting`);
+        event.node.setDataValue('building_number', buildingNumber);
+        return;
+      }
+    }
+
     console.log(`[CELL CHANGED] Building ${buildingNumber}, field: ${field}, value:`, newValue);
 
     // Special handling for building_number changes in new buildings
@@ -403,16 +434,38 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           let building = buildings.find(b => b.building_number === buildingNumber);
           
           // If not found and it's a new building, it might have had its building_number changed
-          // Try to find it by checking if it's in newBuildings and has a different building_number
+          // Try to find it by checking if it's in newBuildings - look for any building in newBuildings
           if (!building && newBuildings.has(buildingNumber)) {
-            // This shouldn't happen if tracking was updated correctly, but handle it anyway
-            building = buildings.find(b => newBuildings.has(b.building_number));
+            // Find the building that's in newBuildings (could have different building_number if it was changed)
+            // First, try to find by the new building_number (if it was updated in the building object)
+            building = buildings.find(b => b.building_number === buildingNumber);
+            
+            // If still not found, look for buildings with temp ID that have changes pointing to this building_number
+            if (!building) {
+              building = buildings.find(b => {
+                // If building has temp ID, check if dirtyBuildings has changes that set building_number to the target
+                if (b.building_number < 0) {
+                  const tempIdChanges = dirtyBuildings.get(b.building_number);
+                  if (tempIdChanges && tempIdChanges.building_number === buildingNumber) {
+                    return true;
+                  }
+                }
+                return false;
+              });
+            }
+            
+            // If still not found, look for any building that's tracked in newBuildings by its current building_number
+            if (!building) {
+              building = buildings.find(b => newBuildings.has(b.building_number));
+            }
           }
           
           if (!building) continue;
 
           const changes = dirtyBuildings.get(buildingNumber) || {};
-          const isNewBuilding = newBuildings.has(buildingNumber) || buildingNumber < 0;
+          // Check if it's a new building: either in newBuildings set or has temp ID (< 0)
+          // Also check if the building itself has a temp ID, even if tracking uses the new number
+          const isNewBuilding = newBuildings.has(buildingNumber) || buildingNumber < 0 || building.building_number < 0;
 
           if (isNewBuilding) {
             // For new buildings, merge changes with building data to get final values
@@ -659,8 +712,24 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       headerName: 'מספר מבנה *',
       editable: (params: any) => {
         // Editable only for new buildings (negative building_number or in newBuildings)
+        // Never allow editing building_number for existing buildings
         const building = params.data as Building;
-        return building.building_number < 0 || newBuildings.has(building.building_number);
+        const isNewBuilding = building.building_number < 0 || newBuildings.has(building.building_number);
+        return isNewBuilding;
+      },
+      // Add value parser to ensure only valid values are accepted
+      valueParser: (params: any) => {
+        const newValue = params.newValue;
+        // For new buildings, allow empty/null or positive numbers
+        if (newValue === null || newValue === undefined || newValue === '') {
+          return null; // Allow empty for new buildings
+        }
+        const numValue = Number(newValue);
+        if (isNaN(numValue) || numValue <= 0) {
+          // Return the original value if invalid
+          return params.oldValue;
+        }
+        return numValue;
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;

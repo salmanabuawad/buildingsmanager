@@ -38,9 +38,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
   const validationTaxRegion = useMemo(() => {
-    console.log('[AssetsList] validationTaxRegion useMemo - taxRegion prop:', taxRegion);
-    return taxRegion;
-  }, [taxRegion]);
+    console.log('[AssetsList] validationTaxRegion useMemo - taxRegion prop:', taxRegion, {
+      type: typeof taxRegion,
+      isUndefined: taxRegion === undefined,
+      isNull: taxRegion === null,
+      isEmpty: taxRegion === '',
+      trimmed: taxRegion?.trim(),
+      buildingNumber
+    });
+    // Return taxRegion if it exists and is not empty, otherwise undefined
+    return taxRegion && taxRegion.trim() !== '' ? taxRegion.trim() : undefined;
+  }, [taxRegion, buildingNumber]);
   
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets

@@ -70,6 +70,11 @@ function App() {
         
         if (existingTab) {
           // Tab already exists, just switch to it
+          console.log('[App.handleSelectBuilding] Existing single region tab found:', {
+            id: existingTab.id,
+            taxRegion: existingTab.taxRegion,
+            buildingNumber: existingTab.buildingNumber
+          });
           setActiveTabId(singleRegionTabId);
         } else {
           // Create new tab
@@ -80,6 +85,11 @@ function App() {
             taxRegion: regions[0],
             label: `מבנה ${buildingNumber} - אזור מס ${regions[0]}`
           };
+          console.log('[App.handleSelectBuilding] Creating new single region tab:', {
+            id: singleRegionTab.id,
+            taxRegion: singleRegionTab.taxRegion,
+            buildingNumber: singleRegionTab.buildingNumber
+          });
           setTabs(prev => [...prev, singleRegionTab]);
           setActiveTabId(singleRegionTabId);
         }
@@ -730,15 +740,24 @@ function App() {
                 setShowCreateModal={setShowCreateBuildingModal}
               />
             )}
-            {activeTab?.type === 'assets' && activeTab.buildingNumber && (
-              <AssetsList
-                key={activeTab.refreshKey}
-                buildingNumber={activeTab.buildingNumber}
-                taxRegion={activeTab.taxRegion}
-                onSelectAsset={handleSelectAsset}
-                onOpenTransferAreas={handleOpenTransferAreas}
-              />
-            )}
+            {activeTab?.type === 'assets' && activeTab.buildingNumber && (() => {
+              console.log('[App] Rendering AssetsList with:', {
+                activeTabId: activeTab.id,
+                buildingNumber: activeTab.buildingNumber,
+                taxRegion: activeTab.taxRegion,
+                taxRegionType: typeof activeTab.taxRegion,
+                label: activeTab.label
+              });
+              return (
+                <AssetsList
+                  key={activeTab.refreshKey}
+                  buildingNumber={activeTab.buildingNumber}
+                  taxRegion={activeTab.taxRegion}
+                  onSelectAsset={handleSelectAsset}
+                  onOpenTransferAreas={handleOpenTransferAreas}
+                />
+              );
+            })()}
             {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (
               <TransferAreas
                 key={activeTab.refreshKey}

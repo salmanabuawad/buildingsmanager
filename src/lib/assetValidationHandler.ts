@@ -407,7 +407,7 @@ export class AssetValidationHandler {
     validations.push(assetValidators.validatePayerId(asset.payer_id));
 
     validationNames.push('אימות סוג נכס ראשי');
-    validations.push(assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'));
+    validations.push(assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type', taxRegion));
 
     validationNames.push('אימות סוג נכס ראשי מלא');
     validations.push(

@@ -35,12 +35,12 @@ export function BuildingsList({
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
   
-  // Change tracking
-  const [dirtyBuildings, setDirtyBuildings] = useState<Map<number, Partial<Building>>>(new Map());
+  // Change tracking - use tempId (string) for new buildings instead of negative numbers
+  const [dirtyBuildings, setDirtyBuildings] = useState<Map<string | number, Partial<Building>>>(new Map());
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
-  const [validationErrors, setValidationErrors] = useState<Map<number, Record<string, string>>>(new Map());
-  const [buildingsToDelete, setBuildingsToDelete] = useState<Set<number>>(new Set());
-  const [newBuildings, setNewBuildings] = useState<Set<number>>(new Set());
+  const [validationErrors, setValidationErrors] = useState<Map<string | number, Record<string, string>>>(new Map());
+  const [buildingsToDelete, setBuildingsToDelete] = useState<Set<string | number>>(new Set());
+  const [newBuildings, setNewBuildings] = useState<Set<string | number>>(new Set());
   
   // Grid reference and preferences
   const gridRef = useRef<AgGridReact<Building>>(null);
@@ -50,8 +50,10 @@ export function BuildingsList({
   const totalChanges = useMemo(() => {
     const newBuildingsCount = newBuildings.size;
     let editedExistingBuildings = 0;
-    for (const buildingNumber of dirtyBuildings.keys()) {
-      if (!newBuildings.has(buildingNumber) && buildingNumber >= 0) {
+    for (const buildingKey of dirtyBuildings.keys()) {
+      // If key is a string (tempId), it's a new building, skip it
+      // If key is a number >= 0 and not in newBuildings, it's an existing building edit
+      if (typeof buildingKey === 'number' && !newBuildings.has(buildingKey) && buildingKey >= 0) {
         editedExistingBuildings++;
       }
     }
@@ -67,7 +69,10 @@ export function BuildingsList({
       
       // Preserve new buildings that haven't been saved yet (failed saves remain visible)
       setBuildings(prevBuildings => {
-        const existingNewBuildings = prevBuildings.filter(b => newBuildings.has(b.building_number));
+        const existingNewBuildings = prevBuildings.filter(b => {
+          const key = b._tempId || b.building_number;
+          return newBuildings.has(key);
+        });
         const mergedBuildings = [...(data || []), ...existingNewBuildings];
         setFilteredBuildings(mergedBuildings);
         return mergedBuildings;
@@ -114,10 +119,12 @@ export function BuildingsList({
 
     const { data, colDef } = event;
     const field = colDef?.field;
-    const buildingNumber = data?.building_number;
+    const building = data as Building;
+    const buildingKey = getBuildingKey(building);
+    const isNew = isNewBuilding(building);
     const newValue = event.newValue;
 
-    if (!field || buildingNumber === undefined || buildingNumber === null) {
+    if (!field || !building) {
       return;
     }
 
@@ -127,64 +134,78 @@ export function BuildingsList({
     }
 
     // Prevent AG-Grid from randomly updating building_number for existing buildings
-    if (field === 'building_number' && buildingNumber >= 0 && !newBuildings.has(buildingNumber)) {
+    if (field === 'building_number' && !isNew) {
       if (event.node && typeof event.node.setDataValue === 'function') {
-        event.node.setDataValue('building_number', buildingNumber);
+        event.node.setDataValue('building_number', building.building_number);
       }
       return;
     }
 
     // Prevent invalid building_number values
     if (field === 'building_number') {
-      const isNewBuilding = buildingNumber < 0 || newBuildings.has(buildingNumber);
-      if (isNewBuilding) {
+      if (isNew) {
         if (newValue !== null && newValue !== undefined && newValue !== '') {
           const numValue = Number(newValue);
           if (isNaN(numValue) || numValue <= 0) {
             if (event.node && typeof event.node.setDataValue === 'function') {
-              event.node.setDataValue('building_number', buildingNumber);
+              event.node.setDataValue('building_number', building.building_number || 0);
             }
             return;
           }
         }
       } else {
         if (event.node && typeof event.node.setDataValue === 'function') {
-          event.node.setDataValue('building_number', buildingNumber);
+          event.node.setDataValue('building_number', building.building_number);
         }
         return;
       }
     }
 
     // Special handling for building_number changes in new buildings
-    const isNewBuilding = buildingNumber < 0 || newBuildings.has(buildingNumber);
-    let newBuildingNumber = buildingNumber;
+    let newBuildingKey: string | number = buildingKey;
     
-    if (field === 'building_number' && isNewBuilding && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
+    if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
       const newValueNum = Number(newValue);
+      const oldTempId = building._tempId;
+      
+      // Update newBuildings tracking to use the new building_number
       setNewBuildings(prev => {
         const next = new Set(prev);
-        next.delete(buildingNumber);
+        if (oldTempId) {
+          next.delete(oldTempId);
+        }
         next.add(newValueNum);
         return next;
       });
+      
+      // Update dirtyBuildings tracking to use the new building_number
       setDirtyBuildings(prev => {
         const next = new Map(prev);
-        const existingChanges = next.get(buildingNumber) || {};
+        const existingChanges = oldTempId ? next.get(oldTempId) : (next.get(buildingKey) || {});
         const mergedChanges = { ...existingChanges, [field]: newValue };
-        next.delete(buildingNumber);
+        if (oldTempId) {
+          next.delete(oldTempId);
+        } else {
+          next.delete(buildingKey);
+        }
         next.set(newValueNum, mergedChanges);
         return next;
       });
-      newBuildingNumber = newValueNum;
+      
+      newBuildingKey = newValueNum;
     }
 
     // Update local state
     setBuildings(prevBuildings => {
       return prevBuildings.map(b => {
-        if (b.building_number === buildingNumber) {
+        const bKey = getBuildingKey(b);
+        if (bKey === buildingKey) {
           const updated = { ...b, [field]: newValue };
-          if (field === 'building_number' && isNewBuilding && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
+          if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
             updated.building_number = Number(newValue);
+            // Remove tempId and _isNew when real building_number is set
+            delete updated._tempId;
+            delete updated._isNew;
           }
           return updated;
         }
@@ -193,10 +214,13 @@ export function BuildingsList({
     });
     setFilteredBuildings(prevBuildings => {
       return prevBuildings.map(b => {
-        if (b.building_number === buildingNumber) {
+        const bKey = getBuildingKey(b);
+        if (bKey === buildingKey) {
           const updated = { ...b, [field]: newValue };
-          if (field === 'building_number' && isNewBuilding && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
+          if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
             updated.building_number = Number(newValue);
+            delete updated._tempId;
+            delete updated._isNew;
           }
           return updated;
         }
@@ -206,20 +230,20 @@ export function BuildingsList({
 
     // Update dirty tracking
     const hasMeaningfulValue = newValue !== null && newValue !== undefined && newValue !== '';
-    if (field !== 'building_number' || !isNewBuilding) {
-      if (!isNewBuilding || hasMeaningfulValue) {
+    if (field !== 'building_number' || !isNew) {
+      if (!isNew || hasMeaningfulValue) {
         setDirtyBuildings(prev => {
           const next = new Map(prev);
-          const existingChanges = next.get(newBuildingNumber) || {};
+          const existingChanges = next.get(newBuildingKey) || {};
           if (hasMeaningfulValue) {
-            next.set(newBuildingNumber, { ...existingChanges, [field]: newValue });
+            next.set(newBuildingKey, { ...existingChanges, [field]: newValue });
           } else {
             const updatedChanges = { ...existingChanges };
             delete updatedChanges[field];
             if (Object.keys(updatedChanges).length > 0) {
-              next.set(newBuildingNumber, updatedChanges);
+              next.set(newBuildingKey, updatedChanges);
             } else {
-              next.delete(newBuildingNumber);
+              next.delete(newBuildingKey);
             }
           }
           return next;
@@ -228,15 +252,15 @@ export function BuildingsList({
     }
 
     // Validate all fields
-    const updatedBuilding = { ...data, [field]: newValue };
+    const updatedBuilding = { ...building, [field]: newValue };
     const validation = await buildingValidators.validateAllFields(updatedBuilding);
 
     setValidationErrors(prev => {
       const next = new Map(prev);
       if (!validation.valid) {
-        next.set(buildingNumber, validation.errors);
+        next.set(newBuildingKey, validation.errors);
       } else {
-        next.delete(buildingNumber);
+        next.delete(newBuildingKey);
       }
       return next;
     });
@@ -247,9 +271,16 @@ export function BuildingsList({
       setInvalidTaxRegions(prev => {
         const next = new Set(prev);
         if (isInvalid) {
-          next.add(buildingNumber);
+          // Use building_number for invalidTaxRegions (always a number)
+          const bldgNum = updatedBuilding.building_number || 0;
+          if (bldgNum > 0) {
+            next.add(bldgNum);
+          }
         } else {
-          next.delete(buildingNumber);
+          const bldgNum = updatedBuilding.building_number || 0;
+          if (bldgNum > 0) {
+            next.delete(bldgNum);
+          }
         }
         return next;
       });
@@ -259,13 +290,31 @@ export function BuildingsList({
     if (gridRef.current?.api) {
       gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
     }
-  }, [newBuildings]);
+  }, [newBuildings, isNewBuilding, getBuildingKey]);
+
+  // Helper function to check if building is new
+  const isNewBuilding = useCallback((building: Building): boolean => {
+    return !!(building._isNew || building._tempId);
+  }, []);
+
+  // Helper function to get building key for tracking
+  const getBuildingKey = useCallback((building: Building): string | number => {
+    return building._tempId || building.building_number;
+  }, []);
+
+  // Helper function to find building by key
+  const findBuildingByKey = useCallback((key: string | number): Building | undefined => {
+    return buildings.find(b => {
+      const bKey = getBuildingKey(b);
+      return bKey === key;
+    });
+  }, [buildings, getBuildingKey]);
 
   // Add empty building row
   const addEmptyBuildingRow = () => {
-    const tempId = -Date.now();
+    const tempId = `temp-${Date.now()}`;
     const newBuilding: Building = {
-      building_number: tempId,
+      building_number: 0, // Use 0 as placeholder, will be updated when user enters real number
       tax_region: null,
       shared_area: null,
       shared_business_area: null,
@@ -276,7 +325,9 @@ export function BuildingsList({
       condo: null,
       townhouses: null,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      _tempId: tempId,
+      _isNew: true
     };
 
     setBuildings(prev => [newBuilding, ...prev]);
@@ -324,73 +375,58 @@ export function BuildingsList({
       let savedCount = 0;
       let deletedCount = 0;
       const errors: string[] = [];
-      const successfullyDeleted = new Set<number>();
-      const successfullySaved = new Set<number>();
+      const successfullyDeleted = new Set<string | number>();
+      const successfullySaved = new Set<string | number>();
 
       // Process deletions
-      for (const buildingNumber of buildingsToDelete) {
+      for (const buildingKey of buildingsToDelete) {
         try {
-          if (newBuildings.has(buildingNumber)) {
+          if (newBuildings.has(buildingKey)) {
             deletedCount++;
-            successfullyDeleted.add(buildingNumber);
+            successfullyDeleted.add(buildingKey);
             continue;
           }
-          await api.deleteAssetsByBuilding(buildingNumber);
-          await api.deleteBuilding(buildingNumber);
-          deletedCount++;
-          successfullyDeleted.add(buildingNumber);
+          // Only delete if it's a number (existing building)
+          if (typeof buildingKey === 'number') {
+            await api.deleteAssetsByBuilding(buildingKey);
+            await api.deleteBuilding(buildingKey);
+            deletedCount++;
+            successfullyDeleted.add(buildingKey);
+          }
         } catch (err) {
-          const building = buildings.find(b => b.building_number === buildingNumber);
-          const buildingIdent = building?.building_number || buildingNumber;
+          const building = findBuildingByKey(buildingKey);
+          const buildingIdent = building?.building_number || buildingKey;
           errors.push(`מבנה ${buildingIdent}: ${err instanceof Error ? err.message : 'שגיאה במחיקה'}`);
         }
       }
 
       // Collect buildings to save
-      const allBuildingsToSave = new Set<number>();
-      for (const [buildingNumber] of dirtyBuildings.entries()) {
-        if (!buildingsToDelete.has(buildingNumber)) {
-          allBuildingsToSave.add(buildingNumber);
+      const allBuildingsToSave = new Set<string | number>();
+      for (const [buildingKey] of dirtyBuildings.entries()) {
+        if (!buildingsToDelete.has(buildingKey)) {
+          allBuildingsToSave.add(buildingKey);
         }
       }
-      for (const newBuildingNumber of newBuildings) {
-        if (!buildingsToDelete.has(newBuildingNumber)) {
-          allBuildingsToSave.add(newBuildingNumber);
+      for (const newBuildingKey of newBuildings) {
+        if (!buildingsToDelete.has(newBuildingKey)) {
+          allBuildingsToSave.add(newBuildingKey);
         }
       }
 
       // Process saves
-      for (const buildingNumber of allBuildingsToSave) {
+      for (const buildingKey of allBuildingsToSave) {
         try {
-          let building = buildings.find(b => b.building_number === buildingNumber);
-          
-          if (!building && newBuildings.has(buildingNumber)) {
-            building = buildings.find(b => b.building_number === buildingNumber);
-            if (!building) {
-              building = buildings.find(b => {
-                if (b.building_number < 0) {
-                  const tempIdChanges = dirtyBuildings.get(b.building_number);
-                  if (tempIdChanges && tempIdChanges.building_number === buildingNumber) {
-                    return true;
-                  }
-                }
-                return false;
-              });
-            }
-            if (!building) {
-              building = buildings.find(b => newBuildings.has(b.building_number));
-            }
-          }
+          let building = findBuildingByKey(buildingKey);
           
           if (!building) continue;
 
-          const changes = dirtyBuildings.get(buildingNumber) || {};
-          const isNewBuilding = newBuildings.has(buildingNumber) || buildingNumber < 0 || building.building_number < 0;
+          const changes = dirtyBuildings.get(buildingKey) || {};
+          const isNew = isNewBuilding(building);
 
-          if (isNewBuilding) {
+          if (isNew) {
             const finalBuilding = { ...building, ...changes };
             
-            if (!finalBuilding.building_number || finalBuilding.building_number < 0) {
+            if (!finalBuilding.building_number || finalBuilding.building_number <= 0) {
               errors.push(`מבנה חדש: מספר מבנה נדרש ו חייב להיות חיובי`);
               continue;
             }
@@ -413,20 +449,20 @@ export function BuildingsList({
               townhouses
             });
             savedCount++;
-            successfullySaved.add(buildingNumber);
+            successfullySaved.add(buildingKey);
           } else {
             const actualBuildingNumber = building.building_number;
-            if (!actualBuildingNumber || actualBuildingNumber < 0) {
-              errors.push(`מבנה ${buildingNumber}: לא ניתן לעדכן מבנה עם מספר מבנה לא תקין`);
+            if (!actualBuildingNumber || actualBuildingNumber <= 0) {
+              errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מספר מבנה לא תקין`);
               continue;
             }
             await api.buildings.update(actualBuildingNumber, changes);
             savedCount++;
-            successfullySaved.add(buildingNumber);
+            successfullySaved.add(buildingKey);
           }
         } catch (err) {
-          const building = buildings.find(b => b.building_number === buildingNumber);
-          const buildingIdent = building?.building_number || buildingNumber;
+          const building = findBuildingByKey(buildingKey);
+          const buildingIdent = building?.building_number || buildingKey;
           errors.push(`מבנה ${buildingIdent}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
         }
       }
@@ -519,33 +555,40 @@ export function BuildingsList({
 
   // Delete building handler
   const handleDeleteBuilding = useCallback((buildingNumber: number) => {
-    const isCurrentlyMarked = buildingsToDelete.has(buildingNumber);
+    const building = buildings.find(b => b.building_number === buildingNumber);
+    if (!building) return;
+    
+    const buildingKey = getBuildingKey(building);
+    const isCurrentlyMarked = buildingsToDelete.has(buildingKey);
+    
     setBuildingsToDelete(prev => {
       const newSet = new Set(prev);
       if (isCurrentlyMarked) {
-        newSet.delete(buildingNumber);
+        newSet.delete(buildingKey);
       } else {
-        newSet.add(buildingNumber);
+        newSet.add(buildingKey);
       }
       return newSet;
     });
     setDirtyBuildings(prev => {
       const newMap = new Map(prev);
       if (isCurrentlyMarked) {
-        newMap.delete(buildingNumber);
+        newMap.delete(buildingKey);
       } else {
-        newMap.set(buildingNumber, { deleted: true, deleted_at: new Date().toISOString() });
+        newMap.set(buildingKey, { deleted: true, deleted_at: new Date().toISOString() });
       }
       return newMap;
     });
-  }, [buildingsToDelete]);
+  }, [buildingsToDelete, buildings, getBuildingKey]);
 
   // Helper function to get cell style
   const getCellStyle = (params: any, fieldName: string) => {
     const building = params.data as Building;
-    const errors = validationErrors.get(building.building_number);
+    if (!building) return { textAlign: 'right' };
+    const buildingKey = getBuildingKey(building);
+    const errors = validationErrors.get(buildingKey);
     const hasError = errors && errors[fieldName];
-    const isDirty = dirtyBuildings.has(building.building_number) && dirtyBuildings.get(building.building_number)?.hasOwnProperty(fieldName);
+    const isDirty = dirtyBuildings.has(buildingKey) && dirtyBuildings.get(buildingKey)?.hasOwnProperty(fieldName);
     return {
       textAlign: 'right',
       fontWeight: isDirty ? 'bold' : 'normal',
@@ -554,21 +597,24 @@ export function BuildingsList({
   };
 
   // Handle checkbox change
-  const handleCheckboxChange = (buildingNumber: number, field: string, newValue: string | null) => {
+  const handleCheckboxChange = (building: Building, field: string, newValue: string | null) => {
+    const buildingKey = getBuildingKey(building);
     setBuildings(prevBuildings => {
-      return prevBuildings.map(b =>
-        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
-      );
+      return prevBuildings.map(b => {
+        const bKey = getBuildingKey(b);
+        return bKey === buildingKey ? { ...b, [field]: newValue } : b;
+      });
     });
     setFilteredBuildings(prevBuildings => {
-      return prevBuildings.map(b =>
-        b.building_number === buildingNumber ? { ...b, [field]: newValue } : b
-      );
+      return prevBuildings.map(b => {
+        const bKey = getBuildingKey(b);
+        return bKey === buildingKey ? { ...b, [field]: newValue } : b;
+      });
     });
     setDirtyBuildings(prev => {
       const next = new Map(prev);
-      const existing = next.get(buildingNumber) || {};
-      next.set(buildingNumber, { ...existing, [field]: newValue });
+      const existing = next.get(buildingKey) || {};
+      next.set(buildingKey, { ...existing, [field]: newValue });
       return next;
     });
     if (gridRef.current) {
@@ -592,8 +638,10 @@ export function BuildingsList({
       filter: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
-        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        if (!building) return null;
+        const buildingKey = getBuildingKey(building);
+        const hasTaxRegionError = building.building_number > 0 && invalidTaxRegions.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(buildingKey);
 
         return (
           <div className="flex items-center justify-center gap-1 h-full">
@@ -632,8 +680,8 @@ export function BuildingsList({
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
-        if (!building || building.building_number === undefined || building.building_number === null) return false;
-        return building.building_number < 0 || newBuildings.has(building.building_number);
+        if (!building) return false;
+        return isNewBuilding(building);
       },
       valueParser: (params: any) => {
         if (!params) return null;
@@ -650,13 +698,14 @@ export function BuildingsList({
       cellRenderer: (params: any) => {
         if (!params || !params.data) return '';
         const building = params.data as Building;
-        if (!building || building.building_number === undefined || building.building_number === null) return '';
-        const isNewBuilding = building.building_number < 0 || newBuildings.has(building.building_number);
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['building_number'];
-        const value = params.value != null ? String(params.value) : '';
+        const value = params.value != null && params.value !== 0 ? String(params.value) : '';
         
-        if (isNewBuilding && (params.value < 0 || params.value === null || params.value === undefined)) {
+        if (isNew && (params.value === 0 || params.value === null || params.value === undefined)) {
           return '';
         }
 
@@ -680,10 +729,12 @@ export function BuildingsList({
       editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const isNewBuilding = building.building_number < 0;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['tax_region'];
-        if (isNewBuilding && (params.value === null || params.value === undefined || params.value === '')) {
+        if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
           return '';
         }
         const value = params.value != null ? params.value : '';
@@ -707,10 +758,12 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const isNewBuilding = building.building_number < 0;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['shared_area'];
-        if (isNewBuilding && (params.value === null || params.value === undefined)) {
+        if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value ? params.value.toLocaleString() : '';
@@ -734,10 +787,12 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const isNewBuilding = building.building_number < 0;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['shared_business_area'];
-        if (isNewBuilding && (params.value === null || params.value === undefined)) {
+        if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value ? params.value.toLocaleString() : '';
@@ -761,7 +816,9 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return '0';
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const hasAreaMismatch = errors && errors['area_for_control'];
         const value = params.value ? params.value.toLocaleString() : '0';
         if (hasAreaMismatch) {
@@ -778,7 +835,9 @@ export function BuildingsList({
       },
       cellStyle: (params) => {
         const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return { textAlign: 'right', backgroundColor: '#f0f9ff', fontWeight: '600' };
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const hasAreaMismatch = errors && errors['area_for_control'];
         return {
           textAlign: 'right',
@@ -793,14 +852,18 @@ export function BuildingsList({
       headerName: 'שטח לבקרה',
       editable: (params) => {
         const building = params.data as Building;
-        return !buildingsToDelete.has(building.building_number);
+        if (!building) return false;
+        const buildingKey = getBuildingKey(building);
+        return !buildingsToDelete.has(buildingKey);
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const isNewBuilding = building.building_number < 0;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['area_for_control'];
-        if (isNewBuilding && (params.value === null || params.value === undefined)) {
+        if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value ? params.value.toLocaleString() : '';
@@ -824,9 +887,11 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return null;
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['elevator'];
-        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        const markedForDeletion = buildingsToDelete.has(buildingKey);
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
             {errorMsg && (
@@ -841,7 +906,7 @@ export function BuildingsList({
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.node.setDataValue('elevator', newValue);
-                handleCheckboxChange(building.building_number, 'elevator', newValue);
+                handleCheckboxChange(building, 'elevator', newValue);
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -850,7 +915,9 @@ export function BuildingsList({
       },
       cellStyle: (params) => {
         const building = params.data as Building;
-        const errors = validationErrors.get(building.building_number);
+        if (!building) return { display: 'flex', alignItems: 'center', justifyContent: 'center' };
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
         const hasError = errors && errors['elevator'];
         return {
           display: 'flex',
@@ -866,7 +933,9 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        if (!building) return null;
+        const buildingKey = getBuildingKey(building);
+        const markedForDeletion = buildingsToDelete.has(buildingKey);
         const isChecked = params.value === 'כן' || params.value === true;
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -877,7 +946,7 @@ export function BuildingsList({
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.node.setDataValue('single_double_family', newValue);
-                handleCheckboxChange(building.building_number, 'single_double_family', newValue);
+                handleCheckboxChange(building, 'single_double_family', newValue);
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -896,7 +965,9 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        if (!building) return null;
+        const buildingKey = getBuildingKey(building);
+        const markedForDeletion = buildingsToDelete.has(buildingKey);
         const isChecked = params.value === 'כן' || params.value === true;
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -907,7 +978,7 @@ export function BuildingsList({
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.node.setDataValue('condo', newValue);
-                handleCheckboxChange(building.building_number, 'condo', newValue);
+                handleCheckboxChange(building, 'condo', newValue);
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -926,7 +997,9 @@ export function BuildingsList({
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        const markedForDeletion = buildingsToDelete.has(building.building_number);
+        if (!building) return null;
+        const buildingKey = getBuildingKey(building);
+        const markedForDeletion = buildingsToDelete.has(buildingKey);
         const isChecked = params.value === 'כן' || params.value === true;
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -937,7 +1010,7 @@ export function BuildingsList({
               onChange={(e) => {
                 const newValue = e.target.checked ? 'כן' : null;
                 params.node.setDataValue('townhouses', newValue);
-                handleCheckboxChange(building.building_number, 'townhouses', newValue);
+                handleCheckboxChange(building, 'townhouses', newValue);
               }}
               className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
@@ -950,7 +1023,7 @@ export function BuildingsList({
         justifyContent: 'center'
       }
     }
-  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings]);
+  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange]);
 
   // Handle create building modal
   const handleCreateBuilding = async () => {
@@ -1172,8 +1245,10 @@ export function BuildingsList({
               rowClass="ag-row"
               getRowStyle={(params) => {
                 const building = params.data as Building;
-                const hasTaxRegionError = invalidTaxRegions.has(building.building_number);
-                const markedForDeletion = buildingsToDelete.has(building.building_number);
+                if (!building) return {};
+                const buildingKey = getBuildingKey(building);
+                const hasTaxRegionError = building.building_number > 0 && invalidTaxRegions.has(building.building_number);
+                const markedForDeletion = buildingsToDelete.has(buildingKey);
 
                 if (markedForDeletion) {
                   return {

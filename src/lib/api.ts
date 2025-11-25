@@ -15,6 +15,8 @@ export interface Building {
   condo?: string;
   basement?: string;
   townhouses?: string;
+  _tempId?: string; // Hidden field to identify new buildings before saving
+  _isNew?: boolean; // Hidden field to mark new buildings
 }
 
 export interface Asset {

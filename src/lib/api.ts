@@ -1606,5 +1606,37 @@ export const api = {
         throw err;
       }
     },
+    deleteAllGridPreferences: async (userId: string = 'default'): Promise<{ message: string; count: number }> => {
+      console.log('[API] Deleting all grid column state preferences for user:', userId);
+      try {
+        // Delete all preferences where preference_key ends with '_column_state'
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .delete()
+          .eq('user_id', userId)
+          .like('preference_key', '%_column_state')
+          .select();
+
+        if (error) {
+          // If table doesn't exist, return success with 0 count
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.warn('[API] user_preferences table does not exist.');
+            return { message: 'No grid preferences to delete', count: 0 };
+          }
+          console.error('[API] Error deleting grid preferences:', error);
+          throw error;
+        }
+        const count = data?.length || 0;
+        console.log(`[API] Deleted ${count} grid column state preferences`);
+        return { message: `Deleted ${count} grid preference(s) successfully`, count };
+      } catch (err: any) {
+        // Handle table not found gracefully
+        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
+          console.warn('[API] user_preferences table does not exist.');
+          return { message: 'No grid preferences to delete', count: 0 };
+        }
+        throw err;
+      }
+    },
   },
 };

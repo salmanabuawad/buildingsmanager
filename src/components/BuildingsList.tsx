@@ -109,6 +109,24 @@ export function BuildingsList({
     }
   }, [invalidTaxRegions]);
 
+  // Helper function to check if building is new
+  const isNewBuilding = useCallback((building: Building): boolean => {
+    return !!(building._isNew || building._tempId);
+  }, []);
+
+  // Helper function to get building key for tracking
+  const getBuildingKey = useCallback((building: Building): string | number => {
+    return building._tempId || building.building_number;
+  }, []);
+
+  // Helper function to find building by key
+  const findBuildingByKey = useCallback((key: string | number): Building | undefined => {
+    return buildings.find(b => {
+      const bKey = getBuildingKey(b);
+      return bKey === key;
+    });
+  }, [buildings, getBuildingKey]);
+
   // Handle cell value changes
   const onCellValueChanged = useCallback(async (event: any) => {
     // Safety checks
@@ -291,24 +309,6 @@ export function BuildingsList({
       gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
     }
   }, [newBuildings, isNewBuilding, getBuildingKey]);
-
-  // Helper function to check if building is new
-  const isNewBuilding = useCallback((building: Building): boolean => {
-    return !!(building._isNew || building._tempId);
-  }, []);
-
-  // Helper function to get building key for tracking
-  const getBuildingKey = useCallback((building: Building): string | number => {
-    return building._tempId || building.building_number;
-  }, []);
-
-  // Helper function to find building by key
-  const findBuildingByKey = useCallback((key: string | number): Building | undefined => {
-    return buildings.find(b => {
-      const bKey = getBuildingKey(b);
-      return bKey === key;
-    });
-  }, [buildings, getBuildingKey]);
 
   // Add empty building row
   const addEmptyBuildingRow = () => {

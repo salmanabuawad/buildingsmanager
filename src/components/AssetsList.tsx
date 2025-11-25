@@ -58,6 +58,19 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxZone]);
+
+  // Refresh grid cells when allAssets or masterAssets change to update hasHistory indicators
+  useEffect(() => {
+    if (gridRef.current && columnStateLoaded) {
+      // Small delay to ensure grid is ready
+      setTimeout(() => {
+        gridRef.current?.api.refreshCells({ 
+          columns: ['actions'],
+          force: true 
+        });
+      }, 100);
+    }
+  }, [allAssets, masterAssets, columnStateLoaded]);
   useEffect(() => {
     // Create display data with expanded rows
     const display: Asset[] = [];
@@ -1190,9 +1203,38 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         // Check if there are history records for this asset_id in allAssets (unfiltered)
         // History records are those with the same asset_id but different id than the master
         const masterId = String(asset.id);
-        const hasHistory = allAssets.some(a => 
-          a.asset_id === params.data.asset_id && String(a.id) !== masterId
-        );
+        const assetIdToCheck = params.data.asset_id;
+        
+        // Debug logging
+        console.log('[AssetsList] cellRenderer - Checking history for asset_id:', assetIdToCheck, 'masterId:', masterId);
+        console.log('[AssetsList] cellRenderer - allAssets length:', allAssets.length);
+        
+        // Find the master record for this asset_id
+        // First try from masterAssets state, then fallback to finding first occurrence in allAssets
+        let masterRecord = masterAssets.find(m => m.asset_id === assetIdToCheck);
+        if (!masterRecord) {
+          // Fallback: find first occurrence in allAssets (should be the master)
+          masterRecord = allAssets.find(a => a.asset_id === assetIdToCheck);
+        }
+        const masterRecordId = masterRecord ? String(masterRecord.id) : masterId;
+        
+        // Check if there are history records (records with same asset_id but different id)
+        const historyRecords = allAssets.filter(a => {
+          // Compare asset_id (number comparison)
+          const assetIdMatch = a.asset_id === assetIdToCheck;
+          // Exclude the master record itself
+          const isNotMaster = String(a.id) !== masterRecordId;
+          return assetIdMatch && isNotMaster;
+        });
+        
+        const hasHistory = historyRecords.length > 0;
+        
+        if (hasHistory) {
+          console.log('[AssetsList] cellRenderer - Found', historyRecords.length, 'history records for asset_id:', assetIdToCheck, 'masterRecordId:', masterRecordId);
+        } else {
+          console.log('[AssetsList] cellRenderer - No history for asset_id:', assetIdToCheck, 'masterRecordId:', masterRecordId, 'allAssets count:', allAssets.length);
+        }
+        
         const isExpanded = expandedRows.has(String(params.data.asset_id));
 
         const errors: string[] = [];
@@ -1238,15 +1280,17 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             >
               <Trash2 className="w-4 h-4" />
             </button>
-            {hasHistory && (
+            {hasHistory ? (
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  console.log('[AssetsList] Expand/collapse button clicked for asset_id:', params.data.asset_id);
                   toggleRowExpansion(String(params.data.asset_id));
                 }}
                 className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-teal-100 transition-colors duration-200"
                 title={isExpanded ? t('collapse') : t('expand')}
+                style={{ display: 'flex' }}
               >
                 {isExpanded ? (
                   <ChevronDown className="w-5 h-5 text-teal-700" />
@@ -1254,6 +1298,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                   <ChevronRight className="w-5 h-5 text-teal-700 scale-x-[-1]" />
                 )}
               </button>
+            ) : (
+              <div className="w-8 h-8 flex items-center justify-center" title="אין רשומות היסטוריה">
+                <span className="text-xs text-slate-400">-</span>
+              </div>
             )}
           </div>
         );

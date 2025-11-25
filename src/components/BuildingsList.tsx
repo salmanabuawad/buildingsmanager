@@ -440,7 +440,7 @@ export function BuildingsList({
             }
 
             const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = finalBuilding;
-            await api.buildings.create({
+            const createdBuilding = await api.buildings.create({
               building_number,
               tax_region,
               shared_area,
@@ -490,7 +490,25 @@ export function BuildingsList({
       // Clear successfully processed buildings BEFORE fetchBuildings
       // Collect all possible keys (tempId and building_number) for each saved building
       const allKeysToClear = new Set<string | number>();
+      
+      // Add keys for successfully saved buildings
       for (const buildingKey of successfullySaved) {
+        allKeysToClear.add(buildingKey);
+        const building = findBuildingByKey(buildingKey);
+        if (building) {
+          // Add the building_number if it exists
+          if (building.building_number && building.building_number > 0) {
+            allKeysToClear.add(building.building_number);
+          }
+          // Add the tempId if it exists
+          if (building._tempId) {
+            allKeysToClear.add(building._tempId);
+          }
+        }
+      }
+      
+      // Add keys for successfully deleted buildings
+      for (const buildingKey of successfullyDeleted) {
         allKeysToClear.add(buildingKey);
         const building = findBuildingByKey(buildingKey);
         if (building) {
@@ -554,6 +572,16 @@ export function BuildingsList({
         setError(null);
       }
 
+      // Remove deleted buildings from state before fetching
+      setBuildings(prev => prev.filter(b => {
+        const key = getBuildingKey(b);
+        return !successfullyDeleted.has(key);
+      }));
+      setFilteredBuildings(prev => prev.filter(b => {
+        const key = getBuildingKey(b);
+        return !successfullyDeleted.has(key);
+      }));
+      
       // Refresh data to get updated buildings from database
       // This will also update originalBuildings for future cancel operations
       await fetchBuildings(false);

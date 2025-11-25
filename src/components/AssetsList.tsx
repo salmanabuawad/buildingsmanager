@@ -1053,11 +1053,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
                   אזורי מס: {building.tax_region}
                 </p>
               ) : null}
-              <div className="flex items-center gap-3">
-                <p className="text-xs text-teal-50">
-                  <span className="font-semibold">{t('totalMeasurements')}:</span> {assets.length}
-                </p>
-              </div>
             </div>
           </div>
         </div>

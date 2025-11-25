@@ -113,7 +113,7 @@ export const validators = {
   },
 };
 
-export async function applyRule(rule: ValidationRule, value: any): Promise<ValidationResult> {
+export async function applyRule(rule: ValidationRule, value: any, taxRegion?: string): Promise<ValidationResult> {
   const fieldName = rule.field_name;
   const errorMessage = rule.error_message;
 
@@ -189,11 +189,29 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
           ? parseInt(String(value))
           : value;
 
-        console.log(`Validating ${fieldName} = "${value}" (query value: ${queryValue}) exists in ${rule.compare_table}.${rule.compare_field}`);
-        const { data, error, count } = await supabase
+        console.log(`Validating ${fieldName} = "${value}" (query value: ${queryValue}) exists in ${rule.compare_table}.${rule.compare_field}`, {
+          taxRegion,
+          compareTable: rule.compare_table,
+          compareField: rule.compare_field
+        });
+
+        // Build query - if taxRegion is provided and we're checking asset_types table, filter by tax_region
+        let query = supabase
           .from(rule.compare_table)
           .select(rule.compare_field, { count: 'exact', head: true })
           .eq(rule.compare_field, queryValue);
+
+        // IMPORTANT: If taxRegion is provided and we're validating asset types, filter by tax_region
+        // This ensures we only check if the asset type exists for the specific tax region (from tab)
+        if (taxRegion && taxRegion.trim() !== '' && rule.compare_table === 'asset_types') {
+          const taxRegionNum = parseInt(taxRegion.trim());
+          if (!isNaN(taxRegionNum)) {
+            console.log(`[applyRule] Filtering asset_types by tax_region = ${taxRegionNum} (ignoring building tax_region)`);
+            query = query.eq('tax_region', taxRegionNum);
+          }
+        }
+
+        const { data, error, count } = await query;
 
         if (error) {
           console.error('Exists in table validation query error:', error);
@@ -201,14 +219,20 @@ export async function applyRule(rule: ValidationRule, value: any): Promise<Valid
         }
 
         if (!count || count === 0) {
-          console.warn(`Value "${value}" not found in ${rule.compare_table}.${rule.compare_field}`);
+          console.warn(`Value "${value}" not found in ${rule.compare_table}.${rule.compare_field}`, {
+            taxRegion,
+            filteredByTaxRegion: taxRegion && taxRegion.trim() !== '' && rule.compare_table === 'asset_types'
+          });
           return {
             valid: false,
             error: errorMessage || `${fieldName} value "${value}" does not exist in asset types`
           };
         }
 
-        console.log(`Validation passed: "${value}" exists in ${rule.compare_table} (${count} records)`);
+        console.log(`Validation passed: "${value}" exists in ${rule.compare_table} (${count} records)`, {
+          taxRegion,
+          filteredByTaxRegion: taxRegion && taxRegion.trim() !== '' && rule.compare_table === 'asset_types'
+        });
         return { valid: true };
       } catch (error) {
         console.error('Exists in table validation error:', error);
@@ -893,19 +917,20 @@ export async function validateSubAssetsFor199Or299(
 export async function validateField(
   entityType: string,
   fieldName: string,
-  value: any
+  value: any,
+  taxRegion?: string
 ): Promise<ValidationResult[]> {
   const rules = await loadValidationRules();
   const fieldRules = rules.filter(
     r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
 
-  console.log(`validateField(${entityType}, ${fieldName}, ${value}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
+  console.log(`validateField(${entityType}, ${fieldName}, ${value}, taxRegion: ${taxRegion}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
 
   if (value == null || value === '') {
     const requiredRule = fieldRules.find(r => r.rule_type === 'required');
     if (requiredRule) {
-      const result = await applyRule(requiredRule, value);
+      const result = await applyRule(requiredRule, value, taxRegion);
       if (!result.valid) {
         return [result];
       }
@@ -915,7 +940,7 @@ export async function validateField(
 
   const results: ValidationResult[] = [];
   for (const rule of fieldRules) {
-    const result = await applyRule(rule, value);
+    const result = await applyRule(rule, value, taxRegion);
     results.push(result);
   }
 
@@ -1039,11 +1064,15 @@ export const assetValidators = {
     return firstError || { valid: true };
   },
 
-  validateAssetType: async (assetType: string | undefined, fieldName: string): Promise<ValidationResult> => {
+  validateAssetType: async (assetType: string | undefined, fieldName: string, taxRegion?: string): Promise<ValidationResult> => {
     if (!assetType) {
       return { valid: true };
     }
-    const results = await validateField('asset', fieldName, assetType);
+    console.log('[assetValidators.validateAssetType] Validating asset type with taxRegion:', taxRegion, {
+      assetType,
+      fieldName
+    });
+    const results = await validateField('asset', fieldName, assetType, taxRegion);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };
   },

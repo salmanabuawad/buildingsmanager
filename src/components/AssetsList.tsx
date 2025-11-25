@@ -158,7 +158,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         assetValidators.validateBuildingNumber(updatedAsset.building_number),
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),
-        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
+        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type', validationTaxRegion),
         // Use validationTaxRegion from the current tab for validation - this overrides building tax_region
         assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, validationTaxRegion),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
@@ -234,12 +234,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           ],
           validationTaxRegion
         ),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_3, 'sub_asset_type_3'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1', validationTaxRegion),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2', validationTaxRegion),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_3, 'sub_asset_type_3', validationTaxRegion),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4', validationTaxRegion),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5', validationTaxRegion),
+        assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6', validationTaxRegion),
         // Use validationTaxRegion from the current tab for validation - this overrides building tax_region
         assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, validationTaxRegion),
         assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, validationTaxRegion),
@@ -565,7 +565,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
             for (const field of assetTypeFields) {
               if (updatedData[field as keyof Asset]) {
-                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field);
+                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field, validationTaxRegion);
                 if (!validation.valid) {
                   errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
                   continue;
@@ -679,7 +679,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
             for (const field of assetTypeFields) {
               if (changes.hasOwnProperty(field)) {
-                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field);
+                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field, validationTaxRegion);
                 if (!validation.valid) {
                   errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
                   continue;

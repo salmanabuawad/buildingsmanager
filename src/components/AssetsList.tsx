@@ -854,13 +854,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_1',
@@ -870,13 +870,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_2',
@@ -886,15 +886,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const assetType = assetTypes.find(at => at.name === params.value);
         return assetType?.description || params.value;
       },
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     }
-  ], [t, assetTypes]);
+  ], [t, assetTypes, getCellStyle]);
 
 
 
@@ -958,6 +958,24 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       </div>
     );
   }, [newAssets, dirtyAssets]);
+
+  // Helper function to get cell style for validation errors
+  const getCellStyle = useCallback((params: any) => {
+    const assetId = String(params.data?.id);
+    if (!assetId) return { textAlign: 'right' };
+    
+    const hasValidationError = validationErrors.has(assetId);
+    
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        textAlign: 'right'
+      };
+    }
+    
+    return { textAlign: 'right' };
+  }, [validationErrors]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -1068,7 +1086,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('assetId'),
       editable: (params) => newAssets.has(String(params.data?.id)),
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'measurement_date',
@@ -1081,7 +1099,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('payerId'),
       editable: (params) => newAssets.has(String(params.data?.id)),
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       colId: 'penthouse',
@@ -1102,7 +1120,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'asset_size',
@@ -1116,7 +1134,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_1',
@@ -1128,7 +1146,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_1',
@@ -1142,7 +1160,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_2',
@@ -1154,7 +1172,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_2',
@@ -1168,7 +1186,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_3',
@@ -1180,7 +1198,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_3',
@@ -1194,7 +1212,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_4',
@@ -1206,7 +1224,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_4',
@@ -1220,7 +1238,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_5',
@@ -1232,7 +1250,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_5',
@@ -1246,7 +1264,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_6',
@@ -1258,7 +1276,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return assetType?.description || params.value;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_size_6',
@@ -1272,9 +1290,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: (params: any) => getCellStyle(params)
     },
-  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1419,7 +1437,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 return { backgroundColor: '#fee2e2', opacity: 0.7 }; // Light red for deleted
               }
               if (validationErrors.has(assetId)) {
-                return { backgroundColor: '#fef2f2' }; // Light red for validation errors
+                return { 
+                  backgroundColor: '#fee2e2', 
+                  border: '2px solid #ef4444',
+                  borderRadius: '4px'
+                }; // Light red background with red border for validation errors
               }
               return null;
             }}

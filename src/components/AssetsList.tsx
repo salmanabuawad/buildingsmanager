@@ -761,13 +761,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
     // Run validation rules on the new asset (async, don't block UI)
     // IMPORTANT: taxRegion is taken from the tab data (component prop) for validation
+    // This taxRegion will OVERRIDE the building's tax_region field during validation
     AssetValidationHandler.validateSingleAsset(
       newAsset,
       {
-        taxRegion: taxRegion // Use taxRegion from the current tab
+        taxRegion: taxRegion // Use taxRegion from the current tab - this overrides building tax_region
       }
     ).then(validationResult => {
-      if (!validationResult.passed && validationResult.errors.length > 0) {
+      if (!validationResult.valid && validationResult.errors.length > 0) {
         // Store validation errors for the new asset
         setValidationErrors(prev => {
           const newMap = new Map(prev);

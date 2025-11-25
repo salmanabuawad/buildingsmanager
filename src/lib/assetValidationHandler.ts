@@ -31,7 +31,7 @@ export interface ValidationOptions {
   mode: ValidationMode;
   onProgress?: (progress: AssetValidationProgress) => void;
   validateOnlyLatest?: boolean; // For building mode: validate only latest record per asset_id
-  taxRegion?: string; // Optional tax region for filtering validation
+  taxRegion?: string; // Optional tax region that will OVERRIDE building tax region for validation (from tab header)
 }
 
 /**
@@ -124,6 +124,7 @@ export class AssetValidationHandler {
 
   /**
    * Validate all assets in the system
+   * @param taxRegion Optional tax region that will override building tax region for validation
    */
   static async validateAllAssets(
     assets: Asset[],
@@ -193,6 +194,7 @@ export class AssetValidationHandler {
 
   /**
    * Validate assets from import
+   * @param taxRegion Optional tax region that will override building tax region for validation
    */
   static async validateImportAssets(
     assets: Asset[],
@@ -214,7 +216,7 @@ export class AssetValidationHandler {
         });
       }
 
-      const result = await this.validateAssetInternal(asset, assetIdentifier);
+      const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
       results.push(result);
     }
 
@@ -231,6 +233,8 @@ export class AssetValidationHandler {
 
   /**
    * Internal method to validate a single asset
+   * @param taxRegion Optional tax region that will OVERRIDE building tax region for validation
+   *                  If specified, validation will use this tax region instead of the building's tax_region field
    */
   private static async validateAssetInternal(
     asset: Asset,
@@ -473,7 +477,8 @@ export class AssetValidationHandler {
         const result = await assetValidators.validateSubAssetTypeComplete(
           asset.building_number,
           subAssetTypes[idx],
-          subAssetSizes[idx]
+          subAssetSizes[idx],
+          taxRegion // Pass taxRegion to override building tax region for sub asset validation
         );
 
         if (!result.valid && result.error) {

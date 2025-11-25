@@ -369,10 +369,65 @@ export async function validateAssetTypeComplete(
   taxRegion?: string
 ): Promise<ValidationResult> {
   try {
-    // First validate tax region (this will return early if invalid, avoiding duplicate errors)
-    const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName, taxRegion);
-    if (!taxRegionValidation.valid) {
-      return taxRegionValidation;
+    // IMPORTANT: If taxRegion is provided from the tab, skip validateAssetTypeForBuildingTaxRegion
+    // and directly validate that the asset type exists for the provided tax region
+    if (taxRegion && taxRegion.trim() !== '') {
+      console.log('[validateAssetTypeComplete] taxRegion provided from tab, skipping validateAssetTypeForBuildingTaxRegion, validating directly:', taxRegion);
+      
+      // Direct validation: check if asset type exists for the provided tax region
+      let query = supabase
+        .from('asset_types')
+        .select('*')
+        .eq('name', assetTypeName)
+        .eq('active', 'כן'); // Only check active asset types
+      
+      const taxRegionNum = parseInt(taxRegion.trim());
+      
+      // Handle special cases for asset types 199 and 299
+      if (assetTypeName === '199') {
+        // Asset type 199 is valid in all tax regions except 40
+        if (taxRegionNum === 40) {
+          return { valid: false, error: 'סוג נכס 199 לא תקף במבנים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
+        }
+        query = query.neq('tax_region', 40);
+      } else if (assetTypeName === '299') {
+        // Asset type 299 is only valid in tax region 40
+        if (taxRegionNum !== 40) {
+          return { valid: false, error: 'סוג נכס 299 תקף רק במבנים עם אזור מס 40' };
+        }
+        query = query.eq('tax_region', 40);
+      } else {
+        // For other asset types, check if it exists for the provided tax region
+        query = query.eq('tax_region', taxRegionNum);
+      }
+      
+      const { data: assetTypes, error: assetTypeError } = await query;
+      
+      if (assetTypeError) {
+        console.error('Error fetching asset type:', assetTypeError);
+        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+      }
+      
+      if (!assetTypes || assetTypes.length === 0) {
+        if (assetTypeName === '199') {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+        } else if (assetTypeName === '299') {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+        }
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס ${taxRegionNum}` };
+      }
+      
+      console.log('[validateAssetTypeComplete] Asset type validated directly for tax region:', taxRegion, {
+        assetTypeName,
+        foundRecords: assetTypes.length
+      });
+    } else {
+      // No taxRegion provided - use the original validation that checks building tax_region
+      console.log('[validateAssetTypeComplete] No taxRegion provided, using validateAssetTypeForBuildingTaxRegion');
+      const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName, taxRegion);
+      if (!taxRegionValidation.valid) {
+        return taxRegionValidation;
+      }
     }
 
     const { data: building, error: buildingError } = await supabase

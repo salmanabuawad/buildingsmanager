@@ -19,6 +19,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
+  const [newAssets, setNewAssets] = useState<Set<string>>(new Set());
+  const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
+  const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
@@ -87,6 +92,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       }
       
       setAssets(filteredAssets);
+      // Store original assets for cancel functionality
+      if (dirtyAssets.size === 0 && newAssets.size === 0 && deletedAssets.size === 0) {
+        setOriginalAssets(JSON.parse(JSON.stringify(filteredAssets)));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
     } finally {
@@ -111,24 +120,11 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         return newMap;
       });
 
-      // Clear previous validation errors for this asset
-      setValidationErrors(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(assetId);
-        return newMap;
-      });
 
       // Validate measurement_date format if changed
       if (field === 'measurement_date' && updatedAsset.measurement_date) {
         const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
         if (!dateValidation.valid) {
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            const errorMap = new Map<string, string>();
-            errorMap.set('measurement_date', dateValidation.error || 'Invalid date format');
-            newMap.set(assetId, errorMap);
-            return newMap;
-          });
           setError(dateValidation.error || 'Invalid date format');
           setTimeout(() => setError(null), 3000);
           event.api.refreshCells({ rowNodes: [event.node!], force: true });
@@ -235,17 +231,17 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
       if (!validation.valid) {
         const detailedError = validation.error || 'Unknown validation error';
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          const errorMap = new Map<string, string>();
-          errorMap.set(field, detailedError);
-          newMap.set(assetId, errorMap);
-          return newMap;
-        });
         setError(detailedError);
         setTimeout(() => setError(null), 5000);
       }
 
+
+      // Update the assets state with the new value
+      setAssets(prevAssets =>
+        prevAssets.map(asset =>
+          String(asset.id) === String(assetId) ? updatedAsset : asset
+        )
+      );
 
       // Refresh the grid cells to show validation styling
       event.api.refreshCells({ rowNodes: [event.node!], force: true });
@@ -441,7 +437,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       // Process deletions first
       for (const assetId of deletedAssets) {
         try {
-          const asset = displayAssets.find(a => a.id === assetId);
+          const asset = assets.find(a => String(a.id) === String(assetId));
           if (!asset) continue;
 
           // Skip deletion if it's a temp asset (not saved to database yet)
@@ -453,7 +449,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           await api.assets.delete(assetId);
           deletedCount++;
         } catch (err) {
-          const asset = displayAssets.find(a => a.id === assetId);
+          const asset = assets.find(a => String(a.id) === String(assetId));
           const assetIdent = asset?.asset_id || assetId;
           errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה במחיקה'}`);
         }
@@ -463,7 +459,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       for (const newAssetId of newAssets) {
         if (!dirtyAssets.has(newAssetId) && !deletedAssets.has(newAssetId)) {
           // Add to dirtyAssets so it gets processed below
-          const asset = displayAssets.find(a => String(a.id) === newAssetId);
+          const asset = assets.find(a => String(a.id) === newAssetId);
           if (asset) {
             setDirtyAssets(prev => {
               const next = new Map(prev);
@@ -480,7 +476,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           if (deletedAssets.has(assetId)) continue;
 
           // Get the full asset data
-          const asset = displayAssets.find(a => String(a.id) === String(assetId));
+          const asset = assets.find(a => String(a.id) === String(assetId));
           if (!asset) continue;
 
           const updatedData = { ...asset, ...changes };
@@ -622,7 +618,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             savedCount++;
           }
         } catch (err) {
-          const asset = displayAssets.find(a => String(a.id) === String(assetId));
+          const asset = assets.find(a => String(a.id) === String(assetId));
           const assetIdent = asset?.asset_id || assetId;
           errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
         }
@@ -680,20 +676,51 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       sub_asset_type_6: '',
       sub_asset_size_6: 0,
       measurement_date: dateStr,
-      created_at: new Date().toISOString(),
-      _isMasterRow: true
+      penthouse: null
     };
 
-    setDisplayAssets(prev => [newAsset, ...prev]);
-    setMasterAssets(prev => [newAsset, ...prev]);
-    setNewAssets(prev => new Set(prev).add(tempId)); // Track the new asset
+    setAssets(prev => [newAsset, ...prev]);
+    setNewAssets(prev => new Set(prev).add(tempId));
 
     setTimeout(() => {
       if (gridRef.current) {
-        gridRef.current.api.setFocusedCell(0, 'asset_id');
-        gridRef.current.api.startEditingCell({ rowIndex: 0, colKey: 'asset_id' });
+        const rowIndex = 0;
+        gridRef.current.api.setFocusedCell(rowIndex, 'asset_id');
+        gridRef.current.api.startEditingCell({ rowIndex, colKey: 'asset_id' });
       }
     }, 100);
+  };
+
+  const handleCancelAll = () => {
+    // Remove new assets (temp IDs) from assets
+    setAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
+    
+    // Restore original assets
+    setAssets(prev => {
+      const existingIds = new Set(prev.map(a => String(a.id)));
+      const restored = JSON.parse(JSON.stringify(originalAssets));
+      // Only add restored assets that aren't new
+      const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.id)));
+      // Merge with existing non-new assets
+      const merged = [...prev.filter(a => !newAssets.has(String(a.id))), ...filtered];
+      // Remove duplicates by id
+      const unique = merged.filter((a, index, self) => 
+        index === self.findIndex(b => String(b.id) === String(a.id))
+      );
+      return unique;
+    });
+    
+    setDirtyAssets(new Map());
+    setDeletedAssets(new Set());
+    setNewAssets(new Set());
+    setError(null);
+    setSuccess('השינויים בוטלו');
+    setTimeout(() => setSuccess(null), 3000);
+
+    // Refresh the grid
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
   };
 
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
@@ -757,13 +784,63 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
   // Create stable penthouse checkbox cellRenderer
   const penthouseCellRenderer = useCallback((params: any) => {
-    const value = params.data?.penthouse;
+    const assetId = params.data?.id;
+    if (!assetId) return null;
+    
+    const isNewAsset = newAssets.has(String(assetId));
+    const dirtyChanges = dirtyAssets.get(String(assetId));
+    const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
+      ? dirtyChanges.penthouse 
+      : params.data?.penthouse;
+    const isChecked = currentValue === 'כן';
+    
+    if (isNewAsset) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={(e) => {
+              const newValue = e.target.checked ? 'כן' : null;
+              
+              // Track the change in dirtyAssets
+              setDirtyAssets(prev => {
+                const next = new Map(prev);
+                const existing = next.get(String(assetId)) || {};
+                next.set(String(assetId), { ...existing, penthouse: newValue });
+                return next;
+              });
+              
+              // Update grid cell data directly
+              params.node.setDataValue('penthouse', newValue);
+              
+              // Update assets state
+              setAssets(prev => prev.map(a => 
+                String(a.id) === String(assetId) ? { ...a, penthouse: newValue } : a
+              ));
+              
+              // Refresh only this specific cell
+              if (gridRef.current) {
+                gridRef.current.api.refreshCells({ 
+                  rowNodes: [params.node], 
+                  columns: ['penthouse'],
+                  force: true 
+                });
+              }
+            }}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          />
+        </div>
+      );
+    }
+    
+    // Read-only display for existing assets
     return (
       <div className="flex items-center justify-center h-full">
-        {value === 'כן' ? '✓' : ''}
+        {currentValue === 'כן' ? '✓' : ''}
       </div>
     );
-  }, []);
+  }, [newAssets, dirtyAssets]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -780,28 +857,13 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       sortable: false,
       filter: false,
       headerClass: 'ag-right-aligned-header',
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const assetId = asset.id;
-
-        return (
-          <div className="flex items-center justify-center gap-1">
-            <button
-              onClick={() => onSelectAsset(assetId, asset.asset_id, buildingNumber)}
-              className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-              title={t('viewDetails')}
-            >
-              <Eye className="h-5 w-5" />
-            </button>
-          </div>
-        );
-      },
+      cellRenderer: () => null,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -814,7 +876,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -822,7 +884,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       cellRenderer: penthouseCellRenderer,
       cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'
@@ -830,7 +892,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -842,7 +904,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -856,7 +918,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -868,7 +930,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -882,7 +944,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -894,7 +956,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -908,7 +970,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -920,7 +982,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -934,7 +996,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -946,7 +1008,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -960,7 +1022,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -972,7 +1034,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -986,7 +1048,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -998,7 +1060,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      editable: false,
+      editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1009,7 +1071,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
-  ], [t, onSelectAsset, buildingNumber, assetTypes]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1056,14 +1118,50 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             </div>
           </div>
         </div>
-        <div className="mb-2 flex justify-end items-center gap-2">
-          <button
-            onClick={handleBatchValidateBuildingAssets}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            אמת נכסים
-          </button>
+        {success && (
+          <div className="mb-2 bg-green-50 border-l-4 border-green-500 rounded-lg p-2">
+            <p className="text-green-800 text-sm font-medium">{success}</p>
+          </div>
+        )}
+        <div className="mb-2 flex justify-between items-center gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={addEmptyRow}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              הוסף נכס
+            </button>
+            <button
+              onClick={handleBatchValidateBuildingAssets}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              אמת נכסים
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancelAll}
+              disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              <X className="h-4 w-4" />
+              ביטול
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size + newAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size + newAssets.size})` : ''}`}
+            </button>
+          </div>
         </div>
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact
@@ -1079,6 +1177,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               headerClass: 'ag-right-aligned-header'
             }}
             getRowId={(params) => String(params.data.id)}
+            onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
               // Load saved column state first
               const hasSavedState = await loadColumnState();

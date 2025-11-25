@@ -119,6 +119,23 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       // Use the current node data (which AG-Grid has already updated)
       const updatedAsset = data;
 
+      // If measurement_date field is being changed, validate format immediately
+      if (field === 'measurement_date') {
+        const dateValidation = inputValidators.validateDateFormat(newValue);
+        if (!dateValidation.valid) {
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const errorMap = new Map<string, string>();
+            errorMap.set(field, dateValidation.error || 'תאריך חייב להיות בפורמט DD/MM/YYYY');
+            newMap.set(assetId, errorMap);
+            return newMap;
+          });
+          // Refresh only the specific cell that has the error
+          event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
+          return;
+        }
+      }
+
       const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
       const validations = [
         inputValidators.validateDateFormat(updatedAsset.measurement_date),
@@ -297,8 +314,59 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
       setError(null); // Clear any previous errors on success
+      
       // Refresh data from server
-      await fetchData();
+      // Use asset_id instead of id, since id might have changed if asset was recreated
+      if (asset && asset.asset_id) {
+        try {
+          setLoading(true);
+          const assetTypesData = await api.assetTypes.getAll();
+          setAssetTypes(assetTypesData || []);
+          
+          const buildingData = await api.buildings.getOne(asset.building_number);
+          setBuilding(buildingData);
+          
+          // Fetch all records using asset_id (which doesn't change)
+          let allAssetMeasurements: Asset[] = [];
+          try {
+            allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
+            
+            console.log('[AssetDetails] Fetched measurements after save:', {
+              totalCount: allAssetMeasurements.length,
+              latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+              historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+            });
+          } catch (historyErr) {
+            console.error('[AssetDetails] Error fetching asset history after save:', historyErr);
+            // Try to get just the latest asset by asset_id
+            const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
+            if (assetsByAssetId && assetsByAssetId.length > 0) {
+              const masterRecord = { ...assetsByAssetId[0], is_latest: true };
+              allAssetMeasurements = [masterRecord];
+            }
+          }
+          
+          // Update asset state with the latest measurement
+          if (allAssetMeasurements.length > 0) {
+            const latestMeasurement = allAssetMeasurements.find(m => m.is_latest === true) || allAssetMeasurements[0];
+            setAsset(latestMeasurement);
+          }
+          
+          setAllMeasurements(allAssetMeasurements);
+          setOriginalMeasurements(allAssetMeasurements);
+        } catch (fetchErr) {
+          const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data after save';
+          console.error('[AssetDetails] Error fetching data after save:', fetchErr);
+          setError(fetchErrorMessage);
+          setToast({ message: fetchErrorMessage, type: 'error' });
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Fallback to regular fetchData if asset or asset_id is not available
+        await fetchData();
+      }
+      
       if (onDataUpdate) onDataUpdate();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
@@ -762,11 +830,39 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           return true;
         }
         
-        // If already in DD/MM/YYYY format, validate and use it
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(newValue)) {
-          const [day, month, year] = newValue.split('/').map(Number);
+        // Validate DD/MM/YYYY format first
+        const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+        const match = newValue.match(dateFormatPattern);
+        
+        if (match) {
+          const day = parseInt(match[1], 10);
+          const month = parseInt(match[2], 10);
+          const year = parseInt(match[3], 10);
+          
+          // Validate month range
+          if (month < 1 || month > 12) {
+            // Invalid month - keep the value but it will be validated in onCellValueChanged
+            params.data.measurement_date = newValue;
+            return true;
+          }
+          
+          // Validate day range based on month
+          const daysInMonth = new Date(year, month, 0).getDate();
+          if (day < 1 || day > daysInMonth) {
+            // Invalid day - keep the value but it will be validated in onCellValueChanged
+            params.data.measurement_date = newValue;
+            return true;
+          }
+          
+          // Validate year range (reasonable range)
+          if (year < 1900 || year > 2100) {
+            // Invalid year - keep the value but it will be validated in onCellValueChanged
+            params.data.measurement_date = newValue;
+            return true;
+          }
+          
+          // Create date object to validate it's a real date
           const date = new Date(year, month - 1, day);
-          // Validate the date is valid
           if (!isNaN(date.getTime()) &&
               date.getDate() === day &&
               date.getMonth() === month - 1 &&
@@ -776,7 +872,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           }
         }
         
-        // Try to parse other date formats and convert to DD/MM/YYYY
+        // If not in DD/MM/YYYY format, try to parse other formats and convert
         try {
           const date = new Date(newValue);
           if (!isNaN(date.getTime())) {
@@ -787,11 +883,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             return true;
           }
         } catch (e) {
-          // If parsing fails, keep original value
+          // If parsing fails, keep original value - validation will catch it
         }
         
-        // If all parsing fails, set to default
-        params.data.measurement_date = '01/01/1900';
+        // If format doesn't match DD/MM/YYYY, keep the value but validation will show error
+        params.data.measurement_date = newValue;
         return true;
       },
       cellEditor: 'agTextCellEditor',

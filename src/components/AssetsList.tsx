@@ -911,10 +911,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
         const hasValidationError = validationErrors.has(assetId);
         
         // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
+        // Delete button should be visible for all assets (new and existing), same as view asset button
         const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
         // If building has multiple tax regions, only show delete button when a specific taxRegion is selected
         // If building has only one tax region, show delete button (taxRegion may or may not be set)
-        const shouldShowDeleteButton = isNew && (!hasMultipleTaxRegions || taxRegion);
+        const shouldShowDeleteButton = !hasMultipleTaxRegions || taxRegion;
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">
@@ -1254,12 +1255,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
               אמת נכסים
             </button>
           </div>
-          {/* Hide save and cancel buttons if building has more than one tax region and no specific taxRegion is selected */}
+          {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
           {(() => {
             const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
-            // If a specific taxRegion is selected (we're in a tax region tab), show buttons
-            // If no taxRegion but building has multiple regions, hide buttons
-            if (hasMultipleTaxRegions && !taxRegion) return null;
+            // If building has multiple tax regions, only show buttons when a specific taxRegion is selected
+            // If building has only one tax region, show buttons (taxRegion may or may not be set)
+            const shouldShowButtons = !hasMultipleTaxRegions || taxRegion;
+            
+            if (!shouldShowButtons) return null;
+            
             return (
               <div className="flex gap-2">
                 <button

@@ -842,8 +842,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {
+    if (!params || !params.data) return { textAlign: 'right' };
+    
     const assetId = String(params.data?.id);
-    if (!assetId) return { textAlign: 'right' };
+    if (!assetId || assetId === 'undefined' || assetId === 'null') return { textAlign: 'right' };
+    
+    // Safety check: ensure validationErrors and newAssets are defined
+    if (!validationErrors || !newAssets) return { textAlign: 'right' };
     
     const hasValidationError = validationErrors.has(assetId);
     const isNewAsset = newAssets.has(assetId);
@@ -930,17 +935,23 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   // Create stable penthouse checkbox cellRenderer
   const penthouseCellRenderer = useCallback((params: any) => {
-    const assetId = params.data?.id;
-    if (!assetId) return null;
+    if (!params || !params.data) return null;
     
-    const isNewAsset = newAssets.has(String(assetId));
-    const dirtyChanges = dirtyAssets.get(String(assetId));
+    const assetId = params.data?.id;
+    if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
+    
+    // Safety check: ensure newAssets and dirtyAssets are defined
+    if (!newAssets || !dirtyAssets) return null;
+    
+    const assetIdStr = String(assetId);
+    const isNewAsset = newAssets.has(assetIdStr);
+    const dirtyChanges = dirtyAssets.get(assetIdStr);
     const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
       ? dirtyChanges.penthouse 
       : params.data?.penthouse;
     const isChecked = currentValue === 'כן';
     
-    // Only show checkbox for new assets, read-only for existing assets
+    // Show checkbox for new assets, read-only display for existing assets
     if (isNewAsset) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -953,8 +964,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               // Track the change in dirtyAssets
               setDirtyAssets(prev => {
                 const next = new Map(prev);
-                const existing = next.get(String(assetId)) || {};
-                next.set(String(assetId), { ...existing, penthouse: newValue });
+                const existing = next.get(assetIdStr) || {};
+                next.set(assetIdStr, { ...existing, penthouse: newValue });
                 return next;
               });
               
@@ -963,7 +974,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               
               // Update assets state
               setAssets(prev => prev.map(a => 
-                String(a.id) === String(assetId) ? { ...a, penthouse: newValue } : a
+                String(a.id) === assetIdStr ? { ...a, penthouse: newValue } : a
               ));
               
               // Refresh only this specific cell
@@ -1009,6 +1020,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (!asset) return null;
         
         const assetId = String(asset.id);
+        if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
+        
+        // Safety checks for state variables
+        if (!newAssets || !deletedAssets || !validationErrors || !selectedAssets) return null;
+        
         const isNew = newAssets.has(assetId);
         const isDeleted = deletedAssets.has(assetId);
         const hasValidationError = validationErrors.has(assetId);
@@ -1021,7 +1037,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const shouldShowDeleteButton = !hasMultipleTaxRegions || taxRegion;
         
         // Show checkbox only when a specific tax region is selected (single tax region tab)
-        const shouldShowCheckbox = taxRegion && (!hasMultipleTaxRegions || taxRegion);
+        // Checkbox should be visible for both new and existing assets
+        const shouldShowCheckbox = !!taxRegion;
         const isSelected = selectedAssets.has(assetId);
         
         return (
@@ -1046,16 +1063,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 title="בחר להעברת שטחים"
               />
             )}
-            {hasValidationError && (
+            {hasValidationError && validationErrors && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const errorMsg = validationErrors.get(assetId);
-                  setError(errorMsg || 'שגיאת אימות');
+                  const errorMsg = validationErrors?.get(assetId) || 'שגיאת אימות';
+                  setError(errorMsg);
                   setTimeout(() => setError(null), 5000);
                 }}
                 className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                title={validationErrors.get(assetId) || 'שגיאת אימות'}
+                title={validationErrors?.get(assetId) || 'שגיאת אימות'}
               >
                 <AlertCircle className="h-5 w-5" />
               </button>
@@ -1103,9 +1120,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        if (!params || !params.data || !newAssets) return false;
+        return newAssets.has(String(params.data?.id));
+      },
       cellStyle: (params: any) => {
+        if (!params || !params.data) {
+          return { textAlign: 'right' };
+        }
+        
         const assetId = String(params.data?.id);
+        if (!assetId || assetId === 'undefined' || assetId === 'null') {
+          return { textAlign: 'right' };
+        }
+        
+        // Safety check: ensure newAssets is defined
+        if (!newAssets) {
+          return { textAlign: 'right' };
+        }
+        
         const isNewAsset = newAssets.has(assetId);
         
         // For new assets, use the standard cell style (with validation/read-only indication)

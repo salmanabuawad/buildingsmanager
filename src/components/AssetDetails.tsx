@@ -296,11 +296,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
+      setError(null); // Clear any previous errors on success
       // Refresh data from server
       await fetchData();
       if (onDataUpdate) onDataUpdate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save changes');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
+      console.error('[AssetDetails] Error saving changes:', err);
+      setError(errorMessage);
+      setToast({ message: errorMessage, type: 'error' });
+      // Don't clear error automatically - let user see it
     } finally {
       setIsSaving(false);
     }
@@ -552,6 +557,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       setToast({ message: 'New measurement created successfully', type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
+      setError(null); // Clear any previous errors on success
       
       // Update the asset state with the new asset data (which has the new id)
       if (createdAsset) {
@@ -595,10 +601,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
           if (dirtyAssets.size === 0) {
             setOriginalMeasurements(allAssetMeasurements);
           }
-          setError(null);
         } catch (fetchErr) {
+          const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data';
           console.error('[AssetDetails] Error fetching data after new measurement:', fetchErr);
-          setError(fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data');
+          setError(fetchErrorMessage);
+          setToast({ message: fetchErrorMessage, type: 'error' });
         } finally {
           setLoading(false);
         }
@@ -607,10 +614,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         await fetchData();
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create new measurement';
+      console.error('[AssetDetails] Error creating new measurement:', error);
+      setError(errorMessage);
       setToast({
-        message: error instanceof Error ? error.message : 'Failed to create new measurement',
+        message: errorMessage,
         type: 'error'
       });
+      // Don't clear error automatically - let user see it
     } finally {
       setIsSaving(false);
     }

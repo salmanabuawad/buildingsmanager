@@ -651,7 +651,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       // Refresh data
       await fetchData(false);
     } catch (err) {
-      setError(`שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
+      console.error('[AssetsList] Error saving all:', err);
+      setError(errorMessage);
+      // Don't clear error automatically - let user see it
     } finally {
       setLoading(false);
     }

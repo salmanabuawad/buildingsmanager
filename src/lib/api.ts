@@ -1010,7 +1010,10 @@ export const api = {
         const details = error.details && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` (${error.details})` : '';
         const hint = error.hint && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` - ${error.hint}` : '';
 
-        throw new Error(`${errorMessage}${details}${hint}`);
+        // Always include full error information
+        const fullErrorMessage = `${errorMessage}${details}${hint}`;
+        console.error('[API] Full error details:', { code: error.code, message: errorMessage, details, hint, fullErrorMessage });
+        throw new Error(fullErrorMessage);
       }
 
       if (!data) {

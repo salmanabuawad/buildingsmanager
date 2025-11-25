@@ -337,12 +337,13 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       setValidationErrors(new Map());
       setBuildingsToDelete(new Set());
       setNewBuildings(new Set()); // Clear new buildings tracking
+      setError(null); // Clear any previous errors on success
       await fetchBuildings(false);
-      setError(null);
     } catch (error: any) {
-      const errorMsg = `Failed to save changes: ${error.message || error.toString()}`;
+      const errorMsg = `שגיאה בשמירה: ${error.message || error.toString()}`;
+      console.error('[BuildingsList] Error saving changes:', error);
       setError(errorMsg);
-      setTimeout(() => setError(null), 5000);
+      // Don't clear error automatically - let user see it
     } finally {
       setLoading(false);
     }

@@ -841,62 +841,12 @@ export const api = {
           throw new Error(`שגיאה בבדיקת נכס קיים: ${checkError.message}`);
         }
 
-        // If asset exists, move it to history and create a new entry
+        // If asset exists, delete it (trigger will copy it to history) and create a new entry
         if (existingAsset) {
-          console.log('[API] Asset with asset_id exists, moving to history and creating new entry:', existingAsset);
+          console.log('[API] Asset with asset_id exists, deleting (trigger will copy to history) and creating new entry:', existingAsset);
           
-          // Copy existing asset to history
-          // Note: We don't include 'id' so the database generates a new unique id for the history record
-          const { error: historyError } = await supabase
-            .from('assets_history')
-            .insert({
-              building_number: existingAsset.building_number,
-              payer_id: existingAsset.payer_id,
-              asset_id: existingAsset.asset_id,
-              measurement_date: existingAsset.measurement_date,
-              main_asset_type: existingAsset.main_asset_type,
-              asset_size: existingAsset.asset_size,
-              sub_asset_type_1: existingAsset.sub_asset_type_1,
-              sub_asset_size_1: existingAsset.sub_asset_size_1,
-              sub_asset_type_2: existingAsset.sub_asset_type_2,
-              sub_asset_size_2: existingAsset.sub_asset_size_2,
-              sub_asset_type_3: existingAsset.sub_asset_type_3,
-              sub_asset_size_3: existingAsset.sub_asset_size_3,
-              sub_asset_type_4: existingAsset.sub_asset_type_4,
-              sub_asset_size_4: existingAsset.sub_asset_size_4,
-              sub_asset_type_5: existingAsset.sub_asset_type_5,
-              sub_asset_size_5: existingAsset.sub_asset_size_5,
-              sub_asset_type_6: existingAsset.sub_asset_type_6,
-              sub_asset_size_6: existingAsset.sub_asset_size_6,
-              structure_drawing_url: existingAsset.structure_drawing_url,
-              created_at: existingAsset.created_at,
-              updated_at: existingAsset.updated_at,
-              elevator: existingAsset.elevator,
-              single_double_family: existingAsset.single_double_family,
-              condo: existingAsset.condo,
-              townhouses: existingAsset.townhouses,
-              basement: existingAsset.basement,
-              penthouse: existingAsset.penthouse
-            })
-            .select();
-
-          if (historyError) {
-            // Always throw errors - never silently ignore them
-            console.error('[API ERROR] Error copying asset to history:', historyError);
-            
-            // Provide a clear error message based on the error type
-            if (historyError.code === '23505') {
-              // Duplicate key error - record already exists in history
-              throw new Error('לא ניתן להכניס יותר ממדידה אחת לנכס עם אותו תאריך מדידה');
-            } else {
-              // Any other error
-              throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}${historyError.details ? ` (${historyError.details})` : ''}${historyError.hint ? ` - ${historyError.hint}` : ''}`);
-            }
-          } else {
-            console.log('[API] Asset copied to history successfully');
-          }
-
           // Delete the existing asset from assets table
+          // Database trigger will automatically copy it to history before deletion
           const { error: deleteError } = await supabase
             .from('assets')
             .delete()
@@ -1014,54 +964,8 @@ export const api = {
         throw new Error('Asset not found');
       }
 
-      // Always move current record to history before updating
-      // This ensures we preserve the current state before making changes
-      // Note: We don't include 'id' so the database generates a new unique id for the history record
-      const historyData = {
-        building_number: existingAsset.building_number,
-        payer_id: existingAsset.payer_id,
-        asset_id: existingAsset.asset_id,
-        measurement_date: existingAsset.measurement_date,
-        main_asset_type: existingAsset.main_asset_type,
-        asset_size: existingAsset.asset_size,
-        sub_asset_type_1: existingAsset.sub_asset_type_1,
-        sub_asset_size_1: existingAsset.sub_asset_size_1,
-        sub_asset_type_2: existingAsset.sub_asset_type_2,
-        sub_asset_size_2: existingAsset.sub_asset_size_2,
-        sub_asset_type_3: existingAsset.sub_asset_type_3,
-        sub_asset_size_3: existingAsset.sub_asset_size_3,
-        sub_asset_type_4: existingAsset.sub_asset_type_4,
-        sub_asset_size_4: existingAsset.sub_asset_size_4,
-        sub_asset_type_5: existingAsset.sub_asset_type_5,
-        sub_asset_size_5: existingAsset.sub_asset_size_5,
-        sub_asset_type_6: existingAsset.sub_asset_type_6,
-        sub_asset_size_6: existingAsset.sub_asset_size_6,
-        structure_drawing_url: existingAsset.structure_drawing_url,
-        created_at: existingAsset.created_at,
-        updated_at: existingAsset.updated_at,
-        elevator: existingAsset.elevator,
-        single_double_family: existingAsset.single_double_family,
-        condo: existingAsset.condo,
-        townhouses: existingAsset.townhouses,
-        basement: existingAsset.basement,
-        penthouse: existingAsset.penthouse
-      };
-
-      const { error: historyError } = await supabase
-        .from('assets_history')
-        .insert(historyData)
-        .select();
-
-      if (historyError) {
-        // Since we removed the unique constraint, we shouldn't get 23505 errors
-        // But if we do get an error, we should fail - we must move to history before updating
-        console.error('[API ERROR] Error moving asset to history:', historyError);
-        throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}${historyError.details ? ` (${historyError.details})` : ''}${historyError.hint ? ` - ${historyError.hint}` : ''}`);
-      }
-
-      console.log('[API] Asset moved to history successfully');
-
-      // Delete the existing asset from assets table
+      // Database trigger will automatically copy current record to history before update
+      // Delete the existing asset first (trigger will copy it to history)
       const { error: deleteError } = await supabase
         .from('assets')
         .delete()
@@ -1078,7 +982,7 @@ export const api = {
         throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
       }
 
-      console.log('[API] Existing asset deleted successfully');
+      console.log('[API] Existing asset deleted (trigger copied it to history)');
 
       // Merge existing asset data with updates
       const newAssetData = {

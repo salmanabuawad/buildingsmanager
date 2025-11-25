@@ -943,7 +943,6 @@ export const api = {
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
       console.log('[API] Updating asset:', id, 'with data:', input);
-      const sanitizedInput = sanitizeAssetInput(input);
       
       // First, get the existing asset
       const { data: existingAsset, error: fetchError } = await supabase
@@ -963,6 +962,20 @@ export const api = {
       if (!existingAsset) {
         throw new Error('Asset not found');
       }
+
+      // Merge existing asset data with input changes first
+      // This ensures all new values from the grid are included
+      const mergedData = {
+        ...existingAsset,
+        ...input,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Now sanitize the merged data
+      const sanitizedInput = sanitizeAssetInput(mergedData);
+      
+      console.log('[API] Merged data before sanitization:', mergedData);
+      console.log('[API] Sanitized input:', sanitizedInput);
 
       // Database trigger will automatically copy current record to history before update
       // Delete the existing asset first (trigger will copy it to history)
@@ -984,16 +997,11 @@ export const api = {
 
       console.log('[API] Existing asset deleted (trigger copied it to history)');
 
-      // Merge existing asset data with updates
-      const newAssetData = {
-        ...existingAsset,
-        ...sanitizedInput,
-        updated_at: new Date().toISOString()
-      };
-      
       // Remove id and created_at so a new record is created
-      delete (newAssetData as any).id;
-      delete (newAssetData as any).created_at;
+      delete (sanitizedInput as any).id;
+      delete (sanitizedInput as any).created_at;
+      
+      const newAssetData = sanitizedInput;
 
       // Insert new asset with updated data
       const { data: newAsset, error: insertError } = await supabase

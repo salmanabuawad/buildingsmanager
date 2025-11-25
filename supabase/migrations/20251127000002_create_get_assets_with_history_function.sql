@@ -14,24 +14,34 @@
 CREATE OR REPLACE FUNCTION get_assets_with_history(p_building_number bigint)
 RETURNS json AS $$
 DECLARE
-  result json;
+  master_data json;
+  details_data json;
 BEGIN
-  SELECT json_build_object(
-    'master', COALESCE((
-      SELECT json_agg(row_to_json(a))
-      FROM assets a
-      WHERE a.building_number = p_building_number
-      ORDER BY a.asset_id
-    ), '[]'::json),
-    'details', COALESCE((
-      SELECT json_agg(row_to_json(h))
-      FROM assets_history h
-      WHERE h.building_number = p_building_number
-      ORDER BY h.asset_id, h.history_created_at DESC
-    ), '[]'::json)
-  ) INTO result;
+  -- Get master records from assets table
+  SELECT COALESCE(json_agg(row_to_json(a) ORDER BY a.asset_id), '[]'::json)
+  INTO master_data
+  FROM (
+    SELECT *
+    FROM assets
+    WHERE building_number = p_building_number
+    ORDER BY asset_id
+  ) a;
   
-  RETURN COALESCE(result, json_build_object('master', '[]'::json, 'details', '[]'::json));
+  -- Get detail records from assets_history table
+  SELECT COALESCE(json_agg(row_to_json(h) ORDER BY h.asset_id, h.history_created_at DESC), '[]'::json)
+  INTO details_data
+  FROM (
+    SELECT *
+    FROM assets_history
+    WHERE building_number = p_building_number
+    ORDER BY asset_id, history_created_at DESC
+  ) h;
+  
+  -- Return combined result
+  RETURN json_build_object(
+    'master', COALESCE(master_data, '[]'::json),
+    'details', COALESCE(details_data, '[]'::json)
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

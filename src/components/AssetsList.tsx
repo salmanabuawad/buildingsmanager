@@ -52,6 +52,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   useEffect(() => {
     // Create display data with expanded rows
     const display: Asset[] = [];
+    console.log('[AssetsList] useEffect - masterAssets count:', masterAssets.length, 'expandedRows:', Array.from(expandedRows));
+    
     for (const asset of masterAssets) {
       display.push({ ...asset, _isMasterRow: true });
       if (expandedRows.has(String(asset.asset_id))) {
@@ -64,6 +66,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         const historicalRecords = allAssets.filter(
           a => a.asset_id === asset.asset_id && String(a.id) !== masterId
         );
+        console.log('[AssetsList] Found', historicalRecords.length, 'history records for asset_id', asset.asset_id);
         // Sort historical records by measurement_date (newest first)
         const parseDate = (dateStr: string) => {
           const parts = dateStr.split('/');
@@ -78,13 +81,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         display.push(...historicalRecords.map(r => ({ ...r, _isMasterRow: false })));
       }
     }
+    
+    console.log('[AssetsList] Setting displayAssets with', display.length, 'rows');
     setDisplayAssets(display);
     // Store original data only if dirtyAssets is empty (initial load or after save)
     if (dirtyAssets.size === 0) {
       setOriginalDisplayAssets(JSON.parse(JSON.stringify(display)));
       setOriginalMasterAssets(JSON.parse(JSON.stringify(masterAssets)));
     }
-  }, [masterAssets, assets, expandedRows, dirtyAssets.size]);
+  }, [masterAssets, allAssets, expandedRows, dirtyAssets.size]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
@@ -101,11 +106,13 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       setAllAssets(assetsData || []);
       
       // Separate master records (from assets table) from history records (from assets_history table)
-      // Master records are those that appear first for each asset_id (they come from assets table)
-      // History records are those that come after (from assets_history table)
+      // The API returns: master1, history1, history2, master2, history1, etc.
+      // So the first occurrence of each asset_id is the master record
       const masterRecords: Asset[] = [];
       const historyRecords: Asset[] = [];
       const seenAssetIds = new Set<number>();
+      
+      console.log('[AssetsList] Total assetsData received:', (assetsData || []).length);
       
       for (const asset of assetsData || []) {
         if (!seenAssetIds.has(asset.asset_id)) {
@@ -117,6 +124,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           historyRecords.push(asset);
         }
       }
+      
+      console.log('[AssetsList] Separated records - Masters:', masterRecords.length, 'History:', historyRecords.length);
       
       // Filter only master records by tax region if taxZone is provided
       // History records should NOT be filtered by tax zone
@@ -169,6 +178,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       // History records are not filtered by tax zone
       const filteredAssets = [...filteredMasterAssets, ...historyRecords];
       setAssets(filteredAssets);
+      
       // Debug for asset 100501
       const asset100501Records = filteredAssets.filter(a => String(a.asset_id) === '100501');
       if (asset100501Records.length > 0) {
@@ -180,49 +190,16 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
           main_asset_type: a.main_asset_type
         })));
       }
-      const assetsByAssetId = new Map<string, Asset[]>();
-      for (const asset of filteredAssets) {
-        const assetIdKey = String(asset.asset_id);
-        if (!assetsByAssetId.has(assetIdKey)) {
-          assetsByAssetId.set(assetIdKey, []);
-        }
-        assetsByAssetId.get(assetIdKey)!.push(asset);
-      }
-      const masterAssetsList = Array.from(assetsByAssetId.values()).map(group => {
-        const parseDate = (dateStr: string) => {
-          const parts = dateStr.split('/');
-          if (parts.length === 3) {
-            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-          }
-          return new Date(dateStr);
-        };
-        group.sort((a, b) => {
-          const dateA = parseDate(a.measurement_date);
-          const dateB = parseDate(b.measurement_date);
-          // Sort by date (newest first), then by id (highest first) as tiebreaker
-          const dateDiff = dateB.getTime() - dateA.getTime();
-          if (dateDiff !== 0) return dateDiff;
-          return b.id - a.id;
-        });
-        const master = group[0];
-        // Debug log for asset 100501
-        if (master && String(master.asset_id) === '100501') {
-          console.log('[AssetsList] Asset 100501 group:', group.map(a => ({
-            id: a.id,
-            asset_id: a.asset_id,
-            measurement_date: a.measurement_date,
-            parsed_date: parseDate(a.measurement_date).toISOString()
-          })));
-          console.log('[AssetsList] Asset 100501 master selected:', {
-            id: master.id,
-            asset_id: master.asset_id,
-            measurement_date: master.measurement_date
-          });
-        }
-        return master;
-      });
-
-      setMasterAssets(masterAssetsList);
+      
+      // filteredMasterAssets already contains only the master records (filtered by tax zone)
+      // These are the records that should appear as master rows in the grid
+      console.log('[AssetsList] Setting masterAssets with', filteredMasterAssets.length, 'masters');
+      console.log('[AssetsList] Master assets:', filteredMasterAssets.map(a => ({ 
+        id: a.id, 
+        asset_id: a.asset_id, 
+        measurement_date: a.measurement_date 
+      })));
+      setMasterAssets(filteredMasterAssets);
       const invalidSet = new Set<string>();
       const numericRegex = /^[0-9]+$/;
       for (const asset of filteredAssets) {

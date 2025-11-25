@@ -9,19 +9,21 @@ import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
 import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
+import { TransferAreas } from './components/TransferAreas';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'asset-details';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'asset-details' | 'transfer-areas';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
   taxRegion?: string;
   assetId?: string;
   assetIdentifier?: string;
+  selectedAssetIds?: string[];
 }
 
 function App() {
@@ -157,6 +159,20 @@ function App() {
       setTabs([...tabs, newTab]);
       setActiveTabId(assetDetailsTabId);
     }
+  }
+
+  function handleOpenTransferAreas(selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) {
+    const transferAreasTabId = `transfer-areas-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;
+    const newTab: Tab = {
+      id: transferAreasTabId,
+      type: 'transfer-areas',
+      buildingNumber,
+      taxRegion,
+      selectedAssetIds,
+      label: `העברת שטחים - מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabId(transferAreasTabId);
   }
 
 
@@ -720,6 +736,15 @@ function App() {
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
                 onSelectAsset={handleSelectAsset}
+                onOpenTransferAreas={handleOpenTransferAreas}
+              />
+            )}
+            {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (
+              <TransferAreas
+                key={activeTab.refreshKey}
+                buildingNumber={activeTab.buildingNumber}
+                taxRegion={activeTab.taxRegion}
+                selectedAssetIds={activeTab.selectedAssetIds}
               />
             )}
             {activeTab?.type === 'admin' && (

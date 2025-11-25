@@ -5,15 +5,16 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
+  onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
 }
-export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsListProps) {
+export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas }: AssetsListProps) {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -26,6 +27,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
+  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
@@ -963,8 +965,32 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
         // If building has only one tax region, show delete button (taxRegion may or may not be set)
         const shouldShowDeleteButton = !hasMultipleTaxRegions || taxRegion;
         
+        // Show checkbox only when a specific tax region is selected (single tax region tab)
+        const shouldShowCheckbox = taxRegion && (!hasMultipleTaxRegions || taxRegion);
+        const isSelected = selectedAssets.has(assetId);
+        
         return (
           <div className="flex items-center justify-center gap-1 h-full">
+            {shouldShowCheckbox && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setSelectedAssets(prev => {
+                    const next = new Set(prev);
+                    if (e.target.checked) {
+                      next.add(assetId);
+                    } else {
+                      next.delete(assetId);
+                    }
+                    return next;
+                  });
+                }}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                title="בחר להעברת שטחים"
+              />
+            )}
             {hasValidationError && (
               <button
                 onClick={(e) => {
@@ -1223,7 +1249,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
-  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion]);
+  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1310,8 +1336,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
             
             if (!shouldShowButtons) return null;
             
+            // Check if we have 2 or more selected assets for transfer areas button
+            const canTransferAreas = selectedAssets.size >= 2 && taxRegion;
+            
             return (
               <div className="flex gap-2">
+                {taxRegion && (
+                  <button
+                    onClick={() => {
+                      if (onOpenTransferAreas && selectedAssets.size >= 2) {
+                        const selectedAssetIds = Array.from(selectedAssets);
+                        onOpenTransferAreas(selectedAssetIds, buildingNumber, taxRegion);
+                        // Clear selection after opening
+                        setSelectedAssets(new Set());
+                      }
+                    }}
+                    disabled={!canTransferAreas}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+                    title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
+                  </button>
+                )}
                 <button
                   onClick={handleCancelAll}
                   disabled={loading || totalChanges === 0}

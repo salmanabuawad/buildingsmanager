@@ -10,6 +10,7 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { supabase } from '../lib/supabase';
 import { useGridPreferences } from '../hooks/useGridPreferences';
+import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 
 interface AssetDetailsProps {
   assetId: number;
@@ -32,12 +33,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [isValidating, setIsValidating] = useState(false);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
-  const [validationResults, setValidationResults] = useState<{ valid: boolean; errors: string[]; passed: string[]; matchedAssetTypeRecord?: string } | null>(null);
-  const [validationProgress, setValidationProgress] = useState<{
-    current: number;
-    total: number;
-    currentStep: string;
-  } | null>(null);
+  const [validationResults, setValidationResults] = useState<SingleAssetValidationResult | null>(null);
+  const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
 
@@ -947,137 +944,17 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       )}
 
       {/* Validation Results Modal */}
-      {validationModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            {isValidating ? (
-              <>
-                <div className="bg-blue-500 px-6 py-4 flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">מאמת נכס...</h2>
-                  <Loader2 className="h-6 w-6 text-white animate-spin" />
-                </div>
-                
-                <div className="p-6 flex-1 flex items-center justify-center">
-                  <div className="text-center w-full max-w-md">
-                    <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
-                    <p className="text-slate-600 mb-4">מאמת את הנכס...</p>
-                    {validationProgress && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
-                          <span>שלב {validationProgress.current} מתוך {validationProgress.total}</span>
-                          <span>{Math.round((validationProgress.current / validationProgress.total) * 100)}%</span>
-                        </div>
-                        {validationProgress.currentStep && (
-                          <p className="text-xs text-slate-500 mb-3">
-                            {validationProgress.currentStep}
-                          </p>
-                        )}
-                        <div className="w-full bg-slate-200 rounded-full h-2.5">
-                          <div
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${(validationProgress.current / validationProgress.total) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : validationResults ? (
-              <>
-                <div className={`${validationResults.valid ? 'bg-green-500' : 'bg-red-500'} px-6 py-4 flex items-center justify-between`}>
-                  <h2 className="text-2xl font-bold text-white">
-                    {validationResults.valid ? 'אימות הצליח' : 'שגיאות אימות'}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setValidationModalOpen(false);
-                      setValidationResults(null);
-                    }}
-                    className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto flex-1">
-                  {validationResults.valid ? (
-                    <div className="flex flex-col items-center justify-center py-8">
-                      <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                      <p className="text-xl font-semibold text-green-700 mb-2">הנכס תקין</p>
-                      <p className="text-slate-600 mb-4">כל האימותים עברו בהצלחה</p>
-                      {validationResults.passed && validationResults.passed.length > 0 && (
-                        <div className="w-full mt-4">
-                          <p className="text-sm font-semibold text-slate-700 mb-2">כללי אימות שעברו:</p>
-                          <ul className="space-y-1">
-                            {validationResults.passed.map((rule, index) => (
-                              <li key={index} className="flex items-center gap-2 text-sm text-green-700">
-                                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                <span>{rule}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {validationResults.matchedAssetTypeRecord && (
-                        <div className="w-full mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                          <p className="text-xs text-blue-700">{validationResults.matchedAssetTypeRecord}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      {validationResults.passed && validationResults.passed.length > 0 && (
-                        <div className="mb-6">
-                          <p className="text-sm font-semibold text-slate-700 mb-2">כללי אימות שעברו:</p>
-                          <ul className="space-y-1 mb-4">
-                            {validationResults.passed.map((rule, index) => (
-                              <li key={index} className="flex items-center gap-2 text-sm text-green-700">
-                                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                <span>{rule}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {validationResults.matchedAssetTypeRecord && (
-                        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                          <p className="text-xs text-blue-700">{validationResults.matchedAssetTypeRecord}</p>
-                        </div>
-                      )}
-                      <p className="text-lg font-semibold text-slate-800 mb-4">
-                        נמצאו {validationResults.errors.length} שגיאות:
-                      </p>
-                      <ul className="space-y-2">
-                        {validationResults.errors.map((error, index) => (
-                          <li key={index} className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                            <span className="text-red-800 flex-1">{error}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
-                  <button
-                    onClick={() => {
-                      setValidationModalOpen(false);
-                      setValidationResults(null);
-                    }}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-                  >
-                    סגור
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
-      )}
+      <ValidationResultModal
+        isOpen={validationModalOpen}
+        onClose={() => {
+          setValidationModalOpen(false);
+          setValidationResults(null);
+        }}
+        isLoading={isValidating}
+        progress={validationProgress}
+        singleResult={validationResults}
+        singleAssetTitle={asset ? `אימות נכס ${asset.asset_id}` : undefined}
+      />
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
       <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">
         <div className="flex items-center gap-3">

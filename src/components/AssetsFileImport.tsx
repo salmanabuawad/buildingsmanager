@@ -4,6 +4,7 @@ import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X } from
 import { api, Asset } from '../lib/api';
 import { assetValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
+import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import * as XLSX from 'xlsx';
 
 interface ImportResult {
@@ -27,6 +28,9 @@ export function AssetsFileImport() {
   const [validateBeforeImport, setValidateBeforeImport] = useState(true);
   const [importPenthouse, setImportPenthouse] = useState(true);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationResults, setValidationResults] = useState<BatchValidationResults | null>(null);
+  const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +75,9 @@ export function AssetsFileImport() {
 
     setIsImporting(true);
     setImportResult(null);
+    setValidationResults(null);
+    setValidationProgress(null);
+    setShowValidationModal(false);
     setProgress({ stage: 'parsing', current: 0, total: 1 });
 
     try {
@@ -84,6 +91,7 @@ export function AssetsFileImport() {
       const headers = lines[0].map(h => h.trim().toLowerCase());
       const assets: any[] = [];
       const errors: string[] = [];
+      const validationErrors: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
 
       // Get current date for default measurement_date
       const today = new Date();
@@ -93,11 +101,17 @@ export function AssetsFileImport() {
       const defaultMeasurementDate = `${day}/${month}/${year}`;
 
       setProgress({ stage: 'validating', current: 0, total: totalRows });
+      setValidationProgress({ current: 0, total: totalRows });
 
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i];
         setProgress({ 
           stage: 'validating', 
+          current: i - 1, 
+          total: totalRows,
+          currentAssetId: values[2] || undefined
+        });
+        setValidationProgress({ 
           current: i - 1, 
           total: totalRows,
           currentAssetId: values[2] || undefined
@@ -227,13 +241,32 @@ export function AssetsFileImport() {
             // Use unified validation handler
             const result = await AssetValidationHandler.validateSingleAsset(asset);
             
-            // If there are any errors, add them to the errors array
+            // Collect validation results in batch format
             if (!result.valid && result.errors.length > 0) {
+              validationErrors.push({
+                assetId: asset.asset_id || `שורה ${i + 1}`,
+                buildingNumber: asset.building_number || 0,
+                errors: result.errors,
+                matchedAssetTypeRecord: result.matchedAssetTypeRecord
+              });
               errors.push(`שורה ${i + 1} (נכס ${asset.asset_id}): ${result.errors.join('; ')}`);
               continue;
+            } else {
+              // Valid asset - add to validation results
+              validationErrors.push({
+                assetId: asset.asset_id || `שורה ${i + 1}`,
+                buildingNumber: asset.building_number || 0,
+                errors: [],
+                matchedAssetTypeRecord: result.matchedAssetTypeRecord
+              });
             }
           } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'שגיאת ולידציה';
+            validationErrors.push({
+              assetId: asset.asset_id || `שורה ${i + 1}`,
+              buildingNumber: asset.building_number || 0,
+              errors: [errorMsg]
+            });
             errors.push(`שורה ${i + 1} (נכס ${asset.asset_id}): ${errorMsg}`);
             continue;
           }
@@ -270,6 +303,19 @@ export function AssetsFileImport() {
         }
       }
 
+      // Set validation results if validation was performed
+      if (validateBeforeImport && validationErrors.length > 0) {
+        const validCount = validationErrors.filter(e => e.errors.length === 0).length;
+        const invalidCount = validationErrors.filter(e => e.errors.length > 0).length;
+        setValidationResults({
+          total: validationErrors.length,
+          valid: validCount,
+          invalid: invalidCount,
+          errors: validationErrors
+        });
+        setShowValidationModal(true);
+      }
+
       const result = {
         total: lines.length - 1,
         successful: successCount,
@@ -291,6 +337,7 @@ export function AssetsFileImport() {
     } finally {
       setIsImporting(false);
       setProgress(null);
+      setValidationProgress(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -506,6 +553,16 @@ export function AssetsFileImport() {
           </div>
         </div>
       </div>
+
+      {/* Validation Results Modal */}
+      <ValidationResultModal
+        isOpen={showValidationModal}
+        onClose={() => setShowValidationModal(false)}
+        isLoading={isImporting && progress?.stage === 'validating'}
+        progress={validationProgress}
+        batchResults={validationResults}
+        batchTitle="תוצאות אימות ייבוא"
+      />
 
       {/* Import Results Modal */}
       {showResultModal && importResult && (

@@ -7,6 +7,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
+import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 interface AssetsListProps {
   buildingNumber: number;
   taxZone?: string;
@@ -28,17 +29,8 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
-  const [batchValidationProgress, setBatchValidationProgress] = useState<{
-    current: number;
-    total: number;
-    currentAssetId?: string;
-  } | null>(null);
-  const [batchValidationResults, setBatchValidationResults] = useState<{
-    total: number;
-    valid: number;
-    invalid: number;
-    errors: Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[]; passed?: string[]; matchedAssetTypeRecord?: string }>;
-  } | null>(null);
+  const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
+  const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxZone]);
@@ -1285,136 +1277,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         </div>
       </div>
 
-      {showBatchValidationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                אימות נכסי מבנה {buildingNumber}
-                {taxZone && ` - אזור מס ${taxZone}`}
-              </h3>
-              <button
-                onClick={() => setShowBatchValidationModal(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {batchValidationLoading ? (
-              <div className="flex-1 flex items-center justify-center py-12">
-                <div className="text-center w-full max-w-md">
-                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
-                  <p className="text-slate-600 mb-4">מאמת את נכסי המבנה...</p>
-                  {batchValidationProgress && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
-                        <span>נכס {batchValidationProgress.current} מתוך {batchValidationProgress.total}</span>
-                        <span>{Math.round((batchValidationProgress.current / batchValidationProgress.total) * 100)}%</span>
-                      </div>
-                      {batchValidationProgress.currentAssetId && (
-                        <p className="text-xs text-slate-500 mb-3">
-                          מאמת נכס: {batchValidationProgress.currentAssetId}
-                        </p>
-                      )}
-                      <div className="w-full bg-slate-200 rounded-full h-2.5">
-                        <div
-                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                          style={{ width: `${(batchValidationProgress.current / batchValidationProgress.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : batchValidationResults ? (
-              <div className="flex-1 overflow-y-auto">
-                <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-700">{batchValidationResults.total}</div>
-                    <div className="text-sm text-blue-600 mt-1">סה"כ נכסים</div>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-green-700">{batchValidationResults.valid}</div>
-                    <div className="text-sm text-green-600 mt-1">תקינים</div>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-red-700">{batchValidationResults.invalid}</div>
-                    <div className="text-sm text-red-600 mt-1">לא תקינים</div>
-                  </div>
-                </div>
-
-                {batchValidationResults.errors.length > 0 ? (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-700 mb-3">
-                      {batchValidationResults.errors.some(e => e.errors.length > 0) 
-                        ? 'נכסים עם שגיאות:' 
-                        : 'תוצאות אימות:'}
-                    </h4>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {batchValidationResults.errors.map((error, idx) => (
-                        <div key={idx} className={`${error.errors.length > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4`}>
-                          <div className="flex items-start gap-2 mb-2">
-                            {error.errors.length > 0 ? (
-                              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                            ) : (
-                              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                            )}
-                            <div className="flex-1">
-                              <div className={`font-semibold ${error.errors.length > 0 ? 'text-red-900' : 'text-green-900'}`}>
-                                נכס {error.assetId} (מבנה {error.buildingNumber})
-                              </div>
-                              {error.matchedAssetTypeRecord && (
-                                <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                                  <p className="text-xs font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                                  <p className="text-xs text-blue-700">{error.matchedAssetTypeRecord}</p>
-                                </div>
-                              )}
-                              {error.errors.length > 0 && (
-                                <ul className="mt-2 space-y-1">
-                                  {error.errors.map((err, errIdx) => (
-                                    <li key={errIdx} className="text-sm text-red-700 flex items-start gap-2">
-                                      <span className="text-red-500">•</span>
-                                      <span>{err}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                    <p className="text-lg font-semibold text-green-700">כל הנכסים תקינים!</p>
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            <div className="mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 border-t pt-4">
-              {batchValidationResults && batchValidationResults.errors.length > 0 && (
-                <button
-                  onClick={handleExportInvalidAssetsToFile}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                  <Download className="h-4 w-4" />
-                  ייצא ל-File
-                </button>
-              )}
-              <button
-                onClick={() => setShowBatchValidationModal(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors w-full sm:w-auto"
-              >
-                סגור
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ValidationResultModal
+        isOpen={showBatchValidationModal}
+        onClose={() => setShowBatchValidationModal(false)}
+        isLoading={batchValidationLoading}
+        progress={batchValidationProgress}
+        batchResults={batchValidationResults}
+        batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxZone ? ` - אזור מס ${taxZone}` : ''}`}
+        onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
+      />
 
     </>
   );

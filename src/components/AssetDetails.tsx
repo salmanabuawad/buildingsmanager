@@ -38,19 +38,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
 
-  const latestMeasurementId = useMemo(() => {
-    if (allMeasurements.length === 0) return null;
-    const parseDate = (dateStr: string) => {
-      const parts = dateStr.split('/');
-      if (parts.length === 3) {
-        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      }
-      return new Date(dateStr);
-    };
-    const sorted = [...allMeasurements].sort((a, b) => 
-      parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
-    );
-    return sorted[0]?.id || null;
+  // Find the latest measurement (from assets table, is_latest=true)
+  const latestMeasurement = useMemo(() => {
+    return allMeasurements.find(m => m.is_latest === true) || null;
   }, [allMeasurements]);
 
   const assetTaxRegion = useMemo(() => {
@@ -335,12 +325,12 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   }
 
   async function handleValidateLatestRow() {
-    if (!latestMeasurementId) {
+    if (!latestMeasurement) {
       setToast({ message: 'לא נמצא נכס לאימות', type: 'error' });
       return;
     }
 
-    const latestRow = allMeasurements.find(m => m.id === latestMeasurementId);
+    const latestRow = latestMeasurement;
     if (!latestRow) {
       setToast({ message: 'לא נמצא נכס לאימות', type: 'error' });
       return;
@@ -384,7 +374,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     if (!asset || !building) return;
 
     // Use original data, not edited data
-    const latestRow = originalMeasurements[0];
+    const latestRow = originalMeasurements.find(m => m.is_latest === true);
     if (!latestRow) {
       setToast({ message: 'No existing measurement to copy', type: 'error' });
       return;
@@ -558,7 +548,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     if (!assetId) return {};
     
     const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
-    const isLatest = params.data.id === latestMeasurementId;
+    const isLatest = params.data.is_latest === true;
     
     return {
       fontWeight: isDirty ? 'bold' : 'normal',
@@ -641,7 +631,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'measurement_date'),
       valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
       valueGetter: (params) => params.data.measurement_date,
@@ -654,14 +644,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
     {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         return (
@@ -692,7 +682,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -704,7 +694,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'asset_size'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -715,7 +705,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -727,7 +717,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -738,7 +728,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -750,7 +740,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -761,7 +751,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -773,7 +763,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -784,7 +774,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -796,7 +786,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -807,7 +797,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -819,7 +809,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -830,7 +820,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -842,7 +832,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      editable: (params) => params.data.id === latestMeasurementId,
+      editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -850,7 +840,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         return isNaN(num) ? '' : num.toFixed(2);
       },
     },
-  ], [t, assetTypes, latestMeasurementId, validationErrors, selectedDrawingUrl, dirtyAssets]);
+  ], [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets]);
 
   useEffect(() => {
     fetchData();
@@ -883,19 +873,15 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const buildingData = await api.buildings.getOne(assetData.building_number);
       setBuilding(buildingData);
 
-      // Fetch master record from assets table and detail records from assets_history in one call
-      const { master, details } = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
-
-      // Combine master (from assets) and details (from assets_history)
-      // Ensure all records have unique identifiers for the grid
-      const allAssetMeasurements = master ? [master, ...details] : details;
+      // Fetch all records (latest from assets + history from assets_history) using the view
+      const allAssetMeasurements = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
       
       // Log for debugging
       console.log('[AssetDetails] Fetched measurements:', {
-        master: master ? { id: master.id, measurement_date: master.measurement_date } : null,
-        detailsCount: details.length,
         totalCount: allAssetMeasurements.length,
-        allIds: allAssetMeasurements.map(m => ({ id: m.id, measurement_date: m.measurement_date }))
+        latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+        historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+        allIds: allAssetMeasurements.map(m => ({ id: m.id, measurement_date: m.measurement_date, is_latest: m.is_latest }))
       });
       
       setAllMeasurements(allAssetMeasurements || []);
@@ -996,7 +982,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               <div className="flex gap-2">
                 <button
                   onClick={handleValidateLatestRow}
-                  disabled={isSaving || isValidating || !latestMeasurementId}
+                  disabled={isSaving || isValidating || !latestMeasurement}
                   className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                   title="אמת את הנכס"
                 >

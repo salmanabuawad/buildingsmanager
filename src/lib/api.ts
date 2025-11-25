@@ -45,6 +45,8 @@ export interface Asset {
   townhouses?: string;
   basement?: string;
   penthouse?: string;
+  is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
+  history_created_at?: string; // Only present for assets_history records
 }
 
 export interface AssetMeasurement {
@@ -471,8 +473,52 @@ export const api = {
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
     },
-    getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<{ master: Asset | null; details: Asset[] }> => {
-      // Fetch master record from assets table
+    getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
+      // Use the database view to get all records (latest from assets + history from assets_history)
+      let query = supabase
+        .from('assets_with_history')
+        .select('*')
+        .eq('asset_id', assetId);
+
+      if (buildingNumber) {
+        query = query.eq('building_number', buildingNumber);
+      }
+
+      const { data, error } = await query.order('is_latest', { ascending: false }).order('measurement_date', { ascending: false });
+
+      if (error) {
+        console.error('[API ERROR] Error fetching assets_with_history:', error);
+        // Fallback to old method if view doesn't exist
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.warn('[API] assets_with_history view not found, falling back to separate queries');
+          return api.assets.getAssetWithHistoryFallback(assetId, buildingNumber);
+        }
+        throw error;
+      }
+
+      // Parse dates and sort by measurement_date (newest first)
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      // Sort: latest first (is_latest=true), then by measurement_date descending
+      const sorted = (data || []).sort((a, b) => {
+        // First sort by is_latest (true first)
+        if (a.is_latest !== b.is_latest) {
+          return a.is_latest ? -1 : 1;
+        }
+        // Then by measurement_date (newest first)
+        return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+      });
+
+      return sorted;
+    },
+    getAssetWithHistoryFallback: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
+      // Fallback method using separate queries (old implementation)
       let masterQuery = supabase
         .from('assets')
         .select('*')
@@ -498,9 +544,9 @@ export const api = {
 
       if (historyError) {
         console.error('[API ERROR] Error fetching assets_history:', historyError);
-        // If table doesn't exist or RLS blocks it, return empty array for details
+        // If table doesn't exist or RLS blocks it, return only master
         if (historyError.code === '42P01' || historyError.code === '42501') {
-          return { master: masterData || null, details: [] };
+          return masterData ? [{ ...masterData, is_latest: true }] : [];
         }
         throw historyError;
       }
@@ -514,14 +560,15 @@ export const api = {
       };
 
       // Sort history records by measurement_date (newest first)
-      const sortedHistory = (historyData || []).sort((a, b) =>
-        parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
-      );
+      const sortedHistory = (historyData || []).map(h => ({ ...h, is_latest: false }))
+        .sort((a, b) => parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime());
 
-      return {
-        master: masterData || null,
-        details: sortedHistory
-      };
+      // Combine master (with is_latest=true) and history (with is_latest=false)
+      const allRecords = masterData 
+        ? [{ ...masterData, is_latest: true }, ...sortedHistory]
+        : sortedHistory;
+
+      return allRecords;
     },
     getAllAssetsWithHistory: async (buildingNumber: number): Promise<Asset[]> => {
       // Call PostgreSQL function to get both master and details in one database call

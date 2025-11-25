@@ -52,59 +52,90 @@ function App() {
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
-    const newTabs: Tab[] = [buildingsTab];
+    
+    // Ensure buildings tab exists
+    const existingBuildingsTab = tabs.find(t => t.id === 'buildings');
+    if (!existingBuildingsTab) {
+      setTabs(prev => [buildingsTab, ...prev]);
+    }
 
     if (taxRegions) {
       const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
 
       if (regions.length === 1) {
         const singleRegionTabId = `assets-${buildingNumber}-region-${regions[0]}`;
-        const singleRegionTab: Tab = {
-          id: singleRegionTabId,
-          type: 'assets',
-          buildingNumber,
-          taxRegion: regions[0],
-          label: `מבנה ${buildingNumber} - אזור מס ${regions[0]}`
-        };
-        newTabs.push(singleRegionTab);
-        setTabs(newTabs);
-        setActiveTabId(singleZoneTabId);
+        const existingTab = tabs.find(t => t.id === singleRegionTabId);
+        
+        if (existingTab) {
+          // Tab already exists, just switch to it
+          setActiveTabId(singleRegionTabId);
+        } else {
+          // Create new tab
+          const singleRegionTab: Tab = {
+            id: singleRegionTabId,
+            type: 'assets',
+            buildingNumber,
+            taxRegion: regions[0],
+            label: `מבנה ${buildingNumber} - אזור מס ${regions[0]}`
+          };
+          setTabs(prev => [...prev, singleRegionTab]);
+          setActiveTabId(singleRegionTabId);
+        }
       } else {
         const allAssetsTabId = `assets-${buildingNumber}-all`;
+        const existingAllAssetsTab = tabs.find(t => t.id === allAssetsTabId);
+        
+        if (existingAllAssetsTab) {
+          // Tab already exists, just switch to it
+          setActiveTabId(allAssetsTabId);
+        } else {
+          // Create new tabs
+          const newTabs: Tab[] = [];
+          const allAssetsTab: Tab = {
+            id: allAssetsTabId,
+            type: 'assets',
+            buildingNumber,
+            label: `מבנה ${buildingNumber} - כל הנכסים (אזורי מס: ${regions.join(', ')})`
+          };
+          newTabs.push(allAssetsTab);
+
+          regions.forEach(region => {
+            const regionTabId = `assets-${buildingNumber}-region-${region}`;
+            const existingRegionTab = tabs.find(t => t.id === regionTabId);
+            if (!existingRegionTab) {
+              const regionTab: Tab = {
+                id: regionTabId,
+                type: 'assets',
+                buildingNumber,
+                taxRegion: region,
+                label: `מבנה ${buildingNumber} - אזור מס ${region}`
+              };
+              newTabs.push(regionTab);
+            }
+          });
+
+          setTabs(prev => [...prev, ...newTabs]);
+          setActiveTabId(allAssetsTabId);
+        }
+      }
+    } else {
+      const allAssetsTabId = `assets-${buildingNumber}-all`;
+      const existingTab = tabs.find(t => t.id === allAssetsTabId);
+      
+      if (existingTab) {
+        // Tab already exists, just switch to it
+        setActiveTabId(allAssetsTabId);
+      } else {
+        // Create new tab
         const allAssetsTab: Tab = {
           id: allAssetsTabId,
           type: 'assets',
           buildingNumber,
-          label: `מבנה ${buildingNumber} - כל הנכסים (אזורי מס: ${regions.join(', ')})`
+          label: `מבנה ${buildingNumber} - כל הנכסים`
         };
-        newTabs.push(allAssetsTab);
-
-        regions.forEach(region => {
-          const regionTabId = `assets-${buildingNumber}-region-${region}`;
-          const regionTab: Tab = {
-            id: regionTabId,
-            type: 'assets',
-            buildingNumber,
-            taxRegion: region,
-            label: `מבנה ${buildingNumber} - אזור מס ${region}`
-          };
-          newTabs.push(regionTab);
-        });
-
-        setTabs(newTabs);
+        setTabs(prev => [...prev, allAssetsTab]);
         setActiveTabId(allAssetsTabId);
       }
-    } else {
-      const allAssetsTabId = `assets-${buildingNumber}-all`;
-      const allAssetsTab: Tab = {
-        id: allAssetsTabId,
-        type: 'assets',
-        buildingNumber,
-        label: `מבנה ${buildingNumber} - כל הנכסים`
-      };
-      newTabs.push(allAssetsTab);
-      setTabs(newTabs);
-      setActiveTabId(allAssetsTabId);
     }
   }
 

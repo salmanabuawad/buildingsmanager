@@ -955,6 +955,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         context="single"
         singleResult={validationResults}
         singleAssetTitle={asset ? `אימות נכס ${asset.asset_id}` : undefined}
+        assetId={asset?.asset_id}
       />
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
       <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">

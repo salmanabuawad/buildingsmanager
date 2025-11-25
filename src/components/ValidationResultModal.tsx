@@ -42,9 +42,11 @@ interface ValidationResultModalProps {
   // Single asset validation
   singleResult?: SingleAssetValidationResult | null;
   singleAssetTitle?: string;
+  assetId?: string; // Asset ID for single asset validation context
   // Batch validation
   batchResults?: BatchValidationResults | null;
   batchTitle?: string;
+  buildingNumber?: number; // Building number for building validation context
   onExportInvalid?: () => void;
 }
 
@@ -56,8 +58,10 @@ export function ValidationResultModal({
   context,
   singleResult = null,
   singleAssetTitle,
+  assetId,
   batchResults = null,
   batchTitle,
+  buildingNumber,
   onExportInvalid
 }: ValidationResultModalProps) {
   const [validationFilter, setValidationFilter] = useState<'all' | 'valid' | 'invalid'>('all');
@@ -78,16 +82,16 @@ export function ValidationResultModal({
   const contextConfig = {
     single: {
       title: singleAssetTitle || 'תוצאות אימות נכס',
-      loadingTitle: 'מאמת נכס...',
-      loadingMessage: 'מאמת את הנכס...',
+      loadingTitle: assetId ? `מאמת נכס ${assetId}...` : 'מאמת נכס...',
+      loadingMessage: assetId ? `מאמת את הנכס ${assetId}...` : 'מאמת את הנכס...',
       progressLabel: (current: number, total: number) => `שלב ${current} מתוך ${total}`,
       showExport: false,
       icon: 'single'
     },
     building: {
       title: batchTitle || 'תוצאות אימות נכסי מבנה',
-      loadingTitle: 'מאמת נכסי מבנה...',
-      loadingMessage: 'מאמת את נכסי המבנה...',
+      loadingTitle: buildingNumber ? `מאמת נכסי מבנה ${buildingNumber}...` : 'מאמת נכסי מבנה...',
+      loadingMessage: buildingNumber ? `מאמת את נכסי המבנה ${buildingNumber}...` : 'מאמת את נכסי המבנה...',
       progressLabel: (current: number, total: number) => `נכס ${current} מתוך ${total}`,
       showExport: true,
       icon: 'building'

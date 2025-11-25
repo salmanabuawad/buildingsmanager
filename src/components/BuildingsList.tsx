@@ -397,30 +397,19 @@ export function BuildingsList({
         }
       }
 
-      // Process new buildings that haven't been edited yet (in newBuildings but not in dirtyBuildings)
-      for (const newBuildingKey of newBuildings) {
-        if (!dirtyBuildings.has(newBuildingKey) && !buildingsToDelete.has(newBuildingKey)) {
-          // Add to dirtyBuildings so it gets processed below
-          const building = findBuildingByKey(newBuildingKey);
-          if (building) {
-            setDirtyBuildings(prev => {
-              const next = new Map(prev);
-              next.set(newBuildingKey, {}); // Empty changes object, will use full building data
-              return next;
-            });
-          }
-        }
-      }
-
       // Collect buildings to save
       const allBuildingsToSave = new Set<string | number>();
+      
+      // Add all dirty buildings (including new ones that were edited)
       for (const [buildingKey] of dirtyBuildings.entries()) {
         if (!buildingsToDelete.has(buildingKey)) {
           allBuildingsToSave.add(buildingKey);
         }
       }
+      
+      // Add new buildings that haven't been edited yet (not in dirtyBuildings)
       for (const newBuildingKey of newBuildings) {
-        if (!buildingsToDelete.has(newBuildingKey)) {
+        if (!dirtyBuildings.has(newBuildingKey) && !buildingsToDelete.has(newBuildingKey)) {
           allBuildingsToSave.add(newBuildingKey);
         }
       }
@@ -432,6 +421,7 @@ export function BuildingsList({
           
           if (!building) continue;
 
+          // For new buildings not in dirtyBuildings, use empty changes object
           const changes = dirtyBuildings.get(buildingKey) || {};
           const isNew = isNewBuilding(building);
 

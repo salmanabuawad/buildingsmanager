@@ -1144,7 +1144,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {/* Latest Measurement Grid */}
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידה אחרונה</h3>
-              <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '80px', width: '100%' }}>
+              <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '120px', width: '100%' }}>
                 <AgGridReact<Asset>
                   ref={gridRef}
                   rowData={pinnedTopRowData}
@@ -1258,7 +1258,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {historyRows.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידות קודמות</h3>
-                <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '40vh', width: '100%' }}>
+                <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRows}

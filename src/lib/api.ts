@@ -489,14 +489,17 @@ export const api = {
 
         if (error) {
           console.error('[API ERROR] Error fetching assets_with_history:', error);
-          // Fallback to old method if view doesn't exist
-          // PostgREST error codes: PGRST202 = function/relation not found, 42P01 = relation does not exist
-          if (error.code === 'PGRST202' || error.code === '42P01' || 
+          // If view doesn't exist, throw a clear error message
+          // PostgREST error codes: 
+          // PGRST202 = function/relation not found
+          // PGRST205 = table/view not found in schema cache
+          // 42P01 = relation does not exist
+          if (error.code === 'PGRST202' || error.code === 'PGRST205' || error.code === '42P01' || 
               error.message?.includes('does not exist') || 
               error.message?.includes('relation') ||
-              error.message?.includes('not found')) {
-            console.warn('[API] assets_with_history view not found, falling back to separate queries');
-            return api.assets.getAssetWithHistoryFallback(assetId, buildingNumber);
+              error.message?.includes('not found') ||
+              error.message?.includes('Could not find the table')) {
+            throw new Error(`הטבלה assets_with_history לא קיימת. יש להריץ את המיגרציה 20251128000000_create_assets_with_history_view.sql כדי ליצור את ה-view.`);
           }
           throw error;
         }
@@ -521,11 +524,17 @@ export const api = {
         });
 
         return sorted;
-      } catch (err) {
+      } catch (err: any) {
         console.error('[API ERROR] Unexpected error in getAssetWithHistory:', err);
-        // Fallback to old method on any error
-        console.warn('[API] Falling back to separate queries due to error');
-        return api.assets.getAssetWithHistoryFallback(assetId, buildingNumber);
+        // Re-throw the error instead of falling back
+        if (err.code === 'PGRST202' || err.code === 'PGRST205' || err.code === '42P01' || 
+            err.message?.includes('does not exist') || 
+            err.message?.includes('relation') ||
+            err.message?.includes('not found') ||
+            err.message?.includes('Could not find the table')) {
+          throw new Error(`הטבלה assets_with_history לא קיימת. יש להריץ את המיגרציה 20251128000000_create_assets_with_history_view.sql כדי ליצור את ה-view.`);
+        }
+        throw err;
       }
     },
     getAssetWithHistoryFallback: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {

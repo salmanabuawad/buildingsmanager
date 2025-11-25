@@ -147,10 +147,26 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
 
   const onCellValueChanged = useCallback(async (event: any) => {
+    // Safety checks
+    if (!event || !event.data || !event.colDef) {
+      console.warn('[CELL CHANGED] Invalid event data, skipping');
+      return;
+    }
+
     const { data, colDef } = event;
-    const field = colDef.field;
-    const buildingNumber = data.building_number;
+    const field = colDef?.field;
+    const buildingNumber = data?.building_number;
     const newValue = event.newValue;
+
+    if (!field) {
+      console.warn('[CELL CHANGED] No field specified, skipping');
+      return;
+    }
+
+    if (buildingNumber === undefined || buildingNumber === null) {
+      console.warn('[CELL CHANGED] No building_number found, skipping');
+      return;
+    }
 
     // Skip checkbox fields - they're handled by cellRenderer
     if (['elevator', 'single_double_family', 'condo', 'townhouses'].includes(field)) {
@@ -161,8 +177,10 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     // Only allow building_number changes for new buildings (temp ID < 0)
     if (field === 'building_number' && buildingNumber >= 0 && !newBuildings.has(buildingNumber)) {
       console.warn(`[CELL CHANGED] Attempted to change building_number for existing building ${buildingNumber}, ignoring`);
-      // Revert the change
-      event.node.setDataValue('building_number', buildingNumber);
+      // Revert the change if node is available
+      if (event.node && typeof event.node.setDataValue === 'function') {
+        event.node.setDataValue('building_number', buildingNumber);
+      }
       return;
     }
 
@@ -176,14 +194,18 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           const numValue = Number(newValue);
           if (isNaN(numValue) || numValue <= 0) {
             console.warn(`[CELL CHANGED] Invalid building_number value: ${newValue}, reverting`);
-            event.node.setDataValue('building_number', buildingNumber);
+            if (event.node && typeof event.node.setDataValue === 'function') {
+              event.node.setDataValue('building_number', buildingNumber);
+            }
             return;
           }
         }
       } else {
         // For existing buildings, don't allow changes to building_number
         console.warn(`[CELL CHANGED] Cannot change building_number for existing building ${buildingNumber}, reverting`);
-        event.node.setDataValue('building_number', buildingNumber);
+        if (event.node && typeof event.node.setDataValue === 'function') {
+          event.node.setDataValue('building_number', buildingNumber);
+        }
         return;
       }
     }
@@ -711,14 +733,24 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       field: 'building_number',
       headerName: 'מספר מבנה *',
       editable: (params: any) => {
+        // Safety check
+        if (!params || !params.data) {
+          return false;
+        }
         // Editable only for new buildings (negative building_number or in newBuildings)
         // Never allow editing building_number for existing buildings
         const building = params.data as Building;
+        if (!building || building.building_number === undefined || building.building_number === null) {
+          return false;
+        }
         const isNewBuilding = building.building_number < 0 || newBuildings.has(building.building_number);
         return isNewBuilding;
       },
       // Add value parser to ensure only valid values are accepted
       valueParser: (params: any) => {
+        if (!params) {
+          return null;
+        }
         const newValue = params.newValue;
         // For new buildings, allow empty/null or positive numbers
         if (newValue === null || newValue === undefined || newValue === '') {
@@ -726,13 +758,22 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         }
         const numValue = Number(newValue);
         if (isNaN(numValue) || numValue <= 0) {
-          // Return the original value if invalid
-          return params.oldValue;
+          // Return the original value if invalid (use oldValue or current value from data)
+          const originalValue = params.oldValue !== undefined 
+            ? params.oldValue 
+            : (params.data?.building_number !== undefined ? params.data.building_number : null);
+          return originalValue;
         }
         return numValue;
       },
       cellRenderer: (params: any) => {
+        if (!params || !params.data) {
+          return '';
+        }
         const building = params.data as Building;
+        if (!building || building.building_number === undefined || building.building_number === null) {
+          return '';
+        }
         const isNewBuilding = building.building_number < 0 || newBuildings.has(building.building_number);
         const errors = validationErrors.get(building.building_number);
         const errorMsg = errors && errors['building_number'];

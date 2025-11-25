@@ -36,16 +36,25 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
   // Calculate total changes: new buildings count as 1 each, even if edited
   // Edited existing buildings (not in newBuildings and not temp IDs) + new buildings + deleted buildings
   const totalChanges = useMemo(() => {
+    // Count new buildings (each counts as 1, regardless of how many fields were edited)
+    const newBuildingsCount = newBuildings.size;
+    
+    // Count edited existing buildings (exclude new buildings and temp IDs)
     let editedExistingBuildings = 0;
     for (const buildingNumber of dirtyBuildings.keys()) {
       // Count as existing building edit if:
       // 1. Not in newBuildings (not a new building)
       // 2. Not a temp ID (buildingNumber >= 0)
+      // 3. Has actual changes (not just empty)
       if (!newBuildings.has(buildingNumber) && buildingNumber >= 0) {
         editedExistingBuildings++;
       }
     }
-    return newBuildings.size + editedExistingBuildings + buildingsToDelete.size;
+    
+    // Count deleted buildings
+    const deletedCount = buildingsToDelete.size;
+    
+    return newBuildingsCount + editedExistingBuildings + deletedCount;
   }, [newBuildings, dirtyBuildings, buildingsToDelete]);
 
   const fetchBuildings = async (showLoading = true) => {
@@ -302,7 +311,9 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
 
     setBuildings(prev => [newBuilding, ...prev]);
     setFilteredBuildings(prev => [newBuilding, ...prev]);
-    setNewBuildings(prev => new Set(prev).add(tempId)); // Track the new building
+    // Track the new building - do NOT add to dirtyBuildings yet
+    // It will be added to dirtyBuildings only when fields are actually edited
+    setNewBuildings(prev => new Set(prev).add(tempId));
 
     setTimeout(() => {
       if (gridRef.current) {

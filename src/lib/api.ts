@@ -523,6 +523,77 @@ export const api = {
         details: sortedHistory
       };
     },
+    getAllAssetsWithHistory: async (buildingNumber: number): Promise<Asset[]> => {
+      // Fetch all master records from assets table for the building
+      const { data: masterAssets, error: masterError } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('building_number', buildingNumber)
+        .order('asset_id');
+
+      if (masterError) {
+        console.error('[API ERROR] Error fetching master assets:', masterError);
+        throw masterError;
+      }
+
+      if (!masterAssets || masterAssets.length === 0) {
+        return [];
+      }
+
+      // Get all asset_ids to fetch their history
+      const assetIds = masterAssets.map(a => a.asset_id);
+
+      // Fetch all history records for these asset_ids in one query
+      const { data: allHistoryData, error: historyError } = await supabase
+        .from('assets_history')
+        .select('*')
+        .in('asset_id', assetIds)
+        .order('history_created_at', { ascending: false });
+
+      if (historyError) {
+        console.error('[API ERROR] Error fetching assets_history:', historyError);
+        // If table doesn't exist or RLS blocks it, return only master records
+        if (historyError.code === '42P01' || historyError.code === '42501') {
+          return masterAssets;
+        }
+        throw historyError;
+      }
+
+      // Group history records by asset_id
+      const historyByAssetId = new Map<number, Asset[]>();
+      (allHistoryData || []).forEach(record => {
+        const assetId = record.asset_id;
+        if (!historyByAssetId.has(assetId)) {
+          historyByAssetId.set(assetId, []);
+        }
+        historyByAssetId.get(assetId)!.push(record);
+      });
+
+      // Sort history records by measurement_date for each asset
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      // Combine master records with their history
+      const result: Asset[] = [];
+      masterAssets.forEach(master => {
+        // Add master record
+        result.push(master);
+        
+        // Add history records for this asset
+        const history = historyByAssetId.get(master.asset_id) || [];
+        const sortedHistory = history.sort((a, b) =>
+          parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+        );
+        result.push(...sortedHistory);
+      });
+
+      return result;
+    },
     getOne: async (id: string): Promise<Asset> => {
       const { data, error } = await supabase
         .from('assets')

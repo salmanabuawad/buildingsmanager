@@ -90,13 +90,14 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       if (showLoading) setLoading(true);
       const [buildingData, assetsData, assetTypesData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
-        api.assets.getAll(buildingNumber),
+        api.assets.getAllAssetsWithHistory(buildingNumber),
         api.assetTypes.getAll()
       ]);
       setBuilding(buildingData);
       setAssetTypes(assetTypesData || []);
       
       // Store all assets before filtering (for historical records lookup)
+      // This now includes both master records from assets and detail records from assets_history
       setAllAssets(assetsData || []);
       
       // Filter assets by tax region if taxZone is provided

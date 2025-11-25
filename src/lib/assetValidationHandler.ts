@@ -48,6 +48,14 @@ export class AssetValidationHandler {
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
+    // Log validation parameters for debugging
+    console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
+      assetId: asset.asset_id,
+      buildingNumber: asset.building_number,
+      taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
+      mainAssetType: asset.main_asset_type
+    });
+    
     return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion);
   }
 
@@ -106,6 +114,16 @@ export class AssetValidationHandler {
           currentStep: `בודק נכס ${i + 1} מתוך ${total}...`
         });
       }
+
+      // Log validation parameters for debugging
+      console.log('[AssetValidationHandler.validateBuildingAssets] Parameters:', {
+        assetId: asset.asset_id,
+        buildingNumber: buildingNumber,
+        taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
+        mainAssetType: asset.main_asset_type,
+        assetIndex: i + 1,
+        totalAssets: assetsToValidate.length
+      });
 
       const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
       results.push(result);
@@ -242,6 +260,15 @@ export class AssetValidationHandler {
     onProgress?: (progress: AssetValidationProgress) => void,
     taxRegion?: string
   ): Promise<AssetValidationResult> {
+    // Log validation parameters for debugging
+    console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
+      assetId: asset.asset_id,
+      buildingNumber: asset.building_number,
+      taxRegion: taxRegion || 'NOT PROVIDED (will use building tax_region)',
+      mainAssetType: asset.main_asset_type,
+      assetIdentifier: assetIdentifier
+    });
+    
     const allErrors: string[] = [];
     const passedRules: string[] = [];
     let matchedAssetTypeRecord: string | undefined;
@@ -384,39 +411,49 @@ export class AssetValidationHandler {
 
     validationNames.push('אימות סוג נכס ראשי מלא');
     validations.push(
-      assetValidators.validateMainAssetTypeComplete(
-        asset.building_number,
-        asset.main_asset_type,
-        asset.asset_size || 0,
-        asset,
-        taxRegion
-      )
+      (async () => {
+        console.log('[AssetValidationHandler] Calling validateMainAssetTypeComplete with taxRegion:', taxRegion || 'NOT PROVIDED', {
+          buildingNumber: asset.building_number,
+          mainAssetType: asset.main_asset_type,
+          assetSize: asset.asset_size
+        });
+        return await assetValidators.validateMainAssetTypeComplete(
+          asset.building_number,
+          asset.main_asset_type,
+          asset.asset_size || 0,
+          asset,
+          taxRegion
+        );
+      })()
     );
 
     validationNames.push('אימות נכסי משנה לסוגים 199/299');
     validations.push(
-      assetValidators.validateSubAssetsFor199Or299(
-        asset.building_number,
-        asset.main_asset_type,
-        asset.asset_size,
-        [
-          asset.sub_asset_type_1,
-          asset.sub_asset_type_2,
-          asset.sub_asset_type_3,
-          asset.sub_asset_type_4,
-          asset.sub_asset_type_5,
-          asset.sub_asset_type_6
-        ],
-        [
-          asset.sub_asset_size_1,
-          asset.sub_asset_size_2,
-          asset.sub_asset_size_3,
-          asset.sub_asset_size_4,
-          asset.sub_asset_size_5,
-          asset.sub_asset_size_6
-        ],
-        taxRegion
-      )
+      (async () => {
+        console.log('[AssetValidationHandler] Calling validateSubAssetsFor199Or299 with taxRegion:', taxRegion || 'NOT PROVIDED');
+        return await assetValidators.validateSubAssetsFor199Or299(
+          asset.building_number,
+          asset.main_asset_type,
+          asset.asset_size,
+          [
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ],
+          [
+            asset.sub_asset_size_1,
+            asset.sub_asset_size_2,
+            asset.sub_asset_size_3,
+            asset.sub_asset_size_4,
+            asset.sub_asset_size_5,
+            asset.sub_asset_size_6
+          ],
+          taxRegion
+        );
+      })()
     );
 
     // Run DB validations sequentially for progress tracking
@@ -474,6 +511,11 @@ export class AssetValidationHandler {
           });
         }
 
+        console.log(`[AssetValidationHandler] Calling validateSubAssetTypeComplete for sub asset ${idx + 1} with taxRegion:`, taxRegion || 'NOT PROVIDED', {
+          buildingNumber: asset.building_number,
+          subAssetType: subAssetTypes[idx],
+          subAssetSize: subAssetSizes[idx]
+        });
         const result = await assetValidators.validateSubAssetTypeComplete(
           asset.building_number,
           subAssetTypes[idx],

@@ -60,16 +60,27 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     const numericRegex = /^[0-9]+$/;
     const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
     const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+    const isLatest = asset.is_latest === true;
+
+    const baseStyle: any = {
+      opacity: isLatest ? 1 : 0.7
+    };
 
     if (hasErrors || hasInvalidPayerId || hasInvalidAssetId) {
       return {
+        ...baseStyle,
         border: '3px solid #ef4444',
         borderRadius: '4px',
         background: '#fee2e2'
       };
     }
 
-    return undefined;
+    if (!isLatest) {
+      baseStyle.background = '#f9fafb';
+      baseStyle.borderLeft = '3px solid #d1d5db';
+    }
+
+    return baseStyle;
   }, [validationErrors]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
@@ -77,6 +88,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = data.id;
+      
+      // Only allow editing for latest records
+      if (data.is_latest !== true) {
+        console.warn('[AssetDetails] Attempted to edit non-latest record, ignoring change');
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        return;
+      }
+      
       let newValue = event.newValue;
 
       const updatedAsset = { ...data, [field]: newValue };
@@ -552,7 +571,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     
     return {
       fontWeight: isDirty ? 'bold' : 'normal',
-      backgroundColor: isLatest ? undefined : '#f3f4f6'
+      backgroundColor: isLatest ? undefined : '#f3f4f6',
+      color: isLatest ? undefined : '#6b7280',
+      cursor: isLatest ? 'text' : 'default'
     };
   };
 
@@ -595,20 +616,26 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 <AlertCircle className="h-4 w-4 text-red-600" />
               </div>
             )}
-            <label className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
-              <Upload className="w-2.5 h-2.5" />
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    handleFileUpload(asset.id, file);
-                  }
-                }}
-              />
-            </label>
+            {asset.is_latest === true ? (
+              <label className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
+                <Upload className="w-2.5 h-2.5" />
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleFileUpload(asset.id, file);
+                    }
+                  }}
+                />
+              </label>
+            ) : (
+              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 text-gray-400 cursor-not-allowed" title="Read-only">
+                <Upload className="w-2.5 h-2.5" />
+              </div>
+            )}
             <button
               onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
               disabled={!hasDrawing}
@@ -654,17 +681,22 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       editable: (params) => params.data.is_latest === true,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
+        const isEditable = params.data.is_latest === true;
         return (
           <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                params.setValue(newValue);
-              }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-            />
+            {isEditable ? (
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={(e) => {
+                  const newValue = e.target.checked ? 'כן' : null;
+                  params.setValue(newValue);
+                }}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              />
+            ) : (
+              <span className="text-gray-600">{isChecked ? '✓' : ''}</span>
+            )}
           </div>
         );
       },
@@ -1043,6 +1075,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 ref={gridRef}
                 rowData={allMeasurements}
                 columnDefs={columnDefs}
+                enableSorting={false}
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,

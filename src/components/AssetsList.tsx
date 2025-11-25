@@ -911,8 +911,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
         const hasValidationError = validationErrors.has(assetId);
         
         // Hide delete button if building has more than one tax region and no specific taxRegion is selected
+        // Same visibility logic as "Save All" and "Cancel" buttons
         const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
-        const shouldShowDeleteButton = isNew && (!hasMultipleTaxRegions || taxRegion);
+        const shouldShowDeleteButton = isNew && !(hasMultipleTaxRegions && !taxRegion);
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">

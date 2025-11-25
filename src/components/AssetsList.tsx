@@ -725,7 +725,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   };
 
-  const addEmptyRow = () => {
+  const addEmptyRow = async () => {
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     const tempId = `temp-${Date.now()}`;
@@ -755,6 +755,31 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
     setAssets(prev => [newAsset, ...prev]);
     setNewAssets(prev => new Set(prev).add(tempId));
+
+    // Run validation rules on the new asset (async, don't block UI)
+    AssetValidationHandler.validateSingleAsset(
+      newAsset,
+      {
+        taxRegion: taxRegion
+      }
+    ).then(validationResult => {
+      if (!validationResult.passed && validationResult.errors.length > 0) {
+        // Store validation errors for the new asset
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.set(tempId, validationResult.errors.join('\n'));
+          return newMap;
+        });
+        
+        // Refresh grid to show validation errors
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: true });
+        }
+      }
+    }).catch(err => {
+      console.error('[AssetsList] Error validating new asset:', err);
+      // Don't block adding the asset if validation fails
+    });
 
     setTimeout(() => {
       if (gridRef.current) {

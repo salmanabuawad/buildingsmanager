@@ -933,30 +933,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         </div>
       )}
 
-      {/* Total Area Display - Calculated once and not changeable */}
-      <div className="mb-2 flex items-center justify-end gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-semibold text-slate-700">שטח כולל של הנכסים המקושרים:</label>
-          <input
-            type="text"
-            value={displayTotalArea !== null ? displayTotalArea.toLocaleString('he-IL') : ''}
-            readOnly
-            className={`px-3 py-2 border rounded-lg text-right font-semibold ${
-              totalAreaChanged
-                ? 'border-red-500 bg-red-50 text-red-700'
-                : 'border-slate-300 bg-slate-50 text-slate-700'
-            }`}
-            style={{ minWidth: '150px' }}
-            title="שטח כולל מחושב פעם אחת ולא ניתן לשינוי"
-          />
-          {totalAreaChanged && (
-            <span className="text-xs text-red-600 font-medium">
-              (השטח הכולל השתנה - חייב להישאר {initialTotalArea?.toLocaleString('he-IL')})
-            </span>
-          )}
-        </div>
-      </div>
-
       <div className="mb-2 flex justify-end gap-2">
         <button
           onClick={handleCancelAll}
@@ -983,7 +959,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       <div className="bg-white rounded-xl shadow-lg border border-blue-100">
         <div className="p-3">
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '60vh', direction: 'ltr' }}>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '50vh', direction: 'ltr' }}>
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={assets}
@@ -1038,6 +1014,30 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               animateRows={true}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Total Area Display - Calculated once and not changeable */}
+      <div className="mt-2 flex items-center justify-end gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-semibold text-slate-700">שטח כולל של הנכסים המקושרים:</label>
+          <input
+            type="text"
+            value={displayTotalArea !== null ? displayTotalArea.toLocaleString('he-IL') : ''}
+            readOnly
+            className={`px-3 py-2 border rounded-lg text-right font-semibold ${
+              totalAreaChanged
+                ? 'border-red-500 bg-red-50 text-red-700'
+                : 'border-slate-300 bg-slate-50 text-slate-700'
+            }`}
+            style={{ minWidth: '150px' }}
+            title="שטח כולל מחושב פעם אחת ולא ניתן לשינוי"
+          />
+          {totalAreaChanged && (
+            <span className="text-xs text-red-600 font-medium">
+              (השטח הכולל השתנה - חייב להישאר {initialTotalArea?.toLocaleString('he-IL')})
+            </span>
+          )}
         </div>
       </div>
 

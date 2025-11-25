@@ -76,7 +76,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     const isLatest = asset.is_latest === true;
 
     const baseStyle: any = {
-      opacity: isLatest ? 1 : 0.7
+      opacity: isLatest ? 1 : 0.7,
+      fontSize: isLatest ? '1.1em' : undefined,
+      fontWeight: isLatest ? '600' : undefined
     };
 
     if (hasErrors || hasInvalidPayerId || hasInvalidAssetId) {
@@ -1405,6 +1407,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   return `${params.data.id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                 }}
                 getRowStyle={getRowStyle}
+                getPinnedRowStyle={(params) => {
+                  // Style for pinned top row (first row)
+                  return {
+                    fontSize: '1.1em',
+                    fontWeight: '600',
+                    backgroundColor: '#f0f9ff'
+                  };
+                }}
                 onGridReady={async (params) => {
                   // Load saved column state first
                   const hasSavedState = await loadColumnState();

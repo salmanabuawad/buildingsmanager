@@ -239,31 +239,6 @@ export function AssetTypes() {
 
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
-      colId: 'actions',
-      headerName: t('actions'),
-      editable: false,
-      pinned: 'right',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
-      suppressSizeToFit: true,
-      suppressHeaderMenuButton: true,
-      suppressHeaderMenuButton: true,
-      sortable: false,
-      filter: false,
-      headerClass: 'text-left',
-      cellRenderer: (params: any) => {
-        return (
-          <button
-            onClick={() => handleDelete(params.data.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        );
-      }
-    },
-    {
       field: 'name',
       headerName: 'סוג נכס',
       editable: false,
@@ -671,6 +646,30 @@ export function AssetTypes() {
         return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
       },
       headerClass: 'text-left'
+    },
+    {
+      colId: 'actions',
+      headerName: t('actions'),
+      editable: false,
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressSizeToFit: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      headerClass: 'text-left',
+      cellRenderer: (params: any) => {
+        return (
+          <button
+            onClick={() => handleDelete(params.data.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        );
+      }
     },
   ], [t]);
 
@@ -1117,20 +1116,23 @@ export function AssetTypes() {
               }}
               onColumnResized={saveColumnState}
               onColumnMoved={(params) => {
-                // Prevent actions column from being moved - force it back to first position
+                // Prevent actions column from being moved - force it back to last position (rightmost)
                 const actionsColumn = params.columnApi.getColumn('actions');
                 if (actionsColumn) {
                   const allColumns = params.columnApi.getAllColumns() || [];
                   const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
-                  if (actionsIndex !== 0) {
+                  const totalColumns = allColumns.length;
+                  // Actions should be the last (rightmost) pinned column
+                  if (actionsIndex !== totalColumns - 1) {
                     setTimeout(() => {
                       if (gridRef.current?.api) {
                         const columnState = gridRef.current.api.getColumnState();
                         const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                         const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
                         if (actionsCol) {
+                          // Put actions at the end (rightmost)
                           gridRef.current.api.applyColumnState({
-                            state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                            state: [...otherCols, { ...actionsCol, pinned: 'right', lockPosition: true }],
                             applyOrder: true
                           });
                         }

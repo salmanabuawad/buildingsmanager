@@ -226,47 +226,49 @@ export async function validateAssetTypeForBuildingTaxRegion(
   taxRegion?: string
 ): Promise<ValidationResult> {
   try {
-    const { data: building, error: buildingError } = await supabase
-      .from('buildings')
-      .select('tax_region')
-      .eq('building_number', buildingNumber)
-      .maybeSingle();
-
-    if (buildingError) {
-      console.error('Error fetching building:', buildingError);
-      return { valid: false, error: 'שגיאה באימות אזור המס של המבנה' };
-    }
-
-    if (!building) {
-      return { valid: false, error: 'המבנה לא נמצא' };
-    }
-
-    if (building.tax_region == null) {
-      return { valid: true };
-    }
-
-    // IMPORTANT: If a specific taxRegion is provided (from tab header), use ONLY that tax region for validation
-    // Do NOT use the building's multiple tax regions - validation should be based on the tab's specific tax region
+    // IMPORTANT: If taxRegion is provided, COMPLETELY IGNORE the building's tax_region
+    // Only fetch building data if taxRegion is NOT provided (for fallback)
     let buildingTaxRegions: string[];
+    
     if (taxRegion) {
-      // Use only the tab's specific tax region (from tab header)
+      // Use ONLY the provided taxRegion - IGNORE building tax_region completely
       buildingTaxRegions = [taxRegion.trim()];
     } else {
-      // Fallback: if no taxRegion provided, use all tax regions from the building
-      // This should only happen when not in a specific tax region tab
+      // Fallback: if no taxRegion provided, fetch building and use its tax_region
+      const { data: building, error: buildingError } = await supabase
+        .from('buildings')
+        .select('tax_region')
+        .eq('building_number', buildingNumber)
+        .maybeSingle();
+
+      if (buildingError) {
+        console.error('Error fetching building:', buildingError);
+        return { valid: false, error: 'שגיאה באימות אזור המס של המבנה' };
+      }
+
+      if (!building) {
+        return { valid: false, error: 'המבנה לא נמצא' };
+      }
+
+      if (building.tax_region == null) {
+        return { valid: true };
+      }
+
+      // Use all tax regions from the building (only when taxRegion is not provided)
       buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
     }
     
-    // Validate asset types 199 and 299 based on the tab's specific tax region (not building's multiple tax regions)
+    // Validate asset types 199 and 299 based on the passed tax region (from tab)
+    // This completely ignores the building's tax_region when taxRegion is provided
     if (assetTypeName === '299') {
       // Asset type 299 is only valid in tax region 40
-      // Check against the tab's specific tax region, not the building's multiple tax regions
+      // Check against the passed tax region (from tab), not the building's tax_region
       if (!buildingTaxRegions.includes('40')) {
         return { valid: false, error: 'סוג נכס 299 תקף רק במבנים עם אזור מס 40' };
       }
     } else if (assetTypeName === '199') {
       // Asset type 199 is valid in all tax regions EXCEPT 40
-      // Check against the tab's specific tax region, not the building's multiple tax regions
+      // Check against the passed tax region (from tab), not the building's tax_region
       if (buildingTaxRegions.includes('40')) {
         return { valid: false, error: 'סוג נכס 199 לא תקף במבנים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
       }
@@ -279,7 +281,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
       .eq('active', 'כן'); // Only check active asset types
 
     // For asset type 199, it's valid in all tax regions except 40
-    // So we don't filter by building's tax region, just check it exists and is not in tax region 40
+    // So we don't filter by tax region, just check it exists and is not in tax region 40
     if (assetTypeName === '199') {
       // Check that asset type 199 exists and is not in tax region 40
       query = query.neq('tax_region', 40);
@@ -287,8 +289,9 @@ export async function validateAssetTypeForBuildingTaxRegion(
       // For 299, it must be in tax region 40
       query = query.eq('tax_region', 40);
     } else {
-      // For other asset types, filter by the tab's specific tax region (or building's tax regions if not in a specific tab)
-      // IMPORTANT: When taxRegion is provided from tab header, use only that specific tax region
+      // For other asset types, filter by the passed tax region (from tab)
+      // IMPORTANT: When taxRegion is provided, use ONLY that tax region for asset type validation
+      // This completely ignores the building's tax_region
       if (buildingTaxRegions.length > 0) {
         query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
       }

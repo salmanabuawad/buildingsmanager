@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AssetType, api } from '../lib/api';
 import { assetTypeValidators, inputValidators } from '../lib/validation';
-import { Plus, Tag, Upload, Trash2, Save, X, Loader2 } from 'lucide-react';
+import { Plus, Tag, Upload, Save, X, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -647,30 +647,6 @@ export function AssetTypes() {
       },
       headerClass: 'text-left'
     },
-    {
-      colId: 'actions',
-      headerName: t('actions'),
-      editable: false,
-      pinned: 'right',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
-      suppressSizeToFit: true,
-      suppressHeaderMenuButton: true,
-      sortable: false,
-      filter: false,
-      headerClass: 'text-left',
-      cellRenderer: (params: any) => {
-        return (
-          <button
-            onClick={() => handleDelete(params.data.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        );
-      }
-    },
   ], [t]);
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1074,8 +1050,7 @@ export function AssetTypes() {
                 if (!hasSavedState) {
                   setTimeout(() => {
                     const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId())
-                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                      .map(col => col.getColId());
                     
                     if (allColumnIds.length > 0) {
                       params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
@@ -1115,34 +1090,7 @@ export function AssetTypes() {
                 }, 200);
               }}
               onColumnResized={saveColumnState}
-              onColumnMoved={(params) => {
-                // Prevent actions column from being moved - force it back to last position (rightmost)
-                const actionsColumn = params.columnApi.getColumn('actions');
-                if (actionsColumn) {
-                  const allColumns = params.columnApi.getAllColumns() || [];
-                  const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
-                  const totalColumns = allColumns.length;
-                  // Actions should be the last (rightmost) pinned column
-                  if (actionsIndex !== totalColumns - 1) {
-                    setTimeout(() => {
-                      if (gridRef.current?.api) {
-                        const columnState = gridRef.current.api.getColumnState();
-                        const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                        const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                        if (actionsCol) {
-                          // Put actions at the end (rightmost)
-                          gridRef.current.api.applyColumnState({
-                            state: [...otherCols, { ...actionsCol, pinned: 'right', lockPosition: true }],
-                            applyOrder: true
-                          });
-                        }
-                      }
-                    }, 0);
-                    return;
-                  }
-                }
-                saveColumnState();
-              }}
+              onColumnMoved={saveColumnState}
               onSortChanged={saveColumnState}
               onFilterChanged={saveColumnState}
               pagination={false}

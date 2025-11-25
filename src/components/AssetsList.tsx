@@ -34,7 +34,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
-  const [showTaxRegionModal, setShowTaxRegionModal] = useState(false);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -55,13 +54,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxRegion]);
-
-  // Show tax region modal when component opens and taxRegion is available
-  useEffect(() => {
-    if (validationTaxRegion && !loading) {
-      setShowTaxRegionModal(true);
-    }
-  }, [validationTaxRegion, loading]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
@@ -578,7 +570,51 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               }
             }
 
+            // Validate main asset type complete - use validationTaxRegion from tab
+            if (updatedData.main_asset_type) {
+              const mainAssetValidation = await assetValidators.validateMainAssetTypeComplete(
+                updatedData.building_number,
+                updatedData.main_asset_type,
+                updatedData.asset_size,
+                updatedData,
+                validationTaxRegion // Pass validationTaxRegion from tab - this overrides building tax_region
+              );
+              if (!mainAssetValidation.valid) {
+                errors.push(`נכס ${updatedData.asset_id}: ${mainAssetValidation.error}`);
+                continue;
+              }
+            }
+
+            // Validate sub asset types complete - use validationTaxRegion from tab
+            const subAssetFields = [
+              { type: updatedData.sub_asset_type_1, size: updatedData.sub_asset_size_1 },
+              { type: updatedData.sub_asset_type_2, size: updatedData.sub_asset_size_2 },
+              { type: updatedData.sub_asset_type_3, size: updatedData.sub_asset_size_3 },
+              { type: updatedData.sub_asset_type_4, size: updatedData.sub_asset_size_4 },
+              { type: updatedData.sub_asset_type_5, size: updatedData.sub_asset_size_5 },
+              { type: updatedData.sub_asset_type_6, size: updatedData.sub_asset_size_6 }
+            ];
+            let hasSubAssetError = false;
+            for (let i = 0; i < subAssetFields.length; i++) {
+              if (subAssetFields[i].type) {
+                const subAssetValidation = await assetValidators.validateSubAssetTypeComplete(
+                  updatedData.building_number,
+                  subAssetFields[i].type,
+                  subAssetFields[i].size,
+                  validationTaxRegion // Pass validationTaxRegion from tab - this overrides building tax_region
+                );
+                if (!subAssetValidation.valid) {
+                  errors.push(`נכס ${updatedData.asset_id}: נכס משנה ${i + 1}: ${subAssetValidation.error}`);
+                  hasSubAssetError = true;
+                }
+              }
+            }
+            if (hasSubAssetError) {
+              continue;
+            }
+
             // Validate 199/299 rules
+            // Use validationTaxRegion from the current tab - this overrides building tax_region
             const validation = await assetValidators.validateSubAssetsFor199Or299(
               updatedData.building_number,
               updatedData.main_asset_type,
@@ -598,7 +634,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 updatedData.sub_asset_size_4,
                 updatedData.sub_asset_size_5,
                 updatedData.sub_asset_size_6
-              ]
+              ],
+              validationTaxRegion // Pass validationTaxRegion from tab - this overrides building tax_region
             );
             if (!validation.valid) {
               errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
@@ -648,6 +685,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             }
 
             // Validate 199/299 rules if relevant fields changed
+            // Use validationTaxRegion from the current tab - this overrides building tax_region
             if (changes.hasOwnProperty('main_asset_type') || changes.hasOwnProperty('asset_size') ||
                 assetTypeFields.some(f => changes.hasOwnProperty(f))) {
               const validation = await assetValidators.validateSubAssetsFor199Or299(
@@ -669,7 +707,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   updatedData.sub_asset_size_4,
                   updatedData.sub_asset_size_5,
                   updatedData.sub_asset_size_6
-                ]
+                ],
+                validationTaxRegion // Pass validationTaxRegion from tab - this overrides building tax_region
               );
               if (!validation.valid) {
                 errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
@@ -1658,39 +1697,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         buildingNumber={buildingNumber}
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
       />
-
-      {/* Tax Region Modal */}
-      {showTaxRegionModal && validationTaxRegion && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">אזור מס</h2>
-              <button
-                onClick={() => setShowTaxRegionModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mb-4">
-              <p className="text-gray-700 text-lg">
-                <span className="font-semibold">אזור מס נבחר:</span> {validationTaxRegion}
-              </p>
-              <p className="text-gray-600 text-sm mt-2">
-                האימות יתבצע לפי אזור המס הזה ולא לפי אזורי המס של המבנה
-              </p>
-            </div>
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowTaxRegionModal(false)}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-semibold"
-              >
-                אישור
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

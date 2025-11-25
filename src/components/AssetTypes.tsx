@@ -267,7 +267,7 @@ export function AssetTypes() {
       field: 'name',
       headerName: 'סוג נכס',
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPinned: true,
       cellStyle: { textAlign: 'left' },
       headerClass: 'text-left'
@@ -276,7 +276,7 @@ export function AssetTypes() {
       field: 'active',
       headerName: 'פעיל',
       editable: false,
-      pinned: 'left',
+      pinned: 'right',
       lockPinned: true,
       headerClass: 'text-left',
       cellRenderer: (params: any) => {

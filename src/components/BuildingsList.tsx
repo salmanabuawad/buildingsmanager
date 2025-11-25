@@ -421,7 +421,12 @@ export function BuildingsList({
         try {
           let building = findBuildingByKey(buildingKey);
           
-          if (!building) continue;
+          if (!building) {
+            console.warn(`[BuildingsList] Building not found for key: ${buildingKey}`);
+            continue;
+          }
+          
+          console.log(`[BuildingsList] Processing building:`, { buildingKey, building, isNew: isNewBuilding(building) });
 
           // For new buildings not in dirtyBuildings, use empty changes object
           const changes = dirtyBuildings.get(buildingKey) || {};
@@ -429,6 +434,15 @@ export function BuildingsList({
 
           if (isNew) {
             const finalBuilding = { ...building, ...changes };
+            
+            console.log(`[BuildingsList] Saving new building:`, { 
+              buildingKey, 
+              building, 
+              changes, 
+              finalBuilding,
+              building_number: finalBuilding.building_number,
+              tax_region: finalBuilding.tax_region
+            });
             
             if (!finalBuilding.building_number || finalBuilding.building_number <= 0) {
               errors.push(`מבנה חדש: מספר מבנה נדרש ו חייב להיות חיובי`);
@@ -439,19 +453,11 @@ export function BuildingsList({
               continue;
             }
 
-            const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = finalBuilding;
-            const createdBuilding = await api.buildings.create({
-              building_number,
-              tax_region,
-              shared_area,
-              shared_business_area,
-              area_for_control,
-              total_building_area,
-              elevator,
-              single_double_family,
-              condo,
-              townhouses
-            });
+            // Prepare building data for API - exclude internal fields
+            const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding;
+            console.log(`[BuildingsList] Calling api.buildings.create with:`, buildingData);
+            const createdBuilding = await api.buildings.create(buildingData);
+            console.log(`[BuildingsList] Building created successfully:`, createdBuilding);
             
             // Remove the old building from state - fetchBuildings will add it back from database
             setBuildings(prev => prev.filter(b => {

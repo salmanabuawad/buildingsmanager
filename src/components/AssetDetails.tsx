@@ -952,6 +952,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         }}
         isLoading={isValidating}
         progress={validationProgress}
+        context="single"
         singleResult={validationResults}
         singleAssetTitle={asset ? `אימות נכס ${asset.asset_id}` : undefined}
       />

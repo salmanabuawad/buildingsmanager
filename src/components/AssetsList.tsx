@@ -1379,6 +1379,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         onClose={() => setShowBatchValidationModal(false)}
         isLoading={batchValidationLoading}
         progress={batchValidationProgress}
+        context="building"
         batchResults={batchValidationResults}
         batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxZone ? ` - אזור מס ${taxZone}` : ''}`}
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}

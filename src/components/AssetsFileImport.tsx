@@ -560,6 +560,7 @@ export function AssetsFileImport() {
         onClose={() => setShowValidationModal(false)}
         isLoading={isImporting && progress?.stage === 'validating'}
         progress={validationProgress}
+        context="import"
         batchResults={validationResults}
         batchTitle="תוצאות אימות ייבוא"
       />

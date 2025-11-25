@@ -46,6 +46,15 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     invalid: number;
     errors: Array<{ assetId: string; assetDbId?: string; buildingNumber: number; errors: string[]; passed?: string[]; matchedAssetTypeRecord?: string }>;
   } | null>(null);
+  const [showDataModal, setShowDataModal] = useState(false);
+  const [retrievedData, setRetrievedData] = useState<{
+    allAssets: Asset[];
+    masterRecords: Asset[];
+    historyRecords: Asset[];
+    filteredMasterAssets: Asset[];
+    masterAssets: Asset[];
+    displayAssets: Asset[];
+  } | null>(null);
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxZone]);
@@ -84,6 +93,10 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     
     console.log('[AssetsList] Setting displayAssets with', display.length, 'rows');
     setDisplayAssets(display);
+    
+    // Update retrieved data with displayAssets
+    setRetrievedData(prev => prev ? { ...prev, displayAssets: display } : null);
+    
     // Store original data only if dirtyAssets is empty (initial load or after save)
     if (dirtyAssets.size === 0) {
       setOriginalDisplayAssets(JSON.parse(JSON.stringify(display)));
@@ -200,6 +213,19 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         measurement_date: a.measurement_date 
       })));
       setMasterAssets(filteredMasterAssets);
+      
+      // Store retrieved data for modal display
+      setRetrievedData({
+        allAssets: assetsData || [],
+        masterRecords,
+        historyRecords,
+        filteredMasterAssets,
+        masterAssets: filteredMasterAssets,
+        displayAssets: [] // Will be set by useEffect
+      });
+      
+      // Show modal after data is retrieved
+      setShowDataModal(true);
       const invalidSet = new Set<string>();
       const numericRegex = /^[0-9]+$/;
       for (const asset of filteredAssets) {
@@ -1839,6 +1865,161 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               <button
                 onClick={() => setShowBatchValidationModal(false)}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors w-full sm:w-auto"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Data Retrieval Modal */}
+      {showDataModal && retrievedData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-teal-600 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">נתונים שנטענו</h2>
+              <button
+                onClick={() => setShowDataModal(false)}
+                className="text-white hover:text-teal-100 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">סיכום נתונים</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">סה"כ נכסים (כולל היסטוריה):</span> {retrievedData.allAssets.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">רשומות מאסטר:</span> {retrievedData.masterRecords.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">רשומות היסטוריה:</span> {retrievedData.historyRecords.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">מאסטרים מסוננים (לפי אזור מס):</span> {retrievedData.filteredMasterAssets.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">מאסטרים סופיים:</span> {retrievedData.masterAssets.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">שורות בתצוגה:</span> {retrievedData.displayAssets.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-slate-900 mb-2">רשומות מאסטר ({retrievedData.masterAssets.length})</h3>
+                  <div className="max-h-60 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-200 sticky top-0">
+                        <tr>
+                          <th className="px-2 py-1 text-right">ID</th>
+                          <th className="px-2 py-1 text-right">מזהה נכס</th>
+                          <th className="px-2 py-1 text-right">תאריך מדידה</th>
+                          <th className="px-2 py-1 text-right">סוג נכס</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {retrievedData.masterAssets.slice(0, 20).map((asset, idx) => (
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className="px-2 py-1">{asset.id}</td>
+                            <td className="px-2 py-1">{asset.asset_id}</td>
+                            <td className="px-2 py-1">{asset.measurement_date}</td>
+                            <td className="px-2 py-1">{asset.main_asset_type}</td>
+                          </tr>
+                        ))}
+                        {retrievedData.masterAssets.length > 20 && (
+                          <tr>
+                            <td colSpan={4} className="px-2 py-1 text-center text-slate-500">
+                              ... ועוד {retrievedData.masterAssets.length - 20} רשומות
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-slate-900 mb-2">רשומות היסטוריה ({retrievedData.historyRecords.length})</h3>
+                  <div className="max-h-60 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-200 sticky top-0">
+                        <tr>
+                          <th className="px-2 py-1 text-right">ID</th>
+                          <th className="px-2 py-1 text-right">מזהה נכס</th>
+                          <th className="px-2 py-1 text-right">תאריך מדידה</th>
+                          <th className="px-2 py-1 text-right">סוג נכס</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {retrievedData.historyRecords.slice(0, 20).map((asset, idx) => (
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className="px-2 py-1">{asset.id}</td>
+                            <td className="px-2 py-1">{asset.asset_id}</td>
+                            <td className="px-2 py-1">{asset.measurement_date}</td>
+                            <td className="px-2 py-1">{asset.main_asset_type}</td>
+                          </tr>
+                        ))}
+                        {retrievedData.historyRecords.length > 20 && (
+                          <tr>
+                            <td colSpan={4} className="px-2 py-1 text-center text-slate-500">
+                              ... ועוד {retrievedData.historyRecords.length - 20} רשומות
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-slate-900 mb-2">שורות בתצוגה ({retrievedData.displayAssets.length})</h3>
+                  <div className="max-h-60 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-200 sticky top-0">
+                        <tr>
+                          <th className="px-2 py-1 text-right">ID</th>
+                          <th className="px-2 py-1 text-right">מזהה נכס</th>
+                          <th className="px-2 py-1 text-right">תאריך מדידה</th>
+                          <th className="px-2 py-1 text-right">סוג נכס</th>
+                          <th className="px-2 py-1 text-right">סוג שורה</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {retrievedData.displayAssets.slice(0, 20).map((asset, idx) => (
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className="px-2 py-1">{asset.id}</td>
+                            <td className="px-2 py-1">{asset.asset_id}</td>
+                            <td className="px-2 py-1">{asset.measurement_date}</td>
+                            <td className="px-2 py-1">{asset.main_asset_type}</td>
+                            <td className="px-2 py-1">
+                              {(asset as any)._isMasterRow ? 'מאסטר' : 'היסטוריה'}
+                            </td>
+                          </tr>
+                        ))}
+                        {retrievedData.displayAssets.length > 20 && (
+                          <tr>
+                            <td colSpan={5} className="px-2 py-1 text-center text-slate-500">
+                              ... ועוד {retrievedData.displayAssets.length - 20} שורות
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setShowDataModal(false)}
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-medium"
               >
                 סגור
               </button>

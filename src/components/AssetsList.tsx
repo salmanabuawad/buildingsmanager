@@ -929,50 +929,41 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       : params.data?.penthouse;
     const isChecked = currentValue === 'כן';
     
-    if (isNewAsset) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <input
-            type="checkbox"
-            checked={isChecked}
-            onChange={(e) => {
-              const newValue = e.target.checked ? 'כן' : null;
-              
-              // Track the change in dirtyAssets
-              setDirtyAssets(prev => {
-                const next = new Map(prev);
-                const existing = next.get(String(assetId)) || {};
-                next.set(String(assetId), { ...existing, penthouse: newValue });
-                return next;
-              });
-              
-              // Update grid cell data directly
-              params.node.setDataValue('penthouse', newValue);
-              
-              // Update assets state
-              setAssets(prev => prev.map(a => 
-                String(a.id) === String(assetId) ? { ...a, penthouse: newValue } : a
-              ));
-              
-              // Refresh only this specific cell
-              if (gridRef.current) {
-                gridRef.current.api.refreshCells({ 
-                  rowNodes: [params.node], 
-                  columns: ['penthouse'],
-                  force: true 
-                });
-              }
-            }}
-            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-          />
-        </div>
-      );
-    }
-    
-    // Read-only display for existing assets
     return (
       <div className="flex items-center justify-center h-full">
-        {currentValue === 'כן' ? '✓' : ''}
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={(e) => {
+            const newValue = e.target.checked ? 'כן' : null;
+            
+            // Track the change in dirtyAssets
+            setDirtyAssets(prev => {
+              const next = new Map(prev);
+              const existing = next.get(String(assetId)) || {};
+              next.set(String(assetId), { ...existing, penthouse: newValue });
+              return next;
+            });
+            
+            // Update grid cell data directly
+            params.node.setDataValue('penthouse', newValue);
+            
+            // Update assets state
+            setAssets(prev => prev.map(a => 
+              String(a.id) === String(assetId) ? { ...a, penthouse: newValue } : a
+            ));
+            
+            // Refresh only this specific cell
+            if (gridRef.current) {
+              gridRef.current.api.refreshCells({ 
+                rowNodes: [params.node], 
+                columns: ['penthouse'],
+                force: true 
+              });
+            }
+          }}
+          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+        />
       </div>
     );
   }, [newAssets, dirtyAssets]);
@@ -1105,7 +1096,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: false, // Always use checkbox, not editable cell
       cellRenderer: penthouseCellRenderer,
       cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'

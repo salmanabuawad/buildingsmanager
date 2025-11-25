@@ -4,8 +4,10 @@ import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
+import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Upload, Eye, FileText } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
+import { supabase } from '../lib/supabase';
+import { PDFViewer } from './PDFViewer';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -25,6 +27,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
+  // Store asset_id and building_number for each asset to reload after save
+  const [assetIdentifiers, setAssetIdentifiers] = useState<Map<string, { asset_id: number; building_number: number }>>(new Map());
+  const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
+  const [uploadingAssetId, setUploadingAssetId] = useState<string | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'transfer_areas_column_state');
 
@@ -43,14 +49,49 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       setBuilding(buildingData);
       setAssetTypes(assetTypesData || []);
 
-      // Fetch selected assets by their IDs
+      // Fetch assets by ID first (for initial load), then by asset_id and building_number (after save)
       const fetchedAssets: Asset[] = [];
-      for (const assetId of selectedAssetIds) {
-        try {
-          const asset = await api.assets.getOne(Number(assetId));
-          fetchedAssets.push(asset);
-        } catch (err) {
-          console.error(`Error fetching asset ${assetId}:`, err);
+      
+      // If we have asset identifiers (after save), use them
+      if (assetIdentifiers.size > 0) {
+        for (const [oldId, identifier] of assetIdentifiers.entries()) {
+          try {
+            // Get all assets with this asset_id and building_number, then take the latest
+            const allAssets = await api.assets.getAllByAssetId(String(identifier.asset_id), identifier.building_number);
+            // Filter by building_number and get the latest (is_latest = true or most recent)
+            const buildingAssets = allAssets.filter(a => a.building_number === identifier.building_number);
+            if (buildingAssets.length > 0) {
+              // First try to find asset with is_latest = true
+              let latestAsset = buildingAssets.find(a => a.is_latest === true);
+              // If not found, sort by created_at descending and take the first (most recent)
+              if (!latestAsset) {
+                latestAsset = buildingAssets.sort((a, b) => 
+                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                )[0];
+              }
+              if (latestAsset) {
+                fetchedAssets.push(latestAsset);
+              }
+            }
+          } catch (err) {
+            console.error(`Error fetching asset by asset_id ${identifier.asset_id}:`, err);
+          }
+        }
+      } else {
+        // Initial load: fetch by IDs
+        for (const assetId of selectedAssetIds) {
+          try {
+            const asset = await api.assets.getOne(Number(assetId));
+            fetchedAssets.push(asset);
+            // Store asset identifier for future reloads
+            setAssetIdentifiers(prev => {
+              const next = new Map(prev);
+              next.set(assetId, { asset_id: asset.asset_id, building_number: asset.building_number });
+              return next;
+            });
+          } catch (err) {
+            console.error(`Error fetching asset ${assetId}:`, err);
+          }
         }
       }
 
@@ -452,7 +493,15 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           await api.assets.update(Number(assetId), { is_new_measurement: true });
 
           // Then create the new measurement in assets table
-          await api.assets.create(newAssetData as any);
+          const createdAsset = await api.assets.create(newAssetData as any);
+
+          // Update asset identifiers with the new asset ID
+          setAssetIdentifiers(prev => {
+            const next = new Map(prev);
+            // Update the mapping: old ID -> new asset identifier
+            next.set(assetId, { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
+            return next;
+          });
 
           savedCount++;
         } catch (err) {
@@ -484,6 +533,37 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     setDirtyAssets(new Map());
     fetchData();
   };
+
+  async function handleFileUpload(assetId: number, file: File) {
+    setUploadingAssetId(String(assetId));
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${assetId}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('structure-drawings')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('structure-drawings')
+        .getPublicUrl(filePath);
+
+      await api.assets.update(assetId, { structure_drawing_url: publicUrl });
+
+      setSuccess('קובץ הועלה בהצלחה');
+      setTimeout(() => setSuccess(null), 3000);
+      await fetchData();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'שגיאה בהעלאת קובץ';
+      setError(errorMessage);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setUploadingAssetId(null);
+    }
+  }
 
   const hasChanges = dirtyAssets.size > 0;
 
@@ -535,6 +615,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         
         const assetId = String(asset.id);
         const hasValidationError = validationErrors.has(assetId);
+        const hasDrawing = !!asset.structure_drawing_url;
+        const isUploading = uploadingAssetId === assetId;
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">
@@ -552,6 +634,49 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 <AlertCircle className="h-5 w-5" />
               </button>
             )}
+            <label className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors duration-200 ${
+              isUploading
+                ? 'bg-gray-400 text-white cursor-wait'
+                : 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer'
+            }`} title="העלה קובץ">
+              {isUploading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Upload className="w-3 h-3" />
+              )}
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(Number(assetId), file);
+                  }
+                  e.target.value = '';
+                }}
+                disabled={isUploading}
+              />
+            </label>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (hasDrawing && asset.structure_drawing_url) {
+                  setSelectedDrawingUrl(asset.structure_drawing_url);
+                }
+              }}
+              disabled={!hasDrawing}
+              className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors duration-200 ${
+                !hasDrawing
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : selectedDrawingUrl === asset.structure_drawing_url
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title={hasDrawing ? (selectedDrawingUrl === asset.structure_drawing_url ? 'צופה בקובץ' : 'צפה בקובץ') : 'אין קובץ'}
+            >
+              <Eye className="w-3 h-3" />
+            </button>
           </div>
         );
       },
@@ -718,7 +843,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_6')
     },
-  ], [t, validationErrors, getCellStyle]);
+  ], [t, validationErrors, getCellStyle, selectedDrawingUrl, uploadingAssetId]);
 
   if (loading) {
     return (
@@ -918,6 +1043,26 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 )}
                 אישור
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Viewer Modal */}
+      {selectedDrawingUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" onClick={() => setSelectedDrawingUrl(null)}>
+          <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full mx-4 h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-slate-800">תרשים מבנה</h3>
+              <button
+                onClick={() => setSelectedDrawingUrl(null)}
+                className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <PDFViewer url={selectedDrawingUrl} />
             </div>
           </div>
         </div>

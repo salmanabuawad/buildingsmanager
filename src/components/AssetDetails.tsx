@@ -987,16 +987,35 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     try {
       setLoading(true);
 
-      const [assetData, assetTypesData] = await Promise.all([
-        api.assets.getOne(String(assetId)).catch(err => {
-          console.error('Error fetching asset:', err);
-          if (err.message === 'Asset not found') {
-            return null;
+      // Try to fetch by id first
+      let assetData: Asset | null = null;
+      try {
+        assetData = await api.assets.getOne(String(assetId));
+      } catch (err: any) {
+        console.error('Error fetching asset by id:', err);
+        // If asset not found by id, try to fetch by asset_id from the current asset state
+        if (err.message === 'Asset not found' && asset) {
+          console.log('Asset not found by id, trying to fetch by asset_id:', asset.asset_id);
+          try {
+            const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
+            if (assetsByAssetId && assetsByAssetId.length > 0) {
+              // Get the latest one (should be first after sorting)
+              assetData = assetsByAssetId[0];
+              console.log('Found asset by asset_id:', assetData);
+            }
+          } catch (assetIdErr) {
+            console.error('Error fetching asset by asset_id:', assetIdErr);
           }
-          throw err;
-        }),
-        api.assetTypes.getAll()
-      ]);
+        }
+        // If still not found, return error
+        if (!assetData) {
+          setError('הנכס לא נמצא');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const assetTypesData = await api.assetTypes.getAll();
 
       if (!assetData) {
         setError('הנכס לא נמצא');

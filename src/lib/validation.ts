@@ -876,6 +876,53 @@ export const assetValidators = {
     return firstError || { valid: true };
   },
 
+  validateAssetIdNotInOtherBuilding: async (assetId: string | number | null | undefined, buildingNumber: number | null | undefined, currentAssetId?: number): Promise<ValidationResult> => {
+    // Skip validation if asset_id or building_number is missing
+    if (!assetId || !buildingNumber) {
+      return { valid: true };
+    }
+
+    try {
+      const { api } = await import('./api');
+      
+      // Since asset_id is unique in assets table, check if asset exists with this asset_id
+      const existingAssets = await api.assets.getAllByAssetId(String(assetId));
+      
+      if (existingAssets && existingAssets.length > 0) {
+        // Since asset_id is unique, there should be at most one asset
+        const existingAsset = existingAssets[0];
+        
+        // If we're updating an existing asset (currentAssetId provided), check if it's the same asset
+        if (currentAssetId !== undefined && existingAsset.id === currentAssetId) {
+          // Same asset, just updating - check if building_number is being changed
+          if (existingAsset.building_number !== buildingNumber) {
+            return {
+              valid: false,
+              error: `נכס ${assetId} כבר קיים במבנה ${existingAsset.building_number}. לא ניתן לשנות את מספר המבנה של נכס קיים.`
+            };
+          }
+          // Same asset, same building - OK
+          return { valid: true };
+        }
+        
+        // If we're creating a new asset or updating to a different asset_id
+        // Check if the existing asset has a different building_number
+        if (existingAsset.building_number !== buildingNumber) {
+          return {
+            valid: false,
+            error: `נכס ${assetId} כבר קיים במבנה ${existingAsset.building_number}. לא ניתן ליצור נכס עם אותו מספר במבנה אחר.`
+          };
+        }
+      }
+      
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating asset_id not in other building:', error);
+      // If there's an error checking, don't block the operation
+      return { valid: true };
+    }
+  },
+
   validatePayerId: async (payerId: string | null | undefined): Promise<ValidationResult> => {
     // payer_id is optional, so skip validation if empty/null
     if (!payerId || payerId === '' || payerId === null || payerId === undefined) {

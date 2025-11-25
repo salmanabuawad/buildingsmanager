@@ -367,6 +367,9 @@ export class AssetValidationHandler {
     validationNames.push('אימות מזהה נכס');
     validations.push(assetValidators.validateAssetId(String(asset.asset_id)));
 
+    validationNames.push('אימות נכס לא קיים במבנה אחר');
+    validations.push(assetValidators.validateAssetIdNotInOtherBuilding(asset.asset_id, asset.building_number));
+
     validationNames.push('אימות קוד משלם');
     validations.push(assetValidators.validatePayerId(asset.payer_id));
 

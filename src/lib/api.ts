@@ -475,36 +475,46 @@ export const api = {
     },
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       try {
-        // Use the database view to get all records (latest from assets + history from assets_history)
-        let query = supabase
-          .from('assets_with_history')
+        // First record: fetch from assets table (latest measurement)
+        let masterQuery = supabase
+          .from('assets')
           .select('*')
           .eq('asset_id', assetId);
 
         if (buildingNumber) {
-          query = query.eq('building_number', buildingNumber);
+          masterQuery = masterQuery.eq('building_number', buildingNumber);
         }
 
-        const { data, error } = await query;
+        const { data: masterData, error: masterError } = await masterQuery.maybeSingle();
 
-        if (error) {
-          console.error('[API ERROR] Error fetching assets_with_history:', error);
-          // If view doesn't exist, throw a clear error message
-          // PostgREST error codes: 
-          // PGRST202 = function/relation not found
-          // PGRST205 = table/view not found in schema cache
-          // 42P01 = relation does not exist
-          if (error.code === 'PGRST202' || error.code === 'PGRST205' || error.code === '42P01' || 
-              error.message?.includes('does not exist') || 
-              error.message?.includes('relation') ||
-              error.message?.includes('not found') ||
-              error.message?.includes('Could not find the table')) {
-            throw new Error(`הטבלה assets_with_history לא קיימת. יש להריץ את המיגרציה 20251128000000_create_assets_with_history_view.sql כדי ליצור את ה-view.`);
+        if (masterError && masterError.code !== 'PGRST116') {
+          console.error('[API ERROR] Error fetching master asset from assets table:', masterError);
+          throw masterError;
+        }
+
+        // Other records: fetch from assets_history table
+        let historyQuery = supabase
+          .from('assets_history')
+          .select('*')
+          .eq('asset_id', assetId);
+
+        if (buildingNumber) {
+          historyQuery = historyQuery.eq('building_number', buildingNumber);
+        }
+
+        const { data: historyData, error: historyError } = await historyQuery.order('measurement_date', { ascending: false });
+
+        if (historyError) {
+          console.error('[API ERROR] Error fetching assets_history:', historyError);
+          // If history table doesn't exist or RLS blocks it, return only master
+          if (historyError.code === '42P01' || historyError.code === '42501' || historyError.code === 'PGRST205') {
+            console.warn('[API] assets_history table not accessible, returning only master record');
+            return masterData ? [{ ...masterData, is_latest: true }] : [];
           }
-          throw error;
+          throw historyError;
         }
 
-        // Parse dates and sort by measurement_date (newest first)
+        // Parse dates for sorting
         const parseDate = (dateStr: string) => {
           const parts = dateStr.split('/');
           if (parts.length === 3) {
@@ -513,27 +523,32 @@ export const api = {
           return new Date(dateStr);
         };
 
-        // Sort: latest first (is_latest=true), then by measurement_date descending
-        const sorted = (data || []).sort((a, b) => {
-          // First sort by is_latest (true first)
-          if (a.is_latest !== b.is_latest) {
-            return a.is_latest ? -1 : 1;
-          }
-          // Then by measurement_date (newest first)
-          return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
+        // Sort history records by measurement_date (newest first)
+        const sortedHistory = (historyData || []).map(h => ({ ...h, is_latest: false }))
+          .sort((a, b) => parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime());
+
+        // Combine: first record from assets table, then all history records
+        const allRecords: Asset[] = [];
+        
+        if (masterData) {
+          // First record: from assets table (marked as latest)
+          allRecords.push({ ...masterData, is_latest: true });
+        }
+        
+        // Other records: from assets_history table
+        allRecords.push(...sortedHistory);
+
+        console.log('[API] getAssetWithHistory result:', {
+          totalCount: allRecords.length,
+          masterCount: masterData ? 1 : 0,
+          historyCount: sortedHistory.length,
+          firstRecordSource: masterData ? 'assets' : 'none',
+          otherRecordsSource: 'assets_history'
         });
 
-        return sorted;
+        return allRecords;
       } catch (err: any) {
         console.error('[API ERROR] Unexpected error in getAssetWithHistory:', err);
-        // Re-throw the error instead of falling back
-        if (err.code === 'PGRST202' || err.code === 'PGRST205' || err.code === '42P01' || 
-            err.message?.includes('does not exist') || 
-            err.message?.includes('relation') ||
-            err.message?.includes('not found') ||
-            err.message?.includes('Could not find the table')) {
-          throw new Error(`הטבלה assets_with_history לא קיימת. יש להריץ את המיגרציה 20251128000000_create_assets_with_history_view.sql כדי ליצור את ה-view.`);
-        }
         throw err;
       }
     },
@@ -979,93 +994,156 @@ export const api = {
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
       console.log('[API] Updating asset:', id, 'with data:', input);
       const sanitizedInput = sanitizeAssetInput(input);
-      const { data, error } = await supabase
+      
+      // First, get the existing asset
+      const { data: existingAsset, error: fetchError } = await supabase
         .from('assets')
-        .update(sanitizedInput)
+        .select('*')
         .eq('id', id)
-        .select()
         .maybeSingle();
 
-      if (error) {
-        console.error('[API ERROR] Update asset failed:', {
-          id,
-          input,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-
-        // Handle PGRST116 error (0 rows) as "asset not found"
-        if (error.code === 'PGRST116') {
+      if (fetchError) {
+        console.error('[API ERROR] Error fetching existing asset:', fetchError);
+        if (fetchError.code === 'PGRST116') {
           throw new Error('Asset not found');
         }
+        throw new Error(`שגיאה בטעינת נכס: ${fetchError.message}`);
+      }
 
-        let errorMessage = error.message || 'Failed to update asset';
+      if (!existingAsset) {
+        throw new Error('Asset not found');
+      }
 
-        if (error.code === '23514') {
-          if (error.message.includes('check_sub_asset_type_') && error.message.includes('not_composite')) {
-            const match = error.message.match(/check_sub_asset_type_(\d+)_not_composite/);
+      // Copy existing asset to history before updating
+      const { error: historyError } = await supabase
+        .from('assets_history')
+        .insert({
+          id: existingAsset.id,
+          building_number: existingAsset.building_number,
+          payer_id: existingAsset.payer_id,
+          asset_id: existingAsset.asset_id,
+          measurement_date: existingAsset.measurement_date,
+          main_asset_type: existingAsset.main_asset_type,
+          asset_size: existingAsset.asset_size,
+          sub_asset_type_1: existingAsset.sub_asset_type_1,
+          sub_asset_size_1: existingAsset.sub_asset_size_1,
+          sub_asset_type_2: existingAsset.sub_asset_type_2,
+          sub_asset_size_2: existingAsset.sub_asset_size_2,
+          sub_asset_type_3: existingAsset.sub_asset_type_3,
+          sub_asset_size_3: existingAsset.sub_asset_size_3,
+          sub_asset_type_4: existingAsset.sub_asset_type_4,
+          sub_asset_size_4: existingAsset.sub_asset_size_4,
+          sub_asset_type_5: existingAsset.sub_asset_type_5,
+          sub_asset_size_5: existingAsset.sub_asset_size_5,
+          sub_asset_type_6: existingAsset.sub_asset_type_6,
+          sub_asset_size_6: existingAsset.sub_asset_size_6,
+          structure_drawing_url: existingAsset.structure_drawing_url,
+          created_at: existingAsset.created_at,
+          updated_at: existingAsset.updated_at,
+          elevator: existingAsset.elevator,
+          single_double_family: existingAsset.single_double_family,
+          condo: existingAsset.condo,
+          townhouses: existingAsset.townhouses,
+          basement: existingAsset.basement,
+          penthouse: existingAsset.penthouse
+        })
+        .select();
+
+      if (historyError) {
+        // If it's a duplicate key error, that's okay - it means it's already in history
+        if (historyError.code !== '23505') {
+          console.error('[API ERROR] Error copying asset to history:', historyError);
+          throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}`);
+        } else {
+          console.log('[API] Asset already exists in history, continuing with delete and insert');
+        }
+      } else {
+        console.log('[API] Asset copied to history successfully');
+      }
+
+      // Delete the existing asset from assets table
+      const { error: deleteError } = await supabase
+        .from('assets')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        console.error('[API ERROR] Delete asset failed:', {
+          id,
+          message: deleteError.message,
+          details: deleteError.details,
+          hint: deleteError.hint,
+          code: deleteError.code
+        });
+        throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
+      }
+
+      console.log('[API] Existing asset deleted successfully');
+
+      // Merge existing asset data with updates
+      const newAssetData = {
+        ...existingAsset,
+        ...sanitizedInput,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Remove id and created_at so a new record is created
+      delete (newAssetData as any).id;
+      delete (newAssetData as any).created_at;
+
+      // Insert new asset with updated data
+      const { data: newAsset, error: insertError } = await supabase
+        .from('assets')
+        .insert(newAssetData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('[API ERROR] Insert updated asset failed:', {
+          input,
+          sanitizedInput,
+          newAssetData,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        });
+
+        let errorMessage = insertError.message || 'Failed to update asset';
+
+        if (insertError.code === '23514') {
+          if (insertError.message.includes('check_sub_asset_type_') && insertError.message.includes('not_composite')) {
+            const match = insertError.message.match(/check_sub_asset_type_(\d+)_not_composite/);
             const subAssetNum = match ? match[1] : '';
             errorMessage = i18n.t('subAssetTypeCompositeError', { subAssetNum });
+          } else if (insertError.message.includes('check_minimum_two_sub_assets')) {
+            errorMessage = 'נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה עם ערכים.';
+          } else if (insertError.message.includes('check_numeric_asset_id')) {
+            errorMessage = 'זיהוי נכס חייב להיות מספר תקין.';
+          } else if (insertError.message.includes('check_numeric_payer_id')) {
+            errorMessage = 'מספר משלם חייב להיות מספר תקין.';
+          }
+        } else if (insertError.code === '23503') {
+          if (insertError.message.includes('building_number')) {
+            errorMessage = `מבנה ${input.building_number} לא קיים. המבנה ייווצר אוטומטית אם הנתונים תקינים.`;
+          }
+        } else if (insertError.code === '23505') {
+          if (insertError.message.includes('assets_asset_id_unique') || insertError.message.includes('asset_id')) {
+            errorMessage = `נכס עם מספר זיהוי ${newAssetData.asset_id} כבר קיים במערכת.`;
           }
         }
 
-        const details = error.details && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` (${error.details})` : '';
-        const hint = error.hint && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` - ${error.hint}` : '';
+        const details = insertError.details && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` (${insertError.details})` : '';
+        const hint = insertError.hint && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` - ${insertError.hint}` : '';
 
         // Always include full error information
         const fullErrorMessage = `${errorMessage}${details}${hint}`;
-        console.error('[API] Full error details:', { code: error.code, message: errorMessage, details, hint, fullErrorMessage });
+        console.error('[API] Full error details:', { code: insertError.code, message: errorMessage, details, hint, fullErrorMessage });
         throw new Error(fullErrorMessage);
       }
 
-      if (!data) {
-        // If no data returned, the asset might not exist or the update didn't match any rows
-        // Try to fetch the asset to see if it exists
-        const { data: existingAsset, error: fetchError } = await supabase
-          .from('assets')
-          .select('id')
-          .eq('id', id)
-          .maybeSingle();
-        
-        if (fetchError) {
-          // Handle PGRST116 error (0 rows) as "asset not found"
-          if (fetchError.code === 'PGRST116') {
-            throw new Error('Asset not found');
-          }
-          throw new Error(`Failed to verify asset existence: ${fetchError.message}`);
-        }
-        
-        if (!existingAsset) {
-          throw new Error('Asset not found - cannot update');
-        }
-        
-        // If asset exists but update returned no data, it might be a permissions issue
-        // or the update didn't actually change anything. Fetch the current asset data.
-        const { data: currentAsset, error: currentError } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-        
-        if (currentError) {
-          if (currentError.code === 'PGRST116') {
-            throw new Error('Asset not found');
-          }
-          throw new Error(`Failed to fetch asset after update: ${currentError.message}`);
-        }
-        
-        if (currentAsset) {
-          console.log('[API] Update returned no data, but asset exists. Returning current asset data.');
-          return currentAsset;
-        }
-        
-        throw new Error('Failed to update asset - no data returned and asset could not be fetched');
-      }
-
-      console.log('[API] Asset updated successfully:', data);
-      return data;
+      console.log('[API] Asset updated successfully (moved to history and new entry created):', newAsset);
+      return newAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
       const { error } = await supabase

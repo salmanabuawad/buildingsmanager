@@ -139,6 +139,7 @@ export function AssetDataEntry() {
     const validations = [
       assetValidators.validateBuildingNumber(updatedRow.building_number),
       assetValidators.validateAssetId(updatedRow.asset_id),
+      assetValidators.validateAssetIdNotInOtherBuilding(updatedRow.asset_id, updatedRow.building_number),
       assetValidators.validatePayerId(updatedRow.payer_id),
       assetValidators.validateAssetType(updatedRow.main_asset_type, 'main_asset_type'),
       assetValidators.validateMainAssetTypeComplete(updatedRow.building_number, updatedRow.main_asset_type, updatedRow.asset_size, updatedRow),

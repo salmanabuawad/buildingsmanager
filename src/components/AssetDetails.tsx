@@ -141,6 +141,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         inputValidators.validateDateFormat(updatedAsset.measurement_date),
         assetValidators.validateBuildingNumber(updatedAsset.building_number),
         assetValidators.validateAssetId(updatedAsset.asset_id),
+        assetValidators.validateAssetIdNotInOtherBuilding(updatedAsset.asset_id, updatedAsset.building_number, typeof assetId === 'number' ? assetId : undefined),
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
         assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset),

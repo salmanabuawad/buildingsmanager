@@ -487,6 +487,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
 
           const updatedData = { ...asset, ...changes };
           const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
+          const currentAssetId = isNewAsset ? undefined : (typeof assetId === 'number' ? assetId : (typeof asset.id === 'number' ? asset.id : undefined));
 
           // For new assets, validate all required fields
           if (isNewAsset) {
@@ -513,6 +514,13 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             const assetIdValidation = await assetValidators.validateAssetId(updatedData.asset_id);
             if (!assetIdValidation.valid) {
               errors.push(`נכס ${updatedData.asset_id}: ${assetIdValidation.error}`);
+              continue;
+            }
+
+            // Validate asset_id not in other building (for new assets, currentAssetId is undefined)
+            const assetIdBuildingValidation = await assetValidators.validateAssetIdNotInOtherBuilding(updatedData.asset_id, updatedData.building_number, undefined);
+            if (!assetIdBuildingValidation.valid) {
+              errors.push(`נכס ${updatedData.asset_id}: ${assetIdBuildingValidation.error}`);
               continue;
             }
 
@@ -573,6 +581,13 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               const validation = await assetValidators.validateAssetId(changes.asset_id as string);
               if (!validation.valid) {
                 errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
+                continue;
+              }
+              
+              // Also validate that the new asset_id is not in another building
+              const buildingValidation = await assetValidators.validateAssetIdNotInOtherBuilding(changes.asset_id as string, updatedData.building_number, currentAssetId);
+              if (!buildingValidation.valid) {
+                errors.push(`נכס ${asset.asset_id}: ${buildingValidation.error}`);
                 continue;
               }
             }

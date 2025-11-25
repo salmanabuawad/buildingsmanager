@@ -1100,50 +1100,47 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       {allMeasurements.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg border border-blue-100">
           <div className="p-3">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                {t('measurementHistory')} ({allMeasurements.length})
-              </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleValidateLatestRow}
-                  disabled={isSaving || isValidating || !latestMeasurement}
-                  className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title="אמת את הנכס"
-                >
-                  {isValidating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  <span className="text-sm">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
-                </button>
-                <button
-                  onClick={handleSaveChanges}
-                  disabled={isSaving || !hasChanges || validationErrors.size > 0}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : 'שמור שינויים'}
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  <span className="text-sm">{t('save')}</span>
-                </button>
-                <button
-                  onClick={handleCancelChanges}
-                  disabled={isSaving || !hasChanges}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="text-sm">{t('cancel')}</span>
-                </button>
-              </div>
-            </div>
             {/* Latest Measurement Grid */}
             <div className="mb-4">
-              <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידה אחרונה</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-slate-800">מדידה אחרונה</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleValidateLatestRow}
+                    disabled={isSaving || isValidating || !latestMeasurement}
+                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    title="אמת את הנכס"
+                  >
+                    {isValidating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    <span className="text-sm">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
+                  </button>
+                  <button
+                    onClick={handleSaveChanges}
+                    disabled={isSaving || !hasChanges || validationErrors.size > 0}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : 'שמור שינויים'}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    <span className="text-sm">{t('save')}</span>
+                  </button>
+                  <button
+                    onClick={handleCancelChanges}
+                    disabled={isSaving || !hasChanges}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="text-sm">{t('cancel')}</span>
+                  </button>
+                </div>
+              </div>
               <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '120px', width: '100%' }}>
                 <AgGridReact<Asset>
                   ref={gridRef}
@@ -1257,7 +1254,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             {/* History Records Grid */}
             {historyRows.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידות קודמות</h3>
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידות קודמות ({historyRows.length})</h3>
                 <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}

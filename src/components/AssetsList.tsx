@@ -1222,13 +1222,20 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
         )}
         <div className="mb-2 flex justify-between items-center gap-2">
           <div className="flex gap-2">
-            <button
-              onClick={addEmptyRow}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-            >
-              <Plus className="h-4 w-4" />
-              הוסף נכס
-            </button>
+            {/* Hide add button if building has more than one tax zone */}
+            {(() => {
+              const hasMultipleTaxZones = building?.tax_region && building.tax_region.includes(',');
+              if (hasMultipleTaxZones) return null;
+              return (
+                <button
+                  onClick={addEmptyRow}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+                >
+                  <Plus className="h-4 w-4" />
+                  הוסף נכס
+                </button>
+              );
+            })()}
             <button
               onClick={handleBatchValidateBuildingAssets}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
@@ -1237,28 +1244,35 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
               אמת נכסים
             </button>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCancelAll}
-              disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-            >
-              <X className="h-4 w-4" />
-              ביטול
-            </button>
-            <button
-              onClick={handleSaveAll}
-              disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size + newAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size + newAssets.size})` : ''}`}
-            </button>
-          </div>
+          {/* Hide save and cancel buttons if building has more than one tax zone */}
+          {(() => {
+            const hasMultipleTaxZones = building?.tax_region && building.tax_region.includes(',');
+            if (hasMultipleTaxZones) return null;
+            return (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCancelAll}
+                  disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  <X className="h-4 w-4" />
+                  ביטול
+                </button>
+                <button
+                  onClick={handleSaveAll}
+                  disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size + newAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size + newAssets.size})` : ''}`}
+                </button>
+              </div>
+            );
+          })()}
         </div>
         <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
           <AgGridReact

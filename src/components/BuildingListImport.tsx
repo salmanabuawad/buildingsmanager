@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 
-export function FileImport() {
+export function BuildingListImport() {
   const { t } = useTranslation();
   const [isImporting, setIsImporting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -32,11 +32,25 @@ export function FileImport() {
         if (!line) continue;
 
         const parts = line.split(',').map(s => s.trim());
-        const [buildingNumberStr, taxRegion = ''] = parts;
+        const [buildingNumberStr, taxRegion = '', sharedAreaStr = '', sharedBusinessAreaStr = ''] = parts;
         const buildingNumber = parseInt(buildingNumberStr);
+        const sharedArea = sharedAreaStr ? parseFloat(sharedAreaStr) : undefined;
+        const sharedBusinessArea = sharedBusinessAreaStr ? parseFloat(sharedBusinessAreaStr) : undefined;
 
         if (isNaN(buildingNumber)) {
           errors.push(`שורה ${i + 1}: מספר מבנה לא תקין`);
+          errorCount++;
+          continue;
+        }
+
+        if (sharedAreaStr && isNaN(sharedArea!)) {
+          errors.push(`שורה ${i + 1}: שטח משותף מגורים לא תקין`);
+          errorCount++;
+          continue;
+        }
+
+        if (sharedBusinessAreaStr && isNaN(sharedBusinessArea!)) {
+          errors.push(`שורה ${i + 1}: שטח משותף עסקים לא תקין`);
           errorCount++;
           continue;
         }
@@ -45,8 +59,8 @@ export function FileImport() {
           await api.buildings.create({
             building_number: buildingNumber,
             tax_region: taxRegion || undefined,
-            total_assets: 0,
-            total_building_area: 0
+            shared_area: sharedArea,
+            shared_business_area: sharedBusinessArea
           });
           successCount++;
         } catch (error) {
@@ -72,15 +86,15 @@ export function FileImport() {
   }
 
   function downloadTemplate() {
-    const template = `1001,10
-1002,20
-1003,30,40
+    const template = `1001,10,150.5,50.2
+1002,20,200,75
+1003,40,10,300,100
 1004`;
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'buildings_template.file');
+    link.setAttribute('download', 'buildings_template.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -120,14 +134,16 @@ export function FileImport() {
             <ul className="list-disc list-inside space-y-2 text-slate-700 mb-4 mr-4">
               <li><strong>מספר מבנה</strong> (חובה) - מספר שלם</li>
               <li><strong>אזור מס</strong> (אופציונלי) - יכול להיות ערך בודד או צירוף תקין</li>
+              <li><strong>שטח משותף מגורים</strong> (אופציונלי) - מספר עשרוני</li>
+              <li><strong>שטח משותף עסקים</strong> (אופציונלי) - מספר עשרוני</li>
             </ul>
 
             <div className="bg-white rounded-lg p-4 border border-slate-300">
               <p className="font-semibold text-slate-900 mb-2">דוגמה:</p>
               <pre className="font-mono text-sm text-slate-700 leading-relaxed">
-1001,10
-1002,20
-1003,40,10
+1001,10,150.5,50.2
+1002,20,200,75
+1003,40,10,300,100
 1004
               </pre>
             </div>
@@ -187,3 +203,4 @@ export function FileImport() {
     </div>
   );
 }
+

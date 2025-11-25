@@ -7,7 +7,7 @@ import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
-import { FileImport } from './components/FileImport';
+import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu } from 'lucide-react';
 import { api } from './lib/api';
@@ -15,7 +15,7 @@ import { assetValidators, validateEntity } from './lib/validation';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'csv-import' | 'assets-file-import' | 'asset-details';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'asset-details';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -215,7 +215,7 @@ function App() {
 
     const newTab: Tab = {
       id: fileImportTabId,
-      type: 'csv-import',
+      type: 'building-list-import',
       label: 'ייבוא File'
     };
 
@@ -637,7 +637,7 @@ function App() {
                       <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'asset-type-fields' ? (
                       <Database className="h-4 w-4 text-purple-700" />
-                    ) : tab.type === 'csv-import' ? (
+                    ) : tab.type === 'building-list-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'assets-file-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
@@ -706,8 +706,8 @@ function App() {
             {activeTab?.type === 'asset-type-fields' && (
               <AssetTypeFieldsManager />
             )}
-            {activeTab?.type === 'csv-import' && (
-              <FileImport />
+            {activeTab?.type === 'building-list-import' && (
+              <BuildingListImport />
             )}
             {activeTab?.type === 'assets-file-import' && (
               <AssetsFileImport />

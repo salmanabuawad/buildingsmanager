@@ -219,6 +219,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
       building_number: tempId,
       tax_region: null,
       shared_area: null,
+      shared_business_area: null,
       area_for_control: null,
       total_building_area: null,
       elevator: null,
@@ -315,11 +316,12 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
           }
 
           // Create new building
-          const { building_number, tax_region, shared_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = building;
+          const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = building;
           await api.buildings.create({
             building_number,
             tax_region,
             shared_area,
+            shared_business_area,
             area_for_control,
             total_building_area,
             elevator,
@@ -572,6 +574,36 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'shared_area')
+    },
+    {
+      field: 'shared_business_area',
+      headerName: 'שטח משותף עסקים',
+      editable: false,
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        const isNewBuilding = building.building_number < 0;
+        const errors = validationErrors.get(building.building_number);
+        const errorMsg = errors && errors['shared_business_area'];
+        
+        // Show blank for new buildings or if value is null/undefined
+        if (isNewBuilding && (params.value === null || params.value === undefined)) {
+          return '';
+        }
+        const value = params.value ? params.value.toLocaleString() : '';
+
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'shared_business_area')
     },
     {
       field: 'total_building_area',
@@ -919,7 +951,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
               className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
             >
               <Plus className="h-4 w-4" />
-              הוסף שורה
+              הוסף מבנה
             </button>
           </div>
           <div className="flex gap-2">

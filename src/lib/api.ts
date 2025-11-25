@@ -6,6 +6,7 @@ export interface Building {
   building_number: number;
   tax_region?: string;
   shared_area?: number;
+  shared_business_area?: number;
   elevator?: string;
   area_for_control?: number;
   created_at: string;
@@ -196,6 +197,9 @@ function sanitizeBuildingInput(input: any): any {
   }
   if (input.shared_area != null) {
     sanitized.shared_area = sanitizeNumber(input.shared_area);
+  }
+  if (input.shared_business_area != null) {
+    sanitized.shared_business_area = sanitizeNumber(input.shared_business_area);
   }
   if (input.area_for_control != null) {
     sanitized.area_for_control = sanitizeNumber(input.area_for_control);

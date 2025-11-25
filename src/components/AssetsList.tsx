@@ -145,12 +145,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       // Build comprehensive validation list
+      // IMPORTANT: taxRegion is taken from the tab data (component prop) for validation
       const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
       const validations = [
         assetValidators.validateBuildingNumber(updatedAsset.building_number),
         assetValidators.validateAssetId(updatedAsset.asset_id),
         assetValidators.validatePayerId(updatedAsset.payer_id),
         assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
+        // Use taxRegion from the current tab for validation
         assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, taxRegion),
         assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
           updatedAsset.sub_asset_type_1,
@@ -231,6 +233,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
+        // Use taxRegion from the current tab for validation
         assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion),
         assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion),
         assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion),
@@ -757,10 +760,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setNewAssets(prev => new Set(prev).add(tempId));
 
     // Run validation rules on the new asset (async, don't block UI)
+    // IMPORTANT: taxRegion is taken from the tab data (component prop) for validation
     AssetValidationHandler.validateSingleAsset(
       newAsset,
       {
-        taxRegion: taxRegion
+        taxRegion: taxRegion // Use taxRegion from the current tab
       }
     ).then(validationResult => {
       if (!validationResult.passed && validationResult.errors.length > 0) {
@@ -1020,14 +1024,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (!asset) return null;
         
         const assetId = String(asset.id);
+        // Allow temporary IDs for new assets (e.g., "temp-1234567890")
         if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
         
-        // Safety checks for state variables
-        if (!newAssets || !deletedAssets || !validationErrors || !selectedAssets) return null;
+        // Safety checks for state variables - use empty defaults if undefined
+        const safeNewAssets = newAssets || new Set<string>();
+        const safeDeletedAssets = deletedAssets || new Set<string>();
+        const safeValidationErrors = validationErrors || new Map<string, string>();
+        const safeSelectedAssets = selectedAssets || new Set<string>();
         
-        const isNew = newAssets.has(assetId);
-        const isDeleted = deletedAssets.has(assetId);
-        const hasValidationError = validationErrors.has(assetId);
+        const isNew = safeNewAssets.has(assetId);
+        const isDeleted = safeDeletedAssets.has(assetId);
+        const hasValidationError = safeValidationErrors.has(assetId);
         
         // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
         // Delete button should be visible for all assets (new and existing), same as view asset button
@@ -1039,7 +1047,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Show checkbox only when a specific tax region is selected (single tax region tab)
         // Checkbox should be visible for both new and existing assets
         const shouldShowCheckbox = !!taxRegion;
-        const isSelected = selectedAssets.has(assetId);
+        const isSelected = safeSelectedAssets.has(assetId);
         
         return (
           <div className="flex items-center justify-center gap-1 h-full">
@@ -1050,7 +1058,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 onChange={(e) => {
                   e.stopPropagation();
                   setSelectedAssets(prev => {
-                    const next = new Set(prev);
+                    const next = new Set(prev || []);
                     if (e.target.checked) {
                       next.add(assetId);
                     } else {
@@ -1063,16 +1071,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 title="בחר להעברת שטחים"
               />
             )}
-            {hasValidationError && validationErrors && (
+            {hasValidationError && safeValidationErrors && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const errorMsg = validationErrors?.get(assetId) || 'שגיאת אימות';
+                  const errorMsg = safeValidationErrors?.get(assetId) || 'שגיאת אימות';
                   setError(errorMsg);
                   setTimeout(() => setError(null), 5000);
                 }}
                 className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                title={validationErrors?.get(assetId) || 'שגיאת אימות'}
+                title={safeValidationErrors?.get(assetId) || 'שגיאת אימות'}
               >
                 <AlertCircle className="h-5 w-5" />
               </button>

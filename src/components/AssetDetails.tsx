@@ -775,7 +775,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               </div>
             )}
             <button
-              onClick={() => hasDrawing && handleViewDrawing(asset.structure_drawing_url!)}
+              onClick={() => {
+                if (hasDrawing && asset.structure_drawing_url) {
+                  handleViewDrawing(asset.structure_drawing_url);
+                }
+              }}
               disabled={!hasDrawing}
               className={`flex items-center justify-center w-5 h-5 rounded-full transition-colors duration-200 ${
                 !hasDrawing

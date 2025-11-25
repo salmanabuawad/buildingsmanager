@@ -32,6 +32,7 @@ export function BuildingsList({
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
   
@@ -367,6 +368,7 @@ export function BuildingsList({
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
     
     try {
       let savedCount = 0;
@@ -489,22 +491,22 @@ export function BuildingsList({
       // Clear successfully processed buildings
       setDirtyBuildings(prev => {
         const next = new Map(prev);
-        for (const buildingNumber of successfullySaved) {
-          next.delete(buildingNumber);
+        for (const buildingKey of successfullySaved) {
+          next.delete(buildingKey);
         }
         return next;
       });
       setBuildingsToDelete(prev => {
         const next = new Set(prev);
-        for (const buildingNumber of successfullyDeleted) {
-          next.delete(buildingNumber);
+        for (const buildingKey of successfullyDeleted) {
+          next.delete(buildingKey);
         }
         return next;
       });
       setNewBuildings(prev => {
         const next = new Set(prev);
-        for (const buildingNumber of successfullySaved) {
-          next.delete(buildingNumber);
+        for (const buildingKey of successfullySaved) {
+          next.delete(buildingKey);
         }
         return next;
       });
@@ -524,11 +526,39 @@ export function BuildingsList({
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} מבנים`);
         if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} מבנים`);
         setError(`${successMsg.join(', ')}. ${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
+        setSuccess(null);
       } else {
+        const successMsg = [];
+        if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} מבנים`);
+        if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} מבנים`);
+        if (successMsg.length > 0) {
+          setSuccess(successMsg.join(', '));
+          setTimeout(() => setSuccess(null), 3000);
+        }
         setError(null);
       }
 
+      // Refresh data to get updated buildings from database
+      // This will also update originalBuildings for future cancel operations
       await fetchBuildings(false);
+      
+      // Update originalBuildings after successful save
+      setOriginalBuildings(prev => {
+        const updated = [...prev];
+        for (const buildingKey of successfullySaved) {
+          const building = findBuildingByKey(buildingKey);
+          if (building && !building._isNew && !building._tempId) {
+            // Replace or add the saved building
+            const index = updated.findIndex(b => b.building_number === building.building_number);
+            if (index >= 0) {
+              updated[index] = { ...building };
+            } else {
+              updated.push({ ...building });
+            }
+          }
+        }
+        return updated;
+      });
     } catch (error: any) {
       const errorMsg = `שגיאה בשמירה: ${error.message || error.toString()}`;
       console.error('[BuildingsList] Error saving changes:', error);
@@ -1160,7 +1190,27 @@ export function BuildingsList({
 
       setShowCreateModal(false);
       setNewBuilding({ building_number: '', tax_region: '' });
+      // Refresh data to get updated buildings from database
+      // This will also update originalBuildings for future cancel operations
       await fetchBuildings(false);
+      
+      // Update originalBuildings after successful save
+      setOriginalBuildings(prev => {
+        const updated = [...prev];
+        for (const buildingKey of successfullySaved) {
+          const building = findBuildingByKey(buildingKey);
+          if (building && !building._isNew && !building._tempId) {
+            // Replace or add the saved building
+            const index = updated.findIndex(b => b.building_number === building.building_number);
+            if (index >= 0) {
+              updated[index] = { ...building };
+            } else {
+              updated.push({ ...building });
+            }
+          }
+        }
+        return updated;
+      });
     } catch (error: any) {
       const errorMsg = `Failed to create building: ${error.message || error.toString()}`;
       setError(errorMsg);
@@ -1185,6 +1235,13 @@ export function BuildingsList({
         <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg">
             <p className="text-red-800 font-medium">{t('error')}: {error}</p>
+          </div>
+        </div>
+      )}
+      {success && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
+          <div className="bg-green-50 border-l-4 border-green-500 rounded-lg p-4 shadow-lg">
+            <p className="text-green-800 font-medium">{success}</p>
           </div>
         </div>
       )}

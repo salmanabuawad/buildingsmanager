@@ -817,9 +817,9 @@ export const api = {
           throw new Error(`שגיאה בבדיקת נכס קיים: ${checkError.message}`);
         }
 
-        // If asset exists, copy it to history and then update it
+        // If asset exists, move it to history and create a new entry
         if (existingAsset) {
-          console.log('[API] Asset with asset_id exists, copying to history and updating:', existingAsset);
+          console.log('[API] Asset with asset_id exists, moving to history and creating new entry:', existingAsset);
           
           // Copy existing asset to history
           const { error: historyError } = await supabase
@@ -862,34 +862,52 @@ export const api = {
               console.error('[API ERROR] Error copying asset to history:', historyError);
               throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}`);
             } else {
-              console.log('[API] Asset already exists in history, continuing with update');
+              console.log('[API] Asset already exists in history, continuing with delete and insert');
             }
           } else {
             console.log('[API] Asset copied to history successfully');
           }
 
-          // Update the existing asset with new measurement data
-          const { data: updatedAsset, error: updateError } = await supabase
+          // Delete the existing asset from assets table
+          const { error: deleteError } = await supabase
             .from('assets')
-            .update(sanitizedInput)
-            .eq('asset_id', sanitizedInput.asset_id)
+            .delete()
+            .eq('asset_id', sanitizedInput.asset_id);
+
+          if (deleteError) {
+            console.error('[API ERROR] Delete asset failed:', {
+              asset_id: sanitizedInput.asset_id,
+              message: deleteError.message,
+              details: deleteError.details,
+              hint: deleteError.hint,
+              code: deleteError.code
+            });
+            throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
+          }
+
+          console.log('[API] Existing asset deleted successfully');
+
+          // Insert new asset with new measurement data
+          const { data: newAsset, error: insertError } = await supabase
+            .from('assets')
+            .insert(sanitizedInput)
             .select()
             .single();
 
-          if (updateError) {
-            console.error('[API ERROR] Update asset failed:', {
+          if (insertError) {
+            console.error('[API ERROR] Insert new asset failed:', {
               input,
               sanitizedInput,
-              message: updateError.message,
-              details: updateError.details,
-              hint: updateError.hint,
-              code: updateError.code
+              message: insertError.message,
+              details: insertError.details,
+              hint: insertError.hint,
+              code: insertError.code
             });
-            throw new Error(`שגיאה בעדכון נכס: ${updateError.message}`);
+            throw new Error(`שגיאה ביצירת נכס חדש: ${insertError.message}`);
           }
 
-          console.log('[API] Asset updated successfully:', updatedAsset);
-          return updatedAsset;
+          console.log('[API] New asset created successfully:', newAsset);
+          return newAsset;
         }
       }
 

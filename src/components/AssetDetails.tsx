@@ -1315,22 +1315,27 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
               </div>
             )}
 
+            {/* PDF Viewer Modal */}
             {selectedDrawingUrl && (
-              <div className="mt-6">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-800">{t('structureDrawing')}</h3>
-                  <button
-                    onClick={() => setSelectedDrawingUrl(null)}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
-                  >
-                    <X className="h-4 w-4" />
-                    <span>{t('closeViewer')}</span>
-                  </button>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setSelectedDrawingUrl(null)}>
+                <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-slate-800">{t('structureDrawing')}</h3>
+                    <button
+                      onClick={() => setSelectedDrawingUrl(null)}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+                    >
+                      <X className="h-4 w-4" />
+                      <span>{t('closeViewer')}</span>
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto p-4">
+                    <PDFViewer
+                      fileUrl={selectedDrawingUrl}
+                      fileName={`structure-drawing-${assetId}.pdf`}
+                    />
+                  </div>
                 </div>
-                <PDFViewer
-                  fileUrl={selectedDrawingUrl}
-                  fileName={`structure-drawing-${assetId}.pdf`}
-                />
               </div>
             )}
           </div>

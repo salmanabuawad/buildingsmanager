@@ -1243,10 +1243,40 @@ export const api = {
       return data;
     },
     update: async (id: number, input: Partial<AssetType>): Promise<AssetType> => {
+      // Clean input: convert empty strings to null/undefined for numeric fields
+      const cleanedInput: any = { ...input };
+      
+      // Handle numeric fields: convert empty strings to null
+      if ('tax_region' in cleanedInput && cleanedInput.tax_region === '') {
+        cleanedInput.tax_region = null;
+      } else if ('tax_region' in cleanedInput && typeof cleanedInput.tax_region === 'string') {
+        const parsed = parseInt(cleanedInput.tax_region);
+        cleanedInput.tax_region = isNaN(parsed) ? null : parsed;
+      }
+      
+      if ('min_size' in cleanedInput && cleanedInput.min_size === '') {
+        cleanedInput.min_size = null;
+      } else if ('min_size' in cleanedInput && typeof cleanedInput.min_size === 'string') {
+        const parsed = parseFloat(cleanedInput.min_size);
+        cleanedInput.min_size = isNaN(parsed) ? null : parsed;
+      }
+      
+      if ('max_size' in cleanedInput && cleanedInput.max_size === '') {
+        cleanedInput.max_size = null;
+      } else if ('max_size' in cleanedInput && typeof cleanedInput.max_size === 'string') {
+        const parsed = parseFloat(cleanedInput.max_size);
+        cleanedInput.max_size = isNaN(parsed) ? null : parsed;
+      }
+      
+      // Remove undefined values to prevent Supabase errors
+      const finalInput = Object.fromEntries(
+        Object.entries(cleanedInput).filter(([_, v]) => v !== undefined)
+      );
+      
       // Try id first, then asset_type as fallback
       let { data, error } = await supabase
         .from('asset_types')
-        .update(input)
+        .update(finalInput)
         .eq('id', id)
         .select()
         .single();
@@ -1255,7 +1285,7 @@ export const api = {
       if (error && error.code === '42703') {
         const result = await supabase
           .from('asset_types')
-          .update(input)
+          .update(finalInput)
           .eq('asset_type', id)
           .select()
           .single();

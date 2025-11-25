@@ -321,6 +321,13 @@ export function AssetTypes() {
       headerName: 'אזור מיסים',
       editable: true,
       valueFormatter: (params) => params.value || '',
+      valueParser: (params) => {
+        if (params.newValue === '' || params.newValue === null || params.newValue === undefined) {
+          return null;
+        }
+        const parsed = parseInt(params.newValue);
+        return isNaN(parsed) ? null : parsed;
+      },
       cellStyle: { textAlign: 'left' },
       headerClass: 'text-left'
     },
@@ -624,6 +631,13 @@ export function AssetTypes() {
       headerName: 'שטח מ',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      valueParser: (params) => {
+        if (params.newValue === '' || params.newValue === null || params.newValue === undefined) {
+          return null;
+        }
+        const parsed = parseFloat(params.newValue);
+        return isNaN(parsed) ? null : parsed;
+      },
       cellStyle: (params) => {
         const baseStyle = { textAlign: 'left' as const };
         const assetTypeId = params.data?.id;
@@ -638,6 +652,13 @@ export function AssetTypes() {
       headerName: 'שטח עד',
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
+      valueParser: (params) => {
+        if (params.newValue === '' || params.newValue === null || params.newValue === undefined) {
+          return null;
+        }
+        const parsed = parseFloat(params.newValue);
+        return isNaN(parsed) ? null : parsed;
+      },
       cellStyle: (params) => {
         const baseStyle = { textAlign: 'left' as const };
         const assetTypeId = params.data?.id;

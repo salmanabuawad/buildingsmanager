@@ -872,7 +872,7 @@ export const api = {
             // Provide a clear error message based on the error type
             if (historyError.code === '23505') {
               // Duplicate key error - record already exists in history
-              throw new Error(`שגיאה: נכס עם asset_id ${existingAsset.asset_id} ותאריך מדידה ${existingAsset.measurement_date} כבר קיים בטבלת ההיסטוריה. לא ניתן להעתיק אותו שוב.`);
+              throw new Error('לא ניתן להכניס יותר ממדידה אחת לנכס עם אותו תאריך מדידה');
             } else {
               // Any other error
               throw new Error(`שגיאה בהעתקת נכס להיסטוריה: ${historyError.message}${historyError.details ? ` (${historyError.details})` : ''}${historyError.hint ? ` - ${historyError.hint}` : ''}`);

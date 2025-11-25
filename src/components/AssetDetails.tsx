@@ -43,6 +43,19 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     return allMeasurements.find(m => m.is_latest === true) || null;
   }, [allMeasurements]);
 
+  // Pin the first row (latest measurement) at the top
+  const pinnedTopRowData = useMemo(() => {
+    if (latestMeasurement) {
+      return [latestMeasurement];
+    }
+    return [];
+  }, [latestMeasurement]);
+
+  // Get history rows (all except the latest)
+  const historyRows = useMemo(() => {
+    return allMeasurements.filter(m => m.is_latest !== true);
+  }, [allMeasurements]);
+
   const assetTaxRegion = useMemo(() => {
     if (!asset?.main_asset_type || assetTypes.length === 0) return null;
     const assetType = assetTypes.find(at => String(at.name) === String(asset.main_asset_type));
@@ -1372,7 +1385,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
               <AgGridReact<Asset>
                 ref={gridRef}
-                rowData={allMeasurements}
+                rowData={historyRows}
+                pinnedTopRowData={pinnedTopRowData}
                 columnDefs={columnDefs}
                 defaultColDef={{
                   resizable: true,

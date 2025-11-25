@@ -502,7 +502,10 @@ export const api = {
           historyQuery = historyQuery.eq('building_number', buildingNumber);
         }
 
-        const { data: historyData, error: historyError } = await historyQuery.order('measurement_date', { ascending: false });
+        // Sort by history_created_at (database insertion date) descending, then by measurement_date as fallback
+        const { data: historyData, error: historyError } = await historyQuery
+          .order('history_created_at', { ascending: false, nullsFirst: false })
+          .order('measurement_date', { ascending: false });
 
         if (historyError) {
           console.error('[API ERROR] Error fetching assets_history:', historyError);
@@ -514,18 +517,36 @@ export const api = {
           throw historyError;
         }
 
-        // Parse dates for sorting
-        const parseDate = (dateStr: string) => {
-          const parts = dateStr.split('/');
-          if (parts.length === 3) {
-            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-          }
-          return new Date(dateStr);
-        };
-
-        // Sort history records by measurement_date (newest first)
+        // Sort history records by history_created_at (database insertion date) descending
+        // If history_created_at is null, use created_at or id as fallback
         const sortedHistory = (historyData || []).map(h => ({ ...h, is_latest: false }))
-          .sort((a, b) => parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime());
+          .sort((a, b) => {
+            // Primary sort: history_created_at (database insertion date)
+            const aDate = a.history_created_at || a.created_at || a.id;
+            const bDate = b.history_created_at || b.created_at || b.id;
+            
+            if (aDate && bDate) {
+              const aTime = new Date(aDate).getTime();
+              const bTime = new Date(bDate).getTime();
+              return bTime - aTime; // Descending (newest first)
+            }
+            
+            // Fallback: if one has date and other doesn't, put the one with date first
+            if (aDate && !bDate) return -1;
+            if (!aDate && bDate) return 1;
+            
+            // Final fallback: sort by measurement_date
+            const parseDate = (dateStr: string) => {
+              if (!dateStr) return 0;
+              const parts = dateStr.split('/');
+              if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime();
+              }
+              return new Date(dateStr).getTime();
+            };
+            
+            return parseDate(b.measurement_date) - parseDate(a.measurement_date);
+          });
 
         // Combine: first record from assets table, then all history records
         const allRecords: Asset[] = [];

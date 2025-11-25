@@ -436,7 +436,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
     try {
       // Pre-fetch all required data once (performance optimization)
       const [buildingAssets, assetTypesData, buildingData] = await Promise.all([
-        api.assets.getAll(buildingNumber),
+        api.assets.getAllAssetsWithHistory(buildingNumber),
         api.assetTypes.getAll(),
         api.buildings.getOne(buildingNumber).catch(() => null)
       ]);

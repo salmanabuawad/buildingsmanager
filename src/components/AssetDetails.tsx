@@ -548,12 +548,64 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         sub_asset_size_6: latestRow.sub_asset_size_6,
       };
 
-      await api.assets.create(newMeasurement);
+      const createdAsset = await api.assets.create(newMeasurement);
       setToast({ message: 'New measurement created successfully', type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
+      
+      // Update the asset state with the new asset data (which has the new id)
+      if (createdAsset) {
+        setAsset(createdAsset);
+        // Update the assetId for future fetches by storing it in a ref or state
+        // Since assetId is a prop, we'll use the asset state for fetching
+      }
+      
       if (onDataUpdate) onDataUpdate();
-      await fetchData();
+      
+      // Fetch data using asset_id instead of id, since the id changed
+      // We'll use the created asset's id or fetch by asset_id
+      if (createdAsset) {
+        // Update the component to use the new id for fetching
+        // Since we can't change the prop, we'll fetch directly using asset_id
+        try {
+          setLoading(true);
+          const assetTypesData = await api.assetTypes.getAll();
+          setAssetTypes(assetTypesData || []);
+          
+          const buildingData = await api.buildings.getOne(createdAsset.building_number);
+          setBuilding(buildingData);
+          
+          // Fetch all records using asset_id
+          let allAssetMeasurements: Asset[] = [];
+          try {
+            allAssetMeasurements = await api.assets.getAssetWithHistory(createdAsset.asset_id, createdAsset.building_number);
+            
+            console.log('[AssetDetails] Fetched measurements after new measurement:', {
+              totalCount: allAssetMeasurements.length,
+              latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+              historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+            });
+          } catch (historyErr) {
+            console.error('[AssetDetails] Error fetching asset history:', historyErr);
+            const masterRecord = { ...createdAsset, is_latest: true };
+            allAssetMeasurements = [masterRecord];
+          }
+          
+          setAllMeasurements(allAssetMeasurements);
+          if (dirtyAssets.size === 0) {
+            setOriginalMeasurements(allAssetMeasurements);
+          }
+          setError(null);
+        } catch (fetchErr) {
+          console.error('[AssetDetails] Error fetching data after new measurement:', fetchErr);
+          setError(fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Fallback to regular fetchData if createdAsset is not available
+        await fetchData();
+      }
     } catch (error) {
       setToast({
         message: error instanceof Error ? error.message : 'Failed to create new measurement',

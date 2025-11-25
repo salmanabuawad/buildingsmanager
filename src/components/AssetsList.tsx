@@ -100,32 +100,45 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       // This now includes both master records from assets and detail records from assets_history
       setAllAssets(assetsData || []);
       
-      // Filter assets by tax region if taxZone is provided
-      let filteredAssets = assetsData || [];
+      // Separate master records (from assets table) from history records (from assets_history table)
+      // Master records are those that appear first for each asset_id (they come from assets table)
+      // History records are those that come after (from assets_history table)
+      const masterRecords: Asset[] = [];
+      const historyRecords: Asset[] = [];
+      const seenAssetIds = new Set<number>();
+      
+      for (const asset of assetsData || []) {
+        if (!seenAssetIds.has(asset.asset_id)) {
+          // First occurrence of this asset_id is the master record
+          masterRecords.push(asset);
+          seenAssetIds.add(asset.asset_id);
+        } else {
+          // Subsequent occurrences are history records
+          historyRecords.push(asset);
+        }
+      }
+      
+      // Filter only master records by tax region if taxZone is provided
+      // History records should NOT be filtered by tax zone
+      let filteredMasterAssets = masterRecords;
       if (taxZone) {
         const taxZoneNum = parseInt(taxZone.trim());
         const taxZoneStr = taxZone.trim();
         
-        console.log('[AssetsList] Filtering by taxZone:', taxZone);
-        console.log('[AssetsList] Total assets before filtering:', (assetsData || []).length);
-        console.log('[AssetsList] Total asset types loaded:', assetTypesData?.length || 0);
+        console.log('[AssetsList] Filtering master records by taxZone:', taxZone);
+        console.log('[AssetsList] Total master records before filtering:', masterRecords.length);
+        console.log('[AssetsList] Total history records (unfiltered):', historyRecords.length);
         
-        // Step 1: Go through each building asset
-        // Step 2: For each asset, take its asset type (main_asset_type)
-        // Step 3: Use that asset type to get tax_region from asset_types table
-        // Step 4: Filter assets where tax_region matches the requested taxZone
+        filteredMasterAssets = [];
         
-        filteredAssets = [];
-        
-        for (const asset of assetsData || []) {
+        for (const asset of masterRecords) {
           // Skip assets without main_asset_type
           if (!asset.main_asset_type) {
             continue;
           }
           
-          // Step 2 & 3: Take the asset's main_asset_type and look it up in asset_types table
+          // Look up asset type to get tax_region
           const assetType = (assetTypesData || []).find(at => {
-            // Match by name field in asset_types table
             return String(at.name || '').trim() === String(asset.main_asset_type || '').trim();
           });
           
@@ -134,7 +147,6 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             continue;
           }
           
-          // Get the tax_region from the asset_types table
           const assetTaxRegion = assetType.tax_region;
           
           if (assetTaxRegion == null) {
@@ -142,26 +154,20 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
             continue;
           }
           
-          // Step 4: Check if the tax_region matches the requested taxZone
+          // Check if the tax_region matches the requested taxZone
           const taxRegionMatches = assetTaxRegion === taxZoneNum || String(assetTaxRegion) === taxZoneStr;
           
           if (taxRegionMatches) {
-            filteredAssets.push(asset);
-          } else {
-            console.log('[AssetsList] Asset', asset.asset_id, 'has asset type', asset.main_asset_type, 'with tax_region', assetTaxRegion, 'which does not match', taxZone);
+            filteredMasterAssets.push(asset);
           }
         }
         
-        console.log('[AssetsList] Total assets after filtering:', filteredAssets.length);
-        if (filteredAssets.length > 0) {
-          console.log('[AssetsList] Filtered assets sample:', filteredAssets.slice(0, 3).map(a => ({ 
-            id: a.asset_id, 
-            type: a.main_asset_type,
-            tax_region: (assetTypesData || []).find(at => at.name === a.main_asset_type)?.tax_region
-          })));
-        }
+        console.log('[AssetsList] Total master records after filtering:', filteredMasterAssets.length);
       }
       
+      // Combine filtered master records with all history records
+      // History records are not filtered by tax zone
+      const filteredAssets = [...filteredMasterAssets, ...historyRecords];
       setAssets(filteredAssets);
       // Debug for asset 100501
       const asset100501Records = filteredAssets.filter(a => String(a.asset_id) === '100501');

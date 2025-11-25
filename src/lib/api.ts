@@ -524,6 +524,66 @@ export const api = {
       };
     },
     getAllAssetsWithHistory: async (buildingNumber: number): Promise<Asset[]> => {
+      // Call PostgreSQL function to get both master and details in one database call
+      const { data, error } = await supabase.rpc('get_assets_with_history', {
+        p_building_number: buildingNumber
+      });
+
+      if (error) {
+        console.error('[API ERROR] Error calling get_assets_with_history:', error);
+        // Fallback to separate queries if function doesn't exist
+        if (error.code === '42883' || error.message.includes('function') || error.message.includes('does not exist')) {
+          console.log('[API] Function not found, falling back to separate queries');
+          return await getAllAssetsWithHistoryFallback(buildingNumber);
+        }
+        throw error;
+      }
+
+      // Parse the JSON response
+      const masterAssets: Asset[] = data?.master || [];
+      const historyAssets: Asset[] = data?.details || [];
+
+      // Sort history records by measurement_date
+      const parseDate = (dateStr: string) => {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return new Date(dateStr);
+      };
+
+      // Group history records by asset_id
+      const historyByAssetId = new Map<number, Asset[]>();
+      historyAssets.forEach(record => {
+        const assetId = record.asset_id;
+        if (!historyByAssetId.has(assetId)) {
+          historyByAssetId.set(assetId, []);
+        }
+        historyByAssetId.get(assetId)!.push(record);
+      });
+
+      // Sort each asset's history by measurement_date
+      historyByAssetId.forEach((history, assetId) => {
+        historyByAssetId.set(assetId, history.sort((a, b) =>
+          parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
+        ));
+      });
+
+      // Combine master records with their history
+      const result: Asset[] = [];
+      masterAssets.forEach(master => {
+        // Add master record
+        result.push(master);
+        
+        // Add history records for this asset
+        const history = historyByAssetId.get(master.asset_id) || [];
+        result.push(...history);
+      });
+
+      return result;
+    },
+    // Fallback method if database function doesn't exist
+    getAllAssetsWithHistoryFallback: async (buildingNumber: number): Promise<Asset[]> => {
       // Fetch all master records from assets table for the building
       const { data: masterAssets, error: masterError } = await supabase
         .from('assets')

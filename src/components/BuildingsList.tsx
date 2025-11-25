@@ -440,7 +440,7 @@ export function BuildingsList({
             }
 
             const { building_number, tax_region, shared_area, shared_business_area, area_for_control, total_building_area, elevator, single_double_family, condo, townhouses } = finalBuilding;
-            const createdBuilding = await api.buildings.create({
+            await api.buildings.create({
               building_number,
               tax_region,
               shared_area,
@@ -453,24 +453,23 @@ export function BuildingsList({
               townhouses
             });
             
-            // Update the building in state to remove _isNew and _tempId, similar to AssetDataEntry
-            setBuildings(prev => prev.map(b => {
+            // Remove the old building from state - fetchBuildings will add it back from database
+            setBuildings(prev => prev.filter(b => {
               const bKey = getBuildingKey(b);
-              if (bKey === buildingKey) {
-                return { ...createdBuilding, _isNew: false };
-              }
-              return b;
+              return bKey !== buildingKey;
             }));
-            setFilteredBuildings(prev => prev.map(b => {
+            setFilteredBuildings(prev => prev.filter(b => {
               const bKey = getBuildingKey(b);
-              if (bKey === buildingKey) {
-                return { ...createdBuilding, _isNew: false };
-              }
-              return b;
+              return bKey !== buildingKey;
             }));
             
             savedCount++;
+            // Add both the original key and the new building_number to successfullySaved
+            // because dirtyBuildings might have been updated to use the new building_number
             successfullySaved.add(buildingKey);
+            if (createdBuilding.building_number && createdBuilding.building_number > 0) {
+              successfullySaved.add(createdBuilding.building_number);
+            }
           } else {
             const actualBuildingNumber = building.building_number;
             if (!actualBuildingNumber || actualBuildingNumber <= 0) {
@@ -488,11 +487,28 @@ export function BuildingsList({
         }
       }
 
-      // Clear successfully processed buildings
+      // Clear successfully processed buildings BEFORE fetchBuildings
+      // Collect all possible keys (tempId and building_number) for each saved building
+      const allKeysToClear = new Set<string | number>();
+      for (const buildingKey of successfullySaved) {
+        allKeysToClear.add(buildingKey);
+        const building = findBuildingByKey(buildingKey);
+        if (building) {
+          // Add the building_number if it exists
+          if (building.building_number && building.building_number > 0) {
+            allKeysToClear.add(building.building_number);
+          }
+          // Add the tempId if it exists
+          if (building._tempId) {
+            allKeysToClear.add(building._tempId);
+          }
+        }
+      }
+
       setDirtyBuildings(prev => {
         const next = new Map(prev);
-        for (const buildingKey of successfullySaved) {
-          next.delete(buildingKey);
+        for (const key of allKeysToClear) {
+          next.delete(key);
         }
         return next;
       });
@@ -512,8 +528,8 @@ export function BuildingsList({
       });
       setValidationErrors(prev => {
         const next = new Map(prev);
-        for (const buildingKey of successfullySaved) {
-          next.delete(buildingKey);
+        for (const key of allKeysToClear) {
+          next.delete(key);
         }
         for (const buildingKey of successfullyDeleted) {
           next.delete(buildingKey);
@@ -541,6 +557,11 @@ export function BuildingsList({
       // Refresh data to get updated buildings from database
       // This will also update originalBuildings for future cancel operations
       await fetchBuildings(false);
+      
+      // Force refresh grid to clear dirty styling after state updates
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
       
       // Update originalBuildings after successful save
       setOriginalBuildings(prev => {
@@ -873,7 +894,7 @@ export function BuildingsList({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value ? params.value.toLocaleString() : '';
+        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
@@ -913,7 +934,7 @@ export function BuildingsList({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value ? params.value.toLocaleString() : '';
+        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
@@ -949,7 +970,7 @@ export function BuildingsList({
         const buildingKey = getBuildingKey(building);
         const errors = validationErrors.get(buildingKey);
         const hasAreaMismatch = errors && errors['area_for_control'];
-        const value = params.value ? params.value.toLocaleString() : '0';
+        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (hasAreaMismatch) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
@@ -1004,7 +1025,7 @@ export function BuildingsList({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value ? params.value.toLocaleString() : '';
+        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>

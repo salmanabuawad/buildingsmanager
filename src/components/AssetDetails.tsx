@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, Plus, AlertCircle, Upload, Eye, CheckCircle2 } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2 } from 'lucide-react';
 import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
@@ -36,7 +36,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [validationResults, setValidationResults] = useState<SingleAssetValidationResult | null>(null);
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
+  const historyGridRef = useRef<AgGridReact<Asset>>(null);
   const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
+  const { loadColumnState: loadHistoryColumnState, saveColumnState: saveHistoryColumnState, columnStateLoaded: historyColumnStateLoaded } = useGridPreferences(historyGridRef, 'asset_details_history_column_state');
 
   // Find the latest measurement (from assets table, is_latest=true)
   const latestMeasurement = useMemo(() => {
@@ -77,8 +79,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
     const baseStyle: any = {
       opacity: isLatest ? 1 : 0.7,
-      fontSize: isLatest ? '1.1em' : undefined,
-      fontWeight: isLatest ? '600' : undefined
+      fontSize: isLatest ? '1.2em' : undefined,
+      fontWeight: isLatest ? '600' : undefined,
+      fontStyle: isLatest ? 'normal' : 'italic'
     };
 
     if (hasErrors || hasInvalidPayerId || hasInvalidAssetId) {
@@ -481,239 +484,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     }
   }
 
-  async function handleNewMeasurement() {
-    if (!asset || !building) return;
-
-    // Use original data, not edited data
-    const latestRow = originalMeasurements.find(m => m.is_latest === true);
-    if (!latestRow) {
-      setToast({ message: 'No existing measurement to copy', type: 'error' });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // Comprehensive validation before saving
-      const validations = [
-        assetValidators.validateBuildingNumber(latestRow.building_number),
-        assetValidators.validateAssetId(latestRow.asset_id),
-        assetValidators.validatePayerId(latestRow.payer_id),
-        assetValidators.validateMainAssetTypeComplete(latestRow.building_number, latestRow.main_asset_type, latestRow.asset_size, latestRow),
-      ];
-
-      // Validate sub-asset types if they exist
-      if (latestRow.sub_asset_type_1) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_1, latestRow.sub_asset_size_1)
-        );
-      }
-      if (latestRow.sub_asset_type_2) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_2, latestRow.sub_asset_size_2)
-        );
-      }
-      if (latestRow.sub_asset_type_3) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_3, latestRow.sub_asset_size_3)
-        );
-      }
-      if (latestRow.sub_asset_type_4) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_4, latestRow.sub_asset_size_4)
-        );
-      }
-      if (latestRow.sub_asset_type_5) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_5, latestRow.sub_asset_size_5)
-        );
-      }
-      if (latestRow.sub_asset_type_6) {
-        validations.push(
-          assetValidators.validateSubAssetTypeComplete(latestRow.building_number, latestRow.sub_asset_type_6, latestRow.sub_asset_size_6)
-        );
-      }
-
-      // Validate sub-assets constraints
-      validations.push(
-        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(latestRow.main_asset_type, [
-          latestRow.sub_asset_type_1,
-          latestRow.sub_asset_type_2,
-          latestRow.sub_asset_type_3,
-          latestRow.sub_asset_type_4,
-          latestRow.sub_asset_type_5,
-          latestRow.sub_asset_type_6
-        ]),
-        assetValidators.validateComplexTypesMustHaveSubAssets(latestRow.main_asset_type, [
-          latestRow.sub_asset_type_1,
-          latestRow.sub_asset_type_2,
-          latestRow.sub_asset_type_3,
-          latestRow.sub_asset_type_4,
-          latestRow.sub_asset_type_5,
-          latestRow.sub_asset_type_6
-        ]),
-        assetValidators.validateMinimumSubAssets([
-          latestRow.sub_asset_type_1,
-          latestRow.sub_asset_type_2,
-          latestRow.sub_asset_type_3,
-          latestRow.sub_asset_type_4,
-          latestRow.sub_asset_type_5,
-          latestRow.sub_asset_type_6
-        ]),
-        assetValidators.validateSubAssetSizeMatchesMain(
-          latestRow.asset_size,
-          [
-            latestRow.sub_asset_type_1,
-            latestRow.sub_asset_type_2,
-            latestRow.sub_asset_type_3,
-            latestRow.sub_asset_type_4,
-            latestRow.sub_asset_type_5,
-            latestRow.sub_asset_type_6
-          ],
-          [
-            latestRow.sub_asset_size_1,
-            latestRow.sub_asset_size_2,
-            latestRow.sub_asset_size_3,
-            latestRow.sub_asset_size_4,
-            latestRow.sub_asset_size_5,
-            latestRow.sub_asset_size_6
-          ]
-        ),
-        assetValidators.validateSubAssetsFor199Or299(
-          latestRow.building_number,
-          latestRow.main_asset_type,
-          latestRow.asset_size,
-          [
-            latestRow.sub_asset_type_1,
-            latestRow.sub_asset_type_2,
-            latestRow.sub_asset_type_3,
-            latestRow.sub_asset_type_4,
-            latestRow.sub_asset_type_5,
-            latestRow.sub_asset_type_6
-          ],
-          [
-            latestRow.sub_asset_size_1,
-            latestRow.sub_asset_size_2,
-            latestRow.sub_asset_size_3,
-            latestRow.sub_asset_size_4,
-            latestRow.sub_asset_size_5,
-            latestRow.sub_asset_size_6
-          ]
-        )
-      );
-
-      const validation = await validateAll(validations);
-      if (!validation.valid) {
-        setToast({ message: `שגיאת ולידציה: ${validation.error}`, type: 'error' });
-        return;
-      }
-
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, '0');
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const year = today.getFullYear();
-      const measurementDate = `${day}/${month}/${year}`;
-
-      // Ensure payer_id is not undefined
-      const payerId = latestRow.payer_id || '';
-
-      const newMeasurement = {
-        asset_id: latestRow.asset_id,
-        building_number: latestRow.building_number,
-        measurement_date: measurementDate,
-        payer_id: payerId,
-        main_asset_type: latestRow.main_asset_type,
-        asset_size: latestRow.asset_size,
-        sub_asset_type_1: latestRow.sub_asset_type_1,
-        sub_asset_size_1: latestRow.sub_asset_size_1,
-        sub_asset_type_2: latestRow.sub_asset_type_2,
-        sub_asset_size_2: latestRow.sub_asset_size_2,
-        sub_asset_type_3: latestRow.sub_asset_type_3,
-        sub_asset_size_3: latestRow.sub_asset_size_3,
-        sub_asset_type_4: latestRow.sub_asset_type_4,
-        sub_asset_size_4: latestRow.sub_asset_size_4,
-        sub_asset_type_5: latestRow.sub_asset_type_5,
-        sub_asset_size_5: latestRow.sub_asset_size_5,
-        sub_asset_type_6: latestRow.sub_asset_type_6,
-        sub_asset_size_6: latestRow.sub_asset_size_6,
-      };
-
-      const createdAsset = await api.assets.create(newMeasurement);
-      setToast({ message: 'New measurement created successfully', type: 'success' });
-      setDirtyAssets(new Map());
-      setValidationErrors(new Map());
-      setError(null); // Clear any previous errors on success
-      
-      // Update the asset state with the new asset data (which has the new id)
-      if (createdAsset) {
-        setAsset(createdAsset);
-        // Update the assetId for future fetches by storing it in a ref or state
-        // Since assetId is a prop, we'll use the asset state for fetching
-      }
-      
-      if (onDataUpdate) onDataUpdate();
-      
-      // Fetch data using asset_id instead of id, since the id changed
-      // We'll use the created asset's id or fetch by asset_id
-      if (createdAsset) {
-        // Update the component to use the new id for fetching
-        // Since we can't change the prop, we'll fetch directly using asset_id
-        try {
-          setLoading(true);
-          const assetTypesData = await api.assetTypes.getAll();
-          setAssetTypes(assetTypesData || []);
-          
-          const buildingData = await api.buildings.getOne(createdAsset.building_number);
-          setBuilding(buildingData);
-          
-          // Fetch all records using asset_id
-          let allAssetMeasurements: Asset[] = [];
-          try {
-            allAssetMeasurements = await api.assets.getAssetWithHistory(createdAsset.asset_id, createdAsset.building_number);
-            
-            console.log('[AssetDetails] Fetched measurements after new measurement:', {
-              totalCount: allAssetMeasurements.length,
-              latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-              historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-            });
-          } catch (historyErr) {
-            console.error('[AssetDetails] Error fetching asset history:', historyErr);
-            const masterRecord = { ...createdAsset, is_latest: true };
-            allAssetMeasurements = [masterRecord];
-          }
-          
-          setAllMeasurements(allAssetMeasurements);
-          if (dirtyAssets.size === 0) {
-            setOriginalMeasurements(allAssetMeasurements);
-          }
-        } catch (fetchErr) {
-          const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data';
-          console.error('[AssetDetails] Error fetching data after new measurement:', fetchErr);
-          setError(fetchErrorMessage);
-          setToast({ message: fetchErrorMessage, type: 'error' });
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        // Fallback to regular fetchData if createdAsset is not available
-        await fetchData();
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create new measurement';
-      console.error('[AssetDetails] Error creating new measurement:', error);
-      
-      // Show error as toast only - don't set error state to keep page editable
-      setToast({
-        message: errorMessage,
-        type: 'error'
-      });
-      
-      // Don't clear dirtyAssets or validationErrors - let user modify and try again
-      // Don't clear the form - keep all data so user can modify date or save as change
-      // Don't set error state - only show toast so page remains fully functional
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   // Helper function to get cell style for dirty fields
   const getCellStyle = (params: any, fieldName: string) => {
@@ -1369,27 +1139,16 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   <X className="h-4 w-4" />
                   <span className="text-sm">{t('cancel')}</span>
                 </button>
-                <button
-                  onClick={handleNewMeasurement}
-                  disabled={isSaving || !hasChanges || validationErrors.size > 0}
-                  className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  title={validationErrors.size > 0 ? 'תקן שגיאות לפני יצירת מדידה חדשה' : !hasChanges ? 'בצע שינויים כדי ליצור מדידה חדשה' : 'צור מדידה חדשה'}
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  <span className="text-sm">{t('newMeasurement')}</span>
-                </button>
               </div>
             </div>
-            <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
-              <AgGridReact<Asset>
-                ref={gridRef}
-                rowData={historyRows}
-                pinnedTopRowData={pinnedTopRowData}
-                columnDefs={columnDefs}
+            {/* Latest Measurement Grid */}
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידה אחרונה</h3>
+              <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: 'auto', width: '100%' }}>
+                <AgGridReact<Asset>
+                  ref={gridRef}
+                  rowData={pinnedTopRowData}
+                  columnDefs={columnDefs}
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,
@@ -1410,8 +1169,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 getPinnedRowStyle={(params) => {
                   // Style for pinned top row (first row)
                   return {
-                    fontSize: '1.1em',
+                    fontSize: '1.2em',
                     fontWeight: '600',
+                    fontStyle: 'normal',
                     backgroundColor: '#f0f9ff'
                   };
                 }}
@@ -1490,8 +1250,74 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 animateRows={true}
                 tooltipShowDelay={200}
                 tooltipHideDelay={10000}
+                domLayout="autoHeight"
               />
+              </div>
             </div>
+
+            {/* History Records Grid */}
+            {historyRows.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידות קודמות</h3>
+                <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '40vh', width: '100%' }}>
+                  <AgGridReact<Asset>
+                    ref={historyGridRef}
+                    rowData={historyRows}
+                    columnDefs={columnDefs}
+                    defaultColDef={{
+                      resizable: true,
+                      wrapHeaderText: true,
+                      autoHeaderHeight: true,
+                      wrapText: true,
+                      autoHeight: false,
+                      sortable: false,
+                      headerClass: 'ag-right-aligned-header'
+                    }}
+                    getRowId={(params) => {
+                      const isLatest = params.data.is_latest ? 'latest' : 'history';
+                      const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
+                      return `${params.data.id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
+                    }}
+                    getRowStyle={getRowStyle}
+                    onGridReady={async (params) => {
+                      const hasSavedState = await loadHistoryColumnState();
+                      if (!hasSavedState) {
+                        setTimeout(() => {
+                          const allColumnIds = params.api.getAllDisplayedColumns()
+                            .map(col => col.getColId())
+                            .filter(id => id !== 'actions');
+                          if (allColumnIds.length > 0) {
+                            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                          }
+                        }, 100);
+                      }
+                    }}
+                    onFirstDataRendered={async (params) => {
+                      if (!historyColumnStateLoaded) {
+                        const hasSavedState = await loadHistoryColumnState();
+                        if (!hasSavedState) {
+                          setTimeout(() => {
+                            const allColumnIds = params.api.getAllDisplayedColumns()
+                              .map(col => col.getColId())
+                              .filter(id => id !== 'actions');
+                            if (allColumnIds.length > 0) {
+                              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                            }
+                          }, 50);
+                        }
+                      }
+                    }}
+                    onColumnResized={saveHistoryColumnState}
+                    onColumnMoved={saveHistoryColumnState}
+                    onSortChanged={saveHistoryColumnState}
+                    enableRtl={true}
+                    animateRows={true}
+                    tooltipShowDelay={200}
+                    tooltipHideDelay={10000}
+                  />
+                </div>
+              </div>
+            )}
 
             {selectedDrawingUrl && (
               <div className="mt-6">

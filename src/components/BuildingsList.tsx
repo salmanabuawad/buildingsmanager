@@ -53,8 +53,8 @@ export function BuildingsList({
     let editedExistingBuildings = 0;
     for (const buildingKey of dirtyBuildings.keys()) {
       // If key is a string (tempId), it's a new building, skip it
-      // If key is a number >= 0 and not in newBuildings, it's an existing building edit
-      if (typeof buildingKey === 'number' && !newBuildings.has(buildingKey) && buildingKey >= 0) {
+      // If key is a number >= 0 and not in newBuildings and not marked for deletion, it's an existing building edit
+      if (typeof buildingKey === 'number' && !newBuildings.has(buildingKey) && !buildingsToDelete.has(buildingKey) && buildingKey >= 0) {
         editedExistingBuildings++;
       }
     }

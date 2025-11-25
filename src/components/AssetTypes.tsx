@@ -247,7 +247,7 @@ export function AssetTypes() {
       lockPinned: true,
       suppressMovable: true,
       suppressSizeToFit: true,
-      suppressMenu: true,
+      suppressHeaderMenuButton: true,
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,

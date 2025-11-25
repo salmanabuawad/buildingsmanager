@@ -876,7 +876,7 @@ export function AssetsList({ buildingNumber, taxZone, onSelectAsset }: AssetsLis
       lockPinned: true,
       suppressMovable: true,
       suppressSizeToFit: true,
-      suppressMenu: true,
+      suppressHeaderMenuButton: true,
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,

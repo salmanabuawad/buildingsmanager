@@ -663,12 +663,74 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       headerName: t('measurementDate'),
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'measurement_date'),
-      valueFormatter: (params) => params.value === '01/01/1900' ? '' : params.value,
+      valueFormatter: (params) => {
+        if (!params.value || params.value === '01/01/1900') return '';
+        // Ensure DD/MM/YYYY format
+        const dateStr = String(params.value).trim();
+        // If already in DD/MM/YYYY format, return as-is
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+          return dateStr;
+        }
+        // Try to parse other date formats and convert to DD/MM/YYYY
+        try {
+          const date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+          }
+        } catch (e) {
+          // If parsing fails, return original value
+        }
+        return dateStr;
+      },
       valueGetter: (params) => params.data.measurement_date,
       valueSetter: (params) => {
-        const newValue = params.newValue?.trim();
-        params.data.measurement_date = newValue || '01/01/1900';
+        let newValue = params.newValue?.trim() || '';
+        
+        // If empty, set to default
+        if (!newValue) {
+          params.data.measurement_date = '01/01/1900';
+          return true;
+        }
+        
+        // If already in DD/MM/YYYY format, validate and use it
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(newValue)) {
+          const [day, month, year] = newValue.split('/').map(Number);
+          const date = new Date(year, month - 1, day);
+          // Validate the date is valid
+          if (!isNaN(date.getTime()) &&
+              date.getDate() === day &&
+              date.getMonth() === month - 1 &&
+              date.getFullYear() === year) {
+            params.data.measurement_date = newValue;
+            return true;
+          }
+        }
+        
+        // Try to parse other date formats and convert to DD/MM/YYYY
+        try {
+          const date = new Date(newValue);
+          if (!isNaN(date.getTime())) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            params.data.measurement_date = `${day}/${month}/${year}`;
+            return true;
+          }
+        } catch (e) {
+          // If parsing fails, keep original value
+        }
+        
+        // If all parsing fails, set to default
+        params.data.measurement_date = '01/01/1900';
         return true;
+      },
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: {
+        maxLength: 10,
+        useFormatter: true,
       },
     },
     {
@@ -1118,7 +1180,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 ref={gridRef}
                 rowData={allMeasurements}
                 columnDefs={columnDefs}
-                enableSorting={false}
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,
@@ -1129,9 +1190,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   headerClass: 'ag-right-aligned-header'
                 }}
                 getRowId={(params) => {
-                  // Use id + measurement_date to ensure uniqueness
-                  // History records might have the same id as master record
-                  return `${params.data.id}-${params.data.measurement_date}`;
+                  // Use id + measurement_date + is_latest to ensure uniqueness
+                  // This prevents duplicates when same record appears in both tables
+                  const isLatest = params.data.is_latest ? 'latest' : 'history';
+                  const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
+                  return `${params.data.id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                 }}
                 getRowStyle={getRowStyle}
                 onGridReady={async (params) => {

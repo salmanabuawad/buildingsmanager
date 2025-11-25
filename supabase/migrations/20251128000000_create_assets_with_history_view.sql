@@ -25,7 +25,7 @@ SELECT
   a.penthouse,
   a.created_at,
   a.updated_at,
-  a.structure_drawing,
+  a.structure_drawing_url,
   true as is_latest,  -- Flag to indicate this is the latest record from assets table
   NULL::timestamp with time zone as history_created_at
 FROM assets a
@@ -55,7 +55,7 @@ SELECT
   h.penthouse,
   h.created_at,
   h.updated_at,
-  h.structure_drawing,
+  h.structure_drawing_url,
   false as is_latest,  -- Flag to indicate this is a historical record
   h.history_created_at
 FROM assets_history h;

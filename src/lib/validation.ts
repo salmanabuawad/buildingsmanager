@@ -230,12 +230,13 @@ export async function validateAssetTypeForBuildingTaxRegion(
     // Only fetch building data if taxRegion is NOT provided (for fallback)
     let buildingTaxRegions: string[];
     
-    if (taxRegion) {
+    // Check if taxRegion is provided and not empty (handle both undefined and empty string)
+    if (taxRegion && taxRegion.trim() !== '') {
       // Use ONLY the provided taxRegion - IGNORE building tax_region completely
       console.log('[validateAssetTypeForBuildingTaxRegion] Using passed taxRegion, IGNORING building tax_region:', taxRegion);
       buildingTaxRegions = [taxRegion.trim()];
     } else {
-      console.log('[validateAssetTypeForBuildingTaxRegion] No taxRegion provided, will fetch building tax_region');
+      console.log('[validateAssetTypeForBuildingTaxRegion] No taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
       // Fallback: if no taxRegion provided, fetch building and use its tax_region
       const { data: building, error: buildingError } = await supabase
         .from('buildings')
@@ -289,16 +290,27 @@ export async function validateAssetTypeForBuildingTaxRegion(
     // So we don't filter by tax region, just check it exists and is not in tax region 40
     if (assetTypeName === '199') {
       // Check that asset type 199 exists and is not in tax region 40
+      console.log('[validateAssetTypeForBuildingTaxRegion] Asset type 199: querying for tax_region != 40 (ignoring building tax_region)');
       query = query.neq('tax_region', 40);
     } else if (assetTypeName === '299') {
       // For 299, it must be in tax region 40
+      console.log('[validateAssetTypeForBuildingTaxRegion] Asset type 299: querying for tax_region = 40 (ignoring building tax_region)');
       query = query.eq('tax_region', 40);
     } else {
       // For other asset types, validate according to the passed tax region (from tab)
       // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY
       // This completely ignores the building's tax_region
       if (buildingTaxRegions.length > 0) {
-        query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+        console.log('[validateAssetTypeForBuildingTaxRegion] Other asset type: querying for tax_region IN', taxRegionNumbers, {
+          assetTypeName,
+          buildingTaxRegions,
+          taxRegionProvided: taxRegion,
+          usingPassedTaxRegion: taxRegion && taxRegion.trim() !== ''
+        });
+        query = query.in('tax_region', taxRegionNumbers);
+      } else {
+        console.log('[validateAssetTypeForBuildingTaxRegion] No tax regions to validate against');
       }
     }
 
@@ -366,7 +378,8 @@ export async function validateAssetTypeComplete(
     // IMPORTANT: If taxRegion is provided, COMPLETELY IGNORE the building's tax_region
     // Use ONLY the provided taxRegion for asset type validation
     let buildingTaxRegions: string[];
-    if (taxRegion) {
+    // Check if taxRegion is provided and not empty (handle both undefined and empty string)
+    if (taxRegion && taxRegion.trim() !== '') {
       // Use ONLY the provided taxRegion - IGNORE building tax_region completely
       console.log('[validateAssetTypeComplete] Using passed taxRegion, IGNORING building tax_region:', taxRegion, {
         buildingNumber,
@@ -376,7 +389,11 @@ export async function validateAssetTypeComplete(
       buildingTaxRegions = [taxRegion.trim()];
     } else {
       // Fallback: if no taxRegion provided, use all tax regions from the building
-      console.log('[validateAssetTypeComplete] No taxRegion provided, using building tax_region:', building.tax_region);
+      console.log('[validateAssetTypeComplete] No taxRegion provided, using building tax_region:', building.tax_region, {
+        taxRegionValue: taxRegion,
+        buildingNumber,
+        assetTypeName
+      });
       buildingTaxRegions = building.tax_region != null
         ? String(building.tax_region).split(',').map(r => r.trim())
         : [];
@@ -384,16 +401,27 @@ export async function validateAssetTypeComplete(
 
     // For asset type 199, it's valid in all tax regions except 40
     if (assetTypeName === '199') {
+      console.log('[validateAssetTypeComplete] Asset type 199: querying for tax_region != 40 (ignoring building tax_region)');
       query = query.neq('tax_region', 40);
     } else if (assetTypeName === '299') {
       // For 299, it must be in tax region 40
+      console.log('[validateAssetTypeComplete] Asset type 299: querying for tax_region = 40 (ignoring building tax_region)');
       query = query.eq('tax_region', 40);
     } else {
-    // For other asset types, validate according to the passed tax region (from tab) or building's tax regions if not provided
-    // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY - ignore building tax_region
-    if (buildingTaxRegions.length > 0) {
-      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
-    }
+      // For other asset types, validate according to the passed tax region (from tab) or building's tax regions if not provided
+      // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY - ignore building tax_region
+      if (buildingTaxRegions.length > 0) {
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+        console.log('[validateAssetTypeComplete] Other asset type: querying for tax_region IN', taxRegionNumbers, {
+          assetTypeName,
+          buildingTaxRegions,
+          taxRegionProvided: taxRegion,
+          usingPassedTaxRegion: taxRegion && taxRegion.trim() !== ''
+        });
+        query = query.in('tax_region', taxRegionNumbers);
+      } else {
+        console.log('[validateAssetTypeComplete] No tax regions to validate against');
+      }
     }
 
     const { data: assetTypes, error: assetTypeError } = await query;
@@ -796,7 +824,8 @@ export async function validateSubAssetsFor199Or299(
   // Only fetch building data if taxRegion is NOT provided (for fallback)
   let buildingTaxRegions: string[];
   
-  if (taxRegion) {
+  // Check if taxRegion is provided and not empty (handle both undefined and empty string)
+  if (taxRegion && taxRegion.trim() !== '') {
     // Use ONLY the provided taxRegion - IGNORE building tax_region completely
     console.log('[validateSubAssetsFor199Or299] Using passed taxRegion, IGNORING building tax_region:', taxRegion, {
       buildingNumber,
@@ -805,7 +834,7 @@ export async function validateSubAssetsFor199Or299(
     buildingTaxRegions = [taxRegion.trim()];
   } else {
     // Fallback: if no taxRegion provided, fetch building and use its tax_region
-    console.log('[validateSubAssetsFor199Or299] No taxRegion provided, will fetch building tax_region');
+    console.log('[validateSubAssetsFor199Or299] No taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
       .select('tax_region')
@@ -835,7 +864,16 @@ export async function validateSubAssetsFor199Or299(
     // Validate sub asset type according to the passed tax region (from tab) or building's tax regions if not provided
     // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY - ignore building tax_region
     if (buildingTaxRegions.length > 0) {
-      query = query.in('tax_region', buildingTaxRegions.map(r => parseInt(r)));
+      const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+      console.log('[validateSubAssetsFor199Or299] Querying asset_types for tax_region IN', taxRegionNumbers, {
+        subAssetType,
+        buildingTaxRegions,
+        taxRegionProvided: taxRegion,
+        usingPassedTaxRegion: taxRegion && taxRegion.trim() !== ''
+      });
+      query = query.in('tax_region', taxRegionNumbers);
+    } else {
+      console.log('[validateSubAssetsFor199Or299] No tax regions to validate against for sub asset type:', subAssetType);
     }
 
     const { data: assetTypes, error: assetTypeError } = await query;

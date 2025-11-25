@@ -37,7 +37,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
-  const validationTaxRegion = useMemo(() => taxRegion, [taxRegion]);
+  const validationTaxRegion = useMemo(() => {
+    console.log('[AssetsList] validationTaxRegion useMemo - taxRegion prop:', taxRegion);
+    return taxRegion;
+  }, [taxRegion]);
   
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
@@ -813,6 +816,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     // Run validation rules on the new asset (async, don't block UI)
     // IMPORTANT: validationTaxRegion is taken from the tab data (component prop) for validation
     // This validationTaxRegion will OVERRIDE the building's tax_region field during validation
+    console.log('[AssetsList.addEmptyRow] Calling validateSingleAsset with validationTaxRegion:', validationTaxRegion, {
+      assetId: newAsset.asset_id,
+      buildingNumber: newAsset.building_number,
+      mainAssetType: newAsset.main_asset_type
+    });
     AssetValidationHandler.validateSingleAsset(
       newAsset,
       {

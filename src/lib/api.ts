@@ -846,10 +846,10 @@ export const api = {
           console.log('[API] Asset with asset_id exists, moving to history and creating new entry:', existingAsset);
           
           // Copy existing asset to history
+          // Note: We don't include 'id' so the database generates a new unique id for the history record
           const { error: historyError } = await supabase
             .from('assets_history')
             .insert({
-              id: existingAsset.id,
               building_number: existingAsset.building_number,
               payer_id: existingAsset.payer_id,
               asset_id: existingAsset.asset_id,
@@ -1016,8 +1016,8 @@ export const api = {
 
       // Always move current record to history before updating
       // This ensures we preserve the current state before making changes
+      // Note: We don't include 'id' so the database generates a new unique id for the history record
       const historyData = {
-        id: existingAsset.id,
         building_number: existingAsset.building_number,
         payer_id: existingAsset.payer_id,
         asset_id: existingAsset.asset_id,

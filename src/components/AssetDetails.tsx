@@ -689,8 +689,48 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 type="checkbox"
                 checked={isChecked}
                 onChange={(e) => {
+                  e.stopPropagation(); // Prevent event bubbling
                   const newValue = e.target.checked ? 'כן' : null;
-                  params.setValue(newValue);
+                  
+                  // Only allow editing for latest records
+                  if (params.data.is_latest !== true) {
+                    return;
+                  }
+                  
+                  // Update the data directly in the node (this doesn't trigger onCellValueChanged)
+                  params.data.penthouse = newValue;
+                  params.node.setDataValue('penthouse', newValue);
+                  
+                  // Manually track the change in dirtyAssets
+                  const assetId = params.data.id;
+                  setDirtyAssets(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(assetId) || {};
+                    newMap.set(assetId, { ...existing, penthouse: newValue });
+                    return newMap;
+                  });
+                  
+                  // Clear any validation errors for this field
+                  setValidationErrors(prev => {
+                    const newMap = new Map(prev);
+                    const fieldErrors = newMap.get(assetId);
+                    if (fieldErrors) {
+                      fieldErrors.delete('penthouse');
+                      if (fieldErrors.size === 0) {
+                        newMap.delete(assetId);
+                      }
+                    }
+                    return newMap;
+                  });
+                  
+                  // Refresh only this specific cell
+                  if (params.api && params.node) {
+                    params.api.refreshCells({ 
+                      rowNodes: [params.node], 
+                      columns: ['penthouse'], 
+                      force: true 
+                    });
+                  }
                 }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
               />

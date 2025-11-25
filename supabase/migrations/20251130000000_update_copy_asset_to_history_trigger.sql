@@ -2,6 +2,48 @@
 -- 1. Remove 'id' from INSERT so database generates new unique id
 -- 2. Always copy to history on UPDATE (not just when specific fields change)
 -- 3. Also handle DELETE to copy to history before deletion
+-- 4. Remove ALL unique constraints and primary key from assets_history table
+
+DO $$
+DECLARE
+  constraint_rec RECORD;
+BEGIN
+  -- Drop primary key constraint if it exists (regardless of which column it's on)
+  IF EXISTS (
+    SELECT 1 
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE t.relname = 'assets_history'
+    AND c.contype = 'p'
+    AND c.conname = 'assets_history_pkey'
+  ) THEN
+    ALTER TABLE assets_history DROP CONSTRAINT assets_history_pkey;
+    RAISE NOTICE 'Dropped primary key constraint from assets_history';
+  END IF;
+  
+  -- Drop all unique constraints
+  FOR constraint_rec IN
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE t.relname = 'assets_history'
+    AND c.contype = 'u'
+  LOOP
+    EXECUTE format('ALTER TABLE assets_history DROP CONSTRAINT %I', constraint_rec.conname);
+    RAISE NOTICE 'Dropped unique constraint % from assets_history', constraint_rec.conname;
+  END LOOP;
+  
+  -- Drop any unique indexes
+  FOR constraint_rec IN
+    SELECT indexname
+    FROM pg_indexes
+    WHERE tablename = 'assets_history'
+    AND indexdef LIKE '%UNIQUE%'
+  LOOP
+    EXECUTE format('DROP INDEX IF EXISTS %I', constraint_rec.indexname);
+    RAISE NOTICE 'Dropped unique index % from assets_history', constraint_rec.indexname;
+  END LOOP;
+END $$;
 
 CREATE OR REPLACE FUNCTION copy_asset_to_history()
 RETURNS TRIGGER AS $$

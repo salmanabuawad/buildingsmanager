@@ -32,6 +32,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
+  
+  // Calculate total changes: new assets count as 1 each, even if edited
+  // Edited existing assets (not in newAssets) + new assets + deleted assets
+  const totalChanges = useMemo(() => {
+    let editedExistingAssets = 0;
+    for (const assetId of dirtyAssets.keys()) {
+      if (!newAssets.has(String(assetId))) {
+        editedExistingAssets++;
+      }
+    }
+    return newAssets.size + editedExistingAssets + deletedAssets.size;
+  }, [newAssets, dirtyAssets, deletedAssets]);
+  
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxRegion]);
@@ -1268,7 +1281,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
               <div className="flex gap-2">
                 <button
                   onClick={handleCancelAll}
-                  disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
+                  disabled={loading || totalChanges === 0}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
                   <X className="h-4 w-4" />
@@ -1276,7 +1289,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
                 </button>
                 <button
                   onClick={handleSaveAll}
-                  disabled={loading || (dirtyAssets.size === 0 && deletedAssets.size === 0 && newAssets.size === 0)}
+                  disabled={loading || totalChanges === 0}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
                   {loading ? (
@@ -1284,7 +1297,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset }: AssetsL
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {loading ? 'שומר...' : `שמור הכל${dirtyAssets.size + deletedAssets.size + newAssets.size > 0 ? ` (${dirtyAssets.size + deletedAssets.size + newAssets.size})` : ''}`}
+                  {loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
                 </button>
               </div>
             );

@@ -357,7 +357,7 @@ export const translations = {
       subAssetSize6: 'גודל 6',
       totalAreaForControl: 'סה"כ שטח לבקרה',
       elevator: 'מעלית',
-      sharedArea: 'שטח משותף',
+      sharedArea: 'שטח משותף מגורים',
       minAssetSize: 'גודל נכס מ',
       maxAssetSize: 'גודל נכס עד',
       assetDataEntry: 'הזנת נתוני נכס',

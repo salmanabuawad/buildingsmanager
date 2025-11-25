@@ -545,7 +545,7 @@ export function BuildingsList({ onSelectBuilding, onOpenAssetTypes, onOpenAssetS
     },
     {
       field: 'shared_area',
-      headerName: 'שטח משותף',
+      headerName: 'שטח משותף מגורים',
       editable: false,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

@@ -124,10 +124,18 @@ export class AssetValidationHandler {
           taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
           mainAssetType: asset.main_asset_type,
           assetIndex: i + 1,
-        totalAssets: assetsToValidate.length
-      });
+          totalAssets: assetsToValidate.length
+        });
+      }
 
-      const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
+      const result = await this.validateAssetInternal(
+        asset,
+        assetIdentifier,
+        undefined,
+        options?.taxRegion,
+        options?.cachedData,
+        options?.validationRules
+      );
       results.push(result);
     }
 

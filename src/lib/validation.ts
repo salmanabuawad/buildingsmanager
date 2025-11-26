@@ -606,16 +606,36 @@ export async function validateAssetTypeComplete(
 
       // Step 3: Check penthouse requirement
       if (assetType.penthouse != null && assetType.penthouse.trim() !== '') {
-        const requiredValue = assetType.penthouse.toLowerCase();
+        const requiredValue = String(assetType.penthouse).trim();
         const assetPenthouse = assetData?.penthouse;
-        const assetPenthouseValue = assetPenthouse ? String(assetPenthouse).toLowerCase() : '';
+        
+        // Normalize asset penthouse value to a boolean-like check
+        // Handle various formats: 'כן', 'yes', true, 'true', null, undefined, empty string
+        let isAssetPenthouse = false;
+        if (assetPenthouse != null && assetPenthouse !== '') {
+          if (typeof assetPenthouse === 'boolean') {
+            isAssetPenthouse = assetPenthouse;
+          } else {
+            const strValue = String(assetPenthouse).trim();
+            // Check for Hebrew 'כן' or English 'yes'/'true' (case-insensitive)
+            isAssetPenthouse = strValue === 'כן' || 
+                              strValue.toLowerCase() === 'yes' || 
+                              strValue.toLowerCase() === 'true';
+          }
+        }
+        
+        // Normalize required value
+        const requiredIsYes = requiredValue === 'כן' || requiredValue.toLowerCase() === 'yes';
+        const requiredIsNo = requiredValue === 'לא' || requiredValue.toLowerCase() === 'no';
 
-        if (requiredValue === 'כן' || requiredValue === 'yes') {
-          if (assetPenthouseValue !== 'כן' && assetPenthouseValue !== 'yes') {
+        if (requiredIsYes) {
+          // Asset type requires penthouse
+          if (!isAssetPenthouse) {
             errors.push('דורש דירת גג, אבל הנכס לא מסומן כדירת גג');
           }
-        } else if (requiredValue === 'לא' || requiredValue === 'no') {
-          if (assetPenthouseValue === 'כן' || assetPenthouseValue === 'yes') {
+        } else if (requiredIsNo) {
+          // Asset type does NOT allow penthouse
+          if (isAssetPenthouse) {
             errors.push('לא תקף לדירת גג, אבל הנכס מסומן כדירת גג');
           }
         }

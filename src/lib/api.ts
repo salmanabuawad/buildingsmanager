@@ -1006,10 +1006,12 @@ export const api = {
       // Remove fields that shouldn't be updated
       delete (sanitizedInput as any).id;
       delete (sanitizedInput as any).created_at;
-      // Ensure is_new_measurement is not set unless explicitly provided
-      // Regular updates should NOT set is_new_measurement flag
+      // Ensure is_new_measurement is explicitly set to false for regular updates
+      // Only "save as new measurement" should set it to true
+      // If we don't set it explicitly, PostgreSQL will keep the existing value (which might be true)
       if (!('is_new_measurement' in input)) {
-        delete (sanitizedInput as any).is_new_measurement;
+        // Explicitly set to false to prevent trigger from firing
+        (sanitizedInput as any).is_new_measurement = false;
       }
       
       console.log('[API] Sanitized input for update:', sanitizedInput);

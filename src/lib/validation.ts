@@ -454,24 +454,26 @@ export async function validateAssetTypeComplete(
       .eq('name', assetTypeName)
       .eq('active', 'כן'); // Only check active asset types
 
-    // IMPORTANT: If taxRegion is provided, COMPLETELY IGNORE the building's tax_region
+    // IMPORTANT: If taxRegion is provided from the tab, COMPLETELY IGNORE the building's tax_region
     // Use ONLY the provided taxRegion for asset type validation
     let buildingTaxRegions: string[];
     // Check if taxRegion is provided and not empty (handle both undefined and empty string)
     if (taxRegion && taxRegion.trim() !== '') {
       // Use ONLY the provided taxRegion - IGNORE building tax_region completely
-      console.log('[validateAssetTypeComplete] Using passed taxRegion, IGNORING building tax_region:', taxRegion, {
+      console.log('[validateAssetTypeComplete] Using passed taxRegion from tab, IGNORING building tax_region:', taxRegion, {
         buildingNumber,
         assetTypeName,
-        buildingTaxRegion: building.tax_region
+        buildingTaxRegion: building.tax_region,
+        willUse: 'PASSED TAX REGION (from tab)'
       });
       buildingTaxRegions = [taxRegion.trim()];
     } else {
       // Fallback: if no taxRegion provided, use all tax regions from the building
-      console.log('[validateAssetTypeComplete] No taxRegion provided, using building tax_region:', building.tax_region, {
+      console.log('[validateAssetTypeComplete] No taxRegion provided from tab, using building tax_region:', building.tax_region, {
         taxRegionValue: taxRegion,
         buildingNumber,
-        assetTypeName
+        assetTypeName,
+        willUse: 'BUILDING TAX REGION (fallback)'
       });
       buildingTaxRegions = building.tax_region != null
         ? String(building.tax_region).split(',').map(r => r.trim())
@@ -983,14 +985,16 @@ export async function validateField(
   let lookup: { assetTypes?: any[]; [key: string]: any } | undefined;
   
   if (Array.isArray(validationRulesOrTaxRegion)) {
-    // New signature: validationRules provided
+    // New signature: validationRules provided as 4th param
     validationRules = validationRulesOrTaxRegion;
     taxRegion = typeof taxRegionOrLookupData === 'string' ? taxRegionOrLookupData : undefined;
     lookup = typeof taxRegionOrLookupData === 'object' ? taxRegionOrLookupData : lookupData;
   } else {
-    // Old signature: load validation rules
+    // Old signature: taxRegion (or nothing) provided as 4th param, load validation rules
     validationRules = await loadValidationRules();
+    // If validationRulesOrTaxRegion is a string, it's taxRegion; otherwise undefined
     taxRegion = typeof validationRulesOrTaxRegion === 'string' ? validationRulesOrTaxRegion : undefined;
+    // If taxRegionOrLookupData is an object, it's lookupData; otherwise undefined
     lookup = typeof taxRegionOrLookupData === 'object' ? taxRegionOrLookupData : lookupData;
   }
   

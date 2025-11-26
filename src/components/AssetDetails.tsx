@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText } from 'lucide-react';
 import { Toast } from './Toast';
 import { PDFViewer } from './PDFViewer';
 import { AgGridReact } from 'ag-grid-react';
@@ -667,17 +667,26 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
-      headerName: t('structureDrawing'),
-      field: 'structure_drawing_url',
+      colId: 'actions',
+      headerName: t('actions') || 'פעולות',
       pinned: 'right',
       sortable: false,
       filter: false,
       editable: false,
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressSizeToFit: true,
+      suppressHeaderMenuButton: true,
+      headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
+        if (!asset) return null;
+        
         const assetId = asset.id;
         const hasDrawing = !!asset.structure_drawing_url;
 
+        // Collect validation errors
         const errors: string[] = [];
         if (validationErrors.has(assetId)) {
           const fieldErrors = validationErrors.get(assetId);
@@ -696,56 +705,85 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         if (hasInvalidAssetId) errors.push('Invalid asset ID - must be numeric');
 
         const hasErrors = errors.length > 0;
+        const isLatest = asset.is_latest === true;
 
         return (
-          <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center justify-center gap-1 h-full">
             {hasErrors && (
-              <div className="flex items-center justify-center" title={errors.join('\n')}>
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const errorMsg = errors.join('\n');
+                  setToast({ message: errorMsg, type: 'error' });
+                }}
+                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                title={errors.join('\n')}
+              >
+                <AlertCircle className="h-5 w-5" />
+              </button>
             )}
-            {asset.is_latest === true ? (
-              <label className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-600 hover:bg-teal-700 text-white cursor-pointer transition-colors duration-200" title={t('upload')}>
-                <Upload className="w-2.5 h-2.5" />
+            {isLatest ? (
+              <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
+                <Upload className="h-5 w-5" />
                 <input
                   type="file"
                   className="hidden"
                   accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) {
+                    if (file && asset.id) {
                       handleFileUpload(asset.id, file);
+                      e.target.value = '';
                     }
                   }}
                 />
               </label>
             ) : (
-              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 text-gray-400 cursor-not-allowed" title="Read-only">
-                <Upload className="w-2.5 h-2.5" />
+              <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title="Read-only">
+                <Upload className="h-5 w-5" />
               </div>
             )}
-            <button
-              onClick={() => {
-                if (hasDrawing && asset.structure_drawing_url) {
-                  handleViewDrawing(asset.structure_drawing_url);
-                }
-              }}
-              disabled={!hasDrawing}
-              className={`flex items-center justify-center w-5 h-5 rounded-full transition-colors duration-200 ${
-                !hasDrawing
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : selectedDrawingUrl === asset.structure_drawing_url
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-              title={hasDrawing ? (selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') : t('view')) : 'No drawing'}
-            >
-              <Eye className="w-2.5 h-2.5" />
-            </button>
+            {hasDrawing && asset.structure_drawing_url ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleViewDrawing(asset.structure_drawing_url!);
+                }}
+                className={`p-1 transition-colors hover:scale-110 ${
+                  selectedDrawingUrl === asset.structure_drawing_url
+                    ? 'text-green-600 hover:text-green-700'
+                    : 'text-green-600 hover:text-green-700'
+                }`}
+                title={selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') || 'צופה' : t('view') || 'צפה בקובץ'}
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+            ) : (
+              <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title={t('noFile') || 'אין קובץ'}>
+                <FileText className="h-5 w-5" />
+              </div>
+            )}
           </div>
         );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
+      headerName: t('structureDrawing'),
+      field: 'structure_drawing_url',
+      sortable: false,
+      filter: false,
+      editable: false,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        const hasDrawing = !!asset.structure_drawing_url;
+        return hasDrawing ? (
+          <span className="text-green-600">✓ {t('hasFile') || 'יש קובץ'}</span>
+        ) : (
+          <span className="text-gray-400">{t('noFile') || 'אין קובץ'}</span>
+        );
+      },
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'measurement_date',

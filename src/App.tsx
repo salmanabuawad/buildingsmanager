@@ -267,6 +267,20 @@ function App() {
     setActiveTabId(assetTypeFieldsTabId);
   }
 
+  function openAddressList() {
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
+    const addressListTabId = 'address-list-panel';
+
+    const newTab: Tab = {
+      id: addressListTabId,
+      type: 'address-list',
+      label: 'רשימת כתובות'
+    };
+
+    setTabs([buildingsTab, newTab]);
+    setActiveTabId(addressListTabId);
+  }
+
   function openFileImport() {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const fileImportTabId = 'file-import-panel';

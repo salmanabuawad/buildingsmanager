@@ -7,9 +7,11 @@ import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../hooks/useGridPreferences';
+import { useValidationRules } from '../contexts/ValidationContext';
 
 export function AssetTypes() {
   const { t } = useTranslation();
+  const { refreshRules } = useValidationRules();
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [originalAssetTypes, setOriginalAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,11 @@ export function AssetTypes() {
       };
 
       await api.assetTypes.create(dataToSave);
+      
+      // Reload validation rules after creating new asset type
+      await refreshRules();
+      console.log('[AssetTypes] Validation rules reloaded after creating new asset type');
+      
       showMessage('success', t('assetTypeCreated'));
       await fetchAssetTypes();
       resetForm();
@@ -778,6 +785,10 @@ export function AssetTypes() {
       }
 
       await fetchAssetTypes();
+
+      // Reload validation rules after importing asset types
+      await refreshRules();
+      console.log('[AssetTypes] Validation rules reloaded after importing asset types');
 
       if (errors.length > 0) {
         showMessage('error', `יובאו ${successCount} רשומות. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);

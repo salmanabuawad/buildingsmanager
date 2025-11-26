@@ -329,16 +329,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Use all assets directly (getAll returns only latest records from assets table)
       const assetsToValidate = filteredAssets;
 
-      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`);
+      console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`, {
+        taxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+        buildingNumber
+      });
 
       // Use unified validation handler
+      // IMPORTANT: validationTaxRegion from tab will override building tax_region for all validations
       const batchResult = await AssetValidationHandler.validateBuildingAssets(
         assetsToValidate,
         buildingNumber,
         {
           mode: 'building',
           validateOnlyLatest: true,
-          taxRegion: validationTaxRegion, // Use validationTaxRegion - this overrides building tax_region
+          taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - this overrides building tax_region for all validations
           onProgress: (progress) => {
             setBatchValidationProgress({
               current: progress.current,

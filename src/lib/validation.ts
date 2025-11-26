@@ -973,10 +973,11 @@ export async function validateField(
   entityType: string,
   fieldName: string,
   value: any,
-  taxRegion?: string
+  validationRules: ValidationRule[],
+  taxRegion?: string,
+  lookupData?: { assetTypes?: any[]; [key: string]: any }
 ): Promise<ValidationResult[]> {
-  const rules = await loadValidationRules();
-  const fieldRules = rules.filter(
+  const fieldRules = validationRules.filter(
     r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
 
@@ -985,7 +986,7 @@ export async function validateField(
   if (value == null || value === '') {
     const requiredRule = fieldRules.find(r => r.rule_type === 'required');
     if (requiredRule) {
-      const result = await applyRule(requiredRule, value, taxRegion);
+      const result = await applyRule(requiredRule, value, taxRegion, lookupData);
       if (!result.valid) {
         return [result];
       }
@@ -995,7 +996,7 @@ export async function validateField(
 
   const results: ValidationResult[] = [];
   for (const rule of fieldRules) {
-    const result = await applyRule(rule, value, taxRegion);
+    const result = await applyRule(rule, value, taxRegion, lookupData);
     results.push(result);
   }
 

@@ -399,34 +399,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       );
 
       // Map unified handler results to the expected format
-      // Filter to only include invalid results (errors array should only contain invalid assets)
-      // A result is invalid if valid is false OR if there are errors
-      const invalidResults = batchResult.results.filter(result => {
-        const isInvalid = !result.valid || (result.errors && result.errors.length > 0);
-        return isInvalid;
-      });
-      
+      // Include ALL results (both valid and invalid) in the errors array
+      // The modal will filter them based on the selected filter (all/valid/invalid)
       // Verify counters match the results
       const actualValid = batchResult.results.filter(r => r.valid && (!r.errors || r.errors.length === 0)).length;
       const actualInvalid = batchResult.results.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
       const actualTotal = batchResult.results.length;
       
       console.log(`[Batch Validation] Handler returned: total=${batchResult.total}, valid=${batchResult.valid}, invalid=${batchResult.invalid}, results.length=${batchResult.results.length}`);
-      console.log(`[Batch Validation] Recalculated: actualTotal=${actualTotal}, actualValid=${actualValid}, actualInvalid=${actualInvalid}, invalidResults.length=${invalidResults.length}`);
+      console.log(`[Batch Validation] Recalculated: actualTotal=${actualTotal}, actualValid=${actualValid}, actualInvalid=${actualInvalid}`);
       
-      // Use the recalculated counts to ensure accuracy
+      // Map ALL results (both valid and invalid) - the modal will filter them
       const results = {
         total: actualTotal, // Use actual count from results array
         valid: actualValid,  // Recalculate from results
         invalid: actualInvalid, // Recalculate from results
-        errors: invalidResults.map(result => {
+        errors: batchResult.results.map(result => {
           // Find the asset to get its database ID
           const asset = assetsToValidate.find(a => String(a.asset_id) === String(result.assetId));
           return {
             assetId: String(result.assetId),
             assetDbId: asset ? String(asset.id) : undefined,
             buildingNumber: asset?.building_number || buildingNumber,
-            errors: result.errors,
+            errors: result.errors || [], // Ensure errors is always an array
             passed: result.passed,
             matchedAssetTypeRecord: result.matchedAssetTypeRecord
           };

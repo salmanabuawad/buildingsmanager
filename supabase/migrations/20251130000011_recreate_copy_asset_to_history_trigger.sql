@@ -1,5 +1,18 @@
 -- Recreate the copy_asset_to_history trigger function to ensure it only fires when is_new_measurement is true
 -- Regular updates should NOT move records to history
+-- IMPORTANT: This migration assumes the is_new_measurement column exists (created in migration 20251130000004)
+
+-- First, ensure the column exists
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'assets' AND column_name = 'is_new_measurement'
+  ) THEN
+    ALTER TABLE assets ADD COLUMN is_new_measurement boolean DEFAULT false;
+    COMMENT ON COLUMN assets.is_new_measurement IS 'When true, indicates this is a new measurement. On UPDATE, the old record will be moved to history.';
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION copy_asset_to_history()
 RETURNS TRIGGER AS $$
@@ -7,7 +20,7 @@ BEGIN
   -- For UPDATE: copy to history ONLY if is_new_measurement flag is explicitly set to true
   IF TG_OP = 'UPDATE' THEN
     -- Check if is_new_measurement flag is explicitly set to true
-    -- Use COALESCE to handle NULL values - if column doesn't exist or is NULL, treat as false
+    -- Use COALESCE to handle NULL values - treat NULL as false
     IF COALESCE(NEW.is_new_measurement, false) = true THEN
       -- Copy old record to history (without id so database generates new unique id)
       INSERT INTO assets_history (

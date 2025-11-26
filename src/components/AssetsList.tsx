@@ -346,8 +346,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         });
       }
 
-      // Use all assets directly (getAll returns only latest records from assets table)
-      const assetsToValidate = filteredAssets;
+      // If assets are selected, only validate selected ones; otherwise validate all
+      let assetsToValidate: Asset[];
+      if (selectedAssets.size > 0) {
+        // Filter to only selected assets - match by asset_id (stored in selectedAssets)
+        assetsToValidate = filteredAssets.filter(asset => {
+          const assetId = String(asset.asset_id);
+          return selectedAssets.has(assetId);
+        });
+        console.log(`[Batch Validation] Validating ${assetsToValidate.length} selected assets out of ${filteredAssets.length} total`);
+      } else {
+        // Validate all assets
+        assetsToValidate = filteredAssets;
+        console.log(`[Batch Validation] Validating all ${assetsToValidate.length} assets`);
+      }
 
       console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`, {
         taxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
@@ -1560,9 +1572,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               onClick={handleBatchValidateBuildingAssets}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+              title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
             >
               <CheckCircle2 className="h-4 w-4" />
-              אמת נכסים
+              {selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}
             </button>
           </div>
           {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}

@@ -655,6 +655,8 @@ export function AddressListComponent() {
               if (!hasSavedState) {
                 setTimeout(() => {
                   params.api.autoSizeColumns({ skipHeader: true });
+                  // Then scale to fit grid width
+                  params.api.sizeColumnsToFit();
                 }, 100);
               }
             }}
@@ -664,6 +666,8 @@ export function AddressListComponent() {
                 if (!hasSavedState) {
                   setTimeout(() => {
                     params.api.autoSizeColumns({ skipHeader: true });
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
                   }, 50);
                 }
               }

@@ -1460,6 +1460,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       
                       if (allColumnIds.length > 0) {
                         params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                        // Then scale to fit grid width
+                        params.api.sizeColumnsToFit();
                       }
                     }, 100);
                   }
@@ -1478,6 +1480,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                         
                         if (allColumnIds.length > 0) {
                           params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                          // Then scale to fit grid width
+                          params.api.sizeColumnsToFit();
                         }
                       }, 50);
                     }
@@ -1569,6 +1573,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                             .filter(id => id !== 'actions');
                           if (allColumnIds.length > 0) {
                             params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                            // Then scale to fit grid width
+                            params.api.sizeColumnsToFit();
                           }
                         }, 100);
                       }
@@ -1591,6 +1597,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                               .filter(id => id !== 'actions');
                             if (allColumnIds.length > 0) {
                               params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                              // Then scale to fit grid width
+                              params.api.sizeColumnsToFit();
                             }
                           }, 50);
                         }

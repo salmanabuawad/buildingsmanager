@@ -1443,6 +1443,8 @@ export function BuildingsList({
                       .filter(id => id !== 'actions');
                     if (allColumnIds.length > 0) {
                       params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      // Then scale to fit grid width
+                      params.api.sizeColumnsToFit();
                     }
                   }, 100);
                 }
@@ -1479,6 +1481,8 @@ export function BuildingsList({
                         .filter(id => id !== 'actions');
                       if (allColumnIds.length > 0) {
                         params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                        // Then scale to fit grid width
+                        params.api.sizeColumnsToFit();
                       }
                     }, 50);
                   }

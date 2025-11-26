@@ -494,6 +494,8 @@ export function AssetTypeFieldsManager() {
               if (!hasSavedState) {
                 const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                // Then scale to fit grid width
+                params.api.sizeColumnsToFit();
               }
 
               // Ensure actions column stays pinned after any operations
@@ -530,6 +532,8 @@ export function AssetTypeFieldsManager() {
                     
                     if (allColumnIds.length > 0) {
                       params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      // Then scale to fit grid width
+                      params.api.sizeColumnsToFit();
                     }
                   }, 50);
                 }

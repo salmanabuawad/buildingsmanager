@@ -1694,6 +1694,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   if (allColumnIds.length > 0) {
                     // Auto-size based on content (minimum width will be content width)
                     params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
                   }
                 }, 200);
               }
@@ -1732,6 +1734,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                       
                       // Then auto-size based on content
                       params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      // Then scale to fit grid width
+                      params.api.sizeColumnsToFit();
                     }
                   }, 150);
                 }

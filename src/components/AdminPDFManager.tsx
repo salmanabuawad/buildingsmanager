@@ -226,6 +226,8 @@ export function AdminPDFManager() {
             if (!hasSavedState) {
               const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
               params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+              // Then scale to fit grid width
+              params.api.sizeColumnsToFit();
             }
           }}
           onFirstDataRendered={async (params) => {
@@ -237,6 +239,8 @@ export function AdminPDFManager() {
               if (!hasSavedState) {
                 const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
                 params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                // Then scale to fit grid width
+                params.api.sizeColumnsToFit();
               }
             }
             

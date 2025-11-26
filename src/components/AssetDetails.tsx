@@ -1569,6 +1569,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     getRowStyle={getRowStyle}
                     onGridReady={async (params) => {
                       const hasSavedState = await loadHistoryColumnState();
+                      
+                      // Ensure actions column is visible
+                      const columnState = params.api.getColumnState();
+                      const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                      if (actionsCol && actionsCol.hide) {
+                        params.api.setColumnVisible('actions', true);
+                      }
+                      
                       if (!hasSavedState) {
                         setTimeout(() => {
                           const allColumnIds = params.api.getAllDisplayedColumns()
@@ -1583,6 +1591,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     onFirstDataRendered={async (params) => {
                       if (!historyColumnStateLoaded) {
                         const hasSavedState = await loadHistoryColumnState();
+                        
+                        // Ensure actions column is visible
+                        const columnState = params.api.getColumnState();
+                        const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                        if (actionsCol && actionsCol.hide) {
+                          params.api.setColumnVisible('actions', true);
+                        }
+                        
                         if (!hasSavedState) {
                           setTimeout(() => {
                             const allColumnIds = params.api.getAllDisplayedColumns()
@@ -1596,7 +1612,38 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       }
                     }}
                     onColumnResized={saveHistoryColumnState}
-                    onColumnMoved={saveHistoryColumnState}
+                    onColumnMoved={(params) => {
+                      // Prevent actions column from being moved - force it back to pinned right position
+                      try {
+                        const columnApi = (params as any).columnApi || params.api;
+                        if (columnApi && columnApi.getColumn) {
+                          const actionsColumn = columnApi.getColumn('actions');
+                          if (actionsColumn) {
+                            const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
+                            const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
+                            if (actionsIndex !== 0) {
+                              setTimeout(() => {
+                                if (historyGridRef.current?.api) {
+                                  const columnState = historyGridRef.current.api.getColumnState();
+                                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                                  const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                                  if (actionsCol) {
+                                    historyGridRef.current.api.applyColumnState({
+                                      state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                                      applyOrder: true
+                                    });
+                                  }
+                                }
+                              }, 0);
+                              return;
+                            }
+                          }
+                        }
+                      } catch (error) {
+                        console.warn('Error in history grid onColumnMoved:', error);
+                      }
+                      saveHistoryColumnState();
+                    }}
                     onSortChanged={saveHistoryColumnState}
                     enableRtl={true}
                     animateRows={true}

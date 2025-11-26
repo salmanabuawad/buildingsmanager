@@ -367,7 +367,9 @@ export function AddressListComponent() {
         const streetCodeStr = parts[streetCodeIndex] || '';
         const streetDescription = parts[streetDescriptionIndex] || '';
 
-        if (!streetCodeStr) {
+        if (!streetCodeStr || streetCodeStr.trim() === '') {
+          errors.push(`שורה ${i + 1}: סמל רחוב חסר. נתונים בשורה: "${streetCodeStr}" | "${streetDescription}"`);
+          errorCount++;
           processedCount++;
           if (totalLines > 0) {
             setImportProgress({
@@ -381,7 +383,7 @@ export function AddressListComponent() {
 
         const streetCode = parseInt(streetCodeStr);
         if (isNaN(streetCode) || streetCode < 0 || streetCode > 9999) {
-          errors.push(`שורה ${i + 1}: סמל רחוב לא תקין (חייב להיות מספר בין 0-9999)`);
+          errors.push(`שורה ${i + 1}: סמל רחוב לא תקין "${streetCodeStr}" (חייב להיות מספר בין 0-9999). שם רחוב: "${streetDescription}"`);
           errorCount++;
           processedCount++;
           if (totalLines > 0) {
@@ -395,7 +397,7 @@ export function AddressListComponent() {
         }
 
         if (!streetDescription || streetDescription.trim() === '') {
-          errors.push(`שורה ${i + 1}: שם רחוב לא יכול להיות ריק`);
+          errors.push(`שורה ${i + 1}: שם רחוב לא יכול להיות ריק. סמל רחוב: "${streetCodeStr}"`);
           errorCount++;
           processedCount++;
           if (totalLines > 0) {
@@ -417,7 +419,8 @@ export function AddressListComponent() {
           await api.addressList.create(addressData);
           successCount++;
         } catch (error) {
-          errors.push(`שורה ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          errors.push(`שורה ${i + 1}: שגיאה בשמירה - ${errorMsg}. סמל רחוב: "${streetCodeStr}", שם רחוב: "${streetDescription}"`);
           errorCount++;
         }
 
@@ -487,13 +490,17 @@ export function AddressListComponent() {
             <div className="flex-1">
               <div className="font-medium mb-2">{message.text}</div>
               {message.errors && message.errors.length > 0 && (
-                <div className="mt-3 max-h-60 overflow-y-auto">
-                  <div className="text-sm font-semibold mb-2">פרטי השגיאות:</div>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    {message.errors.map((error, index) => (
-                      <li key={index} className="text-red-700">{error}</li>
-                    ))}
-                  </ul>
+                <div className="mt-3">
+                  <div className="text-sm font-semibold mb-2">
+                    פרטי השגיאות ({message.errors.length} שגיאות):
+                  </div>
+                  <div className="max-h-96 overflow-y-auto border border-red-200 rounded p-3 bg-red-50/50">
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {message.errors.map((error, index) => (
+                        <li key={index} className="text-red-700 break-words">{error}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
             </div>

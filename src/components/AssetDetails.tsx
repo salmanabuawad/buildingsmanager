@@ -240,22 +240,22 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       );
 
       if (updatedAsset.sub_asset_type_1) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1));
+        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, undefined, undefined, updatedAsset));
       }
       if (updatedAsset.sub_asset_type_2) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2));
+        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, undefined, undefined, updatedAsset));
       }
       if (updatedAsset.sub_asset_type_3) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3));
+        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, undefined, undefined, updatedAsset));
       }
       if (updatedAsset.sub_asset_type_4) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4));
+        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, undefined, undefined, updatedAsset));
       }
       if (updatedAsset.sub_asset_type_5) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5));
+        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, undefined, undefined, updatedAsset));
       }
       if (updatedAsset.sub_asset_type_6) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6));
+        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, undefined, undefined, updatedAsset));
       }
 
       const validation = await validateAll(validations);

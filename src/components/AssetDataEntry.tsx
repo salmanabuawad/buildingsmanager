@@ -634,32 +634,32 @@ export function AssetDataEntry() {
       // Validate sub-asset types if they exist
       if (row.sub_asset_type_1) {
         validations.push(
-          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_1, row.sub_asset_size_1)
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_1, row.sub_asset_size_1, undefined, undefined, row)
         );
       }
       if (row.sub_asset_type_2) {
         validations.push(
-          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_2, row.sub_asset_size_2)
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_2, row.sub_asset_size_2, undefined, undefined, row)
         );
       }
       if (row.sub_asset_type_3) {
         validations.push(
-          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_3, row.sub_asset_size_3)
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_3, row.sub_asset_size_3, undefined, undefined, row)
         );
       }
       if (row.sub_asset_type_4) {
         validations.push(
-          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_4, row.sub_asset_size_4)
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_4, row.sub_asset_size_4, undefined, undefined, row)
         );
       }
       if (row.sub_asset_type_5) {
         validations.push(
-          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_5, row.sub_asset_size_5)
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_5, row.sub_asset_size_5, undefined, undefined, row)
         );
       }
       if (row.sub_asset_type_6) {
         validations.push(
-          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_6, row.sub_asset_size_6)
+          assetValidators.validateSubAssetTypeComplete(row.building_number, row.sub_asset_type_6, row.sub_asset_size_6, undefined, undefined, row)
         );
       }
 

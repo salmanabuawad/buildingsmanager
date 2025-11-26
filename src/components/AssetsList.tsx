@@ -203,7 +203,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 updatedAsset[field as keyof Asset] as string,
                 updatedAsset[sizeField] as number,
                 validationTaxRegion,
-                cachedData
+                cachedData,
+                updatedAsset // Pass main asset data for penthouse and building-level validations
               )
             );
           } else if (field.startsWith('sub_asset_size_')) {
@@ -216,7 +217,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   updatedAsset[typeField] as string,
                   updatedAsset[field as keyof Asset] as number,
                   validationTaxRegion,
-                  cachedData
+                  cachedData,
+                  updatedAsset // Pass main asset data for penthouse and building-level validations
                 )
               );
             }
@@ -656,7 +658,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   subAssetFields[i].type,
                   subAssetFields[i].size,
                   validationTaxRegion, // Pass validationTaxRegion from tab - this overrides building tax_region
-                  cachedData
+                  cachedData,
+                  updatedData // Pass main asset data for penthouse and building-level validations
                 );
                 if (!subAssetValidation.valid) {
                   errors.push(`נכס ${updatedData.asset_id}: נכס משנה ${i + 1}: ${subAssetValidation.error}`);

@@ -273,12 +273,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
         assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, taxRegion),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, taxRegion),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion, undefined, updatedAsset),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion, undefined, updatedAsset),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion, undefined, updatedAsset),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, taxRegion, undefined, updatedAsset),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, taxRegion, undefined, updatedAsset),
+        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, taxRegion, undefined, updatedAsset),
       );
 
       // Run all validations
@@ -551,12 +551,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             assetValidators.validateAssetType(updatedData.sub_asset_type_4, 'sub_asset_type_4'),
             assetValidators.validateAssetType(updatedData.sub_asset_type_5, 'sub_asset_type_5'),
             assetValidators.validateAssetType(updatedData.sub_asset_type_6, 'sub_asset_type_6'),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_1, updatedData.sub_asset_size_1, taxRegion),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_2, updatedData.sub_asset_size_2, taxRegion),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_3, updatedData.sub_asset_size_3, taxRegion),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_4, updatedData.sub_asset_size_4, taxRegion),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_5, updatedData.sub_asset_size_5, taxRegion),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_6, updatedData.sub_asset_size_6, taxRegion),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_1, updatedData.sub_asset_size_1, taxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_2, updatedData.sub_asset_size_2, taxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_3, updatedData.sub_asset_size_3, taxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_4, updatedData.sub_asset_size_4, taxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_5, updatedData.sub_asset_size_5, taxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_6, updatedData.sub_asset_size_6, taxRegion, undefined, updatedData),
           );
 
           const validation = await validateAll(validations);

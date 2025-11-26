@@ -1320,7 +1320,8 @@ export const assetValidators = {
     subAssetType: string | undefined,
     subAssetSize: number | undefined,
     taxRegion?: string,
-    cachedData?: { assetTypes?: any[]; building?: any }
+    cachedData?: { assetTypes?: any[]; building?: any },
+    mainAssetData?: any // Main asset data - used for penthouse validation (sub-assets check main asset's penthouse)
   ): Promise<ValidationResult> => {
     if (!subAssetType || !buildingNumber) {
       return { valid: true };
@@ -1334,7 +1335,8 @@ export const assetValidators = {
       };
     }
 
-    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0, undefined, taxRegion, cachedData);
+    // Pass main asset data for penthouse validation - sub-assets should check the main asset's penthouse value
+    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0, mainAssetData, taxRegion, cachedData);
   },
 
   validateSubAssetsFor199Or299: async (

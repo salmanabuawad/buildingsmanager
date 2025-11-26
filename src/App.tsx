@@ -487,7 +487,10 @@ function App() {
             const subValidation = await assetValidators.validateSubAssetTypeComplete(
               asset.building_number,
               subAssetTypes[i],
-              subAssetSizes[i]
+              subAssetSizes[i],
+              undefined,
+              undefined,
+              asset // Pass main asset data for penthouse and building-level validations
             );
             if (!subValidation.valid && subValidation.error) {
               assetErrors.push(`נכס משנה ${i + 1}: ${subValidation.error}`);

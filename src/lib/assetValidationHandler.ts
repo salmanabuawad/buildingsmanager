@@ -536,7 +536,8 @@ export class AssetValidationHandler {
           subAssetTypes[idx],
           subAssetSizes[idx],
           taxRegion, // Pass taxRegion to override building tax region for sub asset validation
-          cachedData
+          cachedData,
+          asset // Pass main asset data so penthouse validation can check main asset's penthouse value
         );
 
         if (!result.valid && result.error) {

@@ -669,7 +669,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       headerName: t('structureDrawing'),
       field: 'structure_drawing_url',
-      pinned: 'left',
+      pinned: 'right', // Pinned to the right side near the sidebar
       sortable: false,
       filter: false,
       editable: false,
@@ -1485,7 +1485,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
                 onColumnResized={saveColumnState}
                 onColumnMoved={(params) => {
-                  // Prevent structure drawing column from being moved - force it back to pinned left position
+                  // Prevent structure drawing column from being moved - force it back to pinned right position
                   try {
                     const columnApi = (params as any).columnApi || params.api;
                     if (columnApi && columnApi.getColumn) {
@@ -1493,7 +1493,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       if (structureDrawingColumn) {
                         const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
                         const structureDrawingIndex = allColumns.findIndex((col: any) => col.getColId() === 'structure_drawing_url');
-                        if (structureDrawingIndex !== 0) {
+                        const lastIndex = allColumns.length - 1;
+                        // Check if column is not at the last position (rightmost)
+                        if (structureDrawingIndex !== lastIndex) {
                           setTimeout(() => {
                             if (gridRef.current?.api) {
                               const columnState = gridRef.current.api.getColumnState();
@@ -1501,7 +1503,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                               const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
                               if (structureDrawingCol) {
                                 gridRef.current.api.applyColumnState({
-                                  state: [{ ...structureDrawingCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                                  state: [...otherCols, { ...structureDrawingCol, pinned: 'right', lockPosition: true }],
                                   applyOrder: true
                                 });
                               }
@@ -1596,7 +1598,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     }}
                     onColumnResized={saveHistoryColumnState}
                     onColumnMoved={(params) => {
-                      // Prevent structure drawing column from being moved - force it back to pinned left position
+                      // Prevent structure drawing column from being moved - force it back to pinned right position
                       try {
                         const columnApi = (params as any).columnApi || params.api;
                         if (columnApi && columnApi.getColumn) {
@@ -1604,7 +1606,9 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                           if (structureDrawingColumn) {
                             const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
                             const structureDrawingIndex = allColumns.findIndex((col: any) => col.getColId() === 'structure_drawing_url');
-                            if (structureDrawingIndex !== 0) {
+                            const lastIndex = allColumns.length - 1;
+                            // Check if column is not at the last position (rightmost)
+                            if (structureDrawingIndex !== lastIndex) {
                               setTimeout(() => {
                                 if (historyGridRef.current?.api) {
                                   const columnState = historyGridRef.current.api.getColumnState();
@@ -1612,7 +1616,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                                   const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
                                   if (structureDrawingCol) {
                                     historyGridRef.current.api.applyColumnState({
-                                      state: [{ ...structureDrawingCol, pinned: 'left', lockPosition: true }, ...otherCols],
+                                      state: [...otherCols, { ...structureDrawingCol, pinned: 'right', lockPosition: true }],
                                       applyOrder: true
                                     });
                                   }

@@ -14,7 +14,7 @@ export function AddressListComponent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; percentage: number } | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string; errors?: string[]; persistent?: boolean } | null>(null);
   const [dirtyAddresses, setDirtyAddresses] = useState<Map<number, Partial<AddressList>>>(new Map());
   const [deletedAddresses, setDeletedAddresses] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,9 +38,12 @@ export function AddressListComponent() {
     }
   }
 
-  function showMessage(type: 'success' | 'error' | 'info', text: string) {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
+  function showMessage(type: 'success' | 'error' | 'info', text: string, errors?: string[], persistent?: boolean) {
+    setMessage({ type, text, errors, persistent });
+    // Only auto-dismiss if not persistent
+    if (!persistent) {
+      setTimeout(() => setMessage(null), 3000);
+    }
   }
 
   const onCellValueChanged = useCallback(async (event: any) => {
@@ -301,7 +304,7 @@ export function AddressListComponent() {
       }
 
       if (streetCodeIndex === -1 || streetDescriptionIndex === -1) {
-        showMessage('error', 'לא נמצאו עמודות נכונות בקובץ. נדרשות: סמל_רחוב, שם_רחוב');
+        showMessage('error', 'לא נמצאו עמודות נכונות בקובץ. נדרשות: סמל_רחוב, שם_רחוב', undefined, true);
         setIsImporting(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -406,7 +409,7 @@ export function AddressListComponent() {
       await fetchAddresses();
 
       if (errors.length > 0) {
-        showMessage('error', `יובאו ${successCount} רשומות. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+        showMessage('error', `יובאו ${successCount} רשומות. ${errorCount} שגיאות:`, errors, true);
       } else {
         showMessage('success', `יובאו בהצלחה ${successCount} רשומות`);
       }
@@ -449,13 +452,36 @@ export function AddressListComponent() {
 
       {message && (
         <div
-          className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-50 text-green-800' : 
-            message.type === 'error' ? 'bg-red-50 text-red-800' : 
-            'bg-blue-50 text-blue-800'
+          className={`mb-6 p-4 rounded-lg relative ${
+            message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
+            message.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' : 
+            'bg-blue-50 text-blue-800 border border-blue-200'
           }`}
         >
-          {message.text}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="font-medium mb-2">{message.text}</div>
+              {message.errors && message.errors.length > 0 && (
+                <div className="mt-3 max-h-60 overflow-y-auto">
+                  <div className="text-sm font-semibold mb-2">פרטי השגיאות:</div>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {message.errors.map((error, index) => (
+                      <li key={index} className="text-red-700">{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {message.persistent && (
+              <button
+                onClick={() => setMessage(null)}
+                className="flex-shrink-0 p-1 hover:bg-black/10 rounded transition-colors"
+                title="סגור"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 

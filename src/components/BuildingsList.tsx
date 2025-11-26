@@ -7,6 +7,7 @@ import { ColDef } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2 } from 'lucide-react';
 import { useGridPreferences } from '../hooks/useGridPreferences';
 
+
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
   onOpenAssetTypes?: () => void;
@@ -1265,15 +1266,8 @@ export function BuildingsList({
         return displayValue;
       },
       cellEditor: 'agSelectCellEditor',
-      cellEditorParams: (params: any) => {
-        // Return street codes as values, but format display as "code - description"
-        return {
-          values: addressList.map(a => a.street_code),
-          formatValue: (value: any) => {
-            const address = addressList.find(a => a.street_code === value);
-            return address ? `${address.street_code} - ${address.street_description}` : String(value || '');
-          }
-        };
+      cellEditorParams: {
+        values: addressList.map(a => a.street_code),
       },
       cellEditorPopup: true,
       cellEditorPopupPosition: 'under',

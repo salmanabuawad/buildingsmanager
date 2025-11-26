@@ -667,8 +667,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => [
     {
-      colId: 'actions',
-      headerName: t('actions') || 'פעולות',
+      headerName: t('structureDrawing'),
+      field: 'structure_drawing_url',
       pinned: 'right',
       sortable: false,
       filter: false,
@@ -685,6 +685,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         
         const assetId = asset.id;
         const hasDrawing = !!asset.structure_drawing_url;
+        const isLatest = asset.is_latest === true;
 
         // Collect validation errors
         const errors: string[] = [];
@@ -705,7 +706,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         if (hasInvalidAssetId) errors.push('Invalid asset ID - must be numeric');
 
         const hasErrors = errors.length > 0;
-        const isLatest = asset.is_latest === true;
 
         return (
           <div className="flex items-center justify-center gap-1 h-full">
@@ -767,23 +767,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
         );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
-    },
-    {
-      headerName: t('structureDrawing'),
-      field: 'structure_drawing_url',
-      sortable: false,
-      filter: false,
-      editable: false,
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        const hasDrawing = !!asset.structure_drawing_url;
-        return hasDrawing ? (
-          <span className="text-green-600">✓ {t('hasFile') || 'יש קובץ'}</span>
-        ) : (
-          <span className="text-gray-400">{t('noFile') || 'אין קובץ'}</span>
-        );
-      },
-      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'measurement_date',
@@ -1473,7 +1456,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     setTimeout(() => {
                       const allColumnIds = params.api.getAllDisplayedColumns()
                         .map(col => col.getColId())
-                        .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                        .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
                       
                       if (allColumnIds.length > 0) {
                         params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
@@ -1491,7 +1474,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       setTimeout(() => {
                         const allColumnIds = params.api.getAllDisplayedColumns()
                           .map(col => col.getColId())
-                          .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                          .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
                         
                         if (allColumnIds.length > 0) {
                           params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
@@ -1502,23 +1485,23 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
                 onColumnResized={saveColumnState}
                 onColumnMoved={(params) => {
-                  // Prevent actions column from being moved - force it back to first position
+                  // Prevent structure drawing column from being moved - force it back to pinned right position
                   try {
                     const columnApi = (params as any).columnApi || params.api;
                     if (columnApi && columnApi.getColumn) {
-                      const actionsColumn = columnApi.getColumn('actions');
-                      if (actionsColumn) {
+                      const structureDrawingColumn = columnApi.getColumn('structure_drawing_url');
+                      if (structureDrawingColumn) {
                         const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
-                        const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
-                        if (actionsIndex !== 0) {
+                        const structureDrawingIndex = allColumns.findIndex((col: any) => col.getColId() === 'structure_drawing_url');
+                        if (structureDrawingIndex !== 0) {
                           setTimeout(() => {
                             if (gridRef.current?.api) {
                               const columnState = gridRef.current.api.getColumnState();
-                              const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                              const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                              if (actionsCol) {
+                              const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
+                              const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
+                              if (structureDrawingCol) {
                                 gridRef.current.api.applyColumnState({
-                                  state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                                  state: [{ ...structureDrawingCol, pinned: 'right', lockPosition: true }, ...otherCols],
                                   applyOrder: true
                                 });
                               }
@@ -1570,11 +1553,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     onGridReady={async (params) => {
                       const hasSavedState = await loadHistoryColumnState();
                       
-                      // Ensure actions column is visible
+                      // Ensure structure drawing column is visible
                       const columnState = params.api.getColumnState();
-                      const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                      if (actionsCol && actionsCol.hide) {
-                        params.api.setColumnVisible('actions', true);
+                      const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
+                      if (structureDrawingCol && structureDrawingCol.hide) {
+                        params.api.setColumnVisible('structure_drawing_url', true);
                       }
                       
                       if (!hasSavedState) {
@@ -1613,23 +1596,23 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     }}
                     onColumnResized={saveHistoryColumnState}
                     onColumnMoved={(params) => {
-                      // Prevent actions column from being moved - force it back to pinned right position
+                      // Prevent structure drawing column from being moved - force it back to pinned right position
                       try {
                         const columnApi = (params as any).columnApi || params.api;
                         if (columnApi && columnApi.getColumn) {
-                          const actionsColumn = columnApi.getColumn('actions');
-                          if (actionsColumn) {
+                          const structureDrawingColumn = columnApi.getColumn('structure_drawing_url');
+                          if (structureDrawingColumn) {
                             const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
-                            const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
-                            if (actionsIndex !== 0) {
+                            const structureDrawingIndex = allColumns.findIndex((col: any) => col.getColId() === 'structure_drawing_url');
+                            if (structureDrawingIndex !== 0) {
                               setTimeout(() => {
                                 if (historyGridRef.current?.api) {
                                   const columnState = historyGridRef.current.api.getColumnState();
-                                  const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                                  const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                                  if (actionsCol) {
+                                  const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
+                                  const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
+                                  if (structureDrawingCol) {
                                     historyGridRef.current.api.applyColumnState({
-                                      state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                                      state: [{ ...structureDrawingCol, pinned: 'right', lockPosition: true }, ...otherCols],
                                       applyOrder: true
                                     });
                                   }

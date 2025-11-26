@@ -96,6 +96,13 @@ export interface AssetTypeField {
   updated_at: string;
 }
 
+export interface AddressList {
+  street_code: number;
+  street_description: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ValidationRule {
   id: string;
   rule_key: string;
@@ -1436,6 +1443,57 @@ export const api = {
         }
         throw err;
       }
+    },
+  },
+  addressList: {
+    getAll: async (): Promise<AddressList[]> => {
+      const { data, error } = await supabase
+        .from('address_list')
+        .select('*')
+        .order('street_code', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (streetCode: number): Promise<AddressList> => {
+      const { data, error } = await supabase
+        .from('address_list')
+        .select('*')
+        .eq('street_code', streetCode)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    create: async (input: Partial<AddressList>): Promise<AddressList> => {
+      const { data, error } = await supabase
+        .from('address_list')
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    update: async (streetCode: number, input: Partial<AddressList>): Promise<AddressList> => {
+      const { data, error } = await supabase
+        .from('address_list')
+        .update(input)
+        .eq('street_code', streetCode)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (streetCode: number): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('address_list')
+        .delete()
+        .eq('street_code', streetCode);
+
+      if (error) throw error;
+      return { message: 'Address deleted successfully' };
     },
   },
   validationRules: {

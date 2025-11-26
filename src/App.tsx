@@ -10,13 +10,14 @@ import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
 import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu } from 'lucide-react';
+import { AddressListComponent } from './components/AddressList';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'asset-details' | 'transfer-areas';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'asset-details' | 'transfer-areas' | 'address-list';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -655,6 +656,13 @@ function App() {
                   <Database className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
+                  onClick={openAddressList}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">רשימת כתובות</span>
+                  <MapPin className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
                   onClick={() => setShowDeletePreferencesConfirm(true)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-red-50/50 hover:bg-red-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
@@ -694,6 +702,8 @@ function App() {
                       <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'asset-type-fields' ? (
                       <Database className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'address-list' ? (
+                      <MapPin className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'building-list-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'assets-file-import' ? (
@@ -780,6 +790,9 @@ function App() {
             )}
             {activeTab?.type === 'asset-type-fields' && (
               <AssetTypeFieldsManager />
+            )}
+            {activeTab?.type === 'address-list' && (
+              <AddressListComponent />
             )}
             {activeTab?.type === 'building-list-import' && (
               <BuildingListImport />

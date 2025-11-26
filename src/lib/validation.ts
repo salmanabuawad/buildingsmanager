@@ -219,20 +219,26 @@ export async function applyRule(rule: ValidationRule, value: any, taxRegion?: st
         }
 
         if (!count || count === 0) {
+        // Removed verbose logging for performance - only log in development mode
+        if (process.env.NODE_ENV === 'development') {
           console.warn(`Value "${value}" not found in ${rule.compare_table}.${rule.compare_field}`, {
             taxRegion,
             filteredByTaxRegion: taxRegion && taxRegion.trim() !== '' && rule.compare_table === 'asset_types'
           });
+        }
           return {
             valid: false,
             error: errorMessage || `${fieldName} value "${value}" does not exist in asset types`
           };
         }
 
-        console.log(`Validation passed: "${value}" exists in ${rule.compare_table} (${count} records)`, {
-          taxRegion,
-          filteredByTaxRegion: taxRegion && taxRegion.trim() !== '' && rule.compare_table === 'asset_types'
-        });
+        // Removed verbose logging for performance - only log in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Validation passed: "${value}" exists in ${rule.compare_table} (${count} records)`, {
+            taxRegion,
+            filteredByTaxRegion: taxRegion && taxRegion.trim() !== '' && rule.compare_table === 'asset_types'
+          });
+        }
         return { valid: true };
       } catch (error) {
         console.error('Exists in table validation error:', error);
@@ -247,7 +253,8 @@ export async function applyRule(rule: ValidationRule, value: any, taxRegion?: st
 export async function validateAssetTypeForBuildingTaxRegion(
   buildingNumber: number,
   assetTypeName: string,
-  taxRegion?: string
+  taxRegion?: string,
+  cachedData?: { assetTypes?: any[]; building?: any }
 ): Promise<ValidationResult> {
   try {
     // CRITICAL: If taxRegion is provided from tab, COMPLETELY IGNORE the building's tax_region
@@ -260,31 +267,29 @@ export async function validateAssetTypeForBuildingTaxRegion(
       // CRITICAL: Use ONLY the provided taxRegion - IGNORE building tax_region completely
       // This ensures that even if building has "10,40", we only use the tab's tax region (e.g., "10")
       const tabTaxRegion = taxRegion.trim();
-      console.log('[validateAssetTypeForBuildingTaxRegion] TAB TAX REGION PROVIDED - Using ONLY tab tax region, IGNORING building tax_region:', {
-        tabTaxRegion: tabTaxRegion,
-        buildingNumber: buildingNumber,
-        assetTypeName: assetTypeName,
-        willUse: 'TAB TAX REGION ONLY',
-        buildingTaxRegionWillBeIgnored: true
-      });
       // Set to ONLY the tab's tax region - building.tax_region is completely ignored
       buildingTaxRegions = [tabTaxRegion];
     } else {
-      console.log('[validateAssetTypeForBuildingTaxRegion] No tab taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
-      // Fallback: if no taxRegion provided, fetch building and use its tax_region
-      const { data: building, error: buildingError } = await supabase
-        .from('buildings')
-        .select('tax_region')
-        .eq('building_number', buildingNumber)
-        .maybeSingle();
-
-      if (buildingError) {
-        console.error('Error fetching building:', buildingError);
-        return { valid: false, error: 'שגיאה באימות אזור המס של המבנה' };
-      }
-
+      // Fallback: if no taxRegion provided, use cached building or fetch building and use its tax_region
+      let building = cachedData?.building;
+      
       if (!building) {
-        return { valid: false, error: 'המבנה לא נמצא' };
+        const { data: buildingData, error: buildingError } = await supabase
+          .from('buildings')
+          .select('tax_region')
+          .eq('building_number', buildingNumber)
+          .maybeSingle();
+
+        if (buildingError) {
+          console.error('Error fetching building:', buildingError);
+          return { valid: false, error: 'שגיאה באימות אזור המס של המבנה' };
+        }
+
+        if (!buildingData) {
+          return { valid: false, error: 'המבנה לא נמצא' };
+        }
+        
+        building = buildingData;
       }
 
       if (building.tax_region == null) {
@@ -293,7 +298,6 @@ export async function validateAssetTypeForBuildingTaxRegion(
 
       // Use all tax regions from the building (only when taxRegion is not provided)
       buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
-      console.log('[validateAssetTypeForBuildingTaxRegion] Using building tax_region array:', buildingTaxRegions);
     }
     
     // Validate asset types 199 and 299 based on the passed tax region (from tab)
@@ -313,56 +317,71 @@ export async function validateAssetTypeForBuildingTaxRegion(
       }
     }
 
-    // Query asset_types table to validate that the asset type exists and is valid for the passed tax region
-    // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY
-    let query = supabase
-      .from('asset_types')
-      .select('*')
-      .eq('name', assetTypeName)
-      .eq('active', 'כן'); // Only check active asset types
+    // Use cached asset types if available, otherwise query database
+    if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
+      // Filter asset types from cache
+      let matchingAssetTypes = cachedData.assetTypes.filter(at => 
+        at.name === assetTypeName && at.active === 'כן'
+      );
 
-    // For asset type 199, it's valid in all tax regions except 40
-    // So we don't filter by tax region, just check it exists and is not in tax region 40
-    if (assetTypeName === '199') {
-      // Check that asset type 199 exists and is not in tax region 40
-      console.log('[validateAssetTypeForBuildingTaxRegion] Asset type 199: querying for tax_region != 40 (ignoring building tax_region)');
-      query = query.neq('tax_region', 40);
-    } else if (assetTypeName === '299') {
-      // For 299, it must be in tax region 40
-      console.log('[validateAssetTypeForBuildingTaxRegion] Asset type 299: querying for tax_region = 40 (ignoring building tax_region)');
-      query = query.eq('tax_region', 40);
-    } else {
-      // For other asset types, validate according to the passed tax region (from tab)
-      // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY
-      // This completely ignores the building's tax_region
-      if (buildingTaxRegions.length > 0) {
+      // Apply tax region filtering
+      if (assetTypeName === '199') {
+        matchingAssetTypes = matchingAssetTypes.filter(at => at.tax_region !== 40);
+      } else if (assetTypeName === '299') {
+        matchingAssetTypes = matchingAssetTypes.filter(at => at.tax_region === 40);
+      } else if (buildingTaxRegions.length > 0) {
         const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
-        console.log('[validateAssetTypeForBuildingTaxRegion] Other asset type: querying for tax_region IN', taxRegionNumbers, {
-          assetTypeName,
-          buildingTaxRegions,
-          taxRegionProvided: taxRegion,
-          usingPassedTaxRegion: taxRegion && taxRegion.trim() !== ''
-        });
+        matchingAssetTypes = matchingAssetTypes.filter(at => 
+          at.tax_region != null && taxRegionNumbers.includes(Number(at.tax_region))
+        );
+      }
+
+      if (matchingAssetTypes.length === 0) {
+        if (assetTypeName === '199') {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+        } else if (assetTypeName === '299') {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+        }
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של המבנה` };
+      }
+    } else {
+      // Fallback to database query if cache not available
+      let query = supabase
+        .from('asset_types')
+        .select('*', { count: 'exact', head: true })
+        .eq('name', assetTypeName)
+        .eq('active', 'כן');
+
+      if (assetTypeName === '199') {
+        query = query.neq('tax_region', 40);
+      } else if (assetTypeName === '299') {
+        query = query.eq('tax_region', 40);
+      } else if (buildingTaxRegions.length > 0) {
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
         query = query.in('tax_region', taxRegionNumbers);
       } else {
-        console.log('[validateAssetTypeForBuildingTaxRegion] No tax regions to validate against');
+        const { count } = await query;
+        if (!count || count === 0) {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים` };
+        }
+        return { valid: true };
       }
-    }
 
-    const { data: assetTypes, error: assetTypeError } = await query;
+      const { count, error: assetTypeError } = await query;
 
-    if (assetTypeError) {
-      console.error('Error fetching asset type:', assetTypeError);
-      return { valid: false, error: 'שגיאה באימות סוג הנכס' };
-    }
-
-    if (!assetTypes || assetTypes.length === 0) {
-      if (assetTypeName === '199') {
-        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
-      } else if (assetTypeName === '299') {
-        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+      if (assetTypeError) {
+        console.error('Error fetching asset type:', assetTypeError);
+        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
       }
-      return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של המבנה` };
+
+      if (!count || count === 0) {
+        if (assetTypeName === '199') {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+        } else if (assetTypeName === '299') {
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+        }
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור המס של המבנה` };
+      }
     }
 
     return { valid: true };
@@ -377,179 +396,193 @@ export async function validateAssetTypeComplete(
   assetTypeName: string,
   assetSize: number,
   assetData?: any,
-  taxRegion?: string
+  taxRegion?: string,
+  cachedData?: { assetTypes?: any[]; building?: any }
 ): Promise<ValidationResult> {
   try {
     // IMPORTANT: If taxRegion is provided from the tab, skip validateAssetTypeForBuildingTaxRegion
     // and directly validate that the asset type exists for the provided tax region
     if (taxRegion && taxRegion.trim() !== '') {
-      console.log('[validateAssetTypeComplete] taxRegion provided from tab, skipping validateAssetTypeForBuildingTaxRegion, validating directly:', taxRegion);
-      
       // Direct validation: check if asset type exists for the provided tax region
-      let query = supabase
-        .from('asset_types')
-        .select('*')
-        .eq('name', assetTypeName)
-        .eq('active', 'כן'); // Only check active asset types
-      
+      // Use cached assetTypes if provided to avoid database query
       const taxRegionNum = parseInt(taxRegion.trim());
       
-      // Handle special cases for asset types 199 and 299
+      // Handle special cases for asset types 199 and 299 (fast path - no DB query needed)
       if (assetTypeName === '199') {
         // Asset type 199 is valid in all tax regions except 40
         if (taxRegionNum === 40) {
           return { valid: false, error: 'סוג נכס 199 לא תקף במבנים עם אזור מס 40. סוג נכס 199 תקף בכל אזורי המס למעט 40' };
         }
-        query = query.neq('tax_region', 40);
+        // For 199, we still need to check it exists (but not in tax region 40)
+        // This is a quick check - if taxRegion is not 40, 199 is valid
       } else if (assetTypeName === '299') {
         // Asset type 299 is only valid in tax region 40
         if (taxRegionNum !== 40) {
           return { valid: false, error: 'סוג נכס 299 תקף רק במבנים עם אזור מס 40' };
         }
-        query = query.eq('tax_region', 40);
-      } else {
-        // For other asset types, check if it exists for the provided tax region
-        query = query.eq('tax_region', taxRegionNum);
+        // For 299, we need to check it exists in tax region 40
       }
       
-      const { data: assetTypes, error: assetTypeError } = await query;
-      
-      if (assetTypeError) {
-        console.error('Error fetching asset type:', assetTypeError);
-        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
-      }
-      
-      if (!assetTypes || assetTypes.length === 0) {
+      // Use cached asset types if available, otherwise query database
+      if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
+        let matchingAssetTypes = cachedData.assetTypes.filter(at => 
+          at.name === assetTypeName && at.active === 'כן'
+        );
+
         if (assetTypeName === '199') {
-          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+          matchingAssetTypes = matchingAssetTypes.filter(at => at.tax_region !== 40);
         } else if (assetTypeName === '299') {
-          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+          matchingAssetTypes = matchingAssetTypes.filter(at => at.tax_region === 40);
+        } else {
+          matchingAssetTypes = matchingAssetTypes.filter(at => at.tax_region === taxRegionNum);
         }
-        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס ${taxRegionNum}` };
+
+        if (matchingAssetTypes.length === 0) {
+          if (assetTypeName === '199') {
+            return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+          } else if (assetTypeName === '299') {
+            return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+          }
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס ${taxRegionNum}` };
+        }
+      } else {
+        // Fallback to database query
+        let query = supabase
+          .from('asset_types')
+          .select('*', { count: 'exact', head: true })
+          .eq('name', assetTypeName)
+          .eq('active', 'כן');
+        
+        if (assetTypeName === '199') {
+          query = query.neq('tax_region', 40);
+        } else if (assetTypeName === '299') {
+          query = query.eq('tax_region', 40);
+        } else {
+          query = query.eq('tax_region', taxRegionNum);
+        }
+        
+        const { count, error: assetTypeError } = await query;
+        
+        if (assetTypeError) {
+          console.error('Error fetching asset type:', assetTypeError);
+          return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+        }
+        
+        if (!count || count === 0) {
+          if (assetTypeName === '199') {
+            return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים או זמין רק באזור מס 40` };
+          } else if (assetTypeName === '299') {
+            return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס 40` };
+          }
+          return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים באזור מס ${taxRegionNum}` };
+        }
       }
-      
-      console.log('[validateAssetTypeComplete] Asset type validated directly for tax region:', taxRegion, {
-        assetTypeName,
-        foundRecords: assetTypes.length,
-        taxRegionUsed: taxRegion,
-        buildingTaxRegionIgnored: 'YES - using tab tax region only'
-      });
       
       // IMPORTANT: When taxRegion is provided, we've already validated the asset type exists for that tax region
       // Now we need to fetch the building for size validation, but we'll use the provided taxRegion, NOT building.tax_region
       // Continue to size validation below, but ensure we use the provided taxRegion
     } else {
       // No taxRegion provided - use the original validation that checks building tax_region
-      console.log('[validateAssetTypeComplete] No taxRegion provided, using validateAssetTypeForBuildingTaxRegion');
-      const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName, taxRegion);
+      const taxRegionValidation = await validateAssetTypeForBuildingTaxRegion(buildingNumber, assetTypeName, taxRegion, cachedData);
       if (!taxRegionValidation.valid) {
         return taxRegionValidation;
       }
     }
 
-    const { data: building, error: buildingError } = await supabase
-      .from('buildings')
-      .select('tax_region, elevator, shared_area, single_double_family, condo, basement, townhouses')
-      .eq('building_number', buildingNumber)
-      .maybeSingle();
-
-    if (buildingError) {
-      console.error('Error fetching building:', buildingError);
-      return { valid: false, error: 'שגיאה באימות פרטי המבנה' };
-    }
-
+    // Use cached building if available, otherwise fetch from database
+    let building = cachedData?.building;
+    
     if (!building) {
-      return { valid: false, error: 'המבנה לא נמצא' };
-    }
+      const { data: buildingData, error: buildingError } = await supabase
+        .from('buildings')
+        .select('tax_region, elevator, shared_area, single_double_family, condo, basement, townhouses')
+        .eq('building_number', buildingNumber)
+        .maybeSingle();
 
-    // Query asset types by name field (tax region validation already done above)
-    // Select all fields to show complete record information
-    // Only check active asset types (active = 'כן')
-    let query = supabase
-      .from('asset_types')
-      .select('*')
-      .eq('name', assetTypeName)
-      .eq('active', 'כן'); // Only check active asset types
-
-    // IMPORTANT: If taxRegion is provided from the tab, COMPLETELY IGNORE the building's tax_region
-    // Use ONLY the provided taxRegion for asset type validation
-    // This ensures that even if building has multiple tax regions (e.g., "10,40"), we only use the tab's single tax region
-    let buildingTaxRegions: string[];
-    // Check if taxRegion is provided and not empty (handle both undefined and empty string)
-    if (taxRegion && taxRegion.trim() !== '') {
-      // CRITICAL: Use ONLY the provided taxRegion - IGNORE building tax_region completely
-      // Clear any previous building tax regions and use ONLY the tab's tax region
-      // This prevents the building's tax_region array (e.g., "10,40") from being used
-      const tabTaxRegion = taxRegion.trim();
-      console.log('[validateAssetTypeComplete] SECOND PATH: Using passed taxRegion from tab, IGNORING building tax_region array:', {
-        tabTaxRegion: tabTaxRegion,
-        buildingNumber,
-        assetTypeName,
-        buildingTaxRegion: building.tax_region,
-        buildingTaxRegionArray: building.tax_region ? String(building.tax_region).split(',').map(r => r.trim()) : [],
-        willUse: 'TAB TAX REGION ONLY (ignoring building array)',
-        willUseArray: [tabTaxRegion],
-        buildingTaxRegionWillBeIgnored: true
-      });
-      // CRITICAL: Set to ONLY the tab's tax region, completely ignore building's tax_region array
-      buildingTaxRegions = [tabTaxRegion];
-      // Double-check: ensure we're not accidentally using building.tax_region
-      if (building.tax_region && String(building.tax_region).split(',').map(r => r.trim()).length > 1) {
-        console.warn('[validateAssetTypeComplete] WARNING: Building has multiple tax regions, but we are IGNORING them and using only tab tax region:', {
-          buildingTaxRegions: String(building.tax_region).split(',').map(r => r.trim()),
-          usingOnly: [tabTaxRegion]
-        });
+      if (buildingError) {
+        console.error('Error fetching building:', buildingError);
+        return { valid: false, error: 'שגיאה באימות פרטי המבנה' };
       }
-    } else {
-      // Fallback: if no taxRegion provided, use all tax regions from the building
-      console.log('[validateAssetTypeComplete] SECOND PATH: No taxRegion provided from tab, using building tax_region array:', building.tax_region, {
-        taxRegionValue: taxRegion,
-        buildingNumber,
-        assetTypeName,
-        willUse: 'BUILDING TAX REGION ARRAY (fallback)'
-      });
-      buildingTaxRegions = building.tax_region != null
-        ? String(building.tax_region).split(',').map(r => r.trim())
-        : [];
+
+      if (!buildingData) {
+        return { valid: false, error: 'המבנה לא נמצא' };
+      }
+      
+      building = buildingData;
     }
 
-    // For asset type 199, it's valid in all tax regions except 40
-    if (assetTypeName === '199') {
-      console.log('[validateAssetTypeComplete] Asset type 199: querying for tax_region != 40 (ignoring building tax_region)');
-      query = query.neq('tax_region', 40);
-    } else if (assetTypeName === '299') {
-      // For 299, it must be in tax region 40
-      console.log('[validateAssetTypeComplete] Asset type 299: querying for tax_region = 40 (ignoring building tax_region)');
-      query = query.eq('tax_region', 40);
-    } else {
-      // For other asset types, validate according to the passed tax region (from tab) or building's tax regions if not provided
-      // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY - ignore building tax_region
-      if (buildingTaxRegions.length > 0) {
-        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
-        console.log('[validateAssetTypeComplete] Other asset type: querying for tax_region IN', taxRegionNumbers, {
-          assetTypeName,
-          buildingTaxRegions,
-          taxRegionProvided: taxRegion,
-          usingPassedTaxRegion: taxRegion && taxRegion.trim() !== ''
-        });
-        query = query.in('tax_region', taxRegionNumbers);
+    // Use cached asset types if available, otherwise query database
+    let assetTypes: any[];
+    
+    if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
+      // Filter from cache
+      assetTypes = cachedData.assetTypes.filter(at => 
+        at.name === assetTypeName && at.active === 'כן'
+      );
+
+      // Determine tax regions to filter by
+      let buildingTaxRegions: string[];
+      if (taxRegion && taxRegion.trim() !== '') {
+        buildingTaxRegions = [taxRegion.trim()];
       } else {
-        console.log('[validateAssetTypeComplete] No tax regions to validate against');
+        buildingTaxRegions = building.tax_region != null
+          ? String(building.tax_region).split(',').map(r => r.trim())
+          : [];
       }
-    }
 
-    const { data: assetTypes, error: assetTypeError } = await query;
+      // Apply tax region filtering
+      if (assetTypeName === '199') {
+        assetTypes = assetTypes.filter(at => at.tax_region !== 40);
+      } else if (assetTypeName === '299') {
+        assetTypes = assetTypes.filter(at => at.tax_region === 40);
+      } else if (buildingTaxRegions.length > 0) {
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+        assetTypes = assetTypes.filter(at => 
+          at.tax_region != null && taxRegionNumbers.includes(Number(at.tax_region))
+        );
+      }
 
-    if (assetTypeError) {
-      console.error('Error fetching asset type:', assetTypeError);
-      return { valid: false, error: 'שגיאה באימות סוג הנכס' };
-    }
+      if (assetTypes.length === 0) {
+        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+      }
+    } else {
+      // Fallback to database query
+      let query = supabase
+        .from('asset_types')
+        .select('*')
+        .eq('name', assetTypeName)
+        .eq('active', 'כן');
 
-    if (!assetTypes || assetTypes.length === 0) {
-      // This should not happen if tax region validation passed, but if it does, log it
-      // and return a generic error to avoid duplicate messages
-      console.error(`Asset type ${assetTypeName} not found after tax region validation passed`);
-      return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+      let buildingTaxRegions: string[];
+      if (taxRegion && taxRegion.trim() !== '') {
+        buildingTaxRegions = [taxRegion.trim()];
+      } else {
+        buildingTaxRegions = building.tax_region != null
+          ? String(building.tax_region).split(',').map(r => r.trim())
+          : [];
+      }
+
+      if (assetTypeName === '199') {
+        query = query.neq('tax_region', 40);
+      } else if (assetTypeName === '299') {
+        query = query.eq('tax_region', 40);
+      } else if (buildingTaxRegions.length > 0) {
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+        query = query.in('tax_region', taxRegionNumbers);
+      }
+
+      const { data: assetTypesData, error: assetTypeError } = await query;
+
+      if (assetTypeError) {
+        console.error('Error fetching asset type:', assetTypeError);
+        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+      }
+
+      if (!assetTypesData || assetTypesData.length === 0) {
+        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+      }
+      
+      assetTypes = assetTypesData;
     }
 
     // Helper function to check if a single asset type entry matches all requirements
@@ -869,7 +902,8 @@ export async function validateSubAssetsFor199Or299(
   mainAssetSize: number | undefined,
   subAssetTypes: (string | undefined)[],
   subAssetSizes: (number | undefined)[],
-  taxRegion?: string
+  taxRegion?: string,
+  cachedData?: { assetTypes?: any[]; building?: any }
 ): Promise<ValidationResult> {
   if (!mainAssetType || !buildingNumber) {
     return { valid: true };
@@ -954,16 +988,21 @@ export async function validateSubAssetsFor199Or299(
     // Set to ONLY the tab's tax region - building.tax_region is completely ignored
     buildingTaxRegions = [tabTaxRegion];
   } else {
-    // Fallback: if no taxRegion provided, fetch building and use its tax_region
-    console.log('[validateSubAssetsFor199Or299] No tab taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
-    const { data: building, error: buildingError } = await supabase
-      .from('buildings')
-      .select('tax_region')
-      .eq('building_number', buildingNumber)
-      .maybeSingle();
+    // Fallback: if no taxRegion provided, use cached building or fetch building and use its tax_region
+    let building = cachedData?.building;
+    
+    if (!building) {
+      const { data: buildingData, error: buildingError } = await supabase
+        .from('buildings')
+        .select('tax_region')
+        .eq('building_number', buildingNumber)
+        .maybeSingle();
 
-    if (buildingError || !building) {
-      return { valid: false, error: 'שגיאה באימות המבנה' };
+      if (buildingError || !buildingData) {
+        return { valid: false, error: 'שגיאה באימות המבנה' };
+      }
+      
+      building = buildingData;
     }
 
     if (building.tax_region == null) {
@@ -972,39 +1011,59 @@ export async function validateSubAssetsFor199Or299(
 
     // Use all tax regions from the building (only when taxRegion is not provided)
     buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
-    console.log('[validateSubAssetsFor199Or299] Using building tax_region array:', buildingTaxRegions);
   }
 
-  for (const subAssetType of validSubAssets) {
-    let query = supabase
-      .from('asset_types')
-      .select('*')
-      .eq('name', subAssetType)
-      .eq('active', 'כן'); // Only check active asset types
+  // Use cached asset types if available, otherwise query database
+  if (validSubAssets.length > 0) {
+    if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
+      // Filter from cache
+      let matchingAssetTypes = cachedData.assetTypes.filter(at => 
+        validSubAssets.includes(at.name) && at.active === 'כן'
+      );
 
-    // Validate sub asset type according to the passed tax region (from tab) or building's tax regions if not provided
-    // IMPORTANT: When taxRegion is provided, validate asset type according to that tax region ONLY - ignore building tax_region
-    if (buildingTaxRegions.length > 0) {
-      const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
-      console.log('[validateSubAssetsFor199Or299] Querying asset_types for tax_region IN', taxRegionNumbers, {
-        subAssetType,
-        buildingTaxRegions,
-        taxRegionProvided: taxRegion,
-        usingPassedTaxRegion: taxRegion && taxRegion.trim() !== ''
-      });
-      query = query.in('tax_region', taxRegionNumbers);
+      // Filter by tax region if provided
+      if (buildingTaxRegions.length > 0) {
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+        matchingAssetTypes = matchingAssetTypes.filter(at => 
+          at.tax_region != null && taxRegionNumbers.includes(Number(at.tax_region))
+        );
+      }
+
+      // Create a set of found asset types for quick lookup
+      const foundAssetTypes = new Set(matchingAssetTypes.map(at => at.name));
+
+      // Check each sub-asset type against the cache results
+      for (const subAssetType of validSubAssets) {
+        if (!foundAssetTypes.has(subAssetType)) {
+          return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים באזור המס של המבנה` };
+        }
+      }
     } else {
-      console.log('[validateSubAssetsFor199Or299] No tax regions to validate against for sub asset type:', subAssetType);
-    }
+      // Fallback to database query
+      let batchQuery = supabase
+        .from('asset_types')
+        .select('name')
+        .in('name', validSubAssets)
+        .eq('active', 'כן');
 
-    const { data: assetTypes, error: assetTypeError } = await query;
+      if (buildingTaxRegions.length > 0) {
+        const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
+        batchQuery = batchQuery.in('tax_region', taxRegionNumbers);
+      }
 
-    if (assetTypeError) {
-      return { valid: false, error: `שגיאה באימות סוג נכס משנה ${subAssetType}` };
-    }
+      const { data: allAssetTypes, error: assetTypeError } = await batchQuery;
 
-    if (!assetTypes || assetTypes.length === 0) {
-      return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים באזור המס של המבנה` };
+      if (assetTypeError) {
+        return { valid: false, error: `שגיאה באימות סוגי נכסי משנה` };
+      }
+
+      const foundAssetTypes = new Set((allAssetTypes || []).map(at => at.name));
+
+      for (const subAssetType of validSubAssets) {
+        if (!foundAssetTypes.has(subAssetType)) {
+          return { valid: false, error: `סוג נכס משנה "${subAssetType}" לא קיים באזור המס של המבנה` };
+        }
+      }
     }
   }
 
@@ -1048,7 +1107,9 @@ export async function validateField(
     r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
 
-  console.log(`validateField(${entityType}, ${fieldName}, ${value}, taxRegion: ${taxRegion}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`validateField(${entityType}, ${fieldName}, ${value}, taxRegion: ${taxRegion}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
+  }
 
   if (value == null || value === '') {
     const requiredRule = fieldRules.find(r => r.rule_type === 'required');
@@ -1171,12 +1232,12 @@ export const assetValidators = {
     }
   },
 
-  validatePayerId: async (payerId: string | null | undefined): Promise<ValidationResult> => {
+  validatePayerId: async (payerId: string | null | undefined, validationRules?: ValidationRule[], lookupData?: { assetTypes?: any[]; [key: string]: any }): Promise<ValidationResult> => {
     // payer_id is optional, so skip validation if empty/null
     if (!payerId || payerId === '' || payerId === null || payerId === undefined) {
       return { valid: true };
     }
-    const results = await validateField('asset', 'payer_id', payerId);
+    const results = await validateField('asset', 'payer_id', payerId, validationRules, undefined, lookupData);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };
   },
@@ -1187,15 +1248,18 @@ export const assetValidators = {
     return firstError || { valid: true };
   },
 
-  validateAssetType: async (assetType: string | undefined, fieldName: string, taxRegion?: string): Promise<ValidationResult> => {
+  validateAssetType: async (assetType: string | undefined, fieldName: string, taxRegion?: string, validationRules?: ValidationRule[], lookupData?: { assetTypes?: any[]; [key: string]: any }): Promise<ValidationResult> => {
     if (!assetType) {
       return { valid: true };
     }
-    console.log('[assetValidators.validateAssetType] Validating asset type with taxRegion:', taxRegion, {
-      assetType,
-      fieldName
-    });
-    const results = await validateField('asset', fieldName, assetType, taxRegion);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[assetValidators.validateAssetType] Validating asset type with taxRegion:', taxRegion, {
+        assetType,
+        fieldName
+      });
+    }
+    // Pass validation rules and lookup data to avoid database queries
+    const results = await validateField('asset', fieldName, assetType, validationRules, taxRegion, lookupData);
     const firstError = results.find(r => !r.valid);
     return firstError || { valid: true };
   },
@@ -1203,12 +1267,13 @@ export const assetValidators = {
   validateMainAssetTypeForBuilding: async (
     buildingNumber: number | null,
     mainAssetType: string | undefined,
-    taxRegion?: string
+    taxRegion?: string,
+    cachedData?: { assetTypes?: any[]; building?: any }
   ): Promise<ValidationResult> => {
     if (!mainAssetType || !buildingNumber) {
       return { valid: true };
     }
-    return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType, taxRegion);
+    return await validateAssetTypeForBuildingTaxRegion(buildingNumber, mainAssetType, taxRegion, cachedData);
   },
 
   validateMainAssetTypeComplete: async (
@@ -1216,19 +1281,21 @@ export const assetValidators = {
     mainAssetType: string | undefined,
     assetSize: number | undefined,
     assetData?: any,
-    taxRegion?: string
+    taxRegion?: string,
+    cachedData?: { assetTypes?: any[]; building?: any }
   ): Promise<ValidationResult> => {
     if (!mainAssetType || !buildingNumber) {
       return { valid: true };
     }
-    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize || 0, assetData, taxRegion);
+    return await validateAssetTypeComplete(buildingNumber, mainAssetType, assetSize || 0, assetData, taxRegion, cachedData);
   },
 
   validateSubAssetTypeComplete: async (
     buildingNumber: number | null,
     subAssetType: string | undefined,
     subAssetSize: number | undefined,
-    taxRegion?: string
+    taxRegion?: string,
+    cachedData?: { assetTypes?: any[]; building?: any }
   ): Promise<ValidationResult> => {
     if (!subAssetType || !buildingNumber) {
       return { valid: true };
@@ -1242,7 +1309,7 @@ export const assetValidators = {
       };
     }
 
-    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0, undefined, taxRegion);
+    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0, undefined, taxRegion, cachedData);
   },
 
   validateSubAssetsFor199Or299: async (
@@ -1251,9 +1318,10 @@ export const assetValidators = {
     mainAssetSize: number | undefined,
     subAssetTypes: (string | undefined)[],
     subAssetSizes: (number | undefined)[],
-    taxRegion?: string
+    taxRegion?: string,
+    cachedData?: { assetTypes?: any[]; building?: any }
   ): Promise<ValidationResult> => {
-    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes, taxRegion);
+    return await validateSubAssetsFor199Or299(buildingNumber, mainAssetType, mainAssetSize, subAssetTypes, subAssetSizes, taxRegion, cachedData);
   },
 
   validateSubAssetSizeRequiresType: async (

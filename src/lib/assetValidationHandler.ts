@@ -32,6 +32,7 @@ export interface ValidationOptions {
   onProgress?: (progress: AssetValidationProgress) => void;
   validateOnlyLatest?: boolean; // For building mode: validate only latest record per asset_id
   taxRegion?: string; // Optional tax region that will OVERRIDE building tax region for validation (from tab header)
+  cachedData?: { assetTypes?: any[]; building?: any }; // Cached data to avoid database queries
 }
 
 /**
@@ -44,7 +45,7 @@ export class AssetValidationHandler {
    */
   static async validateSingleAsset(
     asset: Asset,
-    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string }
+    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string; cachedData?: { assetTypes?: any[]; building?: any } }
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
@@ -56,7 +57,7 @@ export class AssetValidationHandler {
       mainAssetType: asset.main_asset_type
     });
     
-    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion);
+    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion, options?.cachedData);
   }
 
   /**
@@ -65,7 +66,7 @@ export class AssetValidationHandler {
   static async validateBuildingAssets(
     assets: Asset[],
     buildingNumber: number,
-    options?: ValidationOptions
+    options?: ValidationOptions & { validationRules?: any[] }
   ): Promise<BatchValidationResult> {
     // If validateOnlyLatest is true, group by asset_id and take only the latest
     let assetsToValidate = assets;
@@ -116,12 +117,13 @@ export class AssetValidationHandler {
       }
 
       // Log validation parameters for debugging
-      console.log('[AssetValidationHandler.validateBuildingAssets] Parameters:', {
-        assetId: asset.asset_id,
-        buildingNumber: buildingNumber,
-        taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
-        mainAssetType: asset.main_asset_type,
-        assetIndex: i + 1,
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetValidationHandler.validateBuildingAssets] Parameters:', {
+          assetId: asset.asset_id,
+          buildingNumber: buildingNumber,
+          taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
+          mainAssetType: asset.main_asset_type,
+          assetIndex: i + 1,
         totalAssets: assetsToValidate.length
       });
 
@@ -258,7 +260,9 @@ export class AssetValidationHandler {
     asset: Asset,
     assetIdentifier: string,
     onProgress?: (progress: AssetValidationProgress) => void,
-    taxRegion?: string
+    taxRegion?: string,
+    cachedData?: { assetTypes?: any[]; building?: any },
+    validationRules?: any[]
   ): Promise<AssetValidationResult> {
     // Log validation parameters for debugging
     console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
@@ -394,20 +398,21 @@ export class AssetValidationHandler {
     validationNames.length = 0;
 
     // DB-dependent validations (run in parallel)
+    // Pass validation rules and cached data to avoid database queries
     validationNames.push('אימות מספר מבנה');
-    validations.push(assetValidators.validateBuildingNumber(asset.building_number));
+    validations.push(assetValidators.validateBuildingNumber(asset.building_number, validationRules, cachedData));
 
     validationNames.push('אימות מזהה נכס');
-    validations.push(assetValidators.validateAssetId(String(asset.asset_id)));
+    validations.push(assetValidators.validateAssetId(String(asset.asset_id), validationRules, cachedData));
 
     validationNames.push('אימות נכס לא קיים במבנה אחר');
     validations.push(assetValidators.validateAssetIdNotInOtherBuilding(asset.asset_id, asset.building_number));
 
     validationNames.push('אימות קוד משלם');
-    validations.push(assetValidators.validatePayerId(asset.payer_id));
+    validations.push(assetValidators.validatePayerId(asset.payer_id, validationRules, cachedData));
 
     validationNames.push('אימות סוג נכס ראשי');
-    validations.push(assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type', taxRegion));
+    validations.push(assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type', taxRegion, validationRules, cachedData));
 
     validationNames.push('אימות סוג נכס ראשי מלא');
     validations.push(
@@ -422,7 +427,8 @@ export class AssetValidationHandler {
           asset.main_asset_type,
           asset.asset_size || 0,
           asset,
-          taxRegion
+          taxRegion,
+          cachedData
         );
       })()
     );
@@ -451,7 +457,8 @@ export class AssetValidationHandler {
             asset.sub_asset_size_5,
             asset.sub_asset_size_6
           ],
-          taxRegion
+          taxRegion,
+          cachedData
         );
       })()
     );
@@ -520,7 +527,8 @@ export class AssetValidationHandler {
           asset.building_number,
           subAssetTypes[idx],
           subAssetSizes[idx],
-          taxRegion // Pass taxRegion to override building tax region for sub asset validation
+          taxRegion, // Pass taxRegion to override building tax region for sub asset validation
+          cachedData
         );
 
         if (!result.valid && result.error) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddressList, api } from '../lib/api';
-import { Upload, Save, X, Loader2, MapPin } from 'lucide-react';
+import { Upload, Save, X, Loader2, MapPin, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -44,6 +44,31 @@ export function AddressListComponent() {
     if (!persistent) {
       setTimeout(() => setMessage(null), 3000);
     }
+  }
+
+  function handleExportTemplate() {
+    // Create template data with headers and example rows
+    const templateData = [
+      ['סמל_רחוב', 'שם_רחוב'],
+      ['1001', 'רחוב הרצל'],
+      ['1002', 'רחוב ויצמן'],
+      ['1003', 'רחוב בן גוריון']
+    ];
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 15 }, // סמל_רחוב
+      { wch: 30 }  // שם_רחוב
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'תבנית כתובות');
+
+    // Generate file and download
+    XLSX.writeFile(wb, 'תבנית_רשימת_כתובות.xlsx');
   }
 
   const onCellValueChanged = useCallback(async (event: any) => {
@@ -517,6 +542,14 @@ export function AddressListComponent() {
               onChange={handleFileImport}
               className="hidden"
             />
+            <button
+              onClick={handleExportTemplate}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+              title="הורד תבנית לקובץ Excel"
+            >
+              <Download className="h-5 w-5" />
+              <span className="hidden sm:inline">הורד תבנית</span>
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}

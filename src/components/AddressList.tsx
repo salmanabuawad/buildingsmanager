@@ -13,6 +13,7 @@ export function AddressListComponent() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; percentage: number } | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [dirtyAddresses, setDirtyAddresses] = useState<Map<number, Partial<AddressList>>>(new Map());
   const [deletedAddresses, setDeletedAddresses] = useState<Set<number>>(new Set());
@@ -237,9 +238,20 @@ export function AddressListComponent() {
       // First, truncate the table by deleting all records
       try {
         const allAddresses = await api.addressList.getAll();
+        const totalToDelete = allAddresses.length;
+        let deletedCount = 0;
+        
         for (const address of allAddresses) {
           try {
             await api.addressList.delete(address.street_code);
+            deletedCount++;
+            if (totalToDelete > 0) {
+              setImportProgress({
+                current: deletedCount,
+                total: totalToDelete,
+                percentage: Math.round((deletedCount / totalToDelete) * 50) // First 50% is deletion
+              });
+            }
           } catch (err) {
             console.error(`Error deleting address ${address.street_code}:`, err);
           }
@@ -298,6 +310,10 @@ export function AddressListComponent() {
       }
 
       // Parse and import each line (skip header row)
+      const dataLines = lines.slice(headerRowIndex + 1).filter(line => line.trim());
+      const totalLines = dataLines.length;
+      let processedCount = 0;
+
       for (let i = headerRowIndex + 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -323,18 +339,44 @@ export function AddressListComponent() {
         const streetCodeStr = parts[streetCodeIndex] || '';
         const streetDescription = parts[streetDescriptionIndex] || '';
 
-        if (!streetCodeStr) continue;
+        if (!streetCodeStr) {
+          processedCount++;
+          if (totalLines > 0) {
+            setImportProgress({
+              current: processedCount,
+              total: totalLines,
+              percentage: Math.round(50 + (processedCount / totalLines) * 50) // Second 50% is import
+            });
+          }
+          continue;
+        }
 
         const streetCode = parseInt(streetCodeStr);
         if (isNaN(streetCode) || streetCode < 0 || streetCode > 9999) {
           errors.push(`שורה ${i + 1}: סמל רחוב לא תקין (חייב להיות מספר בין 0-9999)`);
           errorCount++;
+          processedCount++;
+          if (totalLines > 0) {
+            setImportProgress({
+              current: processedCount,
+              total: totalLines,
+              percentage: Math.round(50 + (processedCount / totalLines) * 50)
+            });
+          }
           continue;
         }
 
         if (!streetDescription || streetDescription.trim() === '') {
           errors.push(`שורה ${i + 1}: שם רחוב לא יכול להיות ריק`);
           errorCount++;
+          processedCount++;
+          if (totalLines > 0) {
+            setImportProgress({
+              current: processedCount,
+              total: totalLines,
+              percentage: Math.round(50 + (processedCount / totalLines) * 50)
+            });
+          }
           continue;
         }
 
@@ -350,6 +392,15 @@ export function AddressListComponent() {
           errors.push(`שורה ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           errorCount++;
         }
+
+        processedCount++;
+        if (totalLines > 0) {
+          setImportProgress({
+            current: processedCount,
+            total: totalLines,
+            percentage: Math.round(50 + (processedCount / totalLines) * 50)
+          });
+        }
       }
 
       await fetchAddresses();
@@ -364,6 +415,7 @@ export function AddressListComponent() {
       console.error('Error importing file:', error);
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -404,6 +456,25 @@ export function AddressListComponent() {
           }`}
         >
           {message.text}
+        </div>
+      )}
+
+      {isImporting && importProgress && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-blue-900">
+              מייבא... {importProgress.current} מתוך {importProgress.total}
+            </span>
+            <span className="text-sm font-medium text-blue-700">
+              {importProgress.percentage}%
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2.5">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${importProgress.percentage}%` }}
+            />
+          </div>
         </div>
       )}
 

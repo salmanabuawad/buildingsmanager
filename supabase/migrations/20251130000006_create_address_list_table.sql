@@ -42,26 +42,26 @@ CREATE POLICY "Allow public read access to address_list"
   TO anon, authenticated
   USING (true);
 
--- Allow authenticated users to insert
-CREATE POLICY "Allow authenticated users to insert address_list"
+-- Allow anonymous and authenticated users to insert
+CREATE POLICY "Allow anonymous and authenticated users to insert address_list"
   ON address_list
   FOR INSERT
-  TO authenticated
+  TO anon, authenticated
   WITH CHECK (true);
 
--- Allow authenticated users to update
-CREATE POLICY "Allow authenticated users to update address_list"
+-- Allow anonymous and authenticated users to update
+CREATE POLICY "Allow anonymous and authenticated users to update address_list"
   ON address_list
   FOR UPDATE
-  TO authenticated
+  TO anon, authenticated
   USING (true)
   WITH CHECK (true);
 
--- Allow authenticated users to delete
-CREATE POLICY "Allow authenticated users to delete address_list"
+-- Allow anonymous and authenticated users to delete
+CREATE POLICY "Allow anonymous and authenticated users to delete address_list"
   ON address_list
   FOR DELETE
-  TO authenticated
+  TO anon, authenticated
   USING (true);
 
 -- Add comment

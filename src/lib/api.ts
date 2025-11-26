@@ -975,8 +975,8 @@ export const api = {
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }
-      console.log('[API] Asset created successfully:', data);
-      return data;
+      console.log('[API] Asset updated successfully:', updatedAsset);
+      return updatedAsset;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
       console.log('[API] Updating asset:', id, 'with data:', input);
@@ -1000,99 +1000,74 @@ export const api = {
         throw new Error('Asset not found');
       }
 
-      // Merge existing asset data with input changes first
-      // This ensures all new values from the grid are included
-      const mergedData = {
-        ...existingAsset,
-        ...input,
-        updated_at: new Date().toISOString()
-      };
+      // Sanitize the input data
+      const sanitizedInput = sanitizeAssetInput(input);
       
-      // Now sanitize the merged data
-      const sanitizedInput = sanitizeAssetInput(mergedData);
-      
-      console.log('[API] Merged data before sanitization:', mergedData);
-      console.log('[API] Sanitized input:', sanitizedInput);
-
-      // Database trigger will automatically copy current record to history before update
-      // Delete the existing asset first (trigger will copy it to history)
-      const { error: deleteError } = await supabase
-        .from('assets')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) {
-        console.error('[API ERROR] Delete asset failed:', {
-          id,
-          message: deleteError.message,
-          details: deleteError.details,
-          hint: deleteError.hint,
-          code: deleteError.code
-        });
-        throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
-      }
-
-      console.log('[API] Existing asset deleted (trigger copied it to history)');
-
-      // Remove id and created_at so a new record is created
+      // Remove fields that shouldn't be updated
       delete (sanitizedInput as any).id;
       delete (sanitizedInput as any).created_at;
+      // Ensure is_new_measurement is not set unless explicitly provided
+      // Regular updates should NOT set is_new_measurement flag
+      if (!('is_new_measurement' in input)) {
+        delete (sanitizedInput as any).is_new_measurement;
+      }
       
-      const newAssetData = sanitizedInput;
+      console.log('[API] Sanitized input for update:', sanitizedInput);
 
-      // Insert new asset with updated data
-      const { data: newAsset, error: insertError } = await supabase
+      // Perform a regular UPDATE - the trigger will only move to history if is_new_measurement is true
+      const { data: updatedAsset, error: updateError } = await supabase
         .from('assets')
-        .insert(newAssetData)
+        .update(sanitizedInput)
+        .eq('id', id)
         .select()
         .single();
 
-      if (insertError) {
-        console.error('[API ERROR] Insert updated asset failed:', {
+      if (updateError) {
+        console.error('[API ERROR] Update asset failed:', {
+          id,
           input,
           sanitizedInput,
-          newAssetData,
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint,
-          code: insertError.code
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+          code: updateError.code
         });
 
-        let errorMessage = insertError.message || 'Failed to update asset';
+        let errorMessage = updateError.message || 'Failed to update asset';
 
-        if (insertError.code === '23514') {
-          if (insertError.message.includes('check_sub_asset_type_') && insertError.message.includes('not_composite')) {
-            const match = insertError.message.match(/check_sub_asset_type_(\d+)_not_composite/);
+        if (updateError.code === '23514') {
+          if (updateError.message.includes('check_sub_asset_type_') && updateError.message.includes('not_composite')) {
+            const match = updateError.message.match(/check_sub_asset_type_(\d+)_not_composite/);
             const subAssetNum = match ? match[1] : '';
             errorMessage = i18n.t('subAssetTypeCompositeError', { subAssetNum });
-          } else if (insertError.message.includes('check_minimum_two_sub_assets')) {
+          } else if (updateError.message.includes('check_minimum_two_sub_assets')) {
             errorMessage = 'נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה עם ערכים.';
-          } else if (insertError.message.includes('check_numeric_asset_id')) {
+          } else if (updateError.message.includes('check_numeric_asset_id')) {
             errorMessage = 'זיהוי נכס חייב להיות מספר תקין.';
-          } else if (insertError.message.includes('check_numeric_payer_id')) {
+          } else if (updateError.message.includes('check_numeric_payer_id')) {
             errorMessage = 'מספר משלם חייב להיות מספר תקין.';
           }
-        } else if (insertError.code === '23503') {
-          if (insertError.message.includes('building_number')) {
+        } else if (updateError.code === '23503') {
+          if (updateError.message.includes('building_number')) {
             errorMessage = `מבנה ${input.building_number} לא קיים. המבנה ייווצר אוטומטית אם הנתונים תקינים.`;
           }
-        } else if (insertError.code === '23505') {
-          if (insertError.message.includes('assets_asset_id_unique') || insertError.message.includes('asset_id')) {
-            errorMessage = `נכס עם מספר זיהוי ${newAssetData.asset_id} כבר קיים במערכת.`;
+        } else if (updateError.code === '23505') {
+          if (updateError.message.includes('assets_asset_id_unique') || updateError.message.includes('asset_id')) {
+            errorMessage = `נכס עם מספר זיהוי ${sanitizedInput.asset_id} כבר קיים במערכת.`;
           }
         }
 
-        const details = insertError.details && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` (${insertError.details})` : '';
-        const hint = insertError.hint && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` - ${insertError.hint}` : '';
+        const details = updateError.details && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` (${updateError.details})` : '';
+        const hint = updateError.hint && !errorMessage.includes('Sub-Asset Type') && !errorMessage.includes('נכס משנה') ? ` - ${updateError.hint}` : '';
 
         // Always include full error information
         const fullErrorMessage = `${errorMessage}${details}${hint}`;
-        console.error('[API] Full error details:', { code: insertError.code, message: errorMessage, details, hint, fullErrorMessage });
+        console.error('[API] Full error details:', { code: updateError.code, message: errorMessage, details, hint, fullErrorMessage });
         throw new Error(fullErrorMessage);
       }
 
-      console.log('[API] Asset updated successfully (moved to history and new entry created):', newAsset);
-      return newAsset;
+      console.log('[API] Asset updated successfully:', updatedAsset);
+      return updatedAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
       const { error } = await supabase

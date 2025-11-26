@@ -669,7 +669,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
     {
       headerName: t('structureDrawing'),
       field: 'structure_drawing_url',
-      pinned: 'right',
+      pinned: 'left',
       sortable: false,
       filter: false,
       editable: false,
@@ -1485,7 +1485,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                 }}
                 onColumnResized={saveColumnState}
                 onColumnMoved={(params) => {
-                  // Prevent structure drawing column from being moved - force it back to pinned right position
+                  // Prevent structure drawing column from being moved - force it back to pinned left position
                   try {
                     const columnApi = (params as any).columnApi || params.api;
                     if (columnApi && columnApi.getColumn) {
@@ -1501,7 +1501,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                               const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
                               if (structureDrawingCol) {
                                 gridRef.current.api.applyColumnState({
-                                  state: [{ ...structureDrawingCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                                  state: [{ ...structureDrawingCol, pinned: 'left', lockPosition: true }, ...otherCols],
                                   applyOrder: true
                                 });
                               }
@@ -1596,7 +1596,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     }}
                     onColumnResized={saveHistoryColumnState}
                     onColumnMoved={(params) => {
-                      // Prevent structure drawing column from being moved - force it back to pinned right position
+                      // Prevent structure drawing column from being moved - force it back to pinned left position
                       try {
                         const columnApi = (params as any).columnApi || params.api;
                         if (columnApi && columnApi.getColumn) {
@@ -1612,7 +1612,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                                   const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
                                   if (structureDrawingCol) {
                                     historyGridRef.current.api.applyColumnState({
-                                      state: [{ ...structureDrawingCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                                      state: [{ ...structureDrawingCol, pinned: 'left', lockPosition: true }, ...otherCols],
                                       applyOrder: true
                                     });
                                   }

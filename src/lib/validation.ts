@@ -250,17 +250,27 @@ export async function validateAssetTypeForBuildingTaxRegion(
   taxRegion?: string
 ): Promise<ValidationResult> {
   try {
-    // IMPORTANT: If taxRegion is provided, COMPLETELY IGNORE the building's tax_region
+    // CRITICAL: If taxRegion is provided from tab, COMPLETELY IGNORE the building's tax_region
+    // The building may have multiple tax regions (e.g., "10,40"), but we ONLY use the tab's single tax region
     // Only fetch building data if taxRegion is NOT provided (for fallback)
     let buildingTaxRegions: string[];
     
     // Check if taxRegion is provided and not empty (handle both undefined and empty string)
     if (taxRegion && taxRegion.trim() !== '') {
-      // Use ONLY the provided taxRegion - IGNORE building tax_region completely
-      console.log('[validateAssetTypeForBuildingTaxRegion] Using passed taxRegion, IGNORING building tax_region:', taxRegion);
-      buildingTaxRegions = [taxRegion.trim()];
+      // CRITICAL: Use ONLY the provided taxRegion - IGNORE building tax_region completely
+      // This ensures that even if building has "10,40", we only use the tab's tax region (e.g., "10")
+      const tabTaxRegion = taxRegion.trim();
+      console.log('[validateAssetTypeForBuildingTaxRegion] TAB TAX REGION PROVIDED - Using ONLY tab tax region, IGNORING building tax_region:', {
+        tabTaxRegion: tabTaxRegion,
+        buildingNumber: buildingNumber,
+        assetTypeName: assetTypeName,
+        willUse: 'TAB TAX REGION ONLY',
+        buildingTaxRegionWillBeIgnored: true
+      });
+      // Set to ONLY the tab's tax region - building.tax_region is completely ignored
+      buildingTaxRegions = [tabTaxRegion];
     } else {
-      console.log('[validateAssetTypeForBuildingTaxRegion] No taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
+      console.log('[validateAssetTypeForBuildingTaxRegion] No tab taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
       // Fallback: if no taxRegion provided, fetch building and use its tax_region
       const { data: building, error: buildingError } = await supabase
         .from('buildings')
@@ -283,6 +293,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
 
       // Use all tax regions from the building (only when taxRegion is not provided)
       buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+      console.log('[validateAssetTypeForBuildingTaxRegion] Using building tax_region array:', buildingTaxRegions);
     }
     
     // Validate asset types 199 and 299 based on the passed tax region (from tab)
@@ -419,8 +430,14 @@ export async function validateAssetTypeComplete(
       
       console.log('[validateAssetTypeComplete] Asset type validated directly for tax region:', taxRegion, {
         assetTypeName,
-        foundRecords: assetTypes.length
+        foundRecords: assetTypes.length,
+        taxRegionUsed: taxRegion,
+        buildingTaxRegionIgnored: 'YES - using tab tax region only'
       });
+      
+      // IMPORTANT: When taxRegion is provided, we've already validated the asset type exists for that tax region
+      // Now we need to fetch the building for size validation, but we'll use the provided taxRegion, NOT building.tax_region
+      // Continue to size validation below, but ensure we use the provided taxRegion
     } else {
       // No taxRegion provided - use the original validation that checks building tax_region
       console.log('[validateAssetTypeComplete] No taxRegion provided, using validateAssetTypeForBuildingTaxRegion');
@@ -456,24 +473,40 @@ export async function validateAssetTypeComplete(
 
     // IMPORTANT: If taxRegion is provided from the tab, COMPLETELY IGNORE the building's tax_region
     // Use ONLY the provided taxRegion for asset type validation
+    // This ensures that even if building has multiple tax regions (e.g., "10,40"), we only use the tab's single tax region
     let buildingTaxRegions: string[];
     // Check if taxRegion is provided and not empty (handle both undefined and empty string)
     if (taxRegion && taxRegion.trim() !== '') {
-      // Use ONLY the provided taxRegion - IGNORE building tax_region completely
-      console.log('[validateAssetTypeComplete] Using passed taxRegion from tab, IGNORING building tax_region:', taxRegion, {
+      // CRITICAL: Use ONLY the provided taxRegion - IGNORE building tax_region completely
+      // Clear any previous building tax regions and use ONLY the tab's tax region
+      // This prevents the building's tax_region array (e.g., "10,40") from being used
+      const tabTaxRegion = taxRegion.trim();
+      console.log('[validateAssetTypeComplete] SECOND PATH: Using passed taxRegion from tab, IGNORING building tax_region array:', {
+        tabTaxRegion: tabTaxRegion,
         buildingNumber,
         assetTypeName,
         buildingTaxRegion: building.tax_region,
-        willUse: 'PASSED TAX REGION (from tab)'
+        buildingTaxRegionArray: building.tax_region ? String(building.tax_region).split(',').map(r => r.trim()) : [],
+        willUse: 'TAB TAX REGION ONLY (ignoring building array)',
+        willUseArray: [tabTaxRegion],
+        buildingTaxRegionWillBeIgnored: true
       });
-      buildingTaxRegions = [taxRegion.trim()];
+      // CRITICAL: Set to ONLY the tab's tax region, completely ignore building's tax_region array
+      buildingTaxRegions = [tabTaxRegion];
+      // Double-check: ensure we're not accidentally using building.tax_region
+      if (building.tax_region && String(building.tax_region).split(',').map(r => r.trim()).length > 1) {
+        console.warn('[validateAssetTypeComplete] WARNING: Building has multiple tax regions, but we are IGNORING them and using only tab tax region:', {
+          buildingTaxRegions: String(building.tax_region).split(',').map(r => r.trim()),
+          usingOnly: [tabTaxRegion]
+        });
+      }
     } else {
       // Fallback: if no taxRegion provided, use all tax regions from the building
-      console.log('[validateAssetTypeComplete] No taxRegion provided from tab, using building tax_region:', building.tax_region, {
+      console.log('[validateAssetTypeComplete] SECOND PATH: No taxRegion provided from tab, using building tax_region array:', building.tax_region, {
         taxRegionValue: taxRegion,
         buildingNumber,
         assetTypeName,
-        willUse: 'BUILDING TAX REGION (fallback)'
+        willUse: 'BUILDING TAX REGION ARRAY (fallback)'
       });
       buildingTaxRegions = building.tax_region != null
         ? String(building.tax_region).split(',').map(r => r.trim())
@@ -901,21 +934,28 @@ export async function validateSubAssetsFor199Or299(
     }
   }
 
-  // IMPORTANT: If taxRegion is provided, COMPLETELY IGNORE the building's tax_region
+  // CRITICAL: If taxRegion is provided from tab, COMPLETELY IGNORE the building's tax_region
+  // The building may have multiple tax regions (e.g., "10,40"), but we ONLY use the tab's single tax region
   // Only fetch building data if taxRegion is NOT provided (for fallback)
   let buildingTaxRegions: string[];
   
   // Check if taxRegion is provided and not empty (handle both undefined and empty string)
   if (taxRegion && taxRegion.trim() !== '') {
-    // Use ONLY the provided taxRegion - IGNORE building tax_region completely
-    console.log('[validateSubAssetsFor199Or299] Using passed taxRegion, IGNORING building tax_region:', taxRegion, {
-      buildingNumber,
-      mainAssetType
+    // CRITICAL: Use ONLY the provided taxRegion - IGNORE building tax_region completely
+    // This ensures that even if building has "10,40", we only use the tab's tax region (e.g., "10")
+    const tabTaxRegion = taxRegion.trim();
+    console.log('[validateSubAssetsFor199Or299] TAB TAX REGION PROVIDED - Using ONLY tab tax region, IGNORING building tax_region:', {
+      tabTaxRegion: tabTaxRegion,
+      buildingNumber: buildingNumber,
+      mainAssetType: mainAssetType,
+      willUse: 'TAB TAX REGION ONLY',
+      buildingTaxRegionWillBeIgnored: true
     });
-    buildingTaxRegions = [taxRegion.trim()];
+    // Set to ONLY the tab's tax region - building.tax_region is completely ignored
+    buildingTaxRegions = [tabTaxRegion];
   } else {
     // Fallback: if no taxRegion provided, fetch building and use its tax_region
-    console.log('[validateSubAssetsFor199Or299] No taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
+    console.log('[validateSubAssetsFor199Or299] No tab taxRegion provided, will fetch building tax_region. taxRegion value:', taxRegion);
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
       .select('tax_region')
@@ -931,8 +971,8 @@ export async function validateSubAssetsFor199Or299(
     }
 
     // Use all tax regions from the building (only when taxRegion is not provided)
-    console.log('[validateSubAssetsFor199Or299] Using building tax_region:', building.tax_region);
     buildingTaxRegions = String(building.tax_region).split(',').map(r => r.trim());
+    console.log('[validateSubAssetsFor199Or299] Using building tax_region array:', buildingTaxRegions);
   }
 
   for (const subAssetType of validSubAssets) {

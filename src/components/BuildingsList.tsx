@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building, api } from '../lib/api';
+import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -35,6 +35,7 @@ export function BuildingsList({
   const [success, setSuccess] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
+  const [addressList, setAddressList] = useState<AddressList[]>([]);
   
   // Change tracking - use tempId (string) for new buildings instead of negative numbers
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<string | number, Partial<Building>>>(new Map());
@@ -1215,8 +1216,70 @@ export function BuildingsList({
         alignItems: 'center',
         justifyContent: 'center'
       }
+    },
+    {
+      field: 'building_address',
+      headerName: 'כתובת',
+      editable: true,
+      valueGetter: (params: any) => {
+        // Return street_code as the value
+        return params.data?.building_address || null;
+      },
+      valueSetter: (params: any) => {
+        // Set street_code as the value
+        if (params.data) {
+          params.data.building_address = params.newValue;
+        }
+        return true;
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const streetCode = building.building_address;
+        if (!streetCode) return '';
+        
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
+        const errorMsg = errors && errors['building_address'];
+        
+        // Find the address description
+        const address = addressList.find(a => a.street_code === streetCode);
+        const displayValue = address ? address.street_description : '';
+        
+        if (isNew && !streetCode) {
+          return '';
+        }
+        
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{displayValue}</span>
+            </div>
+          );
+        }
+        
+        return displayValue;
+      },
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: (params: any) => {
+        // Return street codes as values, but format display as "code - description"
+        return {
+          values: addressList.map(a => a.street_code),
+          formatValue: (value: any) => {
+            const address = addressList.find(a => a.street_code === value);
+            return address ? `${address.street_code} - ${address.street_description}` : String(value || '');
+          }
+        };
+      },
+      cellEditorPopup: true,
+      cellEditorPopupPosition: 'under',
+      cellStyle: (params) => getCellStyle(params, 'building_address')
     }
-  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange]);
+  ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);
 
   // Handle create building modal
   const handleCreateBuilding = async () => {

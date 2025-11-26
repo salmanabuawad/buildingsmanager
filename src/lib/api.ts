@@ -15,6 +15,7 @@ export interface Building {
   condo?: string;
   basement?: string;
   townhouses?: string;
+  building_address?: number; // Street code from address_list table
   _tempId?: string; // Hidden field to identify new buildings before saving
   _isNew?: boolean; // Hidden field to mark new buildings
 }

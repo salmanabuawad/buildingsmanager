@@ -113,7 +113,7 @@ export const validators = {
   },
 };
 
-export async function applyRule(rule: ValidationRule, value: any, taxRegion?: string): Promise<ValidationResult> {
+export async function applyRule(rule: ValidationRule, value: any, taxRegion?: string, lookupData?: { assetTypes?: any[]; [key: string]: any }): Promise<ValidationResult> {
   const fieldName = rule.field_name;
   const errorMessage = rule.error_message;
 
@@ -973,10 +973,33 @@ export async function validateField(
   entityType: string,
   fieldName: string,
   value: any,
-  validationRules: ValidationRule[],
-  taxRegion?: string,
+  validationRulesOrTaxRegion?: ValidationRule[] | string,
+  taxRegionOrLookupData?: string | { assetTypes?: any[]; [key: string]: any },
   lookupData?: { assetTypes?: any[]; [key: string]: any }
 ): Promise<ValidationResult[]> {
+  // Handle backward compatibility: check if first optional param is ValidationRule[] or string
+  let validationRules: ValidationRule[];
+  let taxRegion: string | undefined;
+  let lookup: { assetTypes?: any[]; [key: string]: any } | undefined;
+  
+  if (Array.isArray(validationRulesOrTaxRegion)) {
+    // New signature: validationRules provided
+    validationRules = validationRulesOrTaxRegion;
+    taxRegion = typeof taxRegionOrLookupData === 'string' ? taxRegionOrLookupData : undefined;
+    lookup = typeof taxRegionOrLookupData === 'object' ? taxRegionOrLookupData : lookupData;
+  } else {
+    // Old signature: load validation rules
+    validationRules = await loadValidationRules();
+    taxRegion = typeof validationRulesOrTaxRegion === 'string' ? validationRulesOrTaxRegion : undefined;
+    lookup = typeof taxRegionOrLookupData === 'object' ? taxRegionOrLookupData : lookupData;
+  }
+  
+  // Safety check: ensure validationRules is always an array
+  if (!Array.isArray(validationRules)) {
+    console.error('[validateField] validationRules is not an array, using empty array:', validationRules);
+    validationRules = [];
+  }
+  
   const fieldRules = validationRules.filter(
     r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
@@ -986,7 +1009,7 @@ export async function validateField(
   if (value == null || value === '') {
     const requiredRule = fieldRules.find(r => r.rule_type === 'required');
     if (requiredRule) {
-      const result = await applyRule(requiredRule, value, taxRegion, lookupData);
+      const result = await applyRule(requiredRule, value, taxRegion, lookup);
       if (!result.valid) {
         return [result];
       }
@@ -996,7 +1019,7 @@ export async function validateField(
 
   const results: ValidationResult[] = [];
   for (const rule of fieldRules) {
-    const result = await applyRule(rule, value, taxRegion, lookupData);
+    const result = await applyRule(rule, value, taxRegion, lookup);
     results.push(result);
   }
 

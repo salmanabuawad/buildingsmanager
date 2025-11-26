@@ -349,14 +349,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // If assets are selected, only validate selected ones; otherwise validate all
       let assetsToValidate: Asset[];
       if (selectedAssets.size > 0) {
-        // Filter to only selected assets - match by asset_id (stored in selectedAssets)
+        // Filter to only selected assets - match by database id (stored in selectedAssets)
+        // selectedAssets contains asset.id (database ID), not asset.asset_id
         assetsToValidate = filteredAssets.filter(asset => {
-          const assetId = String(asset.asset_id);
-          return selectedAssets.has(assetId);
+          const dbId = String(asset.id);
+          return selectedAssets.has(dbId);
         });
         console.log(`[Batch Validation] Selected assets count: ${selectedAssets.size}, Filtered assets count: ${filteredAssets.length}, Assets to validate: ${assetsToValidate.length}`);
-        console.log(`[Batch Validation] Selected asset IDs:`, Array.from(selectedAssets));
-        console.log(`[Batch Validation] Assets to validate IDs:`, assetsToValidate.map(a => String(a.asset_id)));
+        console.log(`[Batch Validation] Selected database IDs:`, Array.from(selectedAssets));
+        console.log(`[Batch Validation] Assets to validate database IDs:`, assetsToValidate.map(a => String(a.id)));
       } else {
         // Validate all assets
         assetsToValidate = filteredAssets;
@@ -399,14 +400,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Map unified handler results to the expected format
       // Filter to only include invalid results (errors array should only contain invalid assets)
-      const invalidResults = batchResult.results.filter(result => !result.valid || (result.errors && result.errors.length > 0));
+      // A result is invalid if valid is false OR if there are errors
+      const invalidResults = batchResult.results.filter(result => {
+        const isInvalid = !result.valid || (result.errors && result.errors.length > 0);
+        return isInvalid;
+      });
       
-      console.log(`[Batch Validation] Handler returned: total=${batchResult.total}, valid=${batchResult.valid}, invalid=${batchResult.invalid}, results.length=${batchResult.results.length}, invalidResults.length=${invalidResults.length}`);
+      // Verify counters match the results
+      const actualValid = batchResult.results.filter(r => r.valid && (!r.errors || r.errors.length === 0)).length;
+      const actualInvalid = batchResult.results.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
+      const actualTotal = batchResult.results.length;
       
+      console.log(`[Batch Validation] Handler returned: total=${batchResult.total}, valid=${batchResult.valid}, invalid=${batchResult.invalid}, results.length=${batchResult.results.length}`);
+      console.log(`[Batch Validation] Recalculated: actualTotal=${actualTotal}, actualValid=${actualValid}, actualInvalid=${actualInvalid}, invalidResults.length=${invalidResults.length}`);
+      
+      // Use the recalculated counts to ensure accuracy
       const results = {
-        total: batchResult.total,
-        valid: batchResult.valid,
-        invalid: batchResult.invalid,
+        total: actualTotal, // Use actual count from results array
+        valid: actualValid,  // Recalculate from results
+        invalid: actualInvalid, // Recalculate from results
         errors: invalidResults.map(result => {
           // Find the asset to get its database ID
           const asset = assetsToValidate.find(a => String(a.asset_id) === String(result.assetId));

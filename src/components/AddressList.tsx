@@ -418,9 +418,51 @@ export function AddressListComponent() {
 
           await api.addressList.create(addressData);
           successCount++;
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          errors.push(`שורה ${i + 1}: שגיאה בשמירה - ${errorMsg}. סמל רחוב: "${streetCodeStr}", שם רחוב: "${streetDescription}"`);
+        } catch (error: any) {
+          // Log the full error structure for debugging
+          console.error(`Import error at row ${i + 1}:`, error);
+          
+          // Extract detailed error information from Supabase errors
+          let errorMsg = 'Unknown error';
+          
+          if (error instanceof Error) {
+            errorMsg = error.message;
+          } else if (error?.message) {
+            errorMsg = error.message;
+          } else if (typeof error === 'string') {
+            errorMsg = error;
+          }
+          
+          // Add additional error details if available (Supabase error structure)
+          const errorDetails: string[] = [];
+          if (error?.code) {
+            errorDetails.push(`קוד: ${error.code}`);
+          }
+          if (error?.details) {
+            errorDetails.push(`פרטים: ${error.details}`);
+          }
+          if (error?.hint) {
+            errorDetails.push(`רמז: ${error.hint}`);
+          }
+          
+          // If error is an object, try to stringify it for more info
+          if (!errorMsg || errorMsg === 'Unknown error') {
+            try {
+              const errorString = JSON.stringify(error);
+              if (errorString && errorString !== '{}') {
+                errorMsg = errorString;
+              }
+            } catch (e) {
+              // If stringify fails, use the error object's toString
+              errorMsg = String(error);
+            }
+          }
+          
+          const fullErrorMsg = errorDetails.length > 0 
+            ? `${errorMsg} (${errorDetails.join(', ')})`
+            : errorMsg;
+            
+          errors.push(`שורה ${i + 1}: שגיאה בשמירה - ${fullErrorMsg}. סמל רחוב: "${streetCodeStr}", שם רחוב: "${streetDescription}"`);
           errorCount++;
         }
 

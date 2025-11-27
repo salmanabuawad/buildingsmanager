@@ -369,6 +369,30 @@ export async function applyRule(rule: ValidationRule, value: any, taxRegion?: st
             };
           }
           return { valid: true };
+        } else if (rule.compare_table === 'assets') {
+          // Use in-memory assets for existence check
+          const allAssets = getAllAssets();
+          const matching = allAssets.filter(a => {
+            const fieldValue = a[rule.compare_field!];
+            if (fieldValue == null) return false;
+            
+            // Handle numeric comparison for asset_id
+            if (rule.compare_field === 'asset_id') {
+              const fieldNum = typeof fieldValue === 'string' ? parseInt(fieldValue, 10) : fieldValue;
+              const queryNum = typeof queryValue === 'string' ? parseInt(queryValue, 10) : queryValue;
+              return fieldNum === queryNum;
+            }
+            
+            return String(fieldValue) === String(queryValue);
+          });
+
+          if (matching.length === 0) {
+            return {
+              valid: false,
+              error: errorMessage || `${fieldName} value "${value}" does not exist in assets`
+            };
+          }
+          return { valid: true };
         } else {
           // For other tables, return valid (can be extended later if needed)
           if (process.env.NODE_ENV === 'development') {

@@ -12,11 +12,13 @@ import { supabase } from '../lib/supabase';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 
 interface AssetDetailsProps {
-  assetId: number;
+  assetId?: number;
+  buildingNumber?: number;
+  taxRegion?: string;
   onDataUpdate?: () => void;
 }
 
-export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
+export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate }: AssetDetailsProps) {
   const { t } = useTranslation();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);

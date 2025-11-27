@@ -821,7 +821,7 @@ export async function validateAssetTypeComplete(
 
           if (requiredValue === 'כן' || requiredValue === 'yes') {
             if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-              errors.push('דורש דירת גן, אבל המבנה לא מסומן ככזה');
+              errors.push('דורש בית משותף, אבל המבנה לא מסומן ככזה');
             }
           }
         }
@@ -1320,9 +1320,48 @@ export const assetTypeValidators = {
     if (!taxRegion && taxRegion !== 0) {
       return { valid: true };
     }
-    const results = await validateField('asset_type', 'tax_region', taxRegion);
-    const firstError = results.find(r => !r.valid);
-    return firstError || { valid: true };
+    
+    // Convert to string if it's a number
+    const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
+    const trimmedValue = taxRegionStr.trim();
+
+    // Get all tax regions from asset_types table
+    const assetTypes = getAssetTypes();
+    const taxRegionsInAssetTypes = new Set(assetTypes.map(at => at.tax_region).filter(tr => tr != null));
+    
+    // If no asset types loaded, skip validation
+    if (taxRegionsInAssetTypes.size === 0) {
+      return { valid: true };
+    }
+    
+    // Check if it's a comma-separated value
+    if (trimmedValue.includes(',')) {
+      const components = trimmedValue.split(',').map(v => v.trim());
+      
+      // Validate each component exists in asset_types
+      for (const component of components) {
+        const taxRegionNum = parseInt(component);
+        if (isNaN(taxRegionNum) || !taxRegionsInAssetTypes.has(taxRegionNum)) {
+          return {
+            valid: false,
+            error: `אזור מס ${component} לא קיים בסוגי הנכסים`
+          };
+        }
+      }
+
+      return { valid: true };
+    }
+
+    // For single values, validate against asset_types table
+    const taxRegionNum = parseInt(trimmedValue);
+    if (isNaN(taxRegionNum) || !taxRegionsInAssetTypes.has(taxRegionNum)) {
+      return {
+        valid: false,
+        error: `אזור מס ${trimmedValue} לא קיים בסוגי הנכסים`
+      };
+    }
+
+    return { valid: true };
   },
 };
 
@@ -1753,30 +1792,26 @@ export const buildingValidators = {
 
     // Convert to string if it's a number
     const taxRegionStr = typeof taxRegion === 'number' ? taxRegion.toString() : taxRegion;
-
-    // Valid combinations: "10,40", "20,40", "30,40", or single values
-    const validCombinations = ['10,40', '20,40', '30,40'];
     const trimmedValue = taxRegionStr.trim();
 
+    // Get all tax regions from asset_types table
+    const assetTypes = getAssetTypes();
+    const taxRegionsInAssetTypes = new Set(assetTypes.map(at => at.tax_region).filter(tr => tr != null));
+    
+    // If no asset types loaded, skip validation
+    if (taxRegionsInAssetTypes.size === 0) {
+      return { valid: true };
+    }
+    
     // Check if it's a comma-separated value
     if (trimmedValue.includes(',')) {
-      const normalized = trimmedValue.split(',').map(v => v.trim()).sort().join(',');
-      if (!validCombinations.includes(normalized)) {
-        return {
-          valid: false,
-          error: 'אזור מס יכול להיות ערך בודד או אחד מהצירופים הבאים בלבד: 10,40 או 20,40 או 30,40'
-        };
-      }
-
-          // Only check asset_types existence when explicitly requested (during save/update)
+      const components = trimmedValue.split(',').map(v => v.trim());
+      
+      // Validate each component exists in asset_types
       if (!skipAssetTypeCheck) {
-        const components = trimmedValue.split(',').map(v => v.trim());
-        const assetTypes = getAssetTypes();
-        const taxRegionsInAssetTypes = new Set(assetTypes.map(at => at.tax_region).filter(tr => tr != null));
-        
         for (const component of components) {
           const taxRegionNum = parseInt(component);
-          if (!taxRegionsInAssetTypes.has(taxRegionNum)) {
+          if (isNaN(taxRegionNum) || !taxRegionsInAssetTypes.has(taxRegionNum)) {
             return {
               valid: false,
               error: `אזור מס ${component} לא קיים בסוגי הנכסים`
@@ -1788,10 +1823,18 @@ export const buildingValidators = {
       return { valid: true };
     }
 
-    // For single values, use the standard validation rules
-    const results = await validateField('building', 'tax_region', taxRegion);
-    const firstError = results.find(r => !r.valid);
-    return firstError || { valid: true };
+    // For single values, validate against asset_types table
+    if (!skipAssetTypeCheck) {
+      const taxRegionNum = parseInt(trimmedValue);
+      if (isNaN(taxRegionNum) || !taxRegionsInAssetTypes.has(taxRegionNum)) {
+        return {
+          valid: false,
+          error: `אזור מס ${trimmedValue} לא קיים בסוגי הנכסים`
+        };
+      }
+    }
+
+    return { valid: true };
   },
 
   checkAreaMismatch: (totalAreaForControl: number | null, totalBuildingArea: number): boolean => {

@@ -36,7 +36,7 @@ interface ImportAssetRow {
 
 export function AssetsFileImport() {
   const { t } = useTranslation();
-  const { validationRules } = useValidationRules();
+  const { validationRules, loading: validationContextLoading, refreshRules } = useValidationRules();
   const gridRef = useRef<AgGridReact>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [importedAssets, setImportedAssets] = useState<ImportAssetRow[]>([]);
@@ -54,22 +54,35 @@ export function AssetsFileImport() {
   const [validationCompleted, setValidationCompleted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load asset types and buildings on mount
+  // Load asset types and buildings on mount, and ensure validation context data is loaded
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Wait for validation context to finish loading if it's still loading
+        if (validationContextLoading) {
+          // Wait a bit and check again, or refresh
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (validationContextLoading) {
+            await refreshRules();
+          }
+        }
+        
         const [types, bldgs] = await Promise.all([
           api.assetTypes.getAll(),
           api.buildings.getAll()
         ]);
         setAssetTypes(types);
         setBuildings(bldgs);
+        
+        // Ensure buildings are in memory for validation
+        const { setValidationData } = await import('../lib/validation');
+        setValidationData({ buildings: bldgs, assetTypes: types });
       } catch (err) {
         console.error('Error loading data:', err);
       }
     };
     loadData();
-  }, []);
+  }, [validationContextLoading, refreshRules]);
 
   async function parseExcelFile(file: File): Promise<string[][]> {
     return new Promise((resolve, reject) => {
@@ -242,9 +255,36 @@ export function AssetsFileImport() {
       
       // Automatically validate all imported assets after loading
       if (assets.length > 0) {
-        // Trigger validation automatically
+        // Ensure buildings are loaded into memory before validation
+        const ensureBuildingsLoaded = async () => {
+          try {
+            // Check if buildings are already loaded
+            if (buildings.length === 0) {
+              const bldgs = await api.buildings.getAll();
+              setBuildings(bldgs);
+              // Update in-memory stores for validation
+              const { setValidationData } = await import('../lib/validation');
+              const currentAssetTypes = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
+              setValidationData({ buildings: bldgs, assetTypes: currentAssetTypes });
+            }
+            
+            // Also ensure validation context has loaded
+            if (validationContextLoading) {
+              await refreshRules();
+            }
+            
+            // Now trigger validation
+            handleValidate();
+          } catch (err) {
+            console.error('Error loading buildings for validation:', err);
+            // Still try to validate even if loading fails
+            handleValidate();
+          }
+        };
+        
+        // Trigger validation after ensuring data is loaded
         setTimeout(() => {
-          handleValidate();
+          ensureBuildingsLoaded();
         }, 100);
       }
     } catch (error) {
@@ -265,9 +305,24 @@ export function AssetsFileImport() {
     setValidationResults(null);
 
     try {
+      // Ensure buildings are loaded into memory before validation
+      if (buildings.length === 0 || validationContextLoading) {
+        setValidationProgress({ current: 0, total: importedAssets.length, currentAssetId: 'טוען נתונים...' });
+        const [types, bldgs] = await Promise.all([
+          api.assetTypes.getAll(),
+          api.buildings.getAll()
+        ]);
+        setAssetTypes(types);
+        setBuildings(bldgs);
+        
+        // Update in-memory stores for validation
+        const { setValidationData } = await import('../lib/validation');
+        setValidationData({ buildings: bldgs, assetTypes: types });
+      }
+
       // Prepare cached data
       const cachedData = {
-        assetTypes: assetTypes,
+        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
         building: null // Will be determined per asset
       };
 

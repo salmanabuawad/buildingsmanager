@@ -77,9 +77,15 @@ export function getAssetTypes(): any[] {
 /**
  * Get building by building number from memory (synchronous)
  */
-export function getBuildingByNumber(buildingNumber: number): any | undefined {
+export function getBuildingByNumber(buildingNumber: number | string | null | undefined): any | undefined {
+  if (buildingNumber == null) return undefined;
   const buildings = getBuildings();
-  return buildings.find(b => b.building_number === buildingNumber);
+  // Compare as both number and string to handle type mismatches
+  const buildingNumberNum = typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber;
+  return buildings.find(b => {
+    const bNum = typeof b.building_number === 'string' ? parseInt(b.building_number, 10) : b.building_number;
+    return bNum === buildingNumberNum;
+  });
 }
 
 /**
@@ -1254,15 +1260,40 @@ export const assetValidators = {
     return firstError || { valid: true };
   },
 
-  validateBuildingExists: async (buildingNumber: number | null, validationRules?: any[], cachedData?: any): Promise<ValidationResult> => {
-    if (!buildingNumber) {
+  validateBuildingExists: async (buildingNumber: number | string | null, validationRules?: any[], cachedData?: any): Promise<ValidationResult> => {
+    if (!buildingNumber && buildingNumber !== 0) {
       return { valid: false, error: 'מספר מבנה נדרש' };
     }
 
     // Use in-memory buildings if available
     const building = getBuildingByNumber(buildingNumber);
     if (!building) {
-      return { valid: false, error: `מבנה ${buildingNumber} לא קיים במערכת` };
+      // If not found in memory, try querying the database as a fallback
+      try {
+        const { supabase } = await import('./supabase');
+        const buildingNumberNum = typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber;
+        const { data, error } = await supabase
+          .from('buildings')
+          .select('building_number')
+          .eq('building_number', buildingNumberNum)
+          .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking building existence:', error);
+          // If we can't check, return valid to avoid blocking
+          return { valid: true };
+        }
+        
+        if (!data) {
+          return { valid: false, error: `מבנה ${buildingNumber} לא קיים במערכת` };
+        }
+        
+        return { valid: true };
+      } catch (err) {
+        console.error('Error in validateBuildingExists:', err);
+        // If we can't check, return valid to avoid blocking
+        return { valid: true };
+      }
     }
 
     return { valid: true };

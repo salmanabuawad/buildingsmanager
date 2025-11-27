@@ -1282,15 +1282,31 @@ export function BuildingsList({
         if (!params) return null;
         const newValue = params.newValue;
         if (newValue === null || newValue === undefined || newValue === '') return null;
+        
+        let streetCode: number | null = null;
+        
         // Extract street code from "code - description" format
         if (typeof newValue === 'string' && newValue.includes(' - ')) {
-          const codeStr = newValue.split(' - ')[0];
-          const numValue = Number(codeStr);
-          return isNaN(numValue) ? null : numValue;
+          const codeStr = newValue.split(' - ')[0].trim();
+          streetCode = Number(codeStr);
+        } else {
+          // If it's already a number, use it directly
+          streetCode = Number(newValue);
         }
-        // If it's already a number, use it directly
-        const numValue = Number(newValue);
-        return isNaN(numValue) ? null : numValue;
+        
+        // Validate: must be a valid positive integer that exists in addressList
+        if (isNaN(streetCode) || streetCode <= 0) {
+          return null;
+        }
+        
+        // Verify the street code exists in addressList
+        const addressExists = addressList.some(a => Number(a.street_code) === streetCode);
+        if (!addressExists) {
+          console.warn(`Street code ${streetCode} not found in addressList`);
+          return null;
+        }
+        
+        return streetCode;
       },
       cellEditorPopup: true,
       cellEditorPopupPosition: 'under',

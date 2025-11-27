@@ -249,10 +249,16 @@ function sanitizeBuildingInput(input: any): any {
   }
   // Handle building_address: street code from address_list table
   if ('building_address' in input) {
-    if (input.building_address === null || input.building_address === '') {
+    if (input.building_address === null || input.building_address === '' || input.building_address === undefined) {
       sanitized.building_address = null;
     } else {
-      sanitized.building_address = sanitizeInteger(input.building_address);
+      const code = sanitizeInteger(input.building_address);
+      // Only set if it's a valid positive number, otherwise set to null
+      if (code && code > 0) {
+        sanitized.building_address = code;
+      } else {
+        sanitized.building_address = null;
+      }
     }
   }
   
@@ -350,6 +356,11 @@ export const api = {
           hint: error.hint,
           code: error.code
         });
+        // Handle foreign key constraint violation for building_address
+        if (error.code === '23503' && (error.message?.includes('fk_buildings_building_address') || error.details?.includes('address_list'))) {
+          const streetCode = cleanedInput.building_address;
+          throw new Error(`סמל רחוב ${streetCode} לא קיים בטבלת הכתובות. יש לבחור כתובת תקינה מהרשימה.`);
+        }
         throw error;
       }
       console.log('[API] Building updated successfully:', data);

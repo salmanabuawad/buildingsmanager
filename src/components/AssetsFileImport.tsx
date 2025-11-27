@@ -821,10 +821,23 @@ export function AssetsFileImport() {
     }
   ], [t, assetTypes, handleDeleteRow]);
 
+  const getRowStyle = (params: any) => {
+    const row = params.data as ImportAssetRow;
+    const hasValidationError = row._validationErrors && row._validationErrors.length > 0;
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        borderLeft: '4px solid #ef4444'
+      };
+    }
+    return undefined;
+  };
+
   const gridOptions = {
     autoSizeStrategy: {
       type: 'fitCellContents' as const,
     },
+    getRowStyle: getRowStyle,
   };
 
   function downloadTemplate() {
@@ -924,6 +937,37 @@ export function AssetsFileImport() {
             </button>
           </div>
         </div>
+
+        {/* Failed Assets Summary - Display above grid */}
+        {validationResults && validationResults.invalid > 0 && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <h3 className="text-lg font-semibold text-red-900">
+                נכסים שנכשלו באימות ({validationResults.invalid})
+              </h3>
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {validationResults.errors
+                .filter(e => e.errors.length > 0)
+                .map((error, idx) => (
+                  <div key={idx} className="bg-white border border-red-300 rounded p-3">
+                    <div className="font-semibold text-red-900 mb-1">
+                      נכס {error.assetId} (מבנה {error.buildingNumber})
+                    </div>
+                    <ul className="text-sm text-red-700 space-y-1">
+                      {error.errors.map((err, errIdx) => (
+                        <li key={errIdx} className="flex items-start gap-2">
+                          <span className="text-red-500">•</span>
+                          <span>{err}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Save Result - Display above grid */}
         {saveResult && (

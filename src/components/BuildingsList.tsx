@@ -1236,13 +1236,16 @@ export function BuildingsList({
       headerName: 'כתובת',
       editable: true,
       valueGetter: (params: any) => {
-        // Return the street code (number) as the value
-        return params.data?.building_address || null;
+        // Return the street code as a string for the editor, or number for storage
+        const value = params.data?.building_address;
+        return value != null ? String(value) : null;
       },
       valueSetter: (params: any) => {
         // Set the street code (number) as the value
         if (params.data) {
-          params.data.building_address = params.newValue;
+          const newValue = params.newValue;
+          // Convert string back to number if needed
+          params.data.building_address = newValue != null ? Number(newValue) : null;
         }
         return true;
       },
@@ -1281,8 +1284,11 @@ export function BuildingsList({
       },
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        // Use street codes as values (numbers)
-        values: addressList.map(a => a.street_code),
+        // Use street codes as values (convert to strings for AG-Grid)
+        // Ensure we have a valid array of strings
+        values: addressList && addressList.length > 0 
+          ? addressList.map(a => String(a.street_code))
+          : [],
       },
       valueParser: (params: any) => {
         if (!params) return null;

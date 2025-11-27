@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2 } from 'lucide-react';
 import { api, Asset, AssetType, Building } from '../lib/api';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -399,6 +399,10 @@ export function AssetsFileImport() {
     ));
   }, []);
 
+  const handleDeleteRow = useCallback((rowId: string) => {
+    setImportedAssets(prev => prev.filter(a => a.id !== rowId));
+  }, []);
+
   const getCellStyle = (params: any) => {
     const row = params.data as ImportAssetRow;
     const hasValidationError = row._validationErrors && row._validationErrors.length > 0;
@@ -413,6 +417,46 @@ export function AssetsFileImport() {
   };
 
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => [
+    {
+      colId: 'actions',
+      field: 'actions',
+      headerName: 'פעולות',
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: any) => {
+        const row = params.data as ImportAssetRow;
+        const hasError = row._validationErrors && row._validationErrors.length > 0;
+        const errorMessages = hasError ? row._validationErrors : [];
+
+        return (
+          <div className="flex items-center gap-2 w-full px-2">
+            {hasError && (
+              <div className="flex items-center justify-center" title={errorMessages.join(', ')}>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeleteRow(row.id);
+              }}
+              className="p-1 hover:bg-red-100 rounded transition-colors"
+              title="מחק שורה"
+            >
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </button>
+          </div>
+        );
+      }
+    },
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
@@ -629,7 +673,7 @@ export function AssetsFileImport() {
       },
       cellStyle: getCellStyle
     }
-  ], [t, assetTypes]);
+  ], [t, assetTypes, handleDeleteRow]);
 
   const gridOptions = {
     autoSizeStrategy: {

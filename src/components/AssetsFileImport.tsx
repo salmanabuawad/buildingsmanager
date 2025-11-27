@@ -44,7 +44,6 @@ export function AssetsFileImport() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [importPenthouse, setImportPenthouse] = useState(true);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationResults, setValidationResults] = useState<BatchValidationResults | null>(null);
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
@@ -178,7 +177,7 @@ export function AssetsFileImport() {
           asset.sub_asset_size_5 = values[14] ? parseFloat(values[14]) : 0;
           asset.sub_asset_type_6 = values[15] || '';
           asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
-          if (values.length > 17 && importPenthouse) {
+          if (values.length > 17) {
             const penthouseValue = (values[17] || '').trim();
             if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
               asset.penthouse = 'כן';
@@ -227,11 +226,9 @@ export function AssetsFileImport() {
             } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
               asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
             } else if (headerLower.includes('גג') || headerLower.includes('penthouse') || headerLower === 'penthouse') {
-              if (importPenthouse) {
-                const penthouseValue = (value || '').trim();
-                if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
-                  asset.penthouse = 'כן';
-                }
+              const penthouseValue = (value || '').trim();
+              if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
+                asset.penthouse = 'כן';
               }
             }
           });
@@ -862,20 +859,6 @@ export function AssetsFileImport() {
               <Download className="h-4 w-4" />
               <span>הורד תבנית</span>
             </button>
-          </div>
-
-          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={importPenthouse}
-                onChange={(e) => setImportPenthouse(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-xs font-medium text-blue-900">
-                ייבא דירת גג (אופציונלי)
-              </span>
-            </label>
           </div>
         </div>
 

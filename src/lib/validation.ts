@@ -622,27 +622,21 @@ export async function validateAssetTypeComplete(
           : [];
       }
 
+      // Apply tax region filtering to in-memory asset types
       if (assetTypeName === '199') {
-        query = query.neq('tax_region', 40);
+        assetTypes = assetTypes.filter(at => at.tax_region !== 40);
       } else if (assetTypeName === '299') {
-        query = query.eq('tax_region', 40);
+        assetTypes = assetTypes.filter(at => at.tax_region === 40);
       } else if (buildingTaxRegions.length > 0) {
         const taxRegionNumbers = buildingTaxRegions.map(r => parseInt(r));
-        query = query.in('tax_region', taxRegionNumbers);
+        assetTypes = assetTypes.filter(at => 
+          at.tax_region != null && taxRegionNumbers.includes(Number(at.tax_region))
+        );
       }
 
-      const { data: assetTypesData, error: assetTypeError } = await query;
-
-      if (assetTypeError) {
-        console.error('Error fetching asset type:', assetTypeError);
+      if (assetTypes.length === 0) {
         return { valid: false, error: 'שגיאה באימות סוג הנכס' };
       }
-
-      if (!assetTypesData || assetTypesData.length === 0) {
-        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
-      }
-      
-      assetTypes = assetTypesData;
     }
 
     // Helper function to check if a single asset type entry matches all requirements

@@ -1352,7 +1352,7 @@ export const assetValidators = {
     return { valid: true };
   },
 
-  validateAssetIdUnique: async (assetId: string | number | null | undefined, currentAssetId?: number, validationRules?: any[], cachedData?: any): Promise<ValidationResult> => {
+  validateAssetIdUnique: async (assetId: string | number | null | undefined, currentAssetId?: number, validationRules?: any[], cachedData?: any, buildingNumber?: number | null): Promise<ValidationResult> => {
     if (!assetId) {
       return { valid: false, error: 'מזהה נכס נדרש' };
     }
@@ -1368,6 +1368,8 @@ export const assetValidators = {
 
     // Check in-memory assets
     const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    const buildingNumberNum = buildingNumber != null ? (typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber) : null;
+    
     const existingAssets = allAssets.filter(a => {
       const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
       if (aId !== assetIdNum) return false;
@@ -1382,6 +1384,26 @@ export const assetValidators = {
     });
 
     if (existingAssets.length > 0) {
+      // If buildingNumber is provided, check if asset exists in a different building
+      // For imports: if asset exists in a different building, it's not unique
+      if (buildingNumberNum != null) {
+        for (const existingAsset of existingAssets) {
+          const existingBuildingNum = typeof existingAsset.building_number === 'string' 
+            ? parseInt(existingAsset.building_number, 10) 
+            : existingAsset.building_number;
+          
+          if (existingBuildingNum !== buildingNumberNum) {
+            // Asset exists in a different building - not unique
+            return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן ליצור נכס עם אותו מספר במבנה אחר.` };
+          }
+        }
+        // Asset exists in the same building - for imports, this might be OK if it's an update
+        // But for new imports, it's a duplicate
+        if (!currentAssetId) {
+          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${buildingNumberNum}` };
+        }
+      }
+      
       return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
     }
 

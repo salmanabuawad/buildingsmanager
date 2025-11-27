@@ -250,6 +250,23 @@ export class AssetValidationHandler {
     const results: AssetValidationResult[] = [];
     const total = assets.length;
 
+    // First, check for duplicate asset_ids with different building_numbers within the import batch
+    const assetIdToBuildings = new Map<string | number, Set<number>>();
+    assets.forEach((asset, index) => {
+      const assetId = asset.asset_id;
+      if (!assetId) return;
+      
+      const assetIdKey = typeof assetId === 'string' ? assetId : String(assetId);
+      const buildingNum = typeof asset.building_number === 'string' 
+        ? parseInt(asset.building_number, 10) 
+        : asset.building_number;
+      
+      if (!assetIdToBuildings.has(assetIdKey)) {
+        assetIdToBuildings.set(assetIdKey, new Set());
+      }
+      assetIdToBuildings.get(assetIdKey)!.add(buildingNum);
+    });
+
     // Process assets in parallel batches to improve performance
     const BATCH_SIZE = 10; // Process 10 assets at a time
     for (let batchStart = 0; batchStart < assets.length; batchStart += BATCH_SIZE) {
@@ -269,7 +286,20 @@ export class AssetValidationHandler {
           });
         }
 
-        return await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
+        const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
+        
+        // Check if this asset_id appears with different building_numbers in the import batch
+        if (asset.asset_id) {
+          const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
+          const buildingsForAssetId = assetIdToBuildings.get(assetIdKey);
+          if (buildingsForAssetId && buildingsForAssetId.size > 1) {
+            const buildingNums = Array.from(buildingsForAssetId).join(', ');
+            result.errors.push(`מזהה נכס ${asset.asset_id} מופיע במספר מבנים שונים בקובץ הייבוא: ${buildingNums}. נכס יכול להיות קשור למבנה אחד בלבד.`);
+            result.valid = false;
+          }
+        }
+        
+        return result;
       });
 
       const batchResults = await Promise.all(batchPromises);
@@ -447,7 +477,7 @@ export class AssetValidationHandler {
     validations.push(assetValidators.validateAssetId(String(asset.asset_id), validationRules, cachedData));
 
     validationNames.push('אימות מזהה נכס ייחודי במערכת');
-    validations.push(assetValidators.validateAssetIdUnique(asset.asset_id, asset.id, validationRules, cachedData));
+    validations.push(assetValidators.validateAssetIdUnique(asset.asset_id, asset.id, validationRules, cachedData, asset.building_number));
 
     validationNames.push('אימות נכס לא קיים במבנה אחר');
     validations.push(assetValidators.validateAssetIdNotInOtherBuilding(asset.asset_id, asset.building_number));

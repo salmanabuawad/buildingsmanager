@@ -3,81 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, ICellEditorParams } from 'ag-grid-community';
+import { ColDef } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2 } from 'lucide-react';
 
-// Custom cell editor for building address dropdown
-class AddressCellEditor {
-  private params: ICellEditorParams & { addressList: AddressList[] } | null = null;
-  private selectElement: HTMLSelectElement | null = null;
-  private eGui: HTMLDivElement | null = null;
-
-  init(params: ICellEditorParams & { addressList: AddressList[] }) {
-    this.params = params;
-    this.eGui = document.createElement('div');
-    this.eGui.className = 'w-full h-full';
-    this.eGui.style.cssText = 'width: 100%; height: 100%;';
-
-    this.selectElement = document.createElement('select');
-    this.selectElement.className = 'w-full h-full px-2 border border-blue-500 rounded';
-    this.selectElement.dir = 'rtl';
-    this.selectElement.style.cssText = 'width: 100%; height: 100%; text-align: right;';
-    this.selectElement.value = params.value ? String(params.value) : '';
-
-    // Add empty option
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = '-- בחר כתובת --';
-    this.selectElement.appendChild(emptyOption);
-
-    // Add address options
-    params.addressList.forEach((address) => {
-      const option = document.createElement('option');
-      option.value = String(address.street_code);
-      option.textContent = `${address.street_code} - ${address.street_description}`;
-      this.selectElement!.appendChild(option);
-    });
-
-    this.selectElement.addEventListener('change', () => {
-      const value = this.selectElement!.value === '' ? null : parseInt(this.selectElement!.value, 10);
-      if (params.setValue) {
-        params.setValue(value);
-      }
-    });
-
-    this.selectElement.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        params.stopEditing();
-      } else if (e.key === 'Escape') {
-        params.stopEditing(true);
-      }
-    });
-
-    this.eGui.appendChild(this.selectElement);
-  }
-
-  getGui() {
-    return this.eGui!;
-  }
-
-  getValue(): number | null {
-    if (!this.selectElement) return null;
-    const value = this.selectElement.value === '' ? null : parseInt(this.selectElement.value, 10);
-    // Ensure the value is stored in the node data
-    if (this.params && this.params.node && this.params.data) {
-      this.params.data.building_address = value;
-    }
-    return value;
-  }
-
-  isCancelBeforeStart() {
-    return false;
-  }
-
-  isCancelAfterEnd() {
-    return false;
-  }
-}
 
 
 interface BuildingsListProps {
@@ -385,11 +313,15 @@ export function BuildingsList({
       });
     }
 
-    // Refresh grid
+    // Refresh grid to show dirty state
     if (gridRef.current?.api) {
-      gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+      gridRef.current.api.refreshCells({ 
+        rowNodes: [event.node], 
+        columns: [field],
+        force: true 
+      });
     }
-  }, [newBuildings, isNewBuilding, getBuildingKey]);
+  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors]);
 
   // Add empty building row
   const addEmptyBuildingRow = () => {
@@ -1302,17 +1234,12 @@ export function BuildingsList({
       field: 'building_address',
       headerName: 'כתובת',
       editable: true,
-      valueGetter: (params: any) => {
-        // Return street_code as the value
-        return params.data?.building_address || null;
-      },
-      valueSetter: (params: any) => {
-        // Set street_code as the value
-        if (params.data) {
-          const newValue = params.newValue === null || params.newValue === '' ? null : params.newValue;
-          params.data.building_address = newValue;
-        }
-        return true;
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -1346,10 +1273,25 @@ export function BuildingsList({
         
         return displayValue;
       },
-      cellEditor: AddressCellEditor,
+      cellEditor: 'agRichSelectCellEditor',
       cellEditorParams: {
-        addressList: addressList
+        values: addressList.map(a => a.street_code),
+        formatValue: (value: any) => {
+          if (value == null) return '';
+          const address = addressList.find(a => a.street_code === value);
+          return address ? `${address.street_code} - ${address.street_description}` : String(value);
+        },
+        cellRenderer: (params: any) => {
+          if (params.value == null) return '';
+          const address = addressList.find(a => a.street_code === params.value);
+          return address ? `${address.street_code} - ${address.street_description}` : String(params.value);
+        },
+        searchType: 'fuzzy',
+        filterList: true,
+        allowTyping: false,
       },
+      cellEditorPopup: true,
+      cellEditorPopupPosition: 'under',
       cellStyle: (params) => getCellStyle(params, 'building_address')
     }
   ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);

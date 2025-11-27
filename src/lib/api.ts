@@ -127,7 +127,7 @@ export interface ValidationRule {
 /**
  * Sanitizes asset data before sending to the server
  */
-function sanitizeAssetInput(input: any): any {
+export function sanitizeAssetInput(input: any): any {
   // Default measurement_date to today if not provided or invalid
   let measurementDate = input.measurement_date != null ? sanitizeDate(input.measurement_date) : '';
   if (!measurementDate || measurementDate === '') {

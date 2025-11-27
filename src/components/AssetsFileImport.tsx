@@ -501,18 +501,43 @@ export function AssetsFileImport() {
       // Use bulk insert via Supabase
       const { supabase } = await import('../lib/supabase');
       
-      // Sanitize all assets before bulk insert
+      // For "save as new", we need to handle existing assets differently
+      if (saveAsNew && newMeasurementDate) {
+        // Get all asset_ids that we're trying to save
+        const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
+        
+        if (assetIds.length > 0) {
+          // Check which assets already exist (bulk query)
+          const { data: existingAssets, error: checkError } = await supabase
+            .from('assets')
+            .select('asset_id')
+            .in('asset_id', assetIds);
+          
+          if (checkError && checkError.code !== 'PGRST116') {
+            errors.push(`שגיאה בבדיקת נכסים קיימים: ${checkError.message}`);
+          } else if (existingAssets && existingAssets.length > 0) {
+            // Delete existing assets in bulk (triggers will copy to history)
+            const existingAssetIds = existingAssets.map(a => a.asset_id);
+            const { error: deleteError } = await supabase
+              .from('assets')
+              .delete()
+              .in('asset_id', existingAssetIds);
+            
+            if (deleteError) {
+              errors.push(`שגיאה במחיקת נכסים קיימים: ${deleteError.message}`);
+            }
+          }
+        }
+      }
+
+      // Sanitize all assets before bulk insert using the sanitizeAssetInput function
       const { sanitizeAssetInput } = await import('../lib/api');
-      const sanitizedAssets = assetsToInsert.map(asset => {
-        // We need to access the sanitizeAssetInput function
-        // Since it's not exported, we'll need to sanitize manually or export it
-        return asset;
-      });
+      const sanitizedAssets = assetsToInsert.map(asset => sanitizeAssetInput(asset as any));
 
       // Perform bulk insert
       const { data: insertedAssets, error: bulkError } = await supabase
         .from('assets')
-        .insert(assetsToInsert)
+        .insert(sanitizedAssets)
         .select();
 
       if (bulkError) {
@@ -521,57 +546,68 @@ export function AssetsFileImport() {
         
         // If it's a unique constraint violation (duplicate asset_id), check which assets are duplicates
         if (bulkError.code === '23505' || errorMsg.includes('assets_asset_id_unique') || errorMsg.includes('duplicate key')) {
-          // Check each asset individually to find duplicates
-          const seenAssetIds = new Set<number>();
-          const duplicateAssetIds: number[] = [];
+          // Get all asset_ids from the batch and check which ones exist in the database (bulk query)
+          const assetIdsToCheck = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
           
-          for (let i = 0; i < assetsToInsert.length; i++) {
-            const assetId = assetsToInsert[i].asset_id;
-            if (assetId != null) {
-              const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
-              if (seenAssetIds.has(assetIdNum)) {
-                duplicateAssetIds.push(assetIdNum);
-              } else {
-                seenAssetIds.add(assetIdNum);
-              }
-            }
-          }
-
-          if (duplicateAssetIds.length > 0) {
-            duplicateAssetIds.forEach(assetId => {
-              errors.push(`מזהה נכס ${assetId} כבר קיים במערכת או מופיע מספר פעמים בקובץ הייבוא`);
-            });
-          } else {
-            // Try to save individually to get specific error messages
-            for (let i = 0; i < assetsToInsert.length; i++) {
-              try {
-                await api.assets.create(assetsToInsert[i] as any);
-                successCount++;
-              } catch (err) {
-                const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
-                const assetId = assetsToInsert[i].asset_id || `שורה ${i + 1}`;
-                if (errorMsg.includes('duplicate') || errorMsg.includes('assets_asset_id_unique')) {
-                  errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במערכת`);
-                } else {
-                  errors.push(`נכס ${assetId}: ${errorMsg}`);
+          if (assetIdsToCheck.length > 0) {
+            const { data: existingAssets, error: checkError } = await supabase
+              .from('assets')
+              .select('asset_id')
+              .in('asset_id', assetIdsToCheck);
+            
+            if (!checkError && existingAssets) {
+              const existingAssetIds = new Set(existingAssets.map(a => a.asset_id));
+              existingAssetIds.forEach(assetId => {
+                errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במערכת`);
+              });
+              
+              // Filter out existing assets and try to insert only new ones
+              const newAssets = sanitizedAssets.filter(a => {
+                const assetId = a.asset_id;
+                return assetId == null || !existingAssetIds.has(assetId);
+              });
+              
+              if (newAssets.length > 0) {
+                const { data: newInserted, error: newError } = await supabase
+                  .from('assets')
+                  .insert(newAssets)
+                  .select();
+                
+                if (!newError && newInserted) {
+                  successCount = newInserted.length;
+                } else if (newError) {
+                  errors.push(`שגיאה בשמירת נכסים חדשים: ${newError.message}`);
                 }
               }
+            } else {
+              errors.push(`שגיאה בבדיקת נכסים קיימים: ${checkError?.message || 'שגיאה לא ידועה'}`);
             }
           }
-        } else if (bulkError.code === '23503' || bulkError.code === '23514') {
-          // Foreign key or check constraint violation - try individual saves
-          for (let i = 0; i < assetsToInsert.length; i++) {
-            try {
-              await api.assets.create(assetsToInsert[i] as any);
-              successCount++;
-            } catch (err) {
-              const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
-              const assetId = assetsToInsert[i].asset_id || `שורה ${i + 1}`;
-              errors.push(`נכס ${assetId}: ${errorMsg}`);
+        } else if (bulkError.code === '23503') {
+          // Foreign key constraint violation - check which buildings don't exist
+          const buildingNumbers = [...new Set(assetsToInsert.map(a => a.building_number).filter(b => b != null))];
+          
+          if (buildingNumbers.length > 0) {
+            const { data: existingBuildings, error: buildingCheckError } = await supabase
+              .from('buildings')
+              .select('building_number')
+              .in('building_number', buildingNumbers);
+            
+            if (!buildingCheckError && existingBuildings) {
+              const existingBuildingNums = new Set(existingBuildings.map(b => b.building_number));
+              const missingBuildings = buildingNumbers.filter(b => !existingBuildingNums.has(b));
+              
+              if (missingBuildings.length > 0) {
+                missingBuildings.forEach(buildingNum => {
+                  errors.push(`מבנה ${buildingNum} לא קיים במערכת`);
+                });
+              }
             }
           }
+          
+          errors.push(`שגיאה בשמירה: ${errorMsg}`);
         } else {
-          // For other errors, mark all as failed
+          // For other errors, show the error message
           errors.push(`שגיאה בשמירה: ${errorMsg}`);
         }
       } else {

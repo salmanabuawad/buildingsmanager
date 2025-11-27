@@ -1515,34 +1515,32 @@ export function BuildingsList({
               }}
               onColumnResized={() => {}}
               onColumnMoved={(params) => {
-                // Use api instead of columnApi (columnApi is deprecated in AG-Grid v28+)
-                const api = params.api || (params as any).columnApi;
-                if (!api) return;
-                
+                // Use getColumnState to check column positions (works in all AG-Grid versions)
                 try {
-                  const actionsColumn = api.getColumn('actions');
-                  if (actionsColumn) {
-                    const allColumns = api.getAllColumns() || [];
-                    const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
-                    if (actionsIndex !== 0) {
-                      setTimeout(() => {
-                        if (gridRef.current?.api) {
-                          const columnState = gridRef.current.api.getColumnState();
-                          const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                          const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                          if (actionsCol) {
+                  if (gridRef.current?.api) {
+                    const columnState = gridRef.current.api.getColumnState();
+                    const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                    if (actionsCol) {
+                      // Check if actions column is not pinned to right or not in correct position
+                      const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                      const actionsIndex = columnState.findIndex((col: any) => col.colId === 'actions');
+                      const lastIndex = columnState.length - 1;
+                      
+                      // If actions column is not at the end (rightmost) or not pinned, fix it
+                      if (actionsIndex !== lastIndex || actionsCol.pinned !== 'right') {
+                        setTimeout(() => {
+                          if (gridRef.current?.api) {
                             gridRef.current.api.applyColumnState({
                               state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
                               applyOrder: true
                             });
                           }
-                        }
-                      }, 0);
-                      return;
+                        }, 0);
+                      }
                     }
                   }
                 } catch (error) {
-                  // Silently ignore errors if columnApi is not available
+                  // Silently ignore errors
                   console.warn('Error handling column move:', error);
                 }
               }}

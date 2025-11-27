@@ -20,6 +20,7 @@ let rulesLoaded = false;
 // Global in-memory store for validation data
 let inMemoryBuildings: any[] = [];
 let inMemoryAssetTypes: any[] = [];
+let inMemoryAllAssets: any[] = [];
 let dataLoaded = false;
 
 /**
@@ -34,11 +35,45 @@ export function setValidationRules(rules: ValidationRule[]): void {
 /**
  * Set validation data in memory (called by ValidationContext on app startup)
  */
-export function setValidationData(data: { buildings: any[]; assetTypes: any[] }): void {
+export function setValidationData(data: { buildings: any[]; assetTypes: any[]; assets?: any[] }): void {
   inMemoryBuildings = data.buildings;
   inMemoryAssetTypes = data.assetTypes;
+  if (data.assets) {
+    inMemoryAllAssets = data.assets;
+  }
   dataLoaded = true;
-  console.log(`[validation] Loaded ${data.buildings.length} buildings and ${data.assetTypes.length} asset types into memory`);
+  console.log(`[validation] Loaded ${data.buildings.length} buildings, ${data.assetTypes.length} asset types, and ${inMemoryAllAssets.length} assets into memory`);
+}
+
+/**
+ * Set all assets in memory (for uniqueness validation)
+ */
+export function setAllAssets(assets: any[]): void {
+  inMemoryAllAssets = assets;
+  console.log(`[validation] Loaded ${assets.length} assets into memory for uniqueness validation`);
+}
+
+/**
+ * Get all assets from memory (synchronous)
+ */
+export function getAllAssets(): any[] {
+  if (!dataLoaded) {
+    console.warn('[validation] Assets not yet loaded, returning empty array');
+    return [];
+  }
+  return inMemoryAllAssets;
+}
+
+/**
+ * Get assets by asset_id from memory (synchronous)
+ */
+export function getAssetsByAssetId(assetId: string | number): any[] {
+  const assets = getAllAssets();
+  const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+  return assets.filter(a => {
+    const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+    return aId === assetIdNum;
+  });
 }
 
 /**
@@ -1298,39 +1333,63 @@ export const assetValidators = {
       return { valid: false, error: 'מזהה נכס נדרש' };
     }
 
-    // Query database to check if asset ID already exists
-    // We need to check if this asset ID exists in the assets table
-    // If currentAssetId is provided, exclude it from the check (for updates)
-    try {
-      const { supabase } = await import('./supabase');
-      let query = supabase
-        .from('assets')
-        .select('id, asset_id')
-        .eq('asset_id', assetId);
+    // Use in-memory assets for uniqueness check
+    const allAssets = getAllAssets();
+    
+    if (allAssets.length === 0) {
+      // If assets not loaded into memory, fallback to database query
+      try {
+        const { supabase } = await import('./supabase');
+        let query = supabase
+          .from('assets')
+          .select('id, asset_id')
+          .eq('asset_id', assetId);
 
-      // If updating an existing asset, exclude it from the check
-      if (currentAssetId) {
-        query = query.neq('id', currentAssetId);
-      }
+        // If updating an existing asset, exclude it from the check
+        if (currentAssetId) {
+          query = query.neq('id', currentAssetId);
+        }
 
-      const { data, error } = await query;
+        const { data, error } = await query;
 
-      if (error) {
-        console.error('Error checking asset ID uniqueness:', error);
+        if (error) {
+          console.error('Error checking asset ID uniqueness:', error);
+          // If we can't check, return valid to avoid blocking
+          return { valid: true };
+        }
+
+        if (data && data.length > 0) {
+          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
+        }
+
+        return { valid: true };
+      } catch (err) {
+        console.error('Error in validateAssetIdUnique:', err);
         // If we can't check, return valid to avoid blocking
         return { valid: true };
       }
-
-      if (data && data.length > 0) {
-        return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
-      }
-
-      return { valid: true };
-    } catch (err) {
-      console.error('Error in validateAssetIdUnique:', err);
-      // If we can't check, return valid to avoid blocking
-      return { valid: true };
     }
+
+    // Check in-memory assets
+    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    const existingAssets = allAssets.filter(a => {
+      const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+      if (aId !== assetIdNum) return false;
+      
+      // If updating an existing asset, exclude it from the check
+      if (currentAssetId) {
+        const aDbId = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
+        return aDbId !== currentAssetId;
+      }
+      
+      return true;
+    });
+
+    if (existingAssets.length > 0) {
+      return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
+    }
+
+    return { valid: true };
   },
 
   validateAssetIdNotInOtherBuilding: async (assetId: string | number | null | undefined, buildingNumber: number | null | undefined, currentAssetId?: number): Promise<ValidationResult> => {

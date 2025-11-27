@@ -22,25 +22,30 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
       setError(null);
       
       // Load all required data in parallel
-      const [rules, buildings, assetTypes] = await Promise.all([
+      const [rules, buildings, assetTypes, assets] = await Promise.all([
         api.validationRules.getEnabled(),
         api.buildings.getAll(),
-        api.assetTypes.getAll()
+        api.assetTypes.getAll(),
+        api.assets.getAll() // Load all assets for uniqueness validation
       ]);
       
       setValidationRulesState(rules);
       // Update global in-memory stores for validation functions
+      const { setValidationRules, setValidationData, setAllAssets } = await import('../lib/validation');
       setValidationRules(rules);
-      setValidationData({ buildings, assetTypes });
+      setValidationData({ buildings, assetTypes, assets });
+      setAllAssets(assets);
       
-      console.log(`[ValidationContext] Loaded into memory: ${rules.length} validation rules, ${buildings.length} buildings, ${assetTypes.length} asset types`);
+      console.log(`[ValidationContext] Loaded into memory: ${rules.length} validation rules, ${buildings.length} buildings, ${assetTypes.length} asset types, ${assets.length} assets`);
     } catch (err) {
       console.error('[ValidationContext] Failed to load validation data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load validation data');
       setValidationRulesState([]);
       // Clear in-memory stores on error
+      const { setValidationRules, setValidationData, setAllAssets } = await import('../lib/validation');
       setValidationRules([]);
-      setValidationData({ buildings: [], assetTypes: [] });
+      setValidationData({ buildings: [], assetTypes: [], assets: [] });
+      setAllAssets([]);
     } finally {
       setLoading(false);
     }

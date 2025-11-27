@@ -67,16 +67,18 @@ export function AssetsFileImport() {
           }
         }
         
-        const [types, bldgs] = await Promise.all([
+        const [types, bldgs, allAssets] = await Promise.all([
           api.assetTypes.getAll(),
-          api.buildings.getAll()
+          api.buildings.getAll(),
+          api.assets.getAll() // Load all assets for uniqueness validation
         ]);
         setAssetTypes(types);
         setBuildings(bldgs);
         
-        // Ensure buildings are in memory for validation
-        const { setValidationData } = await import('../lib/validation');
-        setValidationData({ buildings: bldgs, assetTypes: types });
+        // Ensure buildings and assets are in memory for validation
+        const { setValidationData, setAllAssets } = await import('../lib/validation');
+        setValidationData({ buildings: bldgs, assetTypes: types, assets: allAssets });
+        setAllAssets(allAssets);
       } catch (err) {
         console.error('Error loading data:', err);
       }
@@ -255,17 +257,21 @@ export function AssetsFileImport() {
       
       // Automatically validate all imported assets after loading
       if (assets.length > 0) {
-        // Ensure buildings are loaded into memory before validation
-        const ensureBuildingsLoaded = async () => {
+        // Ensure buildings and assets are loaded into memory before validation
+        const ensureDataLoaded = async () => {
           try {
             // Check if buildings are already loaded
             if (buildings.length === 0) {
-              const bldgs = await api.buildings.getAll();
+              const [bldgs, allAssets] = await Promise.all([
+                api.buildings.getAll(),
+                api.assets.getAll() // Load all assets for uniqueness validation
+              ]);
               setBuildings(bldgs);
               // Update in-memory stores for validation
-              const { setValidationData } = await import('../lib/validation');
+              const { setValidationData, setAllAssets } = await import('../lib/validation');
               const currentAssetTypes = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
-              setValidationData({ buildings: bldgs, assetTypes: currentAssetTypes });
+              setValidationData({ buildings: bldgs, assetTypes: currentAssetTypes, assets: allAssets });
+              setAllAssets(allAssets);
             }
             
             // Also ensure validation context has loaded
@@ -276,7 +282,7 @@ export function AssetsFileImport() {
             // Now trigger validation
             handleValidate();
           } catch (err) {
-            console.error('Error loading buildings for validation:', err);
+            console.error('Error loading data for validation:', err);
             // Still try to validate even if loading fails
             handleValidate();
           }
@@ -284,7 +290,7 @@ export function AssetsFileImport() {
         
         // Trigger validation after ensuring data is loaded
         setTimeout(() => {
-          ensureBuildingsLoaded();
+          ensureDataLoaded();
         }, 100);
       }
     } catch (error) {
@@ -305,19 +311,21 @@ export function AssetsFileImport() {
     setValidationResults(null);
 
     try {
-      // Ensure buildings are loaded into memory before validation
+      // Ensure buildings and assets are loaded into memory before validation
       if (buildings.length === 0 || validationContextLoading) {
         setValidationProgress({ current: 0, total: importedAssets.length, currentAssetId: 'טוען נתונים...' });
-        const [types, bldgs] = await Promise.all([
+        const [types, bldgs, allAssets] = await Promise.all([
           api.assetTypes.getAll(),
-          api.buildings.getAll()
+          api.buildings.getAll(),
+          api.assets.getAll() // Load all assets for uniqueness validation
         ]);
         setAssetTypes(types);
         setBuildings(bldgs);
         
         // Update in-memory stores for validation
-        const { setValidationData } = await import('../lib/validation');
-        setValidationData({ buildings: bldgs, assetTypes: types });
+        const { setValidationData, setAllAssets } = await import('../lib/validation');
+        setValidationData({ buildings: bldgs, assetTypes: types, assets: allAssets });
+        setAllAssets(allAssets);
       }
 
       // Prepare cached data

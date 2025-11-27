@@ -467,29 +467,28 @@ export class AssetValidationHandler {
     validationNames.push('אימות נכסי משנה לסוגים 199/299');
     validations.push(
       assetValidators.validateSubAssetsFor199Or299(
-          asset.building_number,
-          asset.main_asset_type,
-          asset.asset_size,
-          [
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ],
-          [
-            asset.sub_asset_size_1,
-            asset.sub_asset_size_2,
-            asset.sub_asset_size_3,
-            asset.sub_asset_size_4,
-            asset.sub_asset_size_5,
-            asset.sub_asset_size_6
-          ],
-          taxRegion,
-          cachedData
-        );
-      })()
+        asset.building_number,
+        asset.main_asset_type,
+        asset.asset_size,
+        [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ],
+        [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ],
+        taxRegion,
+        cachedData
+      )
     );
 
     // Run DB validations sequentially for progress tracking

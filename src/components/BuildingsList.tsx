@@ -1244,7 +1244,8 @@ export function BuildingsList({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
-        const streetCode = building.building_address;
+        // Use params.value (which comes from the field) or fallback to building.building_address
+        const streetCode = params.value != null ? params.value : building.building_address;
         if (!streetCode) return '';
         
         const isNew = isNewBuilding(building);
@@ -1252,9 +1253,9 @@ export function BuildingsList({
         const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['building_address'];
         
-        // Find the address description
-        const address = addressList.find(a => a.street_code === streetCode);
-        const displayValue = address ? address.street_description : '';
+        // Find the address description - ensure type consistency (compare as numbers)
+        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
+        const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
         
         if (isNew && !streetCode) {
           return '';
@@ -1497,26 +1498,35 @@ export function BuildingsList({
               }}
               onColumnResized={() => {}}
               onColumnMoved={(params) => {
-                const actionsColumn = params.columnApi.getColumn('actions');
-                if (actionsColumn) {
-                  const allColumns = params.columnApi.getAllColumns() || [];
-                  const actionsIndex = allColumns.findIndex(col => col.getColId() === 'actions');
-                  if (actionsIndex !== 0) {
-                    setTimeout(() => {
-                      if (gridRef.current?.api) {
-                        const columnState = gridRef.current.api.getColumnState();
-                        const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                        const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                        if (actionsCol) {
-                          gridRef.current.api.applyColumnState({
-                            state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
-                            applyOrder: true
-                          });
+                // Use api instead of columnApi (columnApi is deprecated in AG-Grid v28+)
+                const api = params.api || (params as any).columnApi;
+                if (!api) return;
+                
+                try {
+                  const actionsColumn = api.getColumn('actions');
+                  if (actionsColumn) {
+                    const allColumns = api.getAllColumns() || [];
+                    const actionsIndex = allColumns.findIndex((col: any) => col.getColId() === 'actions');
+                    if (actionsIndex !== 0) {
+                      setTimeout(() => {
+                        if (gridRef.current?.api) {
+                          const columnState = gridRef.current.api.getColumnState();
+                          const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                          const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
+                          if (actionsCol) {
+                            gridRef.current.api.applyColumnState({
+                              state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
+                              applyOrder: true
+                            });
+                          }
                         }
-                      }
-                    }, 0);
-                    return;
+                      }, 0);
+                      return;
+                    }
                   }
+                } catch (error) {
+                  // Silently ignore errors if columnApi is not available
+                  console.warn('Error handling column move:', error);
                 }
               }}
               onSortChanged={() => {}}

@@ -337,6 +337,7 @@ export function BuildingsList({
       single_double_family: null,
       condo: null,
       townhouses: null,
+      building_address: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       _tempId: tempId,
@@ -1234,11 +1235,22 @@ export function BuildingsList({
       field: 'building_address',
       headerName: 'כתובת',
       editable: true,
+      valueGetter: (params: any) => {
+        // Return the street code (number) as the value
+        return params.data?.building_address || null;
+      },
+      valueSetter: (params: any) => {
+        // Set the street code (number) as the value
+        if (params.data) {
+          params.data.building_address = params.newValue;
+        }
+        return true;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
-        // Use params.value (which comes from the field) or fallback to building.building_address
-        const streetCode = params.value != null ? params.value : building.building_address;
+        // Get street code from the building data
+        const streetCode = building.building_address;
         if (!streetCode) return '';
         
         const isNew = isNewBuilding(building);
@@ -1269,30 +1281,15 @@ export function BuildingsList({
       },
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        // Format values to show "code - description" in dropdown
-        values: addressList.map(a => `${a.street_code} - ${a.street_description}`),
-      },
-      valueFormatter: (params: any) => {
-        // Format the current value to match dropdown format when editor opens
-        if (params.value == null) return '';
-        const address = addressList.find(a => Number(a.street_code) === Number(params.value));
-        return address ? `${address.street_code} - ${address.street_description}` : String(params.value);
+        // Use street codes as values (numbers)
+        values: addressList.map(a => a.street_code),
       },
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
         if (newValue === null || newValue === undefined || newValue === '') return null;
         
-        let streetCode: number | null = null;
-        
-        // Extract street code from "code - description" format
-        if (typeof newValue === 'string' && newValue.includes(' - ')) {
-          const codeStr = newValue.split(' - ')[0].trim();
-          streetCode = Number(codeStr);
-        } else {
-          // If it's already a number, use it directly
-          streetCode = Number(newValue);
-        }
+        const streetCode = Number(newValue);
         
         // Validate: must be a valid positive integer that exists in addressList
         if (isNaN(streetCode) || streetCode <= 0) {

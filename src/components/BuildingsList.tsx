@@ -225,12 +225,25 @@ export function BuildingsList({
       newBuildingKey = newValueNum;
     }
 
+    // For building_address, extract the code from formatted string if needed
+    let valueToUpdate = newValue;
+    if (field === 'building_address') {
+      if (typeof newValue === 'string' && newValue.includes(' - ')) {
+        const codeStr = newValue.split(' - ')[0].trim();
+        const code = Number(codeStr);
+        valueToUpdate = isNaN(code) || code <= 0 ? null : code;
+      } else if (newValue != null) {
+        const code = Number(newValue);
+        valueToUpdate = isNaN(code) || code <= 0 ? null : code;
+      }
+    }
+    
     // Update local state
     setBuildings(prevBuildings => {
       return prevBuildings.map(b => {
         const bKey = getBuildingKey(b);
         if (bKey === buildingKey) {
-          const updated = { ...b, [field]: newValue };
+          const updated = { ...b, [field]: valueToUpdate };
           if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
             updated.building_number = Number(newValue);
             // Keep _isNew and _tempId until saved to database
@@ -244,7 +257,7 @@ export function BuildingsList({
       return prevBuildings.map(b => {
         const bKey = getBuildingKey(b);
         if (bKey === buildingKey) {
-          const updated = { ...b, [field]: newValue };
+          const updated = { ...b, [field]: valueToUpdate };
           if (field === 'building_number' && isNew && newValue !== null && newValue !== undefined && newValue !== '' && Number(newValue) > 0) {
             updated.building_number = Number(newValue);
             // Keep _isNew and _tempId until saved to database
@@ -256,14 +269,31 @@ export function BuildingsList({
     });
 
     // Update dirty tracking
-    const hasMeaningfulValue = newValue !== null && newValue !== undefined && newValue !== '';
+    // For building_address, ensure we store the number, not the formatted string
+    let valueToStore = newValue;
+    if (field === 'building_address') {
+      // If newValue is a formatted string "code - description", extract the code
+      if (typeof newValue === 'string' && newValue.includes(' - ')) {
+        const codeStr = newValue.split(' - ')[0].trim();
+        const code = Number(codeStr);
+        valueToStore = isNaN(code) || code <= 0 ? null : code;
+      } else if (newValue != null) {
+        // Ensure it's a number
+        valueToStore = Number(newValue);
+        if (isNaN(valueToStore) || valueToStore <= 0) {
+          valueToStore = null;
+        }
+      }
+    }
+    
+    const hasMeaningfulValue = valueToStore !== null && valueToStore !== undefined && valueToStore !== '';
     if (field !== 'building_number' || !isNew) {
       if (!isNew || hasMeaningfulValue) {
         setDirtyBuildings(prev => {
           const next = new Map(prev);
           const existingChanges = next.get(newBuildingKey) || {};
           if (hasMeaningfulValue) {
-            next.set(newBuildingKey, { ...existingChanges, [field]: newValue });
+            next.set(newBuildingKey, { ...existingChanges, [field]: valueToStore });
           } else {
             const updatedChanges = { ...existingChanges };
             delete updatedChanges[field];
@@ -278,8 +308,9 @@ export function BuildingsList({
       }
     }
 
-    // Validate all fields
-    const updatedBuilding = { ...building, [field]: newValue };
+    // Validate all fields - use the parsed value for building_address
+    const valueForValidation = field === 'building_address' ? valueToUpdate : newValue;
+    const updatedBuilding = { ...building, [field]: valueForValidation };
     const validation = await buildingValidators.validateAllFields(updatedBuilding);
 
     setValidationErrors(prev => {

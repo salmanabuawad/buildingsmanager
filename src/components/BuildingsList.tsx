@@ -1236,16 +1236,16 @@ export function BuildingsList({
       headerName: 'כתובת',
       editable: true,
       valueGetter: (params: any) => {
-        // Return the street code as a string for the editor, or number for storage
-        const value = params.data?.building_address;
-        return value != null ? String(value) : null;
+        // Return formatted "code - description" for the editor to match dropdown values
+        const streetCode = params.data?.building_address;
+        if (streetCode == null) return null;
+        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
+        return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
       },
       valueSetter: (params: any) => {
         // Set the street code (number) as the value
         if (params.data) {
-          const newValue = params.newValue;
-          // Convert string back to number if needed
-          params.data.building_address = newValue != null ? Number(newValue) : null;
+          params.data.building_address = params.newValue;
         }
         return true;
       },
@@ -1284,10 +1284,9 @@ export function BuildingsList({
       },
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        // Use street codes as values (convert to strings for AG-Grid)
-        // Ensure we have a valid array of strings
+        // Show "code - description" format in dropdown
         values: addressList && addressList.length > 0 
-          ? addressList.map(a => String(a.street_code))
+          ? addressList.map(a => `${a.street_code} - ${a.street_description}`)
           : [],
       },
       valueParser: (params: any) => {
@@ -1295,7 +1294,16 @@ export function BuildingsList({
         const newValue = params.newValue;
         if (newValue === null || newValue === undefined || newValue === '') return null;
         
-        const streetCode = Number(newValue);
+        let streetCode: number | null = null;
+        
+        // Extract street code from "code - description" format
+        if (typeof newValue === 'string' && newValue.includes(' - ')) {
+          const codeStr = newValue.split(' - ')[0].trim();
+          streetCode = Number(codeStr);
+        } else {
+          // If it's already a number (shouldn't happen, but handle it)
+          streetCode = Number(newValue);
+        }
         
         // Validate: must be a valid positive integer that exists in addressList
         if (isNaN(streetCode) || streetCode <= 0) {

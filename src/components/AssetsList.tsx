@@ -1680,23 +1680,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               autoHeight: false,
               headerClass: 'ag-right-aligned-header'
             }}
+            gridOptions={{
+              autoSizeStrategy: {
+                type: 'fitCellContents',
+              },
+            }}
             getRowId={(params) => String(params.data.id)}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
-              setTimeout(() => {
-                const allColumns = params.api.getAllDisplayedColumns();
-                const allColumnIds = allColumns
-                  .map(col => col.getColId())
-                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                
-                if (allColumnIds.length > 0) {
-                  // Auto-size based on content (minimum width will be content width)
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Then scale to fit grid width
-                  params.api.sizeColumnsToFit();
-                }
-              }, 200);
-
               // Scroll to left on grid ready
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
@@ -1706,30 +1697,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               }, 300);
             }}
             onFirstDataRendered={async (params) => {
-              setTimeout(() => {
-                const allColumns = params.api.getAllDisplayedColumns();
-                const allColumnIds = allColumns
-                  .map(col => col.getColId())
-                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                
-                if (allColumnIds.length > 0) {
-                  // First, set minimum widths to prevent very small columns
-                  allColumns.forEach(col => {
-                    if (col.getColId() !== 'actions') {
-                      const currentWidth = col.getActualWidth();
-                      if (!currentWidth || currentWidth < 100) {
-                        col.setActualWidth(100); // Set minimum width of 100px
-                      }
-                    }
-                  });
-                  
-                  // Then auto-size based on content
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Then scale to fit grid width
-                  params.api.sizeColumnsToFit();
-                }
-              }, 150);
-
               // Scroll to left after data render
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');

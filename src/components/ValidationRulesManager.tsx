@@ -294,19 +294,14 @@ export function ValidationRulesManager() {
     autoHeight: true
   }), []);
 
+  const gridOptions = useMemo(() => ({
+    autoSizeStrategy: {
+      type: 'fitCellContents',
+    },
+  }), []);
+
   const onGridReady = useCallback(async (params: any) => {
     console.log('Grid ready, rules count:', rules.length);
-    setTimeout(() => {
-      const allColumnIds = params.api.getAllDisplayedColumns()
-        .map((col: any) => col.getColId())
-        .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
-      
-      if (allColumnIds.length > 0) {
-        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-        // Then scale to fit grid width
-        params.api.sizeColumnsToFit();
-      }
-    }, 100);
   }, [rules]);
 
   return (
@@ -557,19 +552,9 @@ export function ValidationRulesManager() {
                 rowData={rules}
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
+                gridOptions={gridOptions}
                 onGridReady={onGridReady}
                 onFirstDataRendered={async (params) => {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map((col: any) => col.getColId())
-                      .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
-                    
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 50);
                   
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');

@@ -646,20 +646,15 @@ export function AddressListComponent() {
               filter: true,
               headerClass: 'ag-right-aligned-header'
             }}
+            gridOptions={{
+              autoSizeStrategy: {
+                type: 'fitCellContents',
+              },
+            }}
             getRowId={(params) => String(params.data.street_code)}
             onGridReady={async (params) => {
-              setTimeout(() => {
-                params.api.autoSizeColumns({ skipHeader: true });
-                // Then scale to fit grid width
-                params.api.sizeColumnsToFit();
-              }, 100);
             }}
             onFirstDataRendered={async (params) => {
-              setTimeout(() => {
-                params.api.autoSizeColumns({ skipHeader: true });
-                // Then scale to fit grid width
-                params.api.sizeColumnsToFit();
-              }, 50);
             }}
             onColumnResized={() => {}}
             onColumnMoved={() => {}}

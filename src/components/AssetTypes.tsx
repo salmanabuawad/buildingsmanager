@@ -1075,33 +1075,15 @@ export function AssetTypes() {
                 autoHeight: false
               }}
               domLayout="normal"
+              gridOptions={{
+                autoSizeStrategy: {
+                  type: 'fitCellContents',
+                },
+              }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
-                // Load saved column state first
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId());
-                  
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 100);
               }}
               onFirstDataRendered={async (params) => {
-                // Load saved column state if not already loaded
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId())
-                    .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                  
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 50);
                 const firstCol = params.api.getAllDisplayedColumns()[0];
                 if (firstCol) {
                   params.api.ensureColumnVisible(firstCol);

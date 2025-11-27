@@ -1281,36 +1281,18 @@ export function AssetDataEntry() {
               autoHeight: false,
               cellStyle: { textAlign: 'right' }
             }}
+            gridOptions={{
+              autoSizeStrategy: {
+                type: 'fitCellContents',
+              },
+            }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
-              setTimeout(() => {
-                const allColumnIds = params.api.getAllDisplayedColumns()
-                  .map(col => col.getColId())
-                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                
-                if (allColumnIds.length > 0) {
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Then scale to fit grid width
-                  params.api.sizeColumnsToFit();
-                }
-              }, 100);
-              
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
             }}
             onFirstDataRendered={async (params) => {
-              setTimeout(() => {
-                const allColumnIds = params.api.getAllDisplayedColumns()
-                  .map(col => col.getColId())
-                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                
-                if (allColumnIds.length > 0) {
-                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                  // Then scale to fit grid width
-                  params.api.sizeColumnsToFit();
-                }
-              }, 50);
             }}
             onColumnResized={() => {}}
             onColumnMoved={(params) => {

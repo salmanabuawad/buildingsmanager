@@ -1433,18 +1433,13 @@ export function BuildingsList({
                 headerClass: 'buildings-list-header',
                 headerStyle: { fontSize: '10px', textAlign: 'left' }
               }}
+              gridOptions={{
+                autoSizeStrategy: {
+                  type: 'fitCellContents',
+                },
+              }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId())
-                    .filter(id => id !== 'actions');
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 100);
                 setTimeout(() => {
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
@@ -1469,16 +1464,6 @@ export function BuildingsList({
                 }, 200);
               }}
               onFirstDataRendered={async (params) => {
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId())
-                    .filter(id => id !== 'actions');
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 50);
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {

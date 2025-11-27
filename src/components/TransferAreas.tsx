@@ -971,6 +971,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 autoHeight: false,
                 headerClass: 'ag-right-aligned-header'
               }}
+              gridOptions={{
+                autoSizeStrategy: {
+                  type: 'fitCellContents',
+                },
+              }}
               getRowId={(params) => String(params.data.id)}
               onCellValueChanged={onCellValueChanged}
               getRowStyle={(params) => {
@@ -981,26 +986,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 return null;
               }}
               onGridReady={async (params) => {
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId());
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 100);
               }}
               onFirstDataRendered={async (params) => {
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId());
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 50);
               }}
               onColumnResized={() => {}}
               onColumnMoved={() => {}}

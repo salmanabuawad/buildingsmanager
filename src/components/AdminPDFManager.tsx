@@ -215,20 +215,14 @@ export function AdminPDFManager() {
           rowData={apartments}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
+          gridOptions={{
+            autoSizeStrategy: {
+              type: 'fitCellContents',
+            },
+          }}
           onGridReady={async (params) => {
-            // Load saved column state first
-            const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-            // Then scale to fit grid width
-            params.api.sizeColumnsToFit();
           }}
           onFirstDataRendered={async (params) => {
-            // Load saved column state if not already loaded
-            const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-            // Then scale to fit grid width
-            params.api.sizeColumnsToFit();
-            
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
               params.api.ensureColumnVisible(firstCol);

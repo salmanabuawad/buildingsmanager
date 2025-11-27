@@ -1444,31 +1444,14 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     backgroundColor: '#f0f9ff'
                   };
                 }}
+                gridOptions={{
+                  autoSizeStrategy: {
+                    type: 'fitCellContents',
+                  },
+                }}
                 onGridReady={async (params) => {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId())
-                      .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
-                    
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 100);
                 }}
                 onFirstDataRendered={async (params) => {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId())
-                      .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
-                    
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 50);
                 }}
                 onColumnResized={() => {}}
                 onColumnMoved={(params) => {
@@ -1532,6 +1515,11 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       sortable: false,
                       headerClass: 'ag-right-aligned-header'
                     }}
+                    gridOptions={{
+                      autoSizeStrategy: {
+                        type: 'fitCellContents',
+                      },
+                    }}
                     getRowId={(params) => {
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
@@ -1546,16 +1534,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                         params.api.setColumnVisible('structure_drawing_url', true);
                       }
                       
-                      setTimeout(() => {
-                        const allColumnIds = params.api.getAllDisplayedColumns()
-                          .map(col => col.getColId())
-                          .filter(id => id !== 'actions');
-                        if (allColumnIds.length > 0) {
-                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                          // Then scale to fit grid width
-                          params.api.sizeColumnsToFit();
-                        }
-                      }, 100);
                     }}
                     onFirstDataRendered={async (params) => {
                       // Ensure actions column is visible
@@ -1565,16 +1543,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                         params.api.setColumnVisible('actions', true);
                       }
                       
-                      setTimeout(() => {
-                        const allColumnIds = params.api.getAllDisplayedColumns()
-                          .map(col => col.getColId())
-                          .filter(id => id !== 'actions');
-                        if (allColumnIds.length > 0) {
-                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                          // Then scale to fit grid width
-                          params.api.sizeColumnsToFit();
-                        }
-                      }, 50);
                     }}
                     onColumnResized={() => {}}
                     onColumnMoved={(params) => {

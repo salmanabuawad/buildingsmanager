@@ -1333,41 +1333,13 @@ export const assetValidators = {
       return { valid: false, error: 'מזהה נכס נדרש' };
     }
 
-    // Use in-memory assets for uniqueness check
+    // Use in-memory assets for uniqueness check (must be loaded before validation)
     const allAssets = getAllAssets();
     
     if (allAssets.length === 0) {
-      // If assets not loaded into memory, fallback to database query
-      try {
-        const { supabase } = await import('./supabase');
-        let query = supabase
-          .from('assets')
-          .select('id, asset_id')
-          .eq('asset_id', assetId);
-
-        // If updating an existing asset, exclude it from the check
-        if (currentAssetId) {
-          query = query.neq('id', currentAssetId);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          console.error('Error checking asset ID uniqueness:', error);
-          // If we can't check, return valid to avoid blocking
-          return { valid: true };
-        }
-
-        if (data && data.length > 0) {
-          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
-        }
-
-        return { valid: true };
-      } catch (err) {
-        console.error('Error in validateAssetIdUnique:', err);
-        // If we can't check, return valid to avoid blocking
-        return { valid: true };
-      }
+      // Assets not loaded into memory - this should not happen if validation is called correctly
+      console.warn('[validateAssetIdUnique] Assets not loaded into memory. Skipping uniqueness check.');
+      return { valid: true };
     }
 
     // Check in-memory assets
@@ -1398,55 +1370,68 @@ export const assetValidators = {
       return { valid: true };
     }
 
-    // Note: This validation requires assets data which may not be in memory
-    // For now, skip this validation during in-memory validation
-    // This should be handled at save time when full asset data is available
-    // TODO: Load all assets into memory if this validation is needed during validation loops
-    // Skip database query - this validation will be done at save time
-    // Return valid for now to avoid blocking validation
-    return { valid: true };
+    // Use in-memory assets for cross-building check (must be loaded before validation)
+    const allAssets = getAllAssets();
     
-    /* Original database query - disabled for in-memory validation
-    try {
-      const { api } = await import('./api');
+    if (allAssets.length === 0) {
+      // Assets not loaded into memory - this should not happen if validation is called correctly
+      console.warn('[validateAssetIdNotInOtherBuilding] Assets not loaded into memory. Skipping cross-building check.');
+      return { valid: true };
+    }
+
+    // Check if asset ID exists in a different building
+    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    const buildingNumberNum = typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber;
+    
+    const existingAssets = allAssets.filter(a => {
+      const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+      if (aId !== assetIdNum) return false;
       
-      // Since asset_id is unique in assets table, check if asset exists with this asset_id
-      const existingAssets = await api.assets.getAllByAssetId(String(assetId));
-      
-      if (existingAssets && existingAssets.length > 0) {
-        // Since asset_id is unique, there should be at most one asset
-        const existingAsset = existingAssets[0];
-        
-        // If we're updating an existing asset (currentAssetId provided), check if it's the same asset
-        if (currentAssetId !== undefined && existingAsset.id === currentAssetId) {
-          // Same asset, just updating - check if building_number is being changed
-          if (existingAsset.building_number !== buildingNumber) {
-            return {
-              valid: false,
-              error: `נכס ${assetId} כבר קיים במבנה ${existingAsset.building_number}. לא ניתן לשנות את מספר המבנה של נכס קיים.`
-            };
+      // If updating an existing asset, exclude it from the check
+      if (currentAssetId !== undefined) {
+        const aDbId = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
+        if (aDbId === currentAssetId) {
+          // Same asset - check if building_number is being changed
+          const aBuildingNum = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
+          if (aBuildingNum !== buildingNumberNum) {
+            return true; // Include it to show error about building change
           }
-          // Same asset, same building - OK
-          return { valid: true };
-        }
-        
-        // If we're creating a new asset or updating to a different asset_id
-        // Check if the existing asset has a different building_number
-        if (existingAsset.building_number !== buildingNumber) {
-          return {
-            valid: false,
-            error: `נכס ${assetId} כבר קיים במבנה ${existingAsset.building_number}. לא ניתן ליצור נכס עם אותו מספר במבנה אחר.`
-          };
+          return false; // Same asset, same building - exclude from check
         }
       }
       
-      return { valid: true };
-    } catch (error) {
-      console.error('Error validating asset_id not in other building:', error);
-      // If there's an error checking, don't block the operation
-      return { valid: true };
+      return true;
+    });
+
+    if (existingAssets.length > 0) {
+      // Check if any existing asset is in a different building
+      for (const existingAsset of existingAssets) {
+        const existingBuildingNum = typeof existingAsset.building_number === 'string' 
+          ? parseInt(existingAsset.building_number, 10) 
+          : existingAsset.building_number;
+        
+        if (existingBuildingNum !== buildingNumberNum) {
+          // If updating and trying to change building
+          if (currentAssetId !== undefined) {
+            const aDbId = typeof existingAsset.id === 'string' ? parseInt(existingAsset.id, 10) : existingAsset.id;
+            if (aDbId === currentAssetId) {
+              return {
+                valid: false,
+                error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן לשנות את מספר המבנה של נכס קיים.`
+              };
+            }
+          }
+          
+          // Asset exists in a different building
+          return {
+            valid: false,
+            error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן ליצור נכס עם אותו מספר במבנה אחר.`
+          };
+        }
+      }
     }
-    */
+    
+    return { valid: true };
   },
 
   validatePayerId: async (payerId: string | null | undefined, validationRules?: ValidationRule[], lookupData?: { assetTypes?: any[]; [key: string]: any }): Promise<ValidationResult> => {

@@ -733,6 +733,43 @@ export function AssetsFileImport() {
           </div>
         </div>
 
+        {/* Save Result - Display above grid */}
+        {saveResult && (
+          <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              {saveResult.failed === 0 ? (
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
+              )}
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <p className="text-sm text-green-700 mb-1">נשמרו בהצלחה</p>
+                    <p className="text-2xl font-bold text-green-700">{saveResult.successful}</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                    <p className="text-sm text-red-700 mb-1">נכשלו</p>
+                    <p className="text-2xl font-bold text-red-700">{saveResult.failed}</p>
+                  </div>
+                </div>
+                {saveResult.errors.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-red-900 mb-2">שגיאות:</h4>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                      <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
+                        {saveResult.errors.map((error, index) => (
+                          <li key={index} className="break-words">{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Imported Assets Grid */}
         {importedAssets.length > 0 && (
           <div className="mb-6">
@@ -811,43 +848,6 @@ export function AssetsFileImport() {
                   filter: true
                 }}
               />
-            </div>
-          </div>
-        )}
-
-        {/* Save Result */}
-        {saveResult && (
-          <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              {saveResult.failed === 0 ? (
-                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
-              )}
-              <div className="flex-1">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                    <p className="text-sm text-green-700 mb-1">נשמרו בהצלחה</p>
-                    <p className="text-2xl font-bold text-green-700">{saveResult.successful}</p>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                    <p className="text-sm text-red-700 mb-1">נכשלו</p>
-                    <p className="text-2xl font-bold text-red-700">{saveResult.failed}</p>
-                  </div>
-                </div>
-                {saveResult.errors.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold text-red-900 mb-2">שגיאות:</h4>
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                      <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
-                        {saveResult.errors.map((error, index) => (
-                          <li key={index} className="break-words">{error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}

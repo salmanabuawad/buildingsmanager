@@ -1162,7 +1162,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      suppressSizeToFit: true,
       suppressHeaderMenuButton: true,
       suppressHeaderMenuButton: true,
       sortable: false,

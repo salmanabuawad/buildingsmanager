@@ -673,7 +673,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      suppressSizeToFit: true,
       suppressHeaderMenuButton: true,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {

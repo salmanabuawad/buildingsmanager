@@ -696,7 +696,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      suppressSizeToFit: true,
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,

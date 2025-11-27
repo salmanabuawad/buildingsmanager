@@ -128,7 +128,6 @@ export function AdminPDFManager() {
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      suppressSizeToFit: true,
       suppressHeaderMenuButton: true,
       suppressHeaderMenuButton: true,
       sortable: false,

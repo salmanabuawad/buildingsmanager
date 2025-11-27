@@ -207,12 +207,10 @@ export function AssetTypeFieldsManager() {
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      suppressSizeToFit: true,
       suppressHeaderMenuButton: true,
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      width: 80,
       cellRenderer: (params: any) => {
         const field = params.data as AssetTypeField;
         return (
@@ -232,13 +230,11 @@ export function AssetTypeFieldsManager() {
       field: 'field_name',
       headerName: 'שם השדה',
       editable: false,
-      width: 200,
     },
     {
       field: 'is_asset_level',
       headerName: 'רמת נכס',
       editable: true,
-      width: 120,
       cellRenderer: (params: any) => {
         const fieldId = params.data?.id;
         const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_asset_level');
@@ -263,7 +259,6 @@ export function AssetTypeFieldsManager() {
       field: 'is_building_level',
       headerName: 'רמת מבנה',
       editable: true,
-      width: 120,
       cellRenderer: (params: any) => {
         const fieldId = params.data?.id;
         const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_building_level');
@@ -288,7 +283,6 @@ export function AssetTypeFieldsManager() {
       field: 'is_asset_type_validation',
       headerName: 'תקינות סוג נכס',
       editable: true,
-      width: 150,
       cellRenderer: (params: any) => {
         const fieldId = params.data?.id;
         const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_asset_type_validation');

@@ -1,38 +1,71 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X } from 'lucide-react';
-import { api, Asset } from '../lib/api';
-import { assetValidators } from '../lib/validation';
+import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2 } from 'lucide-react';
+import { api, Asset, AssetType, Building } from '../lib/api';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
+import { useValidationRules } from '../contexts/ValidationContext';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
 
-interface ImportResult {
-  total: number;
-  successful: number;
-  failed: number;
-  errors: string[];
-}
-
-interface ImportProgress {
-  stage: 'parsing' | 'validating' | 'importing';
-  current: number;
-  total: number;
-  currentAssetId?: string;
+interface ImportAssetRow {
+  id: string;
+  building_number: number | null;
+  payer_id: string;
+  asset_id: string;
+  measurement_date: string;
+  main_asset_type: string;
+  asset_size: number;
+  sub_asset_type_1: string;
+  sub_asset_size_1: number;
+  sub_asset_type_2: string;
+  sub_asset_size_2: number;
+  sub_asset_type_3: string;
+  sub_asset_size_3: number;
+  sub_asset_type_4: string;
+  sub_asset_size_4: number;
+  sub_asset_type_5: string;
+  sub_asset_size_5: number;
+  sub_asset_type_6: string;
+  sub_asset_size_6: number;
+  penthouse?: string;
+  _validationErrors?: string[];
 }
 
 export function AssetsFileImport() {
   const { t } = useTranslation();
-  const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [validateBeforeImport, setValidateBeforeImport] = useState(true);
+  const { validationRules } = useValidationRules();
+  const gridRef = useRef<AgGridReact>(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [importedAssets, setImportedAssets] = useState<ImportAssetRow[]>([]);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [importPenthouse, setImportPenthouse] = useState(true);
-  const [showResultModal, setShowResultModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationResults, setValidationResults] = useState<BatchValidationResults | null>(null);
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
-  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [saveResult, setSaveResult] = useState<{ successful: number; failed: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load asset types and buildings on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [types, bldgs] = await Promise.all([
+          api.assetTypes.getAll(),
+          api.buildings.getAll()
+        ]);
+        setAssetTypes(types);
+        setBuildings(bldgs);
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    };
+    loadData();
+  }, []);
 
   async function parseExcelFile(file: File): Promise<string[][]> {
     return new Promise((resolve, reject) => {
@@ -43,14 +76,11 @@ export function AssetsFileImport() {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
           
-          // Get the first worksheet
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           
-          // Convert to JSON array of arrays
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as string[][];
           
-          // Convert all values to strings and trim
           const result = jsonData.map(row => 
             row.map(cell => String(cell || '').trim())
           );
@@ -73,12 +103,9 @@ export function AssetsFileImport() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
-    setImportResult(null);
-    setValidationResults(null);
-    setValidationProgress(null);
-    setShowValidationModal(false);
-    setProgress({ stage: 'parsing', current: 0, total: 1 });
+    setIsParsing(true);
+    setImportedAssets([]);
+    setSaveResult(null);
 
     try {
       const lines = await parseExcelFile(file);
@@ -87,11 +114,8 @@ export function AssetsFileImport() {
         throw new Error('קובץ File ריק');
       }
 
-      const totalRows = lines.length - 1;
       const headers = lines[0].map(h => h.trim().toLowerCase());
-      const assets: any[] = [];
-      const errors: string[] = [];
-      const validationErrors: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
+      const assets: ImportAssetRow[] = [];
 
       // Get current date for default measurement_date
       const today = new Date();
@@ -100,25 +124,12 @@ export function AssetsFileImport() {
       const year = today.getFullYear();
       const defaultMeasurementDate = `${day}/${month}/${year}`;
 
-      setProgress({ stage: 'validating', current: 0, total: totalRows });
-      setValidationProgress({ current: 0, total: totalRows });
-
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i];
-        setProgress({ 
-          stage: 'validating', 
-          current: i - 1, 
-          total: totalRows,
-          currentAssetId: values[2] || undefined
-        });
-        setValidationProgress({ 
-          current: i - 1, 
-          total: totalRows,
-          currentAssetId: values[2] || undefined
-        });
         if (values.length === 0 || values.every(v => !v)) continue;
 
-        const asset: any = {
+        const asset: ImportAssetRow = {
+          id: `import_${i}_${Date.now()}`,
           building_number: null,
           payer_id: '',
           asset_id: '',
@@ -139,21 +150,12 @@ export function AssetsFileImport() {
           sub_asset_size_6: 0,
         };
 
-        // Check if we have the expected column count (18 columns: building, payer, asset_id, main_type, main_size, 6 pairs of sub, penthouse)
-        // Or if headers are empty/garbled, use fixed position mapping
         const expectedColumnCount = 18;
-        const hasExpectedColumns = values.length >= 5; // At least building, payer, asset_id, type, size
+        const hasExpectedColumns = values.length >= 5;
         const headersAreValid = headers.length > 0 && headers.some(h => h && (h.includes('building') || h.includes('מבנה') || h.includes('מזהה')));
         
-        // Use fixed position mapping if:
-        // 1. Headers are empty/garbled, OR
-        // 2. We have exactly the expected column count and first value looks like a building number
         if (!headersAreValid || (hasExpectedColumns && values.length >= expectedColumnCount && !isNaN(parseInt(values[0])))) {
-          // Fixed position mapping for the new format:
-          // Column 0: Building number, Column 1: Payer ID, Column 2: Asset ID, 
-          // Column 3: Main asset type, Column 4: Asset size,
-          // Columns 5-16: Sub asset types and sizes (6 pairs)
-          // Column 17: Penthouse (דירת גג)
+          // Fixed position mapping
           asset.building_number = values[0] ? parseInt(values[0]) : null;
           asset.payer_id = values[1] || '';
           asset.asset_id = values[2] || '';
@@ -171,17 +173,14 @@ export function AssetsFileImport() {
           asset.sub_asset_size_5 = values[14] ? parseFloat(values[14]) : 0;
           asset.sub_asset_type_6 = values[15] || '';
           asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
-          // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
-          // Only process penthouse if importPenthouse flag is enabled
           if (values.length > 17 && importPenthouse) {
             const penthouseValue = (values[17] || '').trim();
             if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
               asset.penthouse = 'כן';
             }
-            // If not 'כן' or 'yes', don't set the field (will be null/undefined in DB)
           }
         } else {
-          // Header-based mapping (for backward compatibility)
+          // Header-based mapping
           headers.forEach((header, index) => {
             const value = values[index] || '';
             const headerLower = header.toLowerCase();
@@ -223,79 +222,150 @@ export function AssetsFileImport() {
             } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
               asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
             } else if (headerLower.includes('גג') || headerLower.includes('penthouse') || headerLower === 'penthouse') {
-              // Only process penthouse if importPenthouse flag is enabled
               if (importPenthouse) {
-                // Convert penthouse to yes/no/null: 'כן' or 'yes' -> 'כן', anything else -> omit field
                 const penthouseValue = (value || '').trim();
                 if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
                   asset.penthouse = 'כן';
                 }
-                // If not 'כן' or 'yes', don't set the field (will be null/undefined in DB)
               }
             }
           });
         }
 
-        if (validateBeforeImport) {
-          try {
-            // Use unified validation handler
-            const result = await AssetValidationHandler.validateSingleAsset(asset);
-            
-            // Collect validation results in batch format
-            if (!result.valid && result.errors.length > 0) {
-              validationErrors.push({
-                assetId: asset.asset_id || `שורה ${i + 1}`,
-                buildingNumber: asset.building_number || 0,
-                errors: result.errors,
-                matchedAssetTypeRecord: result.matchedAssetTypeRecord
-              });
-              errors.push(`שורה ${i + 1} (נכס ${asset.asset_id}): ${result.errors.join('; ')}`);
-              continue;
-            } else {
-              // Valid asset - add to validation results
-              validationErrors.push({
-                assetId: asset.asset_id || `שורה ${i + 1}`,
-                buildingNumber: asset.building_number || 0,
-                errors: [],
-                matchedAssetTypeRecord: result.matchedAssetTypeRecord
-              });
-            }
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'שגיאת ולידציה';
-            validationErrors.push({
-              assetId: asset.asset_id || `שורה ${i + 1}`,
-              buildingNumber: asset.building_number || 0,
-              errors: [errorMsg]
-            });
-            errors.push(`שורה ${i + 1} (נכס ${asset.asset_id}): ${errorMsg}`);
-            continue;
-          }
-        }
-
-        // Clean up penthouse field - remove it if not 'כן' to avoid sending empty strings
-        if (asset.penthouse !== 'כן') {
-          delete asset.penthouse;
-        }
-        
         assets.push(asset);
       }
 
-      let successCount = 0;
-      const validationErrorCount = errors.length; // Count validation errors before import
+      setImportedAssets(assets);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File');
+    } finally {
+      setIsParsing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }
 
-      setProgress({ stage: 'importing', current: 0, total: assets.length });
+  const handleValidate = async () => {
+    if (importedAssets.length === 0) return;
 
-      for (let idx = 0; idx < assets.length; idx++) {
-        const asset = assets[idx];
-        setProgress({ 
-          stage: 'importing', 
-          current: idx, 
-          total: assets.length,
+    setIsValidating(true);
+    setValidationProgress({ current: 0, total: importedAssets.length });
+    setValidationResults(null);
+
+    try {
+      // Prepare cached data
+      const cachedData = {
+        assetTypes: assetTypes,
+        building: null // Will be determined per asset
+      };
+
+      const results: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
+
+      for (let i = 0; i < importedAssets.length; i++) {
+        const asset = importedAssets[i];
+        setValidationProgress({ 
+          current: i, 
+          total: importedAssets.length,
           currentAssetId: asset.asset_id
         });
-        
+
         try {
-          await api.assets.create(asset);
+          const result = await AssetValidationHandler.validateSingleAsset(asset, {
+            cachedData
+          });
+          
+          results.push({
+            assetId: asset.asset_id || `שורה ${i + 1}`,
+            buildingNumber: asset.building_number || 0,
+            errors: result.errors,
+            matchedAssetTypeRecord: result.matchedAssetTypeRecord
+          });
+
+          // Update validation errors in asset row
+          setImportedAssets(prev => prev.map(a => 
+            a.id === asset.id 
+              ? { ...a, _validationErrors: result.errors }
+              : a
+          ));
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'שגיאת ולידציה';
+          results.push({
+            assetId: asset.asset_id || `שורה ${i + 1}`,
+            buildingNumber: asset.building_number || 0,
+            errors: [errorMsg]
+          });
+          setImportedAssets(prev => prev.map(a => 
+            a.id === asset.id 
+              ? { ...a, _validationErrors: [errorMsg] }
+              : a
+          ));
+        }
+      }
+
+      const validCount = results.filter(e => e.errors.length === 0).length;
+      const invalidCount = results.filter(e => e.errors.length > 0).length;
+      setValidationResults({
+        total: results.length,
+        valid: validCount,
+        invalid: invalidCount,
+        errors: results
+      });
+      setShowValidationModal(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'שגיאה באימות');
+    } finally {
+      setIsValidating(false);
+      setValidationProgress(null);
+    }
+  };
+
+  const handleSave = async (saveAsNew: boolean = false) => {
+    if (importedAssets.length === 0) return;
+
+    setIsSaving(true);
+    const errors: string[] = [];
+    let successCount = 0;
+
+    try {
+      for (const asset of importedAssets) {
+        try {
+          const assetData: Partial<Asset> = {
+            building_number: asset.building_number!,
+            payer_id: asset.payer_id || null,
+            asset_id: asset.asset_id,
+            measurement_date: asset.measurement_date,
+            main_asset_type: asset.main_asset_type || null,
+            asset_size: asset.asset_size || 0,
+            sub_asset_type_1: asset.sub_asset_type_1 || null,
+            sub_asset_size_1: asset.sub_asset_size_1 || 0,
+            sub_asset_type_2: asset.sub_asset_type_2 || null,
+            sub_asset_size_2: asset.sub_asset_size_2 || 0,
+            sub_asset_type_3: asset.sub_asset_type_3 || null,
+            sub_asset_size_3: asset.sub_asset_size_3 || 0,
+            sub_asset_type_4: asset.sub_asset_type_4 || null,
+            sub_asset_size_4: asset.sub_asset_size_4 || 0,
+            sub_asset_type_5: asset.sub_asset_type_5 || null,
+            sub_asset_size_5: asset.sub_asset_size_5 || 0,
+            sub_asset_type_6: asset.sub_asset_type_6 || null,
+            sub_asset_size_6: asset.sub_asset_size_6 || 0
+          };
+
+          if (asset.penthouse === 'כן') {
+            assetData.penthouse = 'כן';
+          }
+
+          // For import, we always create new assets
+          // "Save as new" means we'll create with a new measurement_date if asset already exists
+          // For now, both options create new assets - the difference is in the measurement_date handling
+          if (saveAsNew) {
+            // For "save as new", we could check if asset exists and update it with is_new_measurement flag
+            // But for import, we're creating new assets, so just create normally
+            await api.assets.create(assetData);
+          } else {
+            // Regular save - create new asset
+            await api.assets.create(assetData);
+          }
           successCount++;
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
@@ -303,51 +373,271 @@ export function AssetsFileImport() {
         }
       }
 
-      // Set validation results if validation was performed
-      if (validateBeforeImport && validationErrors.length > 0) {
-        const validCount = validationErrors.filter(e => e.errors.length === 0).length;
-        const invalidCount = validationErrors.filter(e => e.errors.length > 0).length;
-        setValidationResults({
-          total: validationErrors.length,
-          valid: validCount,
-          invalid: invalidCount,
-          errors: validationErrors
-        });
-        setShowValidationModal(true);
-      }
-
-      const result = {
-        total: lines.length - 1,
+      setSaveResult({
         successful: successCount,
-        failed: errors.length, // Total errors (validation + import)
+        failed: errors.length,
         errors: errors.slice(0, 20)
-      };
-      setImportResult(result);
-      setShowResultModal(true);
+      });
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File';
-      const result = {
-        total: 0,
-        successful: 0,
-        failed: 1,
-        errors: [errorMsg]
-      };
-      setImportResult(result);
-      setShowResultModal(true);
+      alert(error instanceof Error ? error.message : 'שגיאה בשמירה');
     } finally {
-      setIsImporting(false);
-      setProgress(null);
-      setValidationProgress(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setIsSaving(false);
     }
-  }
+  };
+
+  const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
+    const updatedRow = event.data as ImportAssetRow;
+    const field = event.column?.getColId();
+    
+    if (!field || !updatedRow) return;
+
+    // Clear validation errors when cell is edited
+    setImportedAssets(prev => prev.map(a => 
+      a.id === updatedRow.id 
+        ? { ...a, _validationErrors: undefined }
+        : a
+    ));
+  }, []);
+
+  const getCellStyle = (params: any) => {
+    const row = params.data as ImportAssetRow;
+    const hasValidationError = row._validationErrors && row._validationErrors.length > 0;
+    if (hasValidationError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        textAlign: 'right'
+      };
+    }
+    return { textAlign: 'right' };
+  };
+
+  const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => [
+    {
+      field: 'building_number',
+      headerName: t('buildingNumber'),
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'payer_id',
+      headerName: t('payerId'),
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      colId: 'penthouse',
+      field: 'penthouse',
+      headerName: 'דירת גג',
+      editable: true,
+      cellRenderer: (params: any) => {
+        const isChecked = params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                const newValue = e.target.checked ? 'כן' : null;
+                params.setValue(newValue);
+              }}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        );
+      },
+      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueSetter: (params: any) => {
+        params.data.penthouse = params.newValue;
+        return true;
+      },
+      cellStyle: (params) => {
+        const baseStyle = getCellStyle(params);
+        return { ...baseStyle, textAlign: 'center' };
+      }
+    },
+    {
+      field: 'asset_id',
+      headerName: t('assetId'),
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'measurement_date',
+      headerName: 'תאריך מדידה',
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'main_asset_type',
+      headerName: t('mainAssetType'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'asset_size',
+      headerName: t('mainAssetSize'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: t('subAssetType3'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: t('subAssetSize3'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: t('subAssetType4'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: t('subAssetSize4'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: t('subAssetType5'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: t('subAssetSize5'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: t('subAssetType6'),
+      editable: true,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: t('subAssetSize6'),
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        return isNaN(num) ? '' : num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    }
+  ], [t, assetTypes]);
+
+  const gridOptions = {
+    autoSizeStrategy: {
+      type: 'fitCellContents' as const,
+    },
+  };
 
   function downloadTemplate() {
-    // Create Excel template matching the new format
-    // Columns: Building number, Payer ID, Asset ID, Main asset type, Asset size, 
-    // Sub asset types 1-6, Sub asset sizes 1-6
     const headers = [
       'מזהה מבנה',
       'מזהה משלם',
@@ -370,18 +660,14 @@ export function AssetsFileImport() {
     ];
 
     const data = [headers];
-
-    // Create workbook and worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
-
-    // Write to file
     XLSX.writeFile(workbook, 'assets_template.xlsx');
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-[95vw] mx-auto px-4 py-6">
       <div className="mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md p-4">
         <div className="flex items-center gap-2">
           <Upload className="w-6 h-6 text-white bg-white/20 rounded p-1" />
@@ -392,7 +678,7 @@ export function AssetsFileImport() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md border border-indigo-100 p-6">
-        {/* Buttons Section - Top */}
+        {/* File Upload Section */}
         <div className="space-y-3 mb-6">
           <div className="flex gap-3">
             <input
@@ -400,18 +686,19 @@ export function AssetsFileImport() {
               type="file"
               accept=".xlsx,.xls"
               onChange={handleFileUpload}
-              disabled={isImporting}
+              disabled={isParsing}
               className="hidden"
             />
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
+              disabled={isParsing}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
-              {isImporting ? (
+              {isParsing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>מייבא...</span>
+                  <span>קורא קובץ...</span>
                 </>
               ) : (
                 <>
@@ -422,6 +709,7 @@ export function AssetsFileImport() {
             </button>
 
             <button
+              type="button"
               onClick={downloadTemplate}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
             >
@@ -430,67 +718,141 @@ export function AssetsFileImport() {
             </button>
           </div>
 
-        {/* Progress Indicator */}
-        {progress && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">
-                  {progress.stage === 'parsing' && 'קורא קובץ...'}
-                  {progress.stage === 'validating' && 'מאמת נתונים...'}
-                  {progress.stage === 'importing' && 'מייבא נכסים...'}
-                </span>
-              </div>
-              <span className="text-xs text-blue-700">
-                {progress.current} / {progress.total}
-              </span>
-            </div>
-            <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={importPenthouse}
+                onChange={(e) => setImportPenthouse(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
-            </div>
-            {progress.currentAssetId && (
-              <p className="text-xs text-blue-700">
-                מעבד נכס: {progress.currentAssetId}
-              </p>
-            )}
-          </div>
-        )}
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={validateBeforeImport}
-                  onChange={(e) => setValidateBeforeImport(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span className="text-xs font-medium text-blue-900">
-                  בצע ולידציה לפני ייבוא (מומלץ)
-                </span>
-              </label>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={importPenthouse}
-                  onChange={(e) => setImportPenthouse(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span className="text-xs font-medium text-blue-900">
-                  ייבא דירת גג (אופציונלי)
-                </span>
-              </label>
-            </div>
+              <span className="text-xs font-medium text-blue-900">
+                ייבא דירת גג (אופציונלי)
+              </span>
+            </label>
           </div>
         </div>
 
-        {/* Info and Tips Section - Bottom */}
+        {/* Imported Assets Grid */}
+        {importedAssets.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-900">
+                נכסים מיובאים ({importedAssets.length})
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleValidate}
+                  disabled={isValidating || isSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  {isValidating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>מאמת...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>אמת</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave(false)}
+                  disabled={isValidating || isSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>שומר...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>שמור</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={isValidating || isSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>שומר...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>שמור כמדידה חדשה</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+              <AgGridReact
+                ref={gridRef}
+                rowData={importedAssets}
+                columnDefs={columnDefs}
+                gridOptions={gridOptions}
+                onCellValueChanged={onCellValueChanged}
+                defaultColDef={{
+                  resizable: true,
+                  sortable: true,
+                  filter: true
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Save Result */}
+        {saveResult && (
+          <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              {saveResult.failed === 0 ? (
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
+              )}
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <p className="text-sm text-green-700 mb-1">נשמרו בהצלחה</p>
+                    <p className="text-2xl font-bold text-green-700">{saveResult.successful}</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                    <p className="text-sm text-red-700 mb-1">נכשלו</p>
+                    <p className="text-2xl font-bold text-red-700">{saveResult.failed}</p>
+                  </div>
+                </div>
+                {saveResult.errors.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-red-900 mb-2">שגיאות:</h4>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                      <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
+                        {saveResult.errors.map((error, index) => (
+                          <li key={index} className="break-words">{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info Section */}
         <div className="border-t border-slate-200 pt-6 space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <FileText className="h-5 w-5 text-indigo-600" />
@@ -520,36 +882,6 @@ export function AssetsFileImport() {
                 </ul>
               </div>
             </div>
-
-            <div className="bg-white rounded-lg p-3 border border-slate-300 mb-4">
-              <p className="font-semibold text-slate-900 mb-2 text-sm">דוגמה:</p>
-              <p className="text-xs text-slate-700 mb-2">הקובץ צריך להיות בפורמט Excel (.xlsx) עם העמודות הבאות:</p>
-              <div className="text-xs text-slate-600 space-y-1">
-                <p>שורה 1: מזהה מבנה | מזהה משלם | מזהה נכס | סוג נכס ראשי | גודל נכס ראשי | סוג נכס משנה 1 | גודל נכס משנה 1 | ...</p>
-                <p>שורה 2: 8268128 | 516144276 | 826812801 | 311 | 552.89 | ...</p>
-                <p>שורה 3: 8268128 | 516144276 | 826812802 | 299 | 264.29 | 311 | 248.2 | 702 | 10.36 | ...</p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900">
-                <p className="font-semibold mb-1">שימו לב:</p>
-                <ul className="list-disc list-inside space-y-1 mr-4">
-                  <li>הקובץ צריך להיות בפורמט Excel (.xlsx)</li>
-                  <li>תאריך מדידה יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע בקובץ</li>
-                  <li>נכסים מסוג 199 או 299 חייבים לכלול לפחות 2 נכסי משנה</li>
-                  <li>סכום נכסי המשנה חייב להתאים לגודל הנכס הראשי</li>
-                  <li>המבנה חייב להיות קיים במערכת לפני ייבוא הנכסים</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-            <p className="text-xs text-indigo-900">
-              <strong>טיפ:</strong> לאחר הייבוא, חזור לרשימת הנכסים כדי לראות את הנכסים החדשים. הקובץ צריך להיות בפורמט Excel (.xlsx)
-            </p>
           </div>
         </div>
       </div>
@@ -558,92 +890,12 @@ export function AssetsFileImport() {
       <ValidationResultModal
         isOpen={showValidationModal}
         onClose={() => setShowValidationModal(false)}
-        isLoading={isImporting && progress?.stage === 'validating'}
+        isLoading={isValidating}
         progress={validationProgress}
         context="import"
         batchResults={validationResults}
         batchTitle="תוצאות אימות ייבוא"
       />
-
-      {/* Import Results Modal */}
-      {showResultModal && importResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className={`${importResult.failed === 0 ? 'bg-green-500' : importResult.successful === 0 ? 'bg-red-500' : 'bg-yellow-500'} px-6 py-4 flex items-center justify-between`}>
-              <h2 className="text-2xl font-bold text-white">תוצאות ייבוא</h2>
-              <button
-                onClick={() => {
-                  setShowResultModal(false);
-                  setImportResult(null);
-                }}
-                className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="flex items-start gap-3 mb-6">
-                {importResult.failed === 0 ? (
-                  <CheckCircle className="h-8 w-8 text-green-600 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="h-8 w-8 text-yellow-600 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                      <p className="text-sm text-slate-600 mb-1">סה"כ שורות</p>
-                      <p className="text-2xl font-bold text-slate-900">{importResult.total}</p>
-                    </div>
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                      <p className="text-sm text-green-700 mb-1">יובאו בהצלחה</p>
-                      <p className="text-2xl font-bold text-green-700">{importResult.successful}</p>
-                    </div>
-                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                      <p className="text-sm text-red-700 mb-1">נכשלו</p>
-                      <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {importResult.errors.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="font-semibold text-red-900 mb-3 text-lg">שגיאות:</h4>
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <ul className="list-disc list-inside space-y-2 text-sm text-red-800">
-                      {importResult.errors.map((error, index) => (
-                        <li key={index} className="break-words">{error}</li>
-                      ))}
-                      {importResult.errors.length === 20 && (
-                        <li className="text-red-600 font-semibold">...ועוד שגיאות נוספות</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {importResult.failed === 0 && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 font-medium">כל הנכסים יובאו בהצלחה!</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
-              <button
-                onClick={() => {
-                  setShowResultModal(false);
-                  setImportResult(null);
-                }}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-              >
-                סגור
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

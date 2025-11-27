@@ -488,10 +488,16 @@ export function AssetTypeFieldsManager() {
                 }
               }, 10);
               
-              const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              // Then scale to fit grid width
-              params.api.sizeColumnsToFit();
+              // Auto-size columns to fit cell contents (exclude actions column)
+              const allColumnIds = params.api.getAllDisplayedColumns()
+                .map((col: any) => col.getColId())
+                .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
+              
+              if (allColumnIds.length > 0) {
+                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                // Then scale to fit grid width
+                params.api.sizeColumnsToFit();
+              }
 
               // Ensure actions column stays pinned after any operations
               setTimeout(() => {

@@ -287,13 +287,53 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
       return;
     }
 
-    if (dirtyAssets.size === 0) {
-      setToast({ message: 'No changes to save', type: 'info' });
+    if (!latestMeasurement) {
+      setToast({ message: 'לא נמצא נכס לשמירה', type: 'error' });
       return;
     }
 
     setIsSaving(true);
     try {
+      // Handle new asset (id === 0)
+      if (latestMeasurement.id === 0 || !assetId) {
+        // Create new asset
+        const assetData: Omit<Asset, 'id' | 'created_at'> = {
+          building_number: latestMeasurement.building_number,
+          payer_id: latestMeasurement.payer_id || null,
+          asset_id: latestMeasurement.asset_id,
+          measurement_date: latestMeasurement.measurement_date,
+          main_asset_type: latestMeasurement.main_asset_type || undefined,
+          asset_size: latestMeasurement.asset_size || 0,
+          sub_asset_type_1: latestMeasurement.sub_asset_type_1 || undefined,
+          sub_asset_size_1: latestMeasurement.sub_asset_size_1 || 0,
+          sub_asset_type_2: latestMeasurement.sub_asset_type_2 || undefined,
+          sub_asset_size_2: latestMeasurement.sub_asset_size_2 || 0,
+          sub_asset_type_3: latestMeasurement.sub_asset_type_3 || undefined,
+          sub_asset_size_3: latestMeasurement.sub_asset_size_3 || 0,
+          sub_asset_type_4: latestMeasurement.sub_asset_type_4 || undefined,
+          sub_asset_size_4: latestMeasurement.sub_asset_size_4 || 0,
+          sub_asset_type_5: latestMeasurement.sub_asset_type_5 || undefined,
+          sub_asset_size_5: latestMeasurement.sub_asset_size_5 || 0,
+          sub_asset_type_6: latestMeasurement.sub_asset_type_6 || undefined,
+          sub_asset_size_6: latestMeasurement.sub_asset_size_6 || 0,
+          penthouse: latestMeasurement.penthouse || undefined
+        };
+        
+        const newAsset = await api.assets.create(assetData);
+        setToast({ message: t('updatedSuccessfully'), type: 'success' });
+        
+        // Refresh data to load the newly created asset
+        if (onDataUpdate) onDataUpdate();
+        await fetchData();
+        return;
+      }
+
+      // Handle existing asset updates
+      if (dirtyAssets.size === 0) {
+        setToast({ message: 'No changes to save', type: 'info' });
+        return;
+      }
+
       for (const [assetId, changes] of dirtyAssets.entries()) {
         // Normal update - the trigger will handle moving to history if measurement_date changes
         // If measurement_date is being changed, validate it first
@@ -1122,11 +1162,66 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
 
   useEffect(() => {
     fetchData();
-  }, [assetId]);
+  }, [assetId, buildingNumber, taxRegion]);
 
   async function fetchData() {
     try {
       setLoading(true);
+      
+      // Handle new asset case (no assetId, but buildingNumber provided)
+      if (!assetId && buildingNumber) {
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, '0');
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const year = today.getFullYear();
+        const dateStr = `${day}/${month}/${year}`;
+        
+        const newAsset: Asset = {
+          id: 0, // Temporary ID for new asset
+          building_number: buildingNumber,
+          asset_id: '',
+          payer_id: '',
+          main_asset_type: '',
+          asset_size: 0,
+          sub_asset_type_1: '',
+          sub_asset_size_1: 0,
+          sub_asset_type_2: '',
+          sub_asset_size_2: 0,
+          sub_asset_type_3: '',
+          sub_asset_size_3: 0,
+          sub_asset_type_4: '',
+          sub_asset_size_4: 0,
+          sub_asset_type_5: '',
+          sub_asset_size_5: 0,
+          sub_asset_type_6: '',
+          sub_asset_size_6: 0,
+          measurement_date: dateStr,
+          penthouse: null,
+          is_latest: true
+        };
+        
+        setAsset(newAsset);
+        setAllMeasurements([newAsset]);
+        setOriginalMeasurements([newAsset]);
+        
+        // Load building and asset types
+        const [buildingData, assetTypesData] = await Promise.all([
+          api.buildings.getOne(buildingNumber),
+          api.assetTypes.getAll()
+        ]);
+        setBuilding(buildingData);
+        setAssetTypes(assetTypesData || []);
+        
+        setLoading(false);
+        return;
+      }
+      
+      // Existing asset case - load from database
+      if (!assetId) {
+        setError('Asset ID is required');
+        setLoading(false);
+        return;
+      }
 
       // Try to fetch by id first
       let assetData: Asset | null = null;

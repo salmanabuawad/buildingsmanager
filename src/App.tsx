@@ -170,6 +170,19 @@ function App() {
     }
   }
 
+  function handleOpenNewAsset(buildingNumber: number, taxRegion?: string) {
+    const newAssetTabId = `asset-details-new-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;
+    const newTab: Tab = {
+      id: newAssetTabId,
+      type: 'asset-details',
+      buildingNumber,
+      taxRegion,
+      label: `נכס חדש - מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabId(newAssetTabId);
+  }
+
   function handleOpenTransferAreas(selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) {
     const transferAreasTabId = `transfer-areas-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;
     const newTab: Tab = {
@@ -762,6 +775,7 @@ function App() {
                   taxRegion={activeTab.taxRegion}
                   onSelectAsset={handleSelectAsset}
                   onOpenTransferAreas={handleOpenTransferAreas}
+                  onOpenNewAsset={handleOpenNewAsset}
                 />
               );
             })()}
@@ -797,8 +811,13 @@ function App() {
             {activeTab?.type === 'assets-file-import' && (
               <AssetsFileImport />
             )}
-            {activeTab?.type === 'asset-details' && activeTab.assetId && (
-              <AssetDetails assetId={parseInt(activeTab.assetId)} onDataUpdate={handleDataUpdate} />
+            {activeTab?.type === 'asset-details' && (
+              <AssetDetails 
+                assetId={activeTab.assetId ? parseInt(activeTab.assetId) : undefined}
+                buildingNumber={activeTab.buildingNumber}
+                taxRegion={activeTab.taxRegion}
+                onDataUpdate={handleDataUpdate} 
+              />
             )}
           </div>
         </div>

@@ -13,8 +13,9 @@ interface AssetsListProps {
   taxRegion?: string;
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
   onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
+  onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
 }
-export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas }: AssetsListProps) {
+export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset }: AssetsListProps) {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -1576,7 +1577,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               return (
                 <button
                   type="button"
-                  onClick={addEmptyRow}
+                  onClick={() => {
+                    if (onOpenNewAsset) {
+                      onOpenNewAsset(buildingNumber, taxRegion);
+                    } else {
+                      addEmptyRow();
+                    }
+                  }}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
                 >
                   <Plus className="h-4 w-4" />

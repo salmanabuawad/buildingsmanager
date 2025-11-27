@@ -501,30 +501,81 @@ export function AssetsFileImport() {
       // Use bulk insert via Supabase
       const { supabase } = await import('../lib/supabase');
       
-      // For "save as new", we need to handle existing assets differently
-      if (saveAsNew && newMeasurementDate) {
-        // Get all asset_ids that we're trying to save
-        const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
+      // Check which assets already exist and their building numbers (for both save and save as new)
+      const assetIds = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
+      
+      if (assetIds.length > 0) {
+        // Check which assets already exist with their building numbers (bulk query)
+        const { data: existingAssets, error: checkError } = await supabase
+          .from('assets')
+          .select('asset_id, building_number')
+          .in('asset_id', assetIds);
         
-        if (assetIds.length > 0) {
-          // Check which assets already exist (bulk query)
-          const { data: existingAssets, error: checkError } = await supabase
-            .from('assets')
-            .select('asset_id')
-            .in('asset_id', assetIds);
+        if (checkError && checkError.code !== 'PGRST116') {
+          errors.push(`שגיאה בבדיקת נכסים קיימים: ${checkError.message}`);
+        } else if (existingAssets && existingAssets.length > 0) {
+          // Create a map of asset_id -> building_number for existing assets
+          const existingAssetsMap = new Map<number, number>();
+          existingAssets.forEach(a => {
+            const assetId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+            const buildingNum = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
+            existingAssetsMap.set(assetId, buildingNum);
+          });
           
-          if (checkError && checkError.code !== 'PGRST116') {
-            errors.push(`שגיאה בבדיקת נכסים קיימים: ${checkError.message}`);
-          } else if (existingAssets && existingAssets.length > 0) {
-            // Delete existing assets in bulk (triggers will copy to history)
-            const existingAssetIds = existingAssets.map(a => a.asset_id);
+          // Check for assets in different buildings (errors)
+          const assetsInDifferentBuildings: Array<{ assetId: number; existingBuilding: number; newBuilding: number }> = [];
+          const assetsInSameBuilding: number[] = [];
+          
+          assetsToInsert.forEach(asset => {
+            const assetId = asset.asset_id;
+            if (assetId != null) {
+              const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+              const existingBuilding = existingAssetsMap.get(assetIdNum);
+              
+              if (existingBuilding != null) {
+                const newBuilding = typeof asset.building_number === 'string' 
+                  ? parseInt(asset.building_number, 10) 
+                  : asset.building_number;
+                
+                if (existingBuilding !== newBuilding) {
+                  // Asset exists in a different building - error
+                  assetsInDifferentBuildings.push({
+                    assetId: assetIdNum,
+                    existingBuilding,
+                    newBuilding
+                  });
+                } else {
+                  // Asset exists in the same building - OK (will be updated)
+                  assetsInSameBuilding.push(assetIdNum);
+                }
+              }
+            }
+          });
+          
+          // Report errors for assets in different buildings
+          if (assetsInDifferentBuildings.length > 0) {
+            assetsInDifferentBuildings.forEach(({ assetId, existingBuilding, newBuilding }) => {
+              errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במבנה ${existingBuilding}. לא ניתן ליצור נכס עם אותו מספר במבנה ${newBuilding}.`);
+            });
+            // Remove assets in different buildings from the insert list
+            assetsToInsert = assetsToInsert.filter(asset => {
+              const assetId = asset.asset_id;
+              if (assetId == null) return true;
+              const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+              return !assetsInDifferentBuildings.some(a => a.assetId === assetIdNum);
+            });
+          }
+          
+          // For assets in the same building, delete existing ones (triggers will copy to history)
+          // This applies to both "save" and "save as new"
+          if (assetsInSameBuilding.length > 0) {
             const { error: deleteError } = await supabase
               .from('assets')
               .delete()
-              .in('asset_id', existingAssetIds);
+              .in('asset_id', assetsInSameBuilding);
             
             if (deleteError) {
-              errors.push(`שגיאה במחיקת נכסים קיימים: ${deleteError.message}`);
+              errors.push(`שגיאה בעדכון נכסים קיימים: ${deleteError.message}`);
             }
           }
         }
@@ -550,34 +601,107 @@ export function AssetsFileImport() {
           const assetIdsToCheck = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
           
           if (assetIdsToCheck.length > 0) {
+            // Get existing assets with their building numbers
             const { data: existingAssets, error: checkError } = await supabase
               .from('assets')
-              .select('asset_id')
+              .select('asset_id, building_number')
               .in('asset_id', assetIdsToCheck);
             
             if (!checkError && existingAssets) {
-              const existingAssetIds = new Set(existingAssets.map(a => a.asset_id));
-              existingAssetIds.forEach(assetId => {
-                errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במערכת`);
+              // Create a map of asset_id -> building_number for existing assets
+              const existingAssetsMap = new Map<number, number>();
+              existingAssets.forEach(a => {
+                const assetId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+                const buildingNum = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
+                existingAssetsMap.set(assetId, buildingNum);
               });
               
-              // Filter out existing assets and try to insert only new ones
-              const newAssets = sanitizedAssets.filter(a => {
+              // Check each asset to see if it exists in a different building
+              const assetsInDifferentBuildings: Array<{ assetId: number; existingBuilding: number; newBuilding: number }> = [];
+              const assetsInSameBuilding: number[] = [];
+              
+              sanitizedAssets.forEach(asset => {
+                const assetId = asset.asset_id;
+                if (assetId != null) {
+                  const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+                  const existingBuilding = existingAssetsMap.get(assetIdNum);
+                  
+                  if (existingBuilding != null) {
+                    const newBuilding = typeof asset.building_number === 'string' 
+                      ? parseInt(asset.building_number, 10) 
+                      : asset.building_number;
+                    
+                    if (existingBuilding !== newBuilding) {
+                      // Asset exists in a different building - error
+                      assetsInDifferentBuildings.push({
+                        assetId: assetIdNum,
+                        existingBuilding,
+                        newBuilding
+                      });
+                    } else {
+                      // Asset exists in the same building - OK (update scenario)
+                      assetsInSameBuilding.push(assetIdNum);
+                    }
+                  }
+                }
+              });
+              
+              // Report errors for assets in different buildings
+              assetsInDifferentBuildings.forEach(({ assetId, existingBuilding, newBuilding }) => {
+                errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במבנה ${existingBuilding}. לא ניתן ליצור נכס עם אותו מספר במבנה ${newBuilding}.`);
+              });
+              
+              // Filter out assets that exist in different buildings, but keep assets in same building (updates)
+              const assetsToInsertFiltered = sanitizedAssets.filter(a => {
                 const assetId = a.asset_id;
-                return assetId == null || !existingAssetIds.has(assetId);
+                if (assetId == null) return true;
+                
+                const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+                const existingBuilding = existingAssetsMap.get(assetIdNum);
+                
+                if (existingBuilding == null) {
+                  // New asset - keep it
+                  return true;
+                }
+                
+                const newBuilding = typeof a.building_number === 'string' 
+                  ? parseInt(a.building_number, 10) 
+                  : a.building_number;
+                
+                // Keep if same building (update), exclude if different building (error)
+                return existingBuilding === newBuilding;
               });
               
-              if (newAssets.length > 0) {
+              if (assetsToInsertFiltered.length > 0) {
+                // For assets in the same building, we need to update them instead of insert
+                // Delete existing ones first (triggers will copy to history), then insert new ones
+                const assetIdsToUpdate = assetsInSameBuilding;
+                
+                if (assetIdsToUpdate.length > 0) {
+                  const { error: deleteError } = await supabase
+                    .from('assets')
+                    .delete()
+                    .in('asset_id', assetIdsToUpdate);
+                  
+                  if (deleteError) {
+                    errors.push(`שגיאה בעדכון נכסים קיימים: ${deleteError.message}`);
+                  }
+                }
+                
+                // Insert all assets (both new and updated)
                 const { data: newInserted, error: newError } = await supabase
                   .from('assets')
-                  .insert(newAssets)
+                  .insert(assetsToInsertFiltered)
                   .select();
                 
                 if (!newError && newInserted) {
                   successCount = newInserted.length;
                 } else if (newError) {
-                  errors.push(`שגיאה בשמירת נכסים חדשים: ${newError.message}`);
+                  errors.push(`שגיאה בשמירת נכסים: ${newError.message}`);
                 }
+              } else if (assetsInDifferentBuildings.length > 0) {
+                // All assets failed due to different buildings
+                successCount = 0;
               }
             } else {
               errors.push(`שגיאה בבדיקת נכסים קיימים: ${checkError?.message || 'שגיאה לא ידועה'}`);

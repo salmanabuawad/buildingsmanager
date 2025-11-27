@@ -1422,14 +1422,17 @@ export const assetValidators = {
           // Asset exists in a different building - not allowed
           return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. נכס יכול להיות קשור למבנה אחד בלבד.` };
         } else {
-          // Asset exists in the same building - for new imports, this is a duplicate
-          if (!currentAssetId) {
-            return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${buildingNumberNum}` };
-          }
+          // Asset exists in the same building - this is OK (update scenario)
+          // Don't return error, allow it to proceed
+          return { valid: true };
         }
       } else {
-        // Building number not provided, but asset exists
-        return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
+        // Building number not provided, but asset exists - this is OK if we're updating
+        // Only error if we're creating new and building number is missing
+        if (!currentAssetId) {
+          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת. יש לציין מספר מבנה.` };
+        }
+        return { valid: true };
       }
     }
 

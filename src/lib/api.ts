@@ -957,8 +957,14 @@ export const api = {
             errorMessage = 'מספר משלם חייב להיות מספר תקין.';
           }
         } else if (error.code === '23503') {
-          if (error.message.includes('building_number')) {
-            errorMessage = `מבנה ${input.building_number} לא קיים. המבנה ייווצר אוטומטית אם הנתונים תקינים.`;
+          // Foreign key constraint violation
+          if (error.message.includes('fk_assets_buildings') || 
+              error.message.includes('building_number') ||
+              (error.details && error.details.includes('buildings')) ||
+              (error.details && error.details.includes('Key is not present in table "buildings"'))) {
+            errorMessage = `מבנה ${input.building_number} לא קיים במערכת. יש ליצור את המבנה לפני יצירת נכסים.`;
+          } else {
+            errorMessage = `שגיאת אימות נתונים: ${error.details || error.message}`;
           }
         }
 
@@ -1041,8 +1047,14 @@ export const api = {
             errorMessage = 'מספר משלם חייב להיות מספר תקין.';
           }
         } else if (updateError.code === '23503') {
-          if (updateError.message.includes('building_number')) {
-            errorMessage = `מבנה ${input.building_number} לא קיים. המבנה ייווצר אוטומטית אם הנתונים תקינים.`;
+          // Foreign key constraint violation
+          if (updateError.message.includes('fk_assets_buildings') || 
+              updateError.message.includes('building_number') ||
+              (updateError.details && updateError.details.includes('buildings')) ||
+              (updateError.details && updateError.details.includes('Key is not present in table "buildings"'))) {
+            errorMessage = `מבנה ${input.building_number} לא קיים במערכת. יש ליצור את המבנה לפני עדכון נכסים.`;
+          } else {
+            errorMessage = `שגיאת אימות נתונים: ${updateError.details || updateError.message}`;
           }
         } else if (updateError.code === '23505') {
           if (updateError.message.includes('assets_asset_id_unique') || updateError.message.includes('asset_id')) {

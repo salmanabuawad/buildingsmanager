@@ -369,6 +369,7 @@ export function BuildingsList({
       condo: null,
       townhouses: null,
       building_address: null,
+      overload_ratio: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       _tempId: tempId,
@@ -1353,6 +1354,54 @@ export function BuildingsList({
       cellEditorPopup: true,
       cellEditorPopupPosition: 'under',
       cellStyle: (params) => getCellStyle(params, 'building_address')
+    },
+    {
+      field: 'overload_ratio',
+      headerName: 'אחוז העמסה',
+      editable: (params: any) => {
+        if (!params || !params.data) return false;
+        const building = params.data as Building;
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        return isNew || !buildingsToDelete.has(buildingKey);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
+      valueFormatter: (params: any) => {
+        if (params.value == null || params.value === undefined) return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        if (isNaN(num)) return '';
+        return num.toFixed(2);
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
+        const errorMsg = errors && errors['overload_ratio'];
+        if (isNew && (params.value === null || params.value === undefined)) {
+          return '';
+        }
+        const value = params.value != null ? Number(params.value).toFixed(2) : '';
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'overload_ratio')
     }
   ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);
 

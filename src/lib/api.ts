@@ -16,6 +16,7 @@ export interface Building {
   basement?: string;
   townhouses?: string;
   building_address?: number; // Street code from address_list table
+  overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
   _tempId?: string; // Hidden field to identify new buildings before saving
   _isNew?: boolean; // Hidden field to mark new buildings
 }
@@ -260,6 +261,10 @@ function sanitizeBuildingInput(input: any): any {
         sanitized.building_address = null;
       }
     }
+  }
+  // Handle overload_ratio: numeric field for overload percentage
+  if (input.overload_ratio != null) {
+    sanitized.overload_ratio = sanitizeNumber(input.overload_ratio);
   }
   
   return sanitized;

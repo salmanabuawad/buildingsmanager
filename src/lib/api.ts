@@ -963,6 +963,8 @@ export const api = {
               (error.details && error.details.includes('buildings')) ||
               (error.details && error.details.includes('Key is not present in table "buildings"'))) {
             errorMessage = `מבנה ${input.building_number} לא קיים במערכת. יש ליצור את המבנה לפני יצירת נכסים.`;
+            // Don't append technical details for user-friendly messages
+            throw new Error(errorMessage);
           } else {
             errorMessage = `שגיאת אימות נתונים: ${error.details || error.message}`;
           }
@@ -1053,6 +1055,8 @@ export const api = {
               (updateError.details && updateError.details.includes('buildings')) ||
               (updateError.details && updateError.details.includes('Key is not present in table "buildings"'))) {
             errorMessage = `מבנה ${input.building_number} לא קיים במערכת. יש ליצור את המבנה לפני עדכון נכסים.`;
+            // Don't append technical details for user-friendly messages
+            throw new Error(errorMessage);
           } else {
             errorMessage = `שגיאת אימות נתונים: ${updateError.details || updateError.message}`;
           }

@@ -31,6 +31,7 @@ interface ImportAssetRow {
   sub_asset_size_6: number;
   penthouse?: string;
   _validationErrors?: string[];
+  _isDirty?: boolean;
 }
 
 export function AssetsFileImport() {
@@ -391,10 +392,10 @@ export function AssetsFileImport() {
     
     if (!field || !updatedRow) return;
 
-    // Clear validation errors when cell is edited
+    // Mark as dirty and clear validation errors when cell is edited
     setImportedAssets(prev => prev.map(a => 
       a.id === updatedRow.id 
-        ? { ...a, _validationErrors: undefined }
+        ? { ...a, _isDirty: true, _validationErrors: undefined }
         : a
     ));
   }, []);
@@ -402,6 +403,14 @@ export function AssetsFileImport() {
   const handleDeleteRow = useCallback((rowId: string) => {
     setImportedAssets(prev => prev.filter(a => a.id !== rowId));
   }, []);
+
+  // Check if all assets are valid (no validation errors)
+  const allAssetsValid = useMemo(() => {
+    if (importedAssets.length === 0) return false;
+    return importedAssets.every(asset => 
+      !asset._validationErrors || asset._validationErrors.length === 0
+    );
+  }, [importedAssets]);
 
   const getCellStyle = (params: any) => {
     const row = params.data as ImportAssetRow;
@@ -843,8 +852,9 @@ export function AssetsFileImport() {
                 <button
                   type="button"
                   onClick={() => handleSave(false)}
-                  disabled={isValidating || isSaving}
+                  disabled={isValidating || isSaving || !allAssetsValid}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  title={!allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
                 >
                   {isSaving ? (
                     <>
@@ -861,8 +871,9 @@ export function AssetsFileImport() {
                 <button
                   type="button"
                   onClick={() => handleSave(true)}
-                  disabled={isValidating || isSaving}
+                  disabled={isValidating || isSaving || !allAssetsValid}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  title={!allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
                 >
                   {isSaving ? (
                     <>

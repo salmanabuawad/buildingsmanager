@@ -418,8 +418,58 @@ export function AssetsFileImport() {
     let successCount = 0;
 
     try {
-      // Prepare all assets for bulk insert
-      const assetsToInsert: Partial<Asset>[] = importedAssets.map(asset => {
+      // First, check for duplicates within the import batch itself
+      const assetIdMap = new Map<number, number[]>(); // asset_id -> array of row indices
+      importedAssets.forEach((asset, index) => {
+        if (asset.asset_id) {
+          const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
+          if (!assetIdMap.has(assetIdNum)) {
+            assetIdMap.set(assetIdNum, []);
+          }
+          assetIdMap.get(assetIdNum)!.push(index);
+        }
+      });
+
+      // Find duplicates within the batch
+      const duplicatesInBatch: Array<{ assetId: number; rows: number[] }> = [];
+      assetIdMap.forEach((rows, assetId) => {
+        if (rows.length > 1) {
+          duplicatesInBatch.push({ assetId, rows });
+        }
+      });
+
+      if (duplicatesInBatch.length > 0) {
+        duplicatesInBatch.forEach(({ assetId, rows }) => {
+          const rowNumbers = rows.map(r => r + 1).join(', ');
+          errors.push(`מזהה נכס ${assetId} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers}). נכס יכול להיות קשור למבנה אחד בלבד.`);
+        });
+        setSaveResult({
+          successful: 0,
+          failed: errors.length,
+          errors: errors
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      // Filter out assets with validation errors
+      const validAssets = importedAssets.filter(asset => 
+        !asset._validationErrors || asset._validationErrors.length === 0
+      );
+
+      if (validAssets.length === 0) {
+        errors.push('אין נכסים תקינים לשמירה. יש לתקן את כל השגיאות לפני שמירה.');
+        setSaveResult({
+          successful: 0,
+          failed: 1,
+          errors: errors
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      // Prepare all valid assets for bulk insert
+      const assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,
@@ -467,13 +517,49 @@ export function AssetsFileImport() {
 
       if (bulkError) {
         // If bulk insert fails, try to identify which assets failed
-        // For now, we'll treat it as all failed and show the error
         const errorMsg = bulkError.message || 'שגיאה בשמירה';
-        errors.push(`שגיאה בשמירה: ${errorMsg}`);
         
-        // If it's a constraint violation, try to save individually to get specific errors
-        if (bulkError.code === '23503' || bulkError.code === '23505' || bulkError.code === '23514') {
-          // Fallback to individual saves to get specific error messages
+        // If it's a unique constraint violation (duplicate asset_id), check which assets are duplicates
+        if (bulkError.code === '23505' || errorMsg.includes('assets_asset_id_unique') || errorMsg.includes('duplicate key')) {
+          // Check each asset individually to find duplicates
+          const seenAssetIds = new Set<number>();
+          const duplicateAssetIds: number[] = [];
+          
+          for (let i = 0; i < assetsToInsert.length; i++) {
+            const assetId = assetsToInsert[i].asset_id;
+            if (assetId != null) {
+              const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+              if (seenAssetIds.has(assetIdNum)) {
+                duplicateAssetIds.push(assetIdNum);
+              } else {
+                seenAssetIds.add(assetIdNum);
+              }
+            }
+          }
+
+          if (duplicateAssetIds.length > 0) {
+            duplicateAssetIds.forEach(assetId => {
+              errors.push(`מזהה נכס ${assetId} כבר קיים במערכת או מופיע מספר פעמים בקובץ הייבוא`);
+            });
+          } else {
+            // Try to save individually to get specific error messages
+            for (let i = 0; i < assetsToInsert.length; i++) {
+              try {
+                await api.assets.create(assetsToInsert[i] as any);
+                successCount++;
+              } catch (err) {
+                const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
+                const assetId = assetsToInsert[i].asset_id || `שורה ${i + 1}`;
+                if (errorMsg.includes('duplicate') || errorMsg.includes('assets_asset_id_unique')) {
+                  errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במערכת`);
+                } else {
+                  errors.push(`נכס ${assetId}: ${errorMsg}`);
+                }
+              }
+            }
+          }
+        } else if (bulkError.code === '23503' || bulkError.code === '23514') {
+          // Foreign key or check constraint violation - try individual saves
           for (let i = 0; i < assetsToInsert.length; i++) {
             try {
               await api.assets.create(assetsToInsert[i] as any);
@@ -486,7 +572,7 @@ export function AssetsFileImport() {
           }
         } else {
           // For other errors, mark all as failed
-          errors.push(`כל הנכסים: ${errorMsg}`);
+          errors.push(`שגיאה בשמירה: ${errorMsg}`);
         }
       } else {
         // Bulk insert succeeded
@@ -541,12 +627,37 @@ export function AssetsFileImport() {
     setImportedAssets(prev => prev.filter(a => a.id !== rowId));
   }, []);
 
-  // Check if all assets are valid (no validation errors)
+  // Check if all assets are valid (no validation errors and no duplicates)
   const allAssetsValid = useMemo(() => {
     if (importedAssets.length === 0) return false;
-    return importedAssets.every(asset => 
-      !asset._validationErrors || asset._validationErrors.length === 0
+    
+    // Check for validation errors
+    const hasValidationErrors = importedAssets.some(asset => 
+      asset._validationErrors && asset._validationErrors.length > 0
     );
+    
+    if (hasValidationErrors) return false;
+    
+    // Check for duplicates within the batch
+    const assetIdMap = new Map<number, number[]>(); // asset_id -> array of row indices
+    importedAssets.forEach((asset, index) => {
+      if (asset.asset_id) {
+        const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
+        if (!assetIdMap.has(assetIdNum)) {
+          assetIdMap.set(assetIdNum, []);
+        }
+        assetIdMap.get(assetIdNum)!.push(index);
+      }
+    });
+    
+    // Check if any asset_id appears more than once
+    for (const [assetId, rows] of assetIdMap.entries()) {
+      if (rows.length > 1) {
+        return false; // Duplicate found
+      }
+    }
+    
+    return true;
   }, [importedAssets]);
 
   const getCellStyle = (params: any) => {

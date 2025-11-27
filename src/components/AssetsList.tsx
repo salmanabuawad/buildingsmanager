@@ -6,7 +6,6 @@ import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
 import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft } from 'lucide-react';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 interface AssetsListProps {
@@ -31,7 +30,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'assets_list_column_state');
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
@@ -1686,25 +1684,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             getRowId={(params) => String(params.data.id)}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
-              // Load saved column state first
-              const hasSavedState = await loadColumnState();
-              
-              // If no saved state, apply default sizing with minimum widths
-              if (!hasSavedState) {
-                setTimeout(() => {
-                  const allColumns = params.api.getAllDisplayedColumns();
-                  const allColumnIds = allColumns
-                    .map(col => col.getColId())
-                    .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                  
-                  if (allColumnIds.length > 0) {
-                    // Auto-size based on content (minimum width will be content width)
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 200);
-              }
+              setTimeout(() => {
+                const allColumns = params.api.getAllDisplayedColumns();
+                const allColumnIds = allColumns
+                  .map(col => col.getColId())
+                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                
+                if (allColumnIds.length > 0) {
+                  // Auto-size based on content (minimum width will be content width)
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  // Then scale to fit grid width
+                  params.api.sizeColumnsToFit();
+                }
+              }, 200);
 
               // Scroll to left on grid ready
               setTimeout(() => {
@@ -1715,37 +1707,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               }, 300);
             }}
             onFirstDataRendered={async (params) => {
-              // Load saved column state if not already loaded
-              if (!columnStateLoaded) {
-                const hasSavedState = await loadColumnState();
+              setTimeout(() => {
+                const allColumns = params.api.getAllDisplayedColumns();
+                const allColumnIds = allColumns
+                  .map(col => col.getColId())
+                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
                 
-                // If no saved state, apply default sizing with minimum widths
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    const allColumns = params.api.getAllDisplayedColumns();
-                    const allColumnIds = allColumns
-                      .map(col => col.getColId())
-                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                    
-                    if (allColumnIds.length > 0) {
-                      // First, set minimum widths to prevent very small columns
-                      allColumns.forEach(col => {
-                        if (col.getColId() !== 'actions') {
-                          const currentWidth = col.getActualWidth();
-                          if (!currentWidth || currentWidth < 100) {
-                            col.setActualWidth(100); // Set minimum width of 100px
-                          }
-                        }
-                      });
-                      
-                      // Then auto-size based on content
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
+                if (allColumnIds.length > 0) {
+                  // First, set minimum widths to prevent very small columns
+                  allColumns.forEach(col => {
+                    if (col.getColId() !== 'actions') {
+                      const currentWidth = col.getActualWidth();
+                      if (!currentWidth || currentWidth < 100) {
+                        col.setActualWidth(100); // Set minimum width of 100px
+                      }
                     }
-                  }, 150);
+                  });
+                  
+                  // Then auto-size based on content
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  // Then scale to fit grid width
+                  params.api.sizeColumnsToFit();
                 }
-              }
+              }, 150);
 
               // Scroll to left after data render
               setTimeout(() => {
@@ -1755,7 +1739,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 }
               }, 200);
             }}
-            onColumnResized={saveColumnState}
+            onColumnResized={() => {}}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to first position
               try {
@@ -1786,9 +1770,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               } catch (error) {
                 console.warn('Error in onColumnMoved:', error);
               }
-              saveColumnState();
             }}
-            onSortChanged={saveColumnState}
+            onSortChanged={() => {}}
             animateRows={true}
             enableRtl={true}
             suppressHorizontalScroll={false}

@@ -4,7 +4,6 @@ import { Apartment, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Upload, FileCheck, FileX, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 
 interface ApartmentWithBuilding extends Apartment {
   building_name: string;
@@ -17,7 +16,6 @@ export function AdminPDFManager() {
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const gridRef = useRef<AgGridReact<ApartmentWithBuilding>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'admin_pdf_manager_column_state');
 
   useEffect(() => {
     fetchApartments();
@@ -220,29 +218,17 @@ export function AdminPDFManager() {
           defaultColDef={defaultColDef}
           onGridReady={async (params) => {
             // Load saved column state first
-            const hasSavedState = await loadColumnState();
-            
-            // If no saved state, apply default sizing
-            if (!hasSavedState) {
-              const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-              // Then scale to fit grid width
-              params.api.sizeColumnsToFit();
-            }
+            const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+            // Then scale to fit grid width
+            params.api.sizeColumnsToFit();
           }}
           onFirstDataRendered={async (params) => {
             // Load saved column state if not already loaded
-            if (!columnStateLoaded) {
-              const hasSavedState = await loadColumnState();
-              
-              // If no saved state, apply default sizing
-              if (!hasSavedState) {
-                const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Then scale to fit grid width
-                params.api.sizeColumnsToFit();
-              }
-            }
+            const allColumnIds = params.api.getAllDisplayedColumns().map(col => col.getColId());
+            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+            // Then scale to fit grid width
+            params.api.sizeColumnsToFit();
             
             const firstCol = params.api.getAllDisplayedColumns()[0];
             if (firstCol) {
@@ -256,7 +242,7 @@ export function AdminPDFManager() {
               }
             }, 200);
           }}
-          onColumnResized={saveColumnState}
+          onColumnResized={() => {}}
           onColumnMoved={(params) => {
             // Prevent actions column from being moved - force it back to first position
             const actionsColumn = params.columnApi.getColumn('actions');
@@ -280,9 +266,8 @@ export function AdminPDFManager() {
                 return;
               }
             }
-            saveColumnState();
           }}
-          onSortChanged={saveColumnState}
+          onSortChanged={() => {}}
           pagination={true}
           paginationPageSize={20}
           paginationPageSizeSelector={[10, 20, 50, 100]}

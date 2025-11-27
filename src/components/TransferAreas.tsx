@@ -5,7 +5,6 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 import { Toast } from './Toast';
 
 interface TransferAreasProps {
@@ -32,7 +31,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   // Store initial total area for validation
   const [initialTotalArea, setInitialTotalArea] = useState<number | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'transfer_areas_column_state');
 
   useEffect(() => {
     fetchData();
@@ -984,38 +982,30 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 return null;
               }}
               onGridReady={async (params) => {
-                const hasSavedState = await loadColumnState();
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId());
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 100);
-                }
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId());
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
+                  }
+                }, 100);
               }}
               onFirstDataRendered={async (params) => {
-                if (!columnStateLoaded) {
-                  const hasSavedState = await loadColumnState();
-                  if (!hasSavedState) {
-                    setTimeout(() => {
-                      const allColumnIds = params.api.getAllDisplayedColumns()
-                        .map(col => col.getColId());
-                      if (allColumnIds.length > 0) {
-                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                        // Then scale to fit grid width
-                        params.api.sizeColumnsToFit();
-                      }
-                    }, 50);
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId());
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
                   }
-                }
+                }, 50);
               }}
-              onColumnResized={saveColumnState}
-              onColumnMoved={saveColumnState}
-              onSortChanged={saveColumnState}
+              onColumnResized={() => {}}
+              onColumnMoved={() => {}}
+              onSortChanged={() => {}}
               enableRtl={true}
               animateRows={true}
             />

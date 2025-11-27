@@ -4,7 +4,6 @@ import { AssetTypeField, api } from '../lib/api';
 import { Plus, Settings, Trash2, Save, X } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 
 export function AssetTypeFieldsManager() {
   const { t } = useTranslation();
@@ -15,7 +14,6 @@ export function AssetTypeFieldsManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const gridRef = useRef<AgGridReact<AssetTypeField>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_type_fields_column_state');
   const [dirtyFields, setDirtyFields] = useState<Map<string, Partial<AssetTypeField>>>(new Map());
   const [originalFields, setOriginalFields] = useState<AssetTypeField[]>([]);
 
@@ -490,13 +488,10 @@ export function AssetTypeFieldsManager() {
                 }
               }, 10);
               
-              const hasSavedState = await loadColumnState();
-              if (!hasSavedState) {
-                const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
-                params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                // Then scale to fit grid width
-                params.api.sizeColumnsToFit();
-              }
+              const allColumnIds = params.api.getAllDisplayedColumns().map((col: any) => col.getColId());
+              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+              // Then scale to fit grid width
+              params.api.sizeColumnsToFit();
 
               // Ensure actions column stays pinned after any operations
               setTimeout(() => {
@@ -522,24 +517,19 @@ export function AssetTypeFieldsManager() {
               }, 150);
             }}
             onFirstDataRendered={async (params) => {
-              if (!columnStateLoaded) {
-                const hasSavedState = await loadColumnState();
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map((col: any) => col.getColId())
-                      .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
-                    
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 50);
+              setTimeout(() => {
+                const allColumnIds = params.api.getAllDisplayedColumns()
+                  .map((col: any) => col.getColId())
+                  .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
+                
+                if (allColumnIds.length > 0) {
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  // Then scale to fit grid width
+                  params.api.sizeColumnsToFit();
                 }
-              }
+              }, 50);
             }}
-            onColumnResized={saveColumnState}
+            onColumnResized={() => {}}
             onColumnMoved={(params) => {
               try {
                 const actionsColumn = params.columnApi?.getColumn('actions');
@@ -578,13 +568,11 @@ export function AssetTypeFieldsManager() {
                     return;
                   }
                 }
-                saveColumnState();
               } catch (err) {
                 console.error('Error in onColumnMoved:', err);
-                saveColumnState();
               }
             }}
-            onSortChanged={saveColumnState}
+            onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
             pagination={true}
             paginationPageSize={20}

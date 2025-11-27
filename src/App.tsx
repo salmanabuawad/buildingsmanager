@@ -36,8 +36,6 @@ function App() {
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(true);
-  const [showDeletePreferencesConfirm, setShowDeletePreferencesConfirm] = useState(false);
-  const [deletePreferencesLoading, setDeletePreferencesLoading] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
@@ -331,24 +329,6 @@ function App() {
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
-  async function handleDeleteAllPreferences() {
-    setDeletePreferencesLoading(true);
-    try {
-      const USER_ID = 'default'; // In a real app, this would come from auth
-      const result = await api.userPreferences.deleteAll(USER_ID);
-      console.log('Preferences deleted:', result.message);
-      // Refresh all tabs to reset grid preferences
-      setTabs(prevTabs => prevTabs.map(tab => ({
-        ...tab,
-        refreshKey: Date.now()
-      })));
-    } catch (error: any) {
-      console.error('Failed to delete all preferences:', error);
-    } finally {
-      setDeletePreferencesLoading(false);
-      setShowDeletePreferencesConfirm(false);
-    }
-  }
 
   async function handleBatchValidateAllAssets() {
     setShowBatchValidationModal(true);
@@ -824,42 +804,6 @@ function App() {
         </div>
       </div>
 
-      {/* Delete All Preferences Confirmation Modal */}
-      {showDeletePreferencesConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">מחיקת כל העדפות המשתמש</h3>
-            <p className="text-sm text-slate-600 mb-6">
-              האם אתה בטוח שברצונך למחוק את כל העדפות המשתמש? פעולה זו תמחק את כל הגדרות העמודות (רוחב, מיקום, מיון) בכל הטבלאות. פעולה זו אינה הפיכה.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowDeletePreferencesConfirm(false)}
-                disabled={deletePreferencesLoading}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
-              >
-                ביטול
-              </button>
-              <button
-                onClick={handleDeleteAllPreferences}
-                disabled={deletePreferencesLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {deletePreferencesLoading ? (
-                  <>
-                    <span>מוחק...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4" />
-                    <span>מחק הכל</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showBatchValidationModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">

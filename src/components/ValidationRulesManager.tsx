@@ -5,7 +5,6 @@ import { loadValidationRules } from '../lib/validation';
 import { Settings, Plus, Save, X, RefreshCw } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 
 export function ValidationRulesManager() {
   const { t } = useTranslation();
@@ -289,7 +288,6 @@ export function ValidationRulesManager() {
   ], [editingId, editValues]);
 
   const gridRef = useRef<AgGridReact<ValidationRule>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'validation_rules_column_state');
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
@@ -299,24 +297,18 @@ export function ValidationRulesManager() {
 
   const onGridReady = useCallback(async (params: any) => {
     console.log('Grid ready, rules count:', rules.length);
-    // Load saved column state first
-    const hasSavedState = await loadColumnState();
-    
-    // If no saved state, apply default sizing
-    if (!hasSavedState) {
-      setTimeout(() => {
-        const allColumnIds = params.api.getAllDisplayedColumns()
-          .map((col: any) => col.getColId())
-          .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
-        
-        if (allColumnIds.length > 0) {
-          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-          // Then scale to fit grid width
-          params.api.sizeColumnsToFit();
-        }
-      }, 100);
-    }
-  }, [rules, loadColumnState]);
+    setTimeout(() => {
+      const allColumnIds = params.api.getAllDisplayedColumns()
+        .map((col: any) => col.getColId())
+        .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
+      
+      if (allColumnIds.length > 0) {
+        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+        // Then scale to fit grid width
+        params.api.sizeColumnsToFit();
+      }
+    }, 100);
+  }, [rules]);
 
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-lg shadow-lg">
@@ -569,24 +561,17 @@ export function ValidationRulesManager() {
                 onGridReady={onGridReady}
                 onFirstDataRendered={async (params) => {
                   // Load saved column state if not already loaded
-                  if (!columnStateLoaded) {
-                    const hasSavedState = await loadColumnState();
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map((col: any) => col.getColId())
+                      .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
                     
-                    // If no saved state, apply default sizing
-                    if (!hasSavedState) {
-                      setTimeout(() => {
-                        const allColumnIds = params.api.getAllDisplayedColumns()
-                          .map((col: any) => col.getColId())
-                          .filter((id: string) => id !== 'actions'); // Exclude actions column from auto-sizing
-                        
-                        if (allColumnIds.length > 0) {
-                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                          // Then scale to fit grid width
-                          params.api.sizeColumnsToFit();
-                        }
-                      }, 50);
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      // Then scale to fit grid width
+                      params.api.sizeColumnsToFit();
                     }
-                  } else {
+                  }, 50); else {
                     const firstCol = params.api.getAllDisplayedColumns()[0];
                     if (firstCol) {
                       params.api.ensureColumnVisible(firstCol);
@@ -600,7 +585,7 @@ export function ValidationRulesManager() {
                     }
                   }, 200);
                 }}
-                onColumnResized={saveColumnState}
+                onColumnResized={() => {}}
                 onColumnMoved={(params) => {
                   // Prevent actions column from being moved - force it back to first position
                   const actionsColumn = params.columnApi.getColumn('actions');
@@ -624,9 +609,8 @@ export function ValidationRulesManager() {
                       return;
                     }
                   }
-                  saveColumnState();
                 }}
-                onSortChanged={saveColumnState}
+                onSortChanged={() => {}}
                 pagination={true}
                 paginationPageSize={20}
                 paginationPageSizeSelector={[10, 20, 50, 100]}

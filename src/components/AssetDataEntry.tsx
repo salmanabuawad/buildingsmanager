@@ -6,7 +6,6 @@ import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X } from 'lucide-re
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -38,7 +37,6 @@ interface AssetRow {
 export function AssetDataEntry() {
   const { t } = useTranslation();
   const gridRef = useRef<AgGridReact>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_data_entry_column_state');
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
@@ -1286,50 +1284,36 @@ export function AssetDataEntry() {
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
-              // Load saved column state first
-              const hasSavedState = await loadColumnState();
-              
-              // If no saved state, apply default sizing
-              if (!hasSavedState) {
-                setTimeout(() => {
-                  const allColumnIds = params.api.getAllDisplayedColumns()
-                    .map(col => col.getColId())
-                    .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                  
-                  if (allColumnIds.length > 0) {
-                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }
-                }, 100);
-              }
+              setTimeout(() => {
+                const allColumnIds = params.api.getAllDisplayedColumns()
+                  .map(col => col.getColId())
+                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
+                
+                if (allColumnIds.length > 0) {
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  // Then scale to fit grid width
+                  params.api.sizeColumnsToFit();
+                }
+              }, 100);
               
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }
             }}
             onFirstDataRendered={async (params) => {
-              // Load saved column state if not already loaded
-              if (!columnStateLoaded) {
-                const hasSavedState = await loadColumnState();
+              setTimeout(() => {
+                const allColumnIds = params.api.getAllDisplayedColumns()
+                  .map(col => col.getColId())
+                  .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
                 
-                // If no saved state, apply default sizing
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId())
-                      .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                    
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 50);
+                if (allColumnIds.length > 0) {
+                  params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                  // Then scale to fit grid width
+                  params.api.sizeColumnsToFit();
                 }
-              }
+              }, 50);
             }}
-            onColumnResized={saveColumnState}
+            onColumnResized={() => {}}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to first position
               const actionsColumn = params.columnApi.getColumn('actions');
@@ -1353,9 +1337,8 @@ export function AssetDataEntry() {
                   return;
                 }
               }
-              saveColumnState();
             }}
-            onSortChanged={saveColumnState}
+            onSortChanged={() => {}}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
             enterNavigatesVertically={true}

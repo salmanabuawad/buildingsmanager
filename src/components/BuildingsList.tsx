@@ -5,7 +5,6 @@ import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2 } from 'lucide-react';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 
 
 interface BuildingsListProps {
@@ -45,9 +44,8 @@ export function BuildingsList({
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<string | number>>(new Set());
   const [newBuildings, setNewBuildings] = useState<Set<string | number>>(new Set());
   
-  // Grid reference and preferences
+  // Grid reference
   const gridRef = useRef<AgGridReact<Building>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'buildings_list_column_state');
 
   // Calculate total changes: new buildings count as 1 each, even if edited
   const totalChanges = useMemo(() => {
@@ -1438,19 +1436,16 @@ export function BuildingsList({
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
-                const hasSavedState = await loadColumnState();
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId())
-                      .filter(id => id !== 'actions');
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 100);
-                }
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId())
+                    .filter(id => id !== 'actions');
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
+                  }
+                }, 100);
                 setTimeout(() => {
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
@@ -1475,21 +1470,16 @@ export function BuildingsList({
                 }, 200);
               }}
               onFirstDataRendered={async (params) => {
-                if (!columnStateLoaded) {
-                  const hasSavedState = await loadColumnState();
-                  if (!hasSavedState) {
-                    setTimeout(() => {
-                      const allColumnIds = params.api.getAllDisplayedColumns()
-                        .map(col => col.getColId())
-                        .filter(id => id !== 'actions');
-                      if (allColumnIds.length > 0) {
-                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                        // Then scale to fit grid width
-                        params.api.sizeColumnsToFit();
-                      }
-                    }, 50);
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId())
+                    .filter(id => id !== 'actions');
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
                   }
-                }
+                }, 50);
                 setTimeout(() => {
                   const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
                   if (gridElement) {
@@ -1497,7 +1487,7 @@ export function BuildingsList({
                   }
                 }, 200);
               }}
-              onColumnResized={saveColumnState}
+              onColumnResized={() => {}}
               onColumnMoved={(params) => {
                 const actionsColumn = params.columnApi.getColumn('actions');
                 if (actionsColumn) {
@@ -1520,9 +1510,8 @@ export function BuildingsList({
                     return;
                   }
                 }
-                saveColumnState();
               }}
-              onSortChanged={saveColumnState}
+              onSortChanged={() => {}}
               domLayout="normal"
               suppressHorizontalScroll={false}
               enableRtl={true}

@@ -5,7 +5,6 @@ import { Upload, Save, X, Loader2, MapPin, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 
 export function AddressListComponent() {
   const { t } = useTranslation();
@@ -19,7 +18,6 @@ export function AddressListComponent() {
   const [deletedAddresses, setDeletedAddresses] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AddressList>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'address_list_column_state');
 
   useEffect(() => {
     fetchAddresses();
@@ -651,30 +649,22 @@ export function AddressListComponent() {
             }}
             getRowId={(params) => String(params.data.street_code)}
             onGridReady={async (params) => {
-              const hasSavedState = await loadColumnState();
-              if (!hasSavedState) {
-                setTimeout(() => {
-                  params.api.autoSizeColumns({ skipHeader: true });
-                  // Then scale to fit grid width
-                  params.api.sizeColumnsToFit();
-                }, 100);
-              }
+              setTimeout(() => {
+                params.api.autoSizeColumns({ skipHeader: true });
+                // Then scale to fit grid width
+                params.api.sizeColumnsToFit();
+              }, 100);
             }}
             onFirstDataRendered={async (params) => {
-              if (!columnStateLoaded) {
-                const hasSavedState = await loadColumnState();
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    params.api.autoSizeColumns({ skipHeader: true });
-                    // Then scale to fit grid width
-                    params.api.sizeColumnsToFit();
-                  }, 50);
-                }
-              }
+              setTimeout(() => {
+                params.api.autoSizeColumns({ skipHeader: true });
+                // Then scale to fit grid width
+                params.api.sizeColumnsToFit();
+              }, 50);
             }}
-            onColumnResized={saveColumnState}
-            onColumnMoved={saveColumnState}
-            onSortChanged={saveColumnState}
+            onColumnResized={() => {}}
+            onColumnMoved={() => {}}
+            onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
             enableRtl={true}
             animateRows={true}

@@ -9,7 +9,6 @@ import { ColDef, CellClassParams } from 'ag-grid-community';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { supabase } from '../lib/supabase';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 
 interface AssetDetailsProps {
@@ -39,8 +38,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_details_column_state');
-  const { loadColumnState: loadHistoryColumnState, saveColumnState: saveHistoryColumnState, columnStateLoaded: historyColumnStateLoaded } = useGridPreferences(historyGridRef, 'asset_details_history_column_state');
 
   // Find the latest measurement (from assets table, is_latest=true)
   const latestMeasurement = useMemo(() => {
@@ -1449,46 +1446,32 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   };
                 }}
                 onGridReady={async (params) => {
-                  // Load saved column state first
-                  const hasSavedState = await loadColumnState();
-                  
-                  // If no saved state, apply default sizing
-                  if (!hasSavedState) {
-                    setTimeout(() => {
-                      const allColumnIds = params.api.getAllDisplayedColumns()
-                        .map(col => col.getColId())
-                        .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
-                      
-                      if (allColumnIds.length > 0) {
-                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                        // Then scale to fit grid width
-                        params.api.sizeColumnsToFit();
-                      }
-                    }, 100);
-                  }
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map(col => col.getColId())
+                      .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
+                    
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      // Then scale to fit grid width
+                      params.api.sizeColumnsToFit();
+                    }
+                  }, 100);
                 }}
                 onFirstDataRendered={async (params) => {
-                  // Load saved column state if not already loaded
-                  if (!columnStateLoaded) {
-                    const hasSavedState = await loadColumnState();
+                  setTimeout(() => {
+                    const allColumnIds = params.api.getAllDisplayedColumns()
+                      .map(col => col.getColId())
+                      .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
                     
-                    // If no saved state, apply default sizing
-                    if (!hasSavedState) {
-                      setTimeout(() => {
-                        const allColumnIds = params.api.getAllDisplayedColumns()
-                          .map(col => col.getColId())
-                          .filter(id => id !== 'structure_drawing_url'); // Exclude structure drawing column from auto-sizing
-                        
-                        if (allColumnIds.length > 0) {
-                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                          // Then scale to fit grid width
-                          params.api.sizeColumnsToFit();
-                        }
-                      }, 50);
+                    if (allColumnIds.length > 0) {
+                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                      // Then scale to fit grid width
+                      params.api.sizeColumnsToFit();
                     }
-                  }
+                  }, 50);
                 }}
-                onColumnResized={saveColumnState}
+                onColumnResized={() => {}}
                 onColumnMoved={(params) => {
                   // Prevent structure drawing column from being moved - force it back to pinned right position
                   try {
@@ -1521,9 +1504,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                   } catch (error) {
                     console.warn('Error in onColumnMoved:', error);
                   }
-                  saveColumnState();
                 }}
-                onSortChanged={saveColumnState}
+                onSortChanged={() => {}}
                 onCellValueChanged={onCellValueChanged}
                 enableRtl={true}
                 animateRows={true}
@@ -1558,8 +1540,6 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                     }}
                     getRowStyle={getRowStyle}
                     onGridReady={async (params) => {
-                      const hasSavedState = await loadHistoryColumnState();
-                      
                       // Ensure structure drawing column is visible
                       const columnState = params.api.getColumnState();
                       const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
@@ -1567,45 +1547,37 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                         params.api.setColumnVisible('structure_drawing_url', true);
                       }
                       
-                      if (!hasSavedState) {
-                        setTimeout(() => {
-                          const allColumnIds = params.api.getAllDisplayedColumns()
-                            .map(col => col.getColId())
-                            .filter(id => id !== 'actions');
-                          if (allColumnIds.length > 0) {
-                            params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                            // Then scale to fit grid width
-                            params.api.sizeColumnsToFit();
-                          }
-                        }, 100);
-                      }
+                      setTimeout(() => {
+                        const allColumnIds = params.api.getAllDisplayedColumns()
+                          .map(col => col.getColId())
+                          .filter(id => id !== 'actions');
+                        if (allColumnIds.length > 0) {
+                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                          // Then scale to fit grid width
+                          params.api.sizeColumnsToFit();
+                        }
+                      }, 100);
                     }}
                     onFirstDataRendered={async (params) => {
-                      if (!historyColumnStateLoaded) {
-                        const hasSavedState = await loadHistoryColumnState();
-                        
-                        // Ensure actions column is visible
-                        const columnState = params.api.getColumnState();
-                        const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                        if (actionsCol && actionsCol.hide) {
-                          params.api.setColumnVisible('actions', true);
-                        }
-                        
-                        if (!hasSavedState) {
-                          setTimeout(() => {
-                            const allColumnIds = params.api.getAllDisplayedColumns()
-                              .map(col => col.getColId())
-                              .filter(id => id !== 'actions');
-                            if (allColumnIds.length > 0) {
-                              params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                              // Then scale to fit grid width
-                              params.api.sizeColumnsToFit();
-                            }
-                          }, 50);
-                        }
+                      // Ensure actions column is visible
+                      const columnState = params.api.getColumnState();
+                      const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                      if (actionsCol && actionsCol.hide) {
+                        params.api.setColumnVisible('actions', true);
                       }
+                      
+                      setTimeout(() => {
+                        const allColumnIds = params.api.getAllDisplayedColumns()
+                          .map(col => col.getColId())
+                          .filter(id => id !== 'actions');
+                        if (allColumnIds.length > 0) {
+                          params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                          // Then scale to fit grid width
+                          params.api.sizeColumnsToFit();
+                        }
+                      }, 50);
                     }}
-                    onColumnResized={saveHistoryColumnState}
+                    onColumnResized={() => {}}
                     onColumnMoved={(params) => {
                       // Prevent structure drawing column from being moved - force it back to pinned right position
                       try {
@@ -1638,9 +1610,8 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
                       } catch (error) {
                         console.warn('Error in history grid onColumnMoved:', error);
                       }
-                      saveHistoryColumnState();
                     }}
-                    onSortChanged={saveHistoryColumnState}
+                    onSortChanged={() => {}}
                     enableRtl={true}
                     animateRows={true}
                     tooltipShowDelay={200}

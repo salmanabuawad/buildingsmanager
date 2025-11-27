@@ -6,7 +6,6 @@ import { Plus, Tag, Upload, Save, X, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { useGridPreferences } from '../hooks/useGridPreferences';
 import { useValidationRules } from '../contexts/ValidationContext';
 
 export function AssetTypes() {
@@ -23,7 +22,6 @@ export function AssetTypes() {
   const [deletedAssetTypes, setDeletedAssetTypes] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
-  const { loadColumnState, saveColumnState, columnStateLoaded } = useGridPreferences(gridRef, 'asset_types_column_state');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -1080,46 +1078,33 @@ export function AssetTypes() {
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
                 // Load saved column state first
-                const hasSavedState = await loadColumnState();
-                
-                // If no saved state, apply default sizing
-                if (!hasSavedState) {
-                  setTimeout(() => {
-                    const allColumnIds = params.api.getAllDisplayedColumns()
-                      .map(col => col.getColId());
-                    
-                    if (allColumnIds.length > 0) {
-                      params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                      // Then scale to fit grid width
-                      params.api.sizeColumnsToFit();
-                    }
-                  }, 100);
-                }
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId());
+                  
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
+                  }
+                }, 100);
               }}
               onFirstDataRendered={async (params) => {
                 // Load saved column state if not already loaded
-                if (!columnStateLoaded) {
-                  const hasSavedState = await loadColumnState();
+                setTimeout(() => {
+                  const allColumnIds = params.api.getAllDisplayedColumns()
+                    .map(col => col.getColId())
+                    .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
                   
-                  // If no saved state, apply default sizing
-                  if (!hasSavedState) {
-                    setTimeout(() => {
-                      const allColumnIds = params.api.getAllDisplayedColumns()
-                        .map(col => col.getColId())
-                        .filter(id => id !== 'actions'); // Exclude actions column from auto-sizing
-                      
-                      if (allColumnIds.length > 0) {
-                        params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
-                        // Then scale to fit grid width
-                        params.api.sizeColumnsToFit();
-                      }
-                    }, 50);
+                  if (allColumnIds.length > 0) {
+                    params.api.autoSizeColumns({ skipHeader: true }, allColumnIds);
+                    // Then scale to fit grid width
+                    params.api.sizeColumnsToFit();
                   }
-                } else {
-                  const firstCol = params.api.getAllDisplayedColumns()[0];
-                  if (firstCol) {
-                    params.api.ensureColumnVisible(firstCol);
-                  }
+                }, 50);
+                const firstCol = params.api.getAllDisplayedColumns()[0];
+                if (firstCol) {
+                  params.api.ensureColumnVisible(firstCol);
                 }
                 
                 setTimeout(() => {
@@ -1129,10 +1114,10 @@ export function AssetTypes() {
                   }
                 }, 200);
               }}
-              onColumnResized={saveColumnState}
-              onColumnMoved={saveColumnState}
-              onSortChanged={saveColumnState}
-              onFilterChanged={saveColumnState}
+              onColumnResized={() => {}}
+              onColumnMoved={() => {}}
+              onSortChanged={() => {}}
+              onFilterChanged={() => {}}
               pagination={false}
               suppressHorizontalScroll={false}
               enableRtl={true}

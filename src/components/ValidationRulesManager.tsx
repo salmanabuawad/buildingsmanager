@@ -560,7 +560,6 @@ export function ValidationRulesManager() {
                 defaultColDef={defaultColDef}
                 onGridReady={onGridReady}
                 onFirstDataRendered={async (params) => {
-                  // Load saved column state if not already loaded
                   setTimeout(() => {
                     const allColumnIds = params.api.getAllDisplayedColumns()
                       .map((col: any) => col.getColId())
@@ -571,12 +570,7 @@ export function ValidationRulesManager() {
                       // Then scale to fit grid width
                       params.api.sizeColumnsToFit();
                     }
-                  }, 50); else {
-                    const firstCol = params.api.getAllDisplayedColumns()[0];
-                    if (firstCol) {
-                      params.api.ensureColumnVisible(firstCol);
-                    }
-                  }
+                  }, 50);
                   
                   setTimeout(() => {
                     const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');

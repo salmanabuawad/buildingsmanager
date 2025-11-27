@@ -936,6 +936,7 @@ export function AssetDataEntry() {
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: true,
+      width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         return (

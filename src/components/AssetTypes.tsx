@@ -259,6 +259,7 @@ export function AssetTypes() {
       pinned: 'right',
       lockPinned: true,
       headerClass: 'text-left',
+      width: 60,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
@@ -341,6 +342,7 @@ export function AssetTypes() {
       headerName: 'מעלית',
       editable: false,
       headerClass: 'text-left',
+      width: 60,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
@@ -399,6 +401,7 @@ export function AssetTypes() {
       field: 'single_double_family',
       headerName: 'בית פרטי חד משפחתי דו משפחתי',
       editable: false,
+      width: 60,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
@@ -459,6 +462,7 @@ export function AssetTypes() {
       headerName: 'דירת גג',
       editable: false,
       headerClass: 'text-left',
+      width: 60,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
@@ -518,6 +522,7 @@ export function AssetTypes() {
       headerName: 'בית משותף',
       editable: false,
       headerClass: 'text-left',
+      width: 60,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;
@@ -576,6 +581,7 @@ export function AssetTypes() {
       field: 'townhouses',
       headerName: 'מבנים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
+      width: 60,
       cellRenderer: (params: any) => {
         const assetTypeId = params.data?.id;
         if (!assetTypeId) return null;

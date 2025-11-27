@@ -235,6 +235,7 @@ export function AssetTypeFieldsManager() {
       field: 'is_asset_level',
       headerName: 'רמת נכס',
       editable: true,
+      width: 60,
       cellRenderer: (params: any) => {
         const fieldId = params.data?.id;
         const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_asset_level');
@@ -259,6 +260,7 @@ export function AssetTypeFieldsManager() {
       field: 'is_building_level',
       headerName: 'רמת מבנה',
       editable: true,
+      width: 60,
       cellRenderer: (params: any) => {
         const fieldId = params.data?.id;
         const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_building_level');
@@ -283,6 +285,7 @@ export function AssetTypeFieldsManager() {
       field: 'is_asset_type_validation',
       headerName: 'תקינות סוג נכס',
       editable: true,
+      width: 60,
       cellRenderer: (params: any) => {
         const fieldId = params.data?.id;
         const isDirty = fieldId && dirtyFields.has(fieldId) && dirtyFields.get(fieldId)?.hasOwnProperty('is_asset_type_validation');

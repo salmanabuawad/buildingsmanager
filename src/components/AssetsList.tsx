@@ -1327,6 +1327,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: false, // Always use checkbox, not editable cell
+      width: 60,
       cellRenderer: penthouseCellRenderer,
       cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'

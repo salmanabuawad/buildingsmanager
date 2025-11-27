@@ -205,6 +205,7 @@ export function ValidationRulesManager() {
       headerName: t('enabled'),
       field: 'enabled',
       editable: true,
+      width: 60,
       cellRenderer: (params: any) => {
         if (!params.data) return '';
         const rule = params.data as ValidationRule;

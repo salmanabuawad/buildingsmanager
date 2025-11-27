@@ -1125,6 +1125,7 @@ export function BuildingsList({
       field: 'elevator',
       headerName: 'מעלית',
       editable: false,
+      width: 60,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return null;
@@ -1171,6 +1172,7 @@ export function BuildingsList({
       field: 'single_double_family',
       headerName: 'בית פרטי חד משפחתי דו משפחתי',
       editable: false,
+      width: 60,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return null;
@@ -1203,6 +1205,7 @@ export function BuildingsList({
       field: 'condo',
       headerName: 'בית משותף',
       editable: false,
+      width: 60,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return null;
@@ -1235,6 +1238,7 @@ export function BuildingsList({
       field: 'townhouses',
       headerName: 'מבנים צמודי קרקע טוריים מעל 2 יחידות',
       editable: false,
+      width: 60,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return null;

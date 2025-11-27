@@ -920,6 +920,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: (params) => params.data.is_latest === true,
+      width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         const isEditable = params.data.is_latest === true;

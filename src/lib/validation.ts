@@ -77,6 +77,32 @@ export function getAssetsByAssetId(assetId: string | number): any[] {
 }
 
 /**
+ * Get building number for an asset_id from memory (synchronous)
+ * Returns the building_number if asset exists, null otherwise
+ * An asset_id should only belong to one building
+ */
+export function getBuildingNumberForAssetId(assetId: string | number): number | null {
+  const assets = getAllAssets();
+  const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+  
+  // Find the asset - there should only be one per asset_id
+  const matchingAsset = assets.find(a => {
+    const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+    return aId === assetIdNum;
+  });
+  
+  if (!matchingAsset) {
+    return null;
+  }
+  
+  const buildingNum = typeof matchingAsset.building_number === 'string' 
+    ? parseInt(matchingAsset.building_number, 10) 
+    : matchingAsset.building_number;
+  
+  return buildingNum;
+}
+
+/**
  * Get validation rules from memory (synchronous)
  */
 export function getValidationRules(): ValidationRule[] {
@@ -1366,47 +1392,48 @@ export const assetValidators = {
       return { valid: true };
     }
 
-    // Check in-memory assets
-    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    // Get the building number this asset_id currently belongs to (from memory)
+    const existingBuildingNum = getBuildingNumberForAssetId(assetId);
     const buildingNumberNum = buildingNumber != null ? (typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber) : null;
     
-    const existingAssets = allAssets.filter(a => {
-      const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
-      if (aId !== assetIdNum) return false;
-      
-      // If updating an existing asset, exclude it from the check
+    // If asset exists in the system
+    if (existingBuildingNum !== null) {
+      // Check if we're updating the same asset (exclude it from uniqueness check)
       if (currentAssetId) {
-        const aDbId = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
-        return aDbId !== currentAssetId;
+        const existingAssets = getAssetsByAssetId(assetId);
+        const isSameAsset = existingAssets.some(a => {
+          const aDbId = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
+          return aDbId === currentAssetId;
+        });
+        
+        if (isSameAsset) {
+          // Same asset being updated - check if building number is being changed
+          if (buildingNumberNum != null && existingBuildingNum !== buildingNumberNum) {
+            return { valid: false, error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן לשנות את מספר המבנה של נכס קיים.` };
+          }
+          // Same asset, same building - OK for updates
+          return { valid: true };
+        }
       }
       
-      return true;
-    });
-
-    if (existingAssets.length > 0) {
-      // If buildingNumber is provided, check if asset exists in a different building
-      // For imports: if asset exists in a different building, it's not unique
+      // Asset exists in system - check if it's in a different building
       if (buildingNumberNum != null) {
-        for (const existingAsset of existingAssets) {
-          const existingBuildingNum = typeof existingAsset.building_number === 'string' 
-            ? parseInt(existingAsset.building_number, 10) 
-            : existingAsset.building_number;
-          
-          if (existingBuildingNum !== buildingNumberNum) {
-            // Asset exists in a different building - not unique
-            return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן ליצור נכס עם אותו מספר במבנה אחר.` };
+        if (existingBuildingNum !== buildingNumberNum) {
+          // Asset exists in a different building - not allowed
+          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. נכס יכול להיות קשור למבנה אחד בלבד.` };
+        } else {
+          // Asset exists in the same building - for new imports, this is a duplicate
+          if (!currentAssetId) {
+            return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${buildingNumberNum}` };
           }
         }
-        // Asset exists in the same building - for imports, this might be OK if it's an update
-        // But for new imports, it's a duplicate
-        if (!currentAssetId) {
-          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במבנה ${buildingNumberNum}` };
-        }
+      } else {
+        // Building number not provided, but asset exists
+        return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
       }
-      
-      return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
     }
 
+    // Asset doesn't exist in system - unique
     return { valid: true };
   },
 
@@ -1425,58 +1452,42 @@ export const assetValidators = {
       return { valid: true };
     }
 
-    // Check if asset ID exists in a different building
-    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    // Get the building number this asset_id currently belongs to (from memory)
+    const existingBuildingNum = getBuildingNumberForAssetId(assetId);
     const buildingNumberNum = typeof buildingNumber === 'string' ? parseInt(buildingNumber, 10) : buildingNumber;
     
-    const existingAssets = allAssets.filter(a => {
-      const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
-      if (aId !== assetIdNum) return false;
-      
-      // If updating an existing asset, exclude it from the check
+    // If asset doesn't exist, it's OK
+    if (existingBuildingNum === null) {
+      return { valid: true };
+    }
+    
+    // Asset exists - check if it's in a different building
+    if (existingBuildingNum !== buildingNumberNum) {
+      // If updating an existing asset, check if we're trying to change its building
       if (currentAssetId !== undefined) {
-        const aDbId = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
-        if (aDbId === currentAssetId) {
-          // Same asset - check if building_number is being changed
-          const aBuildingNum = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
-          if (aBuildingNum !== buildingNumberNum) {
-            return true; // Include it to show error about building change
-          }
-          return false; // Same asset, same building - exclude from check
-        }
-      }
-      
-      return true;
-    });
-
-    if (existingAssets.length > 0) {
-      // Check if any existing asset is in a different building
-      for (const existingAsset of existingAssets) {
-        const existingBuildingNum = typeof existingAsset.building_number === 'string' 
-          ? parseInt(existingAsset.building_number, 10) 
-          : existingAsset.building_number;
+        const existingAssets = getAssetsByAssetId(assetId);
+        const isSameAsset = existingAssets.some(a => {
+          const aDbId = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
+          return aDbId === currentAssetId;
+        });
         
-        if (existingBuildingNum !== buildingNumberNum) {
-          // If updating and trying to change building
-          if (currentAssetId !== undefined) {
-            const aDbId = typeof existingAsset.id === 'string' ? parseInt(existingAsset.id, 10) : existingAsset.id;
-            if (aDbId === currentAssetId) {
-              return {
-                valid: false,
-                error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן לשנות את מספר המבנה של נכס קיים.`
-              };
-            }
-          }
-          
-          // Asset exists in a different building
+        if (isSameAsset) {
+          // Same asset, but trying to change building - not allowed
           return {
             valid: false,
-            error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן ליצור נכס עם אותו מספר במבנה אחר.`
+            error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. לא ניתן לשנות את מספר המבנה של נכס קיים.`
           };
         }
       }
+      
+      // Asset exists in a different building - not allowed
+      return {
+        valid: false,
+        error: `נכס ${assetId} כבר קיים במבנה ${existingBuildingNum}. נכס יכול להיות קשור למבנה אחד בלבד.`
+      };
     }
     
+    // Asset exists in the same building - OK
     return { valid: true };
   },
 

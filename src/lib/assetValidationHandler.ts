@@ -251,7 +251,10 @@ export class AssetValidationHandler {
     const total = assets.length;
 
     // First, check for duplicate asset_ids with different building_numbers within the import batch
+    // An asset_id can only belong to one building
     const assetIdToBuildings = new Map<string | number, Set<number>>();
+    const assetIdToRowIndices = new Map<string | number, number[]>();
+    
     assets.forEach((asset, index) => {
       const assetId = asset.asset_id;
       if (!assetId) return;
@@ -263,8 +266,10 @@ export class AssetValidationHandler {
       
       if (!assetIdToBuildings.has(assetIdKey)) {
         assetIdToBuildings.set(assetIdKey, new Set());
+        assetIdToRowIndices.set(assetIdKey, []);
       }
       assetIdToBuildings.get(assetIdKey)!.add(buildingNum);
+      assetIdToRowIndices.get(assetIdKey)!.push(index + 1); // 1-based row number
     });
 
     // Process assets in parallel batches to improve performance
@@ -289,12 +294,15 @@ export class AssetValidationHandler {
         const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
         
         // Check if this asset_id appears with different building_numbers in the import batch
+        // An asset can only belong to one building
         if (asset.asset_id) {
           const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
           const buildingsForAssetId = assetIdToBuildings.get(assetIdKey);
           if (buildingsForAssetId && buildingsForAssetId.size > 1) {
-            const buildingNums = Array.from(buildingsForAssetId).join(', ');
-            result.errors.push(`מזהה נכס ${asset.asset_id} מופיע במספר מבנים שונים בקובץ הייבוא: ${buildingNums}. נכס יכול להיות קשור למבנה אחד בלבד.`);
+            const buildingNums = Array.from(buildingsForAssetId).sort((a, b) => a - b).join(', ');
+            const rowIndices = assetIdToRowIndices.get(assetIdKey) || [];
+            const rowNums = rowIndices.join(', ');
+            result.errors.push(`מזהה נכס ${asset.asset_id} מופיע במספר מבנים שונים בקובץ הייבוא (שורות: ${rowNums}, מבנים: ${buildingNums}). נכס יכול להיות קשור למבנה אחד בלבד.`);
             result.valid = false;
           }
         }

@@ -1261,6 +1261,7 @@ export function AssetDetails({ assetId, onDataUpdate }: AssetDetailsProps) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-800">שמור כמדידה חדשה</h3>
               <button
+                type="button"
                 onClick={() => {
                   setMeasurementDateModalOpen(false);
                   setNewMeasurementDate('');

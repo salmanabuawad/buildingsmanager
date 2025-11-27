@@ -1386,6 +1386,7 @@ export function BuildingsList({
         <div className="mb-4 flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={addEmptyBuildingRow}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
             >
@@ -1395,6 +1396,7 @@ export function BuildingsList({
           </div>
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleCancelAll}
               disabled={loading || totalChanges === 0}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
@@ -1403,6 +1405,7 @@ export function BuildingsList({
               {t('cancel')}
             </button>
             <button
+              type="button"
               onClick={handleSaveAll}
               disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"

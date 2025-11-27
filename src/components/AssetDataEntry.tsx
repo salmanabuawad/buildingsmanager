@@ -1234,6 +1234,7 @@ export function AssetDataEntry() {
           <div className="flex items-center justify-between gap-1.5 mb-1.5">
             <div className="flex gap-1.5">
               <button
+                type="button"
                 onClick={addEmptyRow}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium shadow-sm"
               >
@@ -1243,6 +1244,7 @@ export function AssetDataEntry() {
             </div>
             <div className="flex gap-1.5">
               <button
+                type="button"
                 onClick={() => {
                   setRowData(JSON.parse(JSON.stringify(originalRowData)));
                   showToast('השינויים בוטלו', 'info');
@@ -1254,6 +1256,7 @@ export function AssetDataEntry() {
                 {t('cancel')}
               </button>
               <button
+                type="button"
                 onClick={handleSaveAll}
                 disabled={loading}
                 className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"

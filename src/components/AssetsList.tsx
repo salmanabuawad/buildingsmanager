@@ -1532,6 +1532,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg relative">
             <button
+              type="button"
               onClick={() => setError(null)}
               className="absolute top-2 left-2 text-red-600 hover:text-red-800 transition-colors"
               title="סגור"
@@ -1577,6 +1578,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               if (hasMultipleTaxRegions && !taxRegion) return null;
               return (
                 <button
+                  type="button"
                   onClick={addEmptyRow}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
                 >
@@ -1586,6 +1588,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               );
             })()}
             <button
+              type="button"
               onClick={handleBatchValidateBuildingAssets}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
               title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
@@ -1610,6 +1613,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               <div className="flex gap-2">
                 {taxRegion && (
                   <button
+                    type="button"
                     onClick={() => {
                       if (onOpenTransferAreas && selectedAssets.size >= 2) {
                         const selectedAssetIds = Array.from(selectedAssets);
@@ -1627,6 +1631,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={handleCancelAll}
                   disabled={loading || totalChanges === 0}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
@@ -1635,6 +1640,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   ביטול
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveAll}
                   disabled={loading || totalChanges === 0}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"

@@ -858,6 +858,7 @@ export function AssetTypes() {
                 className="hidden"
               />
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
@@ -866,6 +867,7 @@ export function AssetTypes() {
                 <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
               </button>
               <button
+                type="button"
                 onClick={startAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
               >
@@ -880,6 +882,7 @@ export function AssetTypes() {
         {!isAdding && (
           <div className="mb-4 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button
+              type="button"
               onClick={handleCancelAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
@@ -888,6 +891,7 @@ export function AssetTypes() {
               {t('cancel')}
             </button>
             <button
+              type="button"
               onClick={handleSaveAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"

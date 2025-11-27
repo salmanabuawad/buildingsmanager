@@ -641,7 +641,7 @@ export function AssetTypes() {
     {
       field: 'min_size',
       headerName: 'שטח מ',
-      width: 100,
+      width: 80,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       valueParser: (params) => {
@@ -663,7 +663,7 @@ export function AssetTypes() {
     {
       field: 'max_size',
       headerName: 'שטח עד',
-      width: 100,
+      width: 80,
       editable: true,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       valueParser: (params) => {

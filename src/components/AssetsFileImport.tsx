@@ -52,6 +52,7 @@ export function AssetsFileImport() {
   const [showMeasurementDateModal, setShowMeasurementDateModal] = useState(false);
   const [measurementDate, setMeasurementDate] = useState('');
   const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
+  const [validationCompleted, setValidationCompleted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load asset types and buildings on mount
@@ -240,6 +241,7 @@ export function AssetsFileImport() {
       }
 
       setImportedAssets(assets);
+      setValidationCompleted(false); // Reset validation status when new file is loaded
       
       // Automatically validate all imported assets after loading
       if (assets.length > 0) {
@@ -323,9 +325,11 @@ export function AssetsFileImport() {
         invalid: invalidCount,
         errors: results
       });
+      setValidationCompleted(true); // Mark validation as completed
       setShowValidationModal(true);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'שגיאה באימות');
+      setValidationCompleted(false); // Mark validation as not completed on error
     } finally {
       setIsValidating(false);
       setValidationProgress(null);
@@ -810,8 +814,24 @@ export function AssetsFileImport() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  // Validate file type - must be Excel
+                  const fileName = file.name.toLowerCase();
+                  const validExtensions = ['.xlsx', '.xls'];
+                  const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
+                  
+                  if (!isValidFile) {
+                    alert('יש לבחור קובץ Excel בלבד (.xlsx או .xls)');
+                    e.target.value = '';
+                    return;
+                  }
+                  
+                  handleFileUpload(e);
+                }
+              }}
               disabled={isParsing}
               className="hidden"
             />
@@ -925,9 +945,9 @@ export function AssetsFileImport() {
                 <button
                   type="button"
                   onClick={() => handleSave(false)}
-                  disabled={isValidating || isSaving || !allAssetsValid}
+                  disabled={isValidating || isSaving || !validationCompleted || !allAssetsValid}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title={!allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
+                  title={!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
                 >
                   {isSaving ? (
                     <>
@@ -944,9 +964,9 @@ export function AssetsFileImport() {
                 <button
                   type="button"
                   onClick={() => handleSave(true)}
-                  disabled={isValidating || isSaving || !allAssetsValid}
+                  disabled={isValidating || isSaving || !validationCompleted || !allAssetsValid}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title={!allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
+                  title={!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
                 >
                   {isSaving ? (
                     <>

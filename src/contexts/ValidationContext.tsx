@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { ValidationRule, api } from '../lib/api';
-import { setValidationRules } from '../lib/validation';
+import { ValidationRule, Building, AssetType, api } from '../lib/api';
+import { setValidationRules, setValidationData } from '../lib/validation';
 
 interface ValidationContextType {
   validationRules: ValidationRule[];
@@ -16,32 +16,42 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRules = async () => {
+  const loadAllData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const rules = await api.validationRules.getEnabled();
+      
+      // Load all required data in parallel
+      const [rules, buildings, assetTypes] = await Promise.all([
+        api.validationRules.getEnabled(),
+        api.buildings.getAll(),
+        api.assetTypes.getAll()
+      ]);
+      
       setValidationRulesState(rules);
-      // Update global in-memory store for validation functions
+      // Update global in-memory stores for validation functions
       setValidationRules(rules);
-      console.log(`[ValidationContext] Loaded ${rules.length} validation rules into memory`);
+      setValidationData({ buildings, assetTypes });
+      
+      console.log(`[ValidationContext] Loaded into memory: ${rules.length} validation rules, ${buildings.length} buildings, ${assetTypes.length} asset types`);
     } catch (err) {
-      console.error('[ValidationContext] Failed to load validation rules:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load validation rules');
+      console.error('[ValidationContext] Failed to load validation data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load validation data');
       setValidationRulesState([]);
-      // Clear in-memory store on error
+      // Clear in-memory stores on error
       setValidationRules([]);
+      setValidationData({ buildings: [], assetTypes: [] });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadRules();
+    loadAllData();
   }, []);
 
   return (
-    <ValidationContext.Provider value={{ validationRules, loading, error, refreshRules: loadRules }}>
+    <ValidationContext.Provider value={{ validationRules, loading, error, refreshRules: loadAllData }}>
       {children}
     </ValidationContext.Provider>
   );

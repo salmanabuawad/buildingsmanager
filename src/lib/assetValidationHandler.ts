@@ -49,13 +49,15 @@ export class AssetValidationHandler {
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
-    // Log validation parameters for debugging
-    console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
-      assetId: asset.asset_id,
-      buildingNumber: asset.building_number,
-      taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
-      mainAssetType: asset.main_asset_type
-    });
+    // Log validation parameters for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
+        assetId: asset.asset_id,
+        buildingNumber: asset.building_number,
+        taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
+        mainAssetType: asset.main_asset_type
+      });
+    }
     
     return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion, options?.cachedData);
   }
@@ -103,40 +105,48 @@ export class AssetValidationHandler {
     const results: AssetValidationResult[] = [];
     const total = assetsToValidate.length;
 
-    for (let i = 0; i < assetsToValidate.length; i++) {
-      const asset = assetsToValidate[i];
-      const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
-
-      if (options?.onProgress) {
-        options.onProgress({
-          current: i + 1,
-          total,
-          currentAsset: assetIdentifier,
-          currentStep: `בודק נכס ${i + 1} מתוך ${total}...`
-        });
+    // Pre-fetch all building data and asset types if not cached
+    let cachedData = options?.cachedData || {};
+    if (!cachedData.building) {
+      try {
+        const { api } = await import('./api');
+        cachedData.building = await api.buildings.getOne(buildingNumber);
+      } catch (error) {
+        console.error('Failed to fetch building data:', error);
       }
+    }
 
-      // Log validation parameters for debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetValidationHandler.validateBuildingAssets] Parameters:', {
-          assetId: asset.asset_id,
-          buildingNumber: buildingNumber,
-          taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
-          mainAssetType: asset.main_asset_type,
-          assetIndex: i + 1,
-          totalAssets: assetsToValidate.length
-        });
-      }
+    // Process assets in parallel batches to improve performance
+    const BATCH_SIZE = 10; // Process 10 assets at a time
+    for (let batchStart = 0; batchStart < assetsToValidate.length; batchStart += BATCH_SIZE) {
+      const batch = assetsToValidate.slice(batchStart, batchStart + BATCH_SIZE);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (asset, batchIndex) => {
+        const i = batchStart + batchIndex;
+        const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
 
-      const result = await this.validateAssetInternal(
-        asset,
-        assetIdentifier,
-        undefined,
-        options?.taxRegion,
-        options?.cachedData,
-        options?.validationRules
-      );
-      results.push(result);
+        if (options?.onProgress) {
+          options.onProgress({
+            current: i + 1,
+            total,
+            currentAsset: assetIdentifier,
+            currentStep: `בודק נכס ${i + 1} מתוך ${total}...`
+          });
+        }
+
+        return await this.validateAssetInternal(
+          asset,
+          assetIdentifier,
+          undefined,
+          options?.taxRegion,
+          cachedData,
+          options?.validationRules
+        );
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     }
 
     const valid = results.filter(r => r.valid).length;
@@ -192,21 +202,30 @@ export class AssetValidationHandler {
     const results: AssetValidationResult[] = [];
     const total = assetsToValidate.length;
 
-    for (let i = 0; i < assetsToValidate.length; i++) {
-      const asset = assetsToValidate[i];
-      const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
+    // Process assets in parallel batches to improve performance
+    const BATCH_SIZE = 10; // Process 10 assets at a time
+    for (let batchStart = 0; batchStart < assetsToValidate.length; batchStart += BATCH_SIZE) {
+      const batch = assetsToValidate.slice(batchStart, batchStart + BATCH_SIZE);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (asset, batchIndex) => {
+        const i = batchStart + batchIndex;
+        const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
 
-      if (options?.onProgress) {
-        options.onProgress({
-          current: i + 1,
-          total,
-          currentAsset: assetIdentifier,
-          currentStep: `בודק נכס ${i + 1} מתוך ${total}...`
-        });
-      }
+        if (options?.onProgress) {
+          options.onProgress({
+            current: i + 1,
+            total,
+            currentAsset: assetIdentifier,
+            currentStep: `בודק נכס ${i + 1} מתוך ${total}...`
+          });
+        }
 
-      const result = await this.validateAssetInternal(asset, assetIdentifier);
-      results.push(result);
+        return await this.validateAssetInternal(asset, assetIdentifier);
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     }
 
     const valid = results.filter(r => r.valid).length;
@@ -231,21 +250,30 @@ export class AssetValidationHandler {
     const results: AssetValidationResult[] = [];
     const total = assets.length;
 
-    for (let i = 0; i < assets.length; i++) {
-      const asset = assets[i];
-      const assetIdentifier = `שורה ${i + 1} (נכס ${asset.asset_id})`;
+    // Process assets in parallel batches to improve performance
+    const BATCH_SIZE = 10; // Process 10 assets at a time
+    for (let batchStart = 0; batchStart < assets.length; batchStart += BATCH_SIZE) {
+      const batch = assets.slice(batchStart, batchStart + BATCH_SIZE);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (asset, batchIndex) => {
+        const i = batchStart + batchIndex;
+        const assetIdentifier = `שורה ${i + 1} (נכס ${asset.asset_id})`;
 
-      if (options?.onProgress) {
-        options.onProgress({
-          current: i + 1,
-          total,
-          currentAsset: assetIdentifier,
-          currentStep: `בודק שורה ${i + 1} מתוך ${total}...`
-        });
-      }
+        if (options?.onProgress) {
+          options.onProgress({
+            current: i + 1,
+            total,
+            currentAsset: assetIdentifier,
+            currentStep: `בודק שורה ${i + 1} מתוך ${total}...`
+          });
+        }
 
-      const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
-      results.push(result);
+        return await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     }
 
     const valid = results.filter(r => r.valid).length;
@@ -272,14 +300,16 @@ export class AssetValidationHandler {
     cachedData?: { assetTypes?: any[]; building?: any },
     validationRules?: any[]
   ): Promise<AssetValidationResult> {
-    // Log validation parameters for debugging
-    console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
-      assetId: asset.asset_id,
-      buildingNumber: asset.building_number,
-      taxRegion: taxRegion || 'NOT PROVIDED (will use building tax_region)',
-      mainAssetType: asset.main_asset_type,
-      assetIdentifier: assetIdentifier
-    });
+    // Log validation parameters for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
+        assetId: asset.asset_id,
+        buildingNumber: asset.building_number,
+        taxRegion: taxRegion || 'NOT PROVIDED (will use building tax_region)',
+        mainAssetType: asset.main_asset_type,
+        assetIdentifier: assetIdentifier
+      });
+    }
     
     const allErrors: string[] = [];
     const passedRules: string[] = [];
@@ -424,28 +454,19 @@ export class AssetValidationHandler {
 
     validationNames.push('אימות סוג נכס ראשי מלא');
     validations.push(
-      (async () => {
-        console.log('[AssetValidationHandler] Calling validateMainAssetTypeComplete with taxRegion:', taxRegion || 'NOT PROVIDED', {
-          buildingNumber: asset.building_number,
-          mainAssetType: asset.main_asset_type,
-          assetSize: asset.asset_size
-        });
-        return await assetValidators.validateMainAssetTypeComplete(
-          asset.building_number,
-          asset.main_asset_type,
-          asset.asset_size || 0,
-          asset,
-          taxRegion,
-          cachedData
-        );
-      })()
+      assetValidators.validateMainAssetTypeComplete(
+        asset.building_number,
+        asset.main_asset_type,
+        asset.asset_size || 0,
+        asset,
+        taxRegion,
+        cachedData
+      )
     );
 
     validationNames.push('אימות נכסי משנה לסוגים 199/299');
     validations.push(
-      (async () => {
-        console.log('[AssetValidationHandler] Calling validateSubAssetsFor199Or299 with taxRegion:', taxRegion || 'NOT PROVIDED');
-        return await assetValidators.validateSubAssetsFor199Or299(
+      assetValidators.validateSubAssetsFor199Or299(
           asset.building_number,
           asset.main_asset_type,
           asset.asset_size,
@@ -526,11 +547,6 @@ export class AssetValidationHandler {
           });
         }
 
-        console.log(`[AssetValidationHandler] Calling validateSubAssetTypeComplete for sub asset ${idx + 1} with taxRegion:`, taxRegion || 'NOT PROVIDED', {
-          buildingNumber: asset.building_number,
-          subAssetType: subAssetTypes[idx],
-          subAssetSize: subAssetSizes[idx]
-        });
         const result = await assetValidators.validateSubAssetTypeComplete(
           asset.building_number,
           subAssetTypes[idx],

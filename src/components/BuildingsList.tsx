@@ -43,13 +43,6 @@ class AddressCellEditor {
       if (params.setValue) {
         params.setValue(value);
       }
-      // Also update the node data directly to ensure change tracking
-      if (params.node && params.data) {
-        params.data.building_address = value;
-        if (typeof params.node.setDataValue === 'function') {
-          params.node.setDataValue('building_address', value);
-        }
-      }
     });
 
     this.selectElement.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -1318,10 +1311,6 @@ export function BuildingsList({
         if (params.data) {
           const newValue = params.newValue === null || params.newValue === '' ? null : params.newValue;
           params.data.building_address = newValue;
-          // Trigger cell value changed event to track the change
-          if (params.node && typeof params.node.setDataValue === 'function') {
-            params.node.setDataValue('building_address', newValue);
-          }
         }
         return true;
       },

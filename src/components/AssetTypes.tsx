@@ -325,6 +325,7 @@ export function AssetTypes() {
     {
       field: 'tax_region',
       headerName: 'אזור מיסים',
+      width: 120,
       editable: true,
       valueFormatter: (params) => params.value || '',
       valueParser: (params) => {

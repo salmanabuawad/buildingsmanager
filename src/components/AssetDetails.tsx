@@ -809,6 +809,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
+      width: 120,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'measurement_date'),
       valueFormatter: (params) => {
@@ -912,6 +913,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'payer_id',
       headerName: t('payerId'),
+      width: 120,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
@@ -996,6 +998,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
@@ -1020,6 +1023,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1'),
       tooltipValueGetter: (params) => {
@@ -1044,6 +1048,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2'),
       tooltipValueGetter: (params) => {
@@ -1068,6 +1073,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3'),
       tooltipValueGetter: (params) => {
@@ -1092,6 +1098,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4'),
       tooltipValueGetter: (params) => {
@@ -1116,6 +1123,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5'),
       tooltipValueGetter: (params) => {
@@ -1140,6 +1148,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
+      width: 60,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6'),
       tooltipValueGetter: (params) => {

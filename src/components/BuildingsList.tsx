@@ -875,6 +875,7 @@ export function BuildingsList({
     {
       field: 'building_number',
       headerName: 'מספר מבנה *',
+      width: 120,
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
@@ -924,6 +925,7 @@ export function BuildingsList({
     {
       field: 'tax_region',
       headerName: 'אזור מיסים',
+      width: 120,
       editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -953,6 +955,7 @@ export function BuildingsList({
     {
       field: 'shared_area',
       headerName: 'שטח משותף מגורים',
+      width: 120,
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
@@ -993,6 +996,7 @@ export function BuildingsList({
     {
       field: 'shared_business_area',
       headerName: 'שטח משותף עסקים',
+      width: 120,
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
@@ -1033,6 +1037,7 @@ export function BuildingsList({
     {
       field: 'total_building_area',
       headerName: 'ס"כ גודל',
+      width: 120,
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
@@ -1081,6 +1086,7 @@ export function BuildingsList({
     {
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
+      width: 120,
       editable: (params) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
@@ -1362,6 +1368,7 @@ export function BuildingsList({
     {
       field: 'overload_ratio',
       headerName: 'אחוז העמסה',
+      width: 120,
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;

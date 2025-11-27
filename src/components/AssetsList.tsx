@@ -1037,6 +1037,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
+      width: 60,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1053,6 +1054,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
+      width: 60,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1069,6 +1071,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
+      width: 60,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1270,6 +1273,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'asset_id',
       headerName: t('assetId'),
+      width: 120,
       editable: (params) => newAssets.has(String(params.data?.id)),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -1277,6 +1281,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
+      width: 120,
       editable: (params) => {
         if (!params || !params.data || !newAssets) return false;
         return newAssets.has(String(params.data?.id));
@@ -1318,6 +1323,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'payer_id',
       headerName: t('payerId'),
+      width: 120,
       editable: (params) => newAssets.has(String(params.data?.id)),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -1335,6 +1341,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1361,6 +1368,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1387,6 +1395,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1413,6 +1422,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1439,6 +1449,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1465,6 +1476,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1491,6 +1503,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
+      width: 60,
       editable: (params) => newAssets.has(String(params.data?.id)),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';

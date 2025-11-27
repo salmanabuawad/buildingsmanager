@@ -731,6 +731,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'asset_id',
       headerName: t('assetId'),
+      width: 120,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'asset_id')
@@ -738,6 +739,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'payer_id',
       headerName: t('payerId'),
+      width: 120,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'payer_id')
@@ -745,6 +747,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'main_asset_type')
@@ -766,6 +769,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_1')
@@ -787,6 +791,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_2')
@@ -808,6 +813,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_3')
@@ -829,6 +835,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_4')
@@ -850,6 +857,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_5')
@@ -871,6 +879,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
+      width: 60,
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_6')

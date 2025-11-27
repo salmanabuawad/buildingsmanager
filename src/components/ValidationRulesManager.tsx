@@ -223,12 +223,13 @@ export function ValidationRulesManager() {
       }
     },
     { headerName: t('ruleKey'), field: 'rule_key' },
-    { headerName: t('entityType'), field: 'entity_type' },
+    { headerName: t('entityType'), field: 'entity_type', width: 60 },
     { headerName: t('fieldName'), field: 'field_name' },
-    { headerName: t('ruleType'), field: 'rule_type' },
+    { headerName: t('ruleType'), field: 'rule_type', width: 60 },
     {
       headerName: t('numericValue'),
       field: 'value_numeric',
+      width: 120,
       cellRenderer: (params: any) => {
         if (!params.data) return '';
         const rule = params.data as ValidationRule;

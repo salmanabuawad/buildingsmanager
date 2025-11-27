@@ -877,12 +877,14 @@ export function AssetsFileImport() {
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
+      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
+      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
@@ -921,18 +923,21 @@ export function AssetsFileImport() {
     {
       field: 'asset_id',
       headerName: t('assetId'),
+      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'measurement_date',
       headerName: 'תאריך מדידה',
+      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -956,6 +961,7 @@ export function AssetsFileImport() {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -979,6 +985,7 @@ export function AssetsFileImport() {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1002,6 +1009,7 @@ export function AssetsFileImport() {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1025,6 +1033,7 @@ export function AssetsFileImport() {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1048,6 +1057,7 @@ export function AssetsFileImport() {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1071,6 +1081,7 @@ export function AssetsFileImport() {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
+      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';

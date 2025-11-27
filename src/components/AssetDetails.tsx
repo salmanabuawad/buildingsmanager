@@ -1011,6 +1011,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'asset_size'),
       valueFormatter: (params) => {
@@ -1036,6 +1037,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1'),
       valueFormatter: (params) => {
@@ -1061,6 +1063,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2'),
       valueFormatter: (params) => {
@@ -1086,6 +1089,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3'),
       valueFormatter: (params) => {
@@ -1111,6 +1115,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4'),
       valueFormatter: (params) => {
@@ -1136,6 +1141,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5'),
       valueFormatter: (params) => {
@@ -1161,6 +1167,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
+      width: 100,
       editable: (params) => params.data.is_latest === true,
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6'),
       valueFormatter: (params) => {

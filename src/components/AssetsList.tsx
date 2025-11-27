@@ -1048,6 +1048,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
+      width: 100,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1065,6 +1066,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
+      width: 100,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1082,6 +1084,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
+      width: 100,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     }
@@ -1354,6 +1357,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1381,6 +1385,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1408,6 +1413,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1435,6 +1441,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1462,6 +1469,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1489,6 +1497,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1516,6 +1525,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
+      width: 100,
       editable: (params) => newAssets.has(String(params.data?.id)),
       type: 'numericColumn',
       valueFormatter: (params) => {

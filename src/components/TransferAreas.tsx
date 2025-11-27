@@ -755,6 +755,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'asset_size',
       headerName: 'גודל נכס',
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -777,6 +778,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -799,6 +801,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -821,6 +824,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -843,6 +847,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -865,6 +870,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -887,6 +893,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
+      width: 100,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {

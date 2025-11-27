@@ -43,6 +43,13 @@ class AddressCellEditor {
       if (params.setValue) {
         params.setValue(value);
       }
+      // Also update the node data directly to ensure change tracking
+      if (params.node && params.data) {
+        params.data.building_address = value;
+        if (typeof params.node.setDataValue === 'function') {
+          params.node.setDataValue('building_address', value);
+        }
+      }
     });
 
     this.selectElement.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -60,9 +67,14 @@ class AddressCellEditor {
     return this.eGui!;
   }
 
-  getValue() {
+  getValue(): number | null {
     if (!this.selectElement) return null;
-    return this.selectElement.value === '' ? null : parseInt(this.selectElement.value, 10);
+    const value = this.selectElement.value === '' ? null : parseInt(this.selectElement.value, 10);
+    // Ensure the value is stored in the node data
+    if (this.params && this.params.node && this.params.data) {
+      this.params.data.building_address = value;
+    }
+    return value;
   }
 
   isCancelBeforeStart() {
@@ -1304,7 +1316,12 @@ export function BuildingsList({
       valueSetter: (params: any) => {
         // Set street_code as the value
         if (params.data) {
-          params.data.building_address = params.newValue;
+          const newValue = params.newValue === null || params.newValue === '' ? null : params.newValue;
+          params.data.building_address = newValue;
+          // Trigger cell value changed event to track the change
+          if (params.node && typeof params.node.setDataValue === 'function') {
+            params.node.setDataValue('building_address', newValue);
+          }
         }
         return true;
       },

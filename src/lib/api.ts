@@ -247,6 +247,14 @@ function sanitizeBuildingInput(input: any): any {
       sanitized.townhouses = sanitizeText(input.townhouses);
     }
   }
+  // Handle building_address: street code from address_list table
+  if ('building_address' in input) {
+    if (input.building_address === null || input.building_address === '') {
+      sanitized.building_address = null;
+    } else {
+      sanitized.building_address = sanitizeInteger(input.building_address);
+    }
+  }
   
   return sanitized;
 }

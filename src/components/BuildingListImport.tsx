@@ -26,31 +26,46 @@ export function BuildingListImport() {
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
+      let isHeaderSkipped = false;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
+        // Skip header row if it contains Hebrew column names
+        if (i === 0 && (line.includes('מספר_מבנה') || line.includes('אזור_מס') || line.includes('שטח'))) {
+          isHeaderSkipped = true;
+          continue;
+        }
+
+        const rowNumber = isHeaderSkipped ? i : i + 1; // Adjust row number if header was skipped
         const parts = line.split(',').map(s => s.trim());
-        const [buildingNumberStr, taxRegion = '', sharedAreaStr = '', sharedBusinessAreaStr = ''] = parts;
+        const [buildingNumberStr, taxRegion = '', sharedAreaStr = '', sharedBusinessAreaStr = '', buildingAddressStr = ''] = parts;
         const buildingNumber = parseInt(buildingNumberStr);
         const sharedArea = sharedAreaStr ? parseFloat(sharedAreaStr) : undefined;
         const sharedBusinessArea = sharedBusinessAreaStr ? parseFloat(sharedBusinessAreaStr) : undefined;
+        const buildingAddress = buildingAddressStr ? parseInt(buildingAddressStr) : undefined;
 
         if (isNaN(buildingNumber)) {
-          errors.push(`שורה ${i + 1}: מספר מבנה לא תקין`);
+          errors.push(`שורה ${rowNumber}: מספר מבנה לא תקין`);
           errorCount++;
           continue;
         }
 
         if (sharedAreaStr && isNaN(sharedArea!)) {
-          errors.push(`שורה ${i + 1}: שטח משותף מגורים לא תקין`);
+          errors.push(`שורה ${rowNumber}: שטח משותף מגורים לא תקין`);
           errorCount++;
           continue;
         }
 
         if (sharedBusinessAreaStr && isNaN(sharedBusinessArea!)) {
-          errors.push(`שורה ${i + 1}: שטח משותף עסקים לא תקין`);
+          errors.push(`שורה ${rowNumber}: שטח משותף עסקים לא תקין`);
+          errorCount++;
+          continue;
+        }
+
+        if (buildingAddressStr && isNaN(buildingAddress!)) {
+          errors.push(`שורה ${rowNumber}: סמל רחוב לא תקין`);
           errorCount++;
           continue;
         }
@@ -60,11 +75,12 @@ export function BuildingListImport() {
             building_number: buildingNumber,
             tax_region: taxRegion || undefined,
             shared_area: sharedArea,
-            shared_business_area: sharedBusinessArea
+            shared_business_area: sharedBusinessArea,
+            building_address: buildingAddress
           });
           successCount++;
         } catch (error) {
-          errors.push(`שורה ${i + 1}: ${error instanceof Error ? error.message : 'שגיאה לא ידועה'}`);
+          errors.push(`שורה ${rowNumber}: ${error instanceof Error ? error.message : 'שגיאה לא ידועה'}`);
           errorCount++;
         }
       }
@@ -86,10 +102,12 @@ export function BuildingListImport() {
   }
 
   function downloadTemplate() {
-    const template = `1001,10,150.5,50.2
-1002,20,200,75
-1003,40,10,300,100
-1004`;
+    const template = `מספר_מבנה,אזור_מס,שטח_משותף_מגורים,שטח_משותף_עסקים,סמל_רחוב
+1001,10,150.5,50.2,603
+1002,20,200,75,
+1003,40,10,300,100,604
+1004,,,,
+1005,30,,,605`;
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -136,15 +154,17 @@ export function BuildingListImport() {
               <li><strong>אזור מס</strong> (אופציונלי) - יכול להיות ערך בודד או צירוף תקין</li>
               <li><strong>שטח משותף מגורים</strong> (אופציונלי) - מספר עשרוני</li>
               <li><strong>שטח משותף עסקים</strong> (אופציונלי) - מספר עשרוני</li>
+              <li><strong>סמל רחוב</strong> (אופציונלי) - מספר שלם (סמל רחוב מטבלת כתובות)</li>
             </ul>
 
             <div className="bg-white rounded-lg p-4 border border-slate-300">
               <p className="font-semibold text-slate-900 mb-2">דוגמה:</p>
               <pre className="font-mono text-sm text-slate-700 leading-relaxed">
-1001,10,150.5,50.2
-1002,20,200,75
-1003,40,10,300,100
-1004
+1001,10,150.5,50.2,603
+1002,20,200,75,
+1003,40,10,300,100,604
+1004,,,,
+1005,30,,,605
               </pre>
             </div>
 

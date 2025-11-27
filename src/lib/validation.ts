@@ -13,11 +13,51 @@ export interface CrossTableValidationContext {
   joinFieldValue: any;
 }
 
+// Global in-memory store for validation rules
+let inMemoryRules: ValidationRule[] = [];
+let rulesLoaded = false;
+
+/**
+ * Set validation rules in memory (called by ValidationContext on app startup)
+ */
+export function setValidationRules(rules: ValidationRule[]): void {
+  inMemoryRules = rules;
+  rulesLoaded = true;
+  console.log(`[validation] Loaded ${rules.length} validation rules into memory`);
+}
+
+/**
+ * Get validation rules from memory (synchronous)
+ */
+export function getValidationRules(): ValidationRule[] {
+  if (!rulesLoaded) {
+    console.warn('[validation] Validation rules not yet loaded, returning empty array');
+    return [];
+  }
+  return inMemoryRules;
+}
+
+/**
+ * Check if validation rules are loaded
+ */
+export function areValidationRulesLoaded(): boolean {
+  return rulesLoaded;
+}
+
+// Legacy cache for backward compatibility (deprecated - use getValidationRules instead)
 let cachedRules: ValidationRule[] | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_DURATION = 60000;
 
+/**
+ * @deprecated Use getValidationRules() instead for synchronous access to in-memory rules
+ */
 export async function loadValidationRules(forceRefresh = false): Promise<ValidationRule[]> {
+  // If rules are already in memory, return them immediately
+  if (rulesLoaded && inMemoryRules.length > 0 && !forceRefresh) {
+    return inMemoryRules;
+  }
+
   const now = Date.now();
 
   if (!forceRefresh && cachedRules && (now - cacheTimestamp) < CACHE_DURATION) {
@@ -28,10 +68,12 @@ export async function loadValidationRules(forceRefresh = false): Promise<Validat
     const rules = await api.validationRules.getEnabled();
     cachedRules = rules;
     cacheTimestamp = now;
+    // Also update in-memory rules
+    setValidationRules(rules);
     return rules;
   } catch (error) {
     console.error('Failed to load validation rules:', error);
-    return cachedRules || [];
+    return cachedRules || inMemoryRules || [];
   }
 }
 
@@ -1114,8 +1156,8 @@ export async function validateField(
     taxRegion = typeof taxRegionOrLookupData === 'string' ? taxRegionOrLookupData : undefined;
     lookup = typeof taxRegionOrLookupData === 'object' ? taxRegionOrLookupData : lookupData;
   } else {
-    // Old signature: taxRegion (or nothing) provided as 4th param, load validation rules
-    validationRules = await loadValidationRules();
+    // Old signature: taxRegion (or nothing) provided as 4th param, use in-memory validation rules
+    validationRules = getValidationRules();
     // If validationRulesOrTaxRegion is a string, it's taxRegion; otherwise undefined
     taxRegion = typeof validationRulesOrTaxRegion === 'string' ? validationRulesOrTaxRegion : undefined;
     // If taxRegionOrLookupData is an object, it's lookupData; otherwise undefined
@@ -1160,7 +1202,7 @@ export async function validateEntity(
   entityType: string,
   entityData: Record<string, any>
 ): Promise<Record<string, ValidationResult[]>> {
-  const rules = await loadValidationRules();
+  const rules = getValidationRules();
   const entityRules = rules.filter(
     r => r.entity_type === entityType && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
@@ -1735,7 +1777,7 @@ export async function validateEntityWithCrossTableRules(
   entityData: any,
   joinFieldValue: any
 ): Promise<ValidationResult[]> {
-  const rules = await loadValidationRules();
+  const rules = getValidationRules();
   const crossTableRules = rules.filter(
     r => r.entity_type === entityType && r.rule_type === 'cross_table_comparison' && r.enabled
   );

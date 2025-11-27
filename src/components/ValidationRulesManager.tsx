@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ValidationRule, api } from '../lib/api';
-import { loadValidationRules } from '../lib/validation';
+import { useValidationRules } from '../contexts/ValidationContext';
 import { Settings, Plus, Save, X, RefreshCw } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 
 export function ValidationRulesManager() {
   const { t } = useTranslation();
+  const { refreshRules } = useValidationRules();
   const [rules, setRules] = useState<ValidationRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -55,7 +56,8 @@ export function ValidationRulesManager() {
 
   async function handleRefreshCache() {
     try {
-      await loadValidationRules(true);
+      // Refresh rules in context (which will update the in-memory store)
+      await refreshRules();
       showMessage('success', 'מטמון רוענן בהצלחה');
     } catch (error) {
       showMessage('error', 'שגיאה בריענון מטמון');

@@ -1528,14 +1528,20 @@ export function BuildingsList({
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');
                   if (actionsCol) {
+                    // Preserve the order of all columns, just update actions column properties
+                    const updatedState = columnState.map((col: any) => {
+                      if (col.colId === 'actions') {
+                        return {
+                          ...col,
+                          pinned: 'right',
+                          lockPosition: true,
+                          lockPinned: true
+                        };
+                      }
+                      return col;
+                    });
                     params.api.applyColumnState({
-                      state: [{
-                        ...actionsCol,
-                        colId: 'actions',
-                        pinned: 'right',
-                        lockPosition: true,
-                        lockPinned: true
-                      }],
+                      state: updatedState,
                       defaultState: { pinned: null }
                     });
                   }
@@ -1557,29 +1563,33 @@ export function BuildingsList({
               }}
               onColumnResized={() => {}}
               onColumnMoved={(params) => {
-                // Use getColumnState to check column positions (works in all AG-Grid versions)
+                // Preserve column order, only ensure actions column is pinned to right
                 try {
                   if (gridRef.current?.api) {
-                    const columnState = gridRef.current.api.getColumnState();
-                    const actionsCol = columnState.find((col: any) => col.colId === 'actions');
-                    if (actionsCol) {
-                      // Check if actions column is not pinned to right or not in correct position
-                      const otherCols = columnState.filter((col: any) => col.colId !== 'actions');
-                      const actionsIndex = columnState.findIndex((col: any) => col.colId === 'actions');
-                      const lastIndex = columnState.length - 1;
-                      
-                      // If actions column is not at the end (rightmost) or not pinned, fix it
-                      if (actionsIndex !== lastIndex || actionsCol.pinned !== 'right') {
-                        setTimeout(() => {
-                          if (gridRef.current?.api) {
-                            gridRef.current.api.applyColumnState({
-                              state: [{ ...actionsCol, pinned: 'right', lockPosition: true }, ...otherCols],
-                              applyOrder: true
-                            });
-                          }
-                        }, 0);
+                    setTimeout(() => {
+                      if (gridRef.current?.api) {
+                        const columnState = gridRef.current.api.getColumnState();
+                        const actionsCol = columnState.find((col: any) => col.colId === 'actions');
+                        if (actionsCol && actionsCol.pinned !== 'right') {
+                          // Preserve the order of all columns, just update actions column properties
+                          const updatedState = columnState.map((col: any) => {
+                            if (col.colId === 'actions') {
+                              return {
+                                ...col,
+                                pinned: 'right',
+                                lockPosition: true,
+                                lockPinned: true
+                              };
+                            }
+                            return col;
+                          });
+                          gridRef.current.api.applyColumnState({
+                            state: updatedState,
+                            applyOrder: false // Don't reorder, just update properties
+                          });
+                        }
                       }
-                    }
+                    }, 0);
                   }
                 } catch (error) {
                   // Silently ignore errors

@@ -1234,13 +1234,6 @@ export function BuildingsList({
       field: 'building_address',
       headerName: 'כתובת',
       editable: true,
-      valueParser: (params: any) => {
-        if (!params) return null;
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const numValue = Number(newValue);
-        return isNaN(numValue) ? null : numValue;
-      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
@@ -1274,22 +1267,30 @@ export function BuildingsList({
         
         return displayValue;
       },
-      cellEditor: 'agRichSelectCellEditor',
+      cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        values: addressList.map(a => a.street_code),
-        formatValue: (value: any) => {
-          if (value == null) return '';
-          const address = addressList.find(a => a.street_code === value);
-          return address ? `${address.street_code} - ${address.street_description}` : String(value);
-        },
-        cellRenderer: (params: any) => {
-          if (params.value == null) return '';
-          const address = addressList.find(a => a.street_code === params.value);
-          return address ? `${address.street_code} - ${address.street_description}` : String(params.value);
-        },
-        searchType: 'fuzzy',
-        filterList: true,
-        allowTyping: false,
+        // Format values to show "code - description" in dropdown
+        values: addressList.map(a => `${a.street_code} - ${a.street_description}`),
+      },
+      valueFormatter: (params: any) => {
+        // Format the current value to match dropdown format when editor opens
+        if (params.value == null) return '';
+        const address = addressList.find(a => Number(a.street_code) === Number(params.value));
+        return address ? `${address.street_code} - ${address.street_description}` : String(params.value);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        // Extract street code from "code - description" format
+        if (typeof newValue === 'string' && newValue.includes(' - ')) {
+          const codeStr = newValue.split(' - ')[0];
+          const numValue = Number(codeStr);
+          return isNaN(numValue) ? null : numValue;
+        }
+        // If it's already a number, use it directly
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
       },
       cellEditorPopup: true,
       cellEditorPopupPosition: 'under',

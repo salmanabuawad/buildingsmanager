@@ -1254,6 +1254,60 @@ export const assetValidators = {
     return firstError || { valid: true };
   },
 
+  validateBuildingExists: async (buildingNumber: number | null, validationRules?: any[], cachedData?: any): Promise<ValidationResult> => {
+    if (!buildingNumber) {
+      return { valid: false, error: 'מספר מבנה נדרש' };
+    }
+
+    // Use in-memory buildings if available
+    const building = getBuildingByNumber(buildingNumber);
+    if (!building) {
+      return { valid: false, error: `מבנה ${buildingNumber} לא קיים במערכת` };
+    }
+
+    return { valid: true };
+  },
+
+  validateAssetIdUnique: async (assetId: string | number | null | undefined, currentAssetId?: number, validationRules?: any[], cachedData?: any): Promise<ValidationResult> => {
+    if (!assetId) {
+      return { valid: false, error: 'מזהה נכס נדרש' };
+    }
+
+    // Query database to check if asset ID already exists
+    // We need to check if this asset ID exists in the assets table
+    // If currentAssetId is provided, exclude it from the check (for updates)
+    try {
+      const { supabase } = await import('./supabase');
+      let query = supabase
+        .from('assets')
+        .select('id, asset_id')
+        .eq('asset_id', assetId);
+
+      // If updating an existing asset, exclude it from the check
+      if (currentAssetId) {
+        query = query.neq('id', currentAssetId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error checking asset ID uniqueness:', error);
+        // If we can't check, return valid to avoid blocking
+        return { valid: true };
+      }
+
+      if (data && data.length > 0) {
+        return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת` };
+      }
+
+      return { valid: true };
+    } catch (err) {
+      console.error('Error in validateAssetIdUnique:', err);
+      // If we can't check, return valid to avoid blocking
+      return { valid: true };
+    }
+  },
+
   validateAssetIdNotInOtherBuilding: async (assetId: string | number | null | undefined, buildingNumber: number | null | undefined, currentAssetId?: number): Promise<ValidationResult> => {
     // Skip validation if asset_id or building_number is missing
     if (!assetId || !buildingNumber) {

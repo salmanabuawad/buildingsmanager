@@ -440,8 +440,14 @@ export class AssetValidationHandler {
     validationNames.push('אימות מספר מבנה');
     validations.push(assetValidators.validateBuildingNumber(asset.building_number, validationRules, cachedData));
 
+    validationNames.push('אימות מבנה קיים במערכת');
+    validations.push(assetValidators.validateBuildingExists(asset.building_number, validationRules, cachedData));
+
     validationNames.push('אימות מזהה נכס');
     validations.push(assetValidators.validateAssetId(String(asset.asset_id), validationRules, cachedData));
+
+    validationNames.push('אימות מזהה נכס ייחודי במערכת');
+    validations.push(assetValidators.validateAssetIdUnique(asset.asset_id, asset.id, validationRules, cachedData));
 
     validationNames.push('אימות נכס לא קיים במבנה אחר');
     validations.push(assetValidators.validateAssetIdNotInOtherBuilding(asset.asset_id, asset.building_number));

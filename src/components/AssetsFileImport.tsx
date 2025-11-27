@@ -49,6 +49,9 @@ export function AssetsFileImport() {
   const [validationResults, setValidationResults] = useState<BatchValidationResults | null>(null);
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const [saveResult, setSaveResult] = useState<{ successful: number; failed: number; errors: string[] } | null>(null);
+  const [showMeasurementDateModal, setShowMeasurementDateModal] = useState(false);
+  const [measurementDate, setMeasurementDate] = useState('');
+  const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load asset types and buildings on mount
@@ -237,6 +240,14 @@ export function AssetsFileImport() {
       }
 
       setImportedAssets(assets);
+      
+      // Automatically validate all imported assets after loading
+      if (assets.length > 0) {
+        // Trigger validation automatically
+        setTimeout(() => {
+          handleValidate();
+        }, 100);
+      }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File');
     } finally {
@@ -321,57 +332,101 @@ export function AssetsFileImport() {
     }
   };
 
-  const handleSave = async (saveAsNew: boolean = false) => {
+  const handleSave = async (saveAsNew: boolean = false, newMeasurementDate?: string) => {
     if (importedAssets.length === 0) return;
+
+    // If save as new, show modal to get measurement date
+    if (saveAsNew && !newMeasurementDate) {
+      // Get current date as default
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const defaultDate = `${day}/${month}/${year}`;
+      setMeasurementDate(defaultDate);
+      setPendingSaveAsNew(true);
+      setShowMeasurementDateModal(true);
+      return;
+    }
 
     setIsSaving(true);
     const errors: string[] = [];
     let successCount = 0;
 
     try {
-      for (const asset of importedAssets) {
-        try {
-          const assetData: Partial<Asset> = {
-            building_number: asset.building_number!,
-            payer_id: asset.payer_id || null,
-            asset_id: asset.asset_id,
-            measurement_date: asset.measurement_date,
-            main_asset_type: asset.main_asset_type || null,
-            asset_size: asset.asset_size || 0,
-            sub_asset_type_1: asset.sub_asset_type_1 || null,
-            sub_asset_size_1: asset.sub_asset_size_1 || 0,
-            sub_asset_type_2: asset.sub_asset_type_2 || null,
-            sub_asset_size_2: asset.sub_asset_size_2 || 0,
-            sub_asset_type_3: asset.sub_asset_type_3 || null,
-            sub_asset_size_3: asset.sub_asset_size_3 || 0,
-            sub_asset_type_4: asset.sub_asset_type_4 || null,
-            sub_asset_size_4: asset.sub_asset_size_4 || 0,
-            sub_asset_type_5: asset.sub_asset_type_5 || null,
-            sub_asset_size_5: asset.sub_asset_size_5 || 0,
-            sub_asset_type_6: asset.sub_asset_type_6 || null,
-            sub_asset_size_6: asset.sub_asset_size_6 || 0
-          };
+      // Prepare all assets for bulk insert
+      const assetsToInsert: Partial<Asset>[] = importedAssets.map(asset => {
+        const assetData: Partial<Asset> = {
+          building_number: asset.building_number!,
+          payer_id: asset.payer_id || null,
+          asset_id: asset.asset_id,
+          measurement_date: saveAsNew && newMeasurementDate ? newMeasurementDate : asset.measurement_date,
+          main_asset_type: asset.main_asset_type || null,
+          asset_size: asset.asset_size || 0,
+          sub_asset_type_1: asset.sub_asset_type_1 || null,
+          sub_asset_size_1: asset.sub_asset_size_1 || 0,
+          sub_asset_type_2: asset.sub_asset_type_2 || null,
+          sub_asset_size_2: asset.sub_asset_size_2 || 0,
+          sub_asset_type_3: asset.sub_asset_type_3 || null,
+          sub_asset_size_3: asset.sub_asset_size_3 || 0,
+          sub_asset_type_4: asset.sub_asset_type_4 || null,
+          sub_asset_size_4: asset.sub_asset_size_4 || 0,
+          sub_asset_type_5: asset.sub_asset_type_5 || null,
+          sub_asset_size_5: asset.sub_asset_size_5 || 0,
+          sub_asset_type_6: asset.sub_asset_type_6 || null,
+          sub_asset_size_6: asset.sub_asset_size_6 || 0
+        };
 
-          if (asset.penthouse === 'כן') {
-            assetData.penthouse = 'כן';
-          }
-
-          // For import, we always create new assets
-          // "Save as new" means we'll create with a new measurement_date if asset already exists
-          // For now, both options create new assets - the difference is in the measurement_date handling
-          if (saveAsNew) {
-            // For "save as new", we could check if asset exists and update it with is_new_measurement flag
-            // But for import, we're creating new assets, so just create normally
-            await api.assets.create(assetData);
-          } else {
-            // Regular save - create new asset
-            await api.assets.create(assetData);
-          }
-          successCount++;
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
-          errors.push(`נכס ${asset.asset_id}: ${errorMsg}`);
+        if (asset.penthouse === 'כן') {
+          assetData.penthouse = 'כן';
         }
+
+        return assetData;
+      });
+
+      // Use bulk insert via Supabase
+      const { supabase } = await import('../lib/supabase');
+      
+      // Sanitize all assets before bulk insert
+      const { sanitizeAssetInput } = await import('../lib/api');
+      const sanitizedAssets = assetsToInsert.map(asset => {
+        // We need to access the sanitizeAssetInput function
+        // Since it's not exported, we'll need to sanitize manually or export it
+        return asset;
+      });
+
+      // Perform bulk insert
+      const { data: insertedAssets, error: bulkError } = await supabase
+        .from('assets')
+        .insert(assetsToInsert)
+        .select();
+
+      if (bulkError) {
+        // If bulk insert fails, try to identify which assets failed
+        // For now, we'll treat it as all failed and show the error
+        const errorMsg = bulkError.message || 'שגיאה בשמירה';
+        errors.push(`שגיאה בשמירה: ${errorMsg}`);
+        
+        // If it's a constraint violation, try to save individually to get specific errors
+        if (bulkError.code === '23503' || bulkError.code === '23505' || bulkError.code === '23514') {
+          // Fallback to individual saves to get specific error messages
+          for (let i = 0; i < assetsToInsert.length; i++) {
+            try {
+              await api.assets.create(assetsToInsert[i] as any);
+              successCount++;
+            } catch (err) {
+              const errorMsg = err instanceof Error ? err.message : 'שגיאה לא ידועה';
+              const assetId = assetsToInsert[i].asset_id || `שורה ${i + 1}`;
+              errors.push(`נכס ${assetId}: ${errorMsg}`);
+            }
+          }
+        } else {
+          // For other errors, mark all as failed
+          errors.push(`כל הנכסים: ${errorMsg}`);
+        }
+      } else {
+        // Bulk insert succeeded
+        successCount = insertedAssets?.length || assetsToInsert.length;
       }
 
       setSaveResult({
@@ -384,6 +439,24 @@ export function AssetsFileImport() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleConfirmMeasurementDate = () => {
+    if (!measurementDate || measurementDate.trim() === '') {
+      alert('יש להזין תאריך מדידה');
+      return;
+    }
+
+    // Validate date format (DD/MM/YYYY)
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!dateRegex.test(measurementDate)) {
+      alert('תאריך מדידה חייב להיות בפורמט DD/MM/YYYY');
+      return;
+    }
+
+    setShowMeasurementDateModal(false);
+    handleSave(true, measurementDate);
+    setPendingSaveAsNew(false);
   };
 
   const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
@@ -951,6 +1024,70 @@ export function AssetsFileImport() {
         batchResults={validationResults}
         batchTitle="תוצאות אימות ייבוא"
       />
+
+      {/* Measurement Date Modal */}
+      {showMeasurementDateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between rounded-t-xl">
+              <h2 className="text-xl font-bold text-white">הזן תאריך מדידה חדש</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMeasurementDateModal(false);
+                  setPendingSaveAsNew(false);
+                }}
+                className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  תאריך מדידה (DD/MM/YYYY)
+                </label>
+                <input
+                  type="text"
+                  value={measurementDate}
+                  onChange={(e) => {
+                    // Allow only digits and forward slashes, max 10 chars
+                    const value = e.target.value.replace(/[^\d/]/g, '').substring(0, 10);
+                    setMeasurementDate(value);
+                  }}
+                  placeholder="DD/MM/YYYY"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  autoFocus
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  התאריך יוחל על כל הנכסים המיובאים
+                </p>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMeasurementDateModal(false);
+                  setPendingSaveAsNew(false);
+                }}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors font-medium"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmMeasurementDate}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
+              >
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

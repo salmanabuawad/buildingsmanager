@@ -999,8 +999,8 @@ export const api = {
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }
-      console.log('[API] Asset updated successfully:', updatedAsset);
-      return updatedAsset;
+      console.log('[API] Asset created successfully:', data);
+      return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
       console.log('[API] Updating asset:', id, 'with data:', input);

@@ -1603,6 +1603,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   type="button"
                   onClick={() => {
                     if (onOpenNewAsset) {
+                      // Use the tax region from the active tab (shown in header)
+                      // This is already a single value, not comma-separated
                       onOpenNewAsset(buildingNumber, taxRegion);
                     } else {
                       addEmptyRow();

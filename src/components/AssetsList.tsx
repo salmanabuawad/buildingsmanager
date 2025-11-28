@@ -1598,14 +1598,23 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               // If a specific taxRegion is selected (we're in a tax region tab), show buttons
               // If no taxRegion but building has multiple regions, hide buttons
               if (hasMultipleTaxRegions && !taxRegion) return null;
+              
               return (
                 <button
                   type="button"
                   onClick={() => {
                     if (onOpenNewAsset) {
                       // Use the tax region from the active tab (shown in header)
-                      // This is already a single value, not comma-separated
-                      onOpenNewAsset(buildingNumber, taxRegion);
+                      // This should be a single value, but if somehow it contains comma, use only the first part
+                      let taxRegionToPass = taxRegion;
+                      if (taxRegion && taxRegion.includes(',')) {
+                        // Safety: if taxRegion somehow contains comma, extract first value
+                        // This shouldn't happen if tabs are created correctly, but add safety check
+                        console.warn('[AssetsList] taxRegion contains comma, extracting first value:', taxRegion);
+                        taxRegionToPass = taxRegion.split(',')[0].trim();
+                      }
+                      console.log('[AssetsList] Opening new asset with:', { buildingNumber, taxRegion: taxRegionToPass, originalTaxRegion: taxRegion });
+                      onOpenNewAsset(buildingNumber, taxRegionToPass);
                     } else {
                       addEmptyRow();
                     }

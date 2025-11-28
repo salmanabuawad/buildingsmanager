@@ -918,6 +918,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
     {
+      field: 'asset_id',
+      headerName: t('assetId'),
+      width: 120,
+      editable: (params) => params.data.is_latest === true,
+      cellStyle: (params) => getCellStyle(params, 'asset_id'),
+    },
+    {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',

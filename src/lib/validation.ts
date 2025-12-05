@@ -1018,17 +1018,21 @@ export async function validateAssetTypeComplete(
       // STEP 2: ASSET SIZE VALIDATION (שטח מ / שטח עד)
       // ============================================
       // Match asset size against min_size and max_size from asset_types table
-      if (assetSize != null && assetSize > 0) {
+      // Validate size if it exists (even if 0) AND if min_size or max_size are defined in asset_types
+      if (assetSize != null) {
         const minSize = assetType.min_size != null ? Number(assetType.min_size) : null;
         const maxSize = assetType.max_size != null ? Number(assetType.max_size) : null;
         const numericAssetSize = Number(assetSize);
 
-        if (minSize != null && numericAssetSize < minSize) {
-          errors.push(`גודל הנכס (${numericAssetSize}) קטן מהמינימום המותר (${minSize})`);
-        }
+        // Only validate if at least one of min_size or max_size is defined
+        if (minSize != null || maxSize != null) {
+          if (minSize != null && numericAssetSize < minSize) {
+            errors.push(`גודל הנכס (${numericAssetSize}) קטן מהמינימום המותר (${minSize})`);
+          }
 
-        if (maxSize != null && numericAssetSize > maxSize) {
-          errors.push(`גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר (${maxSize})`);
+          if (maxSize != null && numericAssetSize > maxSize) {
+            errors.push(`גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר (${maxSize})`);
+          }
         }
       }
 

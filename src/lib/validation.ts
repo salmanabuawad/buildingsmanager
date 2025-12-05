@@ -666,7 +666,8 @@ export async function validateAssetTypeComplete(
   assetSize: number,
   assetData?: any,
   taxRegion?: string,
-  cachedData?: { assetTypes?: any[]; building?: any; asset?: any }
+  cachedData?: { assetTypes?: any[]; building?: any; asset?: any },
+  isSubAsset?: boolean
 ): Promise<ValidationResult> {
   try {
     // ============================================
@@ -1026,12 +1027,13 @@ export async function validateAssetTypeComplete(
 
         // Only validate if at least one of min_size or max_size is defined
         if (minSize != null || maxSize != null) {
+          const sizeLabel = isSubAsset ? 'גודל נכס משנה' : 'גודל הנכס';
           if (minSize != null && numericAssetSize < minSize) {
-            errors.push(`גודל הנכס (${numericAssetSize}) קטן מהמינימום המותר (${minSize})`);
+            errors.push(`${sizeLabel} (${numericAssetSize}) קטן מהמינימום המותר (${minSize})`);
           }
 
           if (maxSize != null && numericAssetSize > maxSize) {
-            errors.push(`גודל הנכס (${numericAssetSize}) גדול מהמקסימום המותר (${maxSize})`);
+            errors.push(`${sizeLabel} (${numericAssetSize}) גדול מהמקסימום המותר (${maxSize})`);
           }
         }
       }
@@ -2047,7 +2049,11 @@ export const assetValidators = {
     // When taxRegion is provided, validateAssetTypeComplete will use ONLY the tab's tax region
     // and will NOT use building.tax_region at all, even if the building has multiple tax regions
     // Pass main asset data for penthouse validation - sub-assets should check the main asset's penthouse value
-    return await validateAssetTypeComplete(buildingNumber, subAssetType, subAssetSize || 0, mainAssetData, taxRegion, cachedData);
+    // IMPORTANT: Pass subAssetSize as-is (not || 0) so that undefined/null sizes are properly handled
+    // The validation will check size constraints from asset_types table if size is provided
+    // Pass isSubAsset=true so error messages say "גודל נכס משנה" instead of "גודל הנכס"
+    const sizeToValidate = subAssetSize != null ? subAssetSize : 0;
+    return await validateAssetTypeComplete(buildingNumber, subAssetType, sizeToValidate, mainAssetData, taxRegion, cachedData, true);
   },
 
   validateSubAssetsFor199Or299: async (

@@ -171,6 +171,26 @@ export function AssetDataEntry() {
       );
     }
     validations.push(
+      assetValidators.validateAssetTypeRequiresSize(
+        updatedRow.main_asset_type,
+        updatedRow.asset_size,
+        [
+          updatedRow.sub_asset_type_1,
+          updatedRow.sub_asset_type_2,
+          updatedRow.sub_asset_type_3,
+          updatedRow.sub_asset_type_4,
+          updatedRow.sub_asset_type_5,
+          updatedRow.sub_asset_type_6
+        ],
+        [
+          updatedRow.sub_asset_size_1,
+          updatedRow.sub_asset_size_2,
+          updatedRow.sub_asset_size_3,
+          updatedRow.sub_asset_size_4,
+          updatedRow.sub_asset_size_5,
+          updatedRow.sub_asset_size_6
+        ]
+      ),
       assetValidators.validateSubAssetSizeMatchesMain(
         updatedRow.asset_size,
         [
@@ -1034,7 +1054,8 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'asset_size', false)
     },
@@ -1059,7 +1080,8 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1', false)
     },
@@ -1084,7 +1106,8 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2', false)
     },
@@ -1109,7 +1132,8 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3', false)
     },
@@ -1134,7 +1158,8 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4', false)
     },
@@ -1159,7 +1184,8 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5', false)
     },
@@ -1184,9 +1210,26 @@ export function AssetDataEntry() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6', false)
+    },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     }
   ], [t, buildings, assetTypes, getCellStyle]);
   const filteredRowData = useMemo(() => {
@@ -1217,35 +1260,40 @@ export function AssetDataEntry() {
       )}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="border-b border-gray-200 bg-gray-50 p-1.5">
-          <div className="mb-1.5">
-            <label className="block text-xs font-medium text-gray-700 mb-0.5">
-              בחר מבנה
-            </label>
-            <input
-              type="text"
-              list="building-list"
-              value={selectedBuilding === 'all' ? '' : selectedBuilding}
-              onChange={(e) => {
-                const value = e.target.value.trim();
-                if (value === '') {
-                  setSelectedBuilding('all');
-                } else {
-                  const num = Number(value);
-                  if (!isNaN(num)) {
-                    setSelectedBuilding(num);
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                בחר מבנה
+              </label>
+              <input
+                type="text"
+                list="building-list"
+                value={selectedBuilding === 'all' ? '' : selectedBuilding}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  if (value === '') {
+                    setSelectedBuilding('all');
+                  } else {
+                    const num = Number(value);
+                    if (!isNaN(num)) {
+                      setSelectedBuilding(num);
+                    }
                   }
-                }
-              }}
-              placeholder="כל המבנים"
-              className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-            />
-            <datalist id="building-list">
-              {buildings.map(building => (
-                <option key={building.building_number} value={building.building_number}>
-                  מבנה {building.building_number}
-                </option>
-              ))}
-            </datalist>
+                }}
+                placeholder="כל המבנים"
+                className="w-full md:w-64 px-2 py-1 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              />
+              <datalist id="building-list">
+                {buildings.map(building => (
+                  <option key={building.building_number} value={building.building_number}>
+                    מבנה {building.building_number}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+            <span className="text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded font-semibold whitespace-nowrap">
+              סך הכל: {filteredRowData.length} נכסים
+            </span>
           </div>
           <div className="flex items-center justify-between gap-1.5 mb-1.5">
             <div className="flex gap-1.5">
@@ -1287,7 +1335,7 @@ export function AssetDataEntry() {
             </div>
           </div>
         </div>
-        <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+        <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
           <AgGridReact
             ref={gridRef}
             rowData={filteredRowData}
@@ -1298,12 +1346,12 @@ export function AssetDataEntry() {
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
-              cellStyle: { textAlign: 'right' }
+              cellStyle: { textAlign: 'right' },
+              minWidth: 100
             }}
             gridOptions={{
-              autoSizeStrategy: {
-                type: 'fitCellContents',
-              },
+              suppressColumnVirtualisation: true,
+              alwaysShowHorizontalScroll: true,
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {

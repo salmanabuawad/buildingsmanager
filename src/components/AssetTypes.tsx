@@ -2,10 +2,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AssetType, api } from '../lib/api';
 import { assetTypeValidators, inputValidators } from '../lib/validation';
-import { Plus, Tag, Upload, Save, X, Loader2 } from 'lucide-react';
+import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
 import { useValidationRules } from '../contexts/ValidationContext';
 
 export function AssetTypes() {
@@ -21,7 +19,34 @@ export function AssetTypes() {
   const [dirtyAssetTypes, setDirtyAssetTypes] = useState<Map<number, Partial<AssetType>>>(new Map());
   const [deletedAssetTypes, setDeletedAssetTypes] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const gridRef = useRef<AgGridReact<AssetType>>(null);
+  
+  // Sorting and filtering state
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  
+  // Column widths state
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    actions: 80,
+    name: 100,
+    active: 60,
+    description: 200,
+    tax_region: 120,
+    elevator: 60,
+    single_double_family: 60,
+    penthouse: 60,
+    condo: 60,
+    townhouses: 60,
+    business_private: 120,
+    shared_area_usage: 60,
+    min_size: 80,
+    max_size: 80,
+  });
+  
+  // Resizing state
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const resizeStartX = useRef<number>(0);
+  const resizeStartWidth = useRef<number>(0);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +57,8 @@ export function AssetTypes() {
     penthouse: '',
     condo: '',
     townhouses: '',
+    business_private: '',
+    shared_area_usage: '',
     min_size: '',
     max_size: '',
   });
@@ -63,7 +90,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', min_size: '', max_size: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', business_private: '', shared_area_usage: '', min_size: '', max_size: '' });
     setIsAdding(false);
   }
 
@@ -95,6 +122,8 @@ export function AssetTypes() {
         penthouse: formData.penthouse || undefined,
         condo: formData.condo || undefined,
         townhouses: formData.townhouses || undefined,
+        business_private: formData.business_private || undefined,
+        shared_area_usage: formData.shared_area_usage || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
       };
@@ -116,21 +145,38 @@ export function AssetTypes() {
     }
   }
 
-  const onCellValueChanged = useCallback(async (event: any) => {
-    try {
-      const { data, colDef } = event;
-      const field = colDef.field;
-      const assetTypeId = data.id;
-      const newValue = event.newValue;
+  // Helper function to get current value of a field (considering dirty state)
+  const getCurrentValue = useCallback((assetType: AssetType, field: keyof AssetType): any => {
+    const dirtyChanges = dirtyAssetTypes.get(assetType.id);
+    if (dirtyChanges && field in dirtyChanges) {
+      return dirtyChanges[field as keyof Partial<AssetType>];
+    }
+    return assetType[field];
+  }, [dirtyAssetTypes]);
 
+  // Helper function to check if a field is dirty
+  const isFieldDirty = useCallback((assetTypeId: number, field: keyof AssetType): boolean => {
+    return dirtyAssetTypes.has(assetTypeId) && field in (dirtyAssetTypes.get(assetTypeId) || {});
+  }, [dirtyAssetTypes]);
+
+  // Handle cell value change for table
+  const handleCellChange = useCallback(async (assetTypeId: number, field: keyof AssetType, newValue: any) => {
+    try {
+      // Validate name field
       if (field === 'name') {
-        showMessage('error', 'לא ניתן לערוך את קוד הנכס');
-        // Revert the change
-        const originalAssetType = originalAssetTypes.find(at => at.id === assetTypeId);
-        if (originalAssetType) {
-          event.node.setDataValue('name', originalAssetType.name);
+        const nameValidation = await assetTypeValidators.validateName(newValue);
+        if (!nameValidation.valid) {
+          showMessage('error', nameValidation.error!);
+          return;
         }
-        return;
+      }
+
+      // Validate business_private field
+      if (field === 'business_private') {
+        if (newValue !== null && newValue !== undefined && newValue !== '' && newValue !== 'עסקים' && newValue !== 'מגורים') {
+          showMessage('error', 'עסקים/מגורים חייב להיות "עסקים" או "מגורים"');
+          return;
+        }
       }
 
       // Track the change in dirtyAssetTypes
@@ -138,30 +184,59 @@ export function AssetTypes() {
         const next = new Map(prev);
         const existingChanges = next.get(assetTypeId) || {};
         next.set(assetTypeId, { ...existingChanges, [field]: newValue });
-        
-        // Update context immediately with new dirtyAssetTypes
-        if (gridRef.current) {
-          gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-        }
-        
         return next;
       });
-
-      // Don't update assetTypes state - this causes all cells to re-render
-      // The grid node already has the updated value from setDataValue
-      // Only refresh the specific cell that changed
-      if (gridRef.current) {
-        gridRef.current.api.refreshCells({ 
-          rowNodes: [event.node], 
-          columns: [field],
-          force: true 
-        });
-      }
     } catch (error) {
       console.error('Error updating asset type:', error);
       showMessage('error', 'שגיאה בעדכון');
     }
-  }, [originalAssetTypes]);
+  }, []);
+
+  // Handle sorting
+  const handleSort = useCallback((column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  }, [sortColumn]);
+
+  // Handle filtering
+  const handleFilterChange = useCallback((field: string, value: string) => {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (value === '') {
+        delete next[field];
+      } else {
+        next[field] = value;
+      }
+      return next;
+    });
+  }, []);
+
+  // Handle column resizing
+  const handleResizeStart = useCallback((column: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setResizingColumn(column);
+    resizeStartX.current = e.clientX;
+    resizeStartWidth.current = columnWidths[column] || 100;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - resizeStartX.current;
+      const newWidth = Math.max(50, resizeStartWidth.current - deltaX); // RTL: subtract deltaX
+      setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
+    };
+    
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [columnWidths]);
 
   async function handleDelete(id: number) {
     if (!confirm(t('confirmDeleteAssetType'))) return;
@@ -212,12 +287,6 @@ export function AssetTypes() {
       setDirtyAssetTypes(new Map());
       setDeletedAssetTypes(new Set());
       await fetchAssetTypes();
-      
-      // Refresh grid to show updated data
-      if (gridRef.current) {
-        gridRef.current.api.refreshCells({ force: true });
-        gridRef.current.api.redrawRows();
-      }
     } catch (error) {
       console.error('Error saving changes:', error);
       showMessage('error', 'שגיאה בשמירת השינויים');
@@ -235,454 +304,118 @@ export function AssetTypes() {
     setAssetTypes(JSON.parse(JSON.stringify(originalAssetTypes)));
     setDirtyAssetTypes(new Map());
     setDeletedAssetTypes(new Set());
-    
-    // Refresh grid
-    if (gridRef.current) {
-      gridRef.current.api.refreshCells({ force: true });
-    }
   }
 
-  const columnDefs: ColDef<AssetType>[] = useMemo(() => [
-    {
-      field: 'name',
-      headerName: 'סוג נכס',
-      editable: false,
-      pinned: 'right',
-      lockPinned: true,
-      cellStyle: { textAlign: 'left' },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'active',
-      headerName: 'פעיל',
-      editable: false,
-      pinned: 'right',
-      lockPinned: true,
-      headerClass: 'text-left',
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetTypeId = params.data?.id;
-        if (!assetTypeId) return null;
+  // Filter and sort asset types
+  const filteredAndSortedAssetTypes = useMemo(() => {
+    let filtered = assetTypes.filter(assetType => {
+      // Apply global filter (searches across all fields)
+      if (filters.global) {
+        const globalSearch = filters.global.toLowerCase();
+        const searchableFields = [
+          String(assetType.name || ''),
+          String(assetType.description || ''),
+          String(assetType.tax_region || ''),
+          String(assetType.business_private || ''),
+        ];
+        const matchesGlobal = searchableFields.some(field => field.toLowerCase().includes(globalSearch));
+        if (!matchesGlobal) return false;
+      }
+
+      // Apply specific field filters
+      if (filters.name && !String(assetType.name || '').toLowerCase().includes(filters.name.toLowerCase())) {
+        return false;
+      }
+      if (filters.description && !String(assetType.description || '').toLowerCase().includes(filters.description.toLowerCase())) {
+        return false;
+      }
+      if (filters.tax_region && String(assetType.tax_region || '') !== filters.tax_region) {
+        return false;
+      }
+      if (filters.business_private && String(assetType.business_private || '') !== filters.business_private) {
+        return false;
+      }
+      return true;
+    });
+
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        const aValue = getCurrentValue(a, sortColumn as keyof AssetType);
+        const bValue = getCurrentValue(b, sortColumn as keyof AssetType);
         
-        // Get dirtyAssetTypes from context
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        
-        // Get current value - check dirty state first, then data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'active' in dirtyChanges 
-          ? dirtyChanges.active 
-          : params.data?.active;
-        const isChecked = currentValue === 'כן';
-        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'active' in (dirtyAssetTypes.get(assetTypeId) || {});
-        
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                // Track the change in dirtyAssetTypes
-                setDirtyAssetTypes(prev => {
-                  const next = new Map(prev);
-                  const existingChanges = next.get(assetTypeId) || {};
-                  next.set(assetTypeId, { ...existingChanges, active: newValue });
-                  
-                  // Update context immediately with new dirtyAssetTypes
-                  if (gridRef.current) {
-                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-                  }
-                  
-                  return next;
-                });
-                // Update grid cell data directly
-                params.node.setDataValue('active', newValue);
-                
-                // Refresh only this specific cell
-                if (gridRef.current) {
-                  gridRef.current.api.refreshCells({ 
-                    rowNodes: [params.node], 
-                    columns: ['active'],
-                    force: true 
-                  });
-                }
-              }}
-              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center' }
-    },
-    {
-      field: 'description',
-      headerName: 'תיאור',
-      editable: true,
-      valueFormatter: (params) => params.value || '',
-      cellStyle: { textAlign: 'left' },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'tax_region',
-      headerName: 'אזור מיסים',
-      width: 120,
-      editable: true,
-      valueFormatter: (params) => params.value || '',
-      valueParser: (params) => {
-        if (params.newValue === '' || params.newValue === null || params.newValue === undefined) {
-          return null;
+        let comparison = 0;
+        if (aValue === null || aValue === undefined) comparison = 1;
+        else if (bValue === null || bValue === undefined) comparison = -1;
+        else if (typeof aValue === 'string' && typeof bValue === 'string') {
+          comparison = aValue.localeCompare(bValue);
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          comparison = aValue - bValue;
+        } else {
+          comparison = String(aValue).localeCompare(String(bValue));
         }
-        const parsed = parseInt(params.newValue);
-        return isNaN(parsed) ? null : parsed;
-      },
-      cellStyle: { textAlign: 'left' },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'elevator',
-      headerName: 'מעלית',
-      editable: false,
-      headerClass: 'text-left',
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetTypeId = params.data?.id;
-        if (!assetTypeId) return null;
         
-        // Get dirtyAssetTypes from context
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        
-        // Get current value - check dirty state first, then data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'elevator' in dirtyChanges 
-          ? dirtyChanges.elevator 
-          : params.data?.elevator;
-        const isChecked = currentValue === 'כן';
-        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'elevator' in (dirtyAssetTypes.get(assetTypeId) || {});
-        
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                // Track the change in dirtyAssetTypes
-                setDirtyAssetTypes(prev => {
-                  const next = new Map(prev);
-                  const existingChanges = next.get(assetTypeId) || {};
-                  next.set(assetTypeId, { ...existingChanges, elevator: newValue });
-                  
-                  // Update context immediately with new dirtyAssetTypes
-                  if (gridRef.current) {
-                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-                  }
-                  
-                  return next;
-                });
-                // Update grid cell data directly
-                params.node.setDataValue('elevator', newValue);
-                
-                // Refresh only this specific cell
-                if (gridRef.current) {
-                  gridRef.current.api.refreshCells({ 
-                    rowNodes: [params.node], 
-                    columns: ['elevator'],
-                    force: true 
-                  });
-                }
-              }}
-              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center' }
-    },
-    {
-      field: 'single_double_family',
-      headerName: 'בית פרטי חד משפחתי דו משפחתי',
-      editable: false,
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetTypeId = params.data?.id;
-        if (!assetTypeId) return null;
-        
-        // Get dirtyAssetTypes from context
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        
-        // Get current value - check dirty state first, then data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'single_double_family' in dirtyChanges 
-          ? dirtyChanges.single_double_family 
-          : params.data?.single_double_family;
-        const isChecked = currentValue === 'כן';
-        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'single_double_family' in (dirtyAssetTypes.get(assetTypeId) || {});
-        
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                // Track the change in dirtyAssetTypes
-                setDirtyAssetTypes(prev => {
-                  const next = new Map(prev);
-                  const existingChanges = next.get(assetTypeId) || {};
-                  next.set(assetTypeId, { ...existingChanges, single_double_family: newValue });
-                  
-                  // Update context immediately with new dirtyAssetTypes
-                  if (gridRef.current) {
-                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-                  }
-                  
-                  return next;
-                });
-                // Update grid cell data directly
-                params.node.setDataValue('single_double_family', newValue);
-                
-                // Refresh only this specific cell
-                if (gridRef.current) {
-                  gridRef.current.api.refreshCells({ 
-                    rowNodes: [params.node], 
-                    columns: ['single_double_family'],
-                    force: true 
-                  });
-                }
-              }}
-              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center' },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'penthouse',
-      headerName: 'דירת גג',
-      editable: false,
-      headerClass: 'text-left',
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetTypeId = params.data?.id;
-        if (!assetTypeId) return null;
-        
-        // Get dirtyAssetTypes from context
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        
-        // Get current value - check dirty state first, then data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
-          ? dirtyChanges.penthouse 
-          : params.data?.penthouse;
-        const isChecked = currentValue === 'כן';
-        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'penthouse' in (dirtyAssetTypes.get(assetTypeId) || {});
-        
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                // Track the change in dirtyAssetTypes
-                setDirtyAssetTypes(prev => {
-                  const next = new Map(prev);
-                  const existingChanges = next.get(assetTypeId) || {};
-                  next.set(assetTypeId, { ...existingChanges, penthouse: newValue });
-                  
-                  // Update context immediately with new dirtyAssetTypes
-                  if (gridRef.current) {
-                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-                  }
-                  
-                  return next;
-                });
-                // Update grid cell data directly
-                params.node.setDataValue('penthouse', newValue);
-                
-                // Refresh only this specific cell
-                if (gridRef.current) {
-                  gridRef.current.api.refreshCells({ 
-                    rowNodes: [params.node], 
-                    columns: ['penthouse'],
-                    force: true 
-                  });
-                }
-              }}
-              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center' }
-    },
-    {
-      field: 'condo',
-      headerName: 'בית משותף',
-      editable: false,
-      headerClass: 'text-left',
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetTypeId = params.data?.id;
-        if (!assetTypeId) return null;
-        
-        // Get dirtyAssetTypes from context
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        
-        // Get current value - check dirty state first, then data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'condo' in dirtyChanges 
-          ? dirtyChanges.condo 
-          : params.data?.condo;
-        const isChecked = currentValue === 'כן';
-        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'condo' in (dirtyAssetTypes.get(assetTypeId) || {});
-        
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                // Track the change in dirtyAssetTypes
-                setDirtyAssetTypes(prev => {
-                  const next = new Map(prev);
-                  const existingChanges = next.get(assetTypeId) || {};
-                  next.set(assetTypeId, { ...existingChanges, condo: newValue });
-                  
-                  // Update context immediately with new dirtyAssetTypes
-                  if (gridRef.current) {
-                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-                  }
-                  
-                  return next;
-                });
-                // Update grid cell data directly
-                params.node.setDataValue('condo', newValue);
-                
-                // Refresh only this specific cell
-                if (gridRef.current) {
-                  gridRef.current.api.refreshCells({ 
-                    rowNodes: [params.node], 
-                    columns: ['condo'],
-                    force: true 
-                  });
-                }
-              }}
-              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center' }
-    },
-    {
-      field: 'townhouses',
-      headerName: 'מבנים צמודי קרקע טוריים מעל 2 יחידות',
-      editable: false,
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetTypeId = params.data?.id;
-        if (!assetTypeId) return null;
-        
-        // Get dirtyAssetTypes from context
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        
-        // Get current value - check dirty state first, then data
-        const dirtyChanges = dirtyAssetTypes.get(assetTypeId);
-        const currentValue = dirtyChanges && 'townhouses' in dirtyChanges 
-          ? dirtyChanges.townhouses 
-          : params.data?.townhouses;
-        const isChecked = currentValue === 'כן';
-        const isDirty = dirtyAssetTypes.has(assetTypeId) && 'townhouses' in (dirtyAssetTypes.get(assetTypeId) || {});
-        
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={isChecked}
-              onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
-                // Track the change in dirtyAssetTypes
-                setDirtyAssetTypes(prev => {
-                  const next = new Map(prev);
-                  const existingChanges = next.get(assetTypeId) || {};
-                  next.set(assetTypeId, { ...existingChanges, townhouses: newValue });
-                  
-                  // Update context immediately with new dirtyAssetTypes
-                  if (gridRef.current) {
-                    gridRef.current.api.setGridOption('context', { dirtyAssetTypes: next });
-                  }
-                  
-                  return next;
-                });
-                // Update grid cell data directly
-                params.node.setDataValue('townhouses', newValue);
-                
-                // Refresh only this specific cell
-                if (gridRef.current) {
-                  gridRef.current.api.refreshCells({ 
-                    rowNodes: [params.node], 
-                    columns: ['townhouses'],
-                    force: true 
-                  });
-                }
-              }}
-              className={`w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center' },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'min_size',
-      headerName: 'שטח מ',
-      width: 80,
-      editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      valueParser: (params) => {
-        if (params.newValue === '' || params.newValue === null || params.newValue === undefined) {
-          return null;
-        }
-        const parsed = parseFloat(params.newValue);
-        return isNaN(parsed) ? null : parsed;
-      },
-      cellStyle: (params) => {
-        const baseStyle = { textAlign: 'left' as const };
-        const assetTypeId = params.data?.id;
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        const isDirty = assetTypeId && dirtyAssetTypes.has(assetTypeId) && 'min_size' in (dirtyAssetTypes.get(assetTypeId) || {});
-        return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
-      },
-      headerClass: 'text-left'
-    },
-    {
-      field: 'max_size',
-      headerName: 'שטח עד',
-      width: 80,
-      editable: true,
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
-      valueParser: (params) => {
-        if (params.newValue === '' || params.newValue === null || params.newValue === undefined) {
-          return null;
-        }
-        const parsed = parseFloat(params.newValue);
-        return isNaN(parsed) ? null : parsed;
-      },
-      cellStyle: (params) => {
-        const baseStyle = { textAlign: 'left' as const };
-        const assetTypeId = params.data?.id;
-        const dirtyAssetTypes = params.context?.dirtyAssetTypes || new Map();
-        const isDirty = assetTypeId && dirtyAssetTypes.has(assetTypeId) && 'max_size' in (dirtyAssetTypes.get(assetTypeId) || {});
-        return isDirty ? { ...baseStyle, fontWeight: 'bold', backgroundColor: '#fef3c7' } : baseStyle;
-      },
-      headerClass: 'text-left'
-    },
-  ], [t]);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return filtered;
+  }, [assetTypes, filters, sortColumn, sortDirection, getCurrentValue]);
+
+
+  function downloadTemplate() {
+    // Headers matching the import function expectations
+    const headers = [
+      'סוג נכס',
+      'תיאור',
+      'אזור מיסים',
+      'מעלית',
+      'בית פרטי חד משפחתי דו משפחתי',
+      'דירת גג',
+      'בית משותף',
+      'מבנים צמודי קרקע טוריים מעל 2 יחידות',
+      'עסקים/מגורים',
+      'שימוש בשטח משותף',
+      'שטח מ',
+      'שטח עד'
+    ];
+
+    // Example rows
+    const exampleRows = [
+      ['199', 'דירה רגילה', '10', 'כן', '', '', 'כן', '', 'מגורים', '', '20', '150'],
+      ['299', 'דירה מורכבת', '40', '', '', '', 'כן', '', 'מגורים', '', '30', '200'],
+      ['101', 'חנות', '10', '', '', '', '', '', 'עסקים', '', '10', '100']
+    ];
+
+    // Create data array with headers and example rows
+    const data = [headers, ...exampleRows];
+
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+      { wch: 12 }, // סוג נכס
+      { wch: 25 }, // תיאור
+      { wch: 12 }, // אזור מיסים
+      { wch: 8 },  // מעלית
+      { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
+      { wch: 10 }, // דירת גג
+      { wch: 12 }, // בית משותף
+      { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
+      { wch: 15 }, // עסקים/מגורים
+      { wch: 20 }, // שימוש בשטח משותף
+      { wch: 10 }, // שטח מ
+      { wch: 10 }  // שטח עד
+    ];
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'סוגי נכסים');
+    
+    // Download the file
+    XLSX.writeFile(workbook, 'תבנית_סוגי_נכסים.xlsx');
+  }
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -752,8 +485,8 @@ export function AssetTypes() {
         }
         parts.push(current.trim()); // Add last part
 
-        // Map columns: name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, min_size, max_size
-        const [name, description = '', tax_region = '', elevator = '', single_double_family = '', penthouse = '', condo = '', townhouses = '', min_size = '', max_size = ''] = parts;
+        // Map columns: name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_private, shared_area_usage, min_size, max_size
+        const [name, description = '', tax_region = '', elevator = '', single_double_family = '', penthouse = '', condo = '', townhouses = '', business_private = '', shared_area_usage = '', min_size = '', max_size = ''] = parts;
 
         // Skip header row if it doesn't look like data
         if (i === 0 && (name === 'סוג נכס' || name === 'name' || !name || isNaN(parseInt(name)))) {
@@ -770,6 +503,19 @@ export function AssetTypes() {
         }
 
         try {
+          // Validate business_private field - only allow 'עסקים', 'מגורים', or empty
+          let validBusinessPrivate: string | undefined = undefined;
+          if (business_private && business_private.trim() !== '') {
+            const trimmed = business_private.trim();
+            if (trimmed === 'עסקים' || trimmed === 'מגורים') {
+              validBusinessPrivate = trimmed;
+            } else {
+              errors.push(`שורה ${i + 1}: עסקים/מגורים חייב להיות "עסקים" או "מגורים"`);
+              errorCount++;
+              continue;
+            }
+          }
+
           const assetTypeData: Partial<AssetType> = {
             name,
             description: description || undefined,
@@ -779,6 +525,8 @@ export function AssetTypes() {
             penthouse: penthouse || undefined,
             condo: condo || undefined,
             townhouses: townhouses || undefined,
+            business_private: validBusinessPrivate,
+            shared_area_usage: shared_area_usage || undefined,
             min_size: min_size ? parseFloat(min_size) : undefined,
             max_size: max_size ? parseFloat(max_size) : undefined,
           };
@@ -864,6 +612,14 @@ export function AssetTypes() {
                 onChange={handleFileImport}
                 className="hidden"
               />
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">{t('downloadTemplate')}</span>
+              </button>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -1015,6 +771,31 @@ export function AssetTypes() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
+                  עסקים/מגורים
+                </label>
+                <select
+                  value={formData.business_private}
+                  onChange={(e) => setFormData({ ...formData, business_private: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="">-- בחר --</option>
+                  <option value="עסקים">עסקים</option>
+                  <option value="מגורים">מגורים</option>
+                </select>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.shared_area_usage === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, shared_area_usage: e.target.checked ? 'כן' : undefined })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  שימוש בשטח משותף
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   שטח מ
                 </label>
                 <input
@@ -1070,57 +851,364 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '60vh', direction: 'ltr' }}>
-            <AgGridReact
-              ref={gridRef}
-              rowData={assetTypes}
-              columnDefs={columnDefs}
-              context={{ dirtyAssetTypes }}
-              defaultColDef={{
-                resizable: true,
-                sortable: true,
-                filter: true,
-                wrapText: true,
-                autoHeight: false
-              }}
-              domLayout="normal"
-              gridOptions={{
-                autoSizeStrategy: {
-                  type: 'fitCellContents',
-                },
-              }}
-              onCellValueChanged={onCellValueChanged}
-              onGridReady={async (params) => {
-              }}
-              onFirstDataRendered={async (params) => {
-                const firstCol = params.api.getAllDisplayedColumns()[0];
-                if (firstCol) {
-                  params.api.ensureColumnVisible(firstCol);
-                }
-                
-                setTimeout(() => {
-                  const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
-                  if (gridElement) {
-                    gridElement.scrollLeft = 0;
-                  }
-                }, 200);
-              }}
-              onColumnResized={() => {}}
-              onColumnMoved={() => {}}
-              onSortChanged={() => {}}
-              onFilterChanged={() => {}}
-              pagination={false}
-              suppressHorizontalScroll={false}
-              enableRtl={true}
-              sideBar={false}
-              rowClass="ag-row"
-              getRowStyle={(params) => {
-                if (params.node.rowIndex % 2 === 0) {
-                  return { background: '#ffffff' };
-                }
-                return { background: '#f0f9ff' };
-              }}
-            />
+          <div className="rounded-xl overflow-hidden shadow-lg border border-blue-100 bg-white">
+            {/* Global search filter */}
+            <div className="p-3 border-b border-blue-200 bg-blue-50">
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <input
+                  type="text"
+                  placeholder="חיפוש גלובלי..."
+                  value={filters.global || ''}
+                  onChange={(e) => handleFilterChange('global', e.target.value)}
+                  className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {filters.global && (
+                  <button
+                    onClick={() => handleFilterChange('global', '')}
+                    className="px-3 py-2 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    נקה
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="overflow-x-auto" style={{ maxHeight: '60vh' }}>
+              <table className="w-full border-collapse" dir="rtl">
+                <thead className="bg-blue-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="border border-blue-200 p-2 text-center sticky right-0 bg-blue-50 z-20 relative" style={{ width: columnWidths.actions, minWidth: '50px' }}>
+                      {t('actions')}
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.name, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30 transition-colors"
+                        style={{ cursor: resizingColumn === 'name' ? 'col-resize' : 'ew-resize' }}
+                        onMouseDown={(e) => handleResizeStart('name', e)}
+                        title="גרור כדי לשנות רוחב"
+                      />
+                      <div 
+                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('name')}
+                      >
+                        <span className="text-right font-semibold">סוג נכס</span>
+                        {sortColumn === 'name' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="סינון..."
+                        value={filters.name || ''}
+                        onChange={(e) => handleFilterChange('name', e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-2 py-1 text-xs border rounded"
+                      />
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.active, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('active', e)}
+                      />
+                      <div 
+                        className="flex items-center justify-center gap-1 mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('active')}
+                      >
+                        <span className="font-semibold">פעיל</span>
+                        {sortColumn === 'active' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.description, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('description', e)}
+                      />
+                      <div 
+                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('description')}
+                      >
+                        <span className="text-right font-semibold">תיאור</span>
+                        {sortColumn === 'description' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="סינון..."
+                        value={filters.description || ''}
+                        onChange={(e) => handleFilterChange('description', e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-2 py-1 text-xs border rounded"
+                      />
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.tax_region, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('tax_region', e)}
+                      />
+                      <div 
+                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('tax_region')}
+                      >
+                        <span className="text-right font-semibold">אזור מיסים</span>
+                        {sortColumn === 'tax_region' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="סינון..."
+                        value={filters.tax_region || ''}
+                        onChange={(e) => handleFilterChange('tax_region', e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-2 py-1 text-xs border rounded"
+                      />
+                    </th>
+                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.elevator, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('elevator', e)}
+                      />
+                      <span className="font-semibold">מעלית</span>
+                    </th>
+                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.single_double_family, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('single_double_family', e)}
+                      />
+                      <span className="font-semibold">בית פרטי</span>
+                    </th>
+                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.penthouse, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('penthouse', e)}
+                      />
+                      <span className="font-semibold">דירת גג</span>
+                    </th>
+                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.condo, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('condo', e)}
+                      />
+                      <span className="font-semibold">בית משותף</span>
+                    </th>
+                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.townhouses, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('townhouses', e)}
+                      />
+                      <span className="font-semibold">טוריים</span>
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.business_private, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('business_private', e)}
+                      />
+                      <div 
+                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('business_private')}
+                      >
+                        <span className="text-right font-semibold">עסקים/מגורים</span>
+                        {sortColumn === 'business_private' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                      <select
+                        value={filters.business_private || ''}
+                        onChange={(e) => handleFilterChange('business_private', e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-2 py-1 text-xs border rounded"
+                      >
+                        <option value="">הכל</option>
+                        <option value="עסקים">עסקים</option>
+                        <option value="מגורים">מגורים</option>
+                      </select>
+                    </th>
+                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.shared_area_usage, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('shared_area_usage', e)}
+                      />
+                      <span className="font-semibold">שטח משותף</span>
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.min_size, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('min_size', e)}
+                      />
+                      <div 
+                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('min_size')}
+                      >
+                        <span className="text-right font-semibold">שטח מ</span>
+                        {sortColumn === 'min_size' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.max_size, minWidth: '50px' }}>
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
+                        onMouseDown={(e) => handleResizeStart('max_size', e)}
+                      />
+                      <div 
+                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
+                        onClick={() => handleSort('max_size')}
+                      >
+                        <span className="text-right font-semibold">שטח עד</span>
+                        {sortColumn === 'max_size' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4 opacity-50" />
+                        )}
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAndSortedAssetTypes.map((assetType, index) => {
+                    const isDirty = dirtyAssetTypes.has(assetType.id);
+                    const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-blue-50';
+                    return (
+                      <tr key={assetType.id} className={rowClass}>
+                        <td className={`border border-blue-200 p-2 text-center sticky right-0 z-10 ${rowClass}`} style={{ width: columnWidths.actions, minWidth: '50px' }}>
+                          <button
+                            onClick={() => handleDelete(assetType.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="מחק"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.name, minWidth: '50px' }}>
+                          <input
+                            type="text"
+                            value={getCurrentValue(assetType, 'name') || ''}
+                            onChange={(e) => handleCellChange(assetType.id, 'name', e.target.value)}
+                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'name') ? 'bg-yellow-100 font-bold' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.active, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'active') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'active', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'active') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.description, minWidth: '50px' }}>
+                          <input
+                            type="text"
+                            value={getCurrentValue(assetType, 'description') || ''}
+                            onChange={(e) => handleCellChange(assetType.id, 'description', e.target.value)}
+                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'description') ? 'bg-yellow-100 font-bold' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.tax_region, minWidth: '50px' }}>
+                          <input
+                            type="number"
+                            value={getCurrentValue(assetType, 'tax_region') || ''}
+                            onChange={(e) => handleCellChange(assetType.id, 'tax_region', e.target.value ? parseInt(e.target.value) : null)}
+                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'tax_region') ? 'bg-yellow-100 font-bold' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.elevator, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'elevator') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'elevator', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'elevator') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.single_double_family, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'single_double_family') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'single_double_family', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'single_double_family') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.penthouse, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'penthouse') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'penthouse', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'penthouse') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.condo, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'condo') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'condo', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'condo') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.townhouses, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'townhouses') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'townhouses', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'townhouses') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.business_private, minWidth: '50px' }}>
+                          <select
+                            value={getCurrentValue(assetType, 'business_private') || ''}
+                            onChange={(e) => handleCellChange(assetType.id, 'business_private', e.target.value || null)}
+                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'business_private') ? 'bg-yellow-100 font-bold' : ''}`}
+                          >
+                            <option value="">-- בחר --</option>
+                            <option value="עסקים">עסקים</option>
+                            <option value="מגורים">מגורים</option>
+                          </select>
+                        </td>
+                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.shared_area_usage, minWidth: '50px' }}>
+                          <input
+                            type="checkbox"
+                            checked={getCurrentValue(assetType, 'shared_area_usage') === 'כן'}
+                            onChange={(e) => handleCellChange(assetType.id, 'shared_area_usage', e.target.checked ? 'כן' : null)}
+                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'shared_area_usage') ? 'ring-2 ring-yellow-400' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.min_size, minWidth: '50px' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={getCurrentValue(assetType, 'min_size') || ''}
+                            onChange={(e) => handleCellChange(assetType.id, 'min_size', e.target.value ? parseFloat(e.target.value) : null)}
+                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'min_size') ? 'bg-yellow-100 font-bold' : ''}`}
+                          />
+                        </td>
+                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.max_size, minWidth: '50px' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={getCurrentValue(assetType, 'max_size') || ''}
+                            onChange={(e) => handleCellChange(assetType.id, 'max_size', e.target.value ? parseFloat(e.target.value) : null)}
+                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'max_size') ? 'bg-yellow-100 font-bold' : ''}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

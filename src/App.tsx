@@ -11,6 +11,7 @@ import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
+import { PreferencesButton } from './components/PreferencesButton';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
@@ -25,6 +26,7 @@ interface Tab {
   assetId?: string;
   assetIdentifier?: string;
   selectedAssetIds?: string[];
+  path?: string; // URL path for routing compatibility
 }
 
 function App() {
@@ -37,6 +39,7 @@ function App() {
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(true);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
+  const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<{
@@ -51,6 +54,35 @@ function App() {
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
 
+  // Helper function to open a new tab, closing any existing tab of the same type
+  // Exception: 'buildings' tab is always kept and multiple 'assets' tabs can exist (for different buildings/tax regions)
+  function openTab(newTab: Tab) {
+    setTabs(prev => {
+      // Check if tab already exists
+      const existingTab = prev.find(t => t.id === newTab.id);
+      if (existingTab) {
+        // Tab already exists, just activate it
+        setActiveTabId(newTab.id);
+        return prev;
+      }
+      
+      // For most tab types, close existing tabs of the same type (except 'buildings' and 'assets')
+      // 'assets' tabs can have multiple instances (for different buildings/tax regions)
+      // 'buildings' tab should always be kept
+      let filteredTabs = prev;
+      if (newTab.type !== 'buildings' && newTab.type !== 'assets') {
+        // Remove all existing tabs of the same type
+        filteredTabs = prev.filter(t => t.type !== newTab.type);
+      }
+      
+      // Ensure buildings tab exists
+      const hasBuildings = filteredTabs.some(t => t.id === 'buildings');
+      const tabsToReturn = hasBuildings ? [...filteredTabs, newTab] : [{ id: 'buildings', type: 'buildings', label: 'מבנים' }, ...filteredTabs, newTab];
+      return tabsToReturn;
+    });
+    setActiveTabId(newTab.id);
+  }
+
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     
@@ -60,23 +92,35 @@ function App() {
       setTabs(prev => [buildingsTab, ...prev]);
     }
 
-    if (taxRegions) {
+    console.log('[App.handleSelectBuilding] Called with:', { buildingNumber, taxRegions });
+
+    if (taxRegions && taxRegions.trim() !== '') {
       const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
+      console.log('[App.handleSelectBuilding] Parsed regions:', regions, 'count:', regions.length);
 
       if (regions.length === 1) {
         const singleRegionTabId = `assets-${buildingNumber}-region-${regions[0]}`;
         const existingTab = tabs.find(t => t.id === singleRegionTabId);
         
         if (existingTab) {
-          // Tab already exists, just switch to it
+          // Tab already exists, close all other assets tabs and switch to it
           console.log('[App.handleSelectBuilding] Existing single region tab found:', {
             id: existingTab.id,
             taxRegion: existingTab.taxRegion,
             buildingNumber: existingTab.buildingNumber
           });
+          setTabs(prev => {
+            // Close all assets tabs except the one we're switching to
+            const keepTabs = prev.filter(t => 
+              t.id === 'buildings' || 
+              t.type !== 'assets' || 
+              t.id === singleRegionTabId
+            );
+            return keepTabs;
+          });
           setActiveTabId(singleRegionTabId);
         } else {
-          // Create new tab
+          // Remove all other assets tabs, then create new tab
           const singleRegionTab: Tab = {
             id: singleRegionTabId,
             type: 'assets',
@@ -89,68 +133,117 @@ function App() {
             taxRegion: singleRegionTab.taxRegion,
             buildingNumber: singleRegionTab.buildingNumber
           });
-          setTabs(prev => [...prev, singleRegionTab]);
+          setTabs(prev => {
+            // Check if tab already exists
+            const existingTab = prev.find(t => t.id === singleRegionTab.id);
+            if (existingTab) {
+              return prev;
+            }
+            // Close all assets tabs, then add new one
+            const keepTabs = prev.filter(t => 
+              t.id === 'buildings' || 
+              t.type !== 'assets'
+            );
+            // Ensure buildings tab exists
+            const hasBuildings = keepTabs.some(t => t.id === 'buildings');
+            return hasBuildings ? [...keepTabs, singleRegionTab] : [buildingsTab, ...keepTabs, singleRegionTab];
+          });
           setActiveTabId(singleRegionTabId);
         }
-      } else {
+      } else if (regions.length > 1) {
+        // Multiple tax regions - always create one tab for all assets and one tab for each tax region
+        console.log('[App.handleSelectBuilding] Multiple tax regions detected, creating tabs:', regions);
         const allAssetsTabId = `assets-${buildingNumber}-all`;
-        const existingAllAssetsTab = tabs.find(t => t.id === allAssetsTabId);
+        const tabsToCreate: Tab[] = [];
         
-        if (existingAllAssetsTab) {
-          // Tab already exists, just switch to it
-          setActiveTabId(allAssetsTabId);
-        } else {
-          // Create new tabs
-          const newTabs: Tab[] = [];
-          const allAssetsTab: Tab = {
-            id: allAssetsTabId,
+        // 1. Always create tab for all assets (no tax region filter)
+        const allAssetsTab: Tab = {
+          id: allAssetsTabId,
+          type: 'assets',
+          buildingNumber,
+          label: `מבנה ${buildingNumber} - כל הנכסים`,
+          path: `/buildings/${buildingNumber}/assets`
+        };
+        tabsToCreate.push(allAssetsTab);
+        console.log('[App.handleSelectBuilding] Created all assets tab:', allAssetsTab);
+        
+        // 2. Always create tabs for each individual tax region
+        for (const region of regions) {
+          const regionTabId = `assets-${buildingNumber}-region-${region}`;
+          const regionTab: Tab = {
+            id: regionTabId,
             type: 'assets',
             buildingNumber,
-            label: `מבנה ${buildingNumber} - כל הנכסים (אזורי מס: ${regions.join(', ')})`
+            taxRegion: region,
+            label: `מבנה ${buildingNumber} - אזור מס ${region}`
           };
-          newTabs.push(allAssetsTab);
-
-          regions.forEach(region => {
-            const regionTabId = `assets-${buildingNumber}-region-${region}`;
-            const existingRegionTab = tabs.find(t => t.id === regionTabId);
-            if (!existingRegionTab) {
-              const regionTab: Tab = {
-                id: regionTabId,
-                type: 'assets',
-                buildingNumber,
-                taxRegion: region,
-                label: `מבנה ${buildingNumber} - אזור מס ${region}`
-              };
-              newTabs.push(regionTab);
-            }
-          });
-
-          setTabs(prev => [...prev, ...newTabs]);
-          setActiveTabId(allAssetsTabId);
+          tabsToCreate.push(regionTab);
+          console.log('[App.handleSelectBuilding] Created region tab:', regionTab);
         }
+        
+        console.log('[App.handleSelectBuilding] Total tabs to create:', tabsToCreate.length, tabsToCreate.map(t => t.id));
+        
+        // Update tabs: close all previous assets tabs, then add new tabs for this building
+        setTabs(prev => {
+          // Keep buildings tab and non-assets tabs, close all assets tabs
+          const keepTabs = prev.filter(t => 
+            t.id === 'buildings' || 
+            t.type !== 'assets'
+          );
+          // Combine: keep tabs + all new tabs (this ensures we always have the correct tabs for this building)
+          const newTabs = [...keepTabs, ...tabsToCreate];
+          console.log('[App.handleSelectBuilding] Updated tabs count:', newTabs.length, 'assets tabs:', newTabs.filter(t => t.type === 'assets').map(t => ({ id: t.id, building: t.buildingNumber })));
+          return newTabs;
+        });
+        
+        // Switch to the "all assets" tab
+        setActiveTabId(allAssetsTabId);
       }
     } else {
       const allAssetsTabId = `assets-${buildingNumber}-all`;
       const existingTab = tabs.find(t => t.id === allAssetsTabId);
       
       if (existingTab) {
-        // Tab already exists, just switch to it
+        // Tab already exists, close all other assets tabs and switch to it
+        setTabs(prev => {
+          // Close all assets tabs except the one we're switching to
+          const keepTabs = prev.filter(t => 
+            t.id === 'buildings' || 
+            t.type !== 'assets' || 
+            t.id === allAssetsTabId
+          );
+          return keepTabs;
+        });
         setActiveTabId(allAssetsTabId);
       } else {
-        // Create new tab
+        // Remove all other assets tabs, then create new tab
         const allAssetsTab: Tab = {
           id: allAssetsTabId,
           type: 'assets',
           buildingNumber,
           label: `מבנה ${buildingNumber} - כל הנכסים`
         };
-        setTabs(prev => [...prev, allAssetsTab]);
+        setTabs(prev => {
+          // Check if tab already exists
+          const existingTab = prev.find(t => t.id === allAssetsTab.id);
+          if (existingTab) {
+            return prev;
+          }
+          // Close all assets tabs, then add new one
+          const keepTabs = prev.filter(t => 
+            t.id === 'buildings' || 
+            t.type !== 'assets'
+          );
+          // Ensure buildings tab exists
+          const hasBuildings = keepTabs.some(t => t.id === 'buildings');
+          return hasBuildings ? [...keepTabs, allAssetsTab] : [buildingsTab, ...keepTabs, allAssetsTab];
+        });
         setActiveTabId(allAssetsTabId);
       }
     }
   }
 
-  function handleSelectAsset(assetDbId: string | number, assetId: string, buildingNumber: number) {
+  function handleSelectAsset(assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) {
     const assetDetailsTabId = `asset-details-${assetDbId}`;
     const existingTab = tabs.find(t => t.id === assetDetailsTabId);
 
@@ -163,10 +256,11 @@ function App() {
         assetId: String(assetDbId),
         assetIdentifier: assetId,
         buildingNumber,
+        taxRegion, // Pass taxRegion from AssetsList tab - same as AssetsList
         label: `נכס ${assetId}`
       };
-      setTabs([...tabs, newTab]);
-      setActiveTabId(assetDetailsTabId);
+      // Remove all other asset-details tabs, then add new one
+      openTab(newTab);
     }
   }
 
@@ -179,8 +273,8 @@ function App() {
       taxRegion,
       label: `נכס חדש - מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`
     };
-    setTabs([...tabs, newTab]);
-    setActiveTabId(newAssetTabId);
+    // Remove all other asset-details tabs, then add new one
+    openTab(newTab);
   }
 
   function handleOpenTransferAreas(selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) {
@@ -193,8 +287,8 @@ function App() {
       selectedAssetIds,
       label: `העברת שטחים - מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`
     };
-    setTabs([...tabs, newTab]);
-    setActiveTabId(transferAreasTabId);
+    // Remove all other transfer-areas tabs, then add new one
+    openTab(newTab);
   }
 
 
@@ -208,7 +302,6 @@ function App() {
   }
 
   function openAdminPanel() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const adminTabId = 'admin-panel';
 
     const newTab: Tab = {
@@ -217,12 +310,11 @@ function App() {
       label: 'מנהל PDF'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(adminTabId);
+    // Remove all other admin tabs, then add new one
+    openTab(newTab);
   }
 
   function openAssetTypes() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetTypesTabId = 'asset-types-panel';
 
     const newTab: Tab = {
@@ -231,12 +323,11 @@ function App() {
       label: 'סוגי נכסים'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(assetTypesTabId);
+    // Remove all other asset-types tabs, then add new one
+    openTab(newTab);
   }
 
   function openAssetSearch() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetSearchTabId = 'asset-search-panel';
 
     const newTab: Tab = {
@@ -245,13 +336,12 @@ function App() {
       label: 'חיפוש נכס'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(assetSearchTabId);
+    // Remove all other asset-search tabs, then add new one
+    openTab(newTab);
   }
 
 
   function openValidationRules() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const validationRulesTabId = 'validation-rules-panel';
 
     const newTab: Tab = {
@@ -260,12 +350,11 @@ function App() {
       label: 'כללי תקינות'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(validationRulesTabId);
+    // Remove all other validation-rules tabs, then add new one
+    openTab(newTab);
   }
 
   function openAssetTypeFields() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetTypeFieldsTabId = 'asset-type-fields-panel';
 
     const newTab: Tab = {
@@ -274,12 +363,11 @@ function App() {
       label: 'שדות סוגי נכסים'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(assetTypeFieldsTabId);
+    // Remove all other asset-type-fields tabs, then add new one
+    openTab(newTab);
   }
 
   function openAddressList() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const addressListTabId = 'address-list-panel';
 
     const newTab: Tab = {
@@ -288,12 +376,11 @@ function App() {
       label: 'רשימת כתובות'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(addressListTabId);
+    // Remove all other address-list tabs, then add new one
+    openTab(newTab);
   }
 
   function openFileImport() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const fileImportTabId = 'file-import-panel';
 
     const newTab: Tab = {
@@ -302,12 +389,11 @@ function App() {
       label: 'ייבוא File'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(fileImportTabId);
+    // Remove all other building-list-import tabs, then add new one
+    openTab(newTab);
   }
 
   function openAssetsFileImport() {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
     const assetsFileImportTabId = 'assets-file-import-panel';
 
     const newTab: Tab = {
@@ -316,8 +402,8 @@ function App() {
       label: 'ייבוא נכסים File'
     };
 
-    setTabs([buildingsTab, newTab]);
-    setActiveTabId(assetsFileImportTabId);
+    // Remove all other assets-file-import tabs, then add new one
+    openTab(newTab);
   }
 
   function handleCloseTab(tabId: string) {
@@ -682,6 +768,11 @@ function App() {
               </div>
             )}
           </div>
+          
+          {/* Preferences Section */}
+          <div className="mt-4 pt-4 border-t border-purple-100">
+            <PreferencesButton />
+          </div>
         </nav>
       </div>
 
@@ -816,7 +907,21 @@ function App() {
                 assetId={activeTab.assetId ? parseInt(activeTab.assetId) : undefined}
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
-                onDataUpdate={handleDataUpdate} 
+                onDataUpdate={handleDataUpdate}
+                onAssetCreated={(assetDbId, assetIdentifier) => {
+                  // Update the current tab to show the newly created asset
+                  setTabs(prev => prev.map(tab => {
+                    if (tab.id === activeTab?.id && tab.type === 'asset-details') {
+                      return {
+                        ...tab,
+                        assetId: String(assetDbId),
+                        assetIdentifier: assetIdentifier,
+                        label: `נכס ${assetIdentifier}`
+                      };
+                    }
+                    return tab;
+                  }));
+                }}
               />
             )}
           </div>
@@ -825,12 +930,27 @@ function App() {
 
 
       {showBatchValidationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div 
+          className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
+            batchValidationModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          dir="rtl"
+        >
+          <div 
+            className={`bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col transition-all duration-300 ${
+              batchValidationModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">אימות כל הנכסים במערכת</h3>
               <button
-                onClick={() => setShowBatchValidationModal(false)}
+                onClick={() => {
+                  setBatchValidationModalClosing(true);
+                  setTimeout(() => {
+                    setShowBatchValidationModal(false);
+                    setBatchValidationModalClosing(false);
+                  }, 300);
+                }}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="h-5 w-5" />
@@ -917,7 +1037,13 @@ function App() {
 
             <div className="mt-6 flex justify-end gap-3 border-t pt-4">
               <button
-                onClick={() => setShowBatchValidationModal(false)}
+                onClick={() => {
+                  setBatchValidationModalClosing(true);
+                  setTimeout(() => {
+                    setShowBatchValidationModal(false);
+                    setBatchValidationModalClosing(false);
+                  }, 300);
+                }}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 סגור

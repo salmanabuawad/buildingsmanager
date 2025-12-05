@@ -287,7 +287,19 @@ export function ValidationRulesManager() {
     { headerName: t('compareTable'), field: 'compare_table' },
     { headerName: t('compareField'), field: 'compare_field' },
     { headerName: t('joinField'), field: 'join_field' },
-    { headerName: t('operator'), field: 'comparison_operator' }
+    { headerName: t('operator'), field: 'comparison_operator' },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false
+    }
   ], [editingId, editValues]);
 
   const gridRef = useRef<AgGridReact<ValidationRule>>(null);
@@ -295,13 +307,13 @@ export function ValidationRulesManager() {
   const defaultColDef = useMemo(() => ({
     resizable: true,
     wrapText: true,
-    autoHeight: true
+    autoHeight: true,
+    minWidth: 100
   }), []);
 
   const gridOptions = useMemo(() => ({
-    autoSizeStrategy: {
-      type: 'fitCellContents',
-    },
+    suppressColumnVirtualisation: true,
+    alwaysShowHorizontalScroll: true,
   }), []);
 
   const onGridReady = useCallback(async (params: any) => {
@@ -550,13 +562,14 @@ export function ValidationRulesManager() {
             <div className="mb-2 text-sm text-slate-600">
               מציג {rules.length} כללי תקינות
             </div>
-            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
               <AgGridReact
                 ref={gridRef}
                 rowData={rules}
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 gridOptions={gridOptions}
+                suppressHorizontalScroll={false}
                 onGridReady={onGridReady}
                 onFirstDataRendered={async (params) => {
                   

@@ -32,7 +32,7 @@ export interface ValidationOptions {
   onProgress?: (progress: AssetValidationProgress) => void;
   validateOnlyLatest?: boolean; // For building mode: validate only latest record per asset_id
   taxRegion?: string; // Optional tax region that will OVERRIDE building tax region for validation (from tab header)
-  cachedData?: { assetTypes?: any[]; building?: any }; // Cached data to avoid database queries
+  cachedData?: { assetTypes?: any[]; building?: any; asset?: any }; // Cached data to avoid database queries
 }
 
 /**
@@ -45,7 +45,7 @@ export class AssetValidationHandler {
    */
   static async validateSingleAsset(
     asset: Asset,
-    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string; cachedData?: { assetTypes?: any[]; building?: any } }
+    options?: { onProgress?: (progress: AssetValidationProgress) => void; taxRegion?: string; cachedData?: { assetTypes?: any[]; building?: any; asset?: any } }
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
@@ -59,7 +59,13 @@ export class AssetValidationHandler {
       });
     }
     
-    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion, options?.cachedData);
+    // Include asset in cachedData so validation can access asset.tax_region
+    const cachedDataWithAsset = {
+      ...(options?.cachedData || {}),
+      asset: asset
+    };
+    
+    return await this.validateAssetInternal(asset, assetIdentifier, options?.onProgress, options?.taxRegion, cachedDataWithAsset);
   }
 
   /**
@@ -135,12 +141,18 @@ export class AssetValidationHandler {
           });
         }
 
+        // Include asset in cachedData so validation can access asset.tax_region
+        const cachedDataWithAsset = {
+          ...(cachedData || {}),
+          asset: asset
+        };
+        
         return await this.validateAssetInternal(
           asset,
           assetIdentifier,
           undefined,
           options?.taxRegion,
-          cachedData,
+          cachedDataWithAsset,
           options?.validationRules
         );
       });
@@ -272,6 +284,33 @@ export class AssetValidationHandler {
       assetIdToRowIndices.get(assetIdKey)!.push(index + 1); // 1-based row number
     });
 
+    // Pre-fetch buildings for all unique building numbers to optimize performance
+    const buildingNumbers = new Set<number>();
+    assets.forEach(asset => {
+      if (asset.building_number) {
+        const buildingNum = typeof asset.building_number === 'string' 
+          ? parseInt(asset.building_number, 10) 
+          : asset.building_number;
+        if (!isNaN(buildingNum)) {
+          buildingNumbers.add(buildingNum);
+        }
+      }
+    });
+
+    // Fetch all buildings in parallel
+    const { api } = await import('./api');
+    const buildingsMap = new Map<number, any>();
+    await Promise.all(
+      Array.from(buildingNumbers).map(async (buildingNum) => {
+        try {
+          const building = await api.buildings.getOne(buildingNum);
+          buildingsMap.set(buildingNum, building);
+        } catch (error) {
+          console.warn(`Failed to fetch building ${buildingNum}:`, error);
+        }
+      })
+    );
+
     // Process assets in parallel batches to improve performance
     const BATCH_SIZE = 10; // Process 10 assets at a time
     for (let batchStart = 0; batchStart < assets.length; batchStart += BATCH_SIZE) {
@@ -291,7 +330,29 @@ export class AssetValidationHandler {
           });
         }
 
-        const result = await this.validateAssetInternal(asset, assetIdentifier, undefined, options?.taxRegion);
+        // Get building for this asset
+        const buildingNum = typeof asset.building_number === 'string' 
+          ? parseInt(asset.building_number, 10) 
+          : asset.building_number;
+        const building = buildingNum && !isNaN(buildingNum) 
+          ? buildingsMap.get(buildingNum) 
+          : null;
+
+        // Include asset and building in cachedData for validation
+        const cachedDataWithAssetAndBuilding = {
+          ...(options?.cachedData || {}),
+          asset: asset,
+          building: building || options?.cachedData?.building
+        };
+
+        const result = await this.validateAssetInternal(
+          asset, 
+          assetIdentifier, 
+          undefined, 
+          options?.taxRegion,
+          cachedDataWithAssetAndBuilding,
+          options?.validationRules
+        );
         
         // Check if this asset_id appears with different building_numbers in the import batch
         // An asset can only belong to one building
@@ -335,7 +396,7 @@ export class AssetValidationHandler {
     assetIdentifier: string,
     onProgress?: (progress: AssetValidationProgress) => void,
     taxRegion?: string,
-    cachedData?: { assetTypes?: any[]; building?: any },
+    cachedData?: { assetTypes?: any[]; building?: any; asset?: any },
     validationRules?: any[]
   ): Promise<AssetValidationResult> {
     // Log validation parameters for debugging (only in development)
@@ -359,6 +420,16 @@ export class AssetValidationHandler {
     const validations: Promise<ValidationResult>[] = [];
 
     // Synchronous validations (run in parallel)
+    // First check if main_asset_type is required
+    validationNames.push('אימות סוג נכס ראשי נדרש');
+    validations.push(
+      Promise.resolve(
+        !asset.main_asset_type || String(asset.main_asset_type).trim() === ''
+          ? { valid: false, error: 'סוג נכס ראשי נדרש' }
+          : { valid: true }
+      )
+    );
+
     validationNames.push('אימות סוגי נכס מורכבים');
     validations.push(
       assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
@@ -409,6 +480,30 @@ export class AssetValidationHandler {
     validationNames.push('אימות גודל נכס משנה דורש סוג');
     validations.push(
       assetValidators.validateSubAssetSizeRequiresType(
+        [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ],
+        [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ]
+      )
+    );
+
+    validationNames.push('אימות סוג נכס דורש גודל');
+    validations.push(
+      assetValidators.validateAssetTypeRequiresSize(
+        asset.main_asset_type,
+        asset.asset_size,
         [
           asset.sub_asset_type_1,
           asset.sub_asset_type_2,
@@ -535,6 +630,16 @@ export class AssetValidationHandler {
       )
     );
 
+    // NEW: Validate that asset.tax_region is within building.tax_region
+    validationNames.push('אימות אזור מס נכס בתוך אזורי מס המבנה');
+    validations.push(
+      this.validateAssetTaxRegionInBuildingTaxRegions(
+        asset,
+        taxRegion,
+        cachedData
+      )
+    );
+
     // Run DB validations sequentially for progress tracking
     const totalSteps = validations.length;
     for (let i = 0; i < validations.length; i++) {
@@ -619,5 +724,73 @@ export class AssetValidationHandler {
       passed: passedRules,
       matchedAssetTypeRecord
     };
+  }
+
+  /**
+   * Validate that asset.tax_region is within building.tax_region
+   * and matches the tab tax region if provided
+   */
+  private static async validateAssetTaxRegionInBuildingTaxRegions(
+    asset: Asset,
+    taxRegion?: string,
+    cachedData?: { assetTypes?: any[]; building?: any; asset?: any }
+  ): Promise<ValidationResult> {
+    try {
+      // If asset doesn't have tax_region, skip this validation
+      if (asset.tax_region == null) {
+        return { valid: true };
+      }
+
+      const assetTaxRegion = Number(asset.tax_region);
+      if (isNaN(assetTaxRegion)) {
+        return { valid: false, error: `אזור מס נכס ${asset.tax_region} אינו תקין` };
+      }
+
+      // Get building tax regions
+      let building = cachedData?.building;
+      if (!building && asset.building_number) {
+        const { api } = await import('./api');
+        building = await api.buildings.getOne(asset.building_number);
+      }
+
+      if (!building) {
+        // If building not found, skip this validation (other validations will catch building issues)
+        return { valid: true };
+      }
+
+      // Parse building tax regions (comma-separated string)
+      let buildingTaxRegions: number[] = [];
+      if (building.tax_region) {
+        buildingTaxRegions = String(building.tax_region)
+          .split(',')
+          .map(r => parseInt(r.trim()))
+          .filter(r => !isNaN(r));
+      }
+
+      // Check if asset.tax_region is within building.tax_region
+      if (buildingTaxRegions.length > 0 && !buildingTaxRegions.includes(assetTaxRegion)) {
+        const buildingRegionsStr = buildingTaxRegions.join(', ');
+        return {
+          valid: false,
+          error: `אזור מס נכס (${assetTaxRegion}) אינו בתוך אזורי מס המבנה (${buildingRegionsStr})`
+        };
+      }
+
+      // If in a specific tax region tab, also check that asset.tax_region matches the tab tax region
+      if (taxRegion && taxRegion.trim() !== '') {
+        const tabTaxRegion = parseInt(taxRegion.trim());
+        if (!isNaN(tabTaxRegion) && assetTaxRegion !== tabTaxRegion) {
+          return {
+            valid: false,
+            error: `אזור מס נכס (${assetTaxRegion}) אינו תואם לאזור מס הכרטיסייה (${tabTaxRegion})`
+          };
+        }
+      }
+
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating asset tax region in building tax regions:', error);
+      return { valid: false, error: 'שגיאה באימות אזור מס נכס' };
+    }
   }
 }

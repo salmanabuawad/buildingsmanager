@@ -5,6 +5,7 @@ import App from './App.tsx';
 import './index.css';
 import './i18n/i18n';
 import { ValidationProvider } from './contexts/ValidationContext';
+import { PreferencesProvider } from './contexts/PreferencesContext';
 
 // Suppress external script errors (from browser extensions, dev tools, etc.)
 window.addEventListener('error', (event) => {
@@ -18,8 +19,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ValidationProvider>
-      <App />
-    </ValidationProvider>
+    <PreferencesProvider>
+      <ValidationProvider>
+        <App />
+      </ValidationProvider>
+    </PreferencesProvider>
   </StrictMode>
 );

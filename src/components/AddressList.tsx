@@ -228,6 +228,22 @@ export function AddressListComponent() {
       },
       headerClass: 'ag-right-aligned-header'
     },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
   ], [dirtyAddresses, deletedAddresses]);
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
@@ -579,6 +595,9 @@ export function AddressListComponent() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-900">רשימת כתובות</h2>
+            <span className="text-sm text-slate-700 bg-slate-100 px-3 py-1 rounded-lg font-semibold">
+              סך הכל: {addresses.length} כתובות
+            </span>
           </div>
           <div className="flex gap-2">
             <input
@@ -631,7 +650,7 @@ export function AddressListComponent() {
           </button>
         </div>
 
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
           <AgGridReact<AddressList>
             ref={gridRef}
             rowData={addresses}
@@ -644,13 +663,14 @@ export function AddressListComponent() {
               autoHeight: false,
               sortable: true,
               filter: true,
-              headerClass: 'ag-right-aligned-header'
+              headerClass: 'ag-right-aligned-header',
+              minWidth: 100
             }}
             gridOptions={{
-              autoSizeStrategy: {
-                type: 'fitCellContents',
-              },
+              suppressColumnVirtualisation: true,
+              alwaysShowHorizontalScroll: true,
             }}
+            suppressHorizontalScroll={false}
             getRowId={(params) => String(params.data.street_code)}
             onGridReady={async (params) => {
             }}

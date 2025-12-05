@@ -147,13 +147,26 @@ export function AdminPDFManager() {
     {
       field: 'building_name',
       headerName: 'Building'
+    },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false
     }
   ], [uploadingIds]);
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
     wrapText: true,
-    autoHeight: false
+    autoHeight: false,
+    minWidth: 100
   }), []);
 
   const apartmentsWithPDF = apartments.filter(a => a.dwg_file_url).length;
@@ -209,17 +222,17 @@ export function AdminPDFManager() {
         </div>
       </div>
 
-      <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+      <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
         <AgGridReact<ApartmentWithBuilding>
           ref={gridRef}
           rowData={apartments}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           gridOptions={{
-            autoSizeStrategy: {
-              type: 'fitCellContents',
-            },
+            suppressColumnVirtualisation: true,
+            alwaysShowHorizontalScroll: true,
           }}
+          suppressHorizontalScroll={false}
           onGridReady={async (params) => {
           }}
           onFirstDataRendered={async (params) => {

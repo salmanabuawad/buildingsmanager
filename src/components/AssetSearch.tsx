@@ -8,7 +8,7 @@ interface SearchResult extends Asset {
 }
 
 interface AssetSearchProps {
-  onSelectAsset: (assetDbId: number, assetId: string, buildingNumber: number) => void;
+  onSelectAsset: (assetDbId: number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
 }
 
 export function AssetSearch({ onSelectAsset }: AssetSearchProps) {

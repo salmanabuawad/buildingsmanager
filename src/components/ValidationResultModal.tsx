@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Loader2, CheckCircle2, AlertCircle, Download, Building as BuildingIcon } from 'lucide-react';
 
 export interface SingleAssetValidationResult {
@@ -64,7 +64,23 @@ export function ValidationResultModal({
   buildingNumber,
   onExportInvalid
 }: ValidationResultModalProps) {
+  const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false);
+    }
+  }, [isOpen]);
+
   const [validationFilter, setValidationFilter] = useState<'all' | 'valid' | 'invalid'>('all');
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, 300); // Match animation duration
+  };
 
   if (!isOpen) return null;
 
@@ -109,12 +125,21 @@ export function ValidationResultModal({
   const config = contextConfig[actualContext];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-      <div className={`bg-white rounded-lg shadow-xl p-4 sm:p-6 ${
-        actualContext === 'single' ? 'max-w-2xl' : 
-        actualContext === 'building' ? 'max-w-4xl' : 
-        'max-w-4xl'
-      } w-full max-h-[90vh] flex flex-col`}>
+    <div 
+      className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
+        isClosing ? 'opacity-0' : 'opacity-100'
+      }`}
+      dir="rtl"
+    >
+      <div 
+        className={`bg-white rounded-lg shadow-xl p-4 sm:p-6 transition-all duration-300 ${
+          isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+        } ${
+          actualContext === 'single' ? 'max-w-2xl' : 
+          actualContext === 'building' ? 'max-w-4xl' : 
+          'max-w-4xl'
+        } w-full max-h-[90vh] flex flex-col`}
+      >
         {/* Header */}
         <div className={`flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg ${
           actualContext === 'single' 
@@ -150,7 +175,7 @@ export function ValidationResultModal({
             </h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-slate-400 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -345,7 +370,7 @@ export function ValidationResultModal({
                 </button>
               )}
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors w-full sm:w-auto ${
                   actualContext === 'import'
                     ? 'text-white bg-purple-600 hover:bg-purple-700'
@@ -369,12 +394,12 @@ export function ValidationResultModal({
             
             <div className="p-6 overflow-y-auto flex-1">
               {singleResult.valid ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                  <p className="text-xl font-semibold text-green-700 mb-2">הנכס תקין</p>
-                  <p className="text-slate-600 mb-4">כל האימותים עברו בהצלחה</p>
+                <div className="flex flex-col items-center justify-center py-2">
+                  <CheckCircle2 className="h-10 w-10 text-green-500 mb-2" />
+                  <p className="text-sm font-semibold text-green-700 mb-1">הנכס תקין</p>
+                  <p className="text-xs text-slate-600 mb-2">כל האימותים עברו בהצלחה</p>
                   {singleResult.matchedAssetTypeRecord && (
-                    <div className="w-full mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="w-full mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
                       <p className="text-xs text-blue-700">{singleResult.matchedAssetTypeRecord}</p>
                     </div>
@@ -405,7 +430,7 @@ export function ValidationResultModal({
             
             <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
               >
                 סגור

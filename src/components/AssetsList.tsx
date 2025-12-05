@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, AssetType, api } from '../lib/api';
+import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
@@ -11,7 +11,7 @@ import { useValidationRules } from '../contexts/ValidationContext';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
-  onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number) => void;
+  onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
   onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
 }
@@ -21,6 +21,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [buildingAddress, setBuildingAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -70,47 +71,132 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setBuilding(buildingData);
       setAssetTypes(assetTypesData || []);
       
+      // Fetch building address if building_address exists
+      if (buildingData?.building_address) {
+        try {
+          const address = await api.addressList.getOne(buildingData.building_address);
+          setBuildingAddress(address.street_description);
+        } catch (err) {
+          console.error('Error fetching building address:', err);
+          setBuildingAddress(null);
+        }
+      } else {
+        setBuildingAddress(null);
+      }
+      
+      // Log initial fetch results
+      console.log(`[AssetsList] Fetched data for building ${buildingNumber}:`, {
+        assetsCount: (assetsData || []).length,
+        assetTypesCount: (assetTypesData || []).length,
+        taxRegion,
+        buildingExists: !!buildingData
+      });
+      
       // Filter by tax region if provided
       let filteredAssets = assetsData || [];
       if (taxRegion) {
         const taxRegionNum = parseInt(taxRegion.trim());
         const taxRegionStr = taxRegion.trim();
         
+        console.log(`[AssetsList] Filtering assets by tax region:`, {
+          requestedTaxRegion: taxRegion,
+          taxRegionNum,
+          taxRegionStr,
+          totalAssetsBeforeFilter: (assetsData || []).length
+        });
+        
         filteredAssets = [];
+        let skippedNoTaxRegion = 0;
+        let matched = 0;
         
         for (const asset of assetsData || []) {
-          // Skip assets without main_asset_type
-          if (!asset.main_asset_type) {
-            continue;
-          }
-          
-          // Look up asset type to get tax_region
-          const assetType = (assetTypesData || []).find(at => {
-            return String(at.name || '').trim() === String(asset.main_asset_type || '').trim();
-          });
-          
-          if (!assetType) {
-            continue;
-          }
-          
-          const assetTaxRegion = assetType.tax_region;
+          // Use asset.tax_region directly from the asset
+          const assetTaxRegion = asset.tax_region;
           
           if (assetTaxRegion == null) {
+            skippedNoTaxRegion++;
             continue;
           }
           
-          // Check if the tax_region matches the requested taxRegion
-          const taxRegionMatches = assetTaxRegion === taxRegionNum || String(assetTaxRegion) === taxRegionStr;
+          // Check if the asset's tax_region matches the requested taxRegion
+          const assetTaxRegionNum = typeof assetTaxRegion === 'string' 
+            ? parseInt(assetTaxRegion, 10) 
+            : assetTaxRegion;
+          const taxRegionMatches = assetTaxRegionNum === taxRegionNum || String(assetTaxRegionNum) === taxRegionStr;
           
           if (taxRegionMatches) {
+            matched++;
             filteredAssets.push(asset);
+          } else {
+            // Log why asset was filtered out for debugging
+            console.log(`[AssetsList] Asset filtered out (tax region mismatch):`, {
+              asset_id: asset.asset_id,
+              assetTaxRegion: assetTaxRegionNum,
+              requestedTaxRegion: taxRegion,
+              building_number: asset.building_number
+            });
           }
+        }
+        
+        console.log(`[AssetsList] Filtering results:`, {
+          matched,
+          skippedNoTaxRegion,
+          filteredCount: filteredAssets.length,
+          totalAssetsBeforeFilter: (assetsData || []).length,
+          sampleMatched: filteredAssets[0] ? {
+            asset_id: filteredAssets[0].asset_id,
+            tax_region: filteredAssets[0].tax_region
+          } : null,
+          sampleSkipped: (assetsData || []).find(a => a.tax_region == null) ? {
+            asset_id: (assetsData || []).find(a => a.tax_region == null)?.asset_id,
+            tax_region: (assetsData || []).find(a => a.tax_region == null)?.tax_region
+          } : null
+        });
+        
+        // If filtering resulted in 0 assets but we have assets in the database,
+        // show a warning and include all assets (user can see what's available)
+        if (filteredAssets.length === 0 && (assetsData || []).length > 0) {
+          const assetTaxRegions = (assetsData || []).map(a => a.tax_region).filter(tr => tr != null);
+          console.warn(`[AssetsList] Tax region filter resulted in 0 assets. Showing all assets for building ${buildingNumber}.`, {
+            requestedTaxRegion: taxRegion,
+            totalAssets: (assetsData || []).length,
+            assetTaxRegions: [...new Set(assetTaxRegions)]
+          });
+          // Show all assets when filter results in 0 matches
+          filteredAssets = assetsData || [];
         }
       }
       
+      // Ensure all assets have valid IDs
+      const validFilteredAssets = (filteredAssets || []).filter(asset => {
+        if (!asset) return false;
+        if (asset.id === undefined || asset.id === null) {
+          console.warn('[AssetsList] Asset missing ID:', asset);
+          return false;
+        }
+        return true;
+      });
+      
       // Preserve new assets that haven't been saved yet (failed saves remain visible)
-      const existingNewAssets = assets.filter(a => newAssets.has(String(a.id)));
-      const mergedAssets = [...filteredAssets, ...existingNewAssets];
+      const existingNewAssets = assets.filter(a => {
+        if (!a || a.id === undefined || a.id === null) return false;
+        return newAssets.has(String(a.id));
+      });
+      const mergedAssets = [...validFilteredAssets, ...existingNewAssets];
+      
+      console.log(`[AssetsList] Setting assets:`, {
+        validFilteredCount: validFilteredAssets.length,
+        existingNewAssetsCount: existingNewAssets.length,
+        totalAssets: mergedAssets.length,
+        buildingNumber,
+        taxRegion,
+        sampleAsset: mergedAssets[0] ? {
+          id: mergedAssets[0].id,
+          asset_id: mergedAssets[0].asset_id,
+          main_asset_type: mergedAssets[0].main_asset_type
+        } : null
+      });
+      
       setAssets(mergedAssets);
       
       // Store original assets for cancel functionality
@@ -329,45 +415,76 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setBatchValidationProgress(null);
 
     try {
-      // Pre-fetch all required data once (performance optimization)
-      const [buildingAssets, assetTypesData, buildingData] = await Promise.all([
-        api.assets.getAll(buildingNumber),
+      // Use the assets currently displayed in the grid (not fetching from API)
+      // This ensures we validate exactly what the user sees in the grid
+      // These assets are already filtered by tax region and exclude historical records
+      const gridAssets = assets || [];
+      
+      console.log(`[Batch Validation] Using assets from grid: ${gridAssets.length} assets`, {
+        buildingNumber,
+        taxRegion: taxRegion || 'all',
+        sampleAssetIds: gridAssets.slice(0, 3).map(a => ({ id: a.id, asset_id: a.asset_id, tax_region: a.tax_region }))
+      });
+
+      // IMPORTANT: Filter out historical records - only validate latest measurements (is_latest === true)
+      // Historical records (is_latest === false) should NOT be validated
+      let latestAssets = gridAssets.filter(asset => {
+        // If is_latest is not explicitly set, assume it's latest (for backward compatibility)
+        return asset.is_latest !== false;
+      });
+      console.log(`[Batch Validation] Filtered to latest only: ${latestAssets.length} out of ${gridAssets.length} assets (excluded ${gridAssets.length - latestAssets.length} historical records)`);
+      
+      // Pre-fetch required supporting data (asset types and building data)
+      const [assetTypesData, buildingData] = await Promise.all([
         api.assetTypes.getAll(),
         api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
-      
-      // Filter by tax region if specified
-      let filteredAssets = buildingAssets;
-      if (taxRegion) {
-        filteredAssets = buildingAssets.filter(asset => {
-          const assetType = assetTypesData.find(at => at.name === asset.main_asset_type);
-          return assetType && String(assetType.tax_region) === taxRegion;
-        });
-      }
 
       // If assets are selected, only validate selected ones; otherwise validate all
       let assetsToValidate: Asset[];
       if (selectedAssets.size > 0) {
         // Filter to only selected assets - match by database id (stored in selectedAssets)
         // selectedAssets contains asset.id (database ID), not asset.asset_id
-        assetsToValidate = filteredAssets.filter(asset => {
+        assetsToValidate = latestAssets.filter(asset => {
           const dbId = String(asset.id);
           return selectedAssets.has(dbId);
         });
-        console.log(`[Batch Validation] Selected assets count: ${selectedAssets.size}, Filtered assets count: ${filteredAssets.length}, Assets to validate: ${assetsToValidate.length}`);
+        console.log(`[Batch Validation] Selected assets count: ${selectedAssets.size}, Grid assets count: ${latestAssets.length}, Assets to validate: ${assetsToValidate.length}`);
         console.log(`[Batch Validation] Selected database IDs:`, Array.from(selectedAssets));
         console.log(`[Batch Validation] Assets to validate database IDs:`, assetsToValidate.map(a => String(a.id)));
       } else {
-        // Validate all assets
-        assetsToValidate = filteredAssets;
-        console.log(`[Batch Validation] Validating all ${assetsToValidate.length} assets`);
+        // Validate all assets shown in the grid
+        assetsToValidate = latestAssets;
+        console.log(`[Batch Validation] Validating all ${assetsToValidate.length} assets from grid`);
+      }
+
+      // Apply dirty changes to assets before validating (so we validate the current edited state)
+      assetsToValidate = assetsToValidate.map(asset => {
+        const dirtyChanges = dirtyAssets.get(String(asset.id));
+        if (dirtyChanges) {
+          return { ...asset, ...dirtyChanges };
+        }
+        return asset;
+      });
+
+      // Check if there are any assets to validate
+      if (assetsToValidate.length === 0) {
+        console.warn(`[Batch Validation] No assets to validate. Grid assets: ${gridAssets.length}, Latest assets: ${latestAssets.length}, Selected: ${selectedAssets.size}`);
+        setBatchValidationLoading(false);
+        setShowBatchValidationModal(false);
+        setError('לא נמצאו נכסים לבדיקה. יש לוודא שנכסים מוצגים בטבלה.');
+        setTimeout(() => setError(null), 5000);
+        return;
       }
 
       console.log(`[Batch Validation] Found ${assetsToValidate.length} assets to validate for building ${buildingNumber}`, {
-        taxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+        taxRegion: taxRegion || 'NOT PROVIDED (will use asset.tax_region from each asset)',
         buildingNumber,
         selectedCount: selectedAssets.size,
-        validatingSelected: selectedAssets.size > 0
+        validatingSelected: selectedAssets.size > 0,
+        dirtyAssetsCount: dirtyAssets.size,
+        gridAssetsCount: gridAssets.length,
+        note: 'Each asset will be validated using its own tax_region field, not calculated from asset types'
       });
 
       // Prepare cached data for validation (all data is already in memory)
@@ -377,15 +494,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       };
 
       // Use unified validation handler
-      // IMPORTANT: validationTaxRegion from tab will override building tax_region for all validations
+      // Pass taxRegion if we're in a specific tab (not "all assets")
+      // This ensures validation checks:
+      // 1. Asset's tax_region matches tab tax region (if tab is specific)
+      // 2. Asset's tax_region is one of building's tax regions (if tab is "all")
+      // 3. Asset type's tax_region matches asset's tax_region
+      // Note: We already filtered out historical records (is_latest !== true) above, so validateOnlyLatest is not needed
       const batchResult = await AssetValidationHandler.validateBuildingAssets(
         assetsToValidate,
         buildingNumber,
         {
           mode: 'building',
-          validateOnlyLatest: true,
-          taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - this overrides building tax_region for all validations
-          cachedData: cachedData, // Pass cached data to avoid database queries
+          validateOnlyLatest: false, // Not needed - we already filtered by is_latest === true above
+          taxRegion: taxRegion || undefined, // Pass taxRegion to validate against tab's tax region (if specific tab)
+          cachedData: cachedData, // Pass cached data to avoid database queries (asset is added per-validation)
           validationRules: validationRules, // Pass validation rules to avoid loading from DB
           onProgress: (progress) => {
             setBatchValidationProgress({
@@ -1173,6 +1295,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
+      width: 150,
+      maxWidth: 150,
+      minWidth: 150,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
@@ -1260,7 +1385,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelectAsset(assetId, asset.asset_id, buildingNumber);
+                  onSelectAsset(assetId, asset.asset_id, buildingNumber, validationTaxRegion);
                 }}
                 className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
                 title={t('viewDetails')}
@@ -1537,6 +1662,81 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
+    {
+      field: 'extra_field',
+      headerName: '',
+      width: 120,
+      editable: (params) => newAssets.has(String(params.data?.id)),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      colId: 'basement',
+      field: 'basement',
+      headerName: 'מרתף',
+      editable: false,
+      width: 60,
+      cellRenderer: (params: any) => {
+        if (!params || !params.data) return null;
+        
+        const assetId = params.data?.id;
+        if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
+        
+        if (!newAssets || !dirtyAssets) return null;
+        
+        const assetIdStr = String(assetId);
+        const isNewAsset = newAssets.has(assetIdStr);
+        const dirtyChanges = dirtyAssets.get(assetIdStr);
+        const currentValue = dirtyChanges && 'basement' in dirtyChanges 
+          ? dirtyChanges.basement 
+          : params.data?.basement;
+        const isChecked = currentValue === 'כן';
+        
+        if (isNewAsset) {
+          return (
+            <div className="flex items-center justify-center h-full">
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={(e) => {
+                  const newValue = e.target.checked ? 'כן' : null;
+                  
+                  setDirtyAssets(prev => {
+                    const next = new Map(prev);
+                    const existing = next.get(assetIdStr) || {};
+                    next.set(assetIdStr, { ...existing, basement: newValue });
+                    return next;
+                  });
+                  
+                  params.node.setDataValue('basement', newValue);
+                  
+                  setAssets(prev => prev.map(a => 
+                    String(a.id) === assetIdStr ? { ...a, basement: newValue } : a
+                  ));
+                  
+                  if (gridRef.current) {
+                    gridRef.current.api.refreshCells({ 
+                      rowNodes: [params.node], 
+                      columns: ['basement'],
+                      force: true 
+                    });
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              />
+            </div>
+          );
+        }
+        
+        return (
+          <div className="flex items-center justify-center h-full">
+            {currentValue === 'כן' ? '✓' : ''}
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center' },
+      headerClass: 'text-center'
+    },
   ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
   if (loading) {
     return (
@@ -1565,23 +1765,48 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
+      <div className="w-full py-3" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
         <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <BuildingIcon className="w-7 h-7 text-white" />
-              <h1 className="text-lg sm:text-xl font-bold text-white">
-                {t('buildingNumber')} {building?.building_number}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold text-white">
+                  {t('buildingNumber')} {building?.building_number}
+                </h1>
+                <p className="text-sm text-white/90 font-semibold bg-white/20 px-2 py-1 rounded">
+                  סך הכל: {assets.length} נכסים
+                </p>
+                {buildingAddress && (
+                  <p className="text-sm text-white/90 font-medium">
+                    - {buildingAddress}
+                  </p>
+                )}
+              </div>
               {taxRegion ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
                   אזור מס: {taxRegion}
                 </p>
-              ) : building?.tax_region ? (
-                <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
-                  אזורי מס: {building.tax_region}
-                </p>
-              ) : null}
+              ) : (() => {
+                // Get unique tax regions from assets
+                const assetTaxRegions = new Set<number>();
+                assets.forEach(asset => {
+                  if (asset.tax_region != null) {
+                    const taxRegionNum = typeof asset.tax_region === 'string' 
+                      ? parseInt(asset.tax_region, 10) 
+                      : asset.tax_region;
+                    if (!isNaN(taxRegionNum)) {
+                      assetTaxRegions.add(taxRegionNum);
+                    }
+                  }
+                });
+                const sortedRegions = Array.from(assetTaxRegions).sort((a, b) => a - b);
+                return sortedRegions.length > 0 ? (
+                  <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
+                    אזורי מס: {sortedRegions.join(', ')}
+                  </p>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>
@@ -1695,7 +1920,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             );
           })()}
         </div>
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={assets}
@@ -1720,16 +1945,21 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
-              headerClass: 'ag-right-aligned-header'
+              headerClass: 'ag-right-aligned-header',
+              minWidth: 100
             }}
             gridOptions={{
-              autoSizeStrategy: {
-                type: 'fitCellContents',
-              },
+              suppressColumnVirtualisation: true,
+              alwaysShowHorizontalScroll: true,
+              suppressHorizontalScroll: false,
+              suppressSizeToFit: true,
             }}
+            domLayout="normal"
             getRowId={(params) => String(params.data.id)}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
+              // Ensure all columns are visible and grid calculates proper width
+              params.api.refreshCells({ force: true });
               // Scroll to left on grid ready
               setTimeout(() => {
                 const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');

@@ -306,6 +306,22 @@ export function AssetTypeFieldsManager() {
       },
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
   ], [t, dirtyFields]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
@@ -314,6 +330,7 @@ export function AssetTypeFieldsManager() {
     autoHeaderHeight: true,
     wrapText: true,
     autoHeight: false,
+    minWidth: 100,
     cellStyle: { textAlign: 'right' },
     headerClass: 'ag-right-aligned-header'
   }), []);
@@ -455,17 +472,17 @@ export function AssetTypeFieldsManager() {
           </div>
         )}
 
-        <div className="ag-theme-alpine rounded-xl overflow-hidden" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
           <AgGridReact
             ref={gridRef}
             rowData={fields}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             gridOptions={{
-              autoSizeStrategy: {
-                type: 'fitCellContents',
-              },
+              suppressColumnVirtualisation: true,
+              alwaysShowHorizontalScroll: true,
             }}
+            suppressHorizontalScroll={false}
             onGridReady={async (params) => {
               // Ensure actions column is always pinned and in correct position (first column near sidebar)
               setTimeout(() => {

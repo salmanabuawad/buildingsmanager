@@ -17,6 +17,7 @@ interface ImportAssetRow {
   measurement_date: string;
   main_asset_type: string;
   asset_size: number;
+  tax_region?: number;
   sub_asset_type_1: string;
   sub_asset_size_1: number;
   sub_asset_type_2: string;
@@ -49,6 +50,7 @@ export function AssetsFileImport() {
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const [saveResult, setSaveResult] = useState<{ successful: number; failed: number; errors: string[] } | null>(null);
   const [showMeasurementDateModal, setShowMeasurementDateModal] = useState(false);
+  const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
   const [measurementDate, setMeasurementDate] = useState('');
   const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
   const [validationCompleted, setValidationCompleted] = useState(false);
@@ -133,7 +135,57 @@ export function AssetsFileImport() {
         throw new Error('קובץ File ריק');
       }
 
-      const headers = lines[0].map(h => h.trim().toLowerCase());
+      // Process headers - normalize and create mapping
+      const originalHeaders = lines[0].map(h => (h || '').trim());
+      const headers = originalHeaders.map(h => (h || '').trim().toLowerCase());
+      
+      // Create header mapping - map header index to field name
+      const headerMap: Record<string, number> = {};
+      
+      // Define exact header names from template (normalized)
+      const exactHeaders: Record<string, string[]> = {
+        'building_number': ['מזהה מבנה', 'building_number', 'buildingnumber'],
+        'payer_id': ['מזהה משלם', 'payer_id', 'payerid'],
+        'asset_id': ['מזהה נכס', 'asset_id', 'assetid'],
+        'measurement_date': ['measurement_date', 'measurementdate'],
+        'main_asset_type': ['סוג נכס ראשי', 'main_asset_type', 'mainassettype'],
+        'asset_size': ['גודל נכס ראשי', 'asset_size', 'assetsize', 'main_asset_size', 'mainassetsize'],
+        'tax_region': ['אזור מס', 'tax_region', 'taxregion'],
+        'sub_asset_type_1': ['סוג נכס משנה 1'],
+        'sub_asset_size_1': ['גודל נכס משנה 1'],
+        'sub_asset_type_2': ['סוג נכס משנה 2'],
+        'sub_asset_size_2': ['גודל נכס משנה 2'],
+        'sub_asset_type_3': ['סוג נכס משנה 3'],
+        'sub_asset_size_3': ['גודל נכס משנה 3'],
+        'sub_asset_type_4': ['סוג נכס משנה 4'],
+        'sub_asset_size_4': ['גודל נכס משנה 4'],
+        'sub_asset_type_5': ['סוג נכס משנה 5'],
+        'sub_asset_size_5': ['גודל נכס משנה 5'],
+        'sub_asset_type_6': ['סוג נכס משנה 6'],
+        'sub_asset_size_6': ['גודל נכס משנה 6'],
+        'penthouse': ['דירת גג', 'penthouse']
+      };
+
+      headers.forEach((header, index) => {
+        if (!header) return;
+        const headerNormalized = header.replace(/\s+/g, ' ').trim();
+        
+        // Check for exact match against known headers
+        for (const [fieldName, validHeaders] of Object.entries(exactHeaders)) {
+          if (validHeaders.some(validHeader => 
+            headerNormalized.toLowerCase() === validHeader.toLowerCase()
+          )) {
+            headerMap[fieldName] = index;
+            break;
+          }
+        }
+      });
+
+      // Check if we have valid headers (at least some key headers found)
+      const hasValidHeaders = headerMap['building_number'] !== undefined || 
+                              headerMap['asset_id'] !== undefined ||
+                              headerMap['payer_id'] !== undefined;
+
       const assets: ImportAssetRow[] = [];
 
       // Get current date for default measurement_date
@@ -167,86 +219,110 @@ export function AssetsFileImport() {
           sub_asset_size_5: 0,
           sub_asset_type_6: '',
           sub_asset_size_6: 0,
+          tax_region: undefined,
         };
 
-        const expectedColumnCount = 18;
-        const hasExpectedColumns = values.length >= 5;
-        const headersAreValid = headers.length > 0 && headers.some(h => h && (h.includes('building') || h.includes('מבנה') || h.includes('מזהה')));
-        
-        if (!headersAreValid || (hasExpectedColumns && values.length >= expectedColumnCount && !isNaN(parseInt(values[0])))) {
-          // Fixed position mapping
-          asset.building_number = values[0] ? parseInt(values[0]) : null;
-          asset.payer_id = values[1] || '';
-          asset.asset_id = values[2] || '';
-          asset.main_asset_type = values[3] || '';
-          asset.asset_size = values[4] ? parseFloat(values[4]) : 0;
-          asset.sub_asset_type_1 = values[5] || '';
-          asset.sub_asset_size_1 = values[6] ? parseFloat(values[6]) : 0;
-          asset.sub_asset_type_2 = values[7] || '';
-          asset.sub_asset_size_2 = values[8] ? parseFloat(values[8]) : 0;
-          asset.sub_asset_type_3 = values[9] || '';
-          asset.sub_asset_size_3 = values[10] ? parseFloat(values[10]) : 0;
-          asset.sub_asset_type_4 = values[11] || '';
-          asset.sub_asset_size_4 = values[12] ? parseFloat(values[12]) : 0;
-          asset.sub_asset_type_5 = values[13] || '';
-          asset.sub_asset_size_5 = values[14] ? parseFloat(values[14]) : 0;
-          asset.sub_asset_type_6 = values[15] || '';
-          asset.sub_asset_size_6 = values[16] ? parseFloat(values[16]) : 0;
-          if (values.length > 17) {
-            const penthouseValue = (values[17] || '').trim();
+        // Use header-based mapping if we have valid headers, otherwise use fixed position
+        if (hasValidHeaders && Object.keys(headerMap).length > 0) {
+          // Header-based mapping
+          if (headerMap['building_number'] !== undefined) {
+            const value = values[headerMap['building_number']] || '';
+            asset.building_number = value ? parseInt(value) : null;
+          }
+          if (headerMap['payer_id'] !== undefined) {
+            asset.payer_id = values[headerMap['payer_id']] || '';
+          }
+          if (headerMap['asset_id'] !== undefined) {
+            asset.asset_id = values[headerMap['asset_id']] || '';
+          }
+          if (headerMap['measurement_date'] !== undefined) {
+            asset.measurement_date = values[headerMap['measurement_date']] || defaultMeasurementDate;
+          }
+          if (headerMap['main_asset_type'] !== undefined) {
+            asset.main_asset_type = values[headerMap['main_asset_type']] || '';
+          }
+          if (headerMap['asset_size'] !== undefined) {
+            const value = values[headerMap['asset_size']] || '';
+            asset.asset_size = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['tax_region'] !== undefined) {
+            const value = values[headerMap['tax_region']] || '';
+            asset.tax_region = value ? (isNaN(parseInt(value)) ? undefined : parseInt(value)) : undefined;
+          }
+          if (headerMap['sub_asset_type_1'] !== undefined) {
+            asset.sub_asset_type_1 = values[headerMap['sub_asset_type_1']] || '';
+          }
+          if (headerMap['sub_asset_size_1'] !== undefined) {
+            const value = values[headerMap['sub_asset_size_1']] || '';
+            asset.sub_asset_size_1 = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['sub_asset_type_2'] !== undefined) {
+            asset.sub_asset_type_2 = values[headerMap['sub_asset_type_2']] || '';
+          }
+          if (headerMap['sub_asset_size_2'] !== undefined) {
+            const value = values[headerMap['sub_asset_size_2']] || '';
+            asset.sub_asset_size_2 = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['sub_asset_type_3'] !== undefined) {
+            asset.sub_asset_type_3 = values[headerMap['sub_asset_type_3']] || '';
+          }
+          if (headerMap['sub_asset_size_3'] !== undefined) {
+            const value = values[headerMap['sub_asset_size_3']] || '';
+            asset.sub_asset_size_3 = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['sub_asset_type_4'] !== undefined) {
+            asset.sub_asset_type_4 = values[headerMap['sub_asset_type_4']] || '';
+          }
+          if (headerMap['sub_asset_size_4'] !== undefined) {
+            const value = values[headerMap['sub_asset_size_4']] || '';
+            asset.sub_asset_size_4 = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['sub_asset_type_5'] !== undefined) {
+            asset.sub_asset_type_5 = values[headerMap['sub_asset_type_5']] || '';
+          }
+          if (headerMap['sub_asset_size_5'] !== undefined) {
+            const value = values[headerMap['sub_asset_size_5']] || '';
+            asset.sub_asset_size_5 = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['sub_asset_type_6'] !== undefined) {
+            asset.sub_asset_type_6 = values[headerMap['sub_asset_type_6']] || '';
+          }
+          if (headerMap['sub_asset_size_6'] !== undefined) {
+            const value = values[headerMap['sub_asset_size_6']] || '';
+            asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
+          }
+          if (headerMap['penthouse'] !== undefined) {
+            const penthouseValue = (values[headerMap['penthouse']] || '').trim();
             if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
               asset.penthouse = 'כן';
             }
           }
         } else {
-          // Header-based mapping
-          headers.forEach((header, index) => {
-            const value = values[index] || '';
-            const headerLower = header.toLowerCase();
-            
-            if (headerLower.includes('מבנה') || headerLower.includes('building') || headerLower === 'building_number') {
-              asset.building_number = value ? parseInt(value) : null;
-            } else if (headerLower.includes('משלם') || headerLower.includes('payer') || headerLower === 'payer_id') {
-              asset.payer_id = value;
-            } else if (headerLower.includes('נכס') && !headerLower.includes('משנה') && !headerLower.includes('סוג') && (headerLower.includes('id') || headerLower.includes('זיהוי'))) {
-              asset.asset_id = value;
-            } else if (headerLower.includes('תאריך') || headerLower.includes('date') || headerLower === 'measurement_date') {
-              asset.measurement_date = value || defaultMeasurementDate;
-            } else if ((headerLower.includes('סוג') || headerLower.includes('type')) && (headerLower.includes('ראשי') || headerLower.includes('main'))) {
-              asset.main_asset_type = value;
-            } else if ((headerLower.includes('גודל') || headerLower.includes('size')) && (headerLower.includes('ראשי') || headerLower.includes('main') || headerLower === 'asset_size')) {
-              asset.asset_size = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('משנה 1') || headerLower.includes('sub') && headerLower.includes('1') && headerLower.includes('type')) {
-              asset.sub_asset_type_1 = value;
-            } else if (headerLower.includes('משנה 1') || headerLower.includes('sub') && headerLower.includes('1') && headerLower.includes('size')) {
-              asset.sub_asset_size_1 = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('משנה 2') || headerLower.includes('sub') && headerLower.includes('2') && headerLower.includes('type')) {
-              asset.sub_asset_type_2 = value;
-            } else if (headerLower.includes('משנה 2') || headerLower.includes('sub') && headerLower.includes('2') && headerLower.includes('size')) {
-              asset.sub_asset_size_2 = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('משנה 3') || headerLower.includes('sub') && headerLower.includes('3') && headerLower.includes('type')) {
-              asset.sub_asset_type_3 = value;
-            } else if (headerLower.includes('משנה 3') || headerLower.includes('sub') && headerLower.includes('3') && headerLower.includes('size')) {
-              asset.sub_asset_size_3 = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('משנה 4') || headerLower.includes('sub') && headerLower.includes('4') && headerLower.includes('type')) {
-              asset.sub_asset_type_4 = value;
-            } else if (headerLower.includes('משנה 4') || headerLower.includes('sub') && headerLower.includes('4') && headerLower.includes('size')) {
-              asset.sub_asset_size_4 = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('משנה 5') || headerLower.includes('sub') && headerLower.includes('5') && headerLower.includes('type')) {
-              asset.sub_asset_type_5 = value;
-            } else if (headerLower.includes('משנה 5') || headerLower.includes('sub') && headerLower.includes('5') && headerLower.includes('size')) {
-              asset.sub_asset_size_5 = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('type')) {
-              asset.sub_asset_type_6 = value;
-            } else if (headerLower.includes('משנה 6') || headerLower.includes('sub') && headerLower.includes('6') && headerLower.includes('size')) {
-              asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
-            } else if (headerLower.includes('גג') || headerLower.includes('penthouse') || headerLower === 'penthouse') {
-              const penthouseValue = (value || '').trim();
-              if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
-                asset.penthouse = 'כן';
-              }
+          // Fixed position mapping (fallback)
+          asset.building_number = values[0] ? parseInt(values[0]) : null;
+          asset.payer_id = values[1] || '';
+          asset.asset_id = values[2] || '';
+          asset.main_asset_type = values[3] || '';
+          asset.asset_size = values[4] ? parseFloat(values[4]) : 0;
+          asset.tax_region = values[5] ? (isNaN(parseInt(values[5])) ? undefined : parseInt(values[5])) : undefined;
+          asset.sub_asset_type_1 = values[6] || '';
+          asset.sub_asset_size_1 = values[7] ? parseFloat(values[7]) : 0;
+          asset.sub_asset_type_2 = values[8] || '';
+          asset.sub_asset_size_2 = values[9] ? parseFloat(values[9]) : 0;
+          asset.sub_asset_type_3 = values[10] || '';
+          asset.sub_asset_size_3 = values[11] ? parseFloat(values[11]) : 0;
+          asset.sub_asset_type_4 = values[12] || '';
+          asset.sub_asset_size_4 = values[13] ? parseFloat(values[13]) : 0;
+          asset.sub_asset_type_5 = values[14] || '';
+          asset.sub_asset_size_5 = values[15] ? parseFloat(values[15]) : 0;
+          asset.sub_asset_type_6 = values[16] || '';
+          asset.sub_asset_size_6 = values[17] ? parseFloat(values[17]) : 0;
+          if (values.length > 18) {
+            const penthouseValue = (values[18] || '').trim();
+            if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
+              asset.penthouse = 'כן';
             }
-          });
+          }
         }
 
         assets.push(asset);
@@ -329,10 +405,35 @@ export function AssetsFileImport() {
       }
 
       // Prepare cached data
-      const cachedData = {
-        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
-        building: null // Will be determined per asset
+      const cachedDataBase = {
+        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll()
       };
+
+      // Pre-fetch all unique buildings for validation
+      const buildingNumbers = new Set<number>();
+      importedAssets.forEach(asset => {
+        if (asset.building_number) {
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          if (!isNaN(buildingNum)) {
+            buildingNumbers.add(buildingNum);
+          }
+        }
+      });
+
+      // Fetch all buildings in parallel
+      const buildingsMap = new Map<number, any>();
+      await Promise.all(
+        Array.from(buildingNumbers).map(async (buildingNum) => {
+          try {
+            const building = await api.buildings.getOne(buildingNum);
+            buildingsMap.set(buildingNum, building);
+          } catch (error) {
+            console.warn(`Failed to fetch building ${buildingNum}:`, error);
+          }
+        })
+      );
 
       const results: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
 
@@ -345,6 +446,21 @@ export function AssetsFileImport() {
         });
 
         try {
+          // Get building for this asset
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          const building = buildingNum && !isNaN(buildingNum) 
+            ? buildingsMap.get(buildingNum) 
+            : null;
+
+          // Include asset and building in cachedData for validation
+          const cachedData = {
+            ...cachedDataBase,
+            asset: asset,
+            building: building
+          };
+
           const result = await AssetValidationHandler.validateSingleAsset(asset, {
             cachedData
           });
@@ -477,6 +593,7 @@ export function AssetsFileImport() {
           measurement_date: saveAsNew && newMeasurementDate ? newMeasurementDate : asset.measurement_date,
           main_asset_type: asset.main_asset_type || null,
           asset_size: asset.asset_size || 0,
+          tax_region: asset.tax_region || null,
           sub_asset_type_1: asset.sub_asset_type_1 || null,
           sub_asset_size_1: asset.sub_asset_size_1 || 0,
           sub_asset_type_2: asset.sub_asset_type_2 || null,
@@ -955,7 +1072,25 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'tax_region',
+      headerName: 'אזור מס',
+      width: 80,
+      editable: true,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        if (params.value == null || params.value === '') return '';
+        return String(params.value);
+      },
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
       },
       cellStyle: getCellStyle
     },
@@ -980,7 +1115,8 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: getCellStyle
     },
@@ -1005,7 +1141,8 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: getCellStyle
     },
@@ -1030,7 +1167,8 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: getCellStyle
     },
@@ -1055,7 +1193,8 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: getCellStyle
     },
@@ -1080,7 +1219,8 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
       cellStyle: getCellStyle
     },
@@ -1105,8 +1245,23 @@ export function AssetsFileImport() {
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        return isNaN(num) ? '' : num.toFixed(2);
+        if (isNaN(num) || num === 0) return '';
+        return num.toFixed(2);
       },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: true,
       cellStyle: getCellStyle
     }
   ], [t, assetTypes, handleDeleteRow]);
@@ -1124,9 +1279,8 @@ export function AssetsFileImport() {
   };
 
   const gridOptions = {
-    autoSizeStrategy: {
-      type: 'fitCellContents' as const,
-    },
+    suppressColumnVirtualisation: true,
+    alwaysShowHorizontalScroll: true,
     getRowStyle: getRowStyle,
   };
 
@@ -1137,6 +1291,7 @@ export function AssetsFileImport() {
       'מזהה נכס',
       'סוג נכס ראשי',
       'גודל נכס ראשי',
+      'אזור מס',
       'סוג נכס משנה 1',
       'גודל נכס משנה 1',
       'סוג נכס משנה 2',
@@ -1363,7 +1518,7 @@ export function AssetsFileImport() {
               </div>
             </div>
 
-            <div className="ag-theme-alpine" style={{ height: '600px', width: '100%' }}>
+            <div className="ag-theme-alpine" style={{ height: '600px', width: '100%', overflowX: 'auto' }}>
               <AgGridReact
                 ref={gridRef}
                 rowData={importedAssets}
@@ -1373,8 +1528,10 @@ export function AssetsFileImport() {
                 defaultColDef={{
                   resizable: true,
                   sortable: true,
-                  filter: true
+                  filter: true,
+                  minWidth: 100
                 }}
+                suppressHorizontalScroll={false}
               />
             </div>
           </div>
@@ -1427,15 +1584,28 @@ export function AssetsFileImport() {
 
       {/* Measurement Date Modal */}
       {showMeasurementDateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" dir="rtl">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+        <div 
+          className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
+            measurementDateModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          dir="rtl"
+        >
+          <div 
+            className={`bg-white rounded-xl shadow-2xl max-w-md w-full transition-all duration-300 ${
+              measurementDateModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+          >
             <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between rounded-t-xl">
               <h2 className="text-xl font-bold text-white">הזן תאריך מדידה חדש</h2>
               <button
                 type="button"
                 onClick={() => {
-                  setShowMeasurementDateModal(false);
-                  setPendingSaveAsNew(false);
+                  setMeasurementDateModalClosing(true);
+                  setTimeout(() => {
+                    setShowMeasurementDateModal(false);
+                    setPendingSaveAsNew(false);
+                    setMeasurementDateModalClosing(false);
+                  }, 300);
                 }}
                 className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
               >
@@ -1470,8 +1640,12 @@ export function AssetsFileImport() {
               <button
                 type="button"
                 onClick={() => {
-                  setShowMeasurementDateModal(false);
-                  setPendingSaveAsNew(false);
+                  setMeasurementDateModalClosing(true);
+                  setTimeout(() => {
+                    setShowMeasurementDateModal(false);
+                    setPendingSaveAsNew(false);
+                    setMeasurementDateModalClosing(false);
+                  }, 300);
                 }}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors font-medium"
               >

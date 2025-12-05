@@ -1,45 +1,71 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, AssetType, api } from '../lib/api';
+import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
 import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText } from 'lucide-react';
 import { Toast } from './Toast';
-import { PDFViewer } from './PDFViewer';
+import { FileViewer } from './FileViewer';
+import { compressFile } from '../lib/fileCompression';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { supabase } from '../lib/supabase';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
+import { RowEditModal } from './RowEditModal';
+import { usePreferences } from '../contexts/PreferencesContext';
+import { useValidationRules } from '../contexts/ValidationContext';
 
 interface AssetDetailsProps {
   assetId?: number;
   buildingNumber?: number;
   taxRegion?: string;
   onDataUpdate?: () => void;
+  onAssetCreated?: (assetDbId: number, assetIdentifier: string) => void;
 }
 
-export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate }: AssetDetailsProps) {
+export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }: AssetDetailsProps) {
   const { t } = useTranslation();
+  const { preferences } = usePreferences();
+  const { validationRules } = useValidationRules(); // Get validation rules from context
+  const editMode = preferences.editMode;
   const [asset, setAsset] = useState<Asset | null>(null);
   const [allMeasurements, setAllMeasurements] = useState<Asset[]>([]);
   const [originalMeasurements, setOriginalMeasurements] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [buildingAddress, setBuildingAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<number, Partial<Asset>>>(new Map());
   const [validationErrors, setValidationErrors] = useState<Map<number, Map<string, string>>>(new Map());
+  const validationErrorsRef = useRef<Map<number, Map<string, string>>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
   const [validationResults, setValidationResults] = useState<SingleAssetValidationResult | null>(null);
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
+  const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
+  const [fileViewerClosing, setFileViewerClosing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
+  const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
+  const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
+  const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
+  const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
+  // Save tax region in a variable for validation handler
+  // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
+  const validationTaxRegion = useMemo(() => {
+    const result = taxRegion && taxRegion.trim() !== '' ? taxRegion.trim() : undefined;
+    // Return taxRegion if it exists and is not empty, otherwise undefined
+    return result;
+  }, [taxRegion, buildingNumber]);
 
   // Find the latest measurement (from assets table, is_latest=true)
   const latestMeasurement = useMemo(() => {
@@ -59,11 +85,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
-  const assetTaxRegion = useMemo(() => {
-    if (!asset?.main_asset_type || assetTypes.length === 0) return null;
-    const assetType = assetTypes.find(at => String(at.name) === String(asset.main_asset_type));
-    return assetType?.tax_region || null;
-  }, [asset?.main_asset_type, assetTypes]);
+  // Always use asset.tax_region as the source of truth
+  // This ensures consistency between what's shown and what's stored in the asset record
+  // The tab's tax region should match the asset's tax_region (assets are filtered by tax_region)
+  const displayTaxRegion = useMemo(() => {
+    // Use asset.tax_region directly from the asset (this is the source of truth)
+    if (asset?.tax_region != null) {
+      return String(asset.tax_region);
+    }
+    // Fallback to tab taxRegion if asset doesn't have tax_region set yet
+    if (taxRegion && taxRegion.trim() !== '') {
+      return taxRegion.trim();
+    }
+    return null;
+  }, [asset?.tax_region, taxRegion]);
 
   const getRowStyle = useCallback((params: any) => {
     const assetId = params.data?.id;
@@ -74,8 +109,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
 
     const asset = params.data as Asset;
     const numericRegex = /^[0-9]+$/;
-    const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-    const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
+    // Only check for invalid format if the field has a value (empty strings are allowed)
+    const hasInvalidPayerId = asset.payer_id && asset.payer_id !== '' && !numericRegex.test(asset.payer_id);
+    const hasInvalidAssetId = asset.asset_id && asset.asset_id !== '' && !numericRegex.test(asset.asset_id);
     const isLatest = asset.is_latest === true;
 
     const baseStyle: any = {
@@ -115,12 +151,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
         return;
       }
       
-      let newValue = event.newValue;
+      const newValue = event.newValue;
 
-      // Update the data directly in the node (AG-Grid already does this, but ensure it's set)
-      data[field] = newValue;
+      // Create updated asset with new value
+      const updatedAsset = { ...data, [field]: newValue };
 
-      // Track the change in dirtyAssets (for saving later)
+      // Track the change in dirtyAssets immediately (no debounce)
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
         const existing = newMap.get(assetId) || {};
@@ -128,205 +164,712 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
         return newMap;
       });
 
-      // Clear validation errors for this asset (will be re-validated)
+      // Clear existing validation timer for this asset
+      const existingTimer = validationTimerRef.current.get(String(assetId));
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      // Quick synchronous validation for format checks only
+      if (field === 'measurement_date' && updatedAsset.measurement_date) {
+        const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
+        if (!dateValidation.valid) {
+          setError(dateValidation.error || 'Invalid date format');
+          setTimeout(() => setError(null), 3000);
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const errorMap = new Map<string, string>();
+            errorMap.set('measurement_date', dateValidation.error || 'Invalid date format');
+            newMap.set(assetId, errorMap);
+            return newMap;
+          });
+          event.api.refreshCells({ rowNodes: [node], force: true });
+          return;
+        }
+      }
+
+      // Debounce expensive database validations (500ms delay)
+      // This prevents validation from running on every keystroke
+      const timer = setTimeout(async () => {
+        try {
+          // Build validation list - only validate fields that are relevant to the changed field
+          const validations: Promise<any>[] = [];
+
+          // Prepare cached data for validation (all data is already in memory)
+          const cachedData = {
+            assetTypes: assetTypes || [],
+            building: building
+          };
+
+          // Debug logging for tax region validation
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AssetDetails.onCellValueChanged] Validation parameters:', {
+              field,
+              assetId: updatedAsset.asset_id,
+              buildingNumber: updatedAsset.building_number,
+              validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+              buildingTaxRegion: building?.tax_region || 'NOT SET'
+            });
+          }
+
+          // Always validate the changed field
+          if (field === 'main_asset_type') {
+            validations.push(
+              assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type', validationTaxRegion),
+              assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, validationTaxRegion, cachedData)
+            );
+          } else if (field.startsWith('sub_asset_type_')) {
+            const subIndex = field.replace('sub_asset_type_', '');
+            const sizeField = `sub_asset_size_${subIndex}` as keyof Asset;
+            validations.push(
+              assetValidators.validateAssetType(updatedAsset[field as keyof Asset] as string, field, validationTaxRegion, validationRules, cachedData),
+              assetValidators.validateSubAssetTypeComplete(
+                updatedAsset.building_number,
+                updatedAsset[field as keyof Asset] as string,
+                updatedAsset[sizeField] as number,
+                validationTaxRegion,
+                cachedData,
+                updatedAsset // Pass main asset data for penthouse and building-level validations
+              )
+            );
+          } else if (field.startsWith('sub_asset_size_')) {
+            const subIndex = field.replace('sub_asset_size_', '');
+            const typeField = `sub_asset_type_${subIndex}` as keyof Asset;
+            if (updatedAsset[typeField]) {
+              validations.push(
+                assetValidators.validateSubAssetTypeComplete(
+                  updatedAsset.building_number,
+                  updatedAsset[typeField] as string,
+                  updatedAsset[field as keyof Asset] as number,
+                  validationTaxRegion,
+                  cachedData,
+                  updatedAsset // Pass main asset data for penthouse and building-level validations
+                )
+              );
+            }
+          }
+
+          // If main_asset_type or asset_size changed, validate sub-asset relationships
+          if (field === 'main_asset_type' || field === 'asset_size') {
+            const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
+            if (shouldValidateSubAssets) {
+              validations.push(
+                assetValidators.validateSubAssetsFor199Or299(
+                  updatedAsset.building_number,
+                  updatedAsset.main_asset_type,
+                  updatedAsset.asset_size,
+                  [
+                    updatedAsset.sub_asset_type_1,
+                    updatedAsset.sub_asset_type_2,
+                    updatedAsset.sub_asset_type_3,
+                    updatedAsset.sub_asset_type_4,
+                    updatedAsset.sub_asset_type_5,
+                    updatedAsset.sub_asset_type_6
+                  ],
+                  [
+                    updatedAsset.sub_asset_size_1,
+                    updatedAsset.sub_asset_size_2,
+                    updatedAsset.sub_asset_size_3,
+                    updatedAsset.sub_asset_size_4,
+                    updatedAsset.sub_asset_size_5,
+                    updatedAsset.sub_asset_size_6
+                  ],
+                  validationTaxRegion,
+                  cachedData
+                ),
+                assetValidators.validateSubAssetSizeMatchesMain(
+                  updatedAsset.asset_size,
+                  [
+                    updatedAsset.sub_asset_type_1,
+                    updatedAsset.sub_asset_type_2,
+                    updatedAsset.sub_asset_type_3,
+                    updatedAsset.sub_asset_type_4,
+                    updatedAsset.sub_asset_type_5,
+                    updatedAsset.sub_asset_type_6
+                  ],
+                  [
+                    updatedAsset.sub_asset_size_1,
+                    updatedAsset.sub_asset_size_2,
+                    updatedAsset.sub_asset_size_3,
+                    updatedAsset.sub_asset_size_4,
+                    updatedAsset.sub_asset_size_5,
+                    updatedAsset.sub_asset_size_6
+                  ]
+                )
+              );
+            }
+          }
+
+          // Only run validations if there are any
+          if (validations.length > 0) {
+            const validation = await validateAll(validations);
+
+            if (!validation.valid) {
+              const detailedError = validation.error || 'Unknown validation error';
+              setValidationErrors(prev => {
+                const newMap = new Map(prev);
+                const errorMap = new Map<string, string>();
+                errorMap.set(field, detailedError);
+                newMap.set(assetId, errorMap);
+                return newMap;
+              });
+              // Refresh the grid cells to show validation styling
+              event.api.refreshCells({ rowNodes: [node], force: true });
+            } else {
+              // Clear validation error if validation passes
+              setValidationErrors(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(assetId);
+                return newMap;
+              });
+              // Refresh the grid cells to clear validation styling
+              event.api.refreshCells({ rowNodes: [node], force: true });
+            }
+          } else {
+            // No validations needed for this field, clear any existing errors
+            setValidationErrors(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(assetId);
+              return newMap;
+            });
+          }
+        } catch (error) {
+          console.error('Error in debounced validation:', error);
+        } finally {
+          // Clean up timer reference
+          validationTimerRef.current.delete(String(assetId));
+        }
+      }, 500); // 500ms debounce delay
+
+      validationTimerRef.current.set(String(assetId), timer);
+
+    } catch (error) {
+      console.error('Error tracking change:', error);
+      setError('Failed to track change');
+      setTimeout(() => setError(null), 3000);
+    }
+  }, [validationTaxRegion, assetTypes, building, validationRules]);
+
+  // Helper function to validate that date is not greater than current date
+  const validateDateNotGreaterThanToday = (dateStr: string): { valid: boolean; error?: string } => {
+    if (!dateStr || dateStr === '01/01/1900' || dateStr.trim() === '') {
+      return { valid: true };
+    }
+
+    const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const match = dateStr.trim().match(dateFormatPattern);
+    
+    if (!match) {
+      return { valid: true }; // Format validation is handled elsewhere
+    }
+
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+
+    // Create date object
+    const inputDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Set to end of today
+
+    // Check if input date is greater than today
+    if (inputDate > today) {
+      return {
+        valid: false,
+        error: 'תאריך מדידה לא יכול להיות גדול מתאריך נוכחי'
+      };
+    }
+
+    return { valid: true };
+  };
+
+  const hasChanges = dirtyAssets.size > 0;
+
+  // Handler for double-click on row
+  const handleRowDoubleClick = useCallback((event: any) => {
+    // Only handle double-click if edit mode is 'modal'
+    if (editMode !== 'modal') return;
+    
+    const rowData = event.data as Asset;
+    // Only allow editing for latest records
+    if (rowData && rowData.is_latest === true) {
+      setSelectedRowForEdit(rowData);
+      setIsRowEditModalOpen(true);
+    }
+  }, [editMode]);
+
+  // Handler for saving changes from modal
+  const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
+    if (!selectedRowForEdit) return;
+
+    const assetId = selectedRowForEdit.id;
+    
+    try {
+      // Update allMeasurements state with changes
+      setAllMeasurements(prev => {
+        return prev.map(asset => {
+          if (asset.id === assetId) {
+            const updatedAsset = { ...asset, ...changes };
+            return updatedAsset;
+          }
+          return asset;
+        });
+      });
+
+      // Track changes in dirtyAssets (for saving later)
+      setDirtyAssets(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(assetId) || {};
+        newMap.set(assetId, { ...existing, ...changes });
+        return newMap;
+      });
+
+      // Clear validation errors for this asset (will be re-validated if needed)
       setValidationErrors(prev => {
         const newMap = new Map(prev);
         newMap.delete(assetId);
         return newMap;
       });
 
-      // Use the current node data (which AG-Grid has already updated)
-      const updatedAsset = data;
-
-      // If measurement_date field is being changed, validate format immediately
-      if (field === 'measurement_date') {
-        const dateValidation = inputValidators.validateDateFormat(newValue);
-        if (!dateValidation.valid) {
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            const errorMap = new Map<string, string>();
-            errorMap.set(field, dateValidation.error || 'תאריך חייב להיות בפורמט DD/MM/YYYY');
-            newMap.set(assetId, errorMap);
-            return newMap;
-          });
-          // Refresh only the specific cell that has the error
-          event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
-          return;
-        }
+      // Revalidate the asset after changes from modal
+      const updatedAsset = { ...selectedRowForEdit, ...changes };
+      
+      // Also update asset state if it's the latest measurement
+      if (selectedRowForEdit.is_latest) {
+        setAsset(prev => {
+          if (prev && prev.id === assetId) {
+            return { ...prev, ...changes };
+          }
+          return prev;
+        });
+      }
+      
+      // Debug logging for tax region validation
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetDetails.handleSaveFromModal] Validation parameters:', {
+          assetId: updatedAsset.asset_id,
+          buildingNumber: updatedAsset.building_number,
+          validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+          buildingTaxRegion: building?.tax_region || 'NOT SET'
+        });
       }
 
-      const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
-      const validations = [
-        inputValidators.validateDateFormat(updatedAsset.measurement_date),
-        assetValidators.validateBuildingNumber(updatedAsset.building_number),
-        assetValidators.validateAssetId(updatedAsset.asset_id),
-        assetValidators.validateAssetIdNotInOtherBuilding(updatedAsset.asset_id, updatedAsset.building_number, typeof assetId === 'number' ? assetId : undefined),
-        assetValidators.validatePayerId(updatedAsset.payer_id),
-        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset),
-        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
-          updatedAsset.sub_asset_type_1,
-          updatedAsset.sub_asset_type_2,
-          updatedAsset.sub_asset_type_3,
-          updatedAsset.sub_asset_type_4,
-          updatedAsset.sub_asset_type_5,
-          updatedAsset.sub_asset_type_6
-        ]),
-        assetValidators.validateComplexTypesMustHaveSubAssets(updatedAsset.main_asset_type, [
-          updatedAsset.sub_asset_type_1,
-          updatedAsset.sub_asset_type_2,
-          updatedAsset.sub_asset_type_3,
-          updatedAsset.sub_asset_type_4,
-          updatedAsset.sub_asset_type_5,
-          updatedAsset.sub_asset_type_6
-        ])
-      ];
-
-      if (shouldValidateSubAssets) {
-        validations.push(
-          assetValidators.validateMinimumSubAssets([
-            updatedAsset.sub_asset_type_1,
-            updatedAsset.sub_asset_type_2,
-            updatedAsset.sub_asset_type_3,
-            updatedAsset.sub_asset_type_4,
-            updatedAsset.sub_asset_type_5,
-            updatedAsset.sub_asset_type_6
-          ])
-        );
-      }
-
-      validations.push(
-        assetValidators.validateSubAssetSizeMatchesMain(
-          updatedAsset.asset_size,
-          [
-            updatedAsset.sub_asset_type_1,
-            updatedAsset.sub_asset_type_2,
-            updatedAsset.sub_asset_type_3,
-            updatedAsset.sub_asset_type_4,
-            updatedAsset.sub_asset_type_5,
-            updatedAsset.sub_asset_type_6
-          ],
-          [
-            updatedAsset.sub_asset_size_1,
-            updatedAsset.sub_asset_size_2,
-            updatedAsset.sub_asset_size_3,
-            updatedAsset.sub_asset_size_4,
-            updatedAsset.sub_asset_size_5,
-            updatedAsset.sub_asset_size_6
-          ]
-        ),
-        assetValidators.validateSubAssetsFor199Or299(
-          updatedAsset.building_number,
-          updatedAsset.main_asset_type,
-          updatedAsset.asset_size,
-          [
-            updatedAsset.sub_asset_type_1,
-            updatedAsset.sub_asset_type_2,
-            updatedAsset.sub_asset_type_3,
-            updatedAsset.sub_asset_type_4,
-            updatedAsset.sub_asset_type_5,
-            updatedAsset.sub_asset_type_6
-          ],
-          [
-            updatedAsset.sub_asset_size_1,
-            updatedAsset.sub_asset_size_2,
-            updatedAsset.sub_asset_size_3,
-            updatedAsset.sub_asset_size_4,
-            updatedAsset.sub_asset_size_5,
-            updatedAsset.sub_asset_size_6
-          ]
-        )
-      );
-
-      if (updatedAsset.sub_asset_type_1) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, undefined, undefined, updatedAsset));
-      }
-      if (updatedAsset.sub_asset_type_2) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, undefined, undefined, updatedAsset));
-      }
-      if (updatedAsset.sub_asset_type_3) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, undefined, undefined, updatedAsset));
-      }
-      if (updatedAsset.sub_asset_type_4) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, undefined, undefined, updatedAsset));
-      }
-      if (updatedAsset.sub_asset_type_5) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, undefined, undefined, updatedAsset));
-      }
-      if (updatedAsset.sub_asset_type_6) {
-        validations.push(assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, undefined, undefined, updatedAsset));
-      }
-
-      const validation = await validateAll(validations);
-
-      if (!validation.valid) {
-        const detailedError = validation.error || 'Unknown validation error';
+      // Use the same validation as AssetsList - AssetValidationHandler.validateSingleAsset
+      // This ensures consistent validation behavior across all components
+      const validationResult = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
+        taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - same as AssetsList
+        cachedData: { assetTypes, building }
+      });
+      
+      // Check validation result
+      if (!validationResult.valid) {
+        const errorMsg = validationResult.errors && validationResult.errors.length > 0 
+          ? validationResult.errors.join('; ')
+          : 'Validation failed';
+        
         setValidationErrors(prev => {
           const newMap = new Map(prev);
           const errorMap = new Map<string, string>();
-          errorMap.set(field, detailedError);
+          if (validationResult.errors && validationResult.errors.length > 0) {
+            validationResult.errors.forEach((error, index) => {
+              errorMap.set(`error_${index}`, error);
+            });
+          }
           newMap.set(assetId, errorMap);
           return newMap;
         });
-        // Refresh only the specific cell that has the error
-        event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
+        
+        setToast({ message: errorMsg, type: 'error' });
         return;
       }
+      
+      // Validation passed - clear errors
+      setValidationErrors(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(assetId);
+        return newMap;
+      });
+      
+      // Also check for numeric format errors
+      const numericRegex = /^[0-9]+$/;
+      const hasInvalidPayerId = updatedAsset.payer_id && updatedAsset.payer_id !== '' && !numericRegex.test(updatedAsset.payer_id);
+      const hasInvalidAssetId = updatedAsset.asset_id && updatedAsset.asset_id !== '' && !numericRegex.test(updatedAsset.asset_id);
 
-      // Don't update allMeasurements state - AG-Grid already updated the node data
-      // Only refresh the specific cell that changed to update styling
-      event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
+      if (hasInvalidPayerId || hasInvalidAssetId) {
+        const errorMap = new Map<string, string>();
+        
+        if (hasInvalidPayerId) {
+          errorMap.set('payer_id', 'Invalid payer ID - must be numeric');
+        }
+        if (hasInvalidAssetId) {
+          errorMap.set('asset_id', 'Invalid asset ID - must be numeric');
+        }
+
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.set(assetId, errorMap);
+          return newMap;
+        });
+        
+        // Update grid row even if validation failed (to show the changes)
+        setTimeout(() => {
+          const latestGridApiError = gridRef.current?.api;
+          const historyGridApiError = historyGridRef.current?.api;
+          
+          const updateGridRowOnError = (gridApi: any) => {
+            if (!gridApi) return;
+            
+            gridApi.forEachNode((node: any) => {
+              if (node.data && node.data.id === assetId) {
+                // Update the entire node data with the merged updated asset
+                const mergedData = { ...node.data, ...updatedAsset };
+                
+                // Use applyTransaction for proper update
+                gridApi.applyTransaction({
+                  update: [mergedData]
+                });
+                
+                // Also manually update the node
+                node.setData(mergedData);
+                
+                // Also update each changed field individually
+                Object.keys(changes).forEach(key => {
+                  const value = (updatedAsset as any)[key];
+                  if (node.setDataValue) {
+                    node.setDataValue(key, value);
+                  }
+                });
+                
+                // Refresh to show errors and updated data
+                gridApi.refreshCells({ rowNodes: [node], force: true });
+                gridApi.refreshCells({ 
+                  rowNodes: [node], 
+                  columns: ['structure_drawing_url'],
+                  force: true 
+                });
+              }
+            });
+          };
+
+          if (latestGridApiError) updateGridRowOnError(latestGridApiError);
+          if (historyGridApiError) updateGridRowOnError(historyGridApiError);
+        }, 50);
+      }
+
+      // Update the row in both grids (latest and history) after validation
+      // Use setTimeout to ensure state updates are processed first
+      setTimeout(() => {
+        const latestGridApi = gridRef.current?.api;
+        const historyGridApi = historyGridRef.current?.api;
+        
+        const updateGridRow = (gridApi: any) => {
+          if (!gridApi) return;
+          
+          // Use AG-Grid's transaction API for proper row updates
+          gridApi.forEachNode((node: any) => {
+            if (node.data && node.data.id === assetId) {
+              // Update the entire node data with the merged updated asset
+              const mergedData = { ...node.data, ...updatedAsset };
+              
+              // Use applyTransaction for proper update
+              gridApi.applyTransaction({
+                update: [mergedData]
+              });
+              
+              // Also manually update the node to ensure immediate visual update
+              node.setData(mergedData);
+              
+              // Update each changed field individually to trigger cell value changed events
+              Object.keys(changes).forEach(key => {
+                const value = (updatedAsset as any)[key];
+                if (node.setDataValue) {
+                  node.setDataValue(key, value);
+                }
+              });
+              
+              // Force a complete refresh of the row
+              gridApi.refreshCells({ 
+                rowNodes: [node], 
+                force: true 
+              });
+              
+              // Explicitly refresh the structure_drawing column (where invalid icon is shown)
+              gridApi.refreshCells({ 
+                rowNodes: [node], 
+                columns: ['structure_drawing_url'],
+                force: true 
+              });
+            }
+          });
+        };
+
+        if (latestGridApi) updateGridRow(latestGridApi);
+        if (historyGridApi) updateGridRow(historyGridApi);
+      }, 50); // Slightly longer timeout to ensure state is fully updated
+
+      setIsRowEditModalOpen(false);
+      setSelectedRowForEdit(null);
+      setToast({ message: 'שינויים עודכנו בהצלחה', type: 'success' });
     } catch (err) {
-      console.error('Validation error:', err);
+      console.error('Error saving from modal:', err);
+      setToast({ 
+        message: err instanceof Error ? err.message : 'שגיאה בשמירה', 
+        type: 'error' 
+      });
     }
-  }, []);
-
-  const hasChanges = dirtyAssets.size > 0;
+  }, [selectedRowForEdit, validationTaxRegion, assetTypes, building]);
 
   async function handleSaveChanges() {
+    console.log('[AssetDetails] handleSaveChanges called', {
+      validationErrorsSize: validationErrors.size,
+      hasLatestMeasurement: !!latestMeasurement,
+      latestMeasurementId: latestMeasurement?.id,
+      assetId,
+      hasChanges,
+      dirtyAssetsSize: dirtyAssets.size
+    });
+
     if (validationErrors.size > 0) {
-      setError('Please fix all validation errors before saving');
+      const errorMsg = 'Please fix all validation errors before saving';
+      console.error('[AssetDetails] Validation errors prevent saving:', Array.from(validationErrors.entries()));
+      setError(errorMsg);
+      setToast({ message: 'תקן שגיאות אימות לפני השמירה', type: 'error' });
       return;
     }
 
     if (!latestMeasurement) {
-      setToast({ message: 'לא נמצא נכס לשמירה', type: 'error' });
+      const errorMsg = 'לא נמצא נכס לשמירה';
+      console.error('[AssetDetails] No latest measurement found');
+      setToast({ message: errorMsg, type: 'error' });
       return;
     }
 
     setIsSaving(true);
     try {
+      // Prepare asset data with all current values (including changes from dirtyAssets)
+      // This must be done first so we validate the actual current state
+      const currentAssetData = { ...latestMeasurement, ...(dirtyAssets.get(latestMeasurement.id) || {}) };
+      
       // Handle new asset (id === 0)
       if (latestMeasurement.id === 0 || !assetId) {
+        console.log('[AssetDetails] Creating new asset', {
+          building_number: currentAssetData.building_number,
+          asset_id: currentAssetData.asset_id,
+          main_asset_type: currentAssetData.main_asset_type
+        });
+
+        // Validate required fields for new asset (using merged data)
+        if (!currentAssetData.asset_id || String(currentAssetData.asset_id).trim() === '') {
+          const errorMsg = 'קוד נכס נדרש';
+          console.error('[AssetDetails] Missing asset_id');
+          setError(errorMsg);
+          setToast({ message: errorMsg, type: 'error' });
+          setIsSaving(false);
+          return;
+        }
+
+        if (!currentAssetData.main_asset_type || String(currentAssetData.main_asset_type).trim() === '') {
+          const errorMsg = 'סוג נכס ראשי נדרש';
+          console.error('[AssetDetails] Missing main_asset_type');
+          setError(errorMsg);
+          setToast({ message: errorMsg, type: 'error' });
+          setIsSaving(false);
+          return;
+        }
+        
+        // Debug logging for tax region validation
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AssetDetails.handleSaveChanges] Validation parameters:', {
+            assetId: currentAssetData.asset_id,
+            buildingNumber: currentAssetData.building_number,
+            mainAssetType: currentAssetData.main_asset_type,
+            validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+            buildingTaxRegion: building?.tax_region || 'NOT SET'
+          });
+        }
+        
+        // Validate the asset before saving
+        const shouldValidateSubAssets = currentAssetData.main_asset_type === '199' || currentAssetData.main_asset_type === '299';
+        const validations = [
+          inputValidators.validateDateFormat(currentAssetData.measurement_date),
+          assetValidators.validateBuildingNumber(currentAssetData.building_number),
+          assetValidators.validateAssetId(currentAssetData.asset_id),
+          assetValidators.validateAssetIdNotInOtherBuilding(currentAssetData.asset_id, currentAssetData.building_number, undefined),
+          assetValidators.validatePayerId(currentAssetData.payer_id),
+          assetValidators.validateAssetType(currentAssetData.main_asset_type, 'main_asset_type', validationTaxRegion),
+          // Use validationTaxRegion from tab for validation - same as AssetsList
+          assetValidators.validateMainAssetTypeComplete(currentAssetData.building_number, currentAssetData.main_asset_type, currentAssetData.asset_size, currentAssetData, validationTaxRegion, { assetTypes, building }),
+          assetValidators.validateOnlyComplexTypesCanHaveSubAssets(currentAssetData.main_asset_type, [
+            currentAssetData.sub_asset_type_1,
+            currentAssetData.sub_asset_type_2,
+            currentAssetData.sub_asset_type_3,
+            currentAssetData.sub_asset_type_4,
+            currentAssetData.sub_asset_type_5,
+            currentAssetData.sub_asset_type_6
+          ]),
+          assetValidators.validateComplexTypesMustHaveSubAssets(currentAssetData.main_asset_type, [
+            currentAssetData.sub_asset_type_1,
+            currentAssetData.sub_asset_type_2,
+            currentAssetData.sub_asset_type_3,
+            currentAssetData.sub_asset_type_4,
+            currentAssetData.sub_asset_type_5,
+            currentAssetData.sub_asset_type_6
+          ])
+        ];
+
+        if (shouldValidateSubAssets) {
+          validations.push(
+            assetValidators.validateMinimumSubAssets([
+              currentAssetData.sub_asset_type_1,
+              currentAssetData.sub_asset_type_2,
+              currentAssetData.sub_asset_type_3,
+              currentAssetData.sub_asset_type_4,
+              currentAssetData.sub_asset_type_5,
+              currentAssetData.sub_asset_type_6
+            ])
+          );
+        }
+
+        validations.push(
+          assetValidators.validateSubAssetSizeMatchesMain(
+            currentAssetData.asset_size,
+            [
+              currentAssetData.sub_asset_type_1,
+              currentAssetData.sub_asset_type_2,
+              currentAssetData.sub_asset_type_3,
+              currentAssetData.sub_asset_type_4,
+              currentAssetData.sub_asset_type_5,
+              currentAssetData.sub_asset_type_6
+            ],
+            [
+              currentAssetData.sub_asset_size_1,
+              currentAssetData.sub_asset_size_2,
+              currentAssetData.sub_asset_size_3,
+              currentAssetData.sub_asset_size_4,
+              currentAssetData.sub_asset_size_5,
+              currentAssetData.sub_asset_size_6
+            ]
+          ),
+          assetValidators.validateSubAssetsFor199Or299(
+            currentAssetData.building_number,
+            currentAssetData.main_asset_type,
+            currentAssetData.asset_size,
+            [
+              currentAssetData.sub_asset_type_1,
+              currentAssetData.sub_asset_type_2,
+              currentAssetData.sub_asset_type_3,
+              currentAssetData.sub_asset_type_4,
+              currentAssetData.sub_asset_type_5,
+              currentAssetData.sub_asset_type_6
+            ],
+            [
+              currentAssetData.sub_asset_size_1,
+              currentAssetData.sub_asset_size_2,
+              currentAssetData.sub_asset_size_3,
+              currentAssetData.sub_asset_size_4,
+              currentAssetData.sub_asset_size_5,
+              currentAssetData.sub_asset_size_6
+            ],
+            validationTaxRegion, // Use validationTaxRegion from tab - same as AssetsList
+            { assetTypes, building }
+          )
+        );
+
+        if (currentAssetData.sub_asset_type_1) {
+          validations.push(assetValidators.validateSubAssetTypeComplete(currentAssetData.building_number, currentAssetData.sub_asset_type_1, currentAssetData.sub_asset_size_1, validationTaxRegion, { assetTypes, building }, currentAssetData));
+        }
+        if (currentAssetData.sub_asset_type_2) {
+          validations.push(assetValidators.validateSubAssetTypeComplete(currentAssetData.building_number, currentAssetData.sub_asset_type_2, currentAssetData.sub_asset_size_2, validationTaxRegion, { assetTypes, building }, currentAssetData));
+        }
+        if (currentAssetData.sub_asset_type_3) {
+          validations.push(assetValidators.validateSubAssetTypeComplete(currentAssetData.building_number, currentAssetData.sub_asset_type_3, currentAssetData.sub_asset_size_3, validationTaxRegion, { assetTypes, building }, currentAssetData));
+        }
+        if (currentAssetData.sub_asset_type_4) {
+          validations.push(assetValidators.validateSubAssetTypeComplete(currentAssetData.building_number, currentAssetData.sub_asset_type_4, currentAssetData.sub_asset_size_4, validationTaxRegion, { assetTypes, building }, currentAssetData));
+        }
+        if (currentAssetData.sub_asset_type_5) {
+          validations.push(assetValidators.validateSubAssetTypeComplete(currentAssetData.building_number, currentAssetData.sub_asset_type_5, currentAssetData.sub_asset_size_5, validationTaxRegion, { assetTypes, building }, currentAssetData));
+        }
+        if (currentAssetData.sub_asset_type_6) {
+          validations.push(assetValidators.validateSubAssetTypeComplete(currentAssetData.building_number, currentAssetData.sub_asset_type_6, currentAssetData.sub_asset_size_6, validationTaxRegion, { assetTypes, building }, currentAssetData));
+        }
+
+        const validation = await validateAll(validations);
+        
+        // Also check for numeric format errors
+        const numericRegex = /^[0-9]+$/;
+        const hasInvalidPayerId = currentAssetData.payer_id && currentAssetData.payer_id !== '' && !numericRegex.test(currentAssetData.payer_id);
+        const hasInvalidAssetId = currentAssetData.asset_id && currentAssetData.asset_id !== '' && !numericRegex.test(currentAssetData.asset_id);
+
+        if (!validation.valid || hasInvalidPayerId || hasInvalidAssetId) {
+          const errorMap = new Map<string, string>();
+          if (!validation.valid) {
+            errorMap.set('general', validation.error || 'Unknown validation error');
+          }
+          if (hasInvalidPayerId) {
+            errorMap.set('payer_id', 'Invalid payer ID - must be numeric');
+          }
+          if (hasInvalidAssetId) {
+            errorMap.set('asset_id', 'Invalid asset ID - must be numeric');
+          }
+
+          const errorMsg = validation.error || (hasInvalidPayerId ? 'תעודת זהות תשלום חייבת להיות מספרית' : hasInvalidAssetId ? 'קוד נכס חייב להיות מספרי' : 'שגיאת אימות');
+          console.error('[AssetDetails] Validation failed for new asset:', errorMsg, errorMap);
+          
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            newMap.set(latestMeasurement.id, errorMap);
+            return newMap;
+          });
+          
+          setError(errorMsg);
+          setToast({ message: errorMsg, type: 'error' });
+          setIsSaving(false);
+          return;
+        }
+
         // Create new asset
         const assetData: Omit<Asset, 'id' | 'created_at'> = {
-          building_number: latestMeasurement.building_number,
-          payer_id: latestMeasurement.payer_id || null,
-          asset_id: latestMeasurement.asset_id,
-          measurement_date: latestMeasurement.measurement_date,
-          main_asset_type: latestMeasurement.main_asset_type || undefined,
-          asset_size: latestMeasurement.asset_size || 0,
-          sub_asset_type_1: latestMeasurement.sub_asset_type_1 || undefined,
-          sub_asset_size_1: latestMeasurement.sub_asset_size_1 || 0,
-          sub_asset_type_2: latestMeasurement.sub_asset_type_2 || undefined,
-          sub_asset_size_2: latestMeasurement.sub_asset_size_2 || 0,
-          sub_asset_type_3: latestMeasurement.sub_asset_type_3 || undefined,
-          sub_asset_size_3: latestMeasurement.sub_asset_size_3 || 0,
-          sub_asset_type_4: latestMeasurement.sub_asset_type_4 || undefined,
-          sub_asset_size_4: latestMeasurement.sub_asset_size_4 || 0,
-          sub_asset_type_5: latestMeasurement.sub_asset_type_5 || undefined,
-          sub_asset_size_5: latestMeasurement.sub_asset_size_5 || 0,
-          sub_asset_type_6: latestMeasurement.sub_asset_type_6 || undefined,
-          sub_asset_size_6: latestMeasurement.sub_asset_size_6 || 0,
-          penthouse: latestMeasurement.penthouse || undefined
+          building_number: currentAssetData.building_number,
+          payer_id: currentAssetData.payer_id || null,
+          asset_id: currentAssetData.asset_id,
+          measurement_date: currentAssetData.measurement_date,
+          main_asset_type: currentAssetData.main_asset_type || undefined,
+          asset_size: currentAssetData.asset_size || 0,
+          sub_asset_type_1: currentAssetData.sub_asset_type_1 || undefined,
+          sub_asset_size_1: currentAssetData.sub_asset_size_1 || 0,
+          sub_asset_type_2: currentAssetData.sub_asset_type_2 || undefined,
+          sub_asset_size_2: currentAssetData.sub_asset_size_2 || 0,
+          sub_asset_type_3: currentAssetData.sub_asset_type_3 || undefined,
+          sub_asset_size_3: currentAssetData.sub_asset_size_3 || 0,
+          sub_asset_type_4: currentAssetData.sub_asset_type_4 || undefined,
+          sub_asset_size_4: currentAssetData.sub_asset_size_4 || 0,
+          sub_asset_type_5: currentAssetData.sub_asset_type_5 || undefined,
+          sub_asset_size_5: currentAssetData.sub_asset_size_5 || 0,
+          sub_asset_type_6: currentAssetData.sub_asset_type_6 || undefined,
+          sub_asset_size_6: currentAssetData.sub_asset_size_6 || 0,
+          penthouse: currentAssetData.penthouse || undefined
         };
         
+        console.log('[AssetDetails] Creating asset with data:', assetData);
         const newAsset = await api.assets.create(assetData);
+        console.log('[AssetDetails] Asset created successfully:', newAsset);
+        
         setToast({ message: t('updatedSuccessfully'), type: 'success' });
         
-        // Refresh data to load the newly created asset
+        // Notify parent to update the tab with the new asset ID
+        if (onAssetCreated && newAsset) {
+          onAssetCreated(newAsset.id, newAsset.asset_id);
+        }
+        
+        // Clear dirty assets and validation errors
+        setDirtyAssets(new Map());
+        setValidationErrors(new Map());
+        setError(null);
+        
+        // Refresh data to load the newly created asset with the new asset ID
         if (onDataUpdate) onDataUpdate();
-        await fetchData();
+        await fetchData(newAsset.id);
         return;
       }
 
@@ -415,6 +958,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
       console.error('[AssetDetails] Error saving changes:', err);
+      console.error('[AssetDetails] Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        name: err instanceof Error ? err.name : undefined
+      });
       setError(errorMessage);
       setToast({ message: errorMessage, type: 'error' });
       // Don't clear error automatically - let user see it
@@ -488,6 +1036,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
 
       if (yearNum < 1900 || yearNum > 2100) {
         setToast({ message: 'שנה לא תקינה (1900-2100)', type: 'error' });
+        return;
+      }
+
+      // Validate that date is not greater than today
+      const inputDate = new Date(yearNum, monthNum - 1, dayNum);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      
+      if (inputDate > today) {
+        setToast({ message: 'תאריך מדידה לא יכול להיות גדול מתאריך נוכחי', type: 'error' });
         return;
       }
 
@@ -603,34 +1161,82 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
 
   async function handleFileUpload(assetId: number, file: File) {
     try {
-      const fileExt = file.name.split('.').pop();
+      setUploadingAssetId(assetId);
+      setUploadProgress({ assetId, progress: 0, fileName: file.name });
+
+      // Step 1: Compress file (10% progress)
+      setUploadProgress({ assetId, progress: 10, fileName: file.name });
+      const compressedFile = await compressFile(file);
+      const originalSizeKB = (file.size / 1024).toFixed(2);
+      const compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
+
+      setUploadProgress({ assetId, progress: 30, fileName: file.name });
+
+      // Step 2: Prepare file for upload
+      const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
       const fileName = `${assetId}_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
+      // Step 3: Upload with simulated progress tracking
+      // Simulate upload progress (Supabase doesn't provide real-time progress)
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (!prev || prev.assetId !== assetId) return prev;
+          const newProgress = Math.min(prev.progress + 5, 90);
+          return { ...prev, progress: newProgress };
+        });
+      }, 200);
+
+      setUploadProgress({ assetId, progress: 40, fileName: file.name });
+
       const { error: uploadError } = await supabase.storage
         .from('structure-drawings')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, compressedFile, { 
+          upsert: true
+        });
+
+      clearInterval(progressInterval);
 
       if (uploadError) throw uploadError;
 
+      setUploadProgress({ assetId, progress: 90, fileName: file.name });
+
+      // Step 4: Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('structure-drawings')
         .getPublicUrl(filePath);
 
+      setUploadProgress({ assetId, progress: 95, fileName: file.name });
+
+      // Step 5: Update asset
       await api.assets.update(assetId, { structure_drawing_url: publicUrl });
 
-      setToast({ message: t('drawingUploadedSuccessfully'), type: 'success' });
+      setUploadProgress({ assetId, progress: 100, fileName: file.name });
+
+      // Show success message with compression info
+      const sizeReduction = compressedSizeKB !== originalSizeKB 
+        ? ` (${originalSizeKB}KB → ${compressedSizeKB}KB)`
+        : '';
+      setToast({ 
+        message: `${t('drawingUploadedSuccessfully')}${sizeReduction}`, 
+        type: 'success' 
+      });
+      
       await fetchData();
     } catch (err) {
       setToast({
         message: err instanceof Error ? err.message : t('failedToUploadDrawing'),
         type: 'error'
       });
+    } finally {
+      setUploadProgress(null);
+      setUploadingAssetId(null);
     }
   }
 
-  function handleViewDrawing(url: string) {
+  function handleViewDrawing(url: string, fileName?: string) {
     setSelectedDrawingUrl(url);
+    setSelectedFileName(fileName || null);
   }
 
   function handleCancelChanges() {
@@ -657,7 +1263,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     setValidationProgress(null);
     setValidationModalOpen(true);
     try {
-      // Use unified validation handler
+      // Debug logging for tax region validation
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetDetails.handleValidateLatestRow] Validation parameters:', {
+          assetId: latestRow.asset_id,
+          buildingNumber: latestRow.building_number,
+          validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+          buildingTaxRegion: building?.tax_region || 'NOT SET'
+        });
+      }
+
+      // Use unified validation handler - same as building assets list
       const result = await AssetValidationHandler.validateSingleAsset(latestRow, {
         onProgress: (progress) => {
           setValidationProgress({
@@ -665,16 +1281,64 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
             total: progress.total,
             currentStep: progress.currentStep || 'בודק...'
           });
-        }
+        },
+        taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - same as AssetsList
+        cachedData: { assetTypes, building }
       });
 
+      // Recalculate actualValid from results - same as AssetsList
+      // This ensures consistency: an asset is only valid if valid=true AND no errors
+      const actualValid = result.valid && (!result.errors || result.errors.length === 0);
+      
       // Show validation results in modal
       setValidationResults({
-        valid: result.valid,
+        valid: actualValid, // Use recalculated actualValid - same as AssetsList
         errors: result.errors,
         passed: result.passed,
         matchedAssetTypeRecord: result.matchedAssetTypeRecord
       });
+      
+      // Update validationErrors state to reflect validation results
+      // This ensures the invalid icon is updated based on the validation results
+      if (latestRow.id) {
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          if (actualValid) {
+            // Validation passed - clear errors for this asset
+            newMap.delete(latestRow.id);
+          } else if (result.errors && result.errors.length > 0) {
+            // Validation failed - set errors for this asset
+            const errorMap = new Map<string, string>();
+            result.errors.forEach((error, index) => {
+              // Use a generic field name or index if we can't determine the field
+              errorMap.set(`error_${index}`, error);
+            });
+            newMap.set(latestRow.id, errorMap);
+          }
+          return newMap;
+        });
+        
+        // Refresh grid cells after validation to update invalid icon
+        // Use setTimeout to ensure state update is processed first
+        setTimeout(() => {
+          if (gridRef.current?.api) {
+            // Find the row node for this asset
+            gridRef.current.api.forEachNode((node) => {
+              if (node.data && node.data.id === latestRow.id) {
+                // Refresh the structure_drawing column where the invalid icon is shown
+                gridRef.current.api.refreshCells({ 
+                  rowNodes: [node], 
+                  columns: ['structure_drawing_url'],
+                  force: true 
+                });
+                // Also refresh all cells in the row for styling updates
+                gridRef.current.api.refreshCells({ rowNodes: [node], force: true });
+              }
+            });
+          }
+        }, 100);
+      }
+      
       setValidationProgress(null);
     } catch (err) {
       console.error('Validation error:', err);
@@ -708,7 +1372,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
     {
       headerName: t('structureDrawing'),
       field: 'structure_drawing_url',
-      pinned: 'right', // Pinned to the right side near the sidebar
+      pinned: 'right', // Pinned to the right side, right before asset_id
       sortable: false,
       filter: false,
       editable: false,
@@ -725,23 +1389,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
         const hasDrawing = !!asset.structure_drawing_url;
         const isLatest = asset.is_latest === true;
 
-        // Collect validation errors
+        // Only show errors from validationErrors state - validation logic handles all checks
+        // Use ref to get the latest validationErrors to avoid stale closure issues
+        const currentValidationErrors = validationErrorsRef.current;
         const errors: string[] = [];
-        if (validationErrors.has(assetId)) {
-          const fieldErrors = validationErrors.get(assetId);
+        if (currentValidationErrors.has(assetId)) {
+          const fieldErrors = currentValidationErrors.get(assetId);
           if (fieldErrors && fieldErrors.size > 0) {
             fieldErrors.forEach((errorMsg) => {
               errors.push(errorMsg);
             });
           }
         }
-
-        const numericRegex = /^[0-9]+$/;
-        const hasInvalidPayerId = asset.payer_id && !numericRegex.test(asset.payer_id);
-        const hasInvalidAssetId = asset.asset_id && !numericRegex.test(asset.asset_id);
-
-        if (hasInvalidPayerId) errors.push('Invalid payer ID - must be numeric');
-        if (hasInvalidAssetId) errors.push('Invalid asset ID - must be numeric');
 
         const hasErrors = errors.length > 0;
 
@@ -761,21 +1420,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
               </button>
             )}
             {isLatest ? (
-              <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
-                <Upload className="h-5 w-5" />
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file && asset.id) {
-                      handleFileUpload(asset.id, file);
-                      e.target.value = '';
-                    }
-                  }}
-                />
-              </label>
+              <div className="flex flex-col items-center gap-1">
+                <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
+                  <Upload className="h-5 w-5" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="*/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && asset.id) {
+                        handleFileUpload(asset.id, file);
+                        e.target.value = '';
+                      }
+                    }}
+                    disabled={uploadingAssetId === asset.id}
+                  />
+                </label>
+                {uploadingAssetId === asset.id && uploadProgress && (
+                  <div className="w-24 flex flex-col items-center gap-1">
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-600 transition-all duration-300"
+                        style={{ width: `${uploadProgress.progress}%` }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-gray-700 text-center truncate w-full" title={uploadProgress.fileName}>
+                      {Math.round(uploadProgress.progress)}%
+                    </div>
+                    <div className="text-[8px] text-gray-500 text-center truncate w-full max-w-[80px]" title={uploadProgress.fileName}>
+                      {uploadProgress.fileName}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title="Read-only">
                 <Upload className="h-5 w-5" />
@@ -785,7 +1463,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleViewDrawing(asset.structure_drawing_url!);
+                  // Extract filename from URL if possible
+                  const urlParts = asset.structure_drawing_url.split('/');
+                  const fileName = urlParts[urlParts.length - 1].split('?')[0];
+                  handleViewDrawing(asset.structure_drawing_url, fileName);
                 }}
                 className={`p-1 transition-colors hover:scale-110 ${
                   selectedDrawingUrl === asset.structure_drawing_url
@@ -807,10 +1488,25 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
     {
+      field: 'asset_id',
+      headerName: t('assetId'),
+      width: 120,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      pinned: 'right', // Pinned to the right side, rightmost
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params) => getCellStyle(params, 'asset_id'),
+    },
+    {
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 120,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'measurement_date'),
       valueFormatter: (params) => {
         if (!params.value || params.value === '01/01/1900') return '';
@@ -881,6 +1577,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
               date.getDate() === day &&
               date.getMonth() === month - 1 &&
               date.getFullYear() === year) {
+            // Validate that date is not greater than today
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            if (date > today) {
+              // Date is greater than today - keep the value but it will be validated in onCellValueChanged
+              params.data.measurement_date = newValue;
+              return true;
+            }
             params.data.measurement_date = newValue;
             return true;
           }
@@ -914,25 +1618,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
-    },
-    {
-      field: 'asset_id',
-      headerName: t('assetId'),
-      width: 120,
-      editable: (params) => params.data.is_latest === true,
-      cellStyle: (params) => getCellStyle(params, 'asset_id'),
     },
     {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
-        const isEditable = params.data.is_latest === true;
+        const isEditable = params.data.is_latest === true && editMode === 'inline';
         return (
           <div className="flex items-center justify-center h-full">
             {isEditable ? (
@@ -1006,7 +1703,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1019,7 +1716,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'asset_size'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1032,7 +1729,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1045,7 +1742,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1058,7 +1755,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1071,7 +1768,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1084,7 +1781,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1097,7 +1794,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1110,7 +1807,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1123,7 +1820,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1136,7 +1833,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1149,7 +1846,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1162,7 +1859,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       width: 60,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1175,7 +1872,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       width: 80,
-      editable: (params) => params.data.is_latest === true,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1184,18 +1881,84 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
         return num.toFixed(2);
       },
     },
-  ], [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets]);
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
+  ], [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets, editMode]);
 
   useEffect(() => {
     fetchData();
   }, [assetId, buildingNumber, taxRegion]);
 
-  async function fetchData() {
+  // Fetch building address when building changes
+  useEffect(() => {
+    async function fetchBuildingAddress() {
+      if (building?.building_address) {
+        try {
+          const address = await api.addressList.getOne(building.building_address);
+          setBuildingAddress(address.street_description);
+        } catch (err) {
+          console.error('Error fetching building address:', err);
+          setBuildingAddress(null);
+        }
+      } else {
+        setBuildingAddress(null);
+      }
+    }
+    fetchBuildingAddress();
+  }, [building?.building_address]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    validationErrorsRef.current = validationErrors;
+  }, [validationErrors]);
+
+  // Refresh grid cells when validationErrors change to update invalid icons
+  useEffect(() => {
+    const refreshGrid = () => {
+      if (gridRef.current?.api) {
+        // Force refresh all cells to ensure cellRenderer gets fresh validationErrors
+        // Since columnDefs depends on validationErrors, the cellRenderer should have the latest value
+        gridRef.current.api.refreshCells({ force: true });
+        // Also explicitly refresh the structure_drawing_url column where the icon is shown
+        gridRef.current.api.refreshCells({ 
+          columns: ['structure_drawing_url'],
+          force: true 
+        });
+      }
+      if (historyGridRef.current?.api) {
+        historyGridRef.current.api.refreshCells({ force: true });
+      }
+    };
+    
+    // Use a delay to ensure React has committed the state update and columnDefs have been updated
+    // This ensures the cellRenderer closure has the latest validationErrors
+    const timer = setTimeout(refreshGrid, 100);
+    return () => clearTimeout(timer);
+  }, [validationErrors]);
+
+  async function fetchData(overrideAssetId?: number) {
     try {
       setLoading(true);
       
+      // Use override assetId if provided, otherwise use prop
+      const currentAssetId = overrideAssetId !== undefined ? overrideAssetId : assetId;
+      
       // Handle new asset case (no assetId, but buildingNumber provided)
-      if (!assetId && buildingNumber) {
+      if (!currentAssetId && buildingNumber) {
         const today = new Date();
         const day = String(today.getDate()).padStart(2, '0');
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -1243,7 +2006,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       }
       
       // Existing asset case - load from database
-      if (!assetId) {
+      if (!currentAssetId) {
         setError('Asset ID is required');
         setLoading(false);
         return;
@@ -1252,7 +2015,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
       // Try to fetch by id first
       let assetData: Asset | null = null;
       try {
-        assetData = await api.assets.getOne(String(assetId));
+        assetData = await api.assets.getOne(String(currentAssetId));
       } catch (err: any) {
         console.error('Error fetching asset by id:', err);
         // If asset not found by id, try to fetch by asset_id from the current asset state
@@ -1373,15 +2136,28 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
 
       {/* Measurement Date Modal */}
       {measurementDateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div 
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+            measurementDateModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <div 
+            className={`bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transition-all duration-300 ${
+              measurementDateModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-800">שמור כמדידה חדשה</h3>
               <button
                 type="button"
                 onClick={() => {
-                  setMeasurementDateModalOpen(false);
-                  setNewMeasurementDate('');
+                  setMeasurementDateModalClosing(true);
+                  setTimeout(() => {
+                    setMeasurementDateModalOpen(false);
+                    setNewMeasurementDate('');
+                    setMeasurementDateModalClosing(false);
+                  }, 300);
                 }}
                 className="text-slate-500 hover:text-slate-700 transition-colors"
               >
@@ -1424,8 +2200,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
-                  setMeasurementDateModalOpen(false);
-                  setNewMeasurementDate('');
+                  setMeasurementDateModalClosing(true);
+                  setTimeout(() => {
+                    setMeasurementDateModalOpen(false);
+                    setNewMeasurementDate('');
+                    setMeasurementDateModalClosing(false);
+                  }, 300);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
@@ -1448,7 +2228,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
           </div>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
+      <div className="w-full mx-auto px-2 sm:px-4 py-2 sm:py-4">
       <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">
         <div className="flex items-center gap-3">
           <Home className="w-8 h-8 text-white bg-white/20 rounded-lg p-1.5" strokeWidth={1.5} />
@@ -1457,18 +2237,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <div className="flex items-center gap-3 mt-1">
-                <p className="text-xs sm:text-sm text-teal-50">
-                  {t('building')} {building.building_number}
-                </p>
-                {assetTaxRegion && (
-                  <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
-                    אזור מס: {assetTaxRegion}
+              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs sm:text-sm text-teal-50">
+                    מבנה {building.building_number}
                   </p>
-                )}
-                {building.tax_region && !assetTaxRegion && (
+                  {buildingAddress && (
+                    <p className="text-xs sm:text-sm text-teal-50">
+                      - {buildingAddress}
+                    </p>
+                  )}
+                </div>
+                {displayTaxRegion && (
                   <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
-                    אזורי מס: {building.tax_region}
+                    אזור מס: {displayTaxRegion}
                   </p>
                 )}
               </div>
@@ -1513,9 +2295,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                   </button>
                   <button
                     onClick={handleSaveChanges}
-                    disabled={isSaving || !hasChanges || validationErrors.size > 0}
+                    disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
                     className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : 'שמור שינויים'}
+                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
                   >
                     {isSaving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1534,7 +2316,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '120px', width: '100%' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '120px', width: '100%', overflowX: 'auto' }}>
                 <AgGridReact<Asset>
                   ref={gridRef}
                   rowData={pinnedTopRowData}
@@ -1546,7 +2328,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                   wrapText: true,
                   autoHeight: false,
                   sortable: false,
-                  headerClass: 'ag-right-aligned-header'
+                  headerClass: 'ag-right-aligned-header',
+                  minWidth: 100
                 }}
                 getRowId={(params) => {
                   // Use id + measurement_date + is_latest to ensure uniqueness
@@ -1566,50 +2349,48 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                   };
                 }}
                 gridOptions={{
-                  autoSizeStrategy: {
-                    type: 'fitCellContents',
-                  },
+                  suppressColumnVirtualisation: true,
+                  alwaysShowHorizontalScroll: true,
                 }}
+                suppressHorizontalScroll={false}
                 onGridReady={async (params) => {
                 }}
                 onFirstDataRendered={async (params) => {
                 }}
                 onColumnResized={() => {}}
                 onColumnMoved={(params) => {
-                  // Prevent structure drawing column from being moved - force it back to pinned right position
+                  // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
                   try {
-                    const columnApi = (params as any).columnApi || params.api;
-                    if (columnApi && columnApi.getColumn) {
-                      const structureDrawingColumn = columnApi.getColumn('structure_drawing_url');
-                      if (structureDrawingColumn) {
-                        const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
-                        const structureDrawingIndex = allColumns.findIndex((col: any) => col.getColId() === 'structure_drawing_url');
-                        const lastIndex = allColumns.length - 1;
-                        // Check if column is not at the last position (rightmost)
-                        if (structureDrawingIndex !== lastIndex) {
-                          setTimeout(() => {
-                            if (gridRef.current?.api) {
-                              const columnState = gridRef.current.api.getColumnState();
-                              const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
-                              const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
-                              if (structureDrawingCol) {
-                                gridRef.current.api.applyColumnState({
-                                  state: [...otherCols, { ...structureDrawingCol, pinned: 'right', lockPosition: true }],
-                                  applyOrder: true
-                                });
-                              }
-                            }
-                          }, 0);
-                          return;
+                    setTimeout(() => {
+                      if (gridRef.current?.api) {
+                        const columnState = gridRef.current.api.getColumnState();
+                        const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
+                        const assetIdCol = columnState.find((col: any) => col.colId === 'asset_id');
+                        const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url' && col.colId !== 'asset_id');
+                        
+                        if (structureDrawingCol || assetIdCol) {
+                          const pinnedCols = [];
+                          if (structureDrawingCol) {
+                            pinnedCols.push({ ...structureDrawingCol, pinned: 'right', lockPosition: true });
+                          }
+                          if (assetIdCol) {
+                            pinnedCols.push({ ...assetIdCol, pinned: 'right', lockPosition: true });
+                          }
+                          
+                          gridRef.current.api.applyColumnState({
+                            state: [...otherCols, ...pinnedCols],
+                            applyOrder: true
+                          });
                         }
                       }
-                    }
+                    }, 0);
                   } catch (error) {
                     console.warn('Error in onColumnMoved:', error);
                   }
                 }}
                 onSortChanged={() => {}}
                 onCellValueChanged={onCellValueChanged}
+                onRowDoubleClicked={handleRowDoubleClick}
                 enableRtl={true}
                 animateRows={true}
                 tooltipShowDelay={200}
@@ -1622,7 +2403,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
             {historyRows.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידות קודמות ({historyRows.length})</h3>
-                <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%' }}>
+                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%', overflowX: 'auto' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRows}
@@ -1634,13 +2415,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                       wrapText: true,
                       autoHeight: false,
                       sortable: false,
-                      headerClass: 'ag-right-aligned-header'
+                      headerClass: 'ag-right-aligned-header',
+                      minWidth: 100
                     }}
                     gridOptions={{
-                      autoSizeStrategy: {
-                        type: 'fitCellContents',
-                      },
+                      suppressColumnVirtualisation: true,
+                      alwaysShowHorizontalScroll: true,
                     }}
+                    suppressHorizontalScroll={false}
                     getRowId={(params) => {
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
@@ -1667,39 +2449,37 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                     }}
                     onColumnResized={() => {}}
                     onColumnMoved={(params) => {
-                      // Prevent structure drawing column from being moved - force it back to pinned right position
+                      // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
                       try {
-                        const columnApi = (params as any).columnApi || params.api;
-                        if (columnApi && columnApi.getColumn) {
-                          const structureDrawingColumn = columnApi.getColumn('structure_drawing_url');
-                          if (structureDrawingColumn) {
-                            const allColumns = columnApi.getAllColumns ? columnApi.getAllColumns() : [];
-                            const structureDrawingIndex = allColumns.findIndex((col: any) => col.getColId() === 'structure_drawing_url');
-                            const lastIndex = allColumns.length - 1;
-                            // Check if column is not at the last position (rightmost)
-                            if (structureDrawingIndex !== lastIndex) {
-                              setTimeout(() => {
-                                if (historyGridRef.current?.api) {
-                                  const columnState = historyGridRef.current.api.getColumnState();
-                                  const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
-                                  const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url');
-                                  if (structureDrawingCol) {
-                                    historyGridRef.current.api.applyColumnState({
-                                      state: [...otherCols, { ...structureDrawingCol, pinned: 'right', lockPosition: true }],
-                                      applyOrder: true
-                                    });
-                                  }
-                                }
-                              }, 0);
-                              return;
+                        setTimeout(() => {
+                          if (historyGridRef.current?.api) {
+                            const columnState = historyGridRef.current.api.getColumnState();
+                            const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');
+                            const assetIdCol = columnState.find((col: any) => col.colId === 'asset_id');
+                            const otherCols = columnState.filter((col: any) => col.colId !== 'structure_drawing_url' && col.colId !== 'asset_id');
+                            
+                            if (structureDrawingCol || assetIdCol) {
+                              const pinnedCols = [];
+                              if (structureDrawingCol) {
+                                pinnedCols.push({ ...structureDrawingCol, pinned: 'right', lockPosition: true });
+                              }
+                              if (assetIdCol) {
+                                pinnedCols.push({ ...assetIdCol, pinned: 'right', lockPosition: true });
+                              }
+                              
+                              historyGridRef.current.api.applyColumnState({
+                                state: [...otherCols, ...pinnedCols],
+                                applyOrder: true
+                              });
                             }
                           }
-                        }
+                        }, 0);
                       } catch (error) {
                         console.warn('Error in history grid onColumnMoved:', error);
                       }
                     }}
                     onSortChanged={() => {}}
+                    onRowDoubleClicked={handleRowDoubleClick}
                     enableRtl={true}
                     animateRows={true}
                     tooltipShowDelay={200}
@@ -1709,14 +2489,49 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
               </div>
             )}
 
+            {/* Row Edit Modal */}
+            <RowEditModal
+              isOpen={isRowEditModalOpen}
+              onClose={() => {
+                setIsRowEditModalOpen(false);
+                setSelectedRowForEdit(null);
+              }}
+              rowData={selectedRowForEdit}
+              assetTypes={assetTypes}
+              onSave={handleSaveFromModal}
+            />
+
             {/* PDF Viewer Modal */}
             {selectedDrawingUrl && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setSelectedDrawingUrl(null)}>
-                <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div 
+                className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+                  fileViewerClosing ? 'opacity-0' : 'opacity-100'
+                }`}
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                onClick={() => {
+                  setFileViewerClosing(true);
+                  setTimeout(() => {
+                    setSelectedDrawingUrl(null);
+                    setFileViewerClosing(false);
+                  }, 300);
+                }}
+              >
+                <div 
+                  className={`bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col transition-all duration-300 ${
+                    fileViewerClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="flex items-center justify-between p-4 border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-slate-800">{t('structureDrawing')}</h3>
                     <button
-                      onClick={() => setSelectedDrawingUrl(null)}
+                      onClick={() => {
+                        setFileViewerClosing(true);
+                        setTimeout(() => {
+                          setSelectedDrawingUrl(null);
+                          setFileViewerClosing(false);
+                        }, 300);
+                      }}
                       className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
                     >
                       <X className="h-4 w-4" />
@@ -1724,9 +2539,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate 
                     </button>
                   </div>
                   <div className="flex-1 overflow-auto p-4">
-                    <PDFViewer
+                    <FileViewer
                       fileUrl={selectedDrawingUrl}
-                      fileName={`structure-drawing-${assetId}.pdf`}
+                      fileName={selectedFileName || `structure-drawing-${assetId}`}
                     />
                   </div>
                 </div>

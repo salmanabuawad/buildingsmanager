@@ -50,6 +50,7 @@ export interface Asset {
   townhouses?: string;
   basement?: string;
   penthouse?: string;
+  tax_region?: number; // Tax region code (אזור מס) - matches asset_types.tax_region
   is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
   history_created_at?: string; // Only present for assets_history records
   is_new_measurement?: boolean; // Flag to mark as new measurement - when true, UPDATE will move old record to history
@@ -81,6 +82,8 @@ export interface AssetType {
   penthouse?: string;
   condo?: string;
   townhouses?: string;
+  business_private?: string;
+  shared_area_usage?: string;
   active?: string;
   min_size?: number;
   max_size?: number;
@@ -146,6 +149,7 @@ export function sanitizeAssetInput(input: any): any {
     measurement_date: measurementDate, // Always include measurement_date
     main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
     asset_size: input.asset_size != null ? sanitizeNumber(input.asset_size) : undefined,
+    tax_region: input.tax_region != null ? sanitizeInteger(input.tax_region) : undefined,
     sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,
     sub_asset_size_1: input.sub_asset_size_1 != null ? sanitizeNumber(input.sub_asset_size_1) : undefined,
     sub_asset_type_2: input.sub_asset_type_2 != null ? sanitizeText(input.sub_asset_type_2) : undefined,
@@ -306,6 +310,35 @@ export const api = {
       if (error) throw error;
       if (!data) throw new Error('Building not found');
       return data;
+    },
+    getAvailableTaxRegions: async (buildingNumber: number): Promise<string | null> => {
+      // Get all assets for this building
+      const assets = await api.assets.getAll(buildingNumber);
+      
+      if (!assets || assets.length === 0) {
+        return null;
+      }
+
+      // Get all unique tax regions directly from assets' tax_region field
+      const taxRegions = new Set<number>();
+      for (const asset of assets) {
+        if (asset.tax_region != null) {
+          const taxRegionNum = typeof asset.tax_region === 'string' 
+            ? parseInt(asset.tax_region, 10) 
+            : asset.tax_region;
+          if (!isNaN(taxRegionNum)) {
+            taxRegions.add(taxRegionNum);
+          }
+        }
+      }
+
+      // Convert to sorted array and join with comma
+      if (taxRegions.size === 0) {
+        return null;
+      }
+
+      const sortedTaxRegions = Array.from(taxRegions).sort((a, b) => a - b);
+      return sortedTaxRegions.join(',');
     },
     create: async (input: Omit<Building, 'created_at'>): Promise<Building> => {
       console.log('[API] Creating building with input:', input);

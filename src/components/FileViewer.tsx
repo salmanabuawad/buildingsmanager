@@ -1,0 +1,291 @@
+import { useState, useEffect } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
+import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon } from 'lucide-react';
+import { sanitizeFilename } from '../lib/sanitize';
+import { getFileTypeCategory } from '../lib/fileCompression';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+interface FileViewerProps {
+  fileUrl: string;
+  fileName?: string;
+}
+
+export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
+  const [fileType, setFileType] = useState<'pdf' | 'image' | 'document' | 'other' | 'loading'>('loading');
+  const [numPages, setNumPages] = useState<number>(0);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1.0);
+  const [rotation, setRotation] = useState<number>(0);
+  const [imageError, setImageError] = useState(false);
+
+  // Detect file type from URL and filename
+  useEffect(() => {
+    const detectFileType = async () => {
+      const name = (fileName || fileUrl).toLowerCase();
+      
+      // First check filename extension
+      const category = getFileTypeCategory(name, '');
+      if (category !== 'other') {
+        setFileType(category);
+        return;
+      }
+
+      // Try to detect from URL or fetch headers
+      try {
+        const response = await fetch(fileUrl, { method: 'HEAD' });
+        const contentType = response.headers.get('content-type') || '';
+        const detectedCategory = getFileTypeCategory(name, contentType);
+        setFileType(detectedCategory);
+      } catch (error) {
+        // If HEAD request fails, try to determine from extension
+        setFileType(getFileTypeCategory(name, ''));
+      }
+    };
+
+    detectFileType();
+  }, [fileUrl, fileName]);
+
+  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+    setNumPages(numPages);
+    setPageNumber(1);
+  }
+
+  function changePage(offset: number) {
+    setPageNumber(prevPageNumber => {
+      const newPage = prevPageNumber + offset;
+      return Math.max(1, Math.min(newPage, numPages));
+    });
+  }
+
+  function previousPage() {
+    changePage(-1);
+  }
+
+  function nextPage() {
+    changePage(1);
+  }
+
+  function zoomIn() {
+    setScale(prevScale => Math.min(prevScale + 0.25, 3.0));
+  }
+
+  function zoomOut() {
+    setScale(prevScale => Math.max(prevScale - 0.25, 0.5));
+  }
+
+  function rotate() {
+    setRotation(prevRotation => (prevRotation + 90) % 360);
+  }
+
+  async function handleDownload() {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = sanitizeFilename(fileName || 'file');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download file. Please try again.');
+    }
+  }
+
+  // Loading state
+  if (fileType === 'loading') {
+    return (
+      <div className="w-full">
+        <div className="border border-slate-300 rounded-lg bg-slate-50 p-12 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // PDF Viewer
+  if (fileType === 'pdf') {
+    return (
+      <div className="w-full">
+        <div className="border border-slate-300 rounded-t-lg bg-white p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              {numPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={previousPage}
+                    disabled={pageNumber <= 1}
+                    className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    <ChevronRight className="h-4 w-4 text-black" />
+                    Previous
+                  </button>
+                  <span className="text-sm text-slate-700">
+                    Page {pageNumber} of {numPages}
+                  </span>
+                  <button
+                    onClick={nextPage}
+                    disabled={pageNumber >= numPages}
+                    className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    Next
+                    <ChevronLeft className="h-4 w-4 text-black" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={zoomOut}
+                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="Zoom Out"
+              >
+                <ZoomOut className="h-4 w-4 text-black" />
+              </button>
+              <span className="text-sm text-slate-700">{Math.round(scale * 100)}%</span>
+              <button
+                onClick={zoomIn}
+                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="Zoom In"
+              >
+                <ZoomIn className="h-4 w-4 text-black" />
+              </button>
+              <button
+                onClick={rotate}
+                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="Rotate"
+              >
+                <RotateCw className="h-4 w-4 text-black" />
+              </button>
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
+                title="Download PDF"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
+          <div className="flex justify-center">
+            <Document
+              file={fileUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={
+                <div className="flex items-center justify-center p-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
+                </div>
+              }
+              error={
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <p className="text-red-800">Failed to load PDF file.</p>
+                </div>
+              }
+            >
+              <Page
+                pageNumber={pageNumber}
+                scale={scale}
+                rotate={rotation}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </Document>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Image Viewer
+  if (fileType === 'image') {
+    return (
+      <div className="w-full">
+        <div className="border border-slate-300 rounded-t-lg bg-white p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={zoomOut}
+                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="Zoom Out"
+              >
+                <ZoomOut className="h-4 w-4 text-black" />
+              </button>
+              <span className="text-sm text-slate-700">{Math.round(scale * 100)}%</span>
+              <button
+                onClick={zoomIn}
+                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="Zoom In"
+              >
+                <ZoomIn className="h-4 w-4 text-black" />
+              </button>
+              <button
+                onClick={rotate}
+                className="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 text-sm"
+                title="Rotate"
+              >
+                <RotateCw className="h-4 w-4 text-black" />
+              </button>
+            </div>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-700 text-sm"
+              title="Download Image"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </button>
+          </div>
+        </div>
+
+        <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px] flex justify-center">
+          {imageError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <p className="text-red-800">Failed to load image.</p>
+            </div>
+          ) : (
+            <img
+              src={fileUrl}
+              alt={fileName || 'Image'}
+              className="max-w-full h-auto"
+              style={{
+                transform: `scale(${scale}) rotate(${rotation}deg)`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.3s ease'
+              }}
+              onError={() => setImageError(true)}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Document or other file types - show download option
+  return (
+    <div className="w-full">
+      <div className="border border-slate-300 rounded-lg bg-slate-50 p-12 flex flex-col items-center justify-center">
+        <FileIcon className="h-16 w-16 text-slate-400 mb-4" />
+        <p className="text-slate-700 mb-4">
+          {fileName || 'File preview not available for this file type'}
+        </p>
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700"
+        >
+          <Download className="h-5 w-5" />
+          Download File
+        </button>
+      </div>
+    </div>
+  );
+}
+

@@ -52,6 +52,43 @@ input[type="number"] {
   min-width: 100% !important;
 }
 
+/* Grid container should be fixed width, scrolling happens inside */
+.ag-theme-alpine {
+  width: 100% !important;
+}
+
+.ag-theme-alpine .ag-root-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.ag-theme-alpine .ag-root {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure the grid body container can expand for columns */
+.ag-theme-alpine .ag-body-viewport {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ag-theme-alpine .ag-center-cols-container {
+  min-width: fit-content !important;
+}
+
+/* Ensure horizontal scrollbar appears inside grid */
+.ag-theme-alpine .ag-body-horizontal-scroll {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
 .ag-theme-alpine .ag-header-cell-label {
   color: white;
 }
@@ -260,6 +297,45 @@ input:focus, textarea:focus, select:focus {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+}
+
+/* Ensure horizontal scrolling works properly for all screen sizes */
+.ag-theme-alpine .ag-body-horizontal-scroll {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ag-theme-alpine .ag-body-viewport {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ag-theme-alpine .ag-center-cols-container {
+  min-width: fit-content !important;
+}
+
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure pinned columns don't interfere with horizontal scrolling */
+.ag-theme-alpine .ag-pinned-right-cols-container {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 10 !important;
+}
+
+.ag-theme-alpine .ag-pinned-left-cols-container {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 10 !important;
+}
+
+/* Ensure the main grid body can scroll independently */
+.ag-theme-alpine .ag-body-viewport-wrapper {
+  overflow-x: auto !important;
 }
 
 /* Touch-friendly targets on mobile */

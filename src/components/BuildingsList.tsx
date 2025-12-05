@@ -4,7 +4,7 @@ import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2 } from 'lucide-react';
+import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
 
 
 
@@ -36,7 +36,28 @@ export function BuildingsList({
   const [success, setSuccess] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
+  const [createModalClosing, setCreateModalClosing] = useState(false);
   const [addressList, setAddressList] = useState<AddressList[]>([]);
+  
+  // Tax region validation modal state
+  const [taxRegionValidationModal, setTaxRegionValidationModal] = useState<{
+    isOpen: boolean;
+    buildingNumber: number;
+    removedTaxRegions: number[];
+    assetCount: number;
+    oldTaxRegion: string | null | undefined;
+    buildingKey: string | number;
+  }>({
+    isOpen: false,
+    buildingNumber: 0,
+    removedTaxRegions: [],
+    assetCount: 0,
+    oldTaxRegion: null,
+    buildingKey: ''
+  });
+
+  // Track buildings with invalid tax region changes (for visual error indication)
+  const [invalidTaxRegionBuildings, setInvalidTaxRegionBuildings] = useState<Set<string | number>>(new Set());
   
   // Change tracking - use tempId (string) for new buildings instead of negative numbers
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<string | number, Partial<Building>>>(new Map());
@@ -62,6 +83,18 @@ export function BuildingsList({
     const deletedCount = buildingsToDelete.size;
     return newBuildingsCount + editedExistingBuildings + deletedCount;
   }, [newBuildings, dirtyBuildings, buildingsToDelete]);
+
+  // Check if there are any validation errors
+  const hasValidationErrors = useMemo(() => {
+    if (validationErrors.size === 0) return false;
+    // Check if any building has errors
+    for (const errors of validationErrors.values()) {
+      if (errors && Object.keys(errors).length > 0) {
+        return true;
+      }
+    }
+    return false;
+  }, [validationErrors]);
 
   // Fetch buildings from API
   const fetchBuildings = async (showLoading = true) => {
@@ -138,6 +171,63 @@ export function BuildingsList({
       return bKey === key;
     });
   }, [buildings, getBuildingKey]);
+
+  // Validate tax region removal - check if removing tax regions would orphan assets
+  const validateTaxRegionRemoval = useCallback(async (
+    buildingNumber: number,
+    oldTaxRegions: string | null | undefined,
+    newTaxRegions: string | null | undefined
+  ): Promise<{ valid: boolean; removedTaxRegions: number[]; assetCount: number }> => {
+    // Skip validation for new buildings (not yet saved)
+    if (!buildingNumber || buildingNumber <= 0) {
+      return { valid: true, removedTaxRegions: [], assetCount: 0 };
+    }
+
+    // Parse old and new tax regions
+    const oldRegions: number[] = oldTaxRegions
+      ? String(oldTaxRegions).split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
+      : [];
+    
+    const newRegions: number[] = newTaxRegions
+      ? String(newTaxRegions).split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
+      : [];
+
+    // Find removed tax regions
+    const removedTaxRegions = oldRegions.filter(region => !newRegions.includes(region));
+
+    // If no tax regions were removed, validation passes
+    if (removedTaxRegions.length === 0) {
+      return { valid: true, removedTaxRegions: [], assetCount: 0 };
+    }
+
+    // Fetch all assets for this building
+    try {
+      const assets = await api.assets.getAll(buildingNumber);
+      
+      // Count assets that have tax_region matching any of the removed tax regions
+      const orphanedAssets = assets.filter(asset => {
+        if (asset.tax_region == null) return false;
+        const assetTaxRegion = typeof asset.tax_region === 'string' 
+          ? parseInt(asset.tax_region, 10) 
+          : asset.tax_region;
+        return !isNaN(assetTaxRegion) && removedTaxRegions.includes(assetTaxRegion);
+      });
+
+      if (orphanedAssets.length > 0) {
+        return {
+          valid: false,
+          removedTaxRegions,
+          assetCount: orphanedAssets.length
+        };
+      }
+
+      return { valid: true, removedTaxRegions: [], assetCount: 0 };
+    } catch (error) {
+      console.error('Error validating tax region removal:', error);
+      // On error, allow the change (fail open to avoid blocking user)
+      return { valid: true, removedTaxRegions: [], assetCount: 0 };
+    }
+  }, []);
 
   // Handle cell value changes
   const onCellValueChanged = useCallback(async (event: any) => {
@@ -287,18 +377,29 @@ export function BuildingsList({
     }
     
     const hasMeaningfulValue = valueToStore !== null && valueToStore !== undefined && valueToStore !== '';
+    
+    // Calculate updated dirty changes for validation (before state update)
+    const existingDirtyChanges = dirtyBuildings.get(newBuildingKey) || {};
+    const valueForValidation = field === 'building_address' ? valueToUpdate : newValue;
+    const valueForDirty = field === 'building_address' ? valueToUpdate : valueToStore;
+    
+    let updatedDirtyChanges: Partial<Building>;
+    if (hasMeaningfulValue) {
+      updatedDirtyChanges = { ...existingDirtyChanges, [field]: valueForDirty };
+    } else {
+      updatedDirtyChanges = { ...existingDirtyChanges };
+      delete updatedDirtyChanges[field as keyof Building];
+    }
+    
     if (field !== 'building_number' || !isNew) {
       if (!isNew || hasMeaningfulValue) {
         setDirtyBuildings(prev => {
           const next = new Map(prev);
-          const existingChanges = next.get(newBuildingKey) || {};
           if (hasMeaningfulValue) {
-            next.set(newBuildingKey, { ...existingChanges, [field]: valueToStore });
+            next.set(newBuildingKey, updatedDirtyChanges);
           } else {
-            const updatedChanges = { ...existingChanges };
-            delete updatedChanges[field];
-            if (Object.keys(updatedChanges).length > 0) {
-              next.set(newBuildingKey, updatedChanges);
+            if (Object.keys(updatedDirtyChanges).length > 0) {
+              next.set(newBuildingKey, updatedDirtyChanges);
             } else {
               next.delete(newBuildingKey);
             }
@@ -308,9 +409,15 @@ export function BuildingsList({
       }
     }
 
-    // Validate all fields - use the parsed value for building_address
-    const valueForValidation = field === 'building_address' ? valueToUpdate : newValue;
-    const updatedBuilding = { ...building, [field]: valueForValidation };
+    // Validate all fields - merge with all dirty changes to get complete row state
+    // Merge base building data with all dirty changes to get complete current state
+    const updatedBuilding = { 
+      ...building, 
+      ...updatedDirtyChanges,
+      [field]: valueForValidation // Use the parsed value for validation
+    };
+    
+    // Validate the complete row
     const validation = await buildingValidators.validateAllFields(updatedBuilding);
 
     setValidationErrors(prev => {
@@ -325,6 +432,66 @@ export function BuildingsList({
 
     // Update tax region validation state
     if (field === 'tax_region') {
+      // Only validate removal for existing buildings (not new ones)
+      if (!isNew && building.building_number && building.building_number > 0) {
+        // Get original tax region from originalBuildings
+        const originalBuilding = originalBuildings.find(b => b.building_number === building.building_number);
+        const oldTaxRegion = originalBuilding?.tax_region;
+        
+        // Validate tax region removal
+        const removalValidation = await validateTaxRegionRemoval(
+          building.building_number,
+          oldTaxRegion,
+          newValue
+        );
+
+        if (!removalValidation.valid) {
+          // Show modal with error message
+          setTaxRegionValidationModal({
+            isOpen: true,
+            buildingNumber: building.building_number,
+            removedTaxRegions: removalValidation.removedTaxRegions,
+            assetCount: removalValidation.assetCount,
+            oldTaxRegion: oldTaxRegion,
+            buildingKey: buildingKey
+          });
+
+          // Mark this building as having invalid tax region (for visual error indication)
+          setInvalidTaxRegionBuildings(prev => new Set(prev).add(buildingKey));
+
+          // Add validation error for tax_region field
+          setValidationErrors(prev => {
+            const next = new Map(prev);
+            const existingErrors = next.get(newBuildingKey) || {};
+            next.set(newBuildingKey, {
+              ...existingErrors,
+              tax_region: `לא ניתן להסיר אזור מס ${removalValidation.removedTaxRegions.join(', ')} - קיימים ${removalValidation.assetCount} נכסים`
+            });
+            return next;
+          });
+
+          // Refresh grid to show error styling
+          if (gridRef.current?.api) {
+            setTimeout(() => {
+              if (gridRef.current?.api) {
+                gridRef.current.api.refreshCells({
+                  rowNodes: [event.node],
+                  columns: [field],
+                  force: true
+                });
+              }
+            }, 0);
+          }
+        } else {
+          // Validation passed - remove from invalid set
+          setInvalidTaxRegionBuildings(prev => {
+            const next = new Set(prev);
+            next.delete(buildingKey);
+            return next;
+          });
+        }
+      }
+
       const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
       setInvalidTaxRegions(prev => {
         const next = new Set(prev);
@@ -344,15 +511,28 @@ export function BuildingsList({
       });
     }
 
-    // Refresh grid to show dirty state
+    // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {
+      // Refresh the changed cell
       gridRef.current.api.refreshCells({ 
         rowNodes: [event.node], 
         columns: [field],
         force: true 
       });
+      
+      // If there are validation errors, refresh all cells in the row to show error styling
+      if (!validation.valid && Object.keys(validation.errors).length > 0) {
+        setTimeout(() => {
+          if (gridRef.current?.api) {
+            gridRef.current.api.refreshCells({ 
+              rowNodes: [event.node], 
+              force: true 
+            });
+          }
+        }, 0);
+      }
     }
-  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors]);
+  }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors, validateTaxRegionRemoval, originalBuildings, buildings, setBuildings, setFilteredBuildings, setDirtyBuildings]);
 
   // Add empty building row
   const addEmptyBuildingRow = () => {
@@ -388,6 +568,76 @@ export function BuildingsList({
       }
     }, 100);
   };
+
+  // Validate all buildings with changes
+  const handleValidateAll = useCallback(async () => {
+    // Don't set loading to avoid refreshing the tab
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      const newValidationErrors = new Map<string | number, Record<string, string>>();
+      const buildingsToValidate: Array<{ building: Building; key: string | number }> = [];
+      
+      // Collect all buildings to validate (always validate all buildings, not just those with changes)
+      for (const building of buildings) {
+        const buildingKey = getBuildingKey(building);
+        
+        // Validate all buildings except those marked for deletion
+        if (!buildingsToDelete.has(buildingKey)) {
+          buildingsToValidate.push({ building, key: buildingKey });
+        }
+      }
+      
+      if (buildingsToValidate.length === 0) {
+        setSuccess('אין מבנים לבדיקה');
+        setTimeout(() => setSuccess(null), 3000);
+        return;
+      }
+      
+      // Validate each building
+      for (const { building, key } of buildingsToValidate) {
+        // Get all dirty changes for this building
+        const dirtyChanges = dirtyBuildings.get(key) || {};
+        
+        // Merge base building data with all dirty changes to get complete current state
+        const updatedBuilding = { 
+          ...building, 
+          ...dirtyChanges
+        };
+        
+        // Validate the complete row
+        const validation = await buildingValidators.validateAllFields(updatedBuilding);
+        
+        if (!validation.valid) {
+          newValidationErrors.set(key, validation.errors);
+        }
+      }
+      
+      // Update validation errors
+      setValidationErrors(newValidationErrors);
+      
+      // Refresh grid to show validation errors and row borders
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+        // Also refresh rows to update row borders
+        gridRef.current.api.refreshClientSideRowModel('filter');
+      }
+      
+      const errorCount = newValidationErrors.size;
+      if (errorCount > 0) {
+        setError(`נמצאו שגיאות תקינות ב-${errorCount} מבנים`);
+        setTimeout(() => setError(null), 5000);
+      } else {
+        setSuccess(`כל ${buildingsToValidate.length} המבנים תקינים`);
+        setTimeout(() => setSuccess(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error validating buildings:', err);
+      setError('שגיאה בבדיקת תקינות המבנים');
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [buildings, dirtyBuildings, buildingsToDelete, getBuildingKey, isNewBuilding, totalChanges]);
 
   // Save all changes
   const handleSaveAll = async () => {
@@ -673,57 +923,17 @@ export function BuildingsList({
 
   // Cancel all changes
   const handleCancelAll = async () => {
-    // Remove new buildings (temp IDs) from buildings
-    setBuildings(prev => prev.filter(b => {
-      const key = getBuildingKey(b);
-      return !newBuildings.has(key);
-    }));
-    setFilteredBuildings(prev => prev.filter(b => {
-      const key = getBuildingKey(b);
-      return !newBuildings.has(key);
-    }));
+    // Restore original buildings completely - replace current state with original
+    const restored = JSON.parse(JSON.stringify(originalBuildings));
+    setBuildings(restored);
+    setFilteredBuildings(restored);
     
-    // Restore original buildings
-    setBuildings(prev => {
-      const existingKeys = new Set(prev.map(b => getBuildingKey(b)));
-      const restored = JSON.parse(JSON.stringify(originalBuildings));
-      // Only add restored buildings that aren't new
-      const filtered = restored.filter((b: Building) => {
-        const key = getBuildingKey(b);
-        return !newBuildings.has(key);
-      });
-      // Merge with existing non-new buildings
-      const merged = [...prev.filter(b => {
-        const key = getBuildingKey(b);
-        return !newBuildings.has(key);
-      }), ...filtered];
-      // Remove duplicates by building_number
-      const unique = merged.filter((b, index, self) => 
-        index === self.findIndex(a => getBuildingKey(a) === getBuildingKey(b))
-      );
-      return unique;
-    });
-    setFilteredBuildings(prev => {
-      const existingKeys = new Set(prev.map(b => getBuildingKey(b)));
-      const restored = JSON.parse(JSON.stringify(originalBuildings));
-      const filtered = restored.filter((b: Building) => {
-        const key = getBuildingKey(b);
-        return !newBuildings.has(key);
-      });
-      const merged = [...prev.filter(b => {
-        const key = getBuildingKey(b);
-        return !newBuildings.has(key);
-      }), ...filtered];
-      const unique = merged.filter((b, index, self) => 
-        index === self.findIndex(a => getBuildingKey(a) === getBuildingKey(b))
-      );
-      return unique;
-    });
-    
+    // Clear all change tracking
     setDirtyBuildings(new Map());
     setBuildingsToDelete(new Set());
     setNewBuildings(new Set());
     setValidationErrors(new Map());
+    setInvalidTaxRegionBuildings(new Set()); // Clear invalid tax region buildings
     setError(null);
 
     // Re-validate tax regions for original buildings
@@ -738,8 +948,9 @@ export function BuildingsList({
     }
     setInvalidTaxRegions(newInvalidSet);
 
-    // Refresh the grid
+    // Refresh the grid to show reverted values
     if (gridRef.current?.api) {
+      // Force refresh all cells to show original values
       gridRef.current.api.refreshCells({ force: true });
       gridRef.current.api.refreshClientSideRowModel('filter');
     }
@@ -788,10 +999,15 @@ export function BuildingsList({
     const errors = validationErrors.get(buildingKey);
     const hasError = errors && errors[fieldName];
     const isDirty = dirtyBuildings.has(buildingKey) && dirtyBuildings.get(buildingKey)?.hasOwnProperty(fieldName);
+    const hasInvalidTaxRegion = fieldName === 'tax_region' && invalidTaxRegionBuildings.has(buildingKey);
+    
     return {
       textAlign: 'right',
       fontWeight: isDirty ? 'bold' : 'normal',
-      border: hasError ? '2px solid #dc2626' : undefined
+      border: hasError || hasInvalidTaxRegion ? '3px solid #dc2626' : undefined,
+      borderRadius: hasError || hasInvalidTaxRegion ? '4px' : undefined,
+      backgroundColor: hasInvalidTaxRegion ? '#fee2e2' : undefined,
+      padding: hasInvalidTaxRegion ? '2px 4px' : undefined
     };
   };
 
@@ -840,18 +1056,37 @@ export function BuildingsList({
         const buildingKey = getBuildingKey(building);
         const hasTaxRegionError = building.building_number > 0 && invalidTaxRegions.has(building.building_number);
         const markedForDeletion = buildingsToDelete.has(buildingKey);
+        const errors = validationErrors.get(buildingKey);
+        const hasValidationError = errors && Object.keys(errors).length > 0;
+        const allErrorMessages = hasValidationError 
+          ? Object.entries(errors || {}).map(([field, msg]) => `${field}: ${msg}`).join('; ')
+          : '';
 
         return (
           <div className="flex items-center justify-center gap-1 h-full">
-            <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-              {hasTaxRegionError && (
-                <span title={t('invalidTaxRegion')} className="flex items-center justify-center">
+            {(hasValidationError || hasTaxRegionError) && (
+              <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                <span 
+                  title={hasValidationError ? allErrorMessages : (hasTaxRegionError ? t('invalidTaxRegion') : '')} 
+                  className="flex items-center justify-center"
+                >
                   <AlertCircle className="h-4 w-4 text-red-600" />
                 </span>
-              )}
-            </div>
+              </div>
+            )}
             <button
-              onClick={() => onSelectBuilding(params.data.building_number, params.data.tax_region)}
+              onClick={async () => {
+                // Always get tax regions from assets (asset.tax_region) instead of building.tax_region
+                // This ensures tabs are split based on actual asset tax regions
+                try {
+                  const availableTaxRegions = await api.buildings.getAvailableTaxRegions(params.data.building_number);
+                  console.log('[BuildingsList] Available tax regions from assets:', availableTaxRegions);
+                  onSelectBuilding(params.data.building_number, availableTaxRegions || undefined);
+                } catch (err) {
+                  console.error('Error getting available tax regions:', err);
+                  onSelectBuilding(params.data.building_number, undefined);
+                }
+              }}
               className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
               title={t('viewAssets')}
             >
@@ -899,25 +1134,12 @@ export function BuildingsList({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['building_number'];
         const value = params.value != null && params.value !== 0 ? String(params.value) : '';
         
         if (isNew && (params.value === 0 || params.value === null || params.value === undefined)) {
           return '';
         }
 
-        if (errorMsg) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
-                <AlertCircle size={16} />
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'building_number')
@@ -934,10 +1156,63 @@ export function BuildingsList({
         const buildingKey = getBuildingKey(building);
         const errors = validationErrors.get(buildingKey);
         const errorMsg = errors && errors['tax_region'];
+        const hasInvalidTaxRegion = invalidTaxRegionBuildings.has(buildingKey);
+        
         if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
           return '';
         }
         const value = params.value != null ? params.value : '';
+        
+        if (errorMsg || hasInvalidTaxRegion) {
+          const displayErrorMsg = errorMsg || 'לא ניתן להסיר אזור מס זה - קיימים נכסים באזור מס זה';
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={displayErrorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'tax_region')
+    },
+    {
+      field: 'overload_ratio',
+      headerName: 'אחוז העמסה',
+      width: 120,
+      editable: (params: any) => {
+        if (!params || !params.data) return false;
+        const building = params.data as Building;
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        return isNew || !buildingsToDelete.has(buildingKey);
+      },
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
+      valueFormatter: (params: any) => {
+        if (params.value == null || params.value === undefined) return '';
+        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
+        if (isNaN(num)) return '';
+        return num.toFixed(2);
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
+        const errorMsg = errors && errors['overload_ratio'];
+        if (isNew && (params.value === null || params.value === undefined)) {
+          return '';
+        }
+        const value = params.value != null ? Number(params.value).toFixed(2) : '';
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
@@ -950,7 +1225,7 @@ export function BuildingsList({
         }
         return value;
       },
-      cellStyle: (params) => getCellStyle(params, 'tax_region')
+      cellStyle: (params) => getCellStyle(params, 'overload_ratio')
     },
     {
       field: 'shared_area',
@@ -1366,53 +1641,20 @@ export function BuildingsList({
       cellStyle: (params) => getCellStyle(params, 'building_address')
     },
     {
-      field: 'overload_ratio',
-      headerName: 'אחוז העמסה',
+      field: 'extra_field_1',
+      headerName: '',
       width: 120,
-      editable: (params: any) => {
-        if (!params || !params.data) return false;
-        const building = params.data as Building;
-        const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        return isNew || !buildingsToDelete.has(buildingKey);
-      },
-      valueParser: (params: any) => {
-        if (!params) return null;
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const numValue = Number(newValue);
-        return isNaN(numValue) ? null : numValue;
-      },
-      valueFormatter: (params: any) => {
-        if (params.value == null || params.value === undefined) return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num)) return '';
-        return num.toFixed(2);
-      },
-      cellRenderer: (params: any) => {
-        const building = params.data as Building;
-        if (!building) return '';
-        const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['overload_ratio'];
-        if (isNew && (params.value === null || params.value === undefined)) {
-          return '';
-        }
-        const value = params.value != null ? Number(params.value).toFixed(2) : '';
-        if (errorMsg) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
-                <AlertCircle size={16} />
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
-        return value;
-      },
-      cellStyle: (params) => getCellStyle(params, 'overload_ratio')
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     }
   ], [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);
 
@@ -1446,24 +1688,6 @@ export function BuildingsList({
       // Refresh data to get updated buildings from database
       // This will also update originalBuildings for future cancel operations
       await fetchBuildings(false);
-      
-      // Update originalBuildings after successful save
-      setOriginalBuildings(prev => {
-        const updated = [...prev];
-        for (const buildingKey of successfullySaved) {
-          const building = findBuildingByKey(buildingKey);
-          if (building && !building._isNew && !building._tempId) {
-            // Replace or add the saved building
-            const index = updated.findIndex(b => b.building_number === building.building_number);
-            if (index >= 0) {
-              updated[index] = { ...building };
-            } else {
-              updated.push({ ...building });
-            }
-          }
-        }
-        return updated;
-      });
     } catch (error: any) {
       const errorMsg = `Failed to create building: ${error.message || error.toString()}`;
       setError(errorMsg);
@@ -1505,7 +1729,7 @@ export function BuildingsList({
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{t('propertyListings')}</h1>
               <span className="text-xs sm:text-sm text-teal-50 bg-white/20 px-2 sm:px-3 py-1 rounded-lg font-semibold">
-                <span className="font-semibold">סה"כ מבנים:</span> {buildings.length}
+                <span className="font-semibold">סה"כ מבנים:</span> {filteredBuildings.length}
               </span>
             </div>
           </div>
@@ -1534,6 +1758,14 @@ export function BuildingsList({
               <Plus className="h-4 w-4" />
               הוסף מבנה
             </button>
+            <button
+              type="button"
+              onClick={handleValidateAll}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              אמת הכל
+            </button>
           </div>
           <div className="flex gap-2">
             <button
@@ -1548,7 +1780,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={handleSaveAll}
-              disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0}
+              disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
             >
               {loading ? (
@@ -1562,7 +1794,7 @@ export function BuildingsList({
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 300px)', minHeight: '400px', width: '100%', minWidth: '100%' }}>
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 300px)', minHeight: '400px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               ref={gridRef}
               rowData={filteredBuildings}
@@ -1575,12 +1807,12 @@ export function BuildingsList({
                 autoHeight: false,
                 cellStyle: { textAlign: 'right', fontSize: '16px' },
                 headerClass: 'buildings-list-header',
-                headerStyle: { fontSize: '10px', textAlign: 'left' }
+                headerStyle: { fontSize: '10px', textAlign: 'left' },
+                minWidth: 100
               }}
               gridOptions={{
-                autoSizeStrategy: {
-                  type: 'fitCellContents',
-                },
+                suppressColumnVirtualisation: true,
+                alwaysShowHorizontalScroll: true,
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
@@ -1667,6 +1899,8 @@ export function BuildingsList({
                 const buildingKey = getBuildingKey(building);
                 const hasTaxRegionError = building.building_number > 0 && invalidTaxRegions.has(building.building_number);
                 const markedForDeletion = buildingsToDelete.has(buildingKey);
+                const errors = validationErrors.get(buildingKey);
+                const hasValidationError = errors && Object.keys(errors).length > 0;
 
                 if (markedForDeletion) {
                   return {
@@ -1676,7 +1910,7 @@ export function BuildingsList({
                   };
                 }
 
-                if (hasTaxRegionError) {
+                if (hasValidationError || hasTaxRegionError) {
                   return {
                     border: '3px solid #ef4444',
                     borderRadius: '4px',
@@ -1695,8 +1929,16 @@ export function BuildingsList({
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div 
+          className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
+            createModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+        >
+          <div 
+            className={`bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transition-all duration-300 ${
+              createModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+          >
             <h2 className="text-2xl font-bold text-slate-800 mb-6">Create New Building</h2>
             <div className="space-y-4">
               <div>
@@ -1727,8 +1969,12 @@ export function BuildingsList({
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6">
               <button
                 onClick={() => {
-                  setShowCreateModal(false);
-                  setNewBuilding({ building_number: '', tax_region: '' });
+                  setCreateModalClosing(true);
+                  setTimeout(() => {
+                    setShowCreateModal(false);
+                    setNewBuilding({ building_number: '', tax_region: '' });
+                    setCreateModalClosing(false);
+                  }, 300);
                 }}
                 className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
               >
@@ -1739,6 +1985,59 @@ export function BuildingsList({
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
               >
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tax Region Validation Modal */}
+      {taxRegionValidationModal.isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setTaxRegionValidationModal(prev => ({ ...prev, isOpen: false }))}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="h-8 w-8 text-red-600 flex-shrink-0" />
+              <h2 className="text-2xl font-bold text-slate-800">לא ניתן לשנות אזורי מס</h2>
+            </div>
+            
+            <div className="mb-6 space-y-3">
+              <p className="text-slate-700">
+                לא ניתן להסיר אזורי מס מהמבנה <strong>#{taxRegionValidationModal.buildingNumber}</strong> כי קיימים נכסים עם אזורי המס הבאים:
+              </p>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="font-semibold text-red-900 mb-2">אזורי מס שהוסרו:</p>
+                <p className="text-red-800 text-lg">
+                  {taxRegionValidationModal.removedTaxRegions.join(', ')}
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="font-semibold text-yellow-900 mb-1">מספר נכסים מושפעים:</p>
+                <p className="text-yellow-800 text-xl font-bold">
+                  {taxRegionValidationModal.assetCount} נכסים
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-900 text-sm">
+                  <strong>פעולה נדרשת:</strong> יש למחוק את הנכסים הרלוונטיים לפני שינוי אזורי המס של המבנה.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setTaxRegionValidationModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+              >
+                הבנתי
               </button>
             </div>
           </div>

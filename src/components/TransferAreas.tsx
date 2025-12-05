@@ -25,6 +25,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
+  const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   // Store asset_id and building_number for each asset to reload after save
   const [assetIdentifiers, setAssetIdentifiers] = useState<Map<string, { asset_id: number; building_number: number }>>(new Map());
@@ -35,6 +36,26 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   useEffect(() => {
     fetchData();
   }, [buildingNumber, selectedAssetIds]);
+
+  // Refresh actions column when validationErrors change to update invalid icons
+  useEffect(() => {
+    if (gridRef.current?.api && assets.length > 0) {
+      // Get all row nodes
+      const rowNodes: any[] = [];
+      gridRef.current.api.forEachNode((node) => {
+        rowNodes.push(node);
+      });
+      
+      if (rowNodes.length > 0) {
+        // Refresh actions column for all rows to update invalid icons
+        gridRef.current.api.refreshCells({ 
+          rowNodes: rowNodes, 
+          columns: ['actions'],
+          force: true 
+        });
+      }
+    }
+  }, [validationErrors, assets.length]);
 
   async function fetchData() {
     try {
@@ -146,6 +167,168 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     }
   }
 
+  // Helper function to validate a single asset
+  const validateAsset = useCallback(async (asset: Asset): Promise<{ valid: boolean; error?: string }> => {
+    const shouldValidateSubAssets = asset.main_asset_type === '199' || asset.main_asset_type === '299';
+    const validations = [
+      assetValidators.validateBuildingNumber(asset.building_number),
+      assetValidators.validateAssetId(asset.asset_id),
+      assetValidators.validatePayerId(asset.payer_id),
+      assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
+      assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset, taxRegion),
+      assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
+        asset.sub_asset_type_1,
+        asset.sub_asset_type_2,
+        asset.sub_asset_type_3,
+        asset.sub_asset_type_4,
+        asset.sub_asset_type_5,
+        asset.sub_asset_type_6
+      ]),
+      assetValidators.validateComplexTypesMustHaveSubAssets(asset.main_asset_type, [
+        asset.sub_asset_type_1,
+        asset.sub_asset_type_2,
+        asset.sub_asset_type_3,
+        asset.sub_asset_type_4,
+        asset.sub_asset_type_5,
+        asset.sub_asset_type_6
+      ])
+    ];
+
+    if (shouldValidateSubAssets) {
+      validations.push(
+        assetValidators.validateMinimumSubAssets([
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ])
+      );
+    }
+
+    validations.push(
+      assetValidators.validateAssetTypeRequiresSize(
+        asset.main_asset_type,
+        asset.asset_size,
+        [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ],
+        [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ]
+      ),
+      assetValidators.validateSubAssetSizeMatchesMain(
+        asset.asset_size,
+        [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ],
+        [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ]
+      ),
+      assetValidators.validateSubAssetsFor199Or299(
+        asset.building_number,
+        asset.main_asset_type,
+        asset.asset_size,
+        [
+          asset.sub_asset_type_1,
+          asset.sub_asset_type_2,
+          asset.sub_asset_type_3,
+          asset.sub_asset_type_4,
+          asset.sub_asset_type_5,
+          asset.sub_asset_type_6
+        ],
+        [
+          asset.sub_asset_size_1,
+          asset.sub_asset_size_2,
+          asset.sub_asset_size_3,
+          asset.sub_asset_size_4,
+          asset.sub_asset_size_5,
+          asset.sub_asset_size_6
+        ],
+        taxRegion
+      ),
+      assetValidators.validateAssetType(asset.sub_asset_type_1, 'sub_asset_type_1'),
+      assetValidators.validateAssetType(asset.sub_asset_type_2, 'sub_asset_type_2'),
+      assetValidators.validateAssetType(asset.sub_asset_type_3, 'sub_asset_type_3'),
+      assetValidators.validateAssetType(asset.sub_asset_type_4, 'sub_asset_type_4'),
+      assetValidators.validateAssetType(asset.sub_asset_type_5, 'sub_asset_type_5'),
+      assetValidators.validateAssetType(asset.sub_asset_type_6, 'sub_asset_type_6'),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_1, asset.sub_asset_size_1, taxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_2, asset.sub_asset_size_2, taxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_3, asset.sub_asset_size_3, taxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_4, asset.sub_asset_size_4, taxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_5, asset.sub_asset_size_5, taxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_6, asset.sub_asset_size_6, taxRegion, undefined, asset),
+    );
+
+    const validation = await validateAll(validations);
+    return validation;
+  }, [taxRegion]);
+
+  // Function to validate all assets
+  const validateAllAssets = useCallback(async (allAssets: Asset[], allDirtyAssets: Map<string, Partial<Asset>>, currentInitialTotalArea: number | null): Promise<Map<string, string>> => {
+    const newValidationErrors = new Map<string, string>();
+    
+    // Build updated assets with dirty changes applied
+    const updatedAssets = allAssets.map(asset => {
+      const assetId = String(asset.id);
+      const dirtyChanges = allDirtyAssets.get(assetId) || {};
+      return { ...asset, ...dirtyChanges };
+    });
+
+    // Calculate current total area
+    const newTotalArea = updatedAssets.reduce((sum, a) => {
+      return sum + (a.asset_size || 0);
+    }, 0);
+
+    // Validate total area if initial total area is set
+    let totalAreaError: string | null = null;
+    if (currentInitialTotalArea !== null && Math.abs(newTotalArea - currentInitialTotalArea) > 0.01) {
+      totalAreaError = `השטח הכולל של הנכסים המקושרים חייב להישאר ${currentInitialTotalArea.toLocaleString('he-IL')}. השטח הכולל הנוכחי הוא ${newTotalArea.toLocaleString('he-IL')}`;
+    }
+
+    // Validate each asset
+    for (const asset of updatedAssets) {
+      const assetId = String(asset.id);
+      const validation = await validateAsset(asset);
+      
+      if (!validation.valid || totalAreaError) {
+        const errors: string[] = [];
+        if (!validation.valid) {
+          errors.push(validation.error || 'Unknown validation error');
+        }
+        if (totalAreaError) {
+          errors.push(totalAreaError);
+        }
+        newValidationErrors.set(assetId, errors.join('\n'));
+      }
+    }
+
+    return newValidationErrors;
+  }, [validateAsset]);
+
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
       const { data, colDef } = event;
@@ -156,14 +339,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       // Get the original asset from state
       const originalAsset = assets.find(a => String(a.id) === assetId);
       if (!originalAsset) return;
-
-      // Build updated asset with dirty changes
-      const dirtyChanges = dirtyAssets.get(assetId) || {};
-      const updatedAsset: Asset = {
-        ...originalAsset,
-        ...dirtyChanges,
-        [field]: newValue
-      };
 
       // Validate date format if measurement_date is being changed
       if (field === 'measurement_date' && newValue) {
@@ -176,195 +351,64 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         }
       }
 
-      // Track the change in dirtyAssets
-      setDirtyAssets(prev => {
-        const next = new Map(prev);
-        const existing = next.get(assetId) || {};
-        next.set(assetId, { ...existing, [field]: newValue });
-        return next;
-      });
+      // Build updated dirty assets map
+      const updatedDirtyAssets = new Map(dirtyAssets);
+      const existing = updatedDirtyAssets.get(assetId) || {};
+      updatedDirtyAssets.set(assetId, { ...existing, [field]: newValue });
 
-      // Build comprehensive validation list
-      const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
-      const validations = [
-        assetValidators.validateBuildingNumber(updatedAsset.building_number),
-        assetValidators.validateAssetId(updatedAsset.asset_id),
-        assetValidators.validatePayerId(updatedAsset.payer_id),
-        assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type'),
-        assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, taxRegion),
-        assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedAsset.main_asset_type, [
-          updatedAsset.sub_asset_type_1,
-          updatedAsset.sub_asset_type_2,
-          updatedAsset.sub_asset_type_3,
-          updatedAsset.sub_asset_type_4,
-          updatedAsset.sub_asset_type_5,
-          updatedAsset.sub_asset_type_6
-        ]),
-        assetValidators.validateComplexTypesMustHaveSubAssets(updatedAsset.main_asset_type, [
-          updatedAsset.sub_asset_type_1,
-          updatedAsset.sub_asset_type_2,
-          updatedAsset.sub_asset_type_3,
-          updatedAsset.sub_asset_type_4,
-          updatedAsset.sub_asset_type_5,
-          updatedAsset.sub_asset_type_6
-        ])
-      ];
-
-      if (shouldValidateSubAssets) {
-        validations.push(
-          assetValidators.validateMinimumSubAssets([
-            updatedAsset.sub_asset_type_1,
-            updatedAsset.sub_asset_type_2,
-            updatedAsset.sub_asset_type_3,
-            updatedAsset.sub_asset_type_4,
-            updatedAsset.sub_asset_type_5,
-            updatedAsset.sub_asset_type_6
-          ])
-        );
-      }
-
-      validations.push(
-        assetValidators.validateSubAssetSizeMatchesMain(
-          updatedAsset.asset_size,
-          [
-            updatedAsset.sub_asset_type_1,
-            updatedAsset.sub_asset_type_2,
-            updatedAsset.sub_asset_type_3,
-            updatedAsset.sub_asset_type_4,
-            updatedAsset.sub_asset_type_5,
-            updatedAsset.sub_asset_type_6
-          ],
-          [
-            updatedAsset.sub_asset_size_1,
-            updatedAsset.sub_asset_size_2,
-            updatedAsset.sub_asset_size_3,
-            updatedAsset.sub_asset_size_4,
-            updatedAsset.sub_asset_size_5,
-            updatedAsset.sub_asset_size_6
-          ]
-        ),
-        assetValidators.validateSubAssetsFor199Or299(
-          updatedAsset.building_number,
-          updatedAsset.main_asset_type,
-          updatedAsset.asset_size,
-          [
-            updatedAsset.sub_asset_type_1,
-            updatedAsset.sub_asset_type_2,
-            updatedAsset.sub_asset_type_3,
-            updatedAsset.sub_asset_type_4,
-            updatedAsset.sub_asset_type_5,
-            updatedAsset.sub_asset_type_6
-          ],
-          [
-            updatedAsset.sub_asset_size_1,
-            updatedAsset.sub_asset_size_2,
-            updatedAsset.sub_asset_size_3,
-            updatedAsset.sub_asset_size_4,
-            updatedAsset.sub_asset_size_5,
-            updatedAsset.sub_asset_size_6
-          ],
-          taxRegion
-        ),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_1, 'sub_asset_type_1'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_2, 'sub_asset_type_2'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_3, 'sub_asset_type_3'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_4, 'sub_asset_type_4'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_5, 'sub_asset_type_5'),
-        assetValidators.validateAssetType(updatedAsset.sub_asset_type_6, 'sub_asset_type_6'),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_1, updatedAsset.sub_asset_size_1, taxRegion, undefined, updatedAsset),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_2, updatedAsset.sub_asset_size_2, taxRegion, undefined, updatedAsset),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_3, updatedAsset.sub_asset_size_3, taxRegion, undefined, updatedAsset),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_4, updatedAsset.sub_asset_size_4, taxRegion, undefined, updatedAsset),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_5, updatedAsset.sub_asset_size_5, taxRegion, undefined, updatedAsset),
-        assetValidators.validateSubAssetTypeComplete(updatedAsset.building_number, updatedAsset.sub_asset_type_6, updatedAsset.sub_asset_size_6, taxRegion, undefined, updatedAsset),
-      );
-
-      // Run all validations
-      const validation = await validateAll(validations);
-
-      // Calculate current total area after this change (only if asset_size field was changed)
-      // Check total area validation for all assets when any size field changes
-      const updatedAssets = assets.map(a => {
-        if (String(a.id) === assetId) {
-          return updatedAsset;
+      // Build updated assets array with all dirty changes applied
+      const updatedAssets = assets.map(asset => {
+        const assetIdStr = String(asset.id);
+        if (assetIdStr === assetId) {
+          // This is the asset that was just changed
+          const dirtyChanges = updatedDirtyAssets.get(assetIdStr) || {};
+          return { ...asset, ...dirtyChanges, [field]: newValue };
         }
-        const assetDirtyChanges = dirtyAssets.get(String(a.id)) || {};
-        return { ...a, ...assetDirtyChanges };
-      });
-      
-      const newTotalArea = updatedAssets.reduce((sum, a) => {
-        return sum + (a.asset_size || 0);
-      }, 0);
-
-      // Validate total area - check if it equals the initial total area
-      // This validation runs whenever asset_size is changed
-      const isSizeField = field === 'asset_size';
-      let totalAreaError: string | null = null;
-      
-      if (isSizeField && initialTotalArea !== null) {
-        if (Math.abs(newTotalArea - initialTotalArea) > 0.01) {
-          totalAreaError = `השטח הכולל של הנכסים המקושרים חייב להישאר ${initialTotalArea.toLocaleString('he-IL')}. השטח הכולל הנוכחי הוא ${newTotalArea.toLocaleString('he-IL')}`;
-        }
-      }
-
-      // Combine validation errors
-      if (totalAreaError && !validation.valid) {
-        // Both total area and other validations failed
-        const combinedError = `${validation.error || 'Unknown validation error'}\n${totalAreaError}`;
-        setToast({ message: combinedError, type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          newMap.set(String(assetId), combinedError);
-          return newMap;
-        });
-      } else if (totalAreaError) {
-        // Only total area validation failed
-        setToast({ message: totalAreaError, type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          newMap.set(String(assetId), totalAreaError!);
-          return newMap;
-        });
-      } else if (!validation.valid) {
-        // Only other validations failed
-        const detailedError = validation.error || 'Unknown validation error';
-        setToast({ message: detailedError, type: 'error' });
-        setTimeout(() => setToast(null), 5000);
-        // Store validation error for this asset
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          newMap.set(String(assetId), detailedError);
-          return newMap;
-        });
-      } else {
-        // All validations passed - clear validation error
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(String(assetId));
-          return newMap;
-        });
-      }
-
-      // Update local state
-      setAssets(prevAssets => {
-        return prevAssets.map(asset => {
-          if (String(asset.id) === assetId) {
-            return { ...asset, [field]: newValue };
-          }
-          return asset;
-        });
+        // Apply any existing dirty changes to other assets
+        const assetDirtyChanges = updatedDirtyAssets.get(assetIdStr) || {};
+        return { ...asset, ...assetDirtyChanges };
       });
 
-      // Refresh the cell to update styling
+      // Update state
+      setDirtyAssets(updatedDirtyAssets);
+      setAssets(updatedAssets);
+
+      // Wait for state updates to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Validate all assets with the updated state
+      const newValidationErrors = await validateAllAssets(updatedAssets, updatedDirtyAssets, initialTotalArea);
+      
+      // Update validation errors for all assets
+      setValidationErrors(newValidationErrors);
+
+      // Show toast if there are validation errors
+      if (newValidationErrors.size > 0) {
+        const firstError = Array.from(newValidationErrors.values())[0];
+        setToast({ message: firstError, type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+      }
+
+      // Refresh all cells to update styling and invalid icons
       if (event.api) {
-        event.api.refreshCells({ rowNodes: [event.node], columns: [field], force: true });
+        setTimeout(() => {
+          // Refresh all rows to update validation icons and styling
+          const rowNodes: any[] = [];
+          event.api.forEachNode((node) => {
+            rowNodes.push(node);
+          });
+          if (rowNodes.length > 0) {
+            // Refresh actions column for all rows to update invalid icons
+            event.api.refreshCells({ rowNodes: rowNodes, columns: ['actions'], force: true });
+            // Refresh all cells in all rows to update validation styling
+            event.api.refreshCells({ rowNodes: rowNodes, force: true });
+          }
+        }, 0);
       }
     } catch (err) {
       console.error('[TransferAreas] Validation error:', err);
     }
-  }, [assets, dirtyAssets, taxRegion]);
+  }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets]);
 
   const handleOpenSaveAsNewMeasurementModal = useCallback(() => {
     if (dirtyAssets.size === 0) {
@@ -905,6 +949,22 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_6')
     },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
   ], [t, validationErrors, getCellStyle]);
 
   if (loading) {
@@ -974,7 +1034,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       <div className="bg-white rounded-xl shadow-lg border border-blue-100">
         <div className="p-3">
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '50vh', direction: 'ltr' }}>
+          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={assets}
@@ -985,13 +1045,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 autoHeaderHeight: true,
                 wrapText: true,
                 autoHeight: false,
-                headerClass: 'ag-right-aligned-header'
+                headerClass: 'ag-right-aligned-header',
+                minWidth: 100
               }}
               gridOptions={{
-                autoSizeStrategy: {
-                  type: 'fitCellContents',
-                },
+                suppressColumnVirtualisation: true,
+                alwaysShowHorizontalScroll: true,
               }}
+              suppressHorizontalScroll={false}
               getRowId={(params) => String(params.data.id)}
               onCellValueChanged={onCellValueChanged}
               getRowStyle={(params) => {
@@ -1041,14 +1102,35 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       {/* Measurement Date Input Modal */}
       {measurementDateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setMeasurementDateModalOpen(false)}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+            measurementDateModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => {
+            setMeasurementDateModalClosing(true);
+            setTimeout(() => {
+              setMeasurementDateModalOpen(false);
+              setMeasurementDateModalClosing(false);
+            }, 300);
+          }}
+        >
+          <div 
+            className={`bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 flex flex-col transition-all duration-300 ${
+              measurementDateModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-800">שמור כמדידות חדשות</h3>
               <button
                 onClick={() => {
-                  setMeasurementDateModalOpen(false);
-                  setNewMeasurementDate('');
+                  setMeasurementDateModalClosing(true);
+                  setTimeout(() => {
+                    setMeasurementDateModalOpen(false);
+                    setNewMeasurementDate('');
+                    setMeasurementDateModalClosing(false);
+                  }, 300);
                 }}
                 className="text-slate-500 hover:text-slate-700 transition-colors"
               >
@@ -1092,8 +1174,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
-                  setMeasurementDateModalOpen(false);
-                  setNewMeasurementDate('');
+                  setMeasurementDateModalClosing(true);
+                  setTimeout(() => {
+                    setMeasurementDateModalOpen(false);
+                    setNewMeasurementDate('');
+                    setMeasurementDateModalClosing(false);
+                  }, 300);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >

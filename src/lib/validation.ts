@@ -1295,8 +1295,14 @@ export async function validateSubAssetSizeMatchesMain(
 
 /**
  * HARDCODED RULE: Subtypes cannot have holes (must be sequential)
- * This is one of the only hardcoded rules allowed
+ * This is one of the ONLY hardcoded rules allowed:
+ * 1. Only 199 and 299 can be main types (and have subtypes)
+ * 2. 199 and 299 cannot be subtypes
+ * 3. 199 and 299 require at least 2 subtypes
+ * 4. Subtypes have no holes (must be consecutive, no gaps)
+ * 
  * Sub-assets must be filled in order: you cannot have subtype 2 if subtype 1 is blank
+ * No other hardcoded validations are allowed - all other validations must use the asset_types table
  */
 export async function validateSubAssetOrder(
   subAssetTypes: (string | undefined)[]
@@ -1357,8 +1363,13 @@ export async function validateMinimumSubAssets(
 
 /**
  * HARDCODED RULE: Only asset types 199 and 299 can have sub-assets
- * This is the only hardcoded rule allowed (along with minimum 2 subtypes and no holes)
- * All other validations must use the asset_types table
+ * This is one of the ONLY hardcoded rules allowed:
+ * 1. Only 199 and 299 can be main types (and have subtypes)
+ * 2. 199 and 299 cannot be subtypes
+ * 3. 199 and 299 require at least 2 subtypes
+ * 4. Subtypes have no holes (must be consecutive, no gaps)
+ * 
+ * All other validations must use the asset_types table (no hardcoded tax region 40 or other validations)
  */
 export async function validateOnlyComplexTypesCanHaveSubAssets(
   mainAssetType: string | undefined,
@@ -1384,7 +1395,13 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
 
 /**
  * HARDCODED RULE: Asset types 199 and 299 require at least 2 subtypes
- * This is one of the only hardcoded rules allowed
+ * This is one of the ONLY hardcoded rules allowed:
+ * 1. Only 199 and 299 can be main types (and have subtypes)
+ * 2. 199 and 299 cannot be subtypes
+ * 3. 199 and 299 require at least 2 subtypes
+ * 4. Subtypes have no holes (must be consecutive, no gaps)
+ * 
+ * All other validations must use the asset_types table
  */
 export async function validateComplexTypesMustHaveSubAssets(
   mainAssetType: string | undefined,
@@ -1433,7 +1450,11 @@ export async function validateSubAssetsFor199Or299(
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
 
   // HARDCODED RULE: Sub-assets cannot be 199 or 299 (complex types cannot be sub types)
-  // This is part of the rule that only 199/299 can have sub-assets
+  // This is part of the ONLY hardcoded rules:
+  // 1. Only 199 and 299 can be main types (and have subtypes)
+  // 2. 199 and 299 cannot be subtypes
+  // 3. 199 and 299 require at least 2 subtypes
+  // 4. Subtypes have no holes (must be consecutive)
   for (const subAssetType of validSubAssets) {
     if (subAssetType === '199' || subAssetType === '299') {
       return {
@@ -2009,7 +2030,8 @@ export const assetValidators = {
     }
 
     // HARDCODED RULE: Sub-assets cannot be 199 or 299 (complex types cannot be sub types)
-    // This is part of the rule that only 199/299 can have sub-assets
+    // This is part of the ONLY hardcoded rule: only 199/299 can be main types (and have sub-assets)
+    // All other validations must use the asset_types table
     if (subAssetType === '199' || subAssetType === '299') {
       return {
         valid: false,

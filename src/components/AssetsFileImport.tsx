@@ -145,50 +145,48 @@ export function AssetsFileImport() {
         throw new Error('קובץ File ריק');
       }
 
-      // Process headers - normalize and create mapping
+      // Process headers - exact name matching only
       const originalHeaders = lines[0].map(h => (h || '').trim());
-      const headers = originalHeaders.map(h => (h || '').trim().toLowerCase());
       
       // Create header mapping - map header index to field name
       const headerMap: Record<string, number> = {};
       
-      // Define exact header names from template (normalized)
-      const exactHeaders: Record<string, string[]> = {
-        'building_number': ['מזהה מבנה', 'building_number', 'buildingnumber'],
-        'payer_id': ['מזהה משלם', 'payer_id', 'payerid'],
-        'asset_id': ['מזהה נכס', 'asset_id', 'assetid'],
-        'measurement_date': ['measurement_date', 'measurementdate'],
-        'main_asset_type': ['סוג נכס ראשי', 'main_asset_type', 'mainassettype'],
-        'asset_size': ['גודל נכס ראשי', 'asset_size', 'assetsize', 'main_asset_size', 'mainassetsize'],
-        'tax_region': ['אזור מס', 'tax_region', 'taxregion'],
-        'sub_asset_type_1': ['סוג נכס משנה 1'],
-        'sub_asset_size_1': ['גודל נכס משנה 1'],
-        'sub_asset_type_2': ['סוג נכס משנה 2'],
-        'sub_asset_size_2': ['גודל נכס משנה 2'],
-        'sub_asset_type_3': ['סוג נכס משנה 3'],
-        'sub_asset_size_3': ['גודל נכס משנה 3'],
-        'sub_asset_type_4': ['סוג נכס משנה 4'],
-        'sub_asset_size_4': ['גודל נכס משנה 4'],
-        'sub_asset_type_5': ['סוג נכס משנה 5'],
-        'sub_asset_size_5': ['גודל נכס משנה 5'],
-        'sub_asset_type_6': ['סוג נכס משנה 6'],
-        'sub_asset_size_6': ['גודל נכס משנה 6'],
-        'penthouse': ['דירת גג', 'penthouse'],
-        'floor': ['קומה', 'floor'],
-        'discount_type': ['סוג הנחה', 'discount_type', 'discounttype'],
-        'discount_date_from': ['תאריך הנחה מ', 'discount_date_from', 'discountdatefrom'],
-        'discount_date_to': ['תאריך הנחה עד', 'discount_date_to', 'discountdateto']
+      // Define exact header names from template - must match exactly (case-insensitive, trimmed)
+      const exactHeaders: Record<string, string> = {
+        'building_number': 'מזהה מבנה',
+        'payer_id': 'מזהה משלם',
+        'asset_id': 'מזהה נכס',
+        'measurement_date': 'תאריך מדידה',
+        'main_asset_type': 'סוג נכס ראשי',
+        'asset_size': 'גודל נכס ראשי',
+        'tax_region': 'אזור מס',
+        'sub_asset_type_1': 'סוג נכס משנה 1',
+        'sub_asset_size_1': 'גודל נכס משנה 1',
+        'sub_asset_type_2': 'סוג נכס משנה 2',
+        'sub_asset_size_2': 'גודל נכס משנה 2',
+        'sub_asset_type_3': 'סוג נכס משנה 3',
+        'sub_asset_size_3': 'גודל נכס משנה 3',
+        'sub_asset_type_4': 'סוג נכס משנה 4',
+        'sub_asset_size_4': 'גודל נכס משנה 4',
+        'sub_asset_type_5': 'סוג נכס משנה 5',
+        'sub_asset_size_5': 'גודל נכס משנה 5',
+        'sub_asset_type_6': 'סוג נכס משנה 6',
+        'sub_asset_size_6': 'גודל נכס משנה 6',
+        'penthouse': 'דירת גג',
+        'floor': 'קומה',
+        'discount_type': 'סוג הנחה',
+        'discount_date_from': 'תאריך הנחה מ',
+        'discount_date_to': 'תאריך הנחה עד'
       };
 
-      headers.forEach((header, index) => {
+      // Match headers by exact name only (case-insensitive, trimmed)
+      originalHeaders.forEach((header, index) => {
         if (!header) return;
-        const headerNormalized = header.replace(/\s+/g, ' ').trim();
+        const headerTrimmed = header.trim();
         
         // Check for exact match against known headers
-        for (const [fieldName, validHeaders] of Object.entries(exactHeaders)) {
-          if (validHeaders.some(validHeader => 
-            headerNormalized.toLowerCase() === validHeader.toLowerCase()
-          )) {
+        for (const [fieldName, exactHeaderName] of Object.entries(exactHeaders)) {
+          if (headerTrimmed.toLowerCase() === exactHeaderName.toLowerCase()) {
             headerMap[fieldName] = index;
             break;
           }
@@ -652,23 +650,22 @@ export function AssetsFileImport() {
         throw new Error('קובץ File ריק');
       }
 
-      // Process headers - only look for building_number and asset_id
+      // Process headers - exact name matching only for skeleton import
       const originalHeaders = lines[0].map(h => (h || '').trim());
-      const headers = originalHeaders.map(h => (h || '').trim().toLowerCase());
       
-      // Find building_number and asset_id columns
+      // Find building_number and asset_id columns by exact name match
       let buildingNumberIndex = -1;
       let assetIdIndex = -1;
 
-      const buildingNumberHeaders = ['מזהה מבנה', 'building_number', 'buildingnumber'];
-      const assetIdHeaders = ['מזהה נכס', 'asset_id', 'assetid'];
+      const exactBuildingNumberHeader = 'מזהה מבנה';
+      const exactAssetIdHeader = 'מזהה נכס';
 
-      headers.forEach((header, index) => {
-        const normalizedHeader = header.replace(/\s+/g, ' ').trim();
-        if (buildingNumberHeaders.some(h => normalizedHeader === h.toLowerCase())) {
+      originalHeaders.forEach((header, index) => {
+        const headerTrimmed = header.trim();
+        if (headerTrimmed.toLowerCase() === exactBuildingNumberHeader.toLowerCase()) {
           buildingNumberIndex = index;
         }
-        if (assetIdHeaders.some(h => normalizedHeader === h.toLowerCase())) {
+        if (headerTrimmed.toLowerCase() === exactAssetIdHeader.toLowerCase()) {
           assetIdIndex = index;
         }
       });

@@ -2282,7 +2282,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 </div>
                 {areaDescriptionForTab && (
                   <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
-                    תיאור אזור לתצוגה בלשונית: {areaDescriptionForTab}
+                    {areaDescriptionForTab}
                   </p>
                 )}
               </div>

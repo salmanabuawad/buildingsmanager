@@ -582,9 +582,6 @@ export class AssetValidationHandler {
     validationNames.push('אימות מזהה נכס ייחודי במערכת');
     validations.push(assetValidators.validateAssetIdUnique(asset.asset_id, asset.id, validationRules, cachedData, asset.building_number));
 
-    validationNames.push('אימות נכס לא קיים במבנה אחר');
-    validations.push(assetValidators.validateAssetIdNotInOtherBuilding(asset.asset_id, asset.building_number));
-
     validationNames.push('אימות קוד משלם');
     validations.push(assetValidators.validatePayerId(asset.payer_id, validationRules, cachedData));
 

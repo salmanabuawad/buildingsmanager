@@ -5,6 +5,7 @@ import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
+import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
@@ -70,6 +71,7 @@ export function AssetsFileImport() {
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const addressDropdownRef = useRef<HTMLDivElement>(null);
+  const [buildingValidationErrors, setBuildingValidationErrors] = useState<Record<string, string>>({});
 
   // Load asset types and buildings on mount, and ensure validation context data is loaded
   useEffect(() => {
@@ -410,6 +412,13 @@ export function AssetsFileImport() {
         ...buildingCreateData
       };
       
+      // Validate before creating
+      const isValid = await validateBuildingData(buildingData);
+      if (!isValid) {
+        setIsCreatingBuilding(false);
+        return; // Don't create if validation fails
+      }
+      
       const createdBuilding = await api.buildings.create(buildingData);
       
       // Reload buildings list
@@ -451,6 +460,17 @@ export function AssetsFileImport() {
       // If building doesn't exist, getOne will throw an error
       return false;
     }
+  };
+
+  const validateBuildingData = async (buildingData: Partial<Building>) => {
+    const buildingToValidate = {
+      building_number: pendingBuildingNumber || buildingData.building_number,
+      ...buildingData
+    };
+    
+    const validation = await buildingValidators.validateAllFields(buildingToValidate);
+    setBuildingValidationErrors(validation.errors || {});
+    return validation.valid;
   };
 
   const promptCreateBuilding = async (buildingNumber: number, continueCallback: () => void): Promise<boolean> => {
@@ -632,17 +652,6 @@ export function AssetsFileImport() {
   const handleSkeletonFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Confirm with user
-    const confirmed = window.confirm(
-      'האם להמשיך לייבא שלד? רק שדות מספר מבנה ומזהה נכס יישמרו. כל השדות האחרים יישארו ריקים.'
-    );
-    if (!confirmed) {
-      if (skeletonFileInputRef.current) {
-        skeletonFileInputRef.current.value = '';
-      }
-      return;
-    }
 
     setIsParsing(true);
     setIsSaving(true);
@@ -960,12 +969,6 @@ export function AssetsFileImport() {
 
   const handleImportSkeleton = async () => {
     if (importedAssets.length === 0) return;
-
-    // Confirm with user
-    const confirmed = window.confirm(
-      'האם להמשיך לייבא שלד? רק שדות מספר מבנה ומזהה נכס יישמרו. כל השדות האחרים יישארו ריקים.'
-    );
-    if (!confirmed) return;
 
     setIsSaving(true);
     const errors: string[] = [];
@@ -2586,11 +2589,22 @@ export function AssetsFileImport() {
                     <input
                       type="text"
                       value={buildingCreateData.tax_region || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, tax_region: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      onChange={async (e) => {
+                        const newData = { ...buildingCreateData, tax_region: e.target.value };
+                        setBuildingCreateData(newData);
+                        await validateBuildingData(newData);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                        buildingValidationErrors.tax_region 
+                          ? 'border-red-500' 
+                          : 'border-gray-300'
+                      }`}
                       placeholder="לדוגמה: 10, 20, 30"
                       disabled={isCreatingBuilding}
                     />
+                    {buildingValidationErrors.tax_region && (
+                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.tax_region}</p>
+                    )}
                   </div>
 
                   <div>
@@ -2601,10 +2615,21 @@ export function AssetsFileImport() {
                       type="number"
                       step="0.01"
                       value={buildingCreateData.shared_area || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      onChange={async (e) => {
+                        const newData = { ...buildingCreateData, shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
+                        setBuildingCreateData(newData);
+                        await validateBuildingData(newData);
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                        buildingValidationErrors.shared_area 
+                          ? 'border-red-500' 
+                          : 'border-gray-300'
+                      }`}
                       disabled={isCreatingBuilding}
                     />
+                    {buildingValidationErrors.shared_area && (
+                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.shared_area}</p>
+                    )}
                   </div>
 
                   <div>

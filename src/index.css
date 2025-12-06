@@ -343,6 +343,23 @@ input:focus, textarea:focus, select:focus {
   z-index: 10 !important;
 }
 
+/* Fix filter panel z-index to appear above pinned columns */
+.ag-theme-alpine .ag-filter-wrapper,
+.ag-theme-alpine .ag-popup,
+.ag-theme-alpine .ag-popup-child {
+  z-index: 1000 !important;
+}
+
+.ag-theme-alpine .ag-filter-body-wrapper {
+  z-index: 1001 !important;
+  position: relative;
+}
+
+.ag-theme-alpine .ag-floating-filter-wrapper,
+.ag-theme-alpine .ag-menu {
+  z-index: 1002 !important;
+}
+
 /* Ensure the main grid body can scroll independently */
 .ag-theme-alpine .ag-body-viewport-wrapper {
   overflow-x: auto !important;

@@ -27,6 +27,10 @@ interface AssetRow {
   sub_asset_type_6: string;
   sub_asset_size_6: number;
   penthouse?: string;
+  floor?: number;
+  discount_type?: string;
+  discount_date_from?: string;
+  discount_date_to?: string;
   _isNew?: boolean;
   _dbId?: number;
   _isDirty?: boolean;
@@ -436,7 +440,11 @@ export function AssetDataEntry() {
             sub_asset_size_5: row.sub_asset_size_5 || 0,
             sub_asset_type_6: row.sub_asset_type_6 || undefined,
             sub_asset_size_6: row.sub_asset_size_6 || 0,
-            penthouse: row.penthouse || undefined
+            penthouse: row.penthouse || undefined,
+            floor: row.floor || undefined,
+            discount_type: row.discount_type || undefined,
+            discount_date_from: row.discount_date_from || undefined,
+            discount_date_to: row.discount_date_to || undefined
           };
           const newAsset = await api.assets.create(assetData);
           row._dbId = newAsset.id;
@@ -572,7 +580,12 @@ export function AssetDataEntry() {
             sub_asset_type_5: row.sub_asset_type_5 || null,
             sub_asset_size_5: row.sub_asset_size_5 || 0,
             sub_asset_type_6: row.sub_asset_type_6 || null,
-            sub_asset_size_6: row.sub_asset_size_6 || 0
+            sub_asset_size_6: row.sub_asset_size_6 || 0,
+            penthouse: row.penthouse || undefined,
+            floor: row.floor || undefined,
+            discount_type: row.discount_type || undefined,
+            discount_date_from: row.discount_date_from || undefined,
+            discount_date_to: row.discount_date_to || undefined
           };
           await api.assets.update(row._dbId!, updateData);
           row._isDirty = false;
@@ -775,7 +788,12 @@ export function AssetDataEntry() {
         sub_asset_type_5: row.sub_asset_type_5 || undefined,
         sub_asset_size_5: row.sub_asset_size_5 || 0,
         sub_asset_type_6: row.sub_asset_type_6 || undefined,
-        sub_asset_size_6: row.sub_asset_size_6 || 0
+        sub_asset_size_6: row.sub_asset_size_6 || 0,
+        penthouse: row.penthouse || undefined,
+        floor: row.floor || undefined,
+        discount_type: row.discount_type || undefined,
+        discount_date_from: row.discount_date_from || undefined,
+        discount_date_to: row.discount_date_to || undefined
       };
       const newAsset = await api.assets.create(newMeasurementData);
       // Add the new measurement to the grid
@@ -799,6 +817,11 @@ export function AssetDataEntry() {
         sub_asset_size_5: newAsset.sub_asset_size_5 || 0,
         sub_asset_type_6: newAsset.sub_asset_type_6 || '',
         sub_asset_size_6: newAsset.sub_asset_size_6 || 0,
+        penthouse: newAsset.penthouse || undefined,
+        floor: newAsset.floor || undefined,
+        discount_type: newAsset.discount_type || undefined,
+        discount_date_from: newAsset.discount_date_from || undefined,
+        discount_date_to: newAsset.discount_date_to || undefined,
         _isNew: false,
         _dbId: newAsset.id
       };
@@ -985,6 +1008,40 @@ export function AssetDataEntry() {
         return { ...baseStyle, textAlign: 'center' };
       },
       headerClass: 'text-center'
+    },
+    {
+      field: 'floor',
+      headerName: 'קומה',
+      width: 80,
+      editable: true,
+      type: 'numericColumn',
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params) => getCellStyle(params, 'floor', false)
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      width: 100,
+      editable: true,
+      cellStyle: (params) => getCellStyle(params, 'discount_type', false)
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
+      width: 120,
+      editable: true,
+      cellStyle: (params) => getCellStyle(params, 'discount_date_from', false)
+    },
+    {
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
+      width: 120,
+      editable: true,
+      cellStyle: (params) => getCellStyle(params, 'discount_date_to', false)
     },
     {
       field: 'asset_id',

@@ -247,6 +247,64 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: R
               </div>
             </div>
 
+            {/* Floor */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                קומה
+              </label>
+              <input
+                type="number"
+                value={formData.floor ?? ''}
+                onChange={(e) => handleFieldChange('floor', e.target.value === '' ? undefined : parseInt(e.target.value) || undefined)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                placeholder="קומה"
+              />
+            </div>
+
+            {/* Discount Type */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                סוג הנחה
+              </label>
+              <input
+                type="text"
+                value={formData.discount_type || ''}
+                onChange={(e) => handleFieldChange('discount_type', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                placeholder="סוג הנחה"
+              />
+            </div>
+
+            {/* Discount Date From */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                תאריך הנחה מ
+              </label>
+              <input
+                type="text"
+                value={formData.discount_date_from || ''}
+                onChange={(e) => handleFieldChange('discount_date_from', e.target.value || undefined)}
+                placeholder="DD/MM/YYYY"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                maxLength={10}
+              />
+            </div>
+
+            {/* Discount Date To */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                תאריך הנחה עד
+              </label>
+              <input
+                type="text"
+                value={formData.discount_date_to || ''}
+                onChange={(e) => handleFieldChange('discount_date_to', e.target.value || undefined)}
+                placeholder="DD/MM/YYYY"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                maxLength={10}
+              />
+            </div>
+
             {/* Sub Asset Types and Sizes - 2 sets per row */}
             {[0, 1, 2].map((rowIndex) => {
               const num1 = rowIndex * 2 + 1;

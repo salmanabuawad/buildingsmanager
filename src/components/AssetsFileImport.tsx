@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2 } from 'lucide-react';
-import { api, Asset, AssetType, Building } from '../lib/api';
+import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -65,6 +65,11 @@ export function AssetsFileImport() {
   const [buildingCreateData, setBuildingCreateData] = useState<Partial<Building>>({});
   const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
   const pendingImportCallback = useRef<(() => void) | null>(null);
+  const [addressList, setAddressList] = useState<AddressList[]>([]);
+  const [addressSearchValue, setAddressSearchValue] = useState('');
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const addressDropdownRef = useRef<HTMLDivElement>(null);
 
   // Load asset types and buildings on mount, and ensure validation context data is loaded
   useEffect(() => {
@@ -423,6 +428,7 @@ export function AssetsFileImport() {
       setShowBuildingCreateModal(false);
       setPendingBuildingNumber(null);
       setBuildingCreateData({});
+      setAddressSearchValue('');
       
       // Continue with the pending import
       if (pendingImportCallback.current) {
@@ -457,6 +463,7 @@ export function AssetsFileImport() {
     // Building doesn't exist - show modal
     setPendingBuildingNumber(buildingNumber);
     setBuildingCreateData({ building_number: buildingNumber });
+    setAddressSearchValue(''); // Reset address search
     pendingImportCallback.current = continueCallback;
     setShowBuildingCreateModal(true);
     return false; // Building creation needed
@@ -2518,11 +2525,21 @@ export function AssetsFileImport() {
             if (e.target === e.currentTarget) {
               // Don't close on click outside - user must create building or cancel
             }
+            // Close address dropdown when clicking outside
+            if (showAddressDropdown && addressDropdownRef.current && !addressDropdownRef.current.contains(e.target as Node) && addressInputRef.current && !addressInputRef.current.contains(e.target as Node)) {
+              setShowAddressDropdown(false);
+            }
           }}
         >
           <div 
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Close address dropdown when clicking inside modal but outside dropdown
+              if (showAddressDropdown && addressDropdownRef.current && !addressDropdownRef.current.contains(e.target as Node) && addressInputRef.current && !addressInputRef.current.contains(e.target as Node)) {
+                setShowAddressDropdown(false);
+              }
+            }}
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-slate-800">יצירת מבנה חדש</h3>
@@ -2531,6 +2548,7 @@ export function AssetsFileImport() {
                   setShowBuildingCreateModal(false);
                   setPendingBuildingNumber(null);
                   setBuildingCreateData({});
+                  setAddressSearchValue('');
                   pendingImportCallback.current = null;
                 }}
                 className="text-slate-500 hover:text-slate-700 transition-colors"
@@ -2548,58 +2566,252 @@ export function AssetsFileImport() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    מספר מבנה *
-                  </label>
-                  <input
-                    type="number"
-                    value={pendingBuildingNumber}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      מספר מבנה *
+                    </label>
+                    <input
+                      type="number"
+                      value={pendingBuildingNumber || ''}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    אזור מס
-                  </label>
-                  <input
-                    type="text"
-                    value={buildingCreateData.tax_region || ''}
-                    onChange={(e) => setBuildingCreateData(prev => ({ ...prev, tax_region: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="לדוגמה: 10, 20, 30"
-                    disabled={isCreatingBuilding}
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      אזור מס
+                    </label>
+                    <input
+                      type="text"
+                      value={buildingCreateData.tax_region || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, tax_region: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="לדוגמה: 10, 20, 30"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    שטח משותף מגורים
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={buildingCreateData.shared_area || ''}
-                    onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    disabled={isCreatingBuilding}
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      שטח משותף מגורים
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.shared_area || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    שטח משותף עסקים
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={buildingCreateData.shared_business_area || ''}
-                    onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_business_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    disabled={isCreatingBuilding}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      שטח משותף עסקים
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.shared_business_area || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_business_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      שטח לבקרה
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.area_for_control || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, area_for_control: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      שטח בניין כולל
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.total_building_area || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, total_building_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      אחוז העמסה
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingCreateData.overload_ratio || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, overload_ratio: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      כתובת (סמל רחוב)
+                    </label>
+                    <input
+                      ref={addressInputRef}
+                      type="text"
+                      value={addressSearchValue || (buildingCreateData.building_address ? addressList.find(a => a.street_code === buildingCreateData.building_address)?.street_description || String(buildingCreateData.building_address) : '')}
+                      onChange={(e) => {
+                        setAddressSearchValue(e.target.value);
+                        setShowAddressDropdown(true);
+                      }}
+                      onFocus={() => setShowAddressDropdown(true)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="חפש כתובת..."
+                      disabled={isCreatingBuilding}
+                    />
+                    {showAddressDropdown && addressList.length > 0 && (
+                      <div
+                        ref={addressDropdownRef}
+                        className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+                      >
+                        {addressList
+                          .filter(a => 
+                            !addressSearchValue || 
+                            String(a.street_code).includes(addressSearchValue) ||
+                            a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
+                            `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                          )
+                          .slice(0, 20)
+                          .map((address) => (
+                            <div
+                              key={address.street_code}
+                              onClick={() => {
+                                setBuildingCreateData(prev => ({ ...prev, building_address: address.street_code }));
+                                setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
+                                setShowAddressDropdown(false);
+                              }}
+                              className="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm"
+                            >
+                              {address.street_code} - {address.street_description}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      מעלית
+                    </label>
+                    <select
+                      value={buildingCreateData.elevator || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.value || undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    >
+                      <option value="">-- בחר --</option>
+                      <option value="כן">כן</option>
+                      <option value="לא">לא</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      בית פרטי חד/דו משפחתי
+                    </label>
+                    <select
+                      value={buildingCreateData.single_double_family || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.value || undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    >
+                      <option value="">-- בחר --</option>
+                      <option value="כן">כן</option>
+                      <option value="לא">לא</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      בית משותף
+                    </label>
+                    <select
+                      value={buildingCreateData.condo || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.value || undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    >
+                      <option value="">-- בחר --</option>
+                      <option value="כן">כן</option>
+                      <option value="לא">לא</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      טוריים
+                    </label>
+                    <select
+                      value={buildingCreateData.townhouses || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.value || undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    >
+                      <option value="">-- בחר --</option>
+                      <option value="כן">כן</option>
+                      <option value="לא">לא</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      גוש
+                    </label>
+                    <input
+                      type="number"
+                      value={buildingCreateData.gosh || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, gosh: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      חלקה
+                    </label>
+                    <input
+                      type="number"
+                      value={buildingCreateData.helka || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, helka: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      מספר בניין ברחוב
+                    </label>
+                    <input
+                      type="number"
+                      value={buildingCreateData.building_number_in_street || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, building_number_in_street: e.target.value ? parseInt(e.target.value, 10) : undefined }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      disabled={isCreatingBuilding}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -2610,6 +2822,7 @@ export function AssetsFileImport() {
                   setShowBuildingCreateModal(false);
                   setPendingBuildingNumber(null);
                   setBuildingCreateData({});
+                  setAddressSearchValue('');
                   pendingImportCallback.current = null;
                 }}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

@@ -274,26 +274,6 @@ export function AssetTypes() {
   // Column definitions for ag-grid
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
-      field: 'extra_field_1',
-      headerName: '',
-      width: 120,
-      editable: false,
-      sortable: false,
-      filter: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'extra_field_2',
-      headerName: '',
-      width: 120,
-      editable: false,
-      sortable: false,
-      filter: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
       field: 'active',
       headerName: 'פעיל',
       editable: true,
@@ -556,6 +536,26 @@ export function AssetTypes() {
           fontWeight: isDirty ? 'bold' : undefined
         };
       }
+    },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'name',

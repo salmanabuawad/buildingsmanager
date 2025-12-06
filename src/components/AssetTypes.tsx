@@ -1126,7 +1126,7 @@ export function AssetTypes() {
                 )}
               </div>
             </div>
-            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', direction: 'rtl' }}>
               <AgGridReact
                 ref={gridRef}
                 rowData={assetTypes.filter(at => !deletedAssetTypes.has(at.id))}
@@ -1149,6 +1149,7 @@ export function AssetTypes() {
                 gridOptions={{
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,
+                  enableRtl: true,
                 }}
               />
             </div>

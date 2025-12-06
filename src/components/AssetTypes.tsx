@@ -585,29 +585,6 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'name',
-      headerName: 'סוג נכס',
-      pinned: 'right',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
-      editable: true,
-      width: 100,
-      cellEditor: 'agTextCellEditor',
-      cellEditorParams: {
-        useFormatter: false,
-      },
-      cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
-        return { 
-          textAlign: 'right',
-          direction: 'rtl',
-          backgroundColor: isDirty ? '#fef3c7' : undefined,
-          fontWeight: isDirty ? 'bold' : undefined
-        };
-      }
-    },
-    {
       colId: 'actions',
       headerName: t('actions'),
       pinned: 'right',
@@ -634,6 +611,29 @@ export function AssetTypes() {
         );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'name',
+      headerName: 'סוג נכס',
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      editable: true,
+      width: 100,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: {
+        useFormatter: false,
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
+        return { 
+          textAlign: 'right',
+          direction: 'rtl',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
     },
   ], [t, getCurrentValue, isFieldDirty, handleDelete]);
 

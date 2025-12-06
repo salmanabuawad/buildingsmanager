@@ -24,7 +24,11 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Expose getValue method to AG Grid - use ref for immediate access
   useImperativeHandle(ref, () => ({
-    getValue: () => selectedValueRef.current
+    getValue: () => {
+      const value = selectedValueRef.current;
+      console.log('[AddressCellEditor] getValue() called, returning:', value);
+      return value;
+    }
   }));
 
   // Initialize with current value
@@ -115,33 +119,34 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Select an address
   const selectAddress = (address: AddressList) => {
     const streetCode = address.street_code;
+    const oldValue = props.value;
     
-    // Set value in both state and ref (ref for immediate access in getValue)
-    setSelectedValue(streetCode);
+    console.log('[AddressCellEditor] Selecting address:', {
+      streetCode,
+      oldValue,
+      data: props.data
+    });
+    
+    // Set value in ref (for getValue()) and state
     selectedValueRef.current = streetCode;
+    setSelectedValue(streetCode);
     
-    // Update data object so cellRenderer can show the value immediately
+    // Close dropdown
+    setShowDropdown(false);
+    
+    // Update data object immediately for cellRenderer
     if (props.data) {
       props.data.building_address = streetCode;
     }
     
     // Stop editing - AG Grid will:
-    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. Compare with old value and if different, update the cell via setDataValue
-    // 3. Trigger onCellValueChanged event (which handles dirty tracking and state updates)
-    // 4. Refresh the cell renderer automatically
+    // 1. Call getValue() which returns selectedValueRef.current
+    // 2. Update the cell value if different from old value
+    // 3. Trigger onCellValueChanged event
+    // 4. Refresh the cell renderer
     props.stopEditing();
     
-    // Force refresh the cell after editing stops to ensure it displays
-    setTimeout(() => {
-      if (props.api && props.column && props.node) {
-        props.api.refreshCells({ 
-          rowNodes: [props.node], 
-          columns: [props.column.getColId()], 
-          force: true 
-        });
-      }
-    }, 50);
+    console.log('[AddressCellEditor] After stopEditing, getValue would return:', selectedValueRef.current);
   };
 
 
@@ -1778,6 +1783,13 @@ export function BuildingsList({
       field: 'building_address',
       headerName: 'כתובת',
       editable: true,
+      valueSetter: (params: any) => {
+        // Ensure the value is set on the data object
+        if (params.data) {
+          params.data.building_address = params.newValue;
+        }
+        return true;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';

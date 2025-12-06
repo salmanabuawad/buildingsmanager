@@ -139,19 +139,25 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const handleKeyDownForInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // For printable characters, ensure they're captured immediately
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Enter' && e.key !== 'Escape') {
-      // Don't prevent default - let the browser add the character
-      // But immediately update state after the browser adds it
-      requestAnimationFrame(() => {
+      // Don't prevent default - let the browser add the character naturally
+      // Use setTimeout to update state after browser adds character to DOM
+      setTimeout(() => {
         if (inputRef.current) {
           const value = inputRef.current.value;
           setSearchValue(value);
           setShowDropdown(true);
           setSelectedIndex(-1);
         }
-      });
-      return; // Don't call handleKeyDown for printable characters
+      }, 0);
+      // Don't return early - let handleKeyDown also run for navigation
+      // But handleKeyDown should not interfere with printable characters
     }
     // Call the original handleKeyDown for navigation and special keys
+    // But skip it for printable characters to avoid conflicts
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Enter' && e.key !== 'Escape') {
+      // Already handled above, don't call handleKeyDown
+      return;
+    }
     handleKeyDown(e);
   };
 
@@ -303,7 +309,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       <input
         ref={inputRef}
         type="text"
-        defaultValue={searchValue}
+        value={searchValue}
         onChange={handleInputChange}
         onInput={handleInput}
         onKeyDown={handleKeyDownForInput}

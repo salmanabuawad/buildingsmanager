@@ -60,6 +60,11 @@ export function AssetsFileImport() {
   const [validationCompleted, setValidationCompleted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skeletonFileInputRef = useRef<HTMLInputElement>(null);
+  const [showBuildingCreateModal, setShowBuildingCreateModal] = useState(false);
+  const [pendingBuildingNumber, setPendingBuildingNumber] = useState<number | null>(null);
+  const [buildingCreateData, setBuildingCreateData] = useState<Partial<Building>>({});
+  const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
+  const pendingImportCallback = useRef<(() => void) | null>(null);
 
   // Load asset types and buildings on mount, and ensure validation context data is loaded
   useEffect(() => {
@@ -392,6 +397,73 @@ export function AssetsFileImport() {
     }
   }
 
+  const handleCreateBuildingAndContinue = async (buildingNumber: number) => {
+    try {
+      setIsCreatingBuilding(true);
+      
+      // Create building with minimal data - only building_number is required
+      const buildingData: Partial<Building> = {
+        building_number: buildingNumber,
+        ...buildingCreateData
+      };
+      
+      const createdBuilding = await api.buildings.create(buildingData);
+      
+      // Reload buildings list
+      const [bldgs, allAssets] = await Promise.all([
+        api.buildings.getAll(),
+        api.assets.getAll()
+      ]);
+      setBuildings(bldgs);
+      
+      // Update in-memory stores for validation
+      const { setValidationData, setAllAssets } = await import('../lib/validation');
+      setValidationData({ buildings: bldgs, assetTypes: assetTypes || [], assets: allAssets });
+      setAllAssets(allAssets);
+      
+      // Close modal
+      setShowBuildingCreateModal(false);
+      setPendingBuildingNumber(null);
+      setBuildingCreateData({});
+      
+      // Continue with the pending import
+      if (pendingImportCallback.current) {
+        pendingImportCallback.current();
+        pendingImportCallback.current = null;
+      }
+    } catch (error) {
+      console.error('Error creating building:', error);
+      alert(`שגיאה ביצירת מבנה: ${error instanceof Error ? error.message : 'שגיאה לא ידועה'}`);
+    } finally {
+      setIsCreatingBuilding(false);
+    }
+  };
+
+  const checkBuildingExists = async (buildingNumber: number): Promise<boolean> => {
+    try {
+      const building = await api.buildings.getOne(buildingNumber);
+      return !!building;
+    } catch (error) {
+      // If building doesn't exist, getOne will throw an error
+      return false;
+    }
+  };
+
+  const promptCreateBuilding = async (buildingNumber: number, continueCallback: () => void): Promise<boolean> => {
+    // Check if building exists
+    const exists = await checkBuildingExists(buildingNumber);
+    if (exists) {
+      return true; // Building exists, continue
+    }
+    
+    // Building doesn't exist - show modal
+    setPendingBuildingNumber(buildingNumber);
+    setBuildingCreateData({ building_number: buildingNumber });
+    pendingImportCallback.current = continueCallback;
+    setShowBuildingCreateModal(true);
+    return false; // Building creation needed
+  };
+
   const handleValidate = async () => {
     if (importedAssets.length === 0) return;
 
@@ -435,7 +507,33 @@ export function AssetsFileImport() {
         }
       });
 
-      // Fetch all buildings in parallel
+      // Check for missing buildings and prompt for creation
+      const missingBuildings: number[] = [];
+      for (const buildingNum of buildingNumbers) {
+        const exists = await checkBuildingExists(buildingNum);
+        if (!exists) {
+          missingBuildings.push(buildingNum);
+        }
+      }
+
+      // If there are missing buildings, show modal for the first one
+      if (missingBuildings.length > 0) {
+        const firstMissingBuilding = missingBuildings[0];
+        setPendingBuildingNumber(firstMissingBuilding);
+        setBuildingCreateData({ building_number: firstMissingBuilding });
+        
+        // Store the continuation function - re-run validation after building is created
+        pendingImportCallback.current = () => {
+          handleValidate();
+        };
+        
+        setShowBuildingCreateModal(true);
+        setIsValidating(false);
+        setValidationProgress(null);
+        return;
+      }
+
+      // Fetch all buildings in parallel (they all exist now)
       const buildingsMap = new Map<number, any>();
       await Promise.all(
         Array.from(buildingNumbers).map(async (buildingNum) => {
@@ -526,6 +624,336 @@ export function AssetsFileImport() {
     }
   };
 
+  const handleSkeletonFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Confirm with user
+    const confirmed = window.confirm(
+      'האם להמשיך לייבא שלד? רק שדות מספר מבנה ומזהה נכס יישמרו. כל השדות האחרים יישארו ריקים.'
+    );
+    if (!confirmed) {
+      if (skeletonFileInputRef.current) {
+        skeletonFileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setIsParsing(true);
+    setIsSaving(true);
+    const errors: string[] = [];
+    let successCount = 0;
+    let skeletonAssets: Array<{ building_number: number | null; asset_id: string }> = [];
+
+    try {
+      const lines = await parseExcelFile(file);
+
+      if (lines.length === 0) {
+        throw new Error('קובץ File ריק');
+      }
+
+      // Process headers - only look for building_number and asset_id
+      const originalHeaders = lines[0].map(h => (h || '').trim());
+      const headers = originalHeaders.map(h => (h || '').trim().toLowerCase());
+      
+      // Find building_number and asset_id columns
+      let buildingNumberIndex = -1;
+      let assetIdIndex = -1;
+
+      const buildingNumberHeaders = ['מזהה מבנה', 'building_number', 'buildingnumber'];
+      const assetIdHeaders = ['מזהה נכס', 'asset_id', 'assetid'];
+
+      headers.forEach((header, index) => {
+        const normalizedHeader = header.replace(/\s+/g, ' ').trim();
+        if (buildingNumberHeaders.some(h => normalizedHeader === h.toLowerCase())) {
+          buildingNumberIndex = index;
+        }
+        if (assetIdHeaders.some(h => normalizedHeader === h.toLowerCase())) {
+          assetIdIndex = index;
+        }
+      });
+
+      if (buildingNumberIndex === -1 || assetIdIndex === -1) {
+        throw new Error('קובץ חייב לכלול עמודות: מזהה מבנה ומזהה נכס');
+      }
+
+      // Parse skeleton assets (only building_number and asset_id)
+      skeletonAssets = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i];
+        const buildingNumber = values[buildingNumberIndex] ? parseInt(String(values[buildingNumberIndex]), 10) : null;
+        const assetId = values[assetIdIndex] ? String(values[assetIdIndex]).trim() : '';
+
+        if (buildingNumber && !isNaN(buildingNumber) && assetId) {
+          skeletonAssets.push({
+            building_number: buildingNumber,
+            asset_id: assetId
+          });
+        }
+      }
+
+      if (skeletonAssets.length === 0) {
+        errors.push('לא נמצאו נכסים תקינים בקובץ. כל הנכסים חייבים לכלול מספר מבנה ומזהה נכס.');
+        setSaveResult({
+          successful: 0,
+          failed: 1,
+          errors: errors
+        });
+        setIsSaving(false);
+        setIsParsing(false);
+        if (skeletonFileInputRef.current) {
+          skeletonFileInputRef.current.value = '';
+        }
+        return;
+      }
+
+      // Ensure buildings and assets are loaded
+      if (buildings.length === 0) {
+        const [bldgs, allAssets] = await Promise.all([
+          api.buildings.getAll(),
+          api.assets.getAll()
+        ]);
+        setBuildings(bldgs);
+        const { setValidationData, setAllAssets } = await import('../lib/validation');
+        setValidationData({ buildings: bldgs, assetTypes: assetTypes || [], assets: allAssets });
+        setAllAssets(allAssets);
+      }
+
+      const { assetValidators } = await import('../lib/validation');
+      const { supabase } = await import('../lib/supabase');
+
+      // First, check for duplicates within the batch
+      const assetIdToRows = new Map<string | number, number[]>();
+      skeletonAssets.forEach((asset, index) => {
+        if (asset.asset_id) {
+          const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
+          if (!assetIdToRows.has(assetIdKey)) {
+            assetIdToRows.set(assetIdKey, []);
+          }
+          assetIdToRows.get(assetIdKey)!.push(index);
+        }
+      });
+
+      // Find duplicates within batch
+      const duplicatesInBatch: Array<{ assetId: string | number; rows: number[] }> = [];
+      assetIdToRows.forEach((rows, assetId) => {
+        if (rows.length > 1) {
+          duplicatesInBatch.push({ assetId, rows });
+        }
+      });
+
+      if (duplicatesInBatch.length > 0) {
+        duplicatesInBatch.forEach(({ assetId, rows }) => {
+          const rowNumbers = rows.map(r => r + 1).join(', ');
+          errors.push(`מזהה נכס ${assetId} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers})`);
+        });
+        setSaveResult({
+          successful: 0,
+          failed: duplicatesInBatch.length,
+          errors: errors
+        });
+        setIsSaving(false);
+        setIsParsing(false);
+        if (skeletonFileInputRef.current) {
+          skeletonFileInputRef.current.value = '';
+        }
+        return;
+      }
+
+      // Check all buildings and collect missing ones
+      const uniqueBuildingNumbers = new Set<number>();
+      skeletonAssets.forEach(asset => {
+        const buildingNum = typeof asset.building_number === 'string' 
+          ? parseInt(String(asset.building_number), 10) 
+          : asset.building_number;
+        if (!isNaN(buildingNum) && buildingNum) {
+          uniqueBuildingNumbers.add(buildingNum);
+        }
+      });
+
+      // Check each building and prompt for creation if missing
+      const missingBuildings: number[] = [];
+      for (const buildingNum of uniqueBuildingNumbers) {
+        const exists = await checkBuildingExists(buildingNum);
+        if (!exists) {
+          missingBuildings.push(buildingNum);
+        }
+      }
+
+      // If there are missing buildings, show modal for the first one
+      if (missingBuildings.length > 0) {
+        const firstMissingBuilding = missingBuildings[0];
+        setPendingBuildingNumber(firstMissingBuilding);
+        setBuildingCreateData({ building_number: firstMissingBuilding });
+        
+        // Store skeleton assets and continuation function
+        // We need to store them somewhere to resume after building creation
+        // For now, set them in importedAssets as a temporary measure
+        const tempImportedAssets: ImportAssetRow[] = skeletonAssets.map((asset, idx) => ({
+          id: `skeleton_${idx}_${Date.now()}`,
+          building_number: asset.building_number,
+          payer_id: '',
+          asset_id: asset.asset_id,
+          measurement_date: '',
+          main_asset_type: '',
+          asset_size: 0,
+          sub_asset_type_1: '',
+          sub_asset_size_1: 0,
+          sub_asset_type_2: '',
+          sub_asset_size_2: 0,
+          sub_asset_type_3: '',
+          sub_asset_size_3: 0,
+          sub_asset_type_4: '',
+          sub_asset_size_4: 0,
+          sub_asset_type_5: '',
+          sub_asset_size_5: 0,
+          sub_asset_type_6: '',
+          sub_asset_size_6: 0
+        }));
+        setImportedAssets(tempImportedAssets);
+        
+        // Store the continuation function - will call handleImportSkeleton after building is created
+        pendingImportCallback.current = () => {
+          handleImportSkeleton();
+        };
+        
+        setShowBuildingCreateModal(true);
+        setIsSaving(false);
+        setIsParsing(false);
+        return;
+      }
+
+      // All buildings exist - continue with validation and import
+      const validSkeletonAssets: Array<{ building_number: number; asset_id: string }> = [];
+
+      for (const asset of skeletonAssets) {
+        const assetErrors: string[] = [];
+
+        // Check building existence (should all exist now, but double-check)
+        const buildingNum = typeof asset.building_number === 'string' 
+          ? parseInt(String(asset.building_number), 10) 
+          : asset.building_number;
+        
+        if (!buildingNum || isNaN(buildingNum)) {
+          assetErrors.push('מספר מבנה חייב להיות מספר תקין');
+        }
+
+        // Check asset ID uniqueness against database (duplicates in batch already checked above)
+        if (asset.asset_id && assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
+          const uniquenessValidation = await assetValidators.validateAssetIdUnique(
+            asset.asset_id,
+            undefined,
+            undefined,
+            { buildings: buildings, assets: [] },
+            buildingNum
+          );
+          if (!uniquenessValidation.valid) {
+            assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
+          }
+        }
+
+        if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
+          validSkeletonAssets.push({
+            building_number: buildingNum,
+            asset_id: asset.asset_id
+          });
+        } else if (assetErrors.length > 0) {
+          errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
+        }
+      }
+
+      if (validSkeletonAssets.length === 0) {
+        errors.push('אין נכסים תקינים לייבא לאחר בדיקת תקינות.');
+        setSaveResult({
+          successful: 0,
+          failed: errors.length,
+          errors: errors
+        });
+        setIsSaving(false);
+        setIsParsing(false);
+        if (skeletonFileInputRef.current) {
+          skeletonFileInputRef.current.value = '';
+        }
+        return;
+      }
+
+      // Get current date for measurement_date
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const defaultDate = `${day}/${month}/${year}`;
+
+      // Prepare skeleton assets for insert
+      const assetsToInsert: Partial<Asset>[] = validSkeletonAssets.map(asset => ({
+        building_number: asset.building_number,
+        payer_id: null,
+        asset_id: asset.asset_id,
+        measurement_date: defaultDate,
+        main_asset_type: null,
+        asset_size: 0,
+        tax_region: null,
+        sub_asset_type_1: null,
+        sub_asset_size_1: 0,
+        sub_asset_type_2: null,
+        sub_asset_size_2: 0,
+        sub_asset_type_3: null,
+        sub_asset_size_3: 0,
+        sub_asset_type_4: null,
+        sub_asset_size_4: 0,
+        sub_asset_type_5: null,
+        sub_asset_size_5: 0,
+        sub_asset_type_6: null,
+        sub_asset_size_6: 0,
+        floor: null,
+        discount_type: null,
+        discount_date_from: null,
+        discount_date_to: null
+      }));
+
+      // Bulk insert skeleton assets
+      const { data: insertedAssets, error: insertError } = await supabase
+        .from('assets')
+        .insert(assetsToInsert)
+        .select();
+
+      if (insertError) {
+        errors.push(`שגיאה בשמירה: ${insertError.message}`);
+        setSaveResult({
+          successful: 0,
+          failed: validSkeletonAssets.length,
+          errors: errors
+        });
+      } else {
+        successCount = insertedAssets?.length || 0;
+        const failedCount = validSkeletonAssets.length - successCount;
+        
+        setSaveResult({
+          successful: successCount,
+          failed: failedCount,
+          errors: errors
+        });
+      }
+    } catch (error) {
+      console.error('Error importing skeleton from file:', error);
+      const errorMsg = error instanceof Error ? error.message : 'שגיאה בלתי צפויה בייבא שלד';
+      errors.push(errorMsg);
+      const totalAttempted = skeletonAssets.length;
+      setSaveResult({
+        successful: successCount,
+        failed: totalAttempted > successCount ? totalAttempted - successCount : 1,
+        errors: errors
+      });
+    } finally {
+      setIsSaving(false);
+      setIsParsing(false);
+      if (skeletonFileInputRef.current) {
+        skeletonFileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleImportSkeleton = async () => {
     if (importedAssets.length === 0) return;
 
@@ -605,23 +1033,56 @@ export function AssetsFileImport() {
         return;
       }
 
-      // Quick validation: building existence and asset ID uniqueness (against database)
+      // First, check all buildings and collect missing ones
+      const uniqueBuildingNumbers = new Set<number>();
+      skeletonAssets.forEach(asset => {
+        const buildingNum = typeof asset.building_number === 'string' 
+          ? parseInt(String(asset.building_number), 10) 
+          : asset.building_number;
+        if (!isNaN(buildingNum)) {
+          uniqueBuildingNumbers.add(buildingNum);
+        }
+      });
+
+      // Check each building and prompt for creation if missing
+      const missingBuildings: number[] = [];
+      for (const buildingNum of uniqueBuildingNumbers) {
+        const exists = await checkBuildingExists(buildingNum);
+        if (!exists) {
+          missingBuildings.push(buildingNum);
+        }
+      }
+
+      // If there are missing buildings, show modal for the first one
+      // After creating, the function will be called again recursively
+      if (missingBuildings.length > 0) {
+        const firstMissingBuilding = missingBuildings[0];
+        setPendingBuildingNumber(firstMissingBuilding);
+        setBuildingCreateData({ building_number: firstMissingBuilding });
+        
+        // Store the continuation function
+        pendingImportCallback.current = () => {
+          // Recursively call handleImportSkeleton to continue with remaining buildings
+          handleImportSkeleton();
+        };
+        
+        setShowBuildingCreateModal(true);
+        setIsSaving(false);
+        return;
+      }
+
+      // All buildings exist - continue with validation
       const validSkeletonAssets: ImportAssetRow[] = [];
 
       for (const asset of skeletonAssets) {
         const assetErrors: string[] = [];
 
-        // Check building existence
+        // Check building existence (should all exist now, but double-check)
         const buildingNum = typeof asset.building_number === 'string' 
           ? parseInt(String(asset.building_number), 10) 
           : asset.building_number;
         
-        if (!isNaN(buildingNum)) {
-          const buildingValidation = await assetValidators.validateBuildingExists(buildingNum);
-          if (!buildingValidation.valid) {
-            assetErrors.push(buildingValidation.error || `מבנה ${buildingNum} לא קיים במערכת`);
-          }
-        } else {
+        if (isNaN(buildingNum)) {
           assetErrors.push('מספר מבנה חייב להיות מספר תקין');
         }
 
@@ -639,9 +1100,9 @@ export function AssetsFileImport() {
           }
         }
 
-        if (assetErrors.length === 0) {
+        if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
           validSkeletonAssets.push(asset);
-        } else {
+        } else if (assetErrors.length > 0) {
           errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
         }
       }
@@ -781,6 +1242,44 @@ export function AssetsFileImport() {
           failed: 1,
           errors: errors
         });
+        setIsSaving(false);
+        return;
+      }
+
+      // Check for missing buildings before saving
+      const uniqueBuildingNumbers = new Set<number>();
+      validAssets.forEach(asset => {
+        if (asset.building_number) {
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          if (!isNaN(buildingNum)) {
+            uniqueBuildingNumbers.add(buildingNum);
+          }
+        }
+      });
+
+      // Check each building and prompt for creation if missing
+      const missingBuildings: number[] = [];
+      for (const buildingNum of uniqueBuildingNumbers) {
+        const exists = await checkBuildingExists(buildingNum);
+        if (!exists) {
+          missingBuildings.push(buildingNum);
+        }
+      }
+
+      // If there are missing buildings, show modal for the first one
+      if (missingBuildings.length > 0) {
+        const firstMissingBuilding = missingBuildings[0];
+        setPendingBuildingNumber(firstMissingBuilding);
+        setBuildingCreateData({ building_number: firstMissingBuilding });
+        
+        // Store the continuation function - re-run handleSave after building is created
+        pendingImportCallback.current = () => {
+          handleSave(saveAsNew, newMeasurementDate);
+        };
+        
+        setShowBuildingCreateModal(true);
         setIsSaving(false);
         return;
       }
@@ -1970,6 +2469,136 @@ export function AssetsFileImport() {
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
               >
                 אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Building Creation Modal */}
+      {showBuildingCreateModal && pendingBuildingNumber && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              // Don't close on click outside - user must create building or cancel
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-slate-800">יצירת מבנה חדש</h3>
+              <button
+                onClick={() => {
+                  setShowBuildingCreateModal(false);
+                  setPendingBuildingNumber(null);
+                  setBuildingCreateData({});
+                  pendingImportCallback.current = null;
+                }}
+                className="text-slate-500 hover:text-slate-700 transition-colors"
+                disabled={isCreatingBuilding}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6">
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-900">
+                  מבנה {pendingBuildingNumber} לא קיים במערכת. יש ליצור את המבנה לפני המשך הייבוא.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    מספר מבנה *
+                  </label>
+                  <input
+                    type="number"
+                    value={pendingBuildingNumber}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    אזור מס
+                  </label>
+                  <input
+                    type="text"
+                    value={buildingCreateData.tax_region || ''}
+                    onChange={(e) => setBuildingCreateData(prev => ({ ...prev, tax_region: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="לדוגמה: 10, 20, 30"
+                    disabled={isCreatingBuilding}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    שטח משותף מגורים
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={buildingCreateData.shared_area || ''}
+                    onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    disabled={isCreatingBuilding}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    שטח משותף עסקים
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={buildingCreateData.shared_business_area || ''}
+                    onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_business_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    disabled={isCreatingBuilding}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowBuildingCreateModal(false);
+                  setPendingBuildingNumber(null);
+                  setBuildingCreateData({});
+                  pendingImportCallback.current = null;
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={isCreatingBuilding}
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => pendingBuildingNumber && handleCreateBuildingAndContinue(pendingBuildingNumber)}
+                disabled={isCreatingBuilding || !pendingBuildingNumber}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isCreatingBuilding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    יוצר...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    צור והמשך ייבוא
+                  </>
+                )}
               </button>
             </div>
           </div>

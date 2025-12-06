@@ -416,8 +416,10 @@ export function AssetsFileImport() {
         setAllAssets(allAssets);
       }
 
-      // Import validation functions for building existence and asset ID uniqueness
-      const { assetValidators } = await import('../lib/validation');
+      // Prepare cached data
+      const cachedDataBase = {
+        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll()
+      };
 
       // Pre-fetch all unique buildings for validation
       const buildingNumbers = new Set<number>();
@@ -445,18 +447,6 @@ export function AssetsFileImport() {
         })
       );
 
-      // Build asset ID map for uniqueness check within import batch
-      const assetIdToRows = new Map<string | number, number[]>();
-      importedAssets.forEach((asset, index) => {
-        if (asset.asset_id) {
-          const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
-          if (!assetIdToRows.has(assetIdKey)) {
-            assetIdToRows.set(assetIdKey, []);
-          }
-          assetIdToRows.get(assetIdKey)!.push(index);
-        }
-      });
-
       const results: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
 
       for (let i = 0; i < importedAssets.length; i++) {
@@ -467,82 +457,50 @@ export function AssetsFileImport() {
           currentAssetId: asset.asset_id
         });
 
-        const errors: string[] = [];
-
         try {
-          // Validation 1: Check if building_number exists
-          if (!asset.building_number) {
-            errors.push('מספר מבנה נדרש');
-          } else {
-            const buildingNum = typeof asset.building_number === 'string' 
-              ? parseInt(String(asset.building_number), 10) 
-              : asset.building_number;
-            
-            if (isNaN(buildingNum)) {
-              errors.push('מספר מבנה חייב להיות מספר תקין');
-            } else {
-              const building = buildingsMap.get(buildingNum);
-              if (!building) {
-                // Try to validate using the validation function as fallback
-                const buildingValidation = await assetValidators.validateBuildingExists(buildingNum);
-                if (!buildingValidation.valid) {
-                  errors.push(buildingValidation.error || `מבנה ${buildingNum} לא קיים במערכת`);
-                }
-              }
-            }
-          }
+          // Get building for this asset
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          const building = buildingNum && !isNaN(buildingNum) 
+            ? buildingsMap.get(buildingNum) 
+            : null;
 
-          // Validation 2: Check asset_id uniqueness
-          if (!asset.asset_id) {
-            errors.push('מזהה נכס נדרש');
-          } else {
-            // Check for duplicates within the import batch
-            const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
-            const rowsWithSameAssetId = assetIdToRows.get(assetIdKey) || [];
-            if (rowsWithSameAssetId.length > 1) {
-              const rowNumbers = rowsWithSameAssetId.map(r => r + 1).join(', ');
-              errors.push(`מזהה נכס ${asset.asset_id} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers})`);
-            }
+          // Include asset and building in cachedData for validation
+          const cachedData = {
+            ...cachedDataBase,
+            asset: asset,
+            building: building
+          };
 
-            // Check if asset_id already exists in database (only if no duplicate in batch)
-            if (rowsWithSameAssetId.length === 1) {
-              const uniquenessValidation = await assetValidators.validateAssetIdUnique(
-                asset.asset_id,
-                undefined, // currentAssetId - not applicable for new imports
-                undefined, // validationRules
-                { buildings: buildings, assets: [] }, // cachedData
-                asset.building_number
-              );
-              if (!uniquenessValidation.valid) {
-                errors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
-              }
-            }
-          }
+          // Use full validation with AssetValidationHandler.validateSingleAsset
+          const result = await AssetValidationHandler.validateSingleAsset(asset, {
+            cachedData
+          });
           
           results.push({
             assetId: asset.asset_id || `שורה ${i + 1}`,
             buildingNumber: asset.building_number || 0,
-            errors: errors,
-            matchedAssetTypeRecord: undefined
+            errors: result.errors,
+            matchedAssetTypeRecord: result.matchedAssetTypeRecord
           });
 
           // Update validation errors in asset row
           setImportedAssets(prev => prev.map(a => 
             a.id === asset.id 
-              ? { ...a, _validationErrors: errors.length > 0 ? errors : undefined }
+              ? { ...a, _validationErrors: result.errors.length > 0 ? result.errors : undefined }
               : a
           ));
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'שגיאת ולידציה';
-          errors.push(errorMsg);
           results.push({
             assetId: asset.asset_id || `שורה ${i + 1}`,
             buildingNumber: asset.building_number || 0,
-            errors: errors
+            errors: [errorMsg]
           });
           setImportedAssets(prev => prev.map(a => 
             a.id === asset.id 
-              ? { ...a, _validationErrors: errors }
+              ? { ...a, _validationErrors: [errorMsg] }
               : a
           ));
         }
@@ -564,6 +522,215 @@ export function AssetsFileImport() {
     } finally {
       setIsValidating(false);
       setValidationProgress(null);
+    }
+  };
+
+  const handleImportSkeleton = async () => {
+    if (importedAssets.length === 0) return;
+
+    // Confirm with user
+    const confirmed = window.confirm(
+      'האם להמשיך לייבא שלד? רק שדות מספר מבנה ומזהה נכס יישמרו. כל השדות האחרים יישארו ריקים.'
+    );
+    if (!confirmed) return;
+
+    setIsSaving(true);
+    const errors: string[] = [];
+    let successCount = 0;
+
+    try {
+      // Ensure buildings and assets are loaded
+      if (buildings.length === 0) {
+        const [bldgs, allAssets] = await Promise.all([
+          api.buildings.getAll(),
+          api.assets.getAll()
+        ]);
+        setBuildings(bldgs);
+        const { setValidationData, setAllAssets } = await import('../lib/validation');
+        setValidationData({ buildings: bldgs, assetTypes: assetTypes || [], assets: allAssets });
+        setAllAssets(allAssets);
+      }
+
+      const { assetValidators } = await import('../lib/validation');
+      const { supabase } = await import('../lib/supabase');
+
+      // Filter assets that have both building_number and asset_id
+      const skeletonAssets = importedAssets.filter(asset => 
+        asset.building_number != null && asset.asset_id != null && asset.asset_id !== ''
+      );
+
+      if (skeletonAssets.length === 0) {
+        errors.push('אין נכסים תקינים לייבא. כל הנכסים חייבים לכלול מספר מבנה ומזהה נכס.');
+        setSaveResult({
+          successful: 0,
+          failed: 1,
+          errors: errors
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      // First, check for duplicates within the batch
+      const assetIdToRows = new Map<string | number, number[]>();
+      skeletonAssets.forEach((asset, index) => {
+        if (asset.asset_id) {
+          const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
+          if (!assetIdToRows.has(assetIdKey)) {
+            assetIdToRows.set(assetIdKey, []);
+          }
+          assetIdToRows.get(assetIdKey)!.push(index);
+        }
+      });
+
+      // Find duplicates within batch
+      const duplicatesInBatch: Array<{ assetId: string | number; rows: number[] }> = [];
+      assetIdToRows.forEach((rows, assetId) => {
+        if (rows.length > 1) {
+          duplicatesInBatch.push({ assetId, rows });
+        }
+      });
+
+      if (duplicatesInBatch.length > 0) {
+        duplicatesInBatch.forEach(({ assetId, rows }) => {
+          const rowNumbers = rows.map(r => r + 1).join(', ');
+          errors.push(`מזהה נכס ${assetId} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers})`);
+        });
+        setSaveResult({
+          successful: 0,
+          failed: duplicatesInBatch.length,
+          errors: errors
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      // Quick validation: building existence and asset ID uniqueness (against database)
+      const validSkeletonAssets: ImportAssetRow[] = [];
+
+      for (const asset of skeletonAssets) {
+        const assetErrors: string[] = [];
+
+        // Check building existence
+        const buildingNum = typeof asset.building_number === 'string' 
+          ? parseInt(String(asset.building_number), 10) 
+          : asset.building_number;
+        
+        if (!isNaN(buildingNum)) {
+          const buildingValidation = await assetValidators.validateBuildingExists(buildingNum);
+          if (!buildingValidation.valid) {
+            assetErrors.push(buildingValidation.error || `מבנה ${buildingNum} לא קיים במערכת`);
+          }
+        } else {
+          assetErrors.push('מספר מבנה חייב להיות מספר תקין');
+        }
+
+        // Check asset ID uniqueness against database (duplicates in batch already checked above)
+        if (asset.asset_id && assetErrors.length === 0) {
+          const uniquenessValidation = await assetValidators.validateAssetIdUnique(
+            asset.asset_id,
+            undefined,
+            undefined,
+            { buildings: buildings, assets: [] },
+            asset.building_number
+          );
+          if (!uniquenessValidation.valid) {
+            assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
+          }
+        }
+
+        if (assetErrors.length === 0) {
+          validSkeletonAssets.push(asset);
+        } else {
+          errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
+        }
+      }
+
+      if (validSkeletonAssets.length === 0) {
+        errors.push('אין נכסים תקינים לייבא לאחר בדיקת תקינות.');
+        setSaveResult({
+          successful: 0,
+          failed: errors.length,
+          errors: errors
+        });
+        setIsSaving(false);
+        return;
+      }
+
+      // Get current date for measurement_date
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const defaultDate = `${day}/${month}/${year}`;
+
+      // Prepare skeleton assets for insert (only building_number and asset_id, minimal other fields)
+      const assetsToInsert: Partial<Asset>[] = validSkeletonAssets.map(asset => ({
+        building_number: asset.building_number!,
+        payer_id: null,
+        asset_id: asset.asset_id,
+        measurement_date: defaultDate,
+        main_asset_type: null,
+        asset_size: 0,
+        tax_region: null,
+        sub_asset_type_1: null,
+        sub_asset_size_1: 0,
+        sub_asset_type_2: null,
+        sub_asset_size_2: 0,
+        sub_asset_type_3: null,
+        sub_asset_size_3: 0,
+        sub_asset_type_4: null,
+        sub_asset_size_4: 0,
+        sub_asset_type_5: null,
+        sub_asset_size_5: 0,
+        sub_asset_type_6: null,
+        sub_asset_size_6: 0,
+        floor: null,
+        discount_type: null,
+        discount_date_from: null,
+        discount_date_to: null
+      }));
+
+      // Bulk insert skeleton assets
+      const { data: insertedAssets, error: insertError } = await supabase
+        .from('assets')
+        .insert(assetsToInsert)
+        .select();
+
+      if (insertError) {
+        errors.push(`שגיאה בשמירה: ${insertError.message}`);
+        setSaveResult({
+          successful: 0,
+          failed: validSkeletonAssets.length,
+          errors: errors
+        });
+      } else {
+        successCount = insertedAssets?.length || 0;
+        const failedCount = validSkeletonAssets.length - successCount;
+        
+        setSaveResult({
+          successful: successCount,
+          failed: failedCount,
+          errors: errors
+        });
+
+        if (successCount > 0) {
+          // Clear imported assets after successful save
+          setImportedAssets([]);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error importing skeleton:', error);
+      errors.push(error instanceof Error ? error.message : 'שגיאה בלתי צפויה בייבא שלד');
+      setSaveResult({
+        successful: successCount,
+        failed: importedAssets.length - successCount,
+        errors: errors
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1356,6 +1523,19 @@ export function AssetsFileImport() {
     XLSX.writeFile(workbook, 'assets_template.xlsx');
   }
 
+  function downloadSkeletonTemplate() {
+    const headers = [
+      'מזהה מבנה',
+      'מזהה נכס'
+    ];
+
+    const data = [headers];
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
+    XLSX.writeFile(workbook, 'assets_skeleton_template.xlsx');
+  }
+
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-6">
       <div className="mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md p-4">
@@ -1421,6 +1601,16 @@ export function AssetsFileImport() {
             >
               <Download className="h-4 w-4" />
               <span>הורד תבנית</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={downloadSkeletonTemplate}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+              title="הורד תבנית שלד - רק מספר מבנה ומזהה נכס"
+            >
+              <Download className="h-4 w-4" />
+              <span>הורד תבנית שלד</span>
             </button>
           </div>
         </div>
@@ -1554,6 +1744,25 @@ export function AssetsFileImport() {
                     <>
                       <Save className="h-4 w-4" />
                       <span>שמור כמדידה חדשה</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleImportSkeleton}
+                  disabled={isValidating || isSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  title="ייבא שלד - שמירת נכסים עם מספר מבנה ומזהה נכס בלבד"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>מייבא...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      <span>ייבא שלד</span>
                     </>
                   )}
                 </button>

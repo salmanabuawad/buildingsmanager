@@ -151,27 +151,29 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   
   // Handle keydown to capture first character immediately
   const handleKeyDownForInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // For printable characters, ensure they're captured immediately
+    // For printable characters, add them directly to the input and update state
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Enter' && e.key !== 'Escape') {
-      // Don't prevent default - let the browser add the character naturally
-      // Use setTimeout to update state after browser adds character to DOM
-      setTimeout(() => {
-        if (inputRef.current) {
-          const value = inputRef.current.value;
-          setSearchValue(value);
-          setShowDropdown(true);
-          setSelectedIndex(-1);
-        }
-      }, 0);
-      // Don't return early - let handleKeyDown also run for navigation
-      // But handleKeyDown should not interfere with printable characters
+      // Prevent default to avoid browser adding it (we'll add it manually)
+      e.preventDefault();
+      if (inputRef.current) {
+        const currentValue = inputRef.current.value || searchValue;
+        const selectionStart = inputRef.current.selectionStart || currentValue.length;
+        const selectionEnd = inputRef.current.selectionEnd || currentValue.length;
+        // Insert character at cursor position
+        const newValue = currentValue.slice(0, selectionStart) + e.key + currentValue.slice(selectionEnd);
+        // Update the input value directly
+        inputRef.current.value = newValue;
+        // Update cursor position
+        const newCursorPos = selectionStart + 1;
+        inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        // Update state immediately
+        setSearchValue(newValue);
+        setShowDropdown(true);
+        setSelectedIndex(-1);
+      }
+      return; // Don't call handleKeyDown for printable characters
     }
     // Call the original handleKeyDown for navigation and special keys
-    // But skip it for printable characters to avoid conflicts
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Enter' && e.key !== 'Escape') {
-      // Already handled above, don't call handleKeyDown
-      return;
-    }
     handleKeyDown(e);
   };
 
@@ -323,7 +325,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       <input
         ref={inputRef}
         type="text"
-        value={searchValue}
         onBeforeInput={handleBeforeInput}
         onChange={handleInputChange}
         onInput={handleInput}

@@ -261,18 +261,46 @@ export function AssetTypes() {
     }
   }, [handleCellChange]);
 
-  // Handle grid ready - scroll to the left
+  // Handle grid ready - scroll to the right
   const onGridReady = useCallback((event: GridReadyEvent) => {
-    // Scroll to the left
+    // Scroll to the right
     setTimeout(() => {
       if (event.api) {
-        event.api.ensureColumnVisible('max_size', 'left');
+        event.api.ensureColumnVisible('name', 'right');
       }
     }, 100);
   }, []);
 
   // Column definitions for ag-grid
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      pinned: 'left',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      width: 120,
+      editable: false,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      pinned: 'left',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      width: 120,
+      editable: false,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
     {
       field: 'max_size',
       headerName: 'שטח עד',
@@ -583,34 +611,6 @@ export function AssetTypes() {
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
-    {
-      field: 'extra_field_1',
-      headerName: '',
-      pinned: 'right',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
-      width: 120,
-      editable: false,
-      sortable: false,
-      filter: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'extra_field_2',
-      headerName: '',
-      pinned: 'right',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
-      width: 120,
-      editable: false,
-      sortable: false,
-      filter: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
-    }
   ], [t, getCurrentValue, isFieldDirty, handleDelete]);
 
 

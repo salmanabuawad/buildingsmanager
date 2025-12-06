@@ -1017,7 +1017,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       sub_asset_type_6: '',
       sub_asset_size_6: 0,
       measurement_date: dateStr,
-      penthouse: null
+      penthouse: null,
+      floor: undefined,
+      discount_type: undefined,
+      discount_date_from: undefined,
+      discount_date_to: undefined
     };
 
     setAssets(prev => [newAsset, ...prev]);
@@ -1286,6 +1290,30 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       width: 80,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'floor',
+      headerName: 'קומה',
+      width: 80,
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      width: 100,
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
+      width: 120,
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
+      width: 120,
+      cellStyle: { textAlign: 'right' }
     }
   ], [t, assetTypes, getCellStyle]);
 
@@ -1581,6 +1609,56 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       cellRenderer: penthouseCellRenderer,
       cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'
+    },
+    {
+      field: 'floor',
+      headerName: 'קומה',
+      width: 80,
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
+      type: 'numericColumn',
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      width: 100,
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
+      width: 120,
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
+      width: 120,
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'main_asset_type',

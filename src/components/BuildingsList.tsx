@@ -15,6 +15,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchValue, setSearchValue] = useState<string>('');
+  const inputValueRef = useRef<string>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
@@ -149,15 +150,10 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     setSelectedIndex(-1);
   };
   
-  // Handle keydown - don't interfere with printable characters, let browser handle them
+  // Handle keydown - only handle navigation, let browser handle all input
   const handleKeyDownForInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // For printable characters, let browser handle them naturally
-    // onInput will fire and update state
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Enter' && e.key !== 'Escape') {
-      // Don't do anything - let browser add character, onInput will handle state update
-      return; // Don't call handleKeyDown for printable characters
-    }
-    // Call the original handleKeyDown for navigation and special keys
+    // Only handle navigation keys, let browser handle all printable characters
+    // onInput will fire immediately when value changes
     handleKeyDown(e);
   };
 
@@ -308,24 +304,24 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <input
         ref={inputRef}
+        key="address-editor-input"
         type="text"
-        onBeforeInput={handleBeforeInput}
-        onChange={handleInputChange}
-        onInput={handleInput}
-        onKeyDown={handleKeyDownForInput}
-        onKeyPress={(e) => {
-          // For printable characters, immediately update state after browser adds it
-          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-            setTimeout(() => {
-              if (inputRef.current) {
-                const value = inputRef.current.value;
-                setSearchValue(value);
-                setShowDropdown(true);
-                setSelectedIndex(-1);
-              }
-            }, 0);
-          }
+        onChange={(e) => {
+          const value = e.target.value;
+          inputValueRef.current = value;
+          setSearchValue(value);
+          setShowDropdown(true);
+          setSelectedIndex(-1);
         }}
+        onInput={(e) => {
+          const input = e.target as HTMLInputElement;
+          const value = input.value;
+          inputValueRef.current = value;
+          setSearchValue(value);
+          setShowDropdown(true);
+          setSelectedIndex(-1);
+        }}
+        onKeyDown={handleKeyDownForInput}
         onFocus={() => {
           setShowDropdown(true);
         }}

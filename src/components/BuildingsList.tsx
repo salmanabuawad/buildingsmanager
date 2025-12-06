@@ -121,11 +121,11 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Handle beforeInput to capture character before it's added
   const handleBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
     const inputEvent = e.nativeEvent as InputEvent;
-    if (inputEvent.data && inputRef.current) {
+    if (inputEvent.data) {
       // Character is about to be added - update state immediately so it shows
-      const currentValue = searchValue || inputRef.current.value || '';
-      const selectionStart = inputRef.current.selectionStart ?? currentValue.length;
-      const selectionEnd = inputRef.current.selectionEnd ?? currentValue.length;
+      const currentValue = searchValue || '';
+      const selectionStart = inputRef.current?.selectionStart ?? currentValue.length;
+      const selectionEnd = inputRef.current?.selectionEnd ?? currentValue.length;
       const newValue = currentValue.slice(0, selectionStart) + inputEvent.data + currentValue.slice(selectionEnd);
       
       // Update state immediately (this will update the controlled input)
@@ -134,12 +134,12 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       setSelectedIndex(-1);
       
       // Update cursor position after state update
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (inputRef.current) {
           const newCursorPos = selectionStart + inputEvent.data.length;
           inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
         }
-      }, 0);
+      });
       
       // Don't prevent default - let browser add it naturally, state is already updated
     }
@@ -240,10 +240,17 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Verify ref and data are set before stopping
     console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.building_address, 'node:', props.node?.data?.building_address);
     
+    // Use setDataValue BEFORE stopEditing to ensure value is set and dirty bit works
+    if (props.node && props.column) {
+      const colId = props.column.getColId();
+      console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', { colId, streetCode, oldValue });
+      props.node.setDataValue(colId, streetCode);
+    }
+    
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. Call valueSetter to update the data object
-    // 3. Trigger onCellValueChanged
+    // 2. Call valueSetter to update the data object (if value changed)
+    // 3. Trigger onCellValueChanged (if value changed)
     props.stopEditing();
     
     // After stopEditing, use setDataValue to ensure the value is set on the node

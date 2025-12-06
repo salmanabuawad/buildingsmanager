@@ -6,7 +6,7 @@ import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, Arr
 import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
+import { ColDef, CellValueChangedEvent, GridReadyEvent } from 'ag-grid-community';
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -260,6 +260,16 @@ export function AssetTypes() {
       gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
     }
   }, [handleCellChange]);
+
+  // Handle grid ready - scroll to the left
+  const onGridReady = useCallback((event: GridReadyEvent) => {
+    // Scroll to the left
+    setTimeout(() => {
+      if (event.api) {
+        event.api.ensureColumnVisible('max_size', 'left');
+      }
+    }, 100);
+  }, []);
 
   // Column definitions for ag-grid
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
@@ -528,24 +538,22 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'extra_field_1',
-      headerName: '',
-      width: 120,
-      editable: false,
-      sortable: false,
-      filter: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
-      field: 'extra_field_2',
-      headerName: '',
-      width: 120,
-      editable: false,
-      sortable: false,
-      filter: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      field: 'name',
+      headerName: 'סוג נכס',
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      editable: true,
+      width: 100,
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
     },
     {
       colId: 'actions',
@@ -576,22 +584,32 @@ export function AssetTypes() {
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'name',
-      headerName: 'סוג נכס',
+      field: 'extra_field_1',
+      headerName: '',
       pinned: 'right',
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      editable: true,
-      width: 100,
-      cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
-        return { 
-          textAlign: 'right',
-          backgroundColor: isDirty ? '#fef3c7' : undefined,
-          fontWeight: isDirty ? 'bold' : undefined
-        };
-      }
+      width: 120,
+      editable: false,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      width: 120,
+      editable: false,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     }
   ], [t, getCurrentValue, isFieldDirty, handleDelete]);
 
@@ -1134,6 +1152,7 @@ export function AssetTypes() {
                   filter: true
                 }}
                 onCellValueChanged={onCellValueChanged}
+                onGridReady={onGridReady}
                 getRowId={(params) => String(params.data.id)}
                 gridOptions={{
                   suppressColumnVirtualisation: true,

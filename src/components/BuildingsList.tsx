@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
@@ -11,19 +11,26 @@ interface AddressCellEditorParams extends ICellEditorParams {
   addressList: AddressList[];
 }
 
-const AddressCellEditor = (props: AddressCellEditorParams) => {
+const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props, ref) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchValue, setSearchValue] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [selectedValue, setSelectedValue] = useState<number | null>(null);
 
   const { addressList = [] } = props;
+
+  // Expose getValue method to AG Grid
+  useImperativeHandle(ref, () => ({
+    getValue: () => selectedValue
+  }));
 
   // Initialize with current value
   useEffect(() => {
     const streetCode = props.value;
     if (streetCode != null) {
+      setSelectedValue(streetCode);
       const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
       if (address) {
         setSearchValue(`${address.street_code} - ${address.street_description}`);
@@ -96,11 +103,23 @@ const AddressCellEditor = (props: AddressCellEditorParams) => {
 
   // Select an address
   const selectAddress = (address: AddressList) => {
+    const streetCode = address.street_code;
+    setSelectedValue(streetCode);
     if (props.data) {
-      props.data.building_address = address.street_code;
+      props.data.building_address = streetCode;
+    }
+    // Trigger cell value change event
+    if (props.api && props.column && props.node) {
+      props.api.setFocusedCell(props.node.rowIndex!, props.column);
+      props.api.refreshCells({ 
+        rowNodes: [props.node], 
+        columns: [props.column], 
+        force: true 
+      });
     }
     props.stopEditing();
   };
+
 
   // Handle click outside
   useEffect(() => {
@@ -179,7 +198,7 @@ const AddressCellEditor = (props: AddressCellEditorParams) => {
       )}
     </div>
   );
-};
+});
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;

@@ -264,32 +264,22 @@ export function AssetTypes() {
   // Column definitions for ag-grid
   const columnDefs: ColDef<AssetType>[] = useMemo(() => [
     {
-      colId: 'actions',
-      headerName: t('actions'),
-      pinned: 'right',
+      field: 'name',
+      headerName: 'סוג נכס',
+      pinned: 'left',
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      suppressHeaderMenuButton: true,
-      sortable: false,
-      filter: false,
-      width: 80,
-      cellRenderer: (params: any) => {
-        const assetType = params.data as AssetType;
-        if (!assetType) return null;
-        return (
-          <div className="flex items-center justify-center gap-1 h-full">
-            <button
-              onClick={() => handleDelete(assetType.id)}
-              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-              title="מחק"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        );
-      },
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+      editable: true,
+      width: 100,
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
     },
     {
       field: 'max_size',
@@ -556,20 +546,6 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'name',
-      headerName: 'סוג נכס',
-      editable: true,
-      width: 100,
-      cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
-        return { 
-          textAlign: 'right',
-          backgroundColor: isDirty ? '#fef3c7' : undefined,
-          fontWeight: isDirty ? 'bold' : undefined
-        };
-      }
-    },
-    {
       field: 'extra_field_1',
       headerName: '',
       width: 120,
@@ -588,6 +564,34 @@ export function AssetTypes() {
       filter: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
+    },
+    {
+      colId: 'actions',
+      headerName: t('actions'),
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      width: 80,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            <button
+              onClick={() => handleDelete(assetType.id)}
+              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="מחק"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
     }
   ], [t, getCurrentValue, isFieldDirty, handleDelete]);
 

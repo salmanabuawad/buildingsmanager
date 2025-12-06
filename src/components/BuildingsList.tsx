@@ -179,11 +179,22 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Close dropdown
     setShowDropdown(false);
     
-    // Verify ref is set before stopping
+    // CRITICAL: Use setDataValue to directly update the node BEFORE stopEditing
+    // This ensures the value is set on the node and triggers onCellValueChanged
+    if (props.node && props.column) {
+      const colId = props.column.getColId();
+      console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', { colId, streetCode });
+      const result = props.node.setDataValue(colId, streetCode);
+      console.log('[AddressCellEditor] setDataValue result:', result);
+      // Verify the value was set
+      console.log('[AddressCellEditor] After setDataValue, node data:', props.node.data?.building_address);
+    }
+    
+    // Verify ref and data are set before stopping
     console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.building_address);
     
     // Stop editing - AG Grid will call getValue() which should return selectedValueRef.current
-    // The valueSetter will also be called to update the data object
+    // But we've already set the value via setDataValue, so this should be redundant
     props.stopEditing();
     
     // After stopEditing, verify the value was set correctly
@@ -194,11 +205,13 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       if (props.api && props.column && props.node) {
         const colId = props.column.getColId();
         const currentDataValue = props.data?.building_address;
+        const nodeDataValue = props.node.data?.building_address;
         console.log('[AddressCellEditor] Refreshing cell:', { 
           colId, 
           streetCode,
           refValue: selectedValueRef.current,
-          dataValue: currentDataValue
+          dataValue: currentDataValue,
+          nodeDataValue: nodeDataValue
         });
         props.api.refreshCells({ 
           rowNodes: [props.node], 

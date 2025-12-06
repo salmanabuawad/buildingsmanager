@@ -2341,6 +2341,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     </>
                   )}
                 </button>
+                {mode === 'regular' && (
                 <button
                   type="button"
                   onClick={() => handleSave(true)}
@@ -2360,6 +2361,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     </>
                   )}
                 </button>
+                )}
+                {mode === 'regular' && (
                 <button
                   type="button"
                   onClick={handleImportSkeleton}
@@ -2379,6 +2382,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     </>
                   )}
                 </button>
+                )}
               </div>
             </div>
 

@@ -1561,6 +1561,7 @@ export function BuildingsList({
       },
       valueSetter: (params: any) => {
         // Set the street code (number) as the value
+        // valueParser already sets params.data.building_address, but we also need to return the value
         if (params.data) {
           params.data.building_address = params.newValue;
         }
@@ -1599,17 +1600,12 @@ export function BuildingsList({
         
         return displayValue;
       },
-      cellEditor: 'agRichSelectCellEditor',
+      cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        // Show "code - description" format in dropdown with filtering
+        // Show "code - description" format in dropdown
         values: addressList && addressList.length > 0 
           ? addressList.map(a => `${a.street_code} - ${a.street_description}`)
           : [],
-        allowTyping: true, // Allow typing to filter/search
-        filterList: true, // Enable filtering in dropdown
-        searchType: 'match', // Search type: 'match' or 'contains'
-        highlightMatch: true, // Highlight matching text
-        valueListMaxHeight: 300, // Max height of dropdown
       },
       valueParser: (params: any) => {
         if (!params) return null;

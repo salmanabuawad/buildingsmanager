@@ -100,26 +100,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return null;
   }, [asset?.tax_region, taxRegion]);
 
-  // Get area description for tab based on main asset type and tax region
+  // Get area description for tab based on main asset type
   const areaDescriptionForTab = useMemo(() => {
-    if (!asset?.main_asset_type || !displayTaxRegion) {
+    if (!asset?.main_asset_type) {
       return null;
     }
     
-    const taxRegionNum = parseInt(displayTaxRegion, 10);
-    if (isNaN(taxRegionNum)) {
-      return null;
-    }
-    
-    // Find the asset type that matches both main_asset_type and tax_region
+    // Find the asset type that matches the main_asset_type
     const matchingAssetType = assetTypes.find(at => 
-      at.name === asset.main_asset_type && 
-      at.tax_region != null && 
-      Number(at.tax_region) === taxRegionNum
+      at.name === asset.main_asset_type
     );
     
     return matchingAssetType?.area_description_for_tab || null;
-  }, [asset?.main_asset_type, displayTaxRegion, assetTypes]);
+  }, [asset?.main_asset_type, assetTypes]);
 
   const getRowStyle = useCallback((params: any) => {
     const assetId = params.data?.id;

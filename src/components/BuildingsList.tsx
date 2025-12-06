@@ -124,7 +124,9 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     console.log('[AddressCellEditor] Selecting address:', {
       streetCode,
       oldValue,
-      data: props.data
+      hasNode: !!props.node,
+      hasColumn: !!props.column,
+      hasApi: !!props.api
     });
     
     // Set value in ref (for getValue()) and state
@@ -139,11 +141,26 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       props.data.building_address = streetCode;
     }
     
-    // Stop editing - AG Grid will:
-    // 1. Call getValue() which returns selectedValueRef.current
-    // 2. Update the cell value if different from old value
-    // 3. Trigger onCellValueChanged event
-    // 4. Refresh the cell renderer
+    // Manually trigger cell value change by updating the node
+    // This ensures onCellValueChanged is called and the cell is marked as dirty
+    if (props.node && props.column && props.api) {
+      const colId = props.column.getColId();
+      console.log('[AddressCellEditor] Setting data value via setDataValue:', { colId, streetCode, oldValue });
+      
+      // setDataValue will trigger onCellValueChanged automatically
+      props.node.setDataValue(colId, streetCode);
+      
+      // Refresh the cell to show the updated value
+      setTimeout(() => {
+        props.api.refreshCells({ 
+          rowNodes: [props.node], 
+          columns: [colId], 
+          force: true 
+        });
+      }, 10);
+    }
+    
+    // Stop editing - AG Grid will call getValue() which should return the same value
     props.stopEditing();
     
     console.log('[AddressCellEditor] After stopEditing, getValue would return:', selectedValueRef.current);
@@ -471,7 +488,8 @@ export function BuildingsList({
         oldValue: event.oldValue,
         newValue: newValue,
         buildingKey: buildingKey,
-        building: building
+        building: building,
+        dataBuildingAddress: building.building_address
       });
     }
 

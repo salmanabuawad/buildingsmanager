@@ -38,12 +38,15 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       console.log('[AddressCellEditor] getValue() called:', {
         refValue: selectedValueRef.current,
         dataValue: props.data?.building_address,
-        returning: value
+        returning: value,
+        hasData: !!props.data
       });
       
-      // Ensure data object is also updated
+      // CRITICAL: Always update the data object when getValue is called
+      // This ensures the value is in the data object for valueSetter and onCellValueChanged
       if (props.data && value !== null && value !== undefined) {
         props.data.building_address = value;
+        console.log('[AddressCellEditor] Updated props.data.building_address in getValue to:', value);
       }
       
       return value;
@@ -1830,8 +1833,17 @@ export function BuildingsList({
       },
       valueSetter: (params: any) => {
         // Ensure the value is set on the data object
+        console.log('[valueSetter] building_address:', {
+          oldValue: params.oldValue,
+          newValue: params.newValue,
+          hasData: !!params.data,
+          dataBefore: params.data?.building_address
+        });
         if (params.data) {
           params.data.building_address = params.newValue;
+          console.log('[valueSetter] Updated data.building_address to:', params.newValue, 'verified:', params.data.building_address);
+        } else {
+          console.warn('[valueSetter] params.data is null!');
         }
         return true;
       },

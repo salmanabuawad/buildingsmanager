@@ -1599,12 +1599,17 @@ export function BuildingsList({
         
         return displayValue;
       },
-      cellEditor: 'agSelectCellEditor',
+      cellEditor: 'agRichSelectCellEditor',
       cellEditorParams: {
-        // Show "code - description" format in dropdown
+        // Show "code - description" format in dropdown with filtering
         values: addressList && addressList.length > 0 
           ? addressList.map(a => `${a.street_code} - ${a.street_description}`)
           : [],
+        allowTyping: true, // Allow typing to filter/search
+        filterList: true, // Enable filtering in dropdown
+        searchType: 'match', // Search type: 'match' or 'contains'
+        highlightMatch: true, // Highlight matching text
+        valueListMaxHeight: 300, // Max height of dropdown
       },
       valueParser: (params: any) => {
         if (!params) return null;
@@ -1617,13 +1622,23 @@ export function BuildingsList({
         if (typeof newValue === 'string' && newValue.includes(' - ')) {
           const codeStr = newValue.split(' - ')[0].trim();
           streetCode = Number(codeStr);
+        } else if (typeof newValue === 'string') {
+          // If user typed just a number, try to parse it
+          const parsed = Number(newValue.trim());
+          if (!isNaN(parsed) && parsed > 0) {
+            // Check if this code exists in addressList
+            const addressExists = addressList.some(a => Number(a.street_code) === parsed);
+            if (addressExists) {
+              streetCode = parsed;
+            }
+          }
         } else {
           // If it's already a number (shouldn't happen, but handle it)
           streetCode = Number(newValue);
         }
         
         // Validate: must be a valid positive integer that exists in addressList
-        if (isNaN(streetCode) || streetCode <= 0) {
+        if (streetCode === null || isNaN(streetCode) || streetCode <= 0) {
           return null;
         }
         

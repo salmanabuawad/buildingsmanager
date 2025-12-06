@@ -781,13 +781,6 @@ function App() {
                   <span className="font-medium text-slate-700">רשימת כתובות</span>
                   <MapPin className="h-3.5 w-3.5 text-pink-600" />
                 </button>
-                <button
-                  onClick={() => setShowDeletePreferencesConfirm(true)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-red-50/50 hover:bg-red-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-red-700">מחק כל העדפות משתמש</span>
-                  <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                </button>
               </div>
             )}
           </div>

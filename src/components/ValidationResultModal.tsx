@@ -47,7 +47,9 @@ interface ValidationResultModalProps {
   batchResults?: BatchValidationResults | null;
   batchTitle?: string;
   buildingNumber?: number; // Building number for building validation context
+  taxRegion?: string; // Tax region for opening asset view
   onExportInvalid?: () => void;
+  onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void; // Callback to open asset view
 }
 
 export function ValidationResultModal({
@@ -62,7 +64,9 @@ export function ValidationResultModal({
   batchResults = null,
   batchTitle,
   buildingNumber,
-  onExportInvalid
+  taxRegion,
+  onExportInvalid,
+  onSelectAsset
 }: ValidationResultModalProps) {
   const [isClosing, setIsClosing] = useState(false);
 
@@ -305,7 +309,47 @@ export function ValidationResultModal({
                               <div className={`font-semibold ${error.errors.length > 0 ? 'text-red-900' : 'text-green-900'}`}>
                                 {actualContext === 'import' 
                                   ? `שורה: ${error.assetId}${error.buildingNumber ? ` (מבנה ${error.buildingNumber})` : ''}`
-                                  : `נכס ${error.assetId} (מבנה ${error.buildingNumber})`}
+                                  : (
+                                    onSelectAsset ? (
+                                      <button
+                                        onClick={async () => {
+                                          // Use assetDbId if available, otherwise try to look it up
+                                          let dbId = error.assetDbId;
+                                          if (!dbId && error.assetId && error.buildingNumber) {
+                                            // Try to get asset database ID from in-memory assets
+                                            try {
+                                              const { getAssetsByAssetId } = await import('../lib/validation');
+                                              const assets = getAssetsByAssetId(error.assetId);
+                                              const matchingAsset = assets.find(a => 
+                                                a.building_number === error.buildingNumber
+                                              );
+                                              if (matchingAsset && matchingAsset.id) {
+                                                dbId = String(matchingAsset.id);
+                                              }
+                                            } catch (err) {
+                                              console.warn('Could not look up asset database ID:', err);
+                                            }
+                                          }
+                                          
+                                          if (dbId) {
+                                            onSelectAsset(
+                                              dbId,
+                                              error.assetId,
+                                              error.buildingNumber,
+                                              taxRegion
+                                            );
+                                            onClose(); // Close the validation modal when opening asset view
+                                          }
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                                        title="לחץ כדי לפתוח את הנכס"
+                                      >
+                                        נכס {error.assetId} (מבנה {error.buildingNumber})
+                                      </button>
+                                    ) : (
+                                      `נכס ${error.assetId} (מבנה ${error.buildingNumber})`
+                                    )
+                                  )}
                               </div>
                               {error.matchedAssetTypeRecord && (
                                 <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">

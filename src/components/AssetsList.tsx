@@ -2026,6 +2026,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         batchResults={batchValidationResults}
         batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`}
         buildingNumber={buildingNumber}
+        taxRegion={taxRegion}
+        onSelectAsset={onSelectAsset}
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
       />
     </>

@@ -23,6 +23,9 @@ CREATE TABLE buildings (
   total_units INTEGER DEFAULT 0,
   total_building_area NUMERIC DEFAULT 0,
   area_for_control NUMERIC,
+  gosh BIGINT, -- גוש (Block number)
+  helka BIGINT, -- חלקה (Parcel number)
+  building_number_in_street BIGINT, -- מספר בניין (Building number in street)
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -34,6 +37,7 @@ CREATE TABLE asset_types (
   name TEXT NOT NULL,
   description TEXT,
   tax_region INTEGER,
+  area_description_for_tab TEXT, -- תיאור אזור לתצוגה בלשונית
   min_size NUMERIC,
   max_size NUMERIC,
   elevator TEXT,
@@ -67,6 +71,10 @@ CREATE TABLE assets (
   sub_asset_6_size NUMERIC,
   structure_drawing TEXT,
   measurement_date TEXT DEFAULT '01/01/1900',
+  floor SMALLINT CHECK (floor >= -99 AND floor <= 99), -- קומה (Floor number) - 2 digits, allows negative
+  discount_type TEXT, -- סוג הנחה (Discount type)
+  discount_date_from TEXT, -- תאריך הנחה מ (Discount date from)
+  discount_date_to TEXT, -- תאריך הנחה עד (Discount date to)
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (building_number, asset_id, measurement_date)

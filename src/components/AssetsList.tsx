@@ -5,9 +5,11 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft, Upload } from 'lucide-react';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
+import { supabase } from '../lib/supabase';
+import { compressFile } from '../lib/fileCompression';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -36,6 +38,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
+  const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
+  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -1128,6 +1133,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     
     const hasValidationError = validationErrors.has(assetId);
     const isNewAsset = newAssets.has(assetId);
+    const isEditable = isNewAsset || !!taxRegion; // Editable if new asset OR tax region is selected
     
     if (hasValidationError) {
       return {
@@ -1137,8 +1143,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       };
     }
     
-    // Add visual indication for read-only cells (existing assets)
-    if (!isNewAsset) {
+    // Add visual indication for read-only cells (existing assets when no tax region)
+    if (!isEditable) {
       return {
         textAlign: 'right',
         backgroundColor: '#f9fafb', // Light gray background for read-only
@@ -1148,7 +1154,78 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
     
     return { textAlign: 'right' };
-  }, [validationErrors, newAssets]);
+  }, [validationErrors, newAssets, taxRegion]);
+
+  async function handleFileUpload(assetId: number, file: File) {
+    try {
+      setUploadingAssetId(assetId);
+      setUploadProgress({ assetId, progress: 0, fileName: file.name });
+
+      // Step 1: Compress file (10% progress)
+      setUploadProgress({ assetId, progress: 10, fileName: file.name });
+      const compressedFile = await compressFile(file);
+      const originalSizeKB = (file.size / 1024).toFixed(2);
+      const compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
+
+      setUploadProgress({ assetId, progress: 30, fileName: file.name });
+
+      // Step 2: Prepare file for upload
+      const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
+      const fileName = `${assetId}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Step 3: Upload with simulated progress tracking
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (!prev || prev.assetId !== assetId) return prev;
+          const newProgress = Math.min(prev.progress + 5, 90);
+          return { ...prev, progress: newProgress };
+        });
+      }, 200);
+
+      setUploadProgress({ assetId, progress: 40, fileName: file.name });
+
+      const { error: uploadError } = await supabase.storage
+        .from('structure-drawings')
+        .upload(filePath, compressedFile, { 
+          upsert: true
+        });
+
+      clearInterval(progressInterval);
+
+      if (uploadError) throw uploadError;
+
+      setUploadProgress({ assetId, progress: 90, fileName: file.name });
+
+      // Step 4: Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('structure-drawings')
+        .getPublicUrl(filePath);
+
+      setUploadProgress({ assetId, progress: 95, fileName: file.name });
+
+      // Step 5: Update asset
+      await api.assets.update(assetId, { structure_drawing_url: publicUrl });
+
+      setUploadProgress({ assetId, progress: 100, fileName: file.name });
+
+      // Show success message
+      const sizeReduction = compressedSizeKB !== originalSizeKB 
+        ? ` (${originalSizeKB}KB → ${compressedSizeKB}KB)`
+        : '';
+      setSuccess(`הקובץ הועלה בהצלחה${sizeReduction}`);
+      setTimeout(() => setSuccess(null), 5000);
+      
+      // Refresh data
+      await fetchData(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'נכשל בהעלאת הקובץ');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setUploadProgress(null);
+      setUploadingAssetId(null);
+    }
+  }
 
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
     {
@@ -1292,12 +1369,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       lockPinned: true,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
-      suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      width: 150,
-      maxWidth: 150,
-      minWidth: 150,
+      width: 200,
+      maxWidth: 200,
+      minWidth: 200,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
@@ -1382,16 +1458,49 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               </button>
             )}
             {!isNew && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectAsset(assetId, asset.asset_id, buildingNumber, validationTaxRegion);
-                }}
-                className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-                title={t('viewDetails')}
-              >
-                <Eye className="h-5 w-5" />
-              </button>
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectAsset(assetId, asset.asset_id, buildingNumber, validationTaxRegion);
+                  }}
+                  className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
+                  title={t('viewDetails')}
+                >
+                  <Eye className="h-5 w-5" />
+                </button>
+                {taxRegion && (
+                  <label
+                    className="p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer"
+                    title="העלה קובץ"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {uploadingAssetId === asset.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Upload className="h-5 w-5" />
+                    )}
+                    <input
+                      type="file"
+                      ref={(el) => {
+                        if (el) fileInputRefs.current.set(assetId, el);
+                      }}
+                      className="hidden"
+                      accept="image/*,.pdf,.dwg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(asset.id, file);
+                        }
+                        // Reset input
+                        if (fileInputRefs.current.has(assetId)) {
+                          fileInputRefs.current.get(assetId)!.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </>
             )}
           </div>
         );
@@ -1402,7 +1511,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'asset_id',
       headerName: t('assetId'),
       width: 120,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1412,7 +1524,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       width: 120,
       editable: (params) => {
         if (!params || !params.data || !newAssets) return false;
-        return newAssets.has(String(params.data?.id));
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
       },
       cellStyle: (params: any) => {
         if (!params || !params.data) {
@@ -1452,7 +1565,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1470,7 +1586,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1483,7 +1602,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1498,7 +1620,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1511,7 +1636,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1526,7 +1654,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1539,7 +1670,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1554,7 +1688,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1567,7 +1704,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1582,7 +1722,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1595,7 +1738,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1610,7 +1756,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1623,7 +1772,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1638,7 +1790,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       width: 60,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1651,7 +1806,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       width: 80,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1666,7 +1824,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'extra_field',
       headerName: '',
       width: 120,
-      editable: (params) => newAssets.has(String(params.data?.id)),
+      editable: (params) => {
+        const assetId = String(params.data?.id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1796,6 +1957,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 {buildingAddress && (
                   <p className="text-sm text-white/90 font-medium">
                     - {buildingAddress}
+                    {building?.building_number_in_street && (
+                      <span className="mr-1"> {building.building_number_in_street}</span>
+                    )}
+                  </p>
+                )}
+                {building?.gosh && (
+                  <p className="text-sm text-white/90 font-medium">
+                    גוש: {building.gosh}
+                  </p>
+                )}
+                {building?.helka && (
+                  <p className="text-sm text-white/90 font-medium">
+                    חלקה: {building.helka}
                   </p>
                 )}
               </div>

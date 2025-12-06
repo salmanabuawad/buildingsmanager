@@ -2012,6 +2012,117 @@ export function BuildingsList({
       cellStyle: (params) => getCellStyle(params, 'building_address')
     },
     {
+      field: 'gosh',
+      headerName: 'גוש',
+      width: 100,
+      editable: true,
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
+        const errorMsg = errors && errors['gosh'];
+        if (isNew && (params.value === null || params.value === undefined)) {
+          return '';
+        }
+        const value = params.value != null ? String(params.value) : '';
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'gosh')
+    },
+    {
+      field: 'helka',
+      headerName: 'חלקה',
+      width: 100,
+      editable: true,
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
+        const errorMsg = errors && errors['helka'];
+        if (isNew && (params.value === null || params.value === undefined)) {
+          return '';
+        }
+        const value = params.value != null ? String(params.value) : '';
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'helka')
+    },
+    {
+      field: 'building_number_in_street',
+      headerName: 'מספר בניין',
+      width: 120,
+      editable: true,
+      valueParser: (params: any) => {
+        if (!params) return null;
+        const newValue = params.newValue;
+        if (newValue === null || newValue === undefined || newValue === '') return null;
+        const numValue = Number(newValue);
+        return isNaN(numValue) ? null : numValue;
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        const errors = validationErrors.get(buildingKey);
+        const errorMsg = errors && errors['building_number_in_street'];
+        if (isNew && (params.value === null || params.value === undefined)) {
+          return '';
+        }
+        const value = params.value != null ? String(params.value) : '';
+        if (errorMsg) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+                <AlertCircle size={16} />
+              </span>
+              <span>{value}</span>
+            </div>
+          );
+        }
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'building_number_in_street')
+    },
+    {
       field: 'extra_field_1',
       headerName: '',
       width: 120,

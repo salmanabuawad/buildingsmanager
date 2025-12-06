@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AssetType, api } from '../lib/api';
 import { assetTypeValidators, inputValidators } from '../lib/validation';
-import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
@@ -204,7 +204,10 @@ export function AssetTypes() {
         if (!deletedAssetTypes.has(id)) {
           // Validate tax_region if it's being changed
           if ('tax_region' in changes) {
-            const validation = await assetTypeValidators.validateTaxRegion(changes.tax_region);
+            const taxRegionValue = changes.tax_region;
+            const validation = await assetTypeValidators.validateTaxRegion(
+              taxRegionValue !== undefined && taxRegionValue !== null ? String(taxRegionValue) : ''
+            );
             if (!validation.valid) {
               showMessage('error', `שגיאה בנכס ${id}: ${validation.error}`);
               setIsSaving(false);
@@ -324,6 +327,20 @@ export function AssetTypes() {
       },
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'tax_region');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'area_description_for_tab',
+      headerName: 'תיאור אזור לתצוגה בלשונית',
+      editable: true,
+      width: 200,
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'area_description_for_tab');
         return { 
           textAlign: 'right',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
@@ -607,27 +624,29 @@ export function AssetTypes() {
 
 
   function downloadTemplate() {
-    // Headers matching the import function expectations
+    // Headers - can be in any order, import will map by exact field name match
+    // Supports both Hebrew and English field names
     const headers = [
-      'סוג נכס',
-      'תיאור',
-      'אזור מיסים',
-      'מעלית',
-      'בית פרטי חד משפחתי דו משפחתי',
-      'דירת גג',
-      'בית משותף',
-      'מבנים צמודי קרקע טוריים מעל 2 יחידות',
-      'עסקים/מגורים',
-      'שימוש בשטח משותף',
-      'שטח מ',
-      'שטח עד'
+      'סוג נכס',                 // name (required)
+      'תיאור',                   // description
+      'אזור מיסים',              // tax_region
+      'תיאור אזור לתצוגה בלשונית', // area_description_for_tab
+      'מעלית',                   // elevator
+      'בית פרטי חד משפחתי דו משפחתי', // single_double_family
+      'דירת גג',                 // penthouse
+      'בית משותף',               // condo
+      'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
+      'עסקים/מגורים',            // business_private
+      'שימוש בשטח משותף',         // shared_area_usage
+      'שטח מ',                   // min_size
+      'שטח עד'                   // max_size
     ];
 
     // Example rows
     const exampleRows = [
-      ['199', 'דירה רגילה', '10', 'כן', '', '', 'כן', '', 'מגורים', '', '20', '150'],
-      ['299', 'דירה מורכבת', '40', '', '', '', 'כן', '', 'מגורים', '', '30', '200'],
-      ['101', 'חנות', '10', '', '', '', '', '', 'עסקים', '', '10', '100']
+      ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', '', '20', '150'],
+      ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', '', '30', '200'],
+      ['101', 'חנות', '10', 'אזור דרום', '', '', '', '', '', 'עסקים', '', '10', '100']
     ];
 
     // Create data array with headers and example rows
@@ -660,6 +679,84 @@ export function AssetTypes() {
     XLSX.writeFile(workbook, 'תבנית_סוגי_נכסים.xlsx');
   }
 
+  function exportAssetTypes() {
+    if (assetTypes.length === 0) {
+      showMessage('error', 'אין נתונים לייצוא');
+      return;
+    }
+
+    // Headers matching the template format
+    const headers = [
+      'סוג נכס',                 // name
+      'תיאור',                   // description
+      'אזור מיסים',              // tax_region
+      'תיאור אזור לתצוגה בלשונית', // area_description_for_tab
+      'מעלית',                   // elevator
+      'בית פרטי חד משפחתי דו משפחתי', // single_double_family
+      'דירת גג',                 // penthouse
+      'בית משותף',               // condo
+      'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
+      'עסקים/מגורים',            // business_private
+      'שימוש בשטח משותף',         // shared_area_usage
+      'שטח מ',                   // min_size
+      'שטח עד'                   // max_size
+    ];
+
+    // Convert asset types to rows
+    const rows = assetTypes
+      .filter(at => !deletedAssetTypes.has(at.id))
+      .map(assetType => [
+        assetType.name || '',
+        assetType.description || '',
+        assetType.tax_region?.toString() || '',
+        assetType.area_description_for_tab || '',
+        assetType.elevator || '',
+        assetType.single_double_family || '',
+        assetType.penthouse || '',
+        assetType.condo || '',
+        assetType.townhouses || '',
+        assetType.business_private || '',
+        assetType.shared_area_usage || '',
+        assetType.min_size?.toString() || '',
+        assetType.max_size?.toString() || ''
+      ]);
+
+    // Create data array with headers and data rows
+    const data = [headers, ...rows];
+
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+      { wch: 12 }, // סוג נכס
+      { wch: 25 }, // תיאור
+      { wch: 12 }, // אזור מיסים
+      { wch: 8 },  // מעלית
+      { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
+      { wch: 10 }, // דירת גג
+      { wch: 12 }, // בית משותף
+      { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
+      { wch: 15 }, // עסקים/מגורים
+      { wch: 20 }, // שימוש בשטח משותף
+      { wch: 10 }, // שטח מ
+      { wch: 10 }  // שטח עד
+    ];
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'סוגי נכסים');
+    
+    // Generate filename with current date
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+    const filename = `סוגי_נכסים_${dateStr}.xlsx`;
+    
+    // Download the file
+    XLSX.writeFile(workbook, filename);
+    showMessage('success', `יוצאו ${rows.length} רשומות בהצלחה`);
+  }
+
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -669,21 +766,126 @@ export function AssetTypes() {
       // Check if it's Excel file
       const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
       
-      let lines: string[] = [];
+      let rows: any[][] = [];
       
       if (isExcel) {
         // Handle Excel file
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as any[][];
-        
-        // Skip header row and convert to CSV-like format
-        lines = jsonData.slice(1).map(row => row.map(cell => String(cell || '')).join(','));
+        rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as any[][];
       } else {
         // Handle CSV file
         const text = await file.text();
-        lines = text.split('\n').filter(line => line.trim());
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Parse CSV lines - handle quoted values
+        for (const line of lines) {
+          const parts: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              parts.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          parts.push(current.trim()); // Add last part
+          rows.push(parts);
+        }
+      }
+
+      if (rows.length === 0) {
+        showMessage('error', 'קובץ ריק');
+        return;
+      }
+
+      // Process headers - normalize and create mapping
+      const originalHeaders = rows[0].map(h => String(h || '').trim());
+      const normalizedHeaders = originalHeaders.map(h => h.toLowerCase());
+      
+      // Define exact field name mappings (Hebrew and English)
+      const fieldMappings: Record<string, string> = {
+        // name field
+        'name': 'name',
+        'סוג נכס': 'name',
+        'סוגנכס': 'name',
+        // description field
+        'description': 'description',
+        'תיאור': 'description',
+        // tax_region field
+        'tax_region': 'tax_region',
+        'taxregion': 'tax_region',
+        'אזור מיסים': 'tax_region',
+        'אזורמיסים': 'tax_region',
+        // area_description_for_tab field
+        'area_description_for_tab': 'area_description_for_tab',
+        'areadescriptionfortab': 'area_description_for_tab',
+        'תיאור אזור לתצוגה בלשונית': 'area_description_for_tab',
+        'תיאור אזור': 'area_description_for_tab',
+        // elevator field
+        'elevator': 'elevator',
+        'מעלית': 'elevator',
+        // single_double_family field
+        'single_double_family': 'single_double_family',
+        'singledoublefamily': 'single_double_family',
+        'בית פרטי חד משפחתי דו משפחתי': 'single_double_family',
+        'בית פרטי': 'single_double_family',
+        // penthouse field
+        'penthouse': 'penthouse',
+        'דירת גג': 'penthouse',
+        'דירתגג': 'penthouse',
+        // condo field
+        'condo': 'condo',
+        'בית משותף': 'condo',
+        'ביתמשותף': 'condo',
+        // townhouses field
+        'townhouses': 'townhouses',
+        'מבנים צמודי קרקע טוריים מעל 2 יחידות': 'townhouses',
+        'טוריים': 'townhouses',
+        // business_private field
+        'business_private': 'business_private',
+        'businessprivate': 'business_private',
+        'עסקים/מגורים': 'business_private',
+        'עסקיםמגורים': 'business_private',
+        // shared_area_usage field
+        'shared_area_usage': 'shared_area_usage',
+        'sharedareausage': 'shared_area_usage',
+        'שימוש בשטח משותף': 'shared_area_usage',
+        'שטח משותף': 'shared_area_usage',
+        // min_size field
+        'min_size': 'min_size',
+        'minsize': 'min_size',
+        'שטח מ': 'min_size',
+        'שטחמ': 'min_size',
+        // max_size field
+        'max_size': 'max_size',
+        'maxsize': 'max_size',
+        'שטח עד': 'max_size',
+        'שטחד': 'max_size',
+      };
+
+      // Create header mapping - map column index to field name
+      const headerMap: Record<string, number> = {};
+      for (let i = 0; i < originalHeaders.length; i++) {
+        const header = originalHeaders[i];
+        const normalized = normalizedHeaders[i];
+        const fieldName = fieldMappings[header] || fieldMappings[normalized];
+        if (fieldName) {
+          headerMap[fieldName] = i;
+        }
+      }
+
+      // Validate required field (name)
+      if (headerMap['name'] === undefined) {
+        showMessage('error', 'שדה חובה חסר: "סוג נכס" או "name"');
+        return;
       }
 
       let successCount = 0;
@@ -705,38 +907,27 @@ export function AssetTypes() {
         showMessage('error', 'שגיאה במחיקת רשומות קיימות');
       }
 
-      // Parse and import each line
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      // Parse and import each data row (skip header row)
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
 
-        // Parse CSV line - handle quoted values
-        const parts: string[] = [];
-        let current = '';
-        let inQuotes = false;
+        // Extract values by field name using header mapping
+        const getValue = (fieldName: string): string => {
+          const colIndex = headerMap[fieldName];
+          if (colIndex === undefined || colIndex >= row.length) return '';
+          return String(row[colIndex] || '').trim();
+        };
+
+        const name = getValue('name');
         
-        for (let j = 0; j < line.length; j++) {
-          const char = line[j];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            parts.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        parts.push(current.trim()); // Add last part
-
-        // Map columns: name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_private, shared_area_usage, min_size, max_size
-        const [name, description = '', tax_region = '', elevator = '', single_double_family = '', penthouse = '', condo = '', townhouses = '', business_private = '', shared_area_usage = '', min_size = '', max_size = ''] = parts;
+        // Skip empty rows
+        if (!name) continue;
 
         // Skip header row if it doesn't look like data
-        if (i === 0 && (name === 'סוג נכס' || name === 'name' || !name || isNaN(parseInt(name)))) {
+        if (name === 'סוג נכס' || name === 'name' || (!name || isNaN(parseInt(name)))) {
           continue;
         }
-
-        if (!name) continue;
 
         const nameValidation = await assetTypeValidators.validateName(name);
         if (!nameValidation.valid) {
@@ -746,6 +937,20 @@ export function AssetTypes() {
         }
 
         try {
+          // Extract all field values
+          const description = getValue('description');
+          const tax_region = getValue('tax_region');
+          const area_description_for_tab = getValue('area_description_for_tab');
+          const elevator = getValue('elevator');
+          const single_double_family = getValue('single_double_family');
+          const penthouse = getValue('penthouse');
+          const condo = getValue('condo');
+          const townhouses = getValue('townhouses');
+          const business_private = getValue('business_private');
+          const shared_area_usage = getValue('shared_area_usage');
+          const min_size = getValue('min_size');
+          const max_size = getValue('max_size');
+
           // Validate business_private field - only allow 'עסקים', 'מגורים', or empty
           let validBusinessPrivate: string | undefined = undefined;
           if (business_private && business_private.trim() !== '') {
@@ -759,10 +964,11 @@ export function AssetTypes() {
             }
           }
 
-          const assetTypeData: Partial<AssetType> = {
-            name,
+          const assetTypeData: Omit<AssetType, 'id' | 'created_at' | 'updated_at'> = {
+            name, // name is guaranteed to be a string (validated above)
             description: description || undefined,
             tax_region: tax_region ? parseInt(tax_region) : undefined,
+            area_description_for_tab: area_description_for_tab || undefined,
             elevator: elevator || undefined,
             single_double_family: single_double_family || undefined,
             penthouse: penthouse || undefined,
@@ -859,9 +1065,20 @@ export function AssetTypes() {
                 type="button"
                 onClick={downloadTemplate}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                title="הורד תבנית"
               >
                 <Download className="h-5 w-5" />
                 <span className="hidden sm:inline">{t('downloadTemplate')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={exportAssetTypes}
+                disabled={assetTypes.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="ייצא את כל סוגי הנכסים"
+              >
+                <FileText className="h-5 w-5" />
+                <span className="hidden sm:inline">ייצא נתונים</span>
               </button>
               <button
                 type="button"
@@ -962,7 +1179,7 @@ export function AssetTypes() {
                   <input
                     type="checkbox"
                     checked={formData.elevator === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, elevator: e.target.checked ? 'כן' : undefined })}
+                    onChange={(e) => setFormData({ ...formData, elevator: e.target.checked ? 'כן' : '' })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   מעלית
@@ -973,7 +1190,7 @@ export function AssetTypes() {
                   <input
                     type="checkbox"
                     checked={formData.single_double_family === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked ? 'כן' : undefined })}
+                    onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked ? 'כן' : '' })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   בית פרטי חד משפחתי דו משפחתי
@@ -984,7 +1201,7 @@ export function AssetTypes() {
                   <input
                     type="checkbox"
                     checked={formData.penthouse === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked ? 'כן' : undefined })}
+                    onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked ? 'כן' : '' })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   דירת גג
@@ -995,7 +1212,7 @@ export function AssetTypes() {
                   <input
                     type="checkbox"
                     checked={formData.condo === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, condo: e.target.checked ? 'כן' : undefined })}
+                    onChange={(e) => setFormData({ ...formData, condo: e.target.checked ? 'כן' : '' })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   בית משותף
@@ -1006,7 +1223,7 @@ export function AssetTypes() {
                   <input
                     type="checkbox"
                     checked={formData.townhouses === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked ? 'כן' : undefined })}
+                    onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked ? 'כן' : '' })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   מבנים צמודי קרקע טוריים מעל 2 יחידות
@@ -1017,8 +1234,8 @@ export function AssetTypes() {
                   עסקים/מגורים
                 </label>
                 <select
-                  value={formData.business_private}
-                  onChange={(e) => setFormData({ ...formData, business_private: e.target.value || undefined })}
+                  value={formData.business_private || ''}
+                  onChange={(e) => setFormData({ ...formData, business_private: e.target.value || '' })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
                   <option value="">-- בחר --</option>
@@ -1031,7 +1248,7 @@ export function AssetTypes() {
                   <input
                     type="checkbox"
                     checked={formData.shared_area_usage === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, shared_area_usage: e.target.checked ? 'כן' : undefined })}
+                    onChange={(e) => setFormData({ ...formData, shared_area_usage: e.target.checked ? 'כן' : '' })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   שימוש בשטח משותף
@@ -1145,7 +1362,7 @@ export function AssetTypes() {
                 }}
                 onCellValueChanged={onCellValueChanged}
                 onGridReady={onGridReady}
-                getRowId={(params) => String(params.data.id)}
+                getRowId={(params: any) => String(params.data.id)}
                 gridOptions={{
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,

@@ -2245,6 +2245,24 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   {buildingAddress && (
                     <p className="text-xs sm:text-sm text-teal-50">
                       - {buildingAddress}
+                      {building?.building_number_in_street && (
+                        <span className="mr-1"> {building.building_number_in_street}</span>
+                      )}
+                    </p>
+                  )}
+                  {building?.gosh && (
+                    <p className="text-xs sm:text-sm text-teal-50">
+                      גוש: {building.gosh}
+                    </p>
+                  )}
+                  {building?.helka && (
+                    <p className="text-xs sm:text-sm text-teal-50">
+                      חלקה: {building.helka}
+                    </p>
+                  )}
+                  {asset?.floor != null && (
+                    <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                      קומה: {asset.floor}
                     </p>
                   )}
                 </div>

@@ -17,6 +17,9 @@ export interface Building {
   townhouses?: string;
   building_address?: number; // Street code from address_list table
   overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
+  gosh?: number; // גוש (Block number)
+  helka?: number; // חלקה (Parcel number)
+  building_number_in_street?: number; // מספר בניין (Building number in street)
   _tempId?: string; // Hidden field to identify new buildings before saving
   _isNew?: boolean; // Hidden field to mark new buildings
 }
@@ -54,6 +57,10 @@ export interface Asset {
   is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
   history_created_at?: string; // Only present for assets_history records
   is_new_measurement?: boolean; // Flag to mark as new measurement - when true, UPDATE will move old record to history
+  floor?: number; // קומה (Floor number)
+  discount_type?: string; // סוג הנחה (Discount type)
+  discount_date_from?: string; // תאריך הנחה מ (Discount date from)
+  discount_date_to?: string; // תאריך הנחה עד (Discount date to)
 }
 
 export interface AssetMeasurement {
@@ -77,6 +84,7 @@ export interface AssetType {
   name: string;
   description?: string;
   tax_region?: number;
+  area_description_for_tab?: string; // תיאור אזור לתצוגה בלשונית
   elevator?: string;
   single_double_family?: string;
   penthouse?: string;
@@ -169,6 +177,10 @@ export function sanitizeAssetInput(input: any): any {
     basement: input.basement != null ? sanitizeText(input.basement) : undefined,
     penthouse: input.penthouse != null ? sanitizeText(input.penthouse) : undefined,
     structure_drawing_url: input.structure_drawing_url != null ? sanitizeText(input.structure_drawing_url) : undefined,
+    floor: input.floor != null ? sanitizeInteger(input.floor) : undefined,
+    discount_type: input.discount_type != null ? sanitizeText(input.discount_type) : undefined,
+    discount_date_from: input.discount_date_from != null ? sanitizeDate(input.discount_date_from) : undefined,
+    discount_date_to: input.discount_date_to != null ? sanitizeDate(input.discount_date_to) : undefined,
   };
   
   // Remove undefined values to avoid sending them to the database

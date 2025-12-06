@@ -59,6 +59,7 @@ export function AssetsFileImport() {
   const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
   const [validationCompleted, setValidationCompleted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const skeletonFileInputRef = useRef<HTMLInputElement>(null);
 
   // Load asset types and buildings on mount, and ensure validation context data is loaded
   useEffect(() => {
@@ -723,14 +724,20 @@ export function AssetsFileImport() {
       }
     } catch (error) {
       console.error('Error importing skeleton:', error);
-      errors.push(error instanceof Error ? error.message : 'שגיאה בלתי צפויה בייבא שלד');
+      const errorMsg = error instanceof Error ? error.message : 'שגיאה בלתי צפויה בייבא שלד';
+      errors.push(errorMsg);
+      const totalAttempted = skeletonAssets.length;
       setSaveResult({
         successful: successCount,
-        failed: importedAssets.length - successCount,
+        failed: totalAttempted > successCount ? totalAttempted - successCount : 1,
         errors: errors
       });
     } finally {
       setIsSaving(false);
+      setIsParsing(false);
+      if (skeletonFileInputRef.current) {
+        skeletonFileInputRef.current.value = '';
+      }
     }
   };
 
@@ -1612,6 +1619,61 @@ export function AssetsFileImport() {
               <Download className="h-4 w-4" />
               <span>הורד תבנית שלד</span>
             </button>
+          </div>
+
+          {/* Skeleton Import Section */}
+          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Upload className="h-5 w-5 text-orange-600" />
+              <h3 className="text-sm font-semibold text-orange-900">ייבוא שלד - רק מספר מבנה ומזהה נכס</h3>
+            </div>
+            <div className="flex gap-3">
+              <input
+                ref={skeletonFileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validate file type - must be Excel
+                    const fileName = file.name.toLowerCase();
+                    const validExtensions = ['.xlsx', '.xls'];
+                    const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
+                    
+                    if (!isValidFile) {
+                      alert('יש לבחור קובץ Excel בלבד (.xlsx או .xls)');
+                      e.target.value = '';
+                      return;
+                    }
+                    
+                    handleSkeletonFileUpload(e);
+                  }
+                }}
+                disabled={isParsing || isSaving}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => skeletonFileInputRef.current?.click()}
+                disabled={isParsing || isSaving}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium font-semibold"
+              >
+                {isParsing || isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>מייבא שלד...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    <span>ייבא שלד מקובץ</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-orange-700 mt-2">
+              ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס בלבד. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס
+            </p>
           </div>
         </div>
 

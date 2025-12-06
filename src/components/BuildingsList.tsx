@@ -120,18 +120,28 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     setSelectedValue(streetCode);
     selectedValueRef.current = streetCode;
     
-    // Update the data object
+    // Update data object so cellRenderer can show the value immediately
     if (props.data) {
       props.data.building_address = streetCode;
     }
     
-    // Update the node data value using AG Grid API
-    if (props.node && props.column) {
-      props.node.setDataValue(props.column.getColId(), streetCode);
-    }
-    
-    // Stop editing - AG Grid will call getValue() which returns selectedValueRef.current
+    // Stop editing - AG Grid will:
+    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
+    // 2. Compare with old value and if different, update the cell via setDataValue
+    // 3. Trigger onCellValueChanged event (which handles dirty tracking and state updates)
+    // 4. Refresh the cell renderer automatically
     props.stopEditing();
+    
+    // Force refresh the cell after editing stops to ensure it displays
+    setTimeout(() => {
+      if (props.api && props.column && props.node) {
+        props.api.refreshCells({ 
+          rowNodes: [props.node], 
+          columns: [props.column.getColId()], 
+          force: true 
+        });
+      }
+    }, 50);
   };
 
 
@@ -449,6 +459,16 @@ export function BuildingsList({
     const buildingKey = getBuildingKey(building);
     const isNew = isNewBuilding(building);
     const newValue = event.newValue;
+
+    // Debug log for building_address changes
+    if (field === 'building_address') {
+      console.log('[CELL CHANGED] building_address changed:', {
+        oldValue: event.oldValue,
+        newValue: newValue,
+        buildingKey: buildingKey,
+        building: building
+      });
+    }
 
     if (!field || !building) {
       return;
@@ -1761,8 +1781,8 @@ export function BuildingsList({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
-        // Get street code from the building data
-        const streetCode = building.building_address;
+        // Get street code from params.value (AG Grid managed) or fallback to building data
+        const streetCode = params.value != null ? params.value : (building.building_address || null);
         if (!streetCode) return '';
         
         const isNew = isNewBuilding(building);

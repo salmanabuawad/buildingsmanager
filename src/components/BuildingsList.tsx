@@ -19,39 +19,51 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
   const selectedValueRef = useRef<number | null>(null);
+  
+  // Store a ref to the latest props.data to avoid closure issues
+  const dataRef = useRef(props.data);
+  useEffect(() => {
+    dataRef.current = props.data;
+  }, [props.data]);
 
   const { addressList = [] } = props;
 
   // Expose getValue method to AG Grid
-  // This must always return the latest value from either the ref or the data object
+  // Don't include props.data in dependencies to avoid recreating the function
+  // Access props.data via ref to always get the latest value
   useImperativeHandle(ref, () => ({
     getValue: () => {
       // First check the ref (most up-to-date)
       let value = selectedValueRef.current;
       
       // If ref is null, check the data object (fallback)
-      if (value === null && props.data && props.data.building_address != null) {
-        value = props.data.building_address;
+      const currentData = dataRef.current;
+      if (value === null && currentData && currentData.building_address != null) {
+        value = currentData.building_address;
         selectedValueRef.current = value; // Sync the ref
       }
       
       console.log('[AddressCellEditor] getValue() called:', {
         refValue: selectedValueRef.current,
-        dataValue: props.data?.building_address,
+        dataValue: currentData?.building_address,
         returning: value,
-        hasData: !!props.data
+        hasData: !!currentData
       });
       
       // CRITICAL: Always update the data object when getValue is called
       // This ensures the value is in the data object for valueSetter and onCellValueChanged
-      if (props.data && value !== null && value !== undefined) {
-        props.data.building_address = value;
-        console.log('[AddressCellEditor] Updated props.data.building_address in getValue to:', value);
+      if (currentData && value !== null && value !== undefined) {
+        currentData.building_address = value;
+        console.log('[AddressCellEditor] Updated data.building_address in getValue to:', value, 'verified:', currentData.building_address);
+      } else if (currentData && value === null) {
+        console.warn('[AddressCellEditor] getValue() returning null, but data exists');
+      } else {
+        console.warn('[AddressCellEditor] getValue() - data is null!');
       }
       
       return value;
     }
-  }), [selectedValue, props.data]);
+  }), [selectedValue]); // Only depend on selectedValue, access data via ref
 
   // Initialize with current value
   useEffect(() => {
@@ -153,10 +165,15 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
     
-    // Update data object immediately
+    // Update data object immediately - use both props.data and dataRef
     if (props.data) {
       props.data.building_address = streetCode;
-      console.log('[AddressCellEditor] Updated props.data.building_address to:', streetCode);
+      console.log('[AddressCellEditor] Updated props.data.building_address to:', streetCode, 'verified:', props.data.building_address);
+    }
+    // Also update the ref to ensure consistency
+    if (dataRef.current) {
+      dataRef.current.building_address = streetCode;
+      console.log('[AddressCellEditor] Updated dataRef.current.building_address to:', streetCode, 'verified:', dataRef.current.building_address);
     }
     
     // Close dropdown

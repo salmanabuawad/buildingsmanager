@@ -118,7 +118,18 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(e.target.value);
+    const value = e.target.value;
+    setSearchValue(value);
+    setShowDropdown(true);
+    setSelectedIndex(-1);
+  };
+  
+  // Handle input event (fires immediately, before onChange)
+  // This ensures the first character is captured
+  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const value = (e.target as HTMLInputElement).value;
+    // Update searchValue immediately to show the character
+    setSearchValue(value);
     setShowDropdown(true);
     setSelectedIndex(-1);
   };
@@ -273,6 +284,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         type="text"
         value={searchValue}
         onChange={handleInputChange}
+        onInput={handleInput}
         onKeyDown={handleKeyDown}
         onFocus={() => setShowDropdown(true)}
         style={{

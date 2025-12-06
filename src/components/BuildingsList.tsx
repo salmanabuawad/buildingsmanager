@@ -16,6 +16,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchValue, setSearchValue] = useState<string>('');
   const inputValueRef = useRef<string>('');
+  const isInitializedRef = useRef<boolean>(false);
   const [showDropdown, setShowDropdown] = useState<boolean>(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
@@ -120,14 +121,26 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Handle beforeInput to capture character before it's added
   const handleBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
     const inputEvent = e.nativeEvent as InputEvent;
-    if (inputEvent.data) {
-      // Character is about to be added - prepare state update
-      const currentValue = inputRef.current?.value || '';
-      const newValue = currentValue + inputEvent.data;
+    if (inputEvent.data && inputRef.current) {
+      // Character is about to be added - manually add it to ensure it's visible
+      const currentValue = inputRef.current.value || '';
+      const selectionStart = inputRef.current.selectionStart || currentValue.length;
+      const selectionEnd = inputRef.current.selectionEnd || currentValue.length;
+      const newValue = currentValue.slice(0, selectionStart) + inputEvent.data + currentValue.slice(selectionEnd);
+      
+      // Manually set the value in the DOM
+      inputRef.current.value = newValue;
+      // Update cursor position
+      const newCursorPos = selectionStart + inputEvent.data.length;
+      inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      
       // Update state immediately
       setSearchValue(newValue);
       setShowDropdown(true);
       setSelectedIndex(-1);
+      
+      // Prevent default to avoid duplicate character
+      e.preventDefault();
     }
   };
   
@@ -316,10 +329,32 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         onInput={(e) => {
           const input = e.target as HTMLInputElement;
           const value = input.value;
+          // Ensure the value is actually in the DOM
+          if (inputRef.current && inputRef.current.value !== value) {
+            inputRef.current.value = value;
+          }
           inputValueRef.current = value;
           setSearchValue(value);
           setShowDropdown(true);
           setSelectedIndex(-1);
+        }}
+        onKeyPress={(e) => {
+          // For printable characters, ensure they're added immediately
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            // Read value after browser adds character
+            setTimeout(() => {
+              if (inputRef.current) {
+                const value = inputRef.current.value;
+                // Force update if needed
+                if (inputRef.current.value !== value) {
+                  inputRef.current.value = value;
+                }
+                setSearchValue(value);
+                setShowDropdown(true);
+                setSelectedIndex(-1);
+              }
+            }, 0);
+          }
         }}
         onKeyDown={handleKeyDownForInput}
         onFocus={() => {

@@ -40,7 +40,11 @@ interface ImportAssetRow {
   _isDirty?: boolean;
 }
 
-export function AssetsFileImport() {
+interface AssetsFileImportProps {
+  mode?: 'regular' | 'skeleton';
+}
+
+export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const { t } = useTranslation();
   const { validationRules, loading: validationContextLoading, refreshRules } = useValidationRules();
   const gridRef = useRef<AgGridReact>(null);
@@ -2088,6 +2092,7 @@ export function AssetsFileImport() {
 
       <div className="bg-white rounded-lg shadow-md border border-indigo-100 p-6">
         {/* Regular Import Section */}
+        {mode === 'regular' && (
         <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Upload className="h-5 w-5 text-indigo-600" />
@@ -2152,8 +2157,10 @@ export function AssetsFileImport() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Skeleton Import Section */}
+        {mode === 'skeleton' && (
         <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Upload className="h-5 w-5 text-orange-600" />
@@ -2219,6 +2226,7 @@ export function AssetsFileImport() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Failed Assets Summary - Display above grid */}
         {validationResults && validationResults.invalid > 0 && (
@@ -2857,7 +2865,7 @@ export function AssetsFileImport() {
               </button>
               <button
                 onClick={() => pendingBuildingNumber && handleCreateBuildingAndContinue(pendingBuildingNumber)}
-                disabled={isCreatingBuilding || !pendingBuildingNumber}
+                disabled={isCreatingBuilding || !pendingBuildingNumber || Object.keys(buildingValidationErrors).length > 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isCreatingBuilding ? (

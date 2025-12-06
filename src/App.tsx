@@ -18,7 +18,7 @@ import { assetValidators, validateEntity } from './lib/validation';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'asset-details' | 'transfer-areas' | 'address-list';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -399,11 +399,28 @@ function App() {
     const newTab: Tab = {
       id: assetsFileImportTabId,
       type: 'assets-file-import',
-      label: 'ייבוא נכסים File'
+      label: 'ייבוא נכסים File - כל השדות'
     };
 
-    // Remove all other assets-file-import tabs, then add new one
-    openTab(newTab);
+    // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
+    setTabs(prev => prev.filter(tab => tab.type !== 'assets-file-import' && tab.type !== 'assets-skeleton-import'));
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(assetsFileImportTabId);
+  }
+
+  function openAssetsSkeletonImport() {
+    const assetsSkeletonImportTabId = 'assets-skeleton-import-panel';
+
+    const newTab: Tab = {
+      id: assetsSkeletonImportTabId,
+      type: 'assets-skeleton-import',
+      label: 'ייבוא שלד נכסים'
+    };
+
+    // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
+    setTabs(prev => prev.filter(tab => tab.type !== 'assets-file-import' && tab.type !== 'assets-skeleton-import'));
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(assetsSkeletonImportTabId);
   }
 
   function handleCloseTab(tabId: string) {
@@ -707,7 +724,14 @@ function App() {
                   onClick={openAssetsFileImport}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700">ייבוא File</span>
+                  <span className="font-medium text-slate-700">ייבוא File - כל השדות</span>
+                  <Upload className="h-3.5 w-3.5 text-indigo-600" />
+                </button>
+                <button
+                  onClick={openAssetsSkeletonImport}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">ייבוא שלד - רק מספר מבנה ומזהה נכס</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
               </div>
@@ -900,7 +924,10 @@ function App() {
               <BuildingListImport />
             )}
             {activeTab?.type === 'assets-file-import' && (
-              <AssetsFileImport />
+              <AssetsFileImport mode="regular" />
+            )}
+            {activeTab?.type === 'assets-skeleton-import' && (
+              <AssetsFileImport mode="skeleton" />
             )}
             {activeTab?.type === 'asset-details' && (
               <AssetDetails 

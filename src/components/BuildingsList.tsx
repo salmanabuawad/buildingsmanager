@@ -319,6 +319,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         ref={inputRef}
         key="address-editor-input"
         type="text"
+        onBeforeInput={handleBeforeInput}
         onChange={(e) => {
           const value = e.target.value;
           inputValueRef.current = value;

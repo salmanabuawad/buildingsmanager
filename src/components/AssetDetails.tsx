@@ -2268,7 +2268,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 </div>
                 {displayTaxRegion && (
                   <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
-                    אזור מס: {displayTaxRegion}
+                    תיאור אזור לתצוגה בלשונית: {displayTaxRegion}
                   </p>
                 )}
               </div>

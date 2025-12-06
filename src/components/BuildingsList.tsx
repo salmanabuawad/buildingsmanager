@@ -3,10 +3,183 @@ import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
 
+// Custom cell editor for address dropdown with filtering
+interface AddressCellEditorParams extends ICellEditorParams {
+  addressList: AddressList[];
+}
 
+const AddressCellEditor = (props: AddressCellEditorParams) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState<string>('');
+  const [showDropdown, setShowDropdown] = useState<boolean>(true);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+
+  const { addressList = [] } = props;
+
+  // Initialize with current value
+  useEffect(() => {
+    const streetCode = props.value;
+    if (streetCode != null) {
+      const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
+      if (address) {
+        setSearchValue(`${address.street_code} - ${address.street_description}`);
+      } else {
+        setSearchValue(String(streetCode));
+      }
+    }
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, []);
+
+  // Filter addresses based on search
+  const filteredAddresses = useMemo(() => {
+    if (!searchValue.trim()) {
+      return addressList;
+    }
+    const searchLower = searchValue.toLowerCase();
+    return addressList.filter(a => 
+      String(a.street_code).includes(searchValue) ||
+      a.street_description?.toLowerCase().includes(searchLower) ||
+      `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
+    );
+  }, [searchValue, addressList]);
+
+  // Handle input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchValue(e.target.value);
+    setShowDropdown(true);
+    setSelectedIndex(-1);
+  };
+
+  // Handle key navigation
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => 
+        prev < filteredAddresses.length - 1 ? prev + 1 : prev
+      );
+      setShowDropdown(true);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+      setShowDropdown(true);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < filteredAddresses.length) {
+        selectAddress(filteredAddresses[selectedIndex]);
+      } else if (filteredAddresses.length === 1) {
+        selectAddress(filteredAddresses[0]);
+      } else {
+        // Try to parse as number and find match
+        const parsed = Number(searchValue.trim());
+        if (!isNaN(parsed) && parsed > 0) {
+          const match = addressList.find(a => Number(a.street_code) === parsed);
+          if (match) {
+            selectAddress(match);
+          } else {
+            props.stopEditing();
+          }
+        } else {
+          props.stopEditing();
+        }
+      }
+    } else if (e.key === 'Escape') {
+      props.stopEditing();
+    }
+  };
+
+  // Select an address
+  const selectAddress = (address: AddressList) => {
+    if (props.data) {
+      props.data.building_address = address.street_code;
+    }
+    props.stopEditing();
+  };
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        props.stopEditing();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={searchValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setShowDropdown(true)}
+        style={{
+          width: '100%',
+          height: '100%',
+          padding: '4px 8px',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          direction: 'rtl',
+          textAlign: 'right'
+        }}
+      />
+      {showDropdown && filteredAddresses.length > 0 && (
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            maxHeight: '200px',
+            overflowY: 'auto',
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            direction: 'rtl',
+            textAlign: 'right'
+          }}
+        >
+          {filteredAddresses.map((address, index) => (
+            <div
+              key={address.street_code}
+              onClick={() => selectAddress(address)}
+              onMouseEnter={() => setSelectedIndex(index)}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
+                borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
+              }}
+            >
+              <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
+              <div style={{ fontSize: '0.9em', color: '#666' }}>{address.street_description}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface BuildingsListProps {
   onSelectBuilding: (buildingNumber: number, taxRegions?: string) => void;
@@ -1600,55 +1773,10 @@ export function BuildingsList({
         
         return displayValue;
       },
-      cellEditor: 'agSelectCellEditor',
+      cellEditor: AddressCellEditor,
       cellEditorParams: {
-        // Show "code - description" format in dropdown
-        values: addressList && addressList.length > 0 
-          ? addressList.map(a => `${a.street_code} - ${a.street_description}`)
-          : [],
+        addressList: addressList || [],
       },
-      valueParser: (params: any) => {
-        if (!params) return null;
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        
-        let streetCode: number | null = null;
-        
-        // Extract street code from "code - description" format
-        if (typeof newValue === 'string' && newValue.includes(' - ')) {
-          const codeStr = newValue.split(' - ')[0].trim();
-          streetCode = Number(codeStr);
-        } else if (typeof newValue === 'string') {
-          // If user typed just a number, try to parse it
-          const parsed = Number(newValue.trim());
-          if (!isNaN(parsed) && parsed > 0) {
-            // Check if this code exists in addressList
-            const addressExists = addressList.some(a => Number(a.street_code) === parsed);
-            if (addressExists) {
-              streetCode = parsed;
-            }
-          }
-        } else {
-          // If it's already a number (shouldn't happen, but handle it)
-          streetCode = Number(newValue);
-        }
-        
-        // Validate: must be a valid positive integer that exists in addressList
-        if (streetCode === null || isNaN(streetCode) || streetCode <= 0) {
-          return null;
-        }
-        
-        // Verify the street code exists in addressList
-        const addressExists = addressList.some(a => Number(a.street_code) === streetCode);
-        if (!addressExists) {
-          console.warn(`Street code ${streetCode} not found in addressList`);
-          return null;
-        }
-        
-        return streetCode;
-      },
-      cellEditorPopup: true,
-      cellEditorPopupPosition: 'under',
       cellStyle: (params) => getCellStyle(params, 'building_address')
     },
     {

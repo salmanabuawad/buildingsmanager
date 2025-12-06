@@ -267,7 +267,6 @@ export const translations = {
       editMeasurement: 'ערוך מדידה',
       deleteMeasurement: 'מחק מדידה',
       noMeasurements: 'אין מדידות שנרשמו עדיין',
-      shelter: 'מרתף',
       measurementDeleteSuccess: 'המדידה נמחקה בהצלחה',
       measurementDeleteError: 'שגיאה במחיקת המדידה',
       measurementSaveSuccess: 'המדידה נשמרה בהצלחה',

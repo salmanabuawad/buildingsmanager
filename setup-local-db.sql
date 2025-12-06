@@ -18,7 +18,6 @@ CREATE TABLE buildings (
   shared_area BOOLEAN DEFAULT false,
   single_double_family TEXT,
   condo TEXT,
-  basement TEXT,
   townhouses TEXT,
   total_units INTEGER DEFAULT 0,
   total_building_area NUMERIC DEFAULT 0,
@@ -43,7 +42,6 @@ CREATE TABLE asset_types (
   elevator TEXT,
   single_double_family TEXT,
   condo TEXT,
-  basement TEXT,
   townhouses TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

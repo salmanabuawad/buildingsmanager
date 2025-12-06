@@ -13,7 +13,6 @@ export interface Building {
   total_building_area?: number;
   single_double_family?: string;
   condo?: string;
-  basement?: string;
   townhouses?: string;
   building_address?: number; // Street code from address_list table
   overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
@@ -51,7 +50,6 @@ export interface Asset {
   single_double_family?: string;
   condo?: string;
   townhouses?: string;
-  basement?: string;
   penthouse?: string;
   tax_region?: number; // Tax region code (אזור מס) - matches asset_types.tax_region
   is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
@@ -174,7 +172,6 @@ export function sanitizeAssetInput(input: any): any {
     single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
     condo: input.condo != null ? sanitizeText(input.condo) : undefined,
     townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
-    basement: input.basement != null ? sanitizeText(input.basement) : undefined,
     penthouse: input.penthouse != null ? sanitizeText(input.penthouse) : undefined,
     structure_drawing_url: input.structure_drawing_url != null ? sanitizeText(input.structure_drawing_url) : undefined,
     floor: input.floor != null ? sanitizeInteger(input.floor) : undefined,
@@ -248,13 +245,6 @@ function sanitizeBuildingInput(input: any): any {
       sanitized.condo = null;
     } else {
       sanitized.condo = sanitizeText(input.condo);
-    }
-  }
-  if ('basement' in input) {
-    if (input.basement === null || input.basement === '') {
-      sanitized.basement = null;
-    } else {
-      sanitized.basement = sanitizeText(input.basement);
     }
   }
   if ('townhouses' in input) {

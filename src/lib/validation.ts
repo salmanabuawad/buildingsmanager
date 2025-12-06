@@ -1143,17 +1143,6 @@ export async function validateAssetTypeComplete(
           }
         }
 
-        // Step 4e: Match basement (מרתף) - if exists in asset_types
-        if (assetType.basement != null && assetType.basement.trim() !== '') {
-          const requiredValue = assetType.basement.toLowerCase();
-          const buildingValue = building.basement ? building.basement.toLowerCase() : '';
-
-          if (requiredValue === 'כן' || requiredValue === 'yes') {
-            if (buildingValue !== 'כן' && buildingValue !== 'yes') {
-              errors.push('דורש מרתף, אבל המבנה לא מסומן ככזה');
-            }
-          }
-        }
       }
 
       return { valid: errors.length === 0, errors };
@@ -1176,7 +1165,6 @@ export async function validateAssetTypeComplete(
         fields.push(`דירת גג=${assetType.penthouse || 'לא מוגדר'}`);
         fields.push(`בית משותף=${assetType.condo || 'לא מוגדר'}`);
         fields.push(`טוריים=${assetType.townhouses || 'לא מוגדר'}`);
-        fields.push(`מרתף=${assetType.basement || assetType.shelter || 'לא מוגדר'}`);
         fields.push(`מינימום=${assetType.min_size != null ? assetType.min_size : 'לא מוגדר'}`);
         fields.push(`מקסימום=${assetType.max_size != null ? assetType.max_size : 'לא מוגדר'}`);
         

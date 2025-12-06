@@ -102,7 +102,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Get area description for tab based on main asset type
   const areaDescriptionForTab = useMemo(() => {
-    if (!asset?.main_asset_type) {
+    if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0) {
       return null;
     }
     

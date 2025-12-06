@@ -306,10 +306,15 @@ export function AssetTypes() {
       headerName: 'תיאור',
       editable: true,
       width: 200,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: {
+        useFormatter: false,
+      },
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'description');
         return { 
           textAlign: 'right',
+          direction: 'rtl',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
           fontWeight: isDirty ? 'bold' : undefined
         };
@@ -339,10 +344,15 @@ export function AssetTypes() {
       headerName: 'תיאור אזור לתצוגה בלשונית',
       editable: true,
       width: 200,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: {
+        useFormatter: false,
+      },
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'area_description_for_tab');
         return { 
           textAlign: 'right',
+          direction: 'rtl',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
           fontWeight: isDirty ? 'bold' : undefined
         };
@@ -583,10 +593,15 @@ export function AssetTypes() {
       suppressMovable: true,
       editable: true,
       width: 100,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: {
+        useFormatter: false,
+      },
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 
           textAlign: 'right',
+          direction: 'rtl',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
           fontWeight: isDirty ? 'bold' : undefined
         };
@@ -1318,6 +1333,7 @@ export function AssetTypes() {
                 <Filter className="h-5 w-5 text-blue-600" />
                 <input
                   type="text"
+                  dir="rtl"
                   placeholder="חיפוש גלובלי..."
                   value={globalFilter}
                   onChange={(e) => {
@@ -1326,7 +1342,7 @@ export function AssetTypes() {
                       gridRef.current.api.setQuickFilter(e.target.value);
                     }
                   }}
-                  className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
                 />
                 {globalFilter && (
                   <button
@@ -1354,7 +1370,7 @@ export function AssetTypes() {
                   autoHeaderHeight: true,
                   wrapText: true,
                   autoHeight: false,
-                  cellStyle: { textAlign: 'right' },
+                  cellStyle: { textAlign: 'right', direction: 'rtl' },
                   headerClass: 'ag-right-aligned-header',
                   minWidth: 100,
                   sortable: true,

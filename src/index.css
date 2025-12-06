@@ -133,10 +133,20 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell {
   border-color: #cbd5e1;
   text-align: right !important;
+  direction: rtl !important;
   overflow: visible !important;
   white-space: normal !important;
   word-wrap: break-word !important;
   line-height: 1.5 !important;
+}
+
+/* Fix RTL for ag-grid cell editors */
+.ag-theme-alpine .ag-cell-inline-editing input[type="text"],
+.ag-theme-alpine .ag-cell-inline-editing input[type="number"],
+.ag-theme-alpine .ag-text-field-input,
+.ag-theme-alpine .ag-cell-editor input {
+  direction: rtl !important;
+  text-align: right !important;
 }
 
 .ag-theme-alpine .ag-header-cell-label {

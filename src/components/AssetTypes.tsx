@@ -261,12 +261,12 @@ export function AssetTypes() {
     }
   }, [handleCellChange]);
 
-  // Handle grid ready - scroll to the right
+  // Handle grid ready - scroll to focus on actions
   const onGridReady = useCallback((event: GridReadyEvent) => {
-    // Scroll to the right
+    // Scroll to focus on actions column
     setTimeout(() => {
       if (event.api) {
-        event.api.ensureColumnVisible('name', 'right');
+        event.api.ensureColumnVisible('actions', 'right');
       }
     }, 100);
   }, []);
@@ -276,10 +276,6 @@ export function AssetTypes() {
     {
       field: 'extra_field_1',
       headerName: '',
-      pinned: 'left',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
       width: 120,
       editable: false,
       sortable: false,
@@ -290,10 +286,6 @@ export function AssetTypes() {
     {
       field: 'extra_field_2',
       headerName: '',
-      pinned: 'left',
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
       width: 120,
       editable: false,
       sortable: false,

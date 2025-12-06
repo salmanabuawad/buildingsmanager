@@ -23,8 +23,6 @@ export function AssetTypes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
   
-  // Global filter state (for ag-grid quick filter)
-  const [globalFilter, setGlobalFilter] = useState<string>('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -1327,38 +1325,6 @@ export function AssetTypes() {
           </div>
         ) : (
           <div className="rounded-xl overflow-hidden shadow-lg border border-blue-100 bg-white">
-            {/* Global search filter */}
-            <div className="p-3 border-b border-blue-200 bg-blue-50">
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-blue-600" />
-                <input
-                  type="text"
-                  dir="rtl"
-                  placeholder="חיפוש גלובלי..."
-                  value={globalFilter}
-                  onChange={(e) => {
-                    setGlobalFilter(e.target.value);
-                    if (gridRef.current?.api) {
-                      gridRef.current.api.setQuickFilter(e.target.value);
-                    }
-                  }}
-                  className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                />
-                {globalFilter && (
-                  <button
-                    onClick={() => {
-                      setGlobalFilter('');
-                      if (gridRef.current?.api) {
-                        gridRef.current.api.setQuickFilter('');
-                      }
-                    }}
-                    className="px-3 py-2 text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    נקה
-                  </button>
-                )}
-              </div>
-            </div>
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', direction: 'rtl' }}>
               <AgGridReact
                 ref={gridRef}

@@ -1538,6 +1538,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'asset_id',
       headerName: t('assetId'),
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
       width: 120,
       editable: (params) => {
         const assetId = String(params.data?.id);

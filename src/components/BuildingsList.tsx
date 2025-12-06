@@ -37,12 +37,20 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       } else {
         setSearchValue(String(streetCode));
       }
+    } else {
+      setSelectedValue(null);
+      setSearchValue('');
     }
-    if (inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, []);
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        // Place cursor at end instead of selecting all, so user can type immediately
+        const length = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(length, length);
+      }
+    }, 0);
+  }, [addressList]);
 
   // Filter addresses based on search
   const filteredAddresses = useMemo(() => {
@@ -105,18 +113,18 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const selectAddress = (address: AddressList) => {
     const streetCode = address.street_code;
     setSelectedValue(streetCode);
+    
+    // Update the data object
     if (props.data) {
       props.data.building_address = streetCode;
     }
-    // Trigger cell value change event
-    if (props.api && props.column && props.node) {
-      props.api.setFocusedCell(props.node.rowIndex!, props.column);
-      props.api.refreshCells({ 
-        rowNodes: [props.node], 
-        columns: [props.column], 
-        force: true 
-      });
+    
+    // Update the node data value using AG Grid API
+    if (props.node && props.column) {
+      props.node.setDataValue(props.column, streetCode);
     }
+    
+    // Stop editing - AG Grid will call getValue() which returns selectedValue
     props.stopEditing();
   };
 
@@ -1744,21 +1752,6 @@ export function BuildingsList({
       field: 'building_address',
       headerName: 'כתובת',
       editable: true,
-      valueGetter: (params: any) => {
-        // Return formatted "code - description" for the editor to match dropdown values
-        const streetCode = params.data?.building_address;
-        if (streetCode == null) return null;
-        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
-        return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
-      },
-      valueSetter: (params: any) => {
-        // Set the street code (number) as the value
-        // valueParser already sets params.data.building_address, but we also need to return the value
-        if (params.data) {
-          params.data.building_address = params.newValue;
-        }
-        return true;
-      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';

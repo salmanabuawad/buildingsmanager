@@ -1767,18 +1767,44 @@ export function AssetsFileImport() {
     },
     {
       field: 'tax_region',
-      headerName: 'אזור מס',
-      width: 80,
+      headerName: 'תיאור אזור לתצוגה בלשונית',
+      width: 150,
       editable: true,
-      type: 'numericColumn',
-      valueFormatter: (params) => {
+      valueFormatter: (params: any) => {
         if (params.value == null || params.value === '') return '';
+        // Look up area_description_for_tab from asset types based on tax_region
+        const taxRegionNum = typeof params.value === 'number' ? params.value : parseInt(String(params.value), 10);
+        if (!isNaN(taxRegionNum) && assetTypes && assetTypes.length > 0) {
+          // Find first asset type with matching tax_region that has area_description_for_tab
+          const matchingAssetType = assetTypes.find(at => 
+            at.tax_region === taxRegionNum && at.area_description_for_tab
+          );
+          if (matchingAssetType?.area_description_for_tab) {
+            return matchingAssetType.area_description_for_tab;
+          }
+        }
+        // Fallback to showing the tax_region number if no area_description_for_tab found
         return String(params.value);
       },
-      valueParser: (params) => {
+      valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
+        const newValueStr = String(params.newValue).trim();
+        
+        // Try to parse as number first
+        const num = parseInt(newValueStr, 10);
+        if (!isNaN(num)) return num;
+        
+        // If not a number, try to find matching tax_region by area_description_for_tab
+        if (assetTypes && assetTypes.length > 0) {
+          const matchingAssetType = assetTypes.find(at => 
+            at.area_description_for_tab?.toLowerCase() === newValueStr.toLowerCase()
+          );
+          if (matchingAssetType?.tax_region != null) {
+            return matchingAssetType.tax_region;
+          }
+        }
+        
+        return null;
       },
       cellStyle: getCellStyle
     },

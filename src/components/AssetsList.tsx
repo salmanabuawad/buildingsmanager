@@ -1737,6 +1737,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'
     },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
   ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
   if (loading) {
     return (

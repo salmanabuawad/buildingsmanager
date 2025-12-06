@@ -5,6 +5,8 @@ import { assetTypeValidators, inputValidators } from '../lib/validation';
 import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Filter } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -19,34 +21,10 @@ export function AssetTypes() {
   const [dirtyAssetTypes, setDirtyAssetTypes] = useState<Map<number, Partial<AssetType>>>(new Map());
   const [deletedAssetTypes, setDeletedAssetTypes] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<AgGridReact<AssetType>>(null);
   
-  // Sorting and filtering state
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  
-  // Column widths state
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
-    actions: 80,
-    name: 100,
-    active: 60,
-    description: 200,
-    tax_region: 120,
-    elevator: 60,
-    single_double_family: 60,
-    penthouse: 60,
-    condo: 60,
-    townhouses: 60,
-    business_private: 120,
-    shared_area_usage: 60,
-    min_size: 80,
-    max_size: 80,
-  });
-  
-  // Resizing state
-  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
-  const resizeStartX = useRef<number>(0);
-  const resizeStartWidth = useRef<number>(0);
+  // Global filter state (for ag-grid quick filter)
+  const [globalFilter, setGlobalFilter] = useState<string>('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -192,51 +170,6 @@ export function AssetTypes() {
     }
   }, []);
 
-  // Handle sorting
-  const handleSort = useCallback((column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  }, [sortColumn]);
-
-  // Handle filtering
-  const handleFilterChange = useCallback((field: string, value: string) => {
-    setFilters(prev => {
-      const next = { ...prev };
-      if (value === '') {
-        delete next[field];
-      } else {
-        next[field] = value;
-      }
-      return next;
-    });
-  }, []);
-
-  // Handle column resizing
-  const handleResizeStart = useCallback((column: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    setResizingColumn(column);
-    resizeStartX.current = e.clientX;
-    resizeStartWidth.current = columnWidths[column] || 100;
-    
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - resizeStartX.current;
-      const newWidth = Math.max(50, resizeStartWidth.current - deltaX); // RTL: subtract deltaX
-      setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
-    };
-    
-    const handleMouseUp = () => {
-      setResizingColumn(null);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [columnWidths]);
 
   async function handleDelete(id: number) {
     if (!confirm(t('confirmDeleteAssetType'))) return;
@@ -304,63 +237,355 @@ export function AssetTypes() {
     setAssetTypes(JSON.parse(JSON.stringify(originalAssetTypes)));
     setDirtyAssetTypes(new Map());
     setDeletedAssetTypes(new Set());
+    
+    // Refresh grid
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
   }
 
-  // Filter and sort asset types
-  const filteredAndSortedAssetTypes = useMemo(() => {
-    let filtered = assetTypes.filter(assetType => {
-      // Apply global filter (searches across all fields)
-      if (filters.global) {
-        const globalSearch = filters.global.toLowerCase();
-        const searchableFields = [
-          String(assetType.name || ''),
-          String(assetType.description || ''),
-          String(assetType.tax_region || ''),
-          String(assetType.business_private || ''),
-        ];
-        const matchesGlobal = searchableFields.some(field => field.toLowerCase().includes(globalSearch));
-        if (!matchesGlobal) return false;
-      }
+  // Handle cell value changed in ag-grid
+  const onCellValueChanged = useCallback(async (event: CellValueChangedEvent) => {
+    const { data, colDef } = event;
+    const field = colDef.field as keyof AssetType;
+    const assetTypeId = data.id;
+    const newValue = event.newValue;
 
-      // Apply specific field filters
-      if (filters.name && !String(assetType.name || '').toLowerCase().includes(filters.name.toLowerCase())) {
-        return false;
-      }
-      if (filters.description && !String(assetType.description || '').toLowerCase().includes(filters.description.toLowerCase())) {
-        return false;
-      }
-      if (filters.tax_region && String(assetType.tax_region || '') !== filters.tax_region) {
-        return false;
-      }
-      if (filters.business_private && String(assetType.business_private || '') !== filters.business_private) {
-        return false;
-      }
-      return true;
-    });
+    if (!field || !assetTypeId) return;
 
-    // Apply sorting
-    if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
-        const aValue = getCurrentValue(a, sortColumn as keyof AssetType);
-        const bValue = getCurrentValue(b, sortColumn as keyof AssetType);
-        
-        let comparison = 0;
-        if (aValue === null || aValue === undefined) comparison = 1;
-        else if (bValue === null || bValue === undefined) comparison = -1;
-        else if (typeof aValue === 'string' && typeof bValue === 'string') {
-          comparison = aValue.localeCompare(bValue);
-        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-          comparison = aValue - bValue;
-        } else {
-          comparison = String(aValue).localeCompare(String(bValue));
-        }
-        
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
+    await handleCellChange(assetTypeId, field, newValue);
+    
+    // Refresh grid to show updated state
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
     }
+  }, [handleCellChange]);
 
-    return filtered;
-  }, [assetTypes, filters, sortColumn, sortDirection, getCurrentValue]);
+  // Column definitions for ag-grid
+  const columnDefs: ColDef<AssetType>[] = useMemo(() => [
+    {
+      colId: 'actions',
+      headerName: t('actions'),
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      width: 80,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            <button
+              onClick={() => handleDelete(assetType.id)}
+              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="מחק"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'name',
+      headerName: 'סוג נכס',
+      editable: true,
+      width: 100,
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'active',
+      headerName: 'פעיל',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'active');
+        const isDirty = isFieldDirty(assetType.id, 'active');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'description',
+      headerName: 'תיאור',
+      editable: true,
+      width: 200,
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'description');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'tax_region',
+      headerName: 'אזור מיסים',
+      editable: true,
+      width: 120,
+      valueParser: (params: any) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'tax_region');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'elevator',
+      headerName: 'מעלית',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'elevator');
+        const isDirty = isFieldDirty(assetType.id, 'elevator');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'single_double_family',
+      headerName: 'בית פרטי',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'single_double_family');
+        const isDirty = isFieldDirty(assetType.id, 'single_double_family');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'penthouse',
+      headerName: 'דירת גג',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'penthouse');
+        const isDirty = isFieldDirty(assetType.id, 'penthouse');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'condo',
+      headerName: 'בית משותף',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'condo');
+        const isDirty = isFieldDirty(assetType.id, 'condo');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'townhouses',
+      headerName: 'טוריים',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'townhouses');
+        const isDirty = isFieldDirty(assetType.id, 'townhouses');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'business_private',
+      headerName: 'עסקים/מגורים',
+      editable: true,
+      width: 120,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['', 'עסקים', 'מגורים']
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'business_private');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'shared_area_usage',
+      headerName: 'שטח משותף',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'shared_area_usage');
+        const isDirty = isFieldDirty(assetType.id, 'shared_area_usage');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'min_size',
+      headerName: 'שטח מ',
+      editable: true,
+      width: 80,
+      valueParser: (params: any) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseFloat(params.newValue);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'min_size');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'max_size',
+      headerName: 'שטח עד',
+      editable: true,
+      width: 80,
+      valueParser: (params: any) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseFloat(params.newValue);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'max_size');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      width: 120,
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
+  ], [t, getCurrentValue, isFieldDirty, handleDelete]);
 
 
   function downloadTemplate() {
@@ -859,13 +1084,23 @@ export function AssetTypes() {
                 <input
                   type="text"
                   placeholder="חיפוש גלובלי..."
-                  value={filters.global || ''}
-                  onChange={(e) => handleFilterChange('global', e.target.value)}
+                  value={globalFilter}
+                  onChange={(e) => {
+                    setGlobalFilter(e.target.value);
+                    if (gridRef.current?.api) {
+                      gridRef.current.api.setQuickFilter(e.target.value);
+                    }
+                  }}
                   className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                {filters.global && (
+                {globalFilter && (
                   <button
-                    onClick={() => handleFilterChange('global', '')}
+                    onClick={() => {
+                      setGlobalFilter('');
+                      if (gridRef.current?.api) {
+                        gridRef.current.api.setQuickFilter('');
+                      }
+                    }}
                     className="px-3 py-2 text-sm text-blue-600 hover:text-blue-800"
                   >
                     נקה
@@ -873,341 +1108,30 @@ export function AssetTypes() {
                 )}
               </div>
             </div>
-            <div className="overflow-x-auto" style={{ maxHeight: '60vh' }}>
-              <table className="w-full border-collapse" dir="rtl">
-                <thead className="bg-blue-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="border border-blue-200 p-2 text-center sticky right-0 bg-blue-50 z-20 relative" style={{ width: columnWidths.actions, minWidth: '50px' }}>
-                      {t('actions')}
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.name, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30 transition-colors"
-                        style={{ cursor: resizingColumn === 'name' ? 'col-resize' : 'ew-resize' }}
-                        onMouseDown={(e) => handleResizeStart('name', e)}
-                        title="גרור כדי לשנות רוחב"
-                      />
-                      <div 
-                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('name')}
-                      >
-                        <span className="text-right font-semibold">סוג נכס</span>
-                        {sortColumn === 'name' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="סינון..."
-                        value={filters.name || ''}
-                        onChange={(e) => handleFilterChange('name', e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full px-2 py-1 text-xs border rounded"
-                      />
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.active, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('active', e)}
-                      />
-                      <div 
-                        className="flex items-center justify-center gap-1 mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('active')}
-                      >
-                        <span className="font-semibold">פעיל</span>
-                        {sortColumn === 'active' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.description, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('description', e)}
-                      />
-                      <div 
-                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('description')}
-                      >
-                        <span className="text-right font-semibold">תיאור</span>
-                        {sortColumn === 'description' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="סינון..."
-                        value={filters.description || ''}
-                        onChange={(e) => handleFilterChange('description', e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full px-2 py-1 text-xs border rounded"
-                      />
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.tax_region, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('tax_region', e)}
-                      />
-                      <div 
-                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('tax_region')}
-                      >
-                        <span className="text-right font-semibold">אזור מיסים</span>
-                        {sortColumn === 'tax_region' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="סינון..."
-                        value={filters.tax_region || ''}
-                        onChange={(e) => handleFilterChange('tax_region', e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full px-2 py-1 text-xs border rounded"
-                      />
-                    </th>
-                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.elevator, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('elevator', e)}
-                      />
-                      <span className="font-semibold">מעלית</span>
-                    </th>
-                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.single_double_family, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('single_double_family', e)}
-                      />
-                      <span className="font-semibold">בית פרטי</span>
-                    </th>
-                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.penthouse, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('penthouse', e)}
-                      />
-                      <span className="font-semibold">דירת גג</span>
-                    </th>
-                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.condo, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('condo', e)}
-                      />
-                      <span className="font-semibold">בית משותף</span>
-                    </th>
-                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.townhouses, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('townhouses', e)}
-                      />
-                      <span className="font-semibold">טוריים</span>
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.business_private, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('business_private', e)}
-                      />
-                      <div 
-                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('business_private')}
-                      >
-                        <span className="text-right font-semibold">עסקים/מגורים</span>
-                        {sortColumn === 'business_private' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                      <select
-                        value={filters.business_private || ''}
-                        onChange={(e) => handleFilterChange('business_private', e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full px-2 py-1 text-xs border rounded"
-                      >
-                        <option value="">הכל</option>
-                        <option value="עסקים">עסקים</option>
-                        <option value="מגורים">מגורים</option>
-                      </select>
-                    </th>
-                    <th className="border border-blue-200 p-2 text-center relative" style={{ width: columnWidths.shared_area_usage, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('shared_area_usage', e)}
-                      />
-                      <span className="font-semibold">שטח משותף</span>
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.min_size, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('min_size', e)}
-                      />
-                      <div 
-                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('min_size')}
-                      >
-                        <span className="text-right font-semibold">שטח מ</span>
-                        {sortColumn === 'min_size' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="border border-blue-200 p-2 relative" style={{ width: columnWidths.max_size, minWidth: '50px' }}>
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-30"
-                        onMouseDown={(e) => handleResizeStart('max_size', e)}
-                      />
-                      <div 
-                        className="flex items-center justify-between mb-1 cursor-pointer hover:bg-blue-100 px-1 -mx-1 rounded"
-                        onClick={() => handleSort('max_size')}
-                      >
-                        <span className="text-right font-semibold">שטח עד</span>
-                        {sortColumn === 'max_size' ? (
-                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpDown className="h-4 w-4 opacity-50" />
-                        )}
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSortedAssetTypes.map((assetType, index) => {
-                    const isDirty = dirtyAssetTypes.has(assetType.id);
-                    const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-blue-50';
-                    return (
-                      <tr key={assetType.id} className={rowClass}>
-                        <td className={`border border-blue-200 p-2 text-center sticky right-0 z-10 ${rowClass}`} style={{ width: columnWidths.actions, minWidth: '50px' }}>
-                          <button
-                            onClick={() => handleDelete(assetType.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="מחק"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.name, minWidth: '50px' }}>
-                          <input
-                            type="text"
-                            value={getCurrentValue(assetType, 'name') || ''}
-                            onChange={(e) => handleCellChange(assetType.id, 'name', e.target.value)}
-                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'name') ? 'bg-yellow-100 font-bold' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.active, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'active') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'active', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'active') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.description, minWidth: '50px' }}>
-                          <input
-                            type="text"
-                            value={getCurrentValue(assetType, 'description') || ''}
-                            onChange={(e) => handleCellChange(assetType.id, 'description', e.target.value)}
-                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'description') ? 'bg-yellow-100 font-bold' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.tax_region, minWidth: '50px' }}>
-                          <input
-                            type="number"
-                            value={getCurrentValue(assetType, 'tax_region') || ''}
-                            onChange={(e) => handleCellChange(assetType.id, 'tax_region', e.target.value ? parseInt(e.target.value) : null)}
-                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'tax_region') ? 'bg-yellow-100 font-bold' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.elevator, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'elevator') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'elevator', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'elevator') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.single_double_family, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'single_double_family') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'single_double_family', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'single_double_family') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.penthouse, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'penthouse') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'penthouse', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'penthouse') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.condo, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'condo') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'condo', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'condo') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.townhouses, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'townhouses') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'townhouses', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'townhouses') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.business_private, minWidth: '50px' }}>
-                          <select
-                            value={getCurrentValue(assetType, 'business_private') || ''}
-                            onChange={(e) => handleCellChange(assetType.id, 'business_private', e.target.value || null)}
-                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'business_private') ? 'bg-yellow-100 font-bold' : ''}`}
-                          >
-                            <option value="">-- בחר --</option>
-                            <option value="עסקים">עסקים</option>
-                            <option value="מגורים">מגורים</option>
-                          </select>
-                        </td>
-                        <td className="border border-blue-200 p-2 text-center" style={{ width: columnWidths.shared_area_usage, minWidth: '50px' }}>
-                          <input
-                            type="checkbox"
-                            checked={getCurrentValue(assetType, 'shared_area_usage') === 'כן'}
-                            onChange={(e) => handleCellChange(assetType.id, 'shared_area_usage', e.target.checked ? 'כן' : null)}
-                            className={`w-4 h-4 text-blue-600 rounded ${isFieldDirty(assetType.id, 'shared_area_usage') ? 'ring-2 ring-yellow-400' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.min_size, minWidth: '50px' }}>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={getCurrentValue(assetType, 'min_size') || ''}
-                            onChange={(e) => handleCellChange(assetType.id, 'min_size', e.target.value ? parseFloat(e.target.value) : null)}
-                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'min_size') ? 'bg-yellow-100 font-bold' : ''}`}
-                          />
-                        </td>
-                        <td className="border border-blue-200 p-2" style={{ width: columnWidths.max_size, minWidth: '50px' }}>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={getCurrentValue(assetType, 'max_size') || ''}
-                            onChange={(e) => handleCellChange(assetType.id, 'max_size', e.target.value ? parseFloat(e.target.value) : null)}
-                            className={`w-full px-2 py-1 border rounded text-right ${isFieldDirty(assetType.id, 'max_size') ? 'bg-yellow-100 font-bold' : ''}`}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%' }}>
+              <AgGridReact
+                ref={gridRef}
+                rowData={assetTypes.filter(at => !deletedAssetTypes.has(at.id))}
+                columnDefs={columnDefs}
+                defaultColDef={{
+                  resizable: true,
+                  wrapHeaderText: true,
+                  autoHeaderHeight: true,
+                  wrapText: true,
+                  autoHeight: false,
+                  cellStyle: { textAlign: 'right' },
+                  headerClass: 'ag-right-aligned-header',
+                  minWidth: 100,
+                  sortable: true,
+                  filter: true
+                }}
+                onCellValueChanged={onCellValueChanged}
+                getRowId={(params) => String(params.data.id)}
+                gridOptions={{
+                  suppressColumnVirtualisation: true,
+                  alwaysShowHorizontalScroll: true,
+                }}
+              />
             </div>
           </div>
         )}

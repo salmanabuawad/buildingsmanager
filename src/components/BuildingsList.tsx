@@ -138,39 +138,23 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     setSelectedIndex(-1);
   };
   
-  // Handle input event (fires immediately, before onChange)
-  // This ensures the first character is captured
+  // Handle input event (fires immediately when value changes)
+  // This ensures the first character is captured and displayed
   const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
     const input = e.target as HTMLInputElement;
     const value = input.value;
-    // Update searchValue immediately to show the character
+    // Immediately update state - this is for filtering, input is uncontrolled
     setSearchValue(value);
     setShowDropdown(true);
     setSelectedIndex(-1);
   };
   
-  // Handle keydown to capture first character immediately
+  // Handle keydown - don't interfere with printable characters, let browser handle them
   const handleKeyDownForInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // For printable characters, add them directly to the input and update state
+    // For printable characters, let browser handle them naturally
+    // onInput will fire and update state
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Enter' && e.key !== 'Escape') {
-      // Prevent default to avoid browser adding it (we'll add it manually)
-      e.preventDefault();
-      if (inputRef.current) {
-        const currentValue = inputRef.current.value || searchValue;
-        const selectionStart = inputRef.current.selectionStart || currentValue.length;
-        const selectionEnd = inputRef.current.selectionEnd || currentValue.length;
-        // Insert character at cursor position
-        const newValue = currentValue.slice(0, selectionStart) + e.key + currentValue.slice(selectionEnd);
-        // Update the input value directly
-        inputRef.current.value = newValue;
-        // Update cursor position
-        const newCursorPos = selectionStart + 1;
-        inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        // Update state immediately
-        setSearchValue(newValue);
-        setShowDropdown(true);
-        setSelectedIndex(-1);
-      }
+      // Don't do anything - let browser add character, onInput will handle state update
       return; // Don't call handleKeyDown for printable characters
     }
     // Call the original handleKeyDown for navigation and special keys
@@ -329,6 +313,19 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         onChange={handleInputChange}
         onInput={handleInput}
         onKeyDown={handleKeyDownForInput}
+        onKeyPress={(e) => {
+          // For printable characters, immediately update state after browser adds it
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            setTimeout(() => {
+              if (inputRef.current) {
+                const value = inputRef.current.value;
+                setSearchValue(value);
+                setShowDropdown(true);
+                setSelectedIndex(-1);
+              }
+            }, 0);
+          }
+        }}
         onFocus={() => {
           setShowDropdown(true);
         }}

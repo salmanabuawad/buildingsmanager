@@ -268,133 +268,55 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // This prevents validation from running on every keystroke
       const timer = setTimeout(async () => {
         try {
-          // Build validation list - only validate fields that are relevant to the changed field
-          const validations: Promise<any>[] = [];
-
           // Prepare cached data for validation (all data is already in memory)
           const cachedData = {
             assetTypes: assetTypes || [],
             building: building
           };
 
-          // Always validate the changed field
-          if (field === 'main_asset_type') {
-            validations.push(
-              assetValidators.validateAssetType(updatedAsset.main_asset_type, 'main_asset_type', validationTaxRegion),
-              assetValidators.validateMainAssetTypeComplete(updatedAsset.building_number, updatedAsset.main_asset_type, updatedAsset.asset_size, updatedAsset, validationTaxRegion, cachedData)
-            );
-          } else if (field.startsWith('sub_asset_type_')) {
-            const subIndex = field.replace('sub_asset_type_', '');
-            const sizeField = `sub_asset_size_${subIndex}` as keyof Asset;
-            validations.push(
-              assetValidators.validateAssetType(updatedAsset[field as keyof Asset] as string, field, validationTaxRegion, validationRules, cachedData),
-              assetValidators.validateSubAssetTypeComplete(
-                updatedAsset.building_number,
-                updatedAsset[field as keyof Asset] as string,
-                updatedAsset[sizeField] as number,
-                validationTaxRegion,
-                cachedData,
-                updatedAsset // Pass main asset data for penthouse and building-level validations
-              )
-            );
-          } else if (field.startsWith('sub_asset_size_')) {
-            const subIndex = field.replace('sub_asset_size_', '');
-            const typeField = `sub_asset_type_${subIndex}` as keyof Asset;
-            if (updatedAsset[typeField]) {
-              validations.push(
-                assetValidators.validateSubAssetTypeComplete(
-                  updatedAsset.building_number,
-                  updatedAsset[typeField] as string,
-                  updatedAsset[field as keyof Asset] as number,
-                  validationTaxRegion,
-                  cachedData,
-                  updatedAsset // Pass main asset data for penthouse and building-level validations
-                )
-              );
-            }
+          // Debug logging for tax region validation
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AssetsList.onCellValueChanged] Validation parameters:', {
+              field,
+              assetId: updatedAsset.asset_id,
+              buildingNumber: updatedAsset.building_number,
+              validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
+              buildingTaxRegion: building?.tax_region || 'NOT SET'
+            });
           }
 
-          // If main_asset_type or asset_size changed, validate sub-asset relationships
-          if (field === 'main_asset_type' || field === 'asset_size') {
-            const shouldValidateSubAssets = updatedAsset.main_asset_type === '199' || updatedAsset.main_asset_type === '299';
-            if (shouldValidateSubAssets) {
-              validations.push(
-                assetValidators.validateSubAssetsFor199Or299(
-                  updatedAsset.building_number,
-                  updatedAsset.main_asset_type,
-                  updatedAsset.asset_size,
-                  [
-                    updatedAsset.sub_asset_type_1,
-                    updatedAsset.sub_asset_type_2,
-                    updatedAsset.sub_asset_type_3,
-                    updatedAsset.sub_asset_type_4,
-                    updatedAsset.sub_asset_type_5,
-                    updatedAsset.sub_asset_type_6
-                  ],
-                  [
-                    updatedAsset.sub_asset_size_1,
-                    updatedAsset.sub_asset_size_2,
-                    updatedAsset.sub_asset_size_3,
-                    updatedAsset.sub_asset_size_4,
-                    updatedAsset.sub_asset_size_5,
-                    updatedAsset.sub_asset_size_6
-                  ],
-                  validationTaxRegion,
-                  cachedData
-                ),
-                assetValidators.validateSubAssetSizeMatchesMain(
-                  updatedAsset.asset_size,
-                  [
-                    updatedAsset.sub_asset_type_1,
-                    updatedAsset.sub_asset_type_2,
-                    updatedAsset.sub_asset_type_3,
-                    updatedAsset.sub_asset_type_4,
-                    updatedAsset.sub_asset_type_5,
-                    updatedAsset.sub_asset_type_6
-                  ],
-                  [
-                    updatedAsset.sub_asset_size_1,
-                    updatedAsset.sub_asset_size_2,
-                    updatedAsset.sub_asset_size_3,
-                    updatedAsset.sub_asset_size_4,
-                    updatedAsset.sub_asset_size_5,
-                    updatedAsset.sub_asset_size_6
-                  ]
-                )
-              );
-            }
-          }
+          // Use the same validation as the validate button - AssetValidationHandler.validateSingleAsset
+          // This ensures consistent validation behavior across all components
+          const result = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
+            taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - same as batch validate
+            cachedData: cachedData
+          });
 
-          // Only run validations if there are any
-          if (validations.length > 0) {
-            const validation = await validateAll(validations);
+          // Recalculate actualValid from results - same as handleBatchValidateBuildingAssets
+          // This ensures consistency: an asset is only valid if valid=true AND no errors
+          const actualValid = result.valid && (!result.errors || result.errors.length === 0);
 
-            if (!validation.valid) {
-              const detailedError = validation.error || 'Unknown validation error';
-              setValidationErrors(prev => {
-                const newMap = new Map(prev);
-                newMap.set(String(assetId), detailedError);
-                return newMap;
-              });
-              // Refresh the grid cells to show validation styling
-              event.api.refreshCells({ rowNodes: [event.node!], force: true });
-            } else {
-              // Clear validation error if validation passes
-              setValidationErrors(prev => {
-                const newMap = new Map(prev);
-                newMap.delete(String(assetId));
-                return newMap;
-              });
-              // Refresh the grid cells to clear validation styling
-              event.api.refreshCells({ rowNodes: [event.node!], force: true });
-            }
-          } else {
-            // No validations needed for this field, clear any existing errors
+          // Update validationErrors state to reflect validation results
+          // Note: AssetsList uses Map<string, string> where the value is a joined error string
+          if (actualValid) {
+            // Validation passed - clear errors for this asset
             setValidationErrors(prev => {
               const newMap = new Map(prev);
               newMap.delete(String(assetId));
               return newMap;
             });
+            // Refresh the grid cells to clear validation styling
+            event.api.refreshCells({ rowNodes: [event.node!], force: true });
+          } else if (result.errors && result.errors.length > 0) {
+            // Validation failed - set errors for this asset (join multiple errors with newline)
+            const errorMessage = result.errors.join('\n');
+            setValidationErrors(prev => {
+              const newMap = new Map(prev);
+              newMap.set(String(assetId), errorMessage);
+              return newMap;
+            });
+            // Refresh the grid cells to show validation styling
+            event.api.refreshCells({ rowNodes: [event.node!], force: true });
           }
         } catch (error) {
           console.error('Error in debounced validation:', error);
@@ -411,7 +333,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setError('Failed to track change');
       setTimeout(() => setError(null), 3000);
     }
-  }, [validationTaxRegion, setAssets]);
+  }, [validationTaxRegion, assetTypes, building, setAssets]);
 
   async function handleBatchValidateBuildingAssets() {
     setShowBatchValidationModal(true);

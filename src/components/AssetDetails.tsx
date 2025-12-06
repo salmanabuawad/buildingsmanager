@@ -862,7 +862,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           sub_asset_size_5: currentAssetData.sub_asset_size_5 || 0,
           sub_asset_type_6: currentAssetData.sub_asset_type_6 || undefined,
           sub_asset_size_6: currentAssetData.sub_asset_size_6 || 0,
-          penthouse: currentAssetData.penthouse || undefined
+          penthouse: currentAssetData.penthouse || undefined,
+          floor: currentAssetData.floor ?? undefined,
+          discount_type: currentAssetData.discount_type || undefined,
+          discount_date_from: currentAssetData.discount_date_from || undefined,
+          discount_date_to: currentAssetData.discount_date_to || undefined,
+          updated_at: new Date().toISOString()
         };
         
         console.log('[AssetDetails] Creating asset with data:', assetData);
@@ -1714,6 +1719,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'text-center'
     },
     {
+      field: 'floor',
+      headerName: 'קומה',
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      width: 80,
+      type: 'numericColumn',
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params) => getCellStyle(params, 'floor')
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      width: 100,
+      cellStyle: (params) => getCellStyle(params, 'discount_type')
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      width: 120,
+      cellStyle: (params) => getCellStyle(params, 'discount_date_from')
+    },
+    {
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      width: 120,
+      cellStyle: (params) => getCellStyle(params, 'discount_date_to')
+    },
+    {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
@@ -1999,7 +2038,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           sub_asset_type_6: '',
           sub_asset_size_6: 0,
           measurement_date: dateStr,
-          penthouse: null,
+          penthouse: undefined,
+          floor: undefined,
+          discount_type: undefined,
+          discount_date_from: undefined,
+          discount_date_to: undefined,
           is_latest: true
         };
         
@@ -2270,9 +2313,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
                     חלקה: {building?.helka || '-'}
                   </p>
-                  {asset?.floor != null && (
+                  <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                    קומה: {asset?.floor != null ? asset.floor : '-'}
+                  </p>
+                  {asset?.discount_type && (
                     <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
-                      קומה: {asset.floor}
+                      סוג הנחה: {asset.discount_type}
+                    </p>
+                  )}
+                  {(asset?.discount_date_from || asset?.discount_date_to) && (
+                    <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                      תאריך הנחה: {asset?.discount_date_from || ''} - {asset?.discount_date_to || ''}
                     </p>
                   )}
                 </div>

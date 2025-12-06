@@ -31,6 +31,10 @@ interface ImportAssetRow {
   sub_asset_type_6: string;
   sub_asset_size_6: number;
   penthouse?: string;
+  floor?: number;
+  discount_type?: string;
+  discount_date_from?: string;
+  discount_date_to?: string;
   _validationErrors?: string[];
   _isDirty?: boolean;
 }
@@ -163,7 +167,11 @@ export function AssetsFileImport() {
         'sub_asset_size_5': ['גודל נכס משנה 5'],
         'sub_asset_type_6': ['סוג נכס משנה 6'],
         'sub_asset_size_6': ['גודל נכס משנה 6'],
-        'penthouse': ['דירת גג', 'penthouse']
+        'penthouse': ['דירת גג', 'penthouse'],
+        'floor': ['קומה', 'floor'],
+        'discount_type': ['סוג הנחה', 'discount_type', 'discounttype'],
+        'discount_date_from': ['תאריך הנחה מ', 'discount_date_from', 'discountdatefrom'],
+        'discount_date_to': ['תאריך הנחה עד', 'discount_date_to', 'discountdateto']
       };
 
       headers.forEach((header, index) => {
@@ -220,6 +228,10 @@ export function AssetsFileImport() {
           sub_asset_type_6: '',
           sub_asset_size_6: 0,
           tax_region: undefined,
+          floor: undefined,
+          discount_type: undefined,
+          discount_date_from: undefined,
+          discount_date_to: undefined,
         };
 
         // Use header-based mapping if we have valid headers, otherwise use fixed position
@@ -605,7 +617,11 @@ export function AssetsFileImport() {
           sub_asset_type_5: asset.sub_asset_type_5 || null,
           sub_asset_size_5: asset.sub_asset_size_5 || 0,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
-          sub_asset_size_6: asset.sub_asset_size_6 || 0
+          sub_asset_size_6: asset.sub_asset_size_6 || 0,
+          floor: asset.floor || null,
+          discount_type: asset.discount_type || null,
+          discount_date_from: asset.discount_date_from || null,
+          discount_date_to: asset.discount_date_to || null
         };
 
         if (asset.penthouse === 'כן') {
@@ -1251,15 +1267,35 @@ export function AssetsFileImport() {
       cellStyle: getCellStyle
     },
     {
-      field: 'extra_field_1',
-      headerName: '',
+      field: 'floor',
+      headerName: 'קומה',
+      width: 80,
+      editable: true,
+      type: 'numericColumn',
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      width: 100,
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
       width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
-      field: 'extra_field_2',
-      headerName: '',
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
       width: 120,
       editable: true,
       cellStyle: getCellStyle
@@ -1304,7 +1340,11 @@ export function AssetsFileImport() {
       'גודל נכס משנה 5',
       'סוג נכס משנה 6',
       'גודל נכס משנה 6',
-      'דירת גג'
+      'דירת גג',
+      'קומה',
+      'סוג הנחה',
+      'תאריך הנחה מ',
+      'תאריך הנחה עד'
     ];
 
     const data = [headers];

@@ -116,6 +116,20 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     );
   }, [searchValue, addressList]);
 
+  // Handle beforeInput to capture character before it's added
+  const handleBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const inputEvent = e.nativeEvent as InputEvent;
+    if (inputEvent.data) {
+      // Character is about to be added - prepare state update
+      const currentValue = inputRef.current?.value || '';
+      const newValue = currentValue + inputEvent.data;
+      // Update state immediately
+      setSearchValue(newValue);
+      setShowDropdown(true);
+      setSelectedIndex(-1);
+    }
+  };
+  
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -309,24 +323,10 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       <input
         ref={inputRef}
         type="text"
-        onChange={(e) => {
-          const value = e.target.value;
-          // Update both DOM and state
-          if (inputRef.current) {
-            inputRef.current.value = value;
-          }
-          setSearchValue(value);
-          setShowDropdown(true);
-          setSelectedIndex(-1);
-        }}
-        onInput={(e) => {
-          const input = e.target as HTMLInputElement;
-          const value = input.value;
-          // Immediately update state from DOM value
-          setSearchValue(value);
-          setShowDropdown(true);
-          setSelectedIndex(-1);
-        }}
+        value={searchValue}
+        onBeforeInput={handleBeforeInput}
+        onChange={handleInputChange}
+        onInput={handleInput}
         onKeyDown={handleKeyDownForInput}
         onFocus={() => {
           setShowDropdown(true);

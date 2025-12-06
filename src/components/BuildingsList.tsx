@@ -130,10 +130,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     const input = e.target as HTMLInputElement;
     const value = input.value;
     // Update searchValue immediately to show the character
-    // Also directly update the input value to ensure it's visible
-    if (inputRef.current && inputRef.current.value !== value) {
-      inputRef.current.value = value;
-    }
     setSearchValue(value);
     setShowDropdown(true);
     setSelectedIndex(-1);
@@ -307,11 +303,20 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       <input
         ref={inputRef}
         type="text"
-        value={searchValue}
+        defaultValue={searchValue}
         onChange={handleInputChange}
         onInput={handleInput}
         onKeyDown={handleKeyDownForInput}
-        onFocus={() => setShowDropdown(true)}
+        onFocus={() => {
+          setShowDropdown(true);
+          // Ensure input is ready - read value directly from DOM
+          if (inputRef.current) {
+            const domValue = inputRef.current.value;
+            if (domValue !== searchValue) {
+              setSearchValue(domValue);
+            }
+          }
+        }}
         style={{
           width: '100%',
           height: '100%',

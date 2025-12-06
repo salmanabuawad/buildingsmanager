@@ -18,12 +18,13 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const [showDropdown, setShowDropdown] = useState<boolean>(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
+  const selectedValueRef = useRef<number | null>(null);
 
   const { addressList = [] } = props;
 
-  // Expose getValue method to AG Grid
+  // Expose getValue method to AG Grid - use ref for immediate access
   useImperativeHandle(ref, () => ({
-    getValue: () => selectedValue
+    getValue: () => selectedValueRef.current
   }));
 
   // Initialize with current value
@@ -31,6 +32,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     const streetCode = props.value;
     if (streetCode != null) {
       setSelectedValue(streetCode);
+      selectedValueRef.current = streetCode;
       const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
       if (address) {
         setSearchValue(`${address.street_code} - ${address.street_description}`);
@@ -39,6 +41,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       }
     } else {
       setSelectedValue(null);
+      selectedValueRef.current = null;
       setSearchValue('');
     }
     // Use setTimeout to ensure DOM is ready
@@ -112,7 +115,10 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Select an address
   const selectAddress = (address: AddressList) => {
     const streetCode = address.street_code;
+    
+    // Set value in both state and ref (ref for immediate access in getValue)
     setSelectedValue(streetCode);
+    selectedValueRef.current = streetCode;
     
     // Update the data object
     if (props.data) {
@@ -121,10 +127,10 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     
     // Update the node data value using AG Grid API
     if (props.node && props.column) {
-      props.node.setDataValue(props.column, streetCode);
+      props.node.setDataValue(props.column.getColId(), streetCode);
     }
     
-    // Stop editing - AG Grid will call getValue() which returns selectedValue
+    // Stop editing - AG Grid will call getValue() which returns selectedValueRef.current
     props.stopEditing();
   };
 

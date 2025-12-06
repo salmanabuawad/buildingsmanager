@@ -292,70 +292,17 @@ export function AssetTypes() {
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'name',
-      headerName: 'סוג נכס',
+      field: 'max_size',
+      headerName: 'שטח עד',
       editable: true,
-      width: 100,
-      cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
-        return { 
-          textAlign: 'right',
-          backgroundColor: isDirty ? '#fef3c7' : undefined,
-          fontWeight: isDirty ? 'bold' : undefined
-        };
-      }
-    },
-    {
-      field: 'active',
-      headerName: 'פעיל',
-      editable: true,
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetType = params.data as AssetType;
-        if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'active');
-        const isDirty = isFieldDirty(assetType.id, 'active');
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={currentValue === 'כן'}
-              onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
-              }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
-    },
-    {
-      field: 'description',
-      headerName: 'תיאור',
-      editable: true,
-      width: 200,
-      cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'description');
-        return { 
-          textAlign: 'right',
-          backgroundColor: isDirty ? '#fef3c7' : undefined,
-          fontWeight: isDirty ? 'bold' : undefined
-        };
-      }
-    },
-    {
-      field: 'tax_region',
-      headerName: 'אזור מיסים',
-      editable: true,
-      width: 120,
+      width: 80,
       valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue);
+        const num = parseFloat(params.newValue);
         return isNaN(num) ? null : num;
       },
       cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'tax_region');
+        const isDirty = params.data && isFieldDirty(params.data.id, 'max_size');
         return { 
           textAlign: 'right',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
@@ -364,15 +311,34 @@ export function AssetTypes() {
       }
     },
     {
-      field: 'elevator',
-      headerName: 'מעלית',
+      field: 'min_size',
+      headerName: 'שטח מ',
+      editable: true,
+      width: 80,
+      valueParser: (params: any) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseFloat(params.newValue);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'min_size');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'shared_area_usage',
+      headerName: 'שטח משותף',
       editable: true,
       width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'elevator');
-        const isDirty = isFieldDirty(assetType.id, 'elevator');
+        const currentValue = getCurrentValue(assetType, 'shared_area_usage');
+        const isDirty = isFieldDirty(assetType.id, 'shared_area_usage');
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -389,40 +355,33 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'single_double_family',
-      headerName: 'בית פרטי',
+      field: 'business_private',
+      headerName: 'עסקים/מגורים',
       editable: true,
-      width: 60,
-      cellRenderer: (params: any) => {
-        const assetType = params.data as AssetType;
-        if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'single_double_family');
-        const isDirty = isFieldDirty(assetType.id, 'single_double_family');
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={currentValue === 'כן'}
-              onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
-              }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
+      width: 120,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['', 'עסקים', 'מגורים']
       },
-      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'business_private');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
     },
     {
-      field: 'penthouse',
-      headerName: 'דירת גג',
+      field: 'townhouses',
+      headerName: 'טוריים',
       editable: true,
       width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'penthouse');
-        const isDirty = isFieldDirty(assetType.id, 'penthouse');
+        const currentValue = getCurrentValue(assetType, 'townhouses');
+        const isDirty = isFieldDirty(assetType.id, 'townhouses');
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -464,15 +423,15 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'townhouses',
-      headerName: 'טוריים',
+      field: 'penthouse',
+      headerName: 'דירת גג',
       editable: true,
       width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'townhouses');
-        const isDirty = isFieldDirty(assetType.id, 'townhouses');
+        const currentValue = getCurrentValue(assetType, 'penthouse');
+        const isDirty = isFieldDirty(assetType.id, 'penthouse');
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -489,16 +448,67 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'business_private',
-      headerName: 'עסקים/מגורים',
+      field: 'single_double_family',
+      headerName: 'בית פרטי',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'single_double_family');
+        const isDirty = isFieldDirty(assetType.id, 'single_double_family');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'elevator',
+      headerName: 'מעלית',
+      editable: true,
+      width: 60,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'elevator');
+        const isDirty = isFieldDirty(assetType.id, 'elevator');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === 'כן'}
+              onChange={(e) => {
+                params.setValue(e.target.checked ? 'כן' : null);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'tax_region',
+      headerName: 'אזור מיסים',
       editable: true,
       width: 120,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['', 'עסקים', 'מגורים']
+      valueParser: (params: any) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue);
+        return isNaN(num) ? null : num;
       },
       cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'business_private');
+        const isDirty = params.data && isFieldDirty(params.data.id, 'tax_region');
         return { 
           textAlign: 'right',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
@@ -507,15 +517,29 @@ export function AssetTypes() {
       }
     },
     {
-      field: 'shared_area_usage',
-      headerName: 'שטח משותף',
+      field: 'description',
+      headerName: 'תיאור',
+      editable: true,
+      width: 200,
+      cellStyle: (params: any) => {
+        const isDirty = params.data && isFieldDirty(params.data.id, 'description');
+        return { 
+          textAlign: 'right',
+          backgroundColor: isDirty ? '#fef3c7' : undefined,
+          fontWeight: isDirty ? 'bold' : undefined
+        };
+      }
+    },
+    {
+      field: 'active',
+      headerName: 'פעיל',
       editable: true,
       width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'shared_area_usage');
-        const isDirty = isFieldDirty(assetType.id, 'shared_area_usage');
+        const currentValue = getCurrentValue(assetType, 'active');
+        const isDirty = isFieldDirty(assetType.id, 'active');
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -532,36 +556,12 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'min_size',
-      headerName: 'שטח מ',
+      field: 'name',
+      headerName: 'סוג נכס',
       editable: true,
-      width: 80,
-      valueParser: (params: any) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseFloat(params.newValue);
-        return isNaN(num) ? null : num;
-      },
+      width: 100,
       cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'min_size');
-        return { 
-          textAlign: 'right',
-          backgroundColor: isDirty ? '#fef3c7' : undefined,
-          fontWeight: isDirty ? 'bold' : undefined
-        };
-      }
-    },
-    {
-      field: 'max_size',
-      headerName: 'שטח עד',
-      editable: true,
-      width: 80,
-      valueParser: (params: any) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseFloat(params.newValue);
-        return isNaN(num) ? null : num;
-      },
-      cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'max_size');
+        const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 
           textAlign: 'right',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
@@ -574,6 +574,8 @@ export function AssetTypes() {
       headerName: '',
       width: 120,
       editable: false,
+      sortable: false,
+      filter: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -582,6 +584,8 @@ export function AssetTypes() {
       headerName: '',
       width: 120,
       editable: false,
+      sortable: false,
+      filter: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
@@ -1139,3 +1143,4 @@ export function AssetTypes() {
     </div>
   );
 }
+

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square } from 'lucide-react';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { compressFile } from '../lib/fileCompression';
@@ -25,7 +25,7 @@ interface AssetDetailsProps {
 
 export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }: AssetDetailsProps) {
   const { t } = useTranslation();
-  const { preferences } = usePreferences();
+  const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const editMode = preferences.editMode;
   const [asset, setAsset] = useState<Asset | null>(null);
@@ -2246,6 +2246,32 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 )}
               </div>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-white/20 rounded-lg p-1 gap-1">
+              <button
+                onClick={() => setEditMode('inline')}
+                className={`p-1.5 rounded transition-colors ${
+                  editMode === 'inline'
+                    ? 'bg-white text-blue-600'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+                title="עריכה ישירה בתא"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setEditMode('modal')}
+                className={`p-1.5 rounded transition-colors ${
+                  editMode === 'modal'
+                    ? 'bg-white text-blue-600'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+                title="עריכה בחלון נפרד"
+              >
+                <Square className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

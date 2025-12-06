@@ -11,7 +11,6 @@ import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
-import { PreferencesButton } from './components/PreferencesButton';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
@@ -791,11 +790,6 @@ function App() {
                 </button>
               </div>
             )}
-          </div>
-          
-          {/* Preferences Section */}
-          <div className="mt-4 pt-4 border-t border-purple-100">
-            <PreferencesButton />
           </div>
         </nav>
       </div>

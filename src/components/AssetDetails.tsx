@@ -2264,16 +2264,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       )}
                     </p>
                   )}
-                  {building?.gosh && (
-                    <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
-                      גוש: {building.gosh}
-                    </p>
-                  )}
-                  {building?.helka && (
-                    <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
-                      חלקה: {building.helka}
-                    </p>
-                  )}
+                  <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                    גוש: {building?.gosh || '-'}
+                  </p>
+                  <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                    חלקה: {building?.helka || '-'}
+                  </p>
                   {asset?.floor != null && (
                     <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
                       קומה: {asset.floor}

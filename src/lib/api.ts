@@ -282,6 +282,24 @@ function sanitizeBuildingInput(input: any): any {
   if (input.overload_ratio != null) {
     sanitized.overload_ratio = sanitizeNumber(input.overload_ratio);
   }
+  // Handle gosh: גוש (Block number)
+  if (input.gosh != null && input.gosh !== '') {
+    sanitized.gosh = sanitizeInteger(input.gosh);
+  } else if ('gosh' in input && (input.gosh === null || input.gosh === '')) {
+    sanitized.gosh = null;
+  }
+  // Handle helka: חלקה (Parcel number)
+  if (input.helka != null && input.helka !== '') {
+    sanitized.helka = sanitizeInteger(input.helka);
+  } else if ('helka' in input && (input.helka === null || input.helka === '')) {
+    sanitized.helka = null;
+  }
+  // Handle building_number_in_street: מספר בניין (Building number in street)
+  if (input.building_number_in_street != null && input.building_number_in_street !== '') {
+    sanitized.building_number_in_street = sanitizeInteger(input.building_number_in_street);
+  } else if ('building_number_in_street' in input && (input.building_number_in_street === null || input.building_number_in_street === '')) {
+    sanitized.building_number_in_street = null;
+  }
   
   return sanitized;
 }

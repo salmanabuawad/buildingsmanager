@@ -1962,16 +1962,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                     )}
                   </p>
                 )}
-                {building?.gosh && (
-                  <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
-                    גוש: {building.gosh}
-                  </p>
-                )}
-                {building?.helka && (
-                  <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
-                    חלקה: {building.helka}
-                  </p>
-                )}
+                <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
+                  גוש: {building?.gosh || '-'}
+                </p>
+                <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
+                  חלקה: {building?.helka || '-'}
+                </p>
               </div>
               {taxRegion ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">

@@ -146,11 +146,8 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     });
     
     // CRITICAL: Set value in ref FIRST before anything else
-    // This must be set synchronously so getValue() can return it immediately
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
-    
-    console.log('[AddressCellEditor] After setting ref, selectedValueRef.current:', selectedValueRef.current);
     
     // Close dropdown
     setShowDropdown(false);
@@ -158,35 +155,32 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Update data object immediately
     if (props.data) {
       props.data.building_address = streetCode;
-      console.log('[AddressCellEditor] Updated props.data.building_address to:', streetCode);
     }
     
-    // Verify ref is still set before stopping
-    console.log('[AddressCellEditor] Before stopEditing, selectedValueRef.current:', selectedValueRef.current);
+    // Use setDataValue to set the value directly on the node BEFORE stopEditing
+    // This ensures the value is in the node when stopEditing is called
+    if (props.node && props.column) {
+      const colId = props.column.getColId();
+      console.log('[AddressCellEditor] Setting value via setDataValue before stopEditing:', { colId, streetCode });
+      props.node.setDataValue(colId, streetCode);
+    }
     
-    // Stop editing - AG Grid will call getValue() which MUST return selectedValueRef.current
-    props.stopEditing();
+    // Stop editing with suppressNavigate=true to prevent navigation
+    // AG Grid will still call getValue() but the value is already set via setDataValue
+    props.stopEditing(true);
     
-    // Verify ref is still set after stopping
-    console.log('[AddressCellEditor] After stopEditing, selectedValueRef.current:', selectedValueRef.current);
-    
-    // Additional refresh after a delay to ensure cell updates
+    // Force refresh to ensure cell displays the value
     setTimeout(() => {
       if (props.api && props.column && props.node) {
         const colId = props.column.getColId();
-        console.log('[AddressCellEditor] Refreshing cell after stopEditing:', { 
-          colId, 
-          streetCode, 
-          dataValue: props.data?.building_address,
-          refValue: selectedValueRef.current
-        });
+        console.log('[AddressCellEditor] Refreshing cell:', { colId, streetCode });
         props.api.refreshCells({ 
           rowNodes: [props.node], 
           columns: [colId], 
           force: true 
         });
       }
-    }, 200);
+    }, 50);
   };
 
 

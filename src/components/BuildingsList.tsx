@@ -26,7 +26,11 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   useImperativeHandle(ref, () => ({
     getValue: () => {
       const value = selectedValueRef.current;
-      console.log('[AddressCellEditor] getValue() called, returning:', value);
+      console.log('[AddressCellEditor] getValue() called, returning:', value, 'current ref:', selectedValueRef.current);
+      // Also ensure data object is updated when getValue is called
+      if (props.data && value !== null) {
+        props.data.building_address = value;
+      }
       return value;
     }
   }));
@@ -126,9 +130,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       oldValue,
       hasNode: !!props.node,
       hasColumn: !!props.column,
-      hasApi: !!props.api,
-      nodeId: props.node?.id,
-      colId: props.column?.getColId()
+      hasApi: !!props.api
     });
     
     // Set value in ref (for getValue()) and state
@@ -138,33 +140,30 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Close dropdown
     setShowDropdown(false);
     
-    // Update data object immediately for cellRenderer
+    // Update data object immediately
     if (props.data) {
       props.data.building_address = streetCode;
-      console.log('[AddressCellEditor] Updated props.data.building_address to:', streetCode);
     }
     
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. Call valueSetter to set the value on the data object
+    // 2. Update the cell value via valueSetter
     // 3. Trigger onCellValueChanged if value changed
     // 4. Refresh the cell renderer
     props.stopEditing();
     
-    // Force refresh after a short delay to ensure cell updates
+    // Additional refresh after a delay to ensure cell updates
     setTimeout(() => {
       if (props.api && props.column && props.node) {
         const colId = props.column.getColId();
-        console.log('[AddressCellEditor] Refreshing cell after stopEditing:', { colId, streetCode });
+        console.log('[AddressCellEditor] Refreshing cell after stopEditing:', { colId, streetCode, dataValue: props.data?.building_address });
         props.api.refreshCells({ 
           rowNodes: [props.node], 
           columns: [colId], 
           force: true 
         });
       }
-    }, 50);
-    
-    console.log('[AddressCellEditor] After stopEditing, getValue would return:', selectedValueRef.current);
+    }, 200);
   };
 
 
@@ -1816,8 +1815,8 @@ export function BuildingsList({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
-        // Get street code from params.value (AG Grid managed) or fallback to building data
-        const streetCode = params.value != null ? params.value : (building.building_address || null);
+        // Always read from building data directly - this is the source of truth
+        const streetCode = building.building_address;
         if (!streetCode) return '';
         
         const isNew = isNewBuilding(building);

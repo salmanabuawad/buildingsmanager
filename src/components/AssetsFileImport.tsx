@@ -2077,78 +2077,79 @@ export function AssetsFileImport() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md border border-indigo-100 p-6">
-        {/* File Upload Section */}
-        <div className="space-y-3 mb-6">
-          <div className="flex gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  // Validate file type - must be Excel
-                  const fileName = file.name.toLowerCase();
-                  const validExtensions = ['.xlsx', '.xls'];
-                  const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
-                  
-                  if (!isValidFile) {
-                    alert('יש לבחור קובץ Excel בלבד (.xlsx או .xls)');
-                    e.target.value = '';
-                    return;
-                  }
-                  
-                  handleFileUpload(e);
-                }
-              }}
-              disabled={isParsing}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isParsing}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              {isParsing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>קורא קובץ...</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  <span>בחר קובץ לייבוא</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-            >
-              <Download className="h-4 w-4" />
-              <span>הורד תבנית</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={downloadSkeletonTemplate}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-              title="הורד תבנית שלד - רק מספר מבנה ומזהה נכס"
-            >
-              <Download className="h-4 w-4" />
-              <span>הורד תבנית שלד</span>
-            </button>
+        {/* Regular Import Section */}
+        <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <Upload className="h-5 w-5 text-indigo-600" />
+            <h3 className="text-lg font-semibold text-indigo-900">ייבוא רגיל - כל השדות</h3>
           </div>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validate file type - must be Excel
+                    const fileName = file.name.toLowerCase();
+                    const validExtensions = ['.xlsx', '.xls'];
+                    const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
+                    
+                    if (!isValidFile) {
+                      alert('יש לבחור קובץ Excel בלבד (.xlsx או .xls)');
+                      e.target.value = '';
+                      return;
+                    }
+                    
+                    handleFileUpload(e);
+                  }
+                }}
+                disabled={isParsing}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isParsing}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                {isParsing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>קורא קובץ...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    <span>בחר קובץ לייבוא</span>
+                  </>
+                )}
+              </button>
 
-          {/* Skeleton Import Section */}
-          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <Upload className="h-5 w-5 text-orange-600" />
-              <h3 className="text-sm font-semibold text-orange-900">ייבוא שלד - רק מספר מבנה ומזהה נכס</h3>
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+              >
+                <Download className="h-4 w-4" />
+                <span>הורד תבנית</span>
+              </button>
             </div>
+            <p className="text-xs text-indigo-700">
+              ייבוא מלא עם כל השדות. הקובץ חייב לכלול את כל העמודות הנדרשות לפי התבנית.
+            </p>
+          </div>
+        </div>
+
+        {/* Skeleton Import Section */}
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <Upload className="h-5 w-5 text-orange-600" />
+            <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - רק מספר מבנה ומזהה נכס</h3>
+          </div>
+          <div className="space-y-3">
             <div className="flex gap-3">
               <input
                 ref={skeletonFileInputRef}
@@ -2192,8 +2193,18 @@ export function AssetsFileImport() {
                   </>
                 )}
               </button>
+
+              <button
+                type="button"
+                onClick={downloadSkeletonTemplate}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+                title="הורד תבנית שלד - רק מספר מבנה ומזהה נכס"
+              >
+                <Download className="h-4 w-4" />
+                <span>הורד תבנית שלד</span>
+              </button>
             </div>
-            <p className="text-xs text-orange-700 mt-2">
+            <p className="text-xs text-orange-700">
               ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס בלבד. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס
             </p>
           </div>

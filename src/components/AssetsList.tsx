@@ -117,13 +117,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         buildingExists: !!buildingData
       });
       
-      // Filter by tax region if provided
+      // Filter by tax region according to tab's tax region
       let filteredAssets = assetsData || [];
-      if (taxRegion) {
+      if (taxRegion && taxRegion.trim() !== '') {
         const taxRegionNum = parseInt(taxRegion.trim());
         const taxRegionStr = taxRegion.trim();
         
-        console.log(`[AssetsList] Filtering assets by tax region:`, {
+        console.log(`[AssetsList] Filtering assets by tab tax region:`, {
           requestedTaxRegion: taxRegion,
           taxRegionNum,
           taxRegionStr,
@@ -178,18 +178,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           } : null
         });
         
-        // If filtering resulted in 0 assets but we have assets in the database,
-        // show a warning and include all assets (user can see what's available)
+        // Always filter strictly by tax region - no fallback to all assets
+        // This ensures the list is always according to the tab's tax region
         if (filteredAssets.length === 0 && (assetsData || []).length > 0) {
           const assetTaxRegions = (assetsData || []).map(a => a.tax_region).filter(tr => tr != null);
-          console.warn(`[AssetsList] Tax region filter resulted in 0 assets. Showing all assets for building ${buildingNumber}.`, {
+          console.warn(`[AssetsList] Tax region filter resulted in 0 assets. This tab will show no assets.`, {
             requestedTaxRegion: taxRegion,
             totalAssets: (assetsData || []).length,
             assetTaxRegions: [...new Set(assetTaxRegions)]
           });
-          // Show all assets when filter results in 0 matches
-          filteredAssets = assetsData || [];
+          // Keep filteredAssets as empty array - strict filtering by tab tax region
         }
+      } else {
+        // No tax region specified - show all assets (for "all assets" tab)
+        console.log(`[AssetsList] No tax region filter - showing all assets:`, {
+          totalAssets: (assetsData || []).length
+        });
       }
       
       // Ensure all assets have valid IDs

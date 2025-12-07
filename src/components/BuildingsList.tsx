@@ -15,8 +15,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchValue, setSearchValue] = useState<string>('');
-  const inputValueRef = useRef<string>('');
-  const isInitializedRef = useRef<boolean>(false);
   const [showDropdown, setShowDropdown] = useState<boolean>(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
@@ -118,56 +116,17 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     );
   }, [searchValue, addressList]);
 
-  // Handle beforeInput to capture character before it's added
-  const handleBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
-    const inputEvent = e.nativeEvent as InputEvent;
-    if (inputEvent.data) {
-      // Character is about to be added - update state immediately so it shows
-      const currentValue = searchValue || '';
-      const selectionStart = inputRef.current?.selectionStart ?? currentValue.length;
-      const selectionEnd = inputRef.current?.selectionEnd ?? currentValue.length;
-      const newValue = currentValue.slice(0, selectionStart) + inputEvent.data + currentValue.slice(selectionEnd);
-      
-      // Update state immediately (this will update the controlled input)
-      setSearchValue(newValue);
-      setShowDropdown(true);
-      setSelectedIndex(-1);
-      
-      // Update cursor position after state update
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          const newCursorPos = selectionStart + inputEvent.data.length;
-          inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        }
-      });
-      
-      // Don't prevent default - let browser add it naturally, state is already updated
-    }
-  };
-  
-  // Handle input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle input change - use useCallback to prevent duplicate handlers
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchValue(value);
     setShowDropdown(true);
     setSelectedIndex(-1);
-  };
-  
-  // Handle input event (fires immediately when value changes)
-  // This ensures the first character is captured and displayed
-  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-    const input = e.target as HTMLInputElement;
-    const value = input.value;
-    // Immediately update state - this is for filtering, input is uncontrolled
-    setSearchValue(value);
-    setShowDropdown(true);
-    setSelectedIndex(-1);
-  };
+  }, []);
   
   // Handle keydown - only handle navigation, let browser handle all input
   const handleKeyDownForInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Only handle navigation keys, let browser handle all printable characters
-    // onInput will fire immediately when value changes
     handleKeyDown(e);
   };
 
@@ -328,20 +287,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         key="address-editor-input"
         type="text"
         value={searchValue}
-        onBeforeInput={handleBeforeInput}
-        onChange={(e) => {
-          const value = e.target.value;
-          setSearchValue(value);
-          setShowDropdown(true);
-          setSelectedIndex(-1);
-        }}
-        onInput={(e) => {
-          const input = e.target as HTMLInputElement;
-          const value = input.value;
-          setSearchValue(value);
-          setShowDropdown(true);
-          setSelectedIndex(-1);
-        }}
+        onChange={handleInputChange}
         onKeyDown={handleKeyDownForInput}
         onFocus={() => {
           setShowDropdown(true);

@@ -1710,7 +1710,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   };
 
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => {
-    // For skeleton mode, only show building_number and asset_id
+    // For skeleton mode, show building_number, asset_id, tax_region, and payer_id
     if (mode === 'skeleton') {
       return [
         {
@@ -1763,6 +1763,26 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'asset_id',
           headerName: t('assetId'),
+          width: 120,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'tax_region',
+          headerName: 'אזור מס',
+          width: 100,
+          editable: true,
+          type: 'numericColumn',
+          valueParser: (params: any) => {
+            if (!params.newValue || params.newValue === '') return undefined;
+            const num = parseInt(params.newValue, 10);
+            return isNaN(num) ? undefined : num;
+          },
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'payer_id',
+          headerName: t('payerId'),
           width: 120,
           editable: true,
           cellStyle: getCellStyle
@@ -2286,7 +2306,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Upload className="h-5 w-5 text-orange-600" />
-            <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - רק מספר מבנה ומזהה נכס</h3>
+            <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - מספר מבנה, מזהה נכס, אזור מס ומזהה משלם</h3>
           </div>
           <div className="space-y-3">
             <div className="flex gap-3">
@@ -2337,14 +2357,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={downloadSkeletonTemplate}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-                title="הורד תבנית שלד - רק מספר מבנה ומזהה נכס"
+                title="הורד תבנית שלד - מספר מבנה, מזהה נכס, אזור מס ומזהה משלם"
               >
                 <Download className="h-4 w-4" />
                 <span>הורד תבנית שלד</span>
               </button>
             </div>
             <p className="text-xs text-orange-700">
-              ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס בלבד. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס
+              ייבוא ישיר של נכסים עם מספר מבנה, מזהה נכס, אזור מס ומזהה משלם. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס (אופציונלי), מזהה משלם (אופציונלי)
             </p>
           </div>
         </div>

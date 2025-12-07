@@ -661,7 +661,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     setIsSaving(true);
     const errors: string[] = [];
     let successCount = 0;
-    let skeletonAssets: Array<{ building_number: number | null; asset_id: string }> = [];
+    let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string }> = [];
 
     try {
       const lines = await parseExcelFile(file);
@@ -673,12 +673,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // Process headers - exact name matching only for skeleton import
       const originalHeaders = lines[0].map(h => (h || '').trim());
       
-      // Find building_number and asset_id columns by exact name match
+      // Find building_number, asset_id, tax_region, and payer_id columns by exact name match
       let buildingNumberIndex = -1;
       let assetIdIndex = -1;
+      let taxRegionIndex = -1;
+      let payerIdIndex = -1;
 
       const exactBuildingNumberHeader = 'מזהה מבנה';
       const exactAssetIdHeader = 'מזהה נכס';
+      const exactTaxRegionHeader = 'אזור מס';
+      const exactPayerIdHeader = 'מזהה משלם';
 
       originalHeaders.forEach((header, index) => {
         const headerTrimmed = header.trim();
@@ -688,24 +692,34 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (headerTrimmed.toLowerCase() === exactAssetIdHeader.toLowerCase()) {
           assetIdIndex = index;
         }
+        if (headerTrimmed.toLowerCase() === exactTaxRegionHeader.toLowerCase()) {
+          taxRegionIndex = index;
+        }
+        if (headerTrimmed.toLowerCase() === exactPayerIdHeader.toLowerCase()) {
+          payerIdIndex = index;
+        }
       });
 
       if (buildingNumberIndex === -1 || assetIdIndex === -1) {
         throw new Error('קובץ חייב לכלול עמודות: מזהה מבנה ומזהה נכס');
       }
 
-      // Parse skeleton assets (only building_number and asset_id)
+      // Parse skeleton assets (building_number, asset_id, tax_region, and payer_id)
       skeletonAssets = [];
       
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i];
         const buildingNumber = values[buildingNumberIndex] ? parseInt(String(values[buildingNumberIndex]), 10) : null;
         const assetId = values[assetIdIndex] ? String(values[assetIdIndex]).trim() : '';
+        const taxRegion = taxRegionIndex !== -1 && values[taxRegionIndex] ? parseInt(String(values[taxRegionIndex]), 10) : undefined;
+        const payerId = payerIdIndex !== -1 && values[payerIdIndex] ? String(values[payerIdIndex]).trim() : undefined;
 
         if (buildingNumber && !isNaN(buildingNumber) && assetId) {
           skeletonAssets.push({
             building_number: buildingNumber,
-            asset_id: assetId
+            asset_id: assetId,
+            tax_region: taxRegion && !isNaN(taxRegion) ? taxRegion : undefined,
+            payer_id: payerId
           });
         }
       }
@@ -801,8 +815,28 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // If there are missing buildings, show modal for the first one
       if (missingBuildings.length > 0) {
         const firstMissingBuilding = missingBuildings[0];
+        
+        // Collect unique tax_region values from assets that belong to this building
+        const taxRegionsForBuilding = new Set<string>();
+        skeletonAssets.forEach(asset => {
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          if (buildingNum === firstMissingBuilding && asset.tax_region !== undefined && !isNaN(asset.tax_region)) {
+            taxRegionsForBuilding.add(String(asset.tax_region));
+          }
+        });
+        
+        // Convert to comma-separated string (sorted)
+        const taxRegionString = taxRegionsForBuilding.size > 0 
+          ? Array.from(taxRegionsForBuilding).sort().join(',')
+          : undefined;
+        
         setPendingBuildingNumber(firstMissingBuilding);
-        setBuildingCreateData({ building_number: firstMissingBuilding });
+        setBuildingCreateData({ 
+          building_number: firstMissingBuilding,
+          tax_region: taxRegionString
+        });
         
         // Store skeleton assets and continuation function
         // We need to store them somewhere to resume after building creation
@@ -810,11 +844,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const tempImportedAssets: ImportAssetRow[] = skeletonAssets.map((asset, idx) => ({
           id: `skeleton_${idx}_${Date.now()}`,
           building_number: asset.building_number,
-          payer_id: '',
+          payer_id: asset.payer_id || '',
           asset_id: asset.asset_id,
           measurement_date: '',
           main_asset_type: '',
           asset_size: 0,
+          tax_region: asset.tax_region,
           sub_asset_type_1: '',
           sub_asset_size_1: 0,
           sub_asset_type_2: '',
@@ -842,7 +877,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // All buildings exist - continue with validation and import
-      const validSkeletonAssets: Array<{ building_number: number; asset_id: string }> = [];
+      const validSkeletonAssets: Array<{ building_number: number; asset_id: string; tax_region?: number; payer_id?: string }> = [];
 
       for (const asset of skeletonAssets) {
         const assetErrors: string[] = [];
@@ -873,7 +908,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
           validSkeletonAssets.push({
             building_number: buildingNum,
-            asset_id: asset.asset_id
+            asset_id: asset.asset_id,
+            tax_region: asset.tax_region,
+            payer_id: asset.payer_id
           });
         } else if (assetErrors.length > 0) {
           errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
@@ -902,15 +939,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const year = today.getFullYear();
       const defaultDate = `${day}/${month}/${year}`;
 
-      // Prepare skeleton assets for insert
+      // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
       const assetsToInsert: Partial<Asset>[] = validSkeletonAssets.map(asset => ({
-        building_number: asset.building_number,
-        payer_id: null,
+        building_number: asset.building_number!,
+        payer_id: asset.payer_id || undefined,
         asset_id: asset.asset_id,
         measurement_date: defaultDate,
         main_asset_type: null,
         asset_size: 0,
-        tax_region: null,
+        tax_region: asset.tax_region || undefined,
         sub_asset_type_1: null,
         sub_asset_size_1: 0,
         sub_asset_type_2: null,
@@ -1068,8 +1105,28 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // After creating, the function will be called again recursively
       if (missingBuildings.length > 0) {
         const firstMissingBuilding = missingBuildings[0];
+        
+        // Collect unique tax_region values from assets that belong to this building
+        const taxRegionsForBuilding = new Set<string>();
+        skeletonAssets.forEach(asset => {
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          if (buildingNum === firstMissingBuilding && asset.tax_region !== undefined && !isNaN(asset.tax_region)) {
+            taxRegionsForBuilding.add(String(asset.tax_region));
+          }
+        });
+        
+        // Convert to comma-separated string (sorted)
+        const taxRegionString = taxRegionsForBuilding.size > 0 
+          ? Array.from(taxRegionsForBuilding).sort().join(',')
+          : undefined;
+        
         setPendingBuildingNumber(firstMissingBuilding);
-        setBuildingCreateData({ building_number: firstMissingBuilding });
+        setBuildingCreateData({ 
+          building_number: firstMissingBuilding,
+          tax_region: taxRegionString
+        });
         
         // Store the continuation function
         pendingImportCallback.current = () => {
@@ -1136,15 +1193,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const year = today.getFullYear();
       const defaultDate = `${day}/${month}/${year}`;
 
-      // Prepare skeleton assets for insert (only building_number and asset_id, minimal other fields)
+      // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
       const assetsToInsert: Partial<Asset>[] = validSkeletonAssets.map(asset => ({
         building_number: asset.building_number!,
-        payer_id: null,
+        payer_id: asset.payer_id || undefined,
         asset_id: asset.asset_id,
         measurement_date: defaultDate,
         main_asset_type: null,
         asset_size: 0,
-        tax_region: null,
+        tax_region: asset.tax_region || undefined,
         sub_asset_type_1: null,
         sub_asset_size_1: 0,
         sub_asset_type_2: null,
@@ -2132,7 +2189,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   function downloadSkeletonTemplate() {
     const headers = [
       'מזהה מבנה',
-      'מזהה נכס'
+      'מזהה נכס',
+      'אזור מס',
+      'מזהה משלם'
     ];
 
     const data = [headers];

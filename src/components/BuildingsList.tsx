@@ -370,7 +370,10 @@ export function BuildingsList({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
-  const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '' });
+  const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '', building_address: null as number | null });
+  const [addressSearchValue, setAddressSearchValue] = useState<string>('');
+  const [showAddressDropdown, setShowAddressDropdown] = useState<boolean>(false);
+  const [addressSelectedIndex, setAddressSelectedIndex] = useState<number>(-1);
   const [createModalClosing, setCreateModalClosing] = useState(false);
   const [addressList, setAddressList] = useState<AddressList[]>([]);
   
@@ -2104,6 +2107,7 @@ export function BuildingsList({
       await api.buildings.create({
         building_number: buildingNumber,
         tax_region: taxRegion,
+        building_address: newBuilding.building_address || undefined,
         elevator: undefined
       });
 
@@ -2115,7 +2119,9 @@ export function BuildingsList({
       }
 
       setShowCreateModal(false);
-      setNewBuilding({ building_number: '', tax_region: '' });
+      setNewBuilding({ building_number: '', tax_region: '', building_address: null });
+      setAddressSearchValue('');
+      setShowAddressDropdown(false);
       // Refresh data to get updated buildings from database
       // This will also update originalBuildings for future cancel operations
       await fetchBuildings(false);
@@ -2396,6 +2402,116 @@ export function BuildingsList({
                   placeholder="e.g., 1 or 1,2,3"
                 />
               </div>
+              <div className="relative">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Address (Street Code)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={addressSearchValue}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setAddressSearchValue(value);
+                      setShowAddressDropdown(true);
+                      setAddressSelectedIndex(-1);
+                      
+                      // Try to parse as number and clear selection if invalid
+                      const parsed = Number(value.trim());
+                      if (value.trim() === '') {
+                        setNewBuilding(prev => ({ ...prev, building_address: null }));
+                      } else if (!isNaN(parsed) && parsed > 0) {
+                        setNewBuilding(prev => ({ ...prev, building_address: parsed }));
+                      }
+                    }}
+                    onFocus={() => setShowAddressDropdown(true)}
+                    onBlur={() => {
+                      // Delay hiding dropdown to allow click events
+                      setTimeout(() => setShowAddressDropdown(false), 200);
+                    }}
+                    onKeyDown={(e) => {
+                      const filteredAddresses = addressSearchValue.trim()
+                        ? addressList.filter(a => 
+                            String(a.street_code).includes(addressSearchValue) ||
+                            a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
+                            `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                          )
+                        : addressList;
+
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setAddressSelectedIndex(prev => 
+                          prev < filteredAddresses.length - 1 ? prev + 1 : prev
+                        );
+                        setShowAddressDropdown(true);
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setAddressSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+                        setShowAddressDropdown(true);
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (addressSelectedIndex >= 0 && addressSelectedIndex < filteredAddresses.length) {
+                          const address = filteredAddresses[addressSelectedIndex];
+                          setNewBuilding(prev => ({ ...prev, building_address: address.street_code }));
+                          setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
+                          setShowAddressDropdown(false);
+                        } else if (filteredAddresses.length === 1) {
+                          const address = filteredAddresses[0];
+                          setNewBuilding(prev => ({ ...prev, building_address: address.street_code }));
+                          setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
+                          setShowAddressDropdown(false);
+                        }
+                      } else if (e.key === 'Escape') {
+                        setShowAddressDropdown(false);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="Type street code or name..."
+                  />
+                  {showAddressDropdown && (() => {
+                    const filteredAddresses = addressSearchValue.trim()
+                      ? addressList.filter(a => 
+                          String(a.street_code).includes(addressSearchValue) ||
+                          a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
+                          `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                        )
+                      : addressList;
+                    
+                    if (filteredAddresses.length === 0) {
+                      return (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                          <div className="px-4 py-2 text-slate-500 text-sm">No addresses found</div>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredAddresses.map((address, index) => (
+                          <div
+                            key={address.street_code}
+                            onClick={() => {
+                              setNewBuilding(prev => ({ ...prev, building_address: address.street_code }));
+                              setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
+                              setShowAddressDropdown(false);
+                            }}
+                            onMouseEnter={() => setAddressSelectedIndex(index)}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              backgroundColor: addressSelectedIndex === index ? '#e3f2fd' : 'white',
+                              borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
+                            }}
+                          >
+                            <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
+                            <div style={{ fontSize: '0.9em', color: '#666' }}>{address.street_description}</div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6">
               <button
@@ -2403,7 +2519,9 @@ export function BuildingsList({
                   setCreateModalClosing(true);
                   setTimeout(() => {
                     setShowCreateModal(false);
-                    setNewBuilding({ building_number: '', tax_region: '' });
+                    setNewBuilding({ building_number: '', tax_region: '', building_address: null });
+                    setAddressSearchValue('');
+                    setShowAddressDropdown(false);
                     setCreateModalClosing(false);
                   }, 300);
                 }}

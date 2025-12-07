@@ -153,6 +153,47 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return baseStyle;
   }, [validationErrors]);
 
+  // Helper function to validate discount dates
+  const validateDiscountDates = useCallback((asset: Asset): string[] => {
+    const errors: string[] = [];
+    
+    // If discount_type is provided, dates must be provided
+    if (asset.discount_type && asset.discount_type.trim() !== '') {
+      if (!asset.discount_date_from || asset.discount_date_from.trim() === '') {
+        errors.push('כאשר יש קוד הנחה, תאריך הנחה מ הוא חובה');
+      }
+      if (!asset.discount_date_to || asset.discount_date_to.trim() === '') {
+        errors.push('כאשר יש קוד הנחה, תאריך הנחה עד הוא חובה');
+      }
+      
+      // If both dates are provided, validate that date_to > date_from
+      if (asset.discount_date_from && asset.discount_date_from.trim() !== '' &&
+          asset.discount_date_to && asset.discount_date_to.trim() !== '') {
+        const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+        const fromMatch = asset.discount_date_from.trim().match(dateFormatPattern);
+        const toMatch = asset.discount_date_to.trim().match(dateFormatPattern);
+        
+        if (fromMatch && toMatch) {
+          const fromDay = parseInt(fromMatch[1], 10);
+          const fromMonth = parseInt(fromMatch[2], 10);
+          const fromYear = parseInt(fromMatch[3], 10);
+          const toDay = parseInt(toMatch[1], 10);
+          const toMonth = parseInt(toMatch[2], 10);
+          const toYear = parseInt(toMatch[3], 10);
+          
+          const fromDate = new Date(fromYear, fromMonth - 1, fromDay);
+          const toDate = new Date(toYear, toMonth - 1, toDay);
+          
+          if (toDate <= fromDate) {
+            errors.push('תאריך הנחה עד חייב להיות גדול מתאריך הנחה מ');
+          }
+        }
+      }
+    }
+    
+    return errors;
+  }, []);
+
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
       const { data, colDef, node } = event;
@@ -203,6 +244,44 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         }
       }
 
+      // Quick synchronous validation for discount dates
+      const discountFields = ['discount_type', 'discount_date_from', 'discount_date_to'];
+      if (discountFields.includes(field)) {
+        const discountErrors = validateDiscountDates(updatedAsset);
+        if (discountErrors.length > 0) {
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const errorMap = new Map<string, string>();
+            discountErrors.forEach((error, index) => {
+              errorMap.set(`discount_error_${index}`, error);
+            });
+            newMap.set(assetId, errorMap);
+            return newMap;
+          });
+          event.api.refreshCells({ rowNodes: [node], force: true });
+        } else {
+          // Clear discount errors if validation passes
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const existingErrors = newMap.get(assetId);
+            if (existingErrors) {
+              const filteredErrors = new Map<string, string>();
+              existingErrors.forEach((value, key) => {
+                if (!key.startsWith('discount_error_')) {
+                  filteredErrors.set(key, value);
+                }
+              });
+              if (filteredErrors.size > 0) {
+                newMap.set(assetId, filteredErrors);
+              } else {
+                newMap.delete(assetId);
+              }
+            }
+            return newMap;
+          });
+        }
+      }
+
       // Debounce expensive database validations (500ms delay)
       // This prevents validation from running on every keystroke
       const timer = setTimeout(async () => {
@@ -231,9 +310,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             cachedData: cachedData
           });
 
+          // Add discount validation errors
+          const discountErrors = validateDiscountDates(updatedAsset);
+          const allErrors = [...(result.errors || []), ...discountErrors];
+
           // Recalculate actualValid from results - same as handleValidateLatestRow
           // This ensures consistency: an asset is only valid if valid=true AND no errors
-          const actualValid = result.valid && (!result.errors || result.errors.length === 0);
+          const actualValid = result.valid && allErrors.length === 0;
 
           // Update validationErrors state to reflect validation results
           if (actualValid) {
@@ -245,12 +328,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             });
             // Refresh the grid cells to clear validation styling
             event.api.refreshCells({ rowNodes: [node], force: true });
-          } else if (result.errors && result.errors.length > 0) {
+          } else if (allErrors.length > 0) {
             // Validation failed - set errors for this asset
             setValidationErrors(prev => {
               const newMap = new Map(prev);
               const errorMap = new Map<string, string>();
-              result.errors.forEach((error, index) => {
+              allErrors.forEach((error, index) => {
                 // Use a generic field name or index if we can't determine the field
                 errorMap.set(`error_${index}`, error);
               });
@@ -275,40 +358,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setError('Failed to track change');
       setTimeout(() => setError(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building]);
-
-  // Helper function to validate that date is not greater than current date
-  const validateDateNotGreaterThanToday = (dateStr: string): { valid: boolean; error?: string } => {
-    if (!dateStr || dateStr === '01/01/1900' || dateStr.trim() === '') {
-      return { valid: true };
-    }
-
-    const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    const match = dateStr.trim().match(dateFormatPattern);
-    
-    if (!match) {
-      return { valid: true }; // Format validation is handled elsewhere
-    }
-
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10);
-    const year = parseInt(match[3], 10);
-
-    // Create date object
-    const inputDate = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // Set to end of today
-
-    // Check if input date is greater than today
-    if (inputDate > today) {
-      return {
-        valid: false,
-        error: 'תאריך מדידה לא יכול להיות גדול מתאריך נוכחי'
-      };
-    }
-
-    return { valid: true };
-  };
+  }, [validationTaxRegion, assetTypes, building, validateDiscountDates]);
 
   const hasChanges = dirtyAssets.size > 0;
 
@@ -1176,7 +1226,27 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     setAllMeasurements(JSON.parse(JSON.stringify(originalMeasurements)));
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
+    validationErrorsRef.current = new Map();
     setError(null);
+    setToast(null);
+    setValidationResults(null);
+    setValidationProgress(null);
+    
+    // Clear any pending validation timers
+    validationTimerRef.current.forEach((timer) => {
+      clearTimeout(timer);
+    });
+    validationTimerRef.current.clear();
+    
+    // Refresh grids to show original data
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+      if (historyGridRef.current?.api) {
+        historyGridRef.current.api.refreshCells({ force: true });
+      }
+    }, 0);
   }
 
   async function handleValidateLatestRow() {
@@ -1218,14 +1288,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         cachedData: { assetTypes, building }
       });
 
+      // Add discount validation errors
+      const discountErrors = validateDiscountDates(latestRow);
+      const allErrors = [...(result.errors || []), ...discountErrors];
+
       // Recalculate actualValid from results - same as AssetsList
       // This ensures consistency: an asset is only valid if valid=true AND no errors
-      const actualValid = result.valid && (!result.errors || result.errors.length === 0);
+      const actualValid = result.valid && allErrors.length === 0;
       
       // Show validation results in modal
       setValidationResults({
         valid: actualValid, // Use recalculated actualValid - same as AssetsList
-        errors: result.errors,
+        errors: allErrors,
         passed: result.passed,
         matchedAssetTypeRecord: result.matchedAssetTypeRecord
       });
@@ -1238,10 +1312,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           if (actualValid) {
             // Validation passed - clear errors for this asset
             newMap.delete(latestRow.id);
-          } else if (result.errors && result.errors.length > 0) {
+          } else if (allErrors.length > 0) {
             // Validation failed - set errors for this asset
             const errorMap = new Map<string, string>();
-            result.errors.forEach((error, index) => {
+            allErrors.forEach((error, index) => {
               // Use a generic field name or index if we can't determine the field
               errorMap.set(`error_${index}`, error);
             });

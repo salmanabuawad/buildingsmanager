@@ -237,6 +237,47 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   // Debounce timer for validation
   const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
+  // Helper function to validate discount dates
+  const validateDiscountDates = useCallback((asset: Asset): string[] => {
+    const errors: string[] = [];
+    
+    // If discount_type is provided, dates must be provided
+    if (asset.discount_type && asset.discount_type.trim() !== '') {
+      if (!asset.discount_date_from || asset.discount_date_from.trim() === '') {
+        errors.push('כאשר יש קוד הנחה, תאריך הנחה מ הוא חובה');
+      }
+      if (!asset.discount_date_to || asset.discount_date_to.trim() === '') {
+        errors.push('כאשר יש קוד הנחה, תאריך הנחה עד הוא חובה');
+      }
+      
+      // If both dates are provided, validate that date_to > date_from
+      if (asset.discount_date_from && asset.discount_date_from.trim() !== '' &&
+          asset.discount_date_to && asset.discount_date_to.trim() !== '') {
+        const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+        const fromMatch = asset.discount_date_from.trim().match(dateFormatPattern);
+        const toMatch = asset.discount_date_to.trim().match(dateFormatPattern);
+        
+        if (fromMatch && toMatch) {
+          const fromDay = parseInt(fromMatch[1], 10);
+          const fromMonth = parseInt(fromMatch[2], 10);
+          const fromYear = parseInt(fromMatch[3], 10);
+          const toDay = parseInt(toMatch[1], 10);
+          const toMonth = parseInt(toMatch[2], 10);
+          const toYear = parseInt(toMatch[3], 10);
+          
+          const fromDate = new Date(fromYear, fromMonth - 1, fromDay);
+          const toDate = new Date(toYear, toMonth - 1, toDay);
+          
+          if (toDate <= fromDate) {
+            errors.push('תאריך הנחה עד חייב להיות גדול מתאריך הנחה מ');
+          }
+        }
+      }
+    }
+    
+    return errors;
+  }, []);
+
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
       const { data, colDef } = event;
@@ -284,6 +325,33 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
       }
 
+      // Quick synchronous validation for discount dates
+      const discountFields = ['discount_type', 'discount_date_from', 'discount_date_to'];
+      if (discountFields.includes(field)) {
+        const discountErrors = validateDiscountDates(updatedAsset);
+        if (discountErrors.length > 0) {
+          const errorMessage = discountErrors.join('\n');
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            newMap.set(String(assetId), errorMessage);
+            return newMap;
+          });
+          event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        } else {
+          // Clear discount errors if validation passes (but keep other errors)
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            const existingError = newMap.get(String(assetId));
+            if (existingError) {
+              // Check if there are other errors (not discount-related)
+              // For now, we'll clear all errors - the debounced validation will set them again if needed
+              // This is fine since the debounced validation will run anyway
+            }
+            return newMap;
+          });
+        }
+      }
+
       // Debounce expensive database validations (500ms delay)
       // This prevents validation from running on every keystroke
       const timer = setTimeout(async () => {
@@ -312,9 +380,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             cachedData: cachedData
           });
 
+          // Add discount validation errors
+          const discountErrors = validateDiscountDates(updatedAsset);
+          const allErrors = [...(result.errors || []), ...discountErrors];
+
           // Recalculate actualValid from results - same as handleBatchValidateBuildingAssets
           // This ensures consistency: an asset is only valid if valid=true AND no errors
-          const actualValid = result.valid && (!result.errors || result.errors.length === 0);
+          const actualValid = result.valid && allErrors.length === 0;
 
           // Update validationErrors state to reflect validation results
           // Note: AssetsList uses Map<string, string> where the value is a joined error string
@@ -327,9 +399,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             });
             // Refresh the grid cells to clear validation styling
             event.api.refreshCells({ rowNodes: [event.node!], force: true });
-          } else if (result.errors && result.errors.length > 0) {
+          } else if (allErrors.length > 0) {
             // Validation failed - set errors for this asset (join multiple errors with newline)
-            const errorMessage = result.errors.join('\n');
+            const errorMessage = allErrors.join('\n');
             setValidationErrors(prev => {
               const newMap = new Map(prev);
               newMap.set(String(assetId), errorMessage);
@@ -466,13 +538,69 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
       );
 
+      // Add discount validation errors to each result
+      const resultsWithDiscountErrors = batchResult.results.map(result => {
+        // Find the corresponding asset to validate discount dates
+        const asset = assetsToValidate.find(a => {
+          const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
+          return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+        });
+        
+        if (asset) {
+          const discountErrors = validateDiscountDates(asset);
+          if (discountErrors.length > 0) {
+            const allErrors = [...(result.errors || []), ...discountErrors];
+            const actualValid = result.valid && allErrors.length === 0;
+            return {
+              ...result,
+              errors: allErrors,
+              valid: actualValid
+            };
+          }
+        }
+        return result;
+      });
+
+      // Recalculate valid/invalid counts after adding discount errors
+      const validCount = resultsWithDiscountErrors.filter(r => r.valid && (!r.errors || r.errors.length === 0)).length;
+      const invalidCount = resultsWithDiscountErrors.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
+      const batchResultWithDiscountErrors = {
+        ...batchResult,
+        results: resultsWithDiscountErrors,
+        valid: validCount,
+        invalid: invalidCount
+      };
+
+      // Add discount validation errors to each result
+      const resultsWithDiscountErrors = batchResult.results.map(result => {
+        // Find the corresponding asset to validate discount dates
+        const asset = assetsToValidate.find(a => {
+          const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
+          return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+        });
+        
+        if (asset) {
+          const discountErrors = validateDiscountDates(asset);
+          if (discountErrors.length > 0) {
+            const allErrors = [...(result.errors || []), ...discountErrors];
+            const actualValid = result.valid && allErrors.length === 0;
+            return {
+              ...result,
+              errors: allErrors,
+              valid: actualValid
+            };
+          }
+        }
+        return result;
+      });
+
       // Map unified handler results to the expected format
       // Include ALL results (both valid and invalid) in the errors array
       // The modal will filter them based on the selected filter (all/valid/invalid)
       // Verify counters match the results
-      const actualValid = batchResult.results.filter(r => r.valid && (!r.errors || r.errors.length === 0)).length;
-      const actualInvalid = batchResult.results.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
-      const actualTotal = batchResult.results.length;
+      const actualValid = resultsWithDiscountErrors.filter(r => r.valid && (!r.errors || r.errors.length === 0)).length;
+      const actualInvalid = resultsWithDiscountErrors.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
+      const actualTotal = resultsWithDiscountErrors.length;
       
       console.log(`[Batch Validation] Handler returned: total=${batchResult.total}, valid=${batchResult.valid}, invalid=${batchResult.invalid}, results.length=${batchResult.results.length}`);
       console.log(`[Batch Validation] Recalculated: actualTotal=${actualTotal}, actualValid=${actualValid}, actualInvalid=${actualInvalid}`);
@@ -482,9 +610,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         total: actualTotal, // Use actual count from results array
         valid: actualValid,  // Recalculate from results
         invalid: actualInvalid, // Recalculate from results
-        errors: batchResult.results.map(result => {
+        errors: resultsWithDiscountErrors.map(result => {
           // Find the asset to get its database ID
-          const asset = assetsToValidate.find(a => String(a.asset_id) === String(result.assetId));
+          const asset = assetsToValidate.find(a => {
+            const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
+            return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+          });
           return {
             assetId: String(result.assetId),
             assetDbId: asset ? String(asset.id) : undefined,
@@ -909,6 +1040,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return next;
       });
 
+      // Refresh data from server to update grid after successful deletions and saves
+      await fetchData(false);
+
       if (errors.length > 0) {
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} נכסים`);
@@ -921,9 +1055,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         setSuccess(`✓ ${successMsg.join(', ')} בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
       }
-
-      // Refresh data
-      await fetchData(false);
     } catch (err) {
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
       console.error('[AssetsList] Error saving all:', err);
@@ -938,6 +1069,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     const tempId = `temp-${Date.now()}`;
+
+    // Set tax_region from tab data if available
+    const taxRegionValue = validationTaxRegion ? parseInt(validationTaxRegion, 10) : undefined;
 
     const newAsset: Asset = {
       id: tempId,
@@ -959,6 +1093,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       sub_asset_type_6: '',
       sub_asset_size_6: 0,
       measurement_date: dateStr,
+      tax_region: taxRegionValue,
       penthouse: null,
       floor: undefined,
       discount_type: undefined,
@@ -990,11 +1125,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         cachedData: cachedData // Pass cached data to avoid database queries
       }
     ).then(validationResult => {
-      if (!validationResult.valid && validationResult.errors.length > 0) {
+      // Add discount validation errors
+      const discountErrors = validateDiscountDates(newAsset);
+      const allErrors = [...(validationResult.errors || []), ...discountErrors];
+      const actualValid = validationResult.valid && allErrors.length === 0;
+
+      if (!actualValid && allErrors.length > 0) {
         // Store validation errors for the new asset
         setValidationErrors(prev => {
           const newMap = new Map(prev);
-          newMap.set(tempId, validationResult.errors.join('\n'));
+          newMap.set(tempId, allErrors.join('\n'));
           return newMap;
         });
         

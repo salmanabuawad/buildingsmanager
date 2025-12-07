@@ -90,13 +90,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           }
         }
         
-        const [types, bldgs, allAssets] = await Promise.all([
+        const [types, bldgs, allAssets, addresses] = await Promise.all([
           api.assetTypes.getAll(),
           api.buildings.getAll(),
-          api.assets.getAll() // Load all assets for uniqueness validation
+          api.assets.getAll(), // Load all assets for uniqueness validation
+          api.addressList.getAll().catch(() => []) // Load address list for dropdown
         ]);
         setAssetTypes(types);
         setBuildings(bldgs);
+        setAddressList(addresses || []);
         
         // Ensure buildings and assets are in memory for validation
         const { setValidationData, setAllAssets } = await import('../lib/validation');
@@ -145,9 +147,24 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Clear all previous import data to start fresh
     setIsParsing(true);
     setImportedAssets([]);
     setSaveResult(null);
+    setValidationResults(null);
+    setValidationProgress(null);
+    setValidationCompleted(false);
+    setShowValidationModal(false);
+    setIsValidating(false);
+    setIsSaving(false);
+    setShowMeasurementDateModal(false);
+    setMeasurementDate('');
+    setPendingSaveAsNew(false);
+    
+    // Clear file input to allow re-uploading the same file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
 
     try {
       const lines = await parseExcelFile(file);
@@ -606,17 +623,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             cachedData
           });
           
+          // Add discount validation errors
+          const discountErrors = validateDiscountDates(asset);
+          const allErrors = [...result.errors, ...discountErrors];
+          
           results.push({
             assetId: asset.asset_id || `שורה ${i + 1}`,
             buildingNumber: asset.building_number || 0,
-            errors: result.errors,
+            errors: allErrors,
             matchedAssetTypeRecord: result.matchedAssetTypeRecord
           });
 
           // Update validation errors in asset row
           setImportedAssets(prev => prev.map(a => 
             a.id === asset.id 
-              ? { ...a, _validationErrors: result.errors.length > 0 ? result.errors : undefined }
+              ? { ...a, _validationErrors: allErrors.length > 0 ? allErrors : undefined }
               : a
           ));
         } catch (err) {
@@ -657,8 +678,25 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Clear all previous import data to start fresh
     setIsParsing(true);
     setIsSaving(true);
+    setImportedAssets([]);
+    setSaveResult(null);
+    setValidationResults(null);
+    setValidationProgress(null);
+    setValidationCompleted(false);
+    setShowValidationModal(false);
+    setIsValidating(false);
+    setShowMeasurementDateModal(false);
+    setMeasurementDate('');
+    setPendingSaveAsNew(false);
+    
+    // Clear file input to allow re-uploading the same file
+    if (skeletonFileInputRef.current) {
+      skeletonFileInputRef.current.value = '';
+    }
+
     const errors: string[] = [];
     let successCount = 0;
     let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string }> = [];
@@ -1658,19 +1696,68 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     setPendingSaveAsNew(false);
   };
 
+  // Helper function to validate discount dates
+  const validateDiscountDates = useCallback((asset: ImportAssetRow): string[] => {
+    const errors: string[] = [];
+    
+    // If discount_type is provided, dates must be provided
+    if (asset.discount_type && asset.discount_type.trim() !== '') {
+      if (!asset.discount_date_from || asset.discount_date_from.trim() === '') {
+        errors.push('כאשר יש קוד הנחה, תאריך הנחה מ הוא חובה');
+      }
+      if (!asset.discount_date_to || asset.discount_date_to.trim() === '') {
+        errors.push('כאשר יש קוד הנחה, תאריך הנחה עד הוא חובה');
+      }
+      
+      // If both dates are provided, validate that date_to > date_from
+      if (asset.discount_date_from && asset.discount_date_from.trim() !== '' &&
+          asset.discount_date_to && asset.discount_date_to.trim() !== '') {
+        const dateFormatPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+        const fromMatch = asset.discount_date_from.trim().match(dateFormatPattern);
+        const toMatch = asset.discount_date_to.trim().match(dateFormatPattern);
+        
+        if (fromMatch && toMatch) {
+          const fromDay = parseInt(fromMatch[1], 10);
+          const fromMonth = parseInt(fromMatch[2], 10);
+          const fromYear = parseInt(fromMatch[3], 10);
+          const toDay = parseInt(toMatch[1], 10);
+          const toMonth = parseInt(toMatch[2], 10);
+          const toYear = parseInt(toMatch[3], 10);
+          
+          const fromDate = new Date(fromYear, fromMonth - 1, fromDay);
+          const toDate = new Date(toYear, toMonth - 1, toDay);
+          
+          if (toDate <= fromDate) {
+            errors.push('תאריך הנחה עד חייב להיות גדול מתאריך הנחה מ');
+          }
+        }
+      }
+    }
+    
+    return errors;
+  }, []);
+
   const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
     const updatedRow = event.data as ImportAssetRow;
     const field = event.column?.getColId();
     
     if (!field || !updatedRow) return;
 
-    // Mark as dirty and clear validation errors when cell is edited
+    // Validate discount dates if discount-related field was changed
+    const discountFields = ['discount_type', 'discount_date_from', 'discount_date_to'];
+    const discountErrors = discountFields.includes(field) ? validateDiscountDates(updatedRow) : [];
+
+    // Mark as dirty and update validation errors
     setImportedAssets(prev => prev.map(a => 
       a.id === updatedRow.id 
-        ? { ...a, _isDirty: true, _validationErrors: undefined }
+        ? { 
+            ...a, 
+            _isDirty: true, 
+            _validationErrors: discountErrors.length > 0 ? discountErrors : undefined 
+          }
         : a
     ));
-  }, []);
+  }, [validateDiscountDates]);
 
   const handleDeleteRow = useCallback((rowId: string) => {
     setImportedAssets(prev => prev.filter(a => a.id !== rowId));
@@ -1710,7 +1797,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   };
 
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => {
-    // For skeleton mode, show building_number, asset_id, tax_region, and payer_id
+    // For skeleton mode, show only building_number and asset_id
     if (mode === 'skeleton') {
       return [
         {
@@ -1763,26 +1850,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'asset_id',
           headerName: t('assetId'),
-          width: 120,
-          editable: true,
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'tax_region',
-          headerName: 'אזור מס',
-          width: 100,
-          editable: true,
-          type: 'numericColumn',
-          valueParser: (params: any) => {
-            if (!params.newValue || params.newValue === '') return undefined;
-            const num = parseInt(params.newValue, 10);
-            return isNaN(num) ? undefined : num;
-          },
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'payer_id',
-          headerName: t('payerId'),
           width: 120,
           editable: true,
           cellStyle: getCellStyle
@@ -2209,9 +2276,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   function downloadSkeletonTemplate() {
     const headers = [
       'מזהה מבנה',
-      'מזהה נכס',
-      'אזור מס',
-      'מזהה משלם'
+      'מזהה נכס'
     ];
 
     const data = [headers];
@@ -2357,14 +2422,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={downloadSkeletonTemplate}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-                title="הורד תבנית שלד - מספר מבנה, מזהה נכס, אזור מס ומזהה משלם"
+                title="הורד תבנית שלד - רק מספר מבנה ומזהה נכס"
               >
                 <Download className="h-4 w-4" />
                 <span>הורד תבנית שלד</span>
               </button>
             </div>
             <p className="text-xs text-orange-700">
-              ייבוא ישיר של נכסים עם מספר מבנה, מזהה נכס, אזור מס ומזהה משלם. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס (אופציונלי), מזהה משלם (אופציונלי)
+              ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס בלבד. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס
             </p>
           </div>
         </div>
@@ -2557,7 +2622,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           {mode === 'skeleton' ? (
             <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <p className="text-slate-700 mb-3 text-sm font-medium">העמודות הנדרשות בקובץ Excel:</p>
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div className="mb-4">
                 <div>
                   <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
                   <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
@@ -2565,16 +2630,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <li><strong>מזהה נכס</strong> (Asset ID)</li>
                   </ul>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
-                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
-                    <li><strong>אזור מס</strong> (Tax region - אם מופיע, יועבר למבנה בעת יצירתו)</li>
-                    <li><strong>מזהה משלם</strong> (Payer ID)</li>
-                  </ul>
-                </div>
               </div>
               <p className="text-xs text-slate-600 mt-3">
-                <span className="font-medium text-slate-700">ייבוא שלד - מספר מבנה, מזהה נכס, אזור מס ומזהה משלם</span>
+                <span className="font-medium text-slate-700">ייבוא שלד - רק מספר מבנה ומזהה נכס</span>
               </p>
             </div>
           ) : (
@@ -2768,17 +2826,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="text"
                       value={buildingCreateData.tax_region || ''}
-                      onChange={async (e) => {
-                        const newData = { ...buildingCreateData, tax_region: e.target.value };
-                        setBuildingCreateData(newData);
-                        await validateBuildingData(newData);
-                      }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                        buildingValidationErrors.tax_region 
-                          ? 'border-red-500' 
-                          : 'border-gray-300'
-                      }`}
-                      placeholder="לדוגמה: 10, 20, 30"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      placeholder="יועבר מהנכסים המיובאים"
                       disabled={isCreatingBuilding}
                     />
                     {buildingValidationErrors.tax_region && (
@@ -2874,30 +2924,84 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       ref={addressInputRef}
                       type="text"
-                      value={addressSearchValue || (buildingCreateData.building_address ? addressList.find(a => a.street_code === buildingCreateData.building_address)?.street_description || String(buildingCreateData.building_address) : '')}
+                      value={addressSearchValue || (buildingCreateData.building_address ? (() => {
+                        const address = addressList.find(a => a.street_code === buildingCreateData.building_address);
+                        return address ? `${address.street_code} - ${address.street_description}` : String(buildingCreateData.building_address);
+                      })() : '')}
                       onChange={(e) => {
-                        setAddressSearchValue(e.target.value);
+                        const value = e.target.value;
+                        setAddressSearchValue(value);
                         setShowAddressDropdown(true);
+                        
+                        // Try to parse as number and update building_address if valid
+                        const parsed = Number(value.trim());
+                        if (value.trim() === '') {
+                          setBuildingCreateData(prev => ({ ...prev, building_address: undefined }));
+                        } else if (!isNaN(parsed) && parsed > 0) {
+                          const match = addressList.find(a => Number(a.street_code) === parsed);
+                          if (match) {
+                            setBuildingCreateData(prev => ({ ...prev, building_address: parsed }));
+                          } else {
+                            // Allow entering just the street code number
+                            setBuildingCreateData(prev => ({ ...prev, building_address: parsed }));
+                          }
+                        }
                       }}
                       onFocus={() => setShowAddressDropdown(true)}
+                      onBlur={() => {
+                        // Delay hiding dropdown to allow click events
+                        setTimeout(() => setShowAddressDropdown(false), 200);
+                      }}
+                      onKeyDown={(e) => {
+                        const filteredAddresses = addressSearchValue.trim()
+                          ? addressList.filter(a => 
+                              String(a.street_code).includes(addressSearchValue) ||
+                              a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
+                              `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                            )
+                          : addressList;
+
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setShowAddressDropdown(true);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setShowAddressDropdown(true);
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (filteredAddresses.length === 1) {
+                            const address = filteredAddresses[0];
+                            setBuildingCreateData(prev => ({ ...prev, building_address: address.street_code }));
+                            setAddressSearchValue(`${address.street_code} - ${address.street_description}`);
+                            setShowAddressDropdown(false);
+                          }
+                        } else if (e.key === 'Escape') {
+                          setShowAddressDropdown(false);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="חפש כתובת..."
+                      placeholder="חפש כתובת או הקלד סמל רחוב..."
                       disabled={isCreatingBuilding}
                     />
-                    {showAddressDropdown && addressList.length > 0 && (
-                      <div
-                        ref={addressDropdownRef}
-                        className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
-                      >
-                        {addressList
-                          .filter(a => 
-                            !addressSearchValue || 
+                    {showAddressDropdown && (() => {
+                      const filteredAddresses = addressSearchValue.trim()
+                        ? addressList.filter(a => 
                             String(a.street_code).includes(addressSearchValue) ||
                             a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
                             `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
                           )
-                          .slice(0, 20)
-                          .map((address) => (
+                        : addressList;
+                      
+                      if (filteredAddresses.length === 0) {
+                        return null;
+                      }
+                      
+                      return (
+                        <div
+                          ref={addressDropdownRef}
+                          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+                        >
+                          {filteredAddresses.slice(0, 20).map((address) => (
                             <div
                               key={address.street_code}
                               onClick={() => {
@@ -2907,11 +3011,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                               }}
                               className="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm"
                             >
-                              {address.street_code} - {address.street_description}
+                              <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
+                              <div style={{ fontSize: '0.85em', color: '#666' }}>{address.street_description}</div>
                             </div>
                           ))}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div>

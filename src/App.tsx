@@ -253,8 +253,12 @@ function App() {
           return newTabs;
         });
         
-        // Switch to the "all assets" tab
-        setActiveTabId(allAssetsTabId);
+        // Switch to the first tax region tab (not the "all assets" tab)
+        // This ensures the tab opens according to the building's tax regions
+        // Find the first region tab (which should be the first one after allAssetsTab)
+        const firstRegionTab = tabsToCreate.find(t => t.taxRegion && t.id !== allAssetsTabId);
+        const firstRegionTabId = firstRegionTab?.id || allAssetsTabId;
+        setActiveTabId(firstRegionTabId);
       }
     } else {
       const allAssetsTabId = `assets-${buildingNumber}-all`;

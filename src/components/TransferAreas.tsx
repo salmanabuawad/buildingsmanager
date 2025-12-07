@@ -37,6 +37,25 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     fetchData();
   }, [buildingNumber, selectedAssetIds]);
 
+  // Helper function to get area_description_for_tab from tax region number
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
+    if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+      return String(taxRegionNum || '');
+    }
+    
+    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+    if (isNaN(taxRegion)) {
+      return String(taxRegionNum);
+    }
+    
+    // Find first asset type with matching tax_region that has area_description_for_tab
+    const matchingAssetType = assetTypes.find(at =>
+      at.tax_region === taxRegion && at.area_description_for_tab
+    );
+    
+    return matchingAssetType?.area_description_for_tab || String(taxRegion);
+  }, [assetTypes]);
+
   // Refresh actions column when validationErrors change to update invalid icons
   useEffect(() => {
     if (gridRef.current?.api && assets.length > 0) {
@@ -989,7 +1008,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             </h1>
             {taxRegion && (
               <p className="text-sm text-white font-semibold bg-purple-700 px-3 py-1 rounded">
-                אזור מס: {taxRegion}
+                {getAreaDescriptionForTaxRegion(taxRegion)}
               </p>
             )}
           </div>

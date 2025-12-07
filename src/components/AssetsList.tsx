@@ -49,6 +49,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     // Return taxRegion if it exists and is not empty, otherwise undefined
     return result;
   }, [taxRegion, buildingNumber]);
+
+  // Helper function to get area_description_for_tab from tax region number
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
+    if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+      return String(taxRegionNum || '');
+    }
+    
+    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+    if (isNaN(taxRegion)) {
+      return String(taxRegionNum);
+    }
+    
+    // Find first asset type with matching tax_region that has area_description_for_tab
+    const matchingAssetType = assetTypes.find(at =>
+      at.tax_region === taxRegion && at.area_description_for_tab
+    );
+    
+    return matchingAssetType?.area_description_for_tab || String(taxRegion);
+  }, [assetTypes]);
   
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
@@ -1908,7 +1927,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               </div>
               {taxRegion ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
-                  אזור מס: {taxRegion}
+                  {getAreaDescriptionForTaxRegion(taxRegion)}
                 </p>
               ) : (() => {
                 // Get unique tax regions from assets
@@ -1924,9 +1943,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   }
                 });
                 const sortedRegions = Array.from(assetTaxRegions).sort((a, b) => a - b);
+                const regionDescriptions = sortedRegions.map(region => getAreaDescriptionForTaxRegion(region));
                 return sortedRegions.length > 0 ? (
                   <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">
-                    אזורי מס: {sortedRegions.join(', ')}
+                    {regionDescriptions.join(', ')}
                   </p>
                 ) : null;
               })()}
@@ -2145,7 +2165,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         progress={batchValidationProgress}
         context="building"
         batchResults={batchValidationResults}
-        batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`}
+        batchTitle={`אימות נכסי מבנה ${buildingNumber}${taxRegion ? ` - ${getAreaDescriptionForTaxRegion(taxRegion)}` : ''}`}
         buildingNumber={buildingNumber}
         taxRegion={taxRegion}
         onSelectAsset={onSelectAsset}

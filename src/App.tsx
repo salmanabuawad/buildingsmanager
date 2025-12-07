@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BuildingsList } from './components/BuildingsList';
 import { AssetsList } from './components/AssetsList';
 import { AssetDetails } from './components/AssetDetails';
@@ -12,7 +12,7 @@ import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square } from 'lucide-react';
-import { api } from './lib/api';
+import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 
@@ -54,6 +54,62 @@ function App() {
     invalid: number;
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+
+  // Load asset types on mount
+  useEffect(() => {
+    async function loadAssetTypes() {
+      try {
+        const types = await api.assetTypes.getAll();
+        setAssetTypes(types || []);
+      } catch (error) {
+        console.error('Error loading asset types:', error);
+      }
+    }
+    loadAssetTypes();
+  }, []);
+
+  // Helper function to get area_description_for_tab from tax region number(s)
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
+    if (!taxRegion || !assetTypes || assetTypes.length === 0) {
+      return String(taxRegion || '');
+    }
+    
+    const taxRegionNum = typeof taxRegion === 'string' ? parseInt(taxRegion.trim(), 10) : taxRegion;
+    if (isNaN(taxRegionNum)) {
+      return String(taxRegion);
+    }
+    
+    // Find first asset type with matching tax_region that has area_description_for_tab
+    const matchingAssetType = assetTypes.find(at =>
+      at.tax_region === taxRegionNum && at.area_description_for_tab
+    );
+    
+    return matchingAssetType?.area_description_for_tab || String(taxRegionNum);
+  }, [assetTypes]);
+
+  // Helper function to get area descriptions for multiple tax regions
+  const getAreaDescriptionsForTaxRegions = useCallback((taxRegionsString: string | undefined): string => {
+    if (!taxRegionsString || !assetTypes || assetTypes.length === 0) {
+      return taxRegionsString || '';
+    }
+    
+    const regions = taxRegionsString.split(',').map(r => r.trim()).filter(r => r);
+    const descriptions = regions.map(region => {
+      const regionNum = parseInt(region, 10);
+      if (isNaN(regionNum)) {
+        return region;
+      }
+      
+      const matchingAssetType = assetTypes.find(at =>
+        at.tax_region === regionNum && at.area_description_for_tab
+      );
+      
+      return matchingAssetType?.area_description_for_tab || region;
+    });
+    
+    return descriptions.join(', ');
+  }, [assetTypes]);
 
   // Helper function to open a new tab, closing any existing tab of the same type
   // Exception: 'buildings' tab is always kept and multiple 'assets' tabs can exist (for different buildings/tax regions)
@@ -127,7 +183,7 @@ function App() {
             type: 'assets',
             buildingNumber,
             taxRegion: regions[0],
-            label: `מבנה ${buildingNumber} - אזור מס ${regions[0]}`
+            label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(regions[0])}`
           };
           console.log('[App.handleSelectBuilding] Creating new single region tab:', {
             id: singleRegionTab.id,
@@ -176,7 +232,7 @@ function App() {
             type: 'assets',
             buildingNumber,
             taxRegion: region,
-            label: `מבנה ${buildingNumber} - אזור מס ${region}`
+            label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`
           };
           tabsToCreate.push(regionTab);
           console.log('[App.handleSelectBuilding] Created region tab:', regionTab);
@@ -272,7 +328,7 @@ function App() {
       type: 'asset-details',
       buildingNumber,
       taxRegion,
-      label: `נכס חדש - מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`
+      label: `נכס חדש - מבנה ${buildingNumber}${taxRegion ? ` - ${getAreaDescriptionForTaxRegion(taxRegion)}` : ''}`
     };
     // Remove all other asset-details tabs, then add new one
     openTab(newTab);
@@ -286,7 +342,7 @@ function App() {
       buildingNumber,
       taxRegion,
       selectedAssetIds,
-      label: `העברת שטחים - מבנה ${buildingNumber}${taxRegion ? ` - אזור מס ${taxRegion}` : ''}`
+      label: `העברת שטחים - מבנה ${buildingNumber}${taxRegion ? ` - ${getAreaDescriptionForTaxRegion(taxRegion)}` : ''}`
     };
     // Remove all other transfer-areas tabs, then add new one
     openTab(newTab);

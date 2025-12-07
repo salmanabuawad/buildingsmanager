@@ -1340,9 +1340,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      width: 200,
-      maxWidth: 200,
-      minWidth: 200,
+      width: 140,
+      maxWidth: 140,
+      minWidth: 140,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;

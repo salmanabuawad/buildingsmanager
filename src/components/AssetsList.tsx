@@ -561,39 +561,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return result;
       });
 
-      // Recalculate valid/invalid counts after adding discount errors
-      const validCount = resultsWithDiscountErrors.filter(r => r.valid && (!r.errors || r.errors.length === 0)).length;
-      const invalidCount = resultsWithDiscountErrors.filter(r => !r.valid || (r.errors && r.errors.length > 0)).length;
-      const batchResultWithDiscountErrors = {
-        ...batchResult,
-        results: resultsWithDiscountErrors,
-        valid: validCount,
-        invalid: invalidCount
-      };
-
-      // Add discount validation errors to each result
-      const resultsWithDiscountErrors = batchResult.results.map(result => {
-        // Find the corresponding asset to validate discount dates
-        const asset = assetsToValidate.find(a => {
-          const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
-          return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
-        });
-        
-        if (asset) {
-          const discountErrors = validateDiscountDates(asset);
-          if (discountErrors.length > 0) {
-            const allErrors = [...(result.errors || []), ...discountErrors];
-            const actualValid = result.valid && allErrors.length === 0;
-            return {
-              ...result,
-              errors: allErrors,
-              valid: actualValid
-            };
-          }
-        }
-        return result;
-      });
-
       // Map unified handler results to the expected format
       // Include ALL results (both valid and invalid) in the errors array
       // The modal will filter them based on the selected filter (all/valid/invalid)

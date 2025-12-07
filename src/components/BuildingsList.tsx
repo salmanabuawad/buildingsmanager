@@ -1428,15 +1428,29 @@ export function BuildingsList({
             )}
             <button
               onClick={async () => {
-                // Always get tax regions from assets (asset.tax_region) instead of building.tax_region
-                // This ensures tabs are split based on actual asset tax regions
-                try {
-                  const availableTaxRegions = await api.buildings.getAvailableTaxRegions(params.data.building_number);
-                  console.log('[BuildingsList] Available tax regions from assets:', availableTaxRegions);
-                  onSelectBuilding(params.data.building_number, availableTaxRegions || undefined);
-                } catch (err) {
-                  console.error('Error getting available tax regions:', err);
-                  onSelectBuilding(params.data.building_number, undefined);
+                // First check if building has multiple tax regions defined
+                // If building has multiple tax regions, use them even if no assets exist yet
+                const buildingTaxRegions = params.data.tax_region;
+                const hasMultipleTaxRegions = buildingTaxRegions && typeof buildingTaxRegions === 'string' && buildingTaxRegions.includes(',');
+                
+                if (hasMultipleTaxRegions) {
+                  // Building has multiple tax regions - use them directly
+                  console.log('[BuildingsList] Building has multiple tax regions:', buildingTaxRegions);
+                  onSelectBuilding(params.data.building_number, buildingTaxRegions);
+                } else {
+                  // Try to get tax regions from assets, fallback to building tax_region if available
+                  try {
+                    const availableTaxRegions = await api.buildings.getAvailableTaxRegions(params.data.building_number);
+                    console.log('[BuildingsList] Available tax regions from assets:', availableTaxRegions);
+                    // If no tax regions from assets but building has tax_region, use building's tax_region
+                    const taxRegionsToUse = availableTaxRegions || (buildingTaxRegions ? String(buildingTaxRegions) : undefined);
+                    onSelectBuilding(params.data.building_number, taxRegionsToUse);
+                  } catch (err) {
+                    console.error('Error getting available tax regions:', err);
+                    // Fallback to building tax_region if available
+                    const fallbackTaxRegions = buildingTaxRegions ? String(buildingTaxRegions) : undefined;
+                    onSelectBuilding(params.data.building_number, fallbackTaxRegions);
+                  }
                 }
               }}
               className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"

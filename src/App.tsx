@@ -11,9 +11,10 @@ import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square } from 'lucide-react';
 import { api } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
+import { usePreferences } from './contexts/PreferencesContext';
 
 interface Tab {
   id: string;
@@ -29,6 +30,7 @@ interface Tab {
 }
 
 function App() {
+  const { preferences, setEditMode } = usePreferences();
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 'buildings', type: 'buildings', label: 'מבנים' }
   ]);
@@ -733,6 +735,33 @@ function App() {
                   <span className="font-medium text-slate-700">ייבוא שלד - רק מספר מבנה ומזהה נכס</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
+                <div className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50/50 rounded-lg border border-indigo-200">
+                  <span className="font-medium text-slate-700 text-xs">מצב עריכה</span>
+                  <div className="flex items-center bg-white rounded-lg p-0.5 gap-0.5 border border-indigo-300">
+                    <button
+                      onClick={() => setEditMode('inline')}
+                      className={`p-1 rounded transition-colors ${
+                        preferences.editMode === 'inline'
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-indigo-600 hover:bg-indigo-50'
+                      }`}
+                      title="עריכה ישירה בתא"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setEditMode('modal')}
+                      className={`p-1 rounded transition-colors ${
+                        preferences.editMode === 'modal'
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-indigo-600 hover:bg-indigo-50'
+                      }`}
+                      title="עריכה בחלון נפרד"
+                    >
+                      <Square className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

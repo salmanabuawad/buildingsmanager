@@ -2371,7 +2371,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <Upload className="h-5 w-5 text-orange-600" />
-            <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - מספר מבנה, מזהה נכס, אזור מס ומזהה משלם</h3>
+            <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - רק מספר מבנה ומזהה נכס</h3>
           </div>
           <div className="space-y-3">
             <div className="flex gap-3">

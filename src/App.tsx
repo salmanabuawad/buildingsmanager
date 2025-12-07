@@ -475,7 +475,7 @@ function App() {
     const newTab: Tab = {
       id: assetsSkeletonImportTabId,
       type: 'assets-skeleton-import',
-      label: 'ייבוא שלד נכסים'
+      label: 'ייבוא שלד - רק מספר מבנה ומזהה נכס'
     };
 
     // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one

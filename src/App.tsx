@@ -208,8 +208,8 @@ function App() {
           setActiveTabId(singleRegionTabId);
         }
       } else if (regions.length > 1) {
-        // Multiple tax regions - always create one tab for all assets and one tab for each tax region
-        console.log('[App.handleSelectBuilding] Multiple tax regions detected, creating tabs:', regions);
+        // Multiple tax regions - always create exactly 3 tabs: "all assets" + first 2 tax regions
+        console.log('[App.handleSelectBuilding] Multiple tax regions detected, creating 3 tabs:', regions);
         const allAssetsTabId = `assets-${buildingNumber}-all`;
         const tabsToCreate: Tab[] = [];
         
@@ -224,8 +224,9 @@ function App() {
         tabsToCreate.push(allAssetsTab);
         console.log('[App.handleSelectBuilding] Created all assets tab:', allAssetsTab);
         
-        // 2. Always create tabs for each individual tax region
-        for (const region of regions) {
+        // 2. Create tabs for the first 2 tax regions only (always 3 tabs total)
+        const regionsToShow = regions.slice(0, 2);
+        for (const region of regionsToShow) {
           const regionTabId = `assets-${buildingNumber}-region-${region}`;
           const regionTab: Tab = {
             id: regionTabId,
@@ -238,7 +239,7 @@ function App() {
           console.log('[App.handleSelectBuilding] Created region tab:', regionTab);
         }
         
-        console.log('[App.handleSelectBuilding] Total tabs to create:', tabsToCreate.length, tabsToCreate.map(t => t.id));
+        console.log('[App.handleSelectBuilding] Total tabs to create (should be 3):', tabsToCreate.length, tabsToCreate.map(t => t.id));
         
         // Update tabs: close all previous assets tabs, then add new tabs for this building
         setTabs(prev => {
@@ -247,7 +248,7 @@ function App() {
             t.id === 'buildings' || 
             t.type !== 'assets'
           );
-          // Combine: keep tabs + all new tabs (this ensures we always have the correct tabs for this building)
+          // Combine: keep tabs + all new tabs (this ensures we always have exactly 3 tabs for this building)
           const newTabs = [...keepTabs, ...tabsToCreate];
           console.log('[App.handleSelectBuilding] Updated tabs count:', newTabs.length, 'assets tabs:', newTabs.filter(t => t.type === 'assets').map(t => ({ id: t.id, building: t.buildingNumber })));
           return newTabs;

@@ -213,7 +213,7 @@ function App() {
         const allAssetsTabId = `assets-${buildingNumber}-all`;
         const tabsToCreate: Tab[] = [];
         
-        // 1. Always create tab for all assets (no tax region filter)
+        // 1. Always create tab for all assets (no tax region filter) - FIRST TAB
         const allAssetsTab: Tab = {
           id: allAssetsTabId,
           type: 'assets',
@@ -222,11 +222,12 @@ function App() {
           path: `/buildings/${buildingNumber}/assets`
         };
         tabsToCreate.push(allAssetsTab);
-        console.log('[App.handleSelectBuilding] Created all assets tab:', allAssetsTab);
+        console.log('[App.handleSelectBuilding] Created all assets tab (tab 1):', allAssetsTab);
         
-        // 2. Create tabs for the first 2 tax regions only (always 3 tabs total)
+        // 2. Create tabs for the first 2 tax regions only (tabs 2 and 3)
         const regionsToShow = regions.slice(0, 2);
-        for (const region of regionsToShow) {
+        for (let i = 0; i < regionsToShow.length; i++) {
+          const region = regionsToShow[i];
           const regionTabId = `assets-${buildingNumber}-region-${region}`;
           const regionTab: Tab = {
             id: regionTabId,
@@ -236,16 +237,12 @@ function App() {
             label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`
           };
           tabsToCreate.push(regionTab);
-          console.log('[App.handleSelectBuilding] Created region tab:', regionTab);
+          console.log(`[App.handleSelectBuilding] Created region tab (tab ${i + 2}):`, regionTab);
         }
         
-        console.log('[App.handleSelectBuilding] Total tabs to create (should be 3):', tabsToCreate.length, tabsToCreate.map(t => t.id));
+        console.log('[App.handleSelectBuilding] Total tabs to create (should be 3):', tabsToCreate.length, tabsToCreate.map((t, idx) => ({ tab: idx + 1, id: t.id, label: t.label })));
         
-        // Find the first tax region tab (not the "all assets" tab) to activate
-        // This ensures the tab opens according to the building's tax regions
-        const firstRegionTab = tabsToCreate.find(t => t.taxRegion && t.id !== allAssetsTabId);
-        const firstRegionTabId = firstRegionTab?.id || allAssetsTabId;
-        
+        // Activate the "all assets" tab (first tab)
         // Update tabs: close all previous assets tabs, then add new tabs for this building
         setTabs(prev => {
           // Keep buildings tab and non-assets tabs, close all assets tabs
@@ -259,9 +256,9 @@ function App() {
           return newTabs;
         });
         
-        // Set active tab after tabs are updated
+        // Set active tab to "all assets" (first tab)
         setTimeout(() => {
-          setActiveTabId(firstRegionTabId);
+          setActiveTabId(allAssetsTabId);
         }, 0);
       }
     } else {

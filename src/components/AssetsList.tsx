@@ -10,6 +10,7 @@ import { ValidationResultModal, BatchValidationResults, ValidationProgress } fro
 import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
+import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -1248,13 +1249,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
       width: 120,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
       width: 120,
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     }
   ], [t, assetTypes, getCellStyle]);
 
@@ -1532,7 +1535,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           cursor: 'not-allowed'
         };
       },
-      headerClass: 'ag-right-aligned-header'
+      headerClass: 'ag-right-aligned-header',
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'payer_id',
@@ -1592,7 +1596,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => getCellStyle(params),
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'discount_date_to',
@@ -1603,7 +1608,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => getCellStyle(params),
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'main_asset_type',

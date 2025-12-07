@@ -14,6 +14,7 @@ import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress 
 import { RowEditModal } from './RowEditModal';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
+import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -1439,28 +1440,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       width: 120,
       editable: (params) => params.data.is_latest === true && editMode === 'inline',
       cellStyle: (params) => getCellStyle(params, 'measurement_date'),
-      valueFormatter: (params) => {
-        if (!params.value || params.value === '01/01/1900') return '';
-        // Ensure DD/MM/YYYY format
-        const dateStr = String(params.value).trim();
-        // If already in DD/MM/YYYY format, return as-is
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-          return dateStr;
-        }
-        // Try to parse other date formats and convert to DD/MM/YYYY
-        try {
-          const date = new Date(dateStr);
-          if (!isNaN(date.getTime())) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-          }
-        } catch (e) {
-          // If parsing fails, return original value
-        }
-        return dateStr;
-      },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value),
       valueGetter: (params) => params.data.measurement_date,
       valueSetter: (params) => {
         let newValue = params.newValue?.trim() || '';
@@ -1655,14 +1635,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerName: 'תאריך הנחה מ',
       editable: (params) => params.data.is_latest === true && editMode === 'inline',
       width: 120,
-      cellStyle: (params) => getCellStyle(params, 'discount_date_from')
+      cellStyle: (params) => getCellStyle(params, 'discount_date_from'),
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
       editable: (params) => params.data.is_latest === true && editMode === 'inline',
       width: 120,
-      cellStyle: (params) => getCellStyle(params, 'discount_date_to')
+      cellStyle: (params) => getCellStyle(params, 'discount_date_to'),
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'main_asset_type',

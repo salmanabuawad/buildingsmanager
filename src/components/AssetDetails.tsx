@@ -805,6 +805,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           return;
         }
 
+        // Set tax_region from tab data or from current asset data
+        const taxRegionValue = validationTaxRegion ? parseInt(validationTaxRegion, 10) : (currentAssetData.tax_region || undefined);
+
         // Create new asset
         const assetData: Omit<Asset, 'id' | 'created_at'> = {
           building_number: currentAssetData.building_number,
@@ -813,6 +816,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           measurement_date: currentAssetData.measurement_date,
           main_asset_type: currentAssetData.main_asset_type || undefined,
           asset_size: currentAssetData.asset_size || 0,
+          tax_region: taxRegionValue,
           sub_asset_type_1: currentAssetData.sub_asset_type_1 || undefined,
           sub_asset_size_1: currentAssetData.sub_asset_size_1 || 0,
           sub_asset_type_2: currentAssetData.sub_asset_type_2 || undefined,
@@ -1056,6 +1060,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
       // Set new measurement date
       newAssetData.measurement_date = finalMeasurementDate;
+      
+      // Ensure tax_region is preserved when creating new measurement
+      // Use validationTaxRegion from tab if available, otherwise use current asset's tax_region
+      if (!newAssetData.tax_region) {
+        const taxRegionValue = validationTaxRegion ? parseInt(validationTaxRegion, 10) : (currentAsset.tax_region || undefined);
+        newAssetData.tax_region = taxRegionValue;
+      }
 
       // Store the old asset ID before updating it
       const oldAssetId = currentAsset.id;

@@ -2554,30 +2554,55 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             פורמט קובץ Excel
           </h2>
           
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <p className="text-slate-700 mb-3 text-sm font-medium">העמודות הנדרשות בקובץ Excel:</p>
-            <div className="grid md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
-                <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
-                  <li><strong>מזהה מבנה</strong> (Building number)</li>
-                  <li><strong>מזהה משלם</strong> (Payer ID - אופציונלי)</li>
-                  <li><strong>מזהה נכס</strong> (Asset ID)</li>
-                  <li><strong>סוג נכס ראשי</strong> (Main asset type)</li>
-                  <li><strong>גודל נכס ראשי</strong> (Asset size)</li>
-                </ul>
+          {mode === 'skeleton' ? (
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-slate-700 mb-3 text-sm font-medium">העמודות הנדרשות בקובץ Excel:</p>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
+                    <li><strong>מזהה מבנה</strong> (Building number)</li>
+                    <li><strong>מזהה נכס</strong> (Asset ID)</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
+                    <li><strong>אזור מס</strong> (Tax region - אם מופיע, יועבר למבנה בעת יצירתו)</li>
+                    <li><strong>מזהה משלם</strong> (Payer ID)</li>
+                  </ul>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
-                <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
-                  <li><strong>סוג נכס משנה 1-6</strong> (Sub asset types)</li>
-                  <li><strong>גודל נכס משנה 1-6</strong> (Sub asset sizes)</li>
-                  <li><strong>דירת גג</strong> (Penthouse)</li>
-                  <li><strong>תאריך מדידה</strong> (Measurement date - יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע)</li>
-                </ul>
+              <p className="text-xs text-slate-600 mt-3">
+                <span className="font-medium text-slate-700">ייבוא שלד - מספר מבנה, מזהה נכס, אזור מס ומזהה משלם</span>
+              </p>
+            </div>
+          ) : (
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-slate-700 mb-3 text-sm font-medium">העמודות הנדרשות בקובץ Excel:</p>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
+                    <li><strong>מזהה מבנה</strong> (Building number)</li>
+                    <li><strong>מזהה משלם</strong> (Payer ID - אופציונלי)</li>
+                    <li><strong>מזהה נכס</strong> (Asset ID)</li>
+                    <li><strong>סוג נכס ראשי</strong> (Main asset type)</li>
+                    <li><strong>גודל נכס ראשי</strong> (Asset size)</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
+                    <li><strong>סוג נכס משנה 1-6</strong> (Sub asset types)</li>
+                    <li><strong>גודל נכס משנה 1-6</strong> (Sub asset sizes)</li>
+                    <li><strong>דירת גג</strong> (Penthouse)</li>
+                    <li><strong>תאריך מדידה</strong> (Measurement date - יוגדר אוטומטית לתאריך הנוכחי אם לא מופיע)</li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

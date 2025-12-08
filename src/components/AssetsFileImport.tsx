@@ -2156,10 +2156,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       return {
         backgroundColor: '#fee2e2',
         border: '2px solid #ef4444',
-        textAlign: 'right'
+        textAlign: 'left'
       };
     }
-    return { textAlign: 'right' };
+    return { textAlign: 'left' };
   };
 
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => {

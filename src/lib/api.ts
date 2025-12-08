@@ -545,7 +545,6 @@ export const api = {
         const { data: masterData, error: masterError } = await masterQuery.maybeSingle();
 
         if (masterError && masterError.code !== 'PGRST116') {
-          console.error('[API ERROR] Error fetching master asset from assets table:', masterError);
           throw masterError;
         }
 
@@ -565,10 +564,8 @@ export const api = {
           .order('measurement_date', { ascending: false });
 
         if (historyError) {
-          console.error('[API ERROR] Error fetching assets_history:', historyError);
           // If history table doesn't exist or RLS blocks it, return only master
           if (historyError.code === '42P01' || historyError.code === '42501' || historyError.code === 'PGRST205') {
-            console.warn('[API] assets_history table not accessible, returning only master record');
             return masterData ? [{ ...masterData, is_latest: true }] : [];
           }
           throw historyError;
@@ -616,14 +613,6 @@ export const api = {
         // Other records: from assets_history table
         allRecords.push(...sortedHistory);
 
-        console.log('[API] getAssetWithHistory result:', {
-          totalCount: allRecords.length,
-          masterCount: masterData ? 1 : 0,
-          historyCount: sortedHistory.length,
-          firstRecordSource: masterData ? 'assets' : 'none',
-          otherRecordsSource: 'assets_history'
-        });
-
         return allRecords;
       } catch (err: any) {
         throw err;
@@ -654,7 +643,6 @@ export const api = {
         .order('history_created_at', { ascending: false });
 
       if (historyError) {
-        console.error('[API ERROR] Error fetching assets_history:', historyError);
         // If table doesn't exist or RLS blocks it, return only master
         if (historyError.code === '42P01' || historyError.code === '42501') {
           return masterData ? [{ ...masterData, is_latest: true }] : [];
@@ -834,7 +822,6 @@ export const api = {
         .order('history_created_at', { ascending: false });
 
       if (historyError) {
-        console.error('[API ERROR] Error fetching assets_history:', historyError);
         // If table doesn't exist or RLS blocks it, return only master records
         if (historyError.code === '42P01' || historyError.code === '42501') {
           return masterAssets;
@@ -881,7 +868,7 @@ export const api = {
       const { data, error } = await supabase
         .from('assets')
         .select('*')
-        .eq('id', id)
+        .eq('asset_id', id)
         .maybeSingle();
 
       if (error) {
@@ -920,13 +907,6 @@ export const api = {
             .eq('asset_id', sanitizedInput.asset_id);
 
           if (deleteError) {
-            console.error('[API ERROR] Delete asset failed:', {
-              asset_id: sanitizedInput.asset_id,
-              message: deleteError.message,
-              details: deleteError.details,
-              hint: deleteError.hint,
-              code: deleteError.code
-            });
             throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
           }
 
@@ -939,14 +919,6 @@ export const api = {
             .single();
 
           if (insertError) {
-            console.error('[API ERROR] Insert new asset failed:', {
-              input,
-              sanitizedInput,
-              message: insertError.message,
-              details: insertError.details,
-              hint: insertError.hint,
-              code: insertError.code
-            });
             throw new Error(`שגיאה ביצירת נכס חדש: ${insertError.message}`);
           }
 
@@ -962,15 +934,6 @@ export const api = {
         .single();
 
       if (error) {
-        if (error) {
-          input,
-          sanitizedInput,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-
         let errorMessage = error.message || 'Failed to create asset';
 
         // Handle constraint violations
@@ -1011,7 +974,6 @@ export const api = {
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }
-      console.log('[API] Asset created successfully:', data);
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
@@ -1020,7 +982,7 @@ export const api = {
       const { data: existingAsset, error: fetchError } = await supabase
         .from('assets')
         .select('*')
-        .eq('id', id)
+        .eq('asset_id', id)
         .maybeSingle();
 
       if (fetchError) {
@@ -1052,21 +1014,11 @@ export const api = {
       const { data: updatedAsset, error: updateError } = await supabase
         .from('assets')
         .update(sanitizedInput)
-        .eq('id', id)
+        .eq('asset_id', id)
         .select()
         .single();
 
       if (updateError) {
-        console.error('[API ERROR] Update asset failed:', {
-          id,
-          input,
-          sanitizedInput,
-          message: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint,
-          code: updateError.code
-        });
-
         let errorMessage = updateError.message || 'Failed to update asset';
 
         if (updateError.code === '23514') {

@@ -1054,8 +1054,76 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       if (insertError) {
         console.error('Supabase insert error:', insertError);
         // Check if it's a conflict (409) or duplicate key error
-        if (insertError.code === '409' || insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique')) {
-          errors.push(`שגיאה: נכסים קיימים כבר במערכת. יש לבדוק מזהה נכס כפול או להסיר נכסים קיימים. פרטים: ${insertError.message}`);
+        if (insertError.code === '409' || insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique') || insertError.message?.includes('assets_asset_id_unique')) {
+          // Get all asset_ids from the batch and check which ones exist in the database
+          const assetIdsToCheck = validatedSkeletonAssets.map(a => a.asset_id).filter(id => id != null);
+          
+          if (assetIdsToCheck.length > 0) {
+            // Get existing assets with their building numbers
+            const { data: existingAssets, error: checkError } = await supabase
+              .from('assets')
+              .select('asset_id, building_number')
+              .in('asset_id', assetIdsToCheck);
+            
+            if (!checkError && existingAssets) {
+              // Create a map of asset_id -> building_number for existing assets
+              const existingAssetsMap = new Map<number | string, number>();
+              existingAssets.forEach(a => {
+                const assetId = a.asset_id;
+                const buildingNum = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
+                existingAssetsMap.set(assetId, buildingNum);
+              });
+              
+              // Find duplicate assets
+              const duplicateAssets: Array<{ assetId: string | number; existingBuilding: number; newBuilding: number }> = [];
+              
+              validatedSkeletonAssets.forEach(asset => {
+                const assetId = asset.asset_id;
+                if (assetId != null) {
+                  const existingBuilding = existingAssetsMap.get(assetId);
+                  
+                  if (existingBuilding != null) {
+                    const buildingNum = typeof asset.building_number === 'string' 
+                      ? parseInt(String(asset.building_number), 10) 
+                      : asset.building_number;
+                    const newBuilding = buildingNum && !isNaN(buildingNum) ? buildingNum : null;
+                    
+                    if (newBuilding && existingBuilding !== newBuilding) {
+                      duplicateAssets.push({
+                        assetId,
+                        existingBuilding,
+                        newBuilding
+                      });
+                    } else if (newBuilding && existingBuilding === newBuilding) {
+                      // Same building - might be update scenario, but still a duplicate key error
+                      duplicateAssets.push({
+                        assetId,
+                        existingBuilding,
+                        newBuilding
+                      });
+                    }
+                  }
+                }
+              });
+              
+              // Report specific duplicate assets
+              if (duplicateAssets.length > 0) {
+                duplicateAssets.forEach(({ assetId, existingBuilding, newBuilding }) => {
+                  if (existingBuilding !== newBuilding) {
+                    errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במבנה ${existingBuilding}. לא ניתן ליצור נכס עם אותו מספר במבנה ${newBuilding}.`);
+                  } else {
+                    errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במבנה ${existingBuilding}. נכס כבר קיים במערכת.`);
+                  }
+                });
+              } else {
+                errors.push(`שגיאה: נכסים קיימים כבר במערכת (duplicate key violation). יש לבדוק מזהה נכס כפול.`);
+              }
+            } else {
+              errors.push(`שגיאה: נכסים קיימים כבר במערכת. יש לבדוק מזהה נכס כפול או להסיר נכסים קיימים. פרטים: ${insertError.message}`);
+            }
+          } else {
+            errors.push(`שגיאה: נכסים קיימים כבר במערכת. יש לבדוק מזהה נכס כפול או להסיר נכסים קיימים. פרטים: ${insertError.message}`);
+          }
         } else {
           errors.push(`שגיאה בשמירה: ${insertError.message || insertError.code || 'שגיאה לא ידועה'}`);
         }

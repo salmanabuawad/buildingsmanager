@@ -2162,17 +2162,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     return { textAlign: 'right' };
   };
 
-  const getRowStyle = (params: any) => {
-    const row = params.data as ImportAssetRow;
-    if (row._validationErrors && row._validationErrors.length > 0) {
-      return { 
-        backgroundColor: '#fee2e2', 
-        border: '2px solid #ef4444',
-        borderRadius: '4px'
-      };
-    }
-    return null;
-  };
 
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => {
     // For skeleton mode, show only building_number and asset_id

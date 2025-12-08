@@ -171,19 +171,29 @@ export function AssetTypes() {
   }, []);
 
 
-  async function handleDelete(id: number) {
-    if (!confirm(t('confirmDeleteAssetType'))) return;
-
-    // Mark for deletion (don't delete immediately)
-    setDeletedAssetTypes(prev => new Set(prev).add(id));
+  function handleDelete(id: number) {
+    // Toggle deletion mark (don't delete immediately)
+    setDeletedAssetTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id); // Unmark for deletion
+      } else {
+        next.add(id); // Mark for deletion
+      }
+      return next;
+    });
     setDirtyAssetTypes(prev => {
       const next = new Map(prev);
       next.delete(id); // Remove from dirty changes if exists
       return next;
     });
     
-    // Update local state to hide the row
-    setAssetTypes(prev => prev.filter(at => at.id !== id));
+    // Refresh grid to show updated state
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    }, 100);
   }
 
   async function handleSaveAll() {
@@ -623,12 +633,17 @@ export function AssetTypes() {
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
+        const isDeleted = deletedAssetTypes.has(assetType.id);
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             <button
               onClick={() => handleDelete(assetType.id)}
-              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-              title="מחק"
+              className={`p-1.5 rounded transition-colors ${
+                isDeleted
+                  ? 'text-red-700 hover:bg-red-100 bg-red-50'
+                  : 'text-red-600 hover:bg-red-50'
+              }`}
+              title={isDeleted ? 'בטל מחיקה' : 'סמן למחיקה'}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -660,7 +675,7 @@ export function AssetTypes() {
         };
       }
     },
-  ], [t, getCurrentValue, isFieldDirty, handleDelete]);
+  ], [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes]);
 
 
   function downloadTemplate() {
@@ -746,7 +761,7 @@ export function AssetTypes() {
       'שטח עד'                   // max_size
     ];
 
-    // Convert asset types to rows
+    // Convert asset types to rows (exclude deleted ones from export)
     const rows = assetTypes
       .filter(at => !deletedAssetTypes.has(at.id))
       .map(assetType => [
@@ -1377,7 +1392,7 @@ export function AssetTypes() {
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', direction: 'rtl' }}>
               <AgGridReact
                 ref={gridRef}
-                rowData={assetTypes.filter(at => !deletedAssetTypes.has(at.id))}
+                rowData={assetTypes}
                 columnDefs={columnDefs}
                 defaultColDef={{
                   resizable: true,
@@ -1390,6 +1405,14 @@ export function AssetTypes() {
                   minWidth: 100,
                   sortable: true,
                   filter: true
+                }}
+                getRowStyle={(params: any) => {
+                  const assetType = params.data as AssetType;
+                  if (!assetType) return {};
+                  if (deletedAssetTypes.has(assetType.id)) {
+                    return { backgroundColor: '#fee2e2', opacity: 0.7 }; // Light red for deleted
+                  }
+                  return {};
                 }}
                 onCellValueChanged={onCellValueChanged}
                 onGridReady={onGridReady}

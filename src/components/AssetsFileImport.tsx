@@ -646,10 +646,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               }
 
               // Check asset ID uniqueness against database (only if all basic validations pass)
-              // This checks if asset_id already exists in a different building
-              if (assetErrors.length === 0 && asset.asset_id && buildingNum && !isNaN(buildingNum)) {
-                const { assetValidators, getAllAssets, setAllAssets } = await import('../lib/validation');
-                // Ensure we have all assets loaded for uniqueness check across all buildings
+              // For skeleton mode: check if asset_id exists in database at all (treating as new assets)
+              if (assetErrors.length === 0 && asset.asset_id) {
+                const { getAllAssets, setAllAssets } = await import('../lib/validation');
+                // Ensure we have all assets loaded for uniqueness check
                 let allAssets = getAllAssets();
                 if (allAssets.length === 0) {
                   // If assets not loaded, load them now
@@ -658,16 +658,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   setAllAssets(loadedAssets);
                   allAssets = loadedAssets;
                 }
-                // Validate: checks if asset_id exists in a different building
-                const uniquenessValidation = await assetValidators.validateAssetIdUnique(
-                  asset.asset_id,
-                  undefined,
-                  undefined,
-                  { buildings: buildings, assets: allAssets },
-                  buildingNum
-                );
-                if (!uniquenessValidation.valid) {
-                  assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במבנה אחר במערכת`);
+                // Check if asset_id already exists in database (any building)
+                const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
+                const existingAsset = allAssets.find((a: any) => {
+                  const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+                  return aId === assetIdNum;
+                });
+                if (existingAsset) {
+                  const existingBuilding = existingAsset.building_number;
+                  assetErrors.push(`מזהה נכס ${asset.asset_id} כבר קיים במערכת במבנה ${existingBuilding}. נכסים בייבוא שלד חייבים להיות חדשים.`);
                 }
               }
 

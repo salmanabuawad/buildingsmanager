@@ -1600,7 +1600,9 @@ export function BuildingsList({
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
-        return isNewBuilding(building);
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        return isNew || !buildingsToDelete.has(buildingKey);
       },
       valueParser: (params: any) => {
         if (!params) return null;
@@ -1641,7 +1643,9 @@ export function BuildingsList({
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;
-        return isNewBuilding(building);
+        const isNew = isNewBuilding(building);
+        const buildingKey = getBuildingKey(building);
+        return isNew || !buildingsToDelete.has(buildingKey);
       },
       valueParser: (params: any) => {
         if (!params) return null;

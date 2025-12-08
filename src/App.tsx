@@ -907,12 +907,7 @@ function App() {
                 setShowCreateModal={setShowCreateBuildingModal}
               />
             )}
-            {activeTab?.type === 'assets' && activeTab.buildingNumber && (() => {
-                taxRegion: activeTab.taxRegion,
-                taxRegionType: typeof activeTab.taxRegion,
-                label: activeTab.label
-              });
-              return (
+            {activeTab?.type === 'assets' && activeTab.buildingNumber && (
                 <AssetsList
                   key={activeTab.refreshKey}
                   buildingNumber={activeTab.buildingNumber}
@@ -921,8 +916,7 @@ function App() {
                   onOpenTransferAreas={handleOpenTransferAreas}
                   onOpenNewAsset={handleOpenNewAsset}
                 />
-              );
-            })()}
+              )}
             {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (
               <TransferAreas
                 key={activeTab.refreshKey}

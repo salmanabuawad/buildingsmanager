@@ -27,7 +27,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
   const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
-  // Store asset_id and building_number for each asset to reload after save
+  // Store asset_id and building_number for each asset to reload after save (key is asset_id string)
   const [assetIdentifiers, setAssetIdentifiers] = useState<Map<string, { asset_id: number; building_number: number }>>(new Map());
   // Store initial total area for validation
   const [initialTotalArea, setInitialTotalArea] = useState<number | null>(null);
@@ -118,10 +118,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               }
               if (latestAsset) {
                 fetchedAssets.push(latestAsset);
-                // Update asset identifiers with the new ID
+                // Update asset identifiers (key is asset_id)
                 setAssetIdentifiers(prev => {
                   const next = new Map(prev);
-                  next.set(String(latestAsset!.id), { asset_id: latestAsset!.asset_id, building_number: latestAsset!.building_number });
+                  next.set(String(latestAsset!.asset_id), { asset_id: latestAsset!.asset_id, building_number: latestAsset!.building_number });
                   return next;
                 });
               }
@@ -142,7 +142,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 fetchedAssets.push(matchingAsset);
                 setAssetIdentifiers(prev => {
                   const next = new Map(prev);
-                  next.set(String(matchingAsset.id), { asset_id: matchingAsset.asset_id, building_number: matchingAsset.building_number });
+                  next.set(String(matchingAsset.asset_id), { asset_id: matchingAsset.asset_id, building_number: matchingAsset.building_number });
                   return next;
                 });
               } else {
@@ -154,15 +154,16 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           }
         }
       } else {
-        // Initial load: fetch by IDs
+        // Initial load: fetch by asset_ids
         for (const assetId of selectedAssetIds) {
           try {
+            // assetId is actually asset_id, fetch using getAllByAssetId
             const asset = await api.assets.getOne(Number(assetId));
             fetchedAssets.push(asset);
-            // Store asset identifier for future reloads
+            // Store asset identifier for future reloads (key is asset_id)
             setAssetIdentifiers(prev => {
               const next = new Map(prev);
-              next.set(assetId, { asset_id: asset.asset_id, building_number: asset.building_number });
+              next.set(String(asset.asset_id), { asset_id: asset.asset_id, building_number: asset.building_number });
               return next;
             });
           } catch (err) {
@@ -312,7 +313,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     
     // Build updated assets with dirty changes applied
     const updatedAssets = allAssets.map(asset => {
-      const assetId = String(asset.id);
+      const assetId = String(asset.asset_id);
       const dirtyChanges = allDirtyAssets.get(assetId) || {};
       return { ...asset, ...dirtyChanges };
     });
@@ -330,7 +331,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
     // Validate each asset
     for (const asset of updatedAssets) {
-      const assetId = String(asset.id);
+      const assetId = String(asset.asset_id);
       const validation = await validateAsset(asset);
       
       if (!validation.valid || totalAreaError) {
@@ -352,11 +353,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     try {
       const { data, colDef } = event;
       const field = colDef.field;
-      const assetId = String(data.id);
+      const assetId = String(data.asset_id);
       const newValue = event.newValue;
 
       // Get the original asset from state
-      const originalAsset = assets.find(a => String(a.id) === assetId);
+      const originalAsset = assets.find(a => String(a.asset_id) === assetId);
       if (!originalAsset) return;
 
       // Validate date format if measurement_date is being changed
@@ -377,7 +378,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       // Build updated assets array with all dirty changes applied
       const updatedAssets = assets.map(asset => {
-        const assetIdStr = String(asset.id);
+        const assetIdStr = String(asset.asset_id);
         if (assetIdStr === assetId) {
           // This is the asset that was just changed
           const dirtyChanges = updatedDirtyAssets.get(assetIdStr) || {};
@@ -516,8 +517,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
-          // Get the full asset data with changes
-          const originalAsset = assets.find(a => String(a.id) === assetId);
+          // Get the full asset data with changes (assetId is asset_id)
+          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           if (!originalAsset) {
             errors.push(`נכס ${assetId}: לא נמצא`);
             continue;
@@ -633,7 +634,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           };
 
           // Remove fields that shouldn't be in new record
-          delete (newAssetData as any).id;
           delete (newAssetData as any).created_at;
           delete (newAssetData as any).updated_at;
           delete (newAssetData as any).is_latest;
@@ -643,7 +643,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           // First, try to update the old record with is_new_measurement flag set to true
           // The database trigger will automatically move it to assets_history
           try {
-            await api.assets.update(Number(assetId), { is_new_measurement: true });
+            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true });
           } catch (updateErr) {
             // If update fails (e.g., asset already moved to history), that's okay
             // We'll just create the new measurement
@@ -653,19 +653,17 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           // Then create the new measurement in assets table
           const createdAsset = await api.assets.create(newAssetData as any);
 
-          // Update asset identifiers with the new asset ID and also store the new ID for direct access
+          // Update asset identifiers (key is asset_id)
           setAssetIdentifiers(prev => {
             const next = new Map(prev);
-            // Update the mapping: old ID -> new asset identifier
-            next.set(assetId, { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
-            // Also add mapping from new ID to identifier for direct access
-            next.set(String(createdAsset.id), { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
+            // Update the mapping: old asset_id -> new asset identifier
+            next.set(String(createdAsset.asset_id), { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
             return next;
           });
 
           savedCount++;
         } catch (err) {
-          const originalAsset = assets.find(a => String(a.id) === assetId);
+          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           const assetIdentifier = originalAsset?.asset_id || assetId;
           const errorMsg = err instanceof Error ? err.message : 'Unknown error';
           errors.push(`נכס ${assetIdentifier}: ${errorMsg}`);
@@ -708,7 +706,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   // Calculate current total area (sum of asset_size only, with dirty changes applied)
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
-      const assetId = String(asset.id);
+      const assetId = String(asset.asset_id);
       const dirtyChanges = dirtyAssets.get(assetId) || {};
       const assetWithChanges = { ...asset, ...dirtyChanges };
       
@@ -724,7 +722,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   // Helper function to get cell style for dirty fields and validation errors
   const getCellStyle = useCallback((params: any, fieldName: string) => {
-    const assetId = String(params.data?.id);
+    const assetId = String(params.data?.asset_id);
     if (!assetId) return { textAlign: 'right' };
     
     const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
@@ -767,7 +765,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         const asset = params.data as Asset;
         if (!asset) return null;
         
-        const assetId = String(asset.id);
+        const assetId = String(asset.asset_id);
         const hasValidationError = validationErrors.has(assetId);
         
         return (
@@ -1072,10 +1070,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 alwaysShowHorizontalScroll: true,
               }}
               suppressHorizontalScroll={false}
-              getRowId={(params) => String(params.data.id)}
+              getRowId={(params) => String(params.data.asset_id)}
               onCellValueChanged={onCellValueChanged}
               getRowStyle={(params) => {
-                const assetId = String(params.data?.id);
+                const assetId = String(params.data?.asset_id);
                 if (validationErrors.has(assetId)) {
                   return { backgroundColor: '#fef2f2' }; // Light red for validation errors
                 }

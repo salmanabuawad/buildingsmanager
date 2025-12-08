@@ -96,16 +96,6 @@ export interface AssetType {
   updated_at: string;
 }
 
-export interface AssetTypeField {
-  id: string;
-  field_name: string;
-  is_asset_level: boolean;
-  is_building_level: boolean;
-  is_asset_type_validation: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface AddressList {
   street_code: number;
   street_description: string;
@@ -360,7 +350,6 @@ export const api = {
       return sortedTaxRegions.join(',');
     },
     create: async (input: Omit<Building, 'created_at'>): Promise<Building> => {
-      console.log('[API] Creating building with input:', input);
       const sanitizedInput = sanitizeBuildingInput(input);
       // Remove undefined values to prevent Supabase errors
       const cleanedInput = Object.fromEntries(
@@ -373,19 +362,11 @@ export const api = {
         .single();
 
       if (error) {
-        console.error('[API ERROR] Create building failed:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
         throw error;
       }
-      console.log('[API] Building created successfully:', data);
       return data;
     },
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
-      console.log('[API] Updating building:', buildingNumber, 'with data:', input);
       const sanitizedInput = sanitizeBuildingInput(input);
       // Remove undefined values to prevent Supabase errors
       const cleanedInput = Object.fromEntries(
@@ -405,14 +386,6 @@ export const api = {
         .single();
 
       if (error) {
-        console.error('[API ERROR] Update building failed:', {
-          buildingNumber,
-          input,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
         // Handle foreign key constraint violation for building_address
         if (error.code === '23503' && (error.message?.includes('fk_buildings_building_address') || error.details?.includes('address_list'))) {
           const streetCode = cleanedInput.building_address;
@@ -420,7 +393,6 @@ export const api = {
         }
         throw error;
       }
-      console.log('[API] Building updated successfully:', data);
       return data;
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
@@ -447,18 +419,6 @@ export const api = {
       const { data, error } = await query;
 
       if (error) {
-        console.error('[API ERROR] Error fetching assets:', {
-          error,
-          buildingNumber,
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        // If it's a 409 conflict, try to provide more context
-        if (error.code === '409' || error.status === 409) {
-          console.error('[API ERROR] 409 Conflict - This might be due to a query issue or data conflict');
-        }
         throw error;
       }
 
@@ -551,7 +511,6 @@ export const api = {
         .order('history_created_at', { ascending: false });
 
       if (error) {
-        console.error('[API ERROR] Error fetching assets_history:', error);
         // If table doesn't exist or RLS blocks it, return empty array
         if (error.code === '42P01' || error.code === '42501') {
           return [];
@@ -667,7 +626,6 @@ export const api = {
 
         return allRecords;
       } catch (err: any) {
-        console.error('[API ERROR] Unexpected error in getAssetWithHistory:', err);
         throw err;
       }
     },
@@ -685,7 +643,6 @@ export const api = {
       const { data: masterData, error: masterError } = await masterQuery.maybeSingle();
 
       if (masterError && masterError.code !== 'PGRST116') {
-        console.error('[API ERROR] Error fetching master asset:', masterError);
         throw masterError;
       }
 
@@ -731,11 +688,9 @@ export const api = {
       });
 
       if (error) {
-        console.error('[API ERROR] Error calling get_assets_with_history:', error);
         // Fallback to separate queries if function doesn't exist
         // PGRST202 = function not found in schema cache
         if (error.code === '42883' || error.code === 'PGRST202' || error.message.includes('function') || error.message.includes('does not exist') || error.message.includes('Could not find the function')) {
-          console.log('[API] Function not found, falling back to separate queries');
           
           // Fallback: Fetch all master records from assets table for the building
           const { data: masterAssets, error: masterError } = await supabase
@@ -745,7 +700,6 @@ export const api = {
             .order('asset_id');
 
           if (masterError) {
-            console.error('[API ERROR] Error fetching master assets:', masterError);
             throw masterError;
           }
 
@@ -764,7 +718,6 @@ export const api = {
             .order('history_created_at', { ascending: false });
 
           if (historyError) {
-            console.error('[API ERROR] Error fetching assets_history:', historyError);
             // If table doesn't exist or RLS blocks it, return only master records
             if (historyError.code === '42P01' || historyError.code === '42501') {
               return masterAssets;
@@ -863,7 +816,6 @@ export const api = {
         .order('asset_id');
 
       if (masterError) {
-        console.error('[API ERROR] Error fetching master assets:', masterError);
         throw masterError;
       }
 
@@ -943,9 +895,7 @@ export const api = {
       return data;
     },
     create: async (input: Omit<Asset, 'id' | 'created_at'>): Promise<Asset> => {
-      console.log('[API] Creating asset with input:', input);
       const sanitizedInput = sanitizeAssetInput(input);
-      console.log('[API] Sanitized input:', sanitizedInput);
       
       // Check if an asset with the same asset_id already exists
       if (sanitizedInput.asset_id != null) {
@@ -956,13 +906,11 @@ export const api = {
           .maybeSingle();
 
         if (checkError && checkError.code !== 'PGRST116') {
-          console.error('[API ERROR] Error checking for existing asset:', checkError);
           throw new Error(`שגיאה בבדיקת נכס קיים: ${checkError.message}`);
         }
 
         // If asset exists, delete it (trigger will copy it to history) and create a new entry
         if (existingAsset) {
-          console.log('[API] Asset with asset_id exists, deleting (trigger will copy to history) and creating new entry:', existingAsset);
           
           // Delete the existing asset from assets table
           // Database trigger will automatically copy it to history before deletion
@@ -982,7 +930,6 @@ export const api = {
             throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
           }
 
-          console.log('[API] Existing asset deleted successfully');
 
           // Insert new asset with new measurement data
           const { data: newAsset, error: insertError } = await supabase
@@ -1003,7 +950,6 @@ export const api = {
             throw new Error(`שגיאה ביצירת נכס חדש: ${insertError.message}`);
           }
 
-          console.log('[API] New asset created successfully:', newAsset);
           return newAsset;
         }
       }
@@ -1016,7 +962,7 @@ export const api = {
         .single();
 
       if (error) {
-        console.error('[API ERROR] Create asset failed:', {
+        if (error) {
           input,
           sanitizedInput,
           message: error.message,
@@ -1069,7 +1015,6 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
-      console.log('[API] Updating asset:', id, 'with data:', input);
       
       // First, get the existing asset
       const { data: existingAsset, error: fetchError } = await supabase
@@ -1079,7 +1024,6 @@ export const api = {
         .maybeSingle();
 
       if (fetchError) {
-        console.error('[API ERROR] Error fetching existing asset:', fetchError);
         if (fetchError.code === 'PGRST116') {
           throw new Error('Asset not found');
         }
@@ -1103,7 +1047,6 @@ export const api = {
         delete (sanitizedInput as any).is_new_measurement;
       }
       
-      console.log('[API] Sanitized input for update:', sanitizedInput);
 
       // Perform a regular UPDATE - the trigger will only move to history if is_new_measurement is true
       const { data: updatedAsset, error: updateError } = await supabase
@@ -1161,11 +1104,9 @@ export const api = {
 
         // Always include full error information
         const fullErrorMessage = `${errorMessage}${details}${hint}`;
-        console.error('[API] Full error details:', { code: updateError.code, message: errorMessage, details, hint, fullErrorMessage });
         throw new Error(fullErrorMessage);
       }
 
-      console.log('[API] Asset updated successfully:', updatedAsset);
       return updatedAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
@@ -1402,122 +1343,6 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Asset type deleted successfully' };
-    },
-  },
-  assetTypeFields: {
-    getAll: async (): Promise<AssetTypeField[]> => {
-      try {
-        const { data, error } = await supabase
-          .from('asset_type_fields')
-          .select('*')
-          .order('field_name');
-
-        if (error) {
-          // If table doesn't exist, return empty array instead of throwing
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            console.warn('[API] asset_type_fields table does not exist. Please run the migration.');
-            return [];
-          }
-          throw error;
-        }
-        return data || [];
-      } catch (err: any) {
-        // Handle table not found gracefully
-        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
-          console.warn('[API] asset_type_fields table does not exist. Please run the migration.');
-          return [];
-        }
-        throw err;
-      }
-    },
-    getOne: async (id: string): Promise<AssetTypeField> => {
-      try {
-        const { data, error } = await supabase
-          .from('asset_type_fields')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            throw new Error('asset_type_fields table does not exist. Please run the migration.');
-          }
-          throw error;
-        }
-        if (!data) throw new Error('Asset type field not found');
-        return data;
-      } catch (err: any) {
-        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
-          throw new Error('asset_type_fields table does not exist. Please run the migration.');
-        }
-        throw err;
-      }
-    },
-    create: async (input: Omit<AssetTypeField, 'id' | 'created_at' | 'updated_at'>): Promise<AssetTypeField> => {
-      try {
-        const { data, error } = await supabase
-          .from('asset_type_fields')
-          .insert(input)
-          .select()
-          .single();
-
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            throw new Error('asset_type_fields table does not exist. Please run the migration.');
-          }
-          throw error;
-        }
-        return data;
-      } catch (err: any) {
-        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
-          throw new Error('asset_type_fields table does not exist. Please run the migration.');
-        }
-        throw err;
-      }
-    },
-    update: async (id: string, input: Partial<AssetTypeField>): Promise<AssetTypeField> => {
-      try {
-        const { data, error } = await supabase
-          .from('asset_type_fields')
-          .update(input)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            throw new Error('asset_type_fields table does not exist. Please run the migration.');
-          }
-          throw error;
-        }
-        return data;
-      } catch (err: any) {
-        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
-          throw new Error('asset_type_fields table does not exist. Please run the migration.');
-        }
-        throw err;
-      }
-    },
-    delete: async (id: string): Promise<{ message: string }> => {
-      try {
-        const { error } = await supabase
-          .from('asset_type_fields')
-          .delete()
-          .eq('id', id);
-
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            throw new Error('asset_type_fields table does not exist. Please run the migration.');
-          }
-          throw error;
-        }
-        return { message: 'Asset type field deleted successfully' };
-      } catch (err: any) {
-        if (err?.code === '42P01' || err?.message?.includes('does not exist')) {
-          throw new Error('asset_type_fields table does not exist. Please run the migration.');
-        }
-        throw err;
-      }
     },
   },
   addressList: {

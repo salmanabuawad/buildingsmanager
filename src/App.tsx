@@ -6,7 +6,6 @@ import { AdminPDFManager } from './components/AdminPDFManager';
 import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
-import { AssetTypeFieldsManager } from './components/AssetTypeFieldsManager';
 import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
@@ -18,7 +17,7 @@ import { usePreferences } from './contexts/PreferencesContext';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'asset-type-fields' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -63,7 +62,7 @@ function App() {
         const types = await api.assetTypes.getAll();
         setAssetTypes(types || []);
       } catch (error) {
-        console.error('Error loading asset types:', error);
+        // Error loading asset types - silently fail
       }
     }
     loadAssetTypes();
@@ -149,11 +148,8 @@ function App() {
       setTabs(prev => [buildingsTab, ...prev]);
     }
 
-    console.log('[App.handleSelectBuilding] Called with:', { buildingNumber, taxRegions });
-
     if (taxRegions && taxRegions.trim() !== '') {
       const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
-      console.log('[App.handleSelectBuilding] Parsed regions:', regions, 'count:', regions.length, 'original taxRegions:', taxRegions);
 
       if (regions.length === 1) {
         const singleRegionTabId = `assets-${buildingNumber}-region-${regions[0]}`;
@@ -161,11 +157,6 @@ function App() {
         
         if (existingTab) {
           // Tab already exists, close all other assets tabs and switch to it
-          console.log('[App.handleSelectBuilding] Existing single region tab found:', {
-            id: existingTab.id,
-            taxRegion: existingTab.taxRegion,
-            buildingNumber: existingTab.buildingNumber
-          });
           setTabs(prev => {
             // Close all assets tabs except the one we're switching to
             const keepTabs = prev.filter(t => 
@@ -185,11 +176,6 @@ function App() {
             taxRegion: regions[0],
             label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(regions[0])}`
           };
-          console.log('[App.handleSelectBuilding] Creating new single region tab:', {
-            id: singleRegionTab.id,
-            taxRegion: singleRegionTab.taxRegion,
-            buildingNumber: singleRegionTab.buildingNumber
-          });
           setTabs(prev => {
             // Check if tab already exists
             const existingTab = prev.find(t => t.id === singleRegionTab.id);
@@ -209,7 +195,6 @@ function App() {
         }
       } else if (regions.length > 1) {
         // Multiple tax regions - always create exactly 3 tabs: "all assets" + first 2 tax regions
-        console.log('[App.handleSelectBuilding] Multiple tax regions detected, creating 3 tabs. Regions:', regions, 'Building:', buildingNumber);
         const allAssetsTabId = `assets-${buildingNumber}-all`;
         const tabsToCreate: Tab[] = [];
         
@@ -222,7 +207,6 @@ function App() {
           path: `/buildings/${buildingNumber}/assets`
         };
         tabsToCreate.push(allAssetsTab);
-        console.log('[App.handleSelectBuilding] Created all assets tab (tab 1):', allAssetsTab);
         
         // 2. Create tabs for the first 2 tax regions only (tabs 2 and 3)
         const regionsToShow = regions.slice(0, 2);
@@ -237,10 +221,7 @@ function App() {
             label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`
           };
           tabsToCreate.push(regionTab);
-          console.log(`[App.handleSelectBuilding] Created region tab (tab ${i + 2}):`, regionTab);
         }
-        
-        console.log('[App.handleSelectBuilding] Total tabs to create (should be 3):', tabsToCreate.length, tabsToCreate.map((t, idx) => ({ tab: idx + 1, id: t.id, label: t.label })));
         
         // Activate the "all assets" tab (first tab)
         // Update tabs: close all previous assets tabs, then add new tabs for this building
@@ -252,7 +233,6 @@ function App() {
           );
           // Combine: keep tabs + all new tabs (this ensures we always have exactly 3 tabs for this building)
           const newTabs = [...keepTabs, ...tabsToCreate];
-          console.log('[App.handleSelectBuilding] Updated tabs count:', newTabs.length, 'assets tabs:', newTabs.filter(t => t.type === 'assets').map(t => ({ id: t.id, building: t.buildingNumber })));
           return newTabs;
         });
         
@@ -416,19 +396,6 @@ function App() {
     openTab(newTab);
   }
 
-  function openAssetTypeFields() {
-    const assetTypeFieldsTabId = 'asset-type-fields-panel';
-
-    const newTab: Tab = {
-      id: assetTypeFieldsTabId,
-      type: 'asset-type-fields',
-      label: 'שדות סוגי נכסים'
-    };
-
-    // Remove all other asset-type-fields tabs, then add new one
-    openTab(newTab);
-  }
-
   function openAddressList() {
     const addressListTabId = 'address-list-panel';
 
@@ -517,7 +484,6 @@ function App() {
     try {
       // Get all assets from the system
       const allAssets = await api.assets.getAll();
-      console.log(`[Batch Validation] Found ${allAssets.length} assets to validate`);
 
       const results = {
         total: allAssets.length,
@@ -669,9 +635,7 @@ function App() {
       }
 
       setBatchValidationResults(results);
-      console.log(`[Batch Validation] Completed: ${results.valid} valid, ${results.invalid} invalid out of ${results.total} total`);
     } catch (error) {
-      console.error('Error during batch validation:', error);
       setBatchValidationResults({
         total: 0,
         valid: 0,
@@ -858,13 +822,6 @@ function App() {
                   <Settings className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
-                  onClick={openAssetTypeFields}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">שדות סוגי נכסים</span>
-                  <Database className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                <button
                   onClick={openAddressList}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
@@ -902,8 +859,6 @@ function App() {
                       <Search className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-4 w-4 text-purple-700" />
-                    ) : tab.type === 'asset-type-fields' ? (
-                      <Database className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'address-list' ? (
                       <MapPin className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'building-list-import' ? (
@@ -953,9 +908,6 @@ function App() {
               />
             )}
             {activeTab?.type === 'assets' && activeTab.buildingNumber && (() => {
-              console.log('[App] Rendering AssetsList with:', {
-                activeTabId: activeTab.id,
-                buildingNumber: activeTab.buildingNumber,
                 taxRegion: activeTab.taxRegion,
                 taxRegionType: typeof activeTab.taxRegion,
                 label: activeTab.label
@@ -990,9 +942,6 @@ function App() {
             )}
             {activeTab?.type === 'validation-rules' && (
               <ValidationRulesManager />
-            )}
-            {activeTab?.type === 'asset-type-fields' && (
-              <AssetTypeFieldsManager />
             )}
             {activeTab?.type === 'address-list' && (
               <AddressListComponent />

@@ -694,28 +694,36 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 assetErrors.push('מזהה משלם חובה');
               }
 
-              // Check asset ID uniqueness against database (only if all basic validations pass)
+              // Check asset ID uniqueness against database
               // For skeleton mode: check if asset_id exists in database at all (treating as new assets)
-              if (assetErrors.length === 0 && asset.asset_id) {
-                const { getAllAssets, setAllAssets } = await import('../lib/validation');
-                // Ensure we have all assets loaded for uniqueness check
-                let allAssets = getAllAssets();
-                if (allAssets.length === 0) {
-                  // If assets not loaded, load them now
-                  const { api } = await import('../lib/api');
-                  const loadedAssets = await api.assets.getAll();
-                  setAllAssets(loadedAssets);
-                  allAssets = loadedAssets;
-                }
-                // Check if asset_id already exists in database (any building)
-                const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
-                const existingAsset = allAssets.find((a: any) => {
-                  const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
-                  return aId === assetIdNum;
-                });
-                if (existingAsset) {
-                  const existingBuilding = existingAsset.building_number;
-                  assetErrors.push(`מזהה נכס ${asset.asset_id} כבר קיים במערכת במבנה ${existingBuilding}. נכסים בייבוא שלד חייבים להיות חדשים.`);
+              // This check should always run if asset_id is present, regardless of other errors
+              if (asset.asset_id && asset.asset_id.trim() !== '') {
+                try {
+                  const { getAllAssets, setAllAssets } = await import('../lib/validation');
+                  // Ensure we have all assets loaded for uniqueness check
+                  let allAssets = getAllAssets();
+                  if (allAssets.length === 0) {
+                    // If assets not loaded, load them now
+                    const { api } = await import('../lib/api');
+                    const loadedAssets = await api.assets.getAll();
+                    setAllAssets(loadedAssets);
+                    allAssets = loadedAssets;
+                  }
+                  // Check if asset_id already exists in database (any building)
+                  const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
+                  if (!isNaN(assetIdNum)) {
+                    const existingAsset = allAssets.find((a: any) => {
+                      const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
+                      return aId === assetIdNum;
+                    });
+                    if (existingAsset) {
+                      const existingBuilding = existingAsset.building_number;
+                      assetErrors.push(`מזהה נכס ${asset.asset_id} כבר קיים במערכת במבנה ${existingBuilding}. נכסים בייבוא שלד חייבים להיות חדשים.`);
+                    }
+                  }
+                } catch (error) {
+                  // If check fails, log but don't block validation
+                  console.error('Error checking asset_id uniqueness:', error);
                 }
               }
 

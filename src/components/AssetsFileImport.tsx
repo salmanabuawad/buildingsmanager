@@ -2833,9 +2833,23 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <button
                   type="button"
                   onClick={() => mode === 'skeleton' ? handleImportSkeleton() : handleSave(false)}
-                  disabled={mode === 'skeleton' ? (isValidating || isSaving || !validationCompleted || !allAssetsValid) : (isValidating || isSaving || !validationCompleted || !allAssetsValid)}
+                  disabled={
+                    isValidating || 
+                    isSaving || 
+                    importedAssets.length === 0 || 
+                    !validationCompleted || 
+                    !allAssetsValid
+                  }
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title={!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
+                  title={
+                    importedAssets.length === 0 
+                      ? 'יש לטעון קובץ לפני שמירה' 
+                      : !validationCompleted 
+                        ? 'יש להריץ אימות לפני שמירה' 
+                        : !allAssetsValid 
+                          ? 'יש לתקן את כל השגיאות לפני שמירה' 
+                          : ''
+                  }
                 >
                   {isSaving ? (
                     <>
@@ -2853,9 +2867,23 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <button
                   type="button"
                   onClick={() => handleSave(true)}
-                  disabled={isValidating || isSaving || !validationCompleted || !allAssetsValid}
+                  disabled={
+                    isValidating || 
+                    isSaving || 
+                    importedAssets.length === 0 || 
+                    !validationCompleted || 
+                    !allAssetsValid
+                  }
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title={!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
+                  title={
+                    importedAssets.length === 0 
+                      ? 'יש לטעון קובץ לפני שמירה' 
+                      : !validationCompleted 
+                        ? 'יש להריץ אימות לפני שמירה' 
+                        : !allAssetsValid 
+                          ? 'יש לתקן את כל השגיאות לפני שמירה' 
+                          : ''
+                  }
                 >
                   {isSaving ? (
                     <>

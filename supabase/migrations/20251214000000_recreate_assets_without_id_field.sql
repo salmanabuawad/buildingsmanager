@@ -222,6 +222,7 @@ CREATE OR REPLACE FUNCTION update_building_totals()
 RETURNS TRIGGER AS $$
 DECLARE
   building_table_name text;
+  sql_query text;
 BEGIN
   -- Determine which table name exists (buildings or building)
   SELECT table_name INTO building_table_name
@@ -235,7 +236,7 @@ BEGIN
   END IF;
   
   IF TG_OP = 'DELETE' THEN
-    EXECUTE format('UPDATE %I SET
+    sql_query := format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
@@ -250,27 +251,12 @@ BEGIN
         FROM assets
         WHERE building_number = $1
       ), 0)
-    WHERE building_number = $1', building_table_name) USING OLD.building_number;
-    SET
-      total_building_area = COALESCE((
-        SELECT SUM(asset_size)
-        FROM (
-          SELECT DISTINCT ON (asset_id) asset_id, asset_size
-          FROM assets
-          WHERE building_number = OLD.building_number
-          ORDER BY asset_id, measurement_date DESC
-        ) latest_assets
-      ), 0),
-      total_assets = COALESCE((
-        SELECT COUNT(DISTINCT asset_id)
-        FROM assets
-        WHERE building_number = OLD.building_number
-      ), 0)
-    WHERE building_number = OLD.building_number;
+    WHERE building_number = $1', building_table_name);
+    EXECUTE sql_query USING OLD.building_number;
     RETURN OLD;
   ELSIF TG_OP = 'UPDATE' AND OLD.building_number != NEW.building_number THEN
     -- Update the old building totals
-    EXECUTE format('UPDATE %I SET
+    sql_query := format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
@@ -285,10 +271,11 @@ BEGIN
         FROM assets
         WHERE building_number = $1
       ), 0)
-    WHERE building_number = $1', building_table_name) USING OLD.building_number;
+    WHERE building_number = $1', building_table_name);
+    EXECUTE sql_query USING OLD.building_number;
     
     -- Update the new building totals
-    EXECUTE format('UPDATE %I SET
+    sql_query := format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
@@ -303,11 +290,12 @@ BEGIN
         FROM assets
         WHERE building_number = $1
       ), 0)
-    WHERE building_number = $1', building_table_name) USING NEW.building_number;
+    WHERE building_number = $1', building_table_name);
+    EXECUTE sql_query USING NEW.building_number;
     RETURN NEW;
   ELSE
     -- INSERT or UPDATE within same building
-    EXECUTE format('UPDATE %I SET
+    sql_query := format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
@@ -322,7 +310,8 @@ BEGIN
         FROM assets
         WHERE building_number = $1
       ), 0)
-    WHERE building_number = $1', building_table_name) USING NEW.building_number;
+    WHERE building_number = $1', building_table_name);
+    EXECUTE sql_query USING NEW.building_number;
     RETURN NEW;
   END IF;
 END;

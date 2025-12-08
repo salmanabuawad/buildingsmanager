@@ -644,10 +644,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               }
 
               // Check asset ID uniqueness against database (only if all basic validations pass)
+              // This checks if asset_id already exists in a different building
               if (assetErrors.length === 0 && asset.asset_id && buildingNum && !isNaN(buildingNum)) {
-                const { assetValidators } = await import('../lib/validation');
-                const { setValidationData, getAllAssets } = await import('../lib/validation');
-                const allAssets = getAllAssets();
+                const { assetValidators, getAllAssets, setAllAssets } = await import('../lib/validation');
+                // Ensure we have all assets loaded for uniqueness check across all buildings
+                let allAssets = getAllAssets();
+                if (allAssets.length === 0) {
+                  // If assets not loaded, load them now
+                  const { api } = await import('../lib/api');
+                  const loadedAssets = await api.assets.getAll();
+                  setAllAssets(loadedAssets);
+                  allAssets = loadedAssets;
+                }
+                // Validate: checks if asset_id exists in a different building
                 const uniquenessValidation = await assetValidators.validateAssetIdUnique(
                   asset.asset_id,
                   undefined,
@@ -656,7 +665,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   buildingNum
                 );
                 if (!uniquenessValidation.valid) {
-                  assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
+                  assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במבנה אחר במערכת`);
                 }
               }
 

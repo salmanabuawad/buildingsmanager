@@ -220,9 +220,37 @@ CREATE TRIGGER trigger_copy_asset_to_history
 -- Note: This function uses asset_id instead of id field
 CREATE OR REPLACE FUNCTION update_building_totals()
 RETURNS TRIGGER AS $$
+DECLARE
+  building_table_name text;
 BEGIN
+  -- Determine which table name exists (buildings or building)
+  SELECT table_name INTO building_table_name
+  FROM information_schema.tables
+  WHERE table_name IN ('buildings', 'building')
+  LIMIT 1;
+  
+  IF building_table_name IS NULL THEN
+    RAISE NOTICE 'Building table not found. Skipping totals update.';
+    RETURN COALESCE(OLD, NEW);
+  END IF;
+  
   IF TG_OP = 'DELETE' THEN
-    UPDATE building
+    EXECUTE format('UPDATE %I SET
+      total_building_area = COALESCE((
+        SELECT SUM(asset_size)
+        FROM (
+          SELECT DISTINCT ON (asset_id) asset_id, asset_size
+          FROM assets
+          WHERE building_number = $1
+          ORDER BY asset_id, measurement_date DESC
+        ) latest_assets
+      ), 0),
+      total_assets = COALESCE((
+        SELECT COUNT(DISTINCT asset_id)
+        FROM assets
+        WHERE building_number = $1
+      ), 0)
+    WHERE building_number = $1', building_table_name) USING OLD.building_number;
     SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
@@ -242,62 +270,59 @@ BEGIN
     RETURN OLD;
   ELSIF TG_OP = 'UPDATE' AND OLD.building_number != NEW.building_number THEN
     -- Update the old building totals
-    UPDATE building
-    SET
+    EXECUTE format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
           SELECT DISTINCT ON (asset_id) asset_id, asset_size
           FROM assets
-          WHERE building_number = OLD.building_number
+          WHERE building_number = $1
           ORDER BY asset_id, measurement_date DESC
         ) latest_assets
       ), 0),
       total_assets = COALESCE((
         SELECT COUNT(DISTINCT asset_id)
         FROM assets
-        WHERE building_number = OLD.building_number
+        WHERE building_number = $1
       ), 0)
-    WHERE building_number = OLD.building_number;
+    WHERE building_number = $1', building_table_name) USING OLD.building_number;
     
     -- Update the new building totals
-    UPDATE building
-    SET
+    EXECUTE format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
           SELECT DISTINCT ON (asset_id) asset_id, asset_size
           FROM assets
-          WHERE building_number = NEW.building_number
+          WHERE building_number = $1
           ORDER BY asset_id, measurement_date DESC
         ) latest_assets
       ), 0),
       total_assets = COALESCE((
         SELECT COUNT(DISTINCT asset_id)
         FROM assets
-        WHERE building_number = NEW.building_number
+        WHERE building_number = $1
       ), 0)
-    WHERE building_number = NEW.building_number;
+    WHERE building_number = $1', building_table_name) USING NEW.building_number;
     RETURN NEW;
   ELSE
     -- INSERT or UPDATE within same building
-    UPDATE building
-    SET
+    EXECUTE format('UPDATE %I SET
       total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
           SELECT DISTINCT ON (asset_id) asset_id, asset_size
           FROM assets
-          WHERE building_number = NEW.building_number
+          WHERE building_number = $1
           ORDER BY asset_id, measurement_date DESC
         ) latest_assets
       ), 0),
       total_assets = COALESCE((
         SELECT COUNT(DISTINCT asset_id)
         FROM assets
-        WHERE building_number = NEW.building_number
+        WHERE building_number = $1
       ), 0)
-    WHERE building_number = NEW.building_number;
+    WHERE building_number = $1', building_table_name) USING NEW.building_number;
     RETURN NEW;
   END IF;
 END;

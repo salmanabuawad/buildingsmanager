@@ -1021,14 +1021,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const defaultDate = `${day}/${month}/${year}`;
 
       // Check for duplicate asset_ids within the batch first
-      const assetIdCounts = new Map<string | number, number>();
-      const duplicateAssetIds = new Set<string | number>();
+      // Normalize all asset_ids to numbers then strings for consistent comparison
+      // This handles cases where asset_id might be "123" vs 123
+      const assetIdCounts = new Map<string, number>();
+      const duplicateAssetIds = new Set<string>();
       validatedSkeletonAssets.forEach((asset: ImportAssetRow) => {
         if (asset.asset_id != null) {
-          const count = assetIdCounts.get(asset.asset_id) || 0;
-          assetIdCounts.set(asset.asset_id, count + 1);
-          if (count + 1 > 1) {
-            duplicateAssetIds.add(asset.asset_id);
+          // Convert to number first to normalize, then to string for consistent Map key
+          const normalizedId = String(Number(asset.asset_id));
+          // Check if conversion is valid (not NaN)
+          if (!isNaN(Number(asset.asset_id))) {
+            const count = assetIdCounts.get(normalizedId) || 0;
+            assetIdCounts.set(normalizedId, count + 1);
+            if (count + 1 > 1) {
+              duplicateAssetIds.add(normalizedId);
+            }
           }
         }
       });
@@ -1106,68 +1113,130 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const { sanitizeAssetInput } = await import('../lib/api');
       const sanitizedAssets = assetsToInsert.map(asset => sanitizeAssetInput(asset as any));
 
-      // Check for duplicates again AFTER sanitization (in case sanitization changed types)
-      const sanitizedAssetIdCounts = new Map<string | number, number>();
-      const sanitizedDuplicateAssetIds = new Set<string | number>();
-      sanitizedAssets.forEach(asset => {
+      // Check for duplicates again AFTER sanitization and FILTER them out before insert
+      // This prevents DB errors for duplicates within the batch
+      const sanitizedAssetIdCounts = new Map<string, number>();
+      const sanitizedDuplicateAssetIds = new Set<string>();
+      const seenAssetIds = new Set<string>();
+      const assetsToInsertFiltered: any[] = [];
+      const duplicateIndices: number[] = [];
+      
+      sanitizedAssets.forEach((asset, index) => {
         if (asset.asset_id != null) {
-          // Normalize asset_id to string for consistent comparison
-          const normalizedId = String(asset.asset_id);
-          const count = sanitizedAssetIdCounts.get(normalizedId) || 0;
-          sanitizedAssetIdCounts.set(normalizedId, count + 1);
-          if (count + 1 > 1) {
-            sanitizedDuplicateAssetIds.add(normalizedId);
+          // Normalize by converting to number first (handles "123" vs 123), then to string
+          const normalizedId = String(Number(asset.asset_id));
+          // Only process if conversion is valid (not NaN)
+          if (!isNaN(Number(asset.asset_id))) {
+            if (seenAssetIds.has(normalizedId)) {
+              // This is a duplicate - mark it and skip from insert
+              sanitizedDuplicateAssetIds.add(normalizedId);
+              duplicateIndices.push(index);
+            } else {
+              // First time seeing this asset_id - add to insert list
+              seenAssetIds.add(normalizedId);
+              assetsToInsertFiltered.push(asset);
+              sanitizedAssetIdCounts.set(normalizedId, 1);
+            }
+          } else {
+            // Invalid asset_id - skip it
+            duplicateIndices.push(index);
           }
+        } else {
+          // No asset_id - skip it
+          duplicateIndices.push(index);
         }
       });
       
-      if (sanitizedDuplicateAssetIds.size > 0) {
+      // If we found duplicates, report them
+      if (sanitizedDuplicateAssetIds.size > 0 || duplicateIndices.length > 0) {
         const duplicateErrors: string[] = [];
         sanitizedDuplicateAssetIds.forEach((assetId) => {
           duplicateErrors.push(`נכס ${assetId}: מזהה נכס מופיע מספר פעמים בקובץ הייבוא`);
         });
         
-        // Add errors to assets in the grid
-        setImportedAssets(prev => prev.map((asset: ImportAssetRow) => {
-          const normalizedAssetId = asset.asset_id != null ? String(asset.asset_id) : null;
-          if (normalizedAssetId && sanitizedDuplicateAssetIds.has(normalizedAssetId)) {
-            const existingErrors = asset._validationErrors || [];
-            return {
-              ...asset,
-              _validationErrors: [...existingErrors, 'מזהה נכס מופיע מספר פעמים בקובץ הייבוא']
-            };
+        if (duplicateErrors.length > 0) {
+          // Add errors to assets in the grid
+          setImportedAssets(prev => prev.map((asset: ImportAssetRow) => {
+            if (asset.asset_id != null && !isNaN(Number(asset.asset_id))) {
+              const normalizedAssetId = String(Number(asset.asset_id));
+              if (sanitizedDuplicateAssetIds.has(normalizedAssetId)) {
+                const existingErrors = asset._validationErrors || [];
+                return {
+                  ...asset,
+                  _validationErrors: [...existingErrors, 'מזהה נכס מופיע מספר פעמים בקובץ הייבוא']
+                };
+              }
+            }
+            return asset;
+          }));
+          
+          // If ALL assets are duplicates, don't insert any
+          if (assetsToInsertFiltered.length === 0) {
+            setSaveResult({
+              successful: 0,
+              failed: validatedSkeletonAssets.length,
+              errors: duplicateErrors
+            });
+            
+            const errorMessage = duplicateErrors.length === 1
+              ? duplicateErrors[0]
+              : `נכשלו ${duplicateErrors.length} נכסים עם מזהה כפול בקובץ: ${duplicateErrors.slice(0, 3).join('; ')}${duplicateErrors.length > 3 ? ` ...ועוד ${duplicateErrors.length - 3} שגיאות` : ''}`;
+            setToast({ message: errorMessage, type: 'error' });
+            setTimeout(() => setToast(null), 10000);
+            
+            // Refresh grid
+            if (gridRef.current?.api) {
+              setTimeout(() => {
+                gridRef.current?.api.refreshCells({ force: true });
+              }, 100);
+            }
+            
+            setIsSaving(false);
+            setIsParsing(false);
+            return;
           }
-          return asset;
-        }));
-        
-        setSaveResult({
-          successful: 0,
-          failed: validatedSkeletonAssets.length,
-          errors: duplicateErrors
-        });
-        
-        const errorMessage = duplicateErrors.length === 1
-          ? duplicateErrors[0]
-          : `נכשלו ${duplicateErrors.length} נכסים עם מזהה כפול בקובץ: ${duplicateErrors.slice(0, 3).join('; ')}${duplicateErrors.length > 3 ? ` ...ועוד ${duplicateErrors.length - 3} שגיאות` : ''}`;
-        setToast({ message: errorMessage, type: 'error' });
-        setTimeout(() => setToast(null), 10000);
-        
-        // Refresh grid
-        if (gridRef.current?.api) {
-          setTimeout(() => {
-            gridRef.current?.api.refreshCells({ force: true });
-          }, 100);
+          
+          // Some assets are duplicates but we can still insert the unique ones
+          console.log(`[Skeleton Import] Filtered out ${duplicateIndices.length} duplicate assets, inserting ${assetsToInsertFiltered.length} unique assets`);
         }
-        
-        setIsSaving(false);
-        setIsParsing(false);
-        return;
       }
-
-      // Bulk insert skeleton assets
+      
+      // Final check: log sanitized assets for debugging
+      console.log('[Skeleton Import] Inserting assets:', {
+        total: sanitizedAssets.length,
+        filtered: assetsToInsertFiltered.length,
+        duplicates: sanitizedDuplicateAssetIds.size,
+        assetIds: assetsToInsertFiltered.map(a => a.asset_id),
+        uniqueAssetIds: [...seenAssetIds]
+      });
+      
+      // Use filtered assets for insert (only unique asset_ids)
+      // If we filtered duplicates, use the filtered list; otherwise use original (should already be checked)
+      const finalAssetsToInsert = assetsToInsertFiltered.length > 0 ? assetsToInsertFiltered : sanitizedAssets;
+      
+      // One more safety check - ensure no duplicates in final list
+      const finalCheck = new Map<string, number>();
+      const finalUniqueAssets: any[] = [];
+      finalAssetsToInsert.forEach((asset: any) => {
+        if (asset.asset_id != null) {
+          const normalizedId = String(Number(asset.asset_id));
+          if (!isNaN(Number(asset.asset_id)) && !finalCheck.has(normalizedId)) {
+            finalCheck.set(normalizedId, 1);
+            finalUniqueAssets.push(asset);
+          }
+        }
+      });
+      
+      console.log('[Skeleton Import] Final insert check:', {
+        before: finalAssetsToInsert.length,
+        after: finalUniqueAssets.length,
+        removed: finalAssetsToInsert.length - finalUniqueAssets.length
+      });
+      
+      // Bulk insert skeleton assets - only unique ones
       const { data: insertedAssets, error: insertError } = await supabase
         .from('assets')
-        .insert(sanitizedAssets)
+        .insert(finalUniqueAssets)
         .select();
 
       if (insertError) {

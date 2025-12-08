@@ -189,13 +189,28 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   // Helper function to validate a single asset
   const validateAsset = useCallback(async (asset: Asset): Promise<{ valid: boolean; error?: string }> => {
+    // For transfer areas tab: combine asset's tax_region with tab's taxRegion
+    // This allows validation against both the original asset tax region and the transferred tax region
+    let combinedTaxRegion = '';
+    const assetTaxRegion = asset.tax_region != null ? String(asset.tax_region) : '';
+    const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
+    
+    // Combine tax regions - use asset's tax_region first, then add tab's tax regions
+    const allTaxRegions = new Set<string>();
+    if (assetTaxRegion) {
+      allTaxRegions.add(assetTaxRegion);
+    }
+    tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
+    
+    combinedTaxRegion = Array.from(allTaxRegions).join(',');
+
     const shouldValidateSubAssets = asset.main_asset_type === '199' || asset.main_asset_type === '299';
     const validations = [
       assetValidators.validateBuildingNumber(asset.building_number),
       assetValidators.validateAssetId(asset.asset_id),
       assetValidators.validatePayerId(asset.payer_id),
       assetValidators.validateAssetType(asset.main_asset_type, 'main_asset_type'),
-      assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset, taxRegion),
+      assetValidators.validateMainAssetTypeComplete(asset.building_number, asset.main_asset_type, asset.asset_size, asset, combinedTaxRegion),
       assetValidators.validateOnlyComplexTypesCanHaveSubAssets(asset.main_asset_type, [
         asset.sub_asset_type_1,
         asset.sub_asset_type_2,
@@ -287,7 +302,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           asset.sub_asset_size_5,
           asset.sub_asset_size_6
         ],
-        taxRegion
+        combinedTaxRegion
       ),
       assetValidators.validateAssetType(asset.sub_asset_type_1, 'sub_asset_type_1'),
       assetValidators.validateAssetType(asset.sub_asset_type_2, 'sub_asset_type_2'),
@@ -295,12 +310,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       assetValidators.validateAssetType(asset.sub_asset_type_4, 'sub_asset_type_4'),
       assetValidators.validateAssetType(asset.sub_asset_type_5, 'sub_asset_type_5'),
       assetValidators.validateAssetType(asset.sub_asset_type_6, 'sub_asset_type_6'),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_1, asset.sub_asset_size_1, taxRegion, undefined, asset),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_2, asset.sub_asset_size_2, taxRegion, undefined, asset),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_3, asset.sub_asset_size_3, taxRegion, undefined, asset),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_4, asset.sub_asset_size_4, taxRegion, undefined, asset),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_5, asset.sub_asset_size_5, taxRegion, undefined, asset),
-      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_6, asset.sub_asset_size_6, taxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_1, asset.sub_asset_size_1, combinedTaxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_2, asset.sub_asset_size_2, combinedTaxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_3, asset.sub_asset_size_3, combinedTaxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_4, asset.sub_asset_size_4, combinedTaxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_5, asset.sub_asset_size_5, combinedTaxRegion, undefined, asset),
+      assetValidators.validateSubAssetTypeComplete(asset.building_number, asset.sub_asset_type_6, asset.sub_asset_size_6, combinedTaxRegion, undefined, asset),
     );
 
     const validation = await validateAll(validations);
@@ -526,6 +541,21 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
           const updatedData = { ...originalAsset, ...changes };
 
+          // For transfer areas tab: combine asset's tax_region with tab's taxRegion
+          // This allows validation against both the original asset tax region and the transferred tax region
+          let combinedTaxRegion = '';
+          const assetTaxRegion = updatedData.tax_region != null ? String(updatedData.tax_region) : '';
+          const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
+          
+          // Combine tax regions - use asset's tax_region first, then add tab's tax regions
+          const allTaxRegions = new Set<string>();
+          if (assetTaxRegion) {
+            allTaxRegions.add(assetTaxRegion);
+          }
+          tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
+          
+          combinedTaxRegion = Array.from(allTaxRegions).join(',');
+
           // Validate before saving
           const shouldValidateSubAssets = updatedData.main_asset_type === '199' || updatedData.main_asset_type === '299';
           const validations = [
@@ -533,7 +563,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             assetValidators.validateAssetId(updatedData.asset_id),
             assetValidators.validatePayerId(updatedData.payer_id),
             assetValidators.validateAssetType(updatedData.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeComplete(updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size, updatedData, taxRegion),
+            assetValidators.validateMainAssetTypeComplete(updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size, updatedData, combinedTaxRegion),
             assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedData.main_asset_type, [
               updatedData.sub_asset_type_1,
               updatedData.sub_asset_type_2,
@@ -605,7 +635,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 updatedData.sub_asset_size_5,
                 updatedData.sub_asset_size_6
               ],
-              taxRegion
+              combinedTaxRegion
             ),
             assetValidators.validateAssetType(updatedData.sub_asset_type_1, 'sub_asset_type_1'),
             assetValidators.validateAssetType(updatedData.sub_asset_type_2, 'sub_asset_type_2'),
@@ -613,12 +643,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             assetValidators.validateAssetType(updatedData.sub_asset_type_4, 'sub_asset_type_4'),
             assetValidators.validateAssetType(updatedData.sub_asset_type_5, 'sub_asset_type_5'),
             assetValidators.validateAssetType(updatedData.sub_asset_type_6, 'sub_asset_type_6'),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_1, updatedData.sub_asset_size_1, taxRegion, undefined, updatedData),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_2, updatedData.sub_asset_size_2, taxRegion, undefined, updatedData),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_3, updatedData.sub_asset_size_3, taxRegion, undefined, updatedData),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_4, updatedData.sub_asset_size_4, taxRegion, undefined, updatedData),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_5, updatedData.sub_asset_size_5, taxRegion, undefined, updatedData),
-            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_6, updatedData.sub_asset_size_6, taxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_1, updatedData.sub_asset_size_1, combinedTaxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_2, updatedData.sub_asset_size_2, combinedTaxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_3, updatedData.sub_asset_size_3, combinedTaxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_4, updatedData.sub_asset_size_4, combinedTaxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_5, updatedData.sub_asset_size_5, combinedTaxRegion, undefined, updatedData),
+            assetValidators.validateSubAssetTypeComplete(updatedData.building_number, updatedData.sub_asset_type_6, updatedData.sub_asset_size_6, combinedTaxRegion, undefined, updatedData),
           );
 
           const validation = await validateAll(validations);
@@ -999,24 +1029,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
       <div className="mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
             <BuildingIcon className="w-7 h-7 text-white" />
             <h1 className="text-lg sm:text-xl font-bold text-white">
               העברת שטחים - מבנה {building?.building_number}
             </h1>
-            {taxRegion && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {taxRegion.split(',').map((region, index) => {
-                  const trimmedRegion = region.trim();
-                  if (!trimmedRegion) return null;
-                  return (
-                    <p key={index} className="text-sm text-white font-semibold bg-purple-700 px-3 py-1 rounded">
-                      {getAreaDescriptionForTaxRegion(trimmedRegion)}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -689,14 +689,18 @@ export async function validateAssetTypeComplete(
     // 2. taxRegion parameter (from tab/context)
     // NOTE: We do NOT use building.tax_region - validation is against asset.tax_region only
     // Building info is still needed for other validations (building_number, size validation, etc.)
-    let taxRegionToUse: string | undefined;
+    // Support for comma-separated tax regions (e.g., "10,40") - will validate against all
+    let taxRegionsToCheck: string[] = [];
     
     // Priority 1: Use assetData.tax_region if available
     if (assetData?.tax_region != null) {
-      taxRegionToUse = String(assetData.tax_region);
+      const assetTaxRegion = String(assetData.tax_region);
+      // Split if comma-separated
+      taxRegionsToCheck = assetTaxRegion.split(',').map(r => r.trim()).filter(r => r);
       if (process.env.NODE_ENV === 'development') {
         console.log('[validateAssetTypeComplete] Using asset.tax_region from assetData:', {
-          assetTaxRegion: taxRegionToUse,
+          assetTaxRegion: assetTaxRegion,
+          taxRegionsToCheck: taxRegionsToCheck,
           buildingNumber: buildingNumber,
           assetTypeName: assetTypeName,
           source: 'assetData.tax_region'
@@ -704,11 +708,13 @@ export async function validateAssetTypeComplete(
       }
     }
     // Priority 2: Use taxRegion parameter if asset.tax_region is not available
-    else if (taxRegion && taxRegion.trim() !== '') {
-      taxRegionToUse = taxRegion.trim();
+    if (taxRegionsToCheck.length === 0 && taxRegion && taxRegion.trim() !== '') {
+      // Split if comma-separated
+      taxRegionsToCheck = taxRegion.split(',').map(r => r.trim()).filter(r => r);
       if (process.env.NODE_ENV === 'development') {
         console.log('[validateAssetTypeComplete] Using taxRegion from parameter:', {
-          taxRegion: taxRegionToUse,
+          taxRegion: taxRegion,
+          taxRegionsToCheck: taxRegionsToCheck,
           buildingNumber: buildingNumber,
           assetTypeName: assetTypeName,
           source: 'taxRegion parameter'
@@ -716,20 +722,44 @@ export async function validateAssetTypeComplete(
       }
     }
     
+    // If we have multiple tax regions to check, validate against each one
+    // The asset is valid if it's valid for at least one of the tax regions
+    if (taxRegionsToCheck.length > 1) {
+      // Multiple tax regions - check if asset type is valid for at least one
+      const validTaxRegions = getValidTaxRegionsForAssetType(assetTypeName, cachedData);
+      if (validTaxRegions.length > 0) {
+        const taxRegionNumbers = taxRegionsToCheck.map(r => parseInt(r)).filter(n => !isNaN(n));
+        const hasValidTaxRegion = taxRegionNumbers.some(tr => validTaxRegions.includes(tr));
+        if (!hasValidTaxRegion) {
+          const validRegionsStr = validTaxRegions.join(', ');
+          return { valid: false, error: `סוג נכס ${assetTypeName} תקף רק באזורי מס: ${validRegionsStr}` };
+        }
+        // Continue with validation below - we'll use the first valid tax region
+      }
+    }
+    
     // Always validate against asset_types table - same validation for all components
-    if (taxRegionToUse && taxRegionToUse.trim() !== '') {
+    if (taxRegionsToCheck.length > 0) {
       // IMPORTANT: Now using asset.tax_region (if available), then taxRegion parameter
       // NOTE: We do NOT use building.tax_region - validation is against asset.tax_region only
-      // Direct validation: check if asset type exists for the tax region
+      // For multiple tax regions, we'll validate against the first one (or all if needed)
+      // Direct validation: check if asset type exists for the tax region(s)
       // Use cached assetTypes if provided to avoid database query
-      const taxRegionNum = parseInt(taxRegionToUse.trim());
+      const firstTaxRegion = taxRegionsToCheck[0];
+      const taxRegionNum = parseInt(firstTaxRegion);
       
       // Get valid tax regions for this asset type from the asset_types table
       const validTaxRegions = getValidTaxRegionsForAssetType(assetTypeName, cachedData);
       if (validTaxRegions.length > 0 && !validTaxRegions.includes(taxRegionNum)) {
-        // Tax region is not valid for this asset type
-        const validRegionsStr = validTaxRegions.join(', ');
-        return { valid: false, error: `סוג נכס ${assetTypeName} תקף רק באזורי מס: ${validRegionsStr}` };
+        // Check if any of the tax regions in the list is valid
+        const taxRegionNumbers = taxRegionsToCheck.map(r => parseInt(r)).filter(n => !isNaN(n));
+        const hasValidTaxRegion = taxRegionNumbers.some(tr => validTaxRegions.includes(tr));
+        if (!hasValidTaxRegion) {
+          // None of the tax regions are valid
+          const validRegionsStr = validTaxRegions.join(', ');
+          return { valid: false, error: `סוג נכס ${assetTypeName} תקף רק באזורי מס: ${validRegionsStr}` };
+        }
+        // At least one tax region is valid - continue with validation
       }
       
       // Use cached asset types if available, otherwise query database
@@ -827,9 +857,13 @@ export async function validateAssetTypeComplete(
       );
 
       // Determine tax regions to filter by
+      // Support comma-separated tax regions
       let buildingTaxRegions: string[];
-      if (taxRegion && taxRegion.trim() !== '') {
-        buildingTaxRegions = [taxRegion.trim()];
+      if (taxRegionsToCheck.length > 0) {
+        // Use the tax regions we determined above (from asset or parameter)
+        buildingTaxRegions = taxRegionsToCheck;
+      } else if (taxRegion && taxRegion.trim() !== '') {
+        buildingTaxRegions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
       } else {
         buildingTaxRegions = building.tax_region != null
           ? String(building.tax_region).split(',').map(r => r.trim())
@@ -1496,24 +1530,25 @@ export async function validateSubAssetsFor199Or299(
   }
 
   // CRITICAL: If taxRegion is provided from tab, COMPLETELY IGNORE the building's tax_region
-  // The building may have multiple tax regions (e.g., "10,40"), but we ONLY use the tab's single tax region
+  // The building may have multiple tax regions (e.g., "10,40"), but we ONLY use the tab's tax regions
+  // Support comma-separated tax regions in taxRegion parameter (e.g., "10,40")
   // Only fetch building data if taxRegion is NOT provided (for fallback)
   let buildingTaxRegions: string[];
   
   // Check if taxRegion is provided and not empty (handle both undefined and empty string)
   if (taxRegion && taxRegion.trim() !== '') {
     // CRITICAL: Use ONLY the provided taxRegion - IGNORE building tax_region completely
-    // This ensures that even if building has "10,40", we only use the tab's tax region (e.g., "10")
-    const tabTaxRegion = taxRegion.trim();
-    console.log('[validateSubAssetsFor199Or299] TAB TAX REGION PROVIDED - Using ONLY tab tax region, IGNORING building tax_region:', {
-      tabTaxRegion: tabTaxRegion,
+    // Support comma-separated tax regions (e.g., "10,40")
+    // This ensures that even if building has "10,40", we only use the tab's tax regions
+    buildingTaxRegions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
+    console.log('[validateSubAssetsFor199Or299] TAB TAX REGION PROVIDED - Using tab tax regions, IGNORING building tax_region:', {
+      tabTaxRegion: taxRegion,
+      taxRegionsToCheck: buildingTaxRegions,
       buildingNumber: buildingNumber,
       mainAssetType: mainAssetType,
-      willUse: 'TAB TAX REGION ONLY',
+      willUse: 'TAB TAX REGIONS ONLY',
       buildingTaxRegionWillBeIgnored: true
     });
-    // Set to ONLY the tab's tax region - building.tax_region is completely ignored
-    buildingTaxRegions = [tabTaxRegion];
   } else {
     // Fallback: if no taxRegion provided, use cached building or fetch building and use its tax_region
     let building = cachedData?.building;

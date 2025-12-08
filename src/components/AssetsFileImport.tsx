@@ -2344,17 +2344,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   onClick={handleImportSkeleton}
                   disabled={isValidating || isSaving}
                   className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title="ייבא שלד - שמירת נכסים עם מספר מבנה ומזהה נכס בלבד"
+                  title="שמור - שמירת נכסים עם מספר מבנה ומזהה נכס בלבד"
                 >
                   {isSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>מייבא...</span>
+                      <span>שומר...</span>
                     </>
                   ) : (
                     <>
-                      <Upload className="h-4 w-4" />
-                      <span>ייבא שלד</span>
+                      <Save className="h-4 w-4" />
+                      <span>שמור</span>
                     </>
                   )}
                 </button>

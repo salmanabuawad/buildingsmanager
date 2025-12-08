@@ -75,11 +75,29 @@ CREATE INDEX IF NOT EXISTS idx_assets_measurement_date ON assets(measurement_dat
 ALTER TABLE assets ENABLE ROW LEVEL SECURITY;
 
 -- Step 4: Recreate RLS policies
+-- Allow public (anon key) access for all operations to match application setup
 CREATE POLICY "Public can view assets"
   ON assets FOR SELECT
   TO public
   USING (true);
 
+CREATE POLICY "Public can insert assets"
+  ON assets FOR INSERT
+  TO public
+  WITH CHECK (true);
+
+CREATE POLICY "Public can update assets"
+  ON assets FOR UPDATE
+  TO public
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Public can delete assets"
+  ON assets FOR DELETE
+  TO public
+  USING (true);
+
+-- Also allow authenticated users (for consistency)
 CREATE POLICY "Authenticated users can manage assets"
   ON assets FOR ALL
   TO authenticated

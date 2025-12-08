@@ -2898,27 +2898,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   )}
                 </button>
                 )}
-                {mode === 'regular' && (
-                <button
-                  type="button"
-                  onClick={handleImportSkeleton}
-                  disabled={isValidating || isSaving}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title="שמור - שמירת נכסים עם מספר מבנה ומזהה נכס בלבד"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>שומר...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      <span>שמור</span>
-                    </>
-                  )}
-                </button>
-                )}
               </div>
             </div>
 
@@ -3199,7 +3178,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       readOnly
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                       placeholder="יועבר מהנכסים המיובאים"
-                      disabled={isCreatingBuilding}
                     />
                     {buildingValidationErrors.tax_region && (
                       <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.tax_region}</p>

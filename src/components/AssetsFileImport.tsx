@@ -2730,13 +2730,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
         {/* Skeleton Import Section */}
         {mode === 'skeleton' && (
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="flex items-center gap-2 mb-3">
-            <Upload className="h-5 w-5 text-orange-600" />
-            <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם</h3>
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Upload className="h-4 w-4 text-orange-600" />
+            <h3 className="text-base font-semibold text-orange-900">ייבוא שלד - מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם</h3>
           </div>
-          <div className="space-y-3">
-            <div className="flex gap-3">
+          <div className="space-y-2">
+            <div className="flex gap-2">
               <input
                 ref={skeletonFileInputRef}
                 type="file"
@@ -2765,16 +2765,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => skeletonFileInputRef.current?.click()}
                 disabled={isParsing || isSaving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium font-semibold"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium font-semibold"
               >
                 {isParsing || isSaving ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     <span>מייבא שלד...</span>
                   </>
                 ) : (
                   <>
-                    <Upload className="h-4 w-4" />
+                    <Upload className="h-3.5 w-3.5" />
                     <span>ייבא שלד מקובץ</span>
                   </>
                 )}
@@ -2783,14 +2783,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <button
                 type="button"
                 onClick={downloadSkeletonTemplate}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
                 title="הורד תבנית שלד - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3.5 w-3.5" />
                 <span>הורד תבנית שלד</span>
               </button>
             </div>
-            <p className="text-xs text-orange-700">
+            <p className="text-xs text-orange-700 leading-tight">
               ייבוא ישיר של נכסים. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם (כל השדות חובה)
             </p>
           </div>
@@ -2805,16 +2805,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 נכסים מיובאים ({importedAssets.length})
               </h2>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleCancelChanges}
-                  disabled={isValidating || isSaving || originalImportedAssets.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title="בטל שינויים והחזר למצב המקורי"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  <span>ביטול</span>
-                </button>
                 <button
                   type="button"
                   onClick={handleValidate}
@@ -2832,6 +2822,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       <span>אמת</span>
                     </>
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelChanges}
+                  disabled={isValidating || isSaving || originalImportedAssets.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  title="בטל שינויים והחזר למצב המקורי"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>ביטול</span>
                 </button>
                 <button
                   type="button"

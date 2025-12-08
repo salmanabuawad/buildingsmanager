@@ -1109,11 +1109,27 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 // Report specific duplicate assets
                 if (duplicateAssets.length > 0) {
                   duplicateAssets.forEach(({ assetId, existingBuilding, newBuilding }) => {
-                    if (existingBuilding !== newBuilding) {
-                      errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במבנה ${existingBuilding}. לא ניתן ליצור נכס עם אותו מספר במבנה ${newBuilding}.`);
-                    } else {
-                      errors.push(`נכס ${assetId}: מזהה נכס כבר קיים במבנה ${existingBuilding}. נכס כבר קיים במערכת.`);
-                    }
+                    const errorMsg = existingBuilding !== newBuilding
+                      ? `מזהה נכס כבר קיים במבנה ${existingBuilding}. לא ניתן ליצור נכס עם אותו מספר במבנה ${newBuilding}.`
+                      : `מזהה נכס כבר קיים במבנה ${existingBuilding}. נכס כבר קיים במערכת.`;
+                    
+                    errors.push(`נכס ${assetId}: ${errorMsg}`);
+                    
+                    // Also add error to the asset in the grid so it shows with red icon
+                    setImportedAssets(prev => prev.map((asset: ImportAssetRow) => {
+                      const assetIdMatch = typeof asset.asset_id === 'string' 
+                        ? String(asset.asset_id) === String(assetId)
+                        : asset.asset_id === assetId;
+                      
+                      if (assetIdMatch) {
+                        const existingErrors = asset._validationErrors || [];
+                        return {
+                          ...asset,
+                          _validationErrors: [...existingErrors, errorMsg]
+                        };
+                      }
+                      return asset;
+                    }));
                   });
                 } else {
                   // Fallback: report all asset_ids being inserted as potentially duplicates

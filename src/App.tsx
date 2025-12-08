@@ -461,7 +461,7 @@ function App() {
     const newTab: Tab = {
       id: assetsFileImportTabId,
       type: 'assets-file-import',
-      label: 'ייבוא נכסים File - כל השדות'
+      label: 'מלא'
     };
 
     // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
@@ -476,7 +476,7 @@ function App() {
     const newTab: Tab = {
       id: assetsSkeletonImportTabId,
       type: 'assets-skeleton-import',
-      label: 'ייבוא שלד - רק מספר מבנה ומזהה נכס'
+      label: 'שלד'
     };
 
     // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
@@ -786,14 +786,14 @@ function App() {
                   onClick={openAssetsFileImport}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700">ייבוא File - כל השדות</span>
+                  <span className="font-medium text-slate-700">מלא</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <button
                   onClick={openAssetsSkeletonImport}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
-                  <span className="font-medium text-slate-700">ייבוא שלד - רק מספר מבנה ומזהה נכס</span>
+                  <span className="font-medium text-slate-700">שלד</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <div className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50/50 rounded-lg border border-indigo-200">

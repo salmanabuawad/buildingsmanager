@@ -737,8 +737,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       });
 
-      if (buildingNumberIndex === -1 || assetIdIndex === -1) {
-        throw new Error('קובץ חייב לכלול עמודות: מזהה מבנה ומזהה נכס');
+      if (buildingNumberIndex === -1 || assetIdIndex === -1 || taxRegionIndex === -1 || payerIdIndex === -1) {
+        throw new Error('קובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם');
       }
 
       // Parse skeleton assets (building_number, asset_id, tax_region, and payer_id)
@@ -748,29 +748,36 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const values = lines[i];
         const buildingNumber = values[buildingNumberIndex] ? parseInt(String(values[buildingNumberIndex]), 10) : null;
         const assetId = values[assetIdIndex] ? String(values[assetIdIndex]).trim() : '';
-        const taxRegion = taxRegionIndex !== -1 && values[taxRegionIndex] ? parseInt(String(values[taxRegionIndex]), 10) : undefined;
-        const payerId = payerIdIndex !== -1 && values[payerIdIndex] ? String(values[payerIdIndex]).trim() : undefined;
+        const taxRegion = values[taxRegionIndex] ? parseInt(String(values[taxRegionIndex]), 10) : null;
+        const payerId = values[payerIdIndex] ? String(values[payerIdIndex]).trim() : '';
 
-        if (buildingNumber && !isNaN(buildingNumber) && assetId) {
+        // All fields are required
+        if (buildingNumber && !isNaN(buildingNumber) && assetId && taxRegion && !isNaN(taxRegion) && payerId) {
           skeletonAssets.push({
             building_number: buildingNumber,
             asset_id: assetId,
-            tax_region: taxRegion && !isNaN(taxRegion) ? taxRegion : undefined,
+            tax_region: taxRegion,
             payer_id: payerId
           });
         } else {
-          // Log row errors
+          // Log row errors for missing required fields
           if (!buildingNumber || isNaN(buildingNumber)) {
             errors.push(`שורה ${i + 1}: מספר מבנה חסר או לא תקין`);
           }
           if (!assetId || assetId.trim() === '') {
             errors.push(`שורה ${i + 1}: מזהה נכס חסר`);
           }
+          if (!taxRegion || isNaN(taxRegion)) {
+            errors.push(`שורה ${i + 1}: אזור מס חסר או לא תקין`);
+          }
+          if (!payerId || payerId.trim() === '') {
+            errors.push(`שורה ${i + 1}: מזהה משלם חסר`);
+          }
         }
       }
 
       if (skeletonAssets.length === 0) {
-        errors.push('לא נמצאו נכסים תקינים בקובץ. כל הנכסים חייבים לכלול מספר מבנה ומזהה נכס.');
+        errors.push('לא נמצאו נכסים תקינים בקובץ. כל הנכסים חייבים לכלול: מספר מבנה, מזהה נכס, אזור מס ומזהה משלם.');
         setSaveResult({
           successful: 0,
           failed: 1,
@@ -852,13 +859,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const { assetValidators } = await import('../lib/validation');
       const { supabase } = await import('../lib/supabase');
 
-      // Filter assets that have both building_number and asset_id
+      // Filter assets that have all required fields: building_number, asset_id, tax_region, and payer_id
       const skeletonAssets = importedAssets.filter(asset => 
-        asset.building_number != null && asset.asset_id != null && asset.asset_id !== ''
+        asset.building_number != null && 
+        asset.asset_id != null && 
+        asset.asset_id !== '' &&
+        asset.tax_region != null &&
+        asset.payer_id != null &&
+        asset.payer_id !== ''
       );
 
       if (skeletonAssets.length === 0) {
-        errors.push('אין נכסים תקינים לייבא. כל הנכסים חייבים לכלול מספר מבנה ומזהה נכס.');
+        errors.push('אין נכסים תקינים לייבא. כל הנכסים חייבים לכלול: מספר מבנה, מזהה נכס, אזור מס ומזהה משלם.');
         setSaveResult({
           successful: 0,
           failed: 1,
@@ -870,7 +882,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       // First, check for duplicates within the batch
       const assetIdToRows = new Map<string | number, number[]>();
-      validSkeletonAssets.forEach((asset, index) => {
+      skeletonAssets.forEach((asset, index) => {
         if (asset.asset_id) {
           const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
           if (!assetIdToRows.has(assetIdKey)) {
@@ -904,7 +916,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       // First, check all buildings and collect missing ones
       const uniqueBuildingNumbers = new Set<number>();
-      validSkeletonAssets.forEach(asset => {
+      skeletonAssets.forEach(asset => {
         const buildingNum = typeof asset.building_number === 'string' 
           ? parseInt(String(asset.building_number), 10) 
           : asset.building_number;
@@ -929,7 +941,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         
         // Collect unique tax_region values from assets that belong to this building
         const taxRegionsForBuilding = new Set<string>();
-        validSkeletonAssets.forEach(asset => {
+        skeletonAssets.forEach(asset => {
           const buildingNum = typeof asset.building_number === 'string' 
             ? parseInt(String(asset.building_number), 10) 
             : asset.building_number;
@@ -961,28 +973,47 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // All buildings exist - continue with validation
+      // For skeleton import, only validate: building_number, asset_id, tax_region, payer_id
       const validatedSkeletonAssets: ImportAssetRow[] = [];
 
-      for (const asset of validSkeletonAssets) {
+      for (const asset of skeletonAssets) {
         const assetErrors: string[] = [];
 
-        // Check building existence (should all exist now, but double-check)
+        // Validate building_number
         const buildingNum = typeof asset.building_number === 'string' 
           ? parseInt(String(asset.building_number), 10) 
           : asset.building_number;
         
-        if (isNaN(buildingNum)) {
+        if (!buildingNum || isNaN(buildingNum)) {
           assetErrors.push('מספר מבנה חייב להיות מספר תקין');
         }
 
-        // Check asset ID uniqueness against database (duplicates in batch already checked above)
-        if (asset.asset_id && assetErrors.length === 0) {
+        // Validate asset_id
+        if (!asset.asset_id || asset.asset_id.trim() === '') {
+          assetErrors.push('מזהה נכס חובה');
+        }
+
+        // Validate tax_region
+        const taxRegionNum = typeof asset.tax_region === 'string' 
+          ? parseInt(String(asset.tax_region), 10) 
+          : asset.tax_region;
+        if (!taxRegionNum || isNaN(taxRegionNum)) {
+          assetErrors.push('אזור מס חייב להיות מספר תקין');
+        }
+
+        // Validate payer_id
+        if (!asset.payer_id || asset.payer_id.trim() === '') {
+          assetErrors.push('מזהה משלם חובה');
+        }
+
+        // Check asset ID uniqueness against database (only if all basic validations pass)
+        if (assetErrors.length === 0 && asset.asset_id && buildingNum && !isNaN(buildingNum)) {
           const uniquenessValidation = await assetValidators.validateAssetIdUnique(
             asset.asset_id,
             undefined,
             undefined,
             { buildings: buildings, assets: [] },
-            asset.building_number
+            buildingNum
           );
           if (!uniquenessValidation.valid) {
             assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
@@ -992,7 +1023,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
           validatedSkeletonAssets.push(asset);
         } else if (assetErrors.length > 0) {
-          errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
+          errors.push(`נכס ${asset.asset_id || 'לא ידוע'} (מבנה ${asset.building_number || 'לא ידוע'}): ${assetErrors.join('; ')}`);
         }
       }
 
@@ -1017,12 +1048,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
       const assetsToInsert: Partial<Asset>[] = validatedSkeletonAssets.map(asset => ({
         building_number: asset.building_number!,
-        payer_id: asset.payer_id || undefined,
+        payer_id: asset.payer_id!,
         asset_id: asset.asset_id,
         measurement_date: defaultDate,
         main_asset_type: null,
         asset_size: 0,
-        tax_region: asset.tax_region || undefined,
+        tax_region: asset.tax_region!,
         sub_asset_type_1: null,
         sub_asset_size_1: 0,
         sub_asset_type_2: null,
@@ -2180,14 +2211,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={downloadSkeletonTemplate}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-                title="הורד תבנית שלד - מזהה מבנה, מזהה נכס, אזור מס (אופציונלי), מזהה משלם (אופציונלי)"
+                title="הורד תבנית שלד - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
               >
                 <Download className="h-4 w-4" />
                 <span>הורד תבנית שלד</span>
               </button>
             </div>
             <p className="text-xs text-orange-700">
-              ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס. הקובץ חייב לכלול עמודות: מזהה מבנה (חובה), מזהה נכס (חובה). אפשר להוסיף: אזור מס (אופציונלי), מזהה משלם (אופציונלי)
+              ייבוא ישיר של נכסים. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם (כל השדות חובה)
             </p>
           </div>
         </div>
@@ -2382,22 +2413,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <p className="text-slate-700 mb-3 text-sm font-medium">העמודות הנדרשות בקובץ Excel:</p>
               <div className="mb-4">
                 <div>
-                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה:</h3>
+                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות חובה (כל השדות):</h3>
                   <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
                     <li><strong>מזהה מבנה</strong> (Building number)</li>
                     <li><strong>מזהה נכס</strong> (Asset ID)</li>
-                  </ul>
-                </div>
-                <div className="mt-3">
-                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
-                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
                     <li><strong>אזור מס</strong> (Tax region)</li>
                     <li><strong>מזהה משלם</strong> (Payer ID)</li>
                   </ul>
                 </div>
               </div>
               <p className="text-xs text-slate-600 mt-3">
-                <span className="font-medium text-slate-700">ייבוא שלד - מזהה מבנה ומזהה נכס (חובה), אזור מס ומזהה משלם (אופציונלי)</span>
+                <span className="font-medium text-slate-700">ייבוא שלד - כל השדות חובה (מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם)</span>
               </p>
             </div>
           ) : (

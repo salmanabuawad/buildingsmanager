@@ -56,6 +56,17 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     return matchingAssetType?.area_description_for_tab || String(taxRegion);
   }, [assetTypes]);
 
+  // Helper function to check if an asset type is not_accountable
+  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
+    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Find asset type by name
+    const assetType = assetTypes.find(at => at.name === assetTypeName);
+    return assetType?.not_accountable === true;
+  }, [assetTypes]);
+
   // Refresh actions column when validationErrors change to update invalid icons
   useEffect(() => {
     if (gridRef.current?.api && assets.length > 0) {
@@ -175,8 +186,15 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       setAssets(fetchedAssets);
       
-      // Calculate initial total area (sum of asset_size only)
+      // Calculate initial total area (sum of asset_size, excluding assets with not_accountable = true)
       const totalArea = fetchedAssets.reduce((sum, asset) => {
+        // Skip assets where main_asset_type has not_accountable = true
+        if (asset.main_asset_type && assetTypesData) {
+          const assetType = assetTypesData.find(at => at.name === asset.main_asset_type);
+          if (assetType?.not_accountable === true) {
+            return sum;
+          }
+        }
         return sum + (asset.asset_size || 0);
       }, 0);
       setInitialTotalArea(totalArea);
@@ -352,8 +370,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       return { ...asset, ...dirtyChanges };
     });
 
-    // Calculate current total area
+    // Calculate current total area (excluding assets with not_accountable = true)
     const newTotalArea = updatedAssets.reduce((sum, a) => {
+      // Skip assets where main_asset_type has not_accountable = true
+      if (a.main_asset_type && isAssetTypeNotAccountable(a.main_asset_type)) {
+        return sum;
+      }
       return sum + (a.asset_size || 0);
     }, 0);
 
@@ -381,7 +403,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     }
 
     return newValidationErrors;
-  }, [validateAsset]);
+  }, [validateAsset, isAssetTypeNotAccountable]);
 
   const onCellValueChanged = useCallback(async (event: any) => {
     try {
@@ -758,16 +780,23 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   const hasChanges = dirtyAssets.size > 0;
 
-  // Calculate current total area (sum of asset_size only, with dirty changes applied)
+  // Calculate current total area (sum of asset_size, excluding assets with not_accountable = true, with dirty changes applied)
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
       const assetId = String(asset.asset_id);
       const dirtyChanges = dirtyAssets.get(assetId) || {};
       const assetWithChanges = { ...asset, ...dirtyChanges };
       
+      // Skip assets where main_asset_type has not_accountable = true
+      // Check the updated main_asset_type if it was changed in dirtyChanges
+      const mainAssetType = assetWithChanges.main_asset_type || asset.main_asset_type;
+      if (mainAssetType && isAssetTypeNotAccountable(mainAssetType)) {
+        return sum;
+      }
+      
       return sum + (assetWithChanges.asset_size || 0);
     }, 0);
-  }, [assets, dirtyAssets]);
+  }, [assets, dirtyAssets, isAssetTypeNotAccountable]);
 
   // Check if total area has changed (validation will prevent saving if changed)
   const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;

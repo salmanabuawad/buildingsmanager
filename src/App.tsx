@@ -320,14 +320,28 @@ function App() {
   }
 
   function handleOpenTransferAreas(selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) {
-    const transferAreasTabId = `transfer-areas-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;
+    // Get tax regions with not_accountable = true
+    const notAccountableTaxRegions = assetTypes
+      .filter(at => at.not_accountable === true && at.tax_region != null)
+      .map(at => String(at.tax_region))
+      .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+
+    // Combine original tax region with not_accountable tax regions
+    let combinedTaxRegion = taxRegion || '';
+    if (notAccountableTaxRegions.length > 0) {
+      const existingRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
+      const allRegions = [...new Set([...existingRegions, ...notAccountableTaxRegions])]; // Remove duplicates
+      combinedTaxRegion = allRegions.join(',');
+    }
+
+    const transferAreasTabId = `transfer-areas-${buildingNumber}-${combinedTaxRegion || 'all'}-${Date.now()}`;
     const newTab: Tab = {
       id: transferAreasTabId,
       type: 'transfer-areas',
       buildingNumber,
-      taxRegion,
+      taxRegion: combinedTaxRegion,
       selectedAssetIds,
-      label: `העברת שטחים - מבנה ${buildingNumber}${taxRegion ? ` - ${getAreaDescriptionForTaxRegion(taxRegion)}` : ''}`
+      label: `העברת שטחים - מבנה ${buildingNumber}${combinedTaxRegion ? ` - ${getAreaDescriptionsForTaxRegions(combinedTaxRegion)}` : ''}`
     };
     // Remove all other transfer-areas tabs, then add new one
     openTab(newTab);

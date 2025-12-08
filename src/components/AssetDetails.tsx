@@ -101,6 +101,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return null;
   }, [asset?.tax_region, taxRegion]);
 
+  // Helper function to check if an asset type is not_accountable
+  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
+    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Find asset type by name
+    const assetType = assetTypes.find(at => at.name === assetTypeName);
+    return assetType?.not_accountable === true;
+  }, [assetTypes]);
+
+  // Helper function to check if an asset is not_accountable
+  const isAssetNotAccountable = useCallback((asset: Asset | null): boolean => {
+    if (!asset || !asset.main_asset_type) {
+      return false;
+    }
+    return isAssetTypeNotAccountable(asset.main_asset_type);
+  }, [isAssetTypeNotAccountable]);
+
+  // Helper function to check if a field should be editable
+  // For non-accountable assets, only main_asset_type is editable
+  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (!params || !params.data) return false;
+    const asset = params.data as Asset;
+    const baseEditable = asset.is_latest === true && editMode === 'inline';
+    
+    // For non-accountable assets, only main_asset_type is editable
+    if (isAssetNotAccountable(asset)) {
+      return fieldName === 'main_asset_type' && baseEditable;
+    }
+    
+    return baseEditable;
+  }, [isAssetNotAccountable, editMode]);
+
   // Get area description for tab based on main asset type
   const areaDescriptionForTab = useMemo(() => {
     if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0) {
@@ -1509,7 +1543,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'asset_id',
       headerName: t('assetId'),
       width: 120,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       pinned: 'right', // Pinned to the right side, rightmost
       lockPosition: true,
       lockPinned: true,
@@ -1524,7 +1561,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 120,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'measurement_date'),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value),
       valueGetter: (params) => params.data.measurement_date,
@@ -1615,14 +1655,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
     {
       field: 'tax_region',
       headerName: 'אזור מס',
       width: 100,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueParser: (params) => {
         if (!params.newValue || params.newValue === '') return null;
@@ -1635,7 +1681,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
@@ -1712,7 +1761,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'floor',
       headerName: 'קומה',
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       width: 80,
       type: 'numericColumn',
       valueParser: (params) => {
@@ -1725,14 +1777,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'discount_type',
       headerName: 'סוג הנחה',
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       width: 100,
       cellStyle: (params) => getCellStyle(params, 'discount_type')
     },
     {
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       width: 120,
       cellStyle: (params) => getCellStyle(params, 'discount_date_from'),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
@@ -1740,7 +1798,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       width: 120,
       cellStyle: (params) => getCellStyle(params, 'discount_date_to'),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
@@ -1749,7 +1810,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1762,7 +1826,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'asset_size'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1775,7 +1842,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_1'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1788,7 +1858,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1801,7 +1874,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_2'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1814,7 +1890,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1827,7 +1906,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_3'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1840,7 +1922,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1853,7 +1938,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_4'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1866,7 +1954,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1879,7 +1970,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_5'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1892,7 +1986,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1905,7 +2002,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       width: 60,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_type_6'),
       tooltipValueGetter: (params) => {
         const code = params.value;
@@ -1918,7 +2018,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       width: 80,
-      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6'),
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';

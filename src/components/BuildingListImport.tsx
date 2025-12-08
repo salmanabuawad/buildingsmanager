@@ -23,25 +23,108 @@ export function BuildingListImport() {
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());
 
+      if (lines.length === 0) {
+        throw new Error('קובץ ריק');
+      }
+
+      // Process headers - exact name matching only
+      const headerLine = lines[0];
+      const headerParts: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      // Parse CSV header line - handle quoted values
+      for (let j = 0; j < headerLine.length; j++) {
+        const char = headerLine[j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          headerParts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      headerParts.push(current.trim()); // Add last part
+
+      // Create header mapping - map field name to column index
+      const headerMap: Record<string, number> = {};
+      
+      // Define exact header names (case-insensitive, trimmed)
+      const exactHeaders: Record<string, string[]> = {
+        'building_number': ['מספר מבנה', 'מספר_מבנה', 'building_number'],
+        'tax_region': ['אזור מס', 'אזור_מס', 'tax_region'],
+        'shared_area': ['שטח משותף מגורים', 'שטח_משותף_מגורים', 'shared_area'],
+        'shared_business_area': ['שטח משותף עסקים', 'שטח_משותף_עסקים', 'shared_business_area'],
+        'building_address': ['סמל רחוב', 'סמל_רחוב', 'building_address']
+      };
+
+      // Match headers by exact name only (case-insensitive, trimmed)
+      headerParts.forEach((header, index) => {
+        if (!header) return;
+        const headerTrimmed = header.trim();
+        
+        // Check for exact match against known headers
+        for (const [fieldName, possibleHeaders] of Object.entries(exactHeaders)) {
+          if (possibleHeaders.some(h => headerTrimmed.toLowerCase() === h.toLowerCase())) {
+            headerMap[fieldName] = index;
+            break;
+          }
+        }
+      });
+
+      // Require at least building_number header
+      if (headerMap['building_number'] === undefined) {
+        throw new Error('קובץ חייב לכלול שורת כותרות. נדרש לפחות עמודת "מספר מבנה" או "מספר_מבנה"');
+      }
+
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
-      let isHeaderSkipped = false;
 
-      for (let i = 0; i < lines.length; i++) {
+      // Process data rows (starting from row 1, row 0 is headers)
+      for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Skip header row if it contains Hebrew column names
-        if (i === 0 && (line.includes('מספר_מבנה') || line.includes('אזור_מס') || line.includes('שטח'))) {
-          isHeaderSkipped = true;
-          continue;
+        const rowNumber = i + 1; // Row number for error messages (1-based, including header)
+        
+        // Parse CSV line - handle quoted values
+        const parts: string[] = [];
+        current = '';
+        inQuotes = false;
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            parts.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
         }
+        parts.push(current.trim()); // Add last part
 
-        const rowNumber = isHeaderSkipped ? i : i + 1; // Adjust row number if header was skipped
-        const parts = line.split(',').map(s => s.trim());
-        const [buildingNumberStr, taxRegion = '', sharedAreaStr = '', sharedBusinessAreaStr = '', buildingAddressStr = ''] = parts;
-        const buildingNumber = parseInt(buildingNumberStr);
+        // Extract values using header mapping
+        const buildingNumberStr = headerMap['building_number'] !== undefined 
+          ? (parts[headerMap['building_number']] || '').trim() 
+          : '';
+        const taxRegion = headerMap['tax_region'] !== undefined 
+          ? (parts[headerMap['tax_region']] || '').trim() 
+          : '';
+        const sharedAreaStr = headerMap['shared_area'] !== undefined 
+          ? (parts[headerMap['shared_area']] || '').trim() 
+          : '';
+        const sharedBusinessAreaStr = headerMap['shared_business_area'] !== undefined 
+          ? (parts[headerMap['shared_business_area']] || '').trim() 
+          : '';
+        const buildingAddressStr = headerMap['building_address'] !== undefined 
+          ? (parts[headerMap['building_address']] || '').trim() 
+          : '';
+
+        const buildingNumber = buildingNumberStr ? parseInt(buildingNumberStr) : NaN;
         const sharedArea = sharedAreaStr ? parseFloat(sharedAreaStr) : undefined;
         const sharedBusinessArea = sharedBusinessAreaStr ? parseFloat(sharedBusinessAreaStr) : undefined;
         const buildingAddress = buildingAddressStr ? parseInt(buildingAddressStr) : undefined;
@@ -102,10 +185,10 @@ export function BuildingListImport() {
   }
 
   function downloadTemplate() {
-    const template = `מספר_מבנה,אזור_מס,שטח_משותף_מגורים,שטח_משותף_עסקים,סמל_רחוב
+    const template = `מספר מבנה,אזור מס,שטח משותף מגורים,שטח משותף עסקים,סמל רחוב
 1001,10,150.5,50.2,603
 1002,20,200,75,
-1003,40,10,300,100,604
+1003,"40,10",300,100,604
 1004,,,,
 1005,30,,,605`;
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });

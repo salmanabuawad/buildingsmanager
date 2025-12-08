@@ -67,6 +67,28 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     return assetType?.not_accountable === true;
   }, [assetTypes]);
 
+  // Helper function to check if an asset is not_accountable
+  const isAssetNotAccountable = useCallback((asset: Asset): boolean => {
+    if (!asset || !asset.main_asset_type) {
+      return false;
+    }
+    return isAssetTypeNotAccountable(asset.main_asset_type);
+  }, [isAssetTypeNotAccountable]);
+
+  // Helper function to check if a field should be editable
+  // For non-accountable assets, only main_asset_type is editable
+  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (!params || !params.data) return false;
+    const asset = params.data as Asset;
+    
+    // For non-accountable assets, only main_asset_type is editable
+    if (isAssetNotAccountable(asset)) {
+      return fieldName === 'main_asset_type';
+    }
+    
+    return true; // All fields are editable by default in TransferAreas
+  }, [isAssetNotAccountable]);
+
   // Refresh actions column when validationErrors change to update invalid icons
   useEffect(() => {
     if (gridRef.current?.api && assets.length > 0) {
@@ -880,7 +902,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'asset_id',
       headerName: t('assetId'),
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'asset_id')
     },
@@ -888,7 +913,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'payer_id')
     },
@@ -896,7 +924,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'main_asset_type')
     },
@@ -904,7 +935,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'asset_size',
       headerName: 'גודל נכס',
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -919,7 +953,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_1')
     },
@@ -927,7 +964,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -942,7 +982,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_2')
     },
@@ -950,7 +993,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -965,7 +1011,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_3')
     },
@@ -973,7 +1022,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -988,7 +1040,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_4')
     },
@@ -996,7 +1051,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1011,7 +1069,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_5')
     },
@@ -1019,7 +1080,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1034,7 +1098,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_type_6')
     },
@@ -1042,7 +1109,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;

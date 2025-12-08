@@ -302,47 +302,61 @@ export function AddressListComponent() {
         showMessage('error', 'שגיאה במחיקת רשומות קיימות');
       }
 
-      // Find header row and determine column indices
-      let streetCodeIndex = -1;
-      let streetDescriptionIndex = -1;
-      let headerRowIndex = -1;
-
-      for (let i = 0; i < Math.min(5, lines.length); i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        // Parse CSV line - handle quoted values
-        const parts: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let j = 0; j < line.length; j++) {
-          const char = line[j];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            parts.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
+      // Process headers - exact name matching only
+      if (lines.length === 0) {
+        showMessage('error', 'קובץ ריק', undefined, true);
+        setIsImporting(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
         }
-        parts.push(current.trim());
-
-        // Check for Hebrew headers
-        const streetCodeHeader = parts.findIndex(p => p === 'סמל_רחוב' || p === 'סמל רחוב' || p === 'street_code');
-        const streetDescriptionHeader = parts.findIndex(p => p === 'שם_רחוב' || p === 'שם רחוב' || p === 'street_description');
-
-        if (streetCodeHeader >= 0 && streetDescriptionHeader >= 0) {
-          streetCodeIndex = streetCodeHeader;
-          streetDescriptionIndex = streetDescriptionHeader;
-          headerRowIndex = i;
-          break;
-        }
+        return;
       }
 
-      if (streetCodeIndex === -1 || streetDescriptionIndex === -1) {
-        showMessage('error', 'לא נמצאו עמודות נכונות בקובץ. נדרשות: סמל_רחוב, שם_רחוב', undefined, true);
+      const headerLine = lines[0];
+      // Parse CSV header line - handle quoted values
+      const headerParts: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let j = 0; j < headerLine.length; j++) {
+        const char = headerLine[j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          headerParts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      headerParts.push(current.trim()); // Add last part
+
+      // Create header mapping - map field name to column index
+      const headerMap: Record<string, number> = {};
+      
+      // Define exact header names (case-insensitive, trimmed)
+      const exactHeaders: Record<string, string[]> = {
+        'street_code': ['סמל רחוב', 'סמל_רחוב', 'street_code'],
+        'street_description': ['שם רחוב', 'שם_רחוב', 'street_description']
+      };
+
+      // Match headers by exact name only (case-insensitive, trimmed)
+      headerParts.forEach((header, index) => {
+        if (!header) return;
+        const headerTrimmed = header.trim();
+        
+        // Check for exact match against known headers
+        for (const [fieldName, possibleHeaders] of Object.entries(exactHeaders)) {
+          if (possibleHeaders.some(h => headerTrimmed.toLowerCase() === h.toLowerCase())) {
+            headerMap[fieldName] = index;
+            break;
+          }
+        }
+      });
+
+      // Require both headers
+      if (headerMap['street_code'] === undefined || headerMap['street_description'] === undefined) {
+        showMessage('error', 'קובץ חייב לכלול שורת כותרות עם שמות שדות. נדרשות: סמל רחוב ושם רחוב', undefined, true);
         setIsImporting(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -351,18 +365,18 @@ export function AddressListComponent() {
       }
 
       // Parse and import each line (skip header row)
-      const dataLines = lines.slice(headerRowIndex + 1).filter(line => line.trim());
+      const dataLines = lines.slice(1).filter(line => line.trim());
       const totalLines = dataLines.length;
       let processedCount = 0;
 
-      for (let i = headerRowIndex + 1; i < lines.length; i++) {
+      for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
         // Parse CSV line - handle quoted values
         const parts: string[] = [];
-        let current = '';
-        let inQuotes = false;
+        current = '';
+        inQuotes = false;
         
         for (let j = 0; j < line.length; j++) {
           const char = line[j];
@@ -377,8 +391,9 @@ export function AddressListComponent() {
         }
         parts.push(current.trim());
 
-        const streetCodeStr = parts[streetCodeIndex] || '';
-        const streetDescription = parts[streetDescriptionIndex] || '';
+        // Extract values using header mapping
+        const streetCodeStr = parts[headerMap['street_code']] || '';
+        const streetDescription = parts[headerMap['street_description']] || '';
 
         if (!streetCodeStr || streetCodeStr.trim() === '') {
           errors.push(`שורה ${i + 1}: סמל רחוב חסר. נתונים בשורה: "${streetCodeStr}" | "${streetDescription}"`);

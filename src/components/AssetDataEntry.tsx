@@ -43,6 +43,39 @@ export function AssetDataEntry() {
   const gridRef = useRef<AgGridReact>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+
+  // Helper function to check if an asset type is not_accountable
+  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
+    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Find asset type by name
+    const assetType = assetTypes.find(at => at.name === assetTypeName);
+    return assetType?.not_accountable === true;
+  }, [assetTypes]);
+
+  // Helper function to check if an asset row is not_accountable
+  const isAssetRowNotAccountable = useCallback((row: AssetRow): boolean => {
+    if (!row || !row.main_asset_type) {
+      return false;
+    }
+    return isAssetTypeNotAccountable(row.main_asset_type);
+  }, [isAssetTypeNotAccountable]);
+
+  // Helper function to check if a field should be editable
+  // For non-accountable assets, only main_asset_type is editable
+  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (!params || !params.data) return false;
+    const row = params.data as AssetRow;
+    
+    // For non-accountable assets, only main_asset_type is editable
+    if (isAssetRowNotAccountable(row)) {
+      return fieldName === 'main_asset_type';
+    }
+    
+    return true; // All fields are editable by default in AssetDataEntry
+  }, [isAssetRowNotAccountable]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -961,7 +994,10 @@ export function AssetDataEntry() {
       field: 'building_number',
       headerName: t('buildingNumber'),
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'building_number', true),
       valueFormatter: (params) => {
         if (!params.value) return '';
@@ -973,14 +1009,20 @@ export function AssetDataEntry() {
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'payer_id', false)
     },
     {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
@@ -1013,7 +1055,10 @@ export function AssetDataEntry() {
       field: 'floor',
       headerName: 'קומה',
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueParser: (params) => {
         if (!params.newValue || params.newValue === '') return null;
@@ -1026,35 +1071,50 @@ export function AssetDataEntry() {
       field: 'discount_type',
       headerName: 'סוג הנחה',
       width: 100,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'discount_type', false)
     },
     {
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'discount_date_from', false)
     },
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'discount_date_to', false)
     },
     {
       field: 'asset_id',
       headerName: t('assetId'),
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellStyle: (params) => getCellStyle(params, 'asset_id', true)
     },
     {
       field: 'measurement_date',
       headerName: 'תאריך מדידה',
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       cellEditor: 'agTextCellEditor',
       cellEditorParams: {
         maxLength: 10,
@@ -1094,7 +1154,10 @@ export function AssetDataEntry() {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1106,7 +1169,10 @@ export function AssetDataEntry() {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1120,7 +1186,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1132,7 +1201,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1146,7 +1218,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1158,7 +1233,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1172,7 +1250,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1184,7 +1265,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1198,7 +1282,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1210,7 +1297,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1224,7 +1314,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1236,7 +1329,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1250,7 +1346,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
       width: 60,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1262,7 +1361,10 @@ export function AssetDataEntry() {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
       width: 80,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       type: 'numericColumn',
       valueFormatter: (params) => {
         if (params.value == null || params.value === '') return '';
@@ -1276,7 +1378,10 @@ export function AssetDataEntry() {
       field: 'extra_field_1',
       headerName: '',
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },
@@ -1284,7 +1389,10 @@ export function AssetDataEntry() {
       field: 'extra_field_2',
       headerName: '',
       width: 120,
-      editable: true,
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }

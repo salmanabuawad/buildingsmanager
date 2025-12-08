@@ -53,6 +53,39 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [importedAssets, setImportedAssets] = useState<ImportAssetRow[]>([]);
   const [originalImportedAssets, setOriginalImportedAssets] = useState<ImportAssetRow[]>([]); // Store original state for rollback
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+
+  // Helper function to check if an asset type is not_accountable
+  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
+    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Find asset type by name
+    const assetType = assetTypes.find(at => at.name === assetTypeName);
+    return assetType?.not_accountable === true;
+  }, [assetTypes]);
+
+  // Helper function to check if an asset row is not_accountable
+  const isAssetRowNotAccountable = useCallback((row: ImportAssetRow): boolean => {
+    if (!row || !row.main_asset_type) {
+      return false;
+    }
+    return isAssetTypeNotAccountable(row.main_asset_type);
+  }, [isAssetTypeNotAccountable]);
+
+  // Helper function to check if a field should be editable
+  // For non-accountable assets, only main_asset_type is editable
+  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (!params || !params.data) return false;
+    const row = params.data as ImportAssetRow;
+    
+    // For non-accountable assets, only main_asset_type is editable
+    if (isAssetRowNotAccountable(row)) {
+      return fieldName === 'main_asset_type';
+    }
+    
+    return true; // All fields are editable by default in import
+  }, [isAssetRowNotAccountable]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isValidating, setIsValidating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -225,10 +258,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       });
 
+      // Require headers - must have header row with field names
       // Check if we have valid headers (at least some key headers found)
-      const hasValidHeaders = headerMap['building_number'] !== undefined || 
-                              headerMap['asset_id'] !== undefined ||
-                              headerMap['payer_id'] !== undefined;
+      const hasRequiredHeaders = headerMap['building_number'] !== undefined && 
+                                 headerMap['asset_id'] !== undefined;
+      
+      if (!hasRequiredHeaders || Object.keys(headerMap).length === 0) {
+        throw new Error('קובץ חייב לכלול שורת כותרות עם שמות שדות. נדרש לפחות: מזהה מבנה ומזהה נכס');
+      }
 
       const assets: ImportAssetRow[] = [];
 
@@ -270,107 +307,91 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_date_to: undefined,
         };
 
-        // Use header-based mapping if we have valid headers, otherwise use fixed position
-        if (hasValidHeaders && Object.keys(headerMap).length > 0) {
-          // Header-based mapping
-          if (headerMap['building_number'] !== undefined) {
-            const value = values[headerMap['building_number']] || '';
-            asset.building_number = value ? parseInt(value) : null;
+        // Use header-based mapping only (no fallback to fixed position)
+        if (headerMap['building_number'] !== undefined) {
+          const value = values[headerMap['building_number']] || '';
+          asset.building_number = value ? parseInt(value) : null;
+        }
+        if (headerMap['payer_id'] !== undefined) {
+          asset.payer_id = values[headerMap['payer_id']] || '';
+        }
+        if (headerMap['asset_id'] !== undefined) {
+          asset.asset_id = values[headerMap['asset_id']] || '';
+        }
+        if (headerMap['measurement_date'] !== undefined) {
+          asset.measurement_date = values[headerMap['measurement_date']] || defaultMeasurementDate;
+        }
+        if (headerMap['main_asset_type'] !== undefined) {
+          asset.main_asset_type = values[headerMap['main_asset_type']] || '';
+        }
+        if (headerMap['asset_size'] !== undefined) {
+          const value = values[headerMap['asset_size']] || '';
+          asset.asset_size = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['tax_region'] !== undefined) {
+          const value = values[headerMap['tax_region']] || '';
+          asset.tax_region = value ? (isNaN(parseInt(value)) ? undefined : parseInt(value)) : undefined;
+        }
+        if (headerMap['sub_asset_type_1'] !== undefined) {
+          asset.sub_asset_type_1 = values[headerMap['sub_asset_type_1']] || '';
+        }
+        if (headerMap['sub_asset_size_1'] !== undefined) {
+          const value = values[headerMap['sub_asset_size_1']] || '';
+          asset.sub_asset_size_1 = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['sub_asset_type_2'] !== undefined) {
+          asset.sub_asset_type_2 = values[headerMap['sub_asset_type_2']] || '';
+        }
+        if (headerMap['sub_asset_size_2'] !== undefined) {
+          const value = values[headerMap['sub_asset_size_2']] || '';
+          asset.sub_asset_size_2 = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['sub_asset_type_3'] !== undefined) {
+          asset.sub_asset_type_3 = values[headerMap['sub_asset_type_3']] || '';
+        }
+        if (headerMap['sub_asset_size_3'] !== undefined) {
+          const value = values[headerMap['sub_asset_size_3']] || '';
+          asset.sub_asset_size_3 = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['sub_asset_type_4'] !== undefined) {
+          asset.sub_asset_type_4 = values[headerMap['sub_asset_type_4']] || '';
+        }
+        if (headerMap['sub_asset_size_4'] !== undefined) {
+          const value = values[headerMap['sub_asset_size_4']] || '';
+          asset.sub_asset_size_4 = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['sub_asset_type_5'] !== undefined) {
+          asset.sub_asset_type_5 = values[headerMap['sub_asset_type_5']] || '';
+        }
+        if (headerMap['sub_asset_size_5'] !== undefined) {
+          const value = values[headerMap['sub_asset_size_5']] || '';
+          asset.sub_asset_size_5 = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['sub_asset_type_6'] !== undefined) {
+          asset.sub_asset_type_6 = values[headerMap['sub_asset_type_6']] || '';
+        }
+        if (headerMap['sub_asset_size_6'] !== undefined) {
+          const value = values[headerMap['sub_asset_size_6']] || '';
+          asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
+        }
+        if (headerMap['penthouse'] !== undefined) {
+          const penthouseValue = (values[headerMap['penthouse']] || '').trim();
+          if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
+            asset.penthouse = 'כן';
           }
-          if (headerMap['payer_id'] !== undefined) {
-            asset.payer_id = values[headerMap['payer_id']] || '';
-          }
-          if (headerMap['asset_id'] !== undefined) {
-            asset.asset_id = values[headerMap['asset_id']] || '';
-          }
-          if (headerMap['measurement_date'] !== undefined) {
-            asset.measurement_date = values[headerMap['measurement_date']] || defaultMeasurementDate;
-          }
-          if (headerMap['main_asset_type'] !== undefined) {
-            asset.main_asset_type = values[headerMap['main_asset_type']] || '';
-          }
-          if (headerMap['asset_size'] !== undefined) {
-            const value = values[headerMap['asset_size']] || '';
-            asset.asset_size = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['tax_region'] !== undefined) {
-            const value = values[headerMap['tax_region']] || '';
-            asset.tax_region = value ? (isNaN(parseInt(value)) ? undefined : parseInt(value)) : undefined;
-          }
-          if (headerMap['sub_asset_type_1'] !== undefined) {
-            asset.sub_asset_type_1 = values[headerMap['sub_asset_type_1']] || '';
-          }
-          if (headerMap['sub_asset_size_1'] !== undefined) {
-            const value = values[headerMap['sub_asset_size_1']] || '';
-            asset.sub_asset_size_1 = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['sub_asset_type_2'] !== undefined) {
-            asset.sub_asset_type_2 = values[headerMap['sub_asset_type_2']] || '';
-          }
-          if (headerMap['sub_asset_size_2'] !== undefined) {
-            const value = values[headerMap['sub_asset_size_2']] || '';
-            asset.sub_asset_size_2 = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['sub_asset_type_3'] !== undefined) {
-            asset.sub_asset_type_3 = values[headerMap['sub_asset_type_3']] || '';
-          }
-          if (headerMap['sub_asset_size_3'] !== undefined) {
-            const value = values[headerMap['sub_asset_size_3']] || '';
-            asset.sub_asset_size_3 = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['sub_asset_type_4'] !== undefined) {
-            asset.sub_asset_type_4 = values[headerMap['sub_asset_type_4']] || '';
-          }
-          if (headerMap['sub_asset_size_4'] !== undefined) {
-            const value = values[headerMap['sub_asset_size_4']] || '';
-            asset.sub_asset_size_4 = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['sub_asset_type_5'] !== undefined) {
-            asset.sub_asset_type_5 = values[headerMap['sub_asset_type_5']] || '';
-          }
-          if (headerMap['sub_asset_size_5'] !== undefined) {
-            const value = values[headerMap['sub_asset_size_5']] || '';
-            asset.sub_asset_size_5 = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['sub_asset_type_6'] !== undefined) {
-            asset.sub_asset_type_6 = values[headerMap['sub_asset_type_6']] || '';
-          }
-          if (headerMap['sub_asset_size_6'] !== undefined) {
-            const value = values[headerMap['sub_asset_size_6']] || '';
-            asset.sub_asset_size_6 = value ? parseFloat(value) : 0;
-          }
-          if (headerMap['penthouse'] !== undefined) {
-            const penthouseValue = (values[headerMap['penthouse']] || '').trim();
-            if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
-              asset.penthouse = 'כן';
-            }
-          }
-        } else {
-          // Fixed position mapping (fallback)
-          asset.building_number = values[0] ? parseInt(values[0]) : null;
-          asset.payer_id = values[1] || '';
-          asset.asset_id = values[2] || '';
-          asset.main_asset_type = values[3] || '';
-          asset.asset_size = values[4] ? parseFloat(values[4]) : 0;
-          asset.tax_region = values[5] ? (isNaN(parseInt(values[5])) ? undefined : parseInt(values[5])) : undefined;
-          asset.sub_asset_type_1 = values[6] || '';
-          asset.sub_asset_size_1 = values[7] ? parseFloat(values[7]) : 0;
-          asset.sub_asset_type_2 = values[8] || '';
-          asset.sub_asset_size_2 = values[9] ? parseFloat(values[9]) : 0;
-          asset.sub_asset_type_3 = values[10] || '';
-          asset.sub_asset_size_3 = values[11] ? parseFloat(values[11]) : 0;
-          asset.sub_asset_type_4 = values[12] || '';
-          asset.sub_asset_size_4 = values[13] ? parseFloat(values[13]) : 0;
-          asset.sub_asset_type_5 = values[14] || '';
-          asset.sub_asset_size_5 = values[15] ? parseFloat(values[15]) : 0;
-          asset.sub_asset_type_6 = values[16] || '';
-          asset.sub_asset_size_6 = values[17] ? parseFloat(values[17]) : 0;
-          if (values.length > 18) {
-            const penthouseValue = (values[18] || '').trim();
-            if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
-              asset.penthouse = 'כן';
-            }
-          }
+        }
+        if (headerMap['floor'] !== undefined) {
+          const value = values[headerMap['floor']] || '';
+          asset.floor = value ? (isNaN(parseInt(value)) ? undefined : parseInt(value)) : undefined;
+        }
+        if (headerMap['discount_type'] !== undefined) {
+          asset.discount_type = values[headerMap['discount_type']] || undefined;
+        }
+        if (headerMap['discount_date_from'] !== undefined) {
+          asset.discount_date_from = values[headerMap['discount_date_from']] || undefined;
+        }
+        if (headerMap['discount_date_to'] !== undefined) {
+          asset.discount_date_to = values[headerMap['discount_date_to']] || undefined;
         }
 
         assets.push(asset);
@@ -2252,28 +2273,40 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           field: 'building_number',
           headerName: t('buildingNumber'),
           width: 120,
-          editable: true,
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
           cellStyle: getCellStyle
         },
         {
           field: 'asset_id',
           headerName: t('assetId'),
           width: 120,
-          editable: true,
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
           cellStyle: getCellStyle
         },
         {
           field: 'tax_region',
           headerName: 'אזור מס',
           width: 100,
-          editable: true,
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
           cellStyle: getCellStyle
         },
         {
           field: 'payer_id',
           headerName: t('payerId'),
           width: 120,
-          editable: true,
+          editable: (params) => {
+            const fieldName = params.colDef?.field || '';
+            return isFieldEditable(params, fieldName);
+          },
           cellStyle: getCellStyle
         },
         {

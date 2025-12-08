@@ -51,6 +51,41 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     return result;
   }, [taxRegion, buildingNumber]);
 
+  // Helper function to check if an asset type is not_accountable
+  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
+    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Find asset type by name
+    const assetType = assetTypes.find(at => at.name === assetTypeName);
+    return assetType?.not_accountable === true;
+  }, [assetTypes]);
+
+  // Helper function to check if an asset is not_accountable
+  const isAssetNotAccountable = useCallback((asset: Asset): boolean => {
+    if (!asset || !asset.main_asset_type) {
+      return false;
+    }
+    return isAssetTypeNotAccountable(asset.main_asset_type);
+  }, [isAssetTypeNotAccountable]);
+
+  // Helper function to check if a field should be editable
+  // For non-accountable assets, only main_asset_type is editable
+  const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (!params || !params.data) return false;
+    const asset = params.data as Asset;
+    const assetId = String(asset.asset_id);
+    const baseEditable = newAssets.has(assetId) || !!taxRegion;
+    
+    // For non-accountable assets, only main_asset_type is editable
+    if (isAssetNotAccountable(asset)) {
+      return fieldName === 'main_asset_type' && baseEditable;
+    }
+    
+    return baseEditable;
+  }, [isAssetNotAccountable, newAssets, taxRegion]);
+
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
     if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
@@ -450,9 +485,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // IMPORTANT: Filter out historical records - only validate latest measurements (is_latest === true)
       // Historical records (is_latest === false) should NOT be validated
+      // Also filter out non-accountable assets - they should NOT be validated
       let latestAssets = gridAssets.filter(asset => {
         // If is_latest is not explicitly set, assume it's latest (for backward compatibility)
-        return asset.is_latest !== false;
+        if (asset.is_latest === false) return false;
+        
+        // Skip non-accountable assets - they should not be validated
+        if (isAssetNotAccountable(asset)) return false;
+        
+        return true;
       });
       console.log(`[Batch Validation] Filtered to latest only: ${latestAssets.length} out of ${gridAssets.length} assets (excluded ${gridAssets.length - latestAssets.length} historical records)`);
       
@@ -768,6 +809,28 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           const updatedData = { ...asset, ...changes };
           const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
           const currentAssetId = isNewAsset ? undefined : (typeof assetId === 'number' ? assetId : (typeof asset.asset_id === 'number' ? asset.asset_id : undefined));
+
+          // Skip validation for non-accountable assets
+          if (isAssetNotAccountable(updatedData)) {
+            // For non-accountable assets, still save but skip validation
+            if (isNewAsset) {
+              try {
+                const createdAsset = await api.assets.create(updatedData as any);
+                savedCount++;
+              } catch (err) {
+                errors.push(`נכס ${updatedData.asset_id}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
+              }
+            } else {
+              try {
+                await api.assets.update(currentAssetId!, updatedData);
+                savedCount++;
+                successfullySaved.add(assetId);
+              } catch (err) {
+                errors.push(`נכס ${updatedData.asset_id}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
+              }
+            }
+            continue;
+          }
 
           // For new assets, validate all required fields
           if (isNewAsset) {
@@ -1768,8 +1831,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       suppressMovable: true,
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -1778,11 +1841,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'measurement_date',
       headerName: t('measurementDate'),
       width: 120,
-      editable: (params) => {
-        if (!params || !params.data || !newAssets) return false;
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'measurement_date'),
       cellStyle: (params: any) => {
         if (!params || !params.data) {
           return { textAlign: 'right' };
@@ -1822,10 +1881,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'payer_id',
       headerName: t('payerId'),
       width: 120,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'payer_id'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1833,10 +1889,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'tax_region',
       headerName: 'אזור מס',
       width: 100,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'tax_region'),
       type: 'numericColumn',
       valueParser: (params) => {
         if (!params.newValue || params.newValue === '') return null;
@@ -1850,7 +1903,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: false, // Always use checkbox, not editable cell
+      editable: (params) => {
+        // Penthouse checkbox - only editable if asset is not non-accountable
+        if (!params || !params.data) return false;
+        const asset = params.data as Asset;
+        if (isAssetNotAccountable(asset)) return false;
+        const assetId = String(asset.asset_id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
       width: 60,
       cellRenderer: penthouseCellRenderer,
       cellStyle: { textAlign: 'center' },
@@ -1860,10 +1920,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'floor',
       headerName: 'קומה',
       width: 80,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'floor'),
       type: 'numericColumn',
       valueParser: (params) => {
         if (!params.newValue || params.newValue === '') return null;
@@ -1877,10 +1934,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'discount_type',
       headerName: 'סוג הנחה',
       width: 100,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'discount_type'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -1888,10 +1942,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
       width: 120,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'discount_date_from'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
@@ -1900,10 +1951,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
       width: 120,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'discount_date_to'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
@@ -1912,10 +1960,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       width: 60,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1928,10 +1973,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       field: 'asset_size',
       headerName: t('mainAssetSize'),
       width: 80,
-      editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
+      editable: (params) => isFieldEditable(params, 'asset_size'),
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
@@ -1947,8 +1989,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType1'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1963,8 +2005,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize1'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -1981,8 +2023,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType2'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -1997,8 +2039,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize2'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2015,8 +2057,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType3'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2031,8 +2073,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize3'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2049,8 +2091,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType4'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2065,8 +2107,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize4'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2083,8 +2125,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType5'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2099,8 +2141,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize5'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2117,8 +2159,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType6'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2133,8 +2175,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize6'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2151,8 +2193,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: '',
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)

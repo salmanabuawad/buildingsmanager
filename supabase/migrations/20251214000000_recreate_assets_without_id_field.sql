@@ -216,13 +216,16 @@ CREATE TRIGGER trigger_copy_asset_to_history
   FOR EACH ROW
   EXECUTE FUNCTION copy_asset_to_history();
 
--- Step 9: Recreate update_building_totals trigger function
--- Note: This function uses asset_id instead of id field
+-- Step 9: Recreate update_building_totals trigger function (only if columns exist)
+-- Note: This function only runs if total_building_area and total_assets columns exist in buildings table
+-- These columns were removed in migration 20251119020723, so this trigger may not be needed
 CREATE OR REPLACE FUNCTION update_building_totals()
 RETURNS TRIGGER AS $$
 DECLARE
   building_table_name text;
   sql_query text;
+  has_total_area boolean := false;
+  has_total_assets boolean := false;
 BEGIN
   -- Determine which table name exists (buildings or building)
   SELECT table_name INTO building_table_name
@@ -235,9 +238,28 @@ BEGIN
     RETURN COALESCE(OLD, NEW);
   END IF;
   
-  IF TG_OP = 'DELETE' THEN
-    sql_query := format('UPDATE %I SET
-      total_building_area = COALESCE((
+  -- Check if total_building_area column exists
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = building_table_name AND column_name = 'total_building_area'
+  ) INTO has_total_area;
+  
+  -- Check if total_assets column exists
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = building_table_name AND column_name = 'total_assets'
+  ) INTO has_total_assets;
+  
+  -- If columns don't exist, skip update (totals are calculated on-demand)
+  IF NOT has_total_area AND NOT has_total_assets THEN
+    RETURN COALESCE(OLD, NEW);
+  END IF;
+  
+  -- Build UPDATE query only for columns that exist
+  sql_query := format('UPDATE %I SET', building_table_name);
+  
+  IF has_total_area THEN
+    sql_query := sql_query || format(' total_building_area = COALESCE((
         SELECT SUM(asset_size)
         FROM (
           SELECT DISTINCT ON (asset_id) asset_id, asset_size
@@ -245,79 +267,42 @@ BEGIN
           WHERE building_number = $1
           ORDER BY asset_id, measurement_date DESC
         ) latest_assets
-      ), 0),
-      total_assets = COALESCE((
+      ), 0)');
+  END IF;
+  
+  IF has_total_area AND has_total_assets THEN
+    sql_query := sql_query || ',';
+  END IF;
+  
+  IF has_total_assets THEN
+    sql_query := sql_query || format(' total_assets = COALESCE((
         SELECT COUNT(DISTINCT asset_id)
         FROM assets
         WHERE building_number = $1
-      ), 0)
-    WHERE building_number = $1', building_table_name);
+      ), 0)');
+  END IF;
+  
+  sql_query := sql_query || format(' WHERE building_number = $1');
+  
+  IF TG_OP = 'DELETE' THEN
     EXECUTE sql_query USING OLD.building_number;
     RETURN OLD;
   ELSIF TG_OP = 'UPDATE' AND OLD.building_number != NEW.building_number THEN
     -- Update the old building totals
-    sql_query := format('UPDATE %I SET
-      total_building_area = COALESCE((
-        SELECT SUM(asset_size)
-        FROM (
-          SELECT DISTINCT ON (asset_id) asset_id, asset_size
-          FROM assets
-          WHERE building_number = $1
-          ORDER BY asset_id, measurement_date DESC
-        ) latest_assets
-      ), 0),
-      total_assets = COALESCE((
-        SELECT COUNT(DISTINCT asset_id)
-        FROM assets
-        WHERE building_number = $1
-      ), 0)
-    WHERE building_number = $1', building_table_name);
     EXECUTE sql_query USING OLD.building_number;
-    
     -- Update the new building totals
-    sql_query := format('UPDATE %I SET
-      total_building_area = COALESCE((
-        SELECT SUM(asset_size)
-        FROM (
-          SELECT DISTINCT ON (asset_id) asset_id, asset_size
-          FROM assets
-          WHERE building_number = $1
-          ORDER BY asset_id, measurement_date DESC
-        ) latest_assets
-      ), 0),
-      total_assets = COALESCE((
-        SELECT COUNT(DISTINCT asset_id)
-        FROM assets
-        WHERE building_number = $1
-      ), 0)
-    WHERE building_number = $1', building_table_name);
     EXECUTE sql_query USING NEW.building_number;
     RETURN NEW;
   ELSE
     -- INSERT or UPDATE within same building
-    sql_query := format('UPDATE %I SET
-      total_building_area = COALESCE((
-        SELECT SUM(asset_size)
-        FROM (
-          SELECT DISTINCT ON (asset_id) asset_id, asset_size
-          FROM assets
-          WHERE building_number = $1
-          ORDER BY asset_id, measurement_date DESC
-        ) latest_assets
-      ), 0),
-      total_assets = COALESCE((
-        SELECT COUNT(DISTINCT asset_id)
-        FROM assets
-        WHERE building_number = $1
-      ), 0)
-    WHERE building_number = $1', building_table_name);
     EXECUTE sql_query USING NEW.building_number;
     RETURN NEW;
   END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 10: Recreate the trigger for building totals
+-- Step 10: Recreate the trigger for building totals (only if function will work)
+-- Note: If columns don't exist, the function will just return without updating
 DROP TRIGGER IF EXISTS trigger_update_building_totals ON assets;
 CREATE TRIGGER trigger_update_building_totals
   AFTER INSERT OR UPDATE OR DELETE ON assets

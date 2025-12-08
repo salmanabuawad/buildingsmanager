@@ -2167,6 +2167,34 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     if (mode === 'skeleton') {
       return [
         {
+          field: 'building_number',
+          headerName: t('buildingNumber'),
+          width: 120,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'asset_id',
+          headerName: t('assetId'),
+          width: 120,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'tax_region',
+          headerName: 'אזור מס',
+          width: 100,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'payer_id',
+          headerName: t('payerId'),
+          width: 120,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
           colId: 'actions',
           field: 'actions',
           headerName: 'פעולות',
@@ -2215,34 +2243,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </div>
             );
           }
-        },
-        {
-          field: 'payer_id',
-          headerName: t('payerId'),
-          width: 120,
-          editable: true,
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'tax_region',
-          headerName: 'אזור מס',
-          width: 100,
-          editable: true,
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'asset_id',
-          headerName: t('assetId'),
-          width: 120,
-          editable: true,
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'building_number',
-          headerName: t('buildingNumber'),
-          width: 120,
-          editable: true,
-          cellStyle: getCellStyle
         }
       ];
     }

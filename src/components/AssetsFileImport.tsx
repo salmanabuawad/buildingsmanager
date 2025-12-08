@@ -1052,7 +1052,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         .select();
 
       if (insertError) {
-        errors.push(`שגיאה בשמירה: ${insertError.message}`);
+        console.error('Supabase insert error:', insertError);
+        // Check if it's a conflict (409) or duplicate key error
+        if (insertError.code === '409' || insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique')) {
+          errors.push(`שגיאה: נכסים קיימים כבר במערכת. יש לבדוק מזהה נכס כפול או להסיר נכסים קיימים. פרטים: ${insertError.message}`);
+        } else {
+          errors.push(`שגיאה בשמירה: ${insertError.message || insertError.code || 'שגיאה לא ידועה'}`);
+        }
         setSaveResult({
           successful: 0,
           failed: validatedSkeletonAssets.length,
@@ -2307,7 +2313,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      <span>{mode === 'skeleton' ? 'ייבא שלד' : 'שמור'}</span>
+                      <span>שמור</span>
                     </>
                   )}
                 </button>

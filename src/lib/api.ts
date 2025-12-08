@@ -447,7 +447,21 @@ export const api = {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('[API ERROR] Error fetching assets:', {
+          error,
+          buildingNumber,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        // If it's a 409 conflict, try to provide more context
+        if (error.code === '409' || error.status === 409) {
+          console.error('[API ERROR] 409 Conflict - This might be due to a query issue or data conflict');
+        }
+        throw error;
+      }
 
       const parseDate = (dateStr: string) => {
         const parts = dateStr.split('/');

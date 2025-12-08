@@ -470,8 +470,32 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     }
     
     // Building doesn't exist - show modal
+    // Collect unique tax_region values from assets that belong to this building
+    const taxRegionsForBuilding = new Set<string>();
+    importedAssets.forEach(asset => {
+      const assetBuildingNum = typeof asset.building_number === 'string' 
+        ? parseInt(String(asset.building_number), 10) 
+        : asset.building_number;
+      if (assetBuildingNum === buildingNumber && asset.tax_region !== undefined && asset.tax_region != null) {
+        const taxRegionStr = typeof asset.tax_region === 'string' 
+          ? asset.tax_region.trim()
+          : String(asset.tax_region);
+        if (taxRegionStr && !isNaN(parseInt(taxRegionStr))) {
+          taxRegionsForBuilding.add(taxRegionStr);
+        }
+      }
+    });
+    
+    // Convert to comma-separated string (sorted)
+    const taxRegionString = taxRegionsForBuilding.size > 0 
+      ? Array.from(taxRegionsForBuilding).sort().join(',')
+      : undefined;
+    
     setPendingBuildingNumber(buildingNumber);
-    setBuildingCreateData({ building_number: buildingNumber });
+    setBuildingCreateData({ 
+      building_number: buildingNumber,
+      tax_region: taxRegionString
+    });
     setAddressSearchValue(''); // Reset address search
     pendingImportCallback.current = continueCallback;
     setShowBuildingCreateModal(true);
@@ -533,8 +557,33 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // If there are missing buildings, show modal for the first one
       if (missingBuildings.length > 0) {
         const firstMissingBuilding = missingBuildings[0];
+        
+        // Collect unique tax_region values from assets that belong to this building
+        const taxRegionsForBuilding = new Set<string>();
+        importedAssets.forEach(asset => {
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          if (buildingNum === firstMissingBuilding && asset.tax_region !== undefined && asset.tax_region != null) {
+            const taxRegionStr = typeof asset.tax_region === 'string' 
+              ? asset.tax_region.trim()
+              : String(asset.tax_region);
+            if (taxRegionStr && !isNaN(parseInt(taxRegionStr))) {
+              taxRegionsForBuilding.add(taxRegionStr);
+            }
+          }
+        });
+        
+        // Convert to comma-separated string (sorted)
+        const taxRegionString = taxRegionsForBuilding.size > 0 
+          ? Array.from(taxRegionsForBuilding).sort().join(',')
+          : undefined;
+        
         setPendingBuildingNumber(firstMissingBuilding);
-        setBuildingCreateData({ building_number: firstMissingBuilding });
+        setBuildingCreateData({ 
+          building_number: firstMissingBuilding,
+          tax_region: taxRegionString
+        });
         
         // Store the continuation function - re-run validation after building is created
         pendingImportCallback.current = () => {
@@ -1540,8 +1589,33 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // If there are missing buildings, show modal for the first one
       if (missingBuildings.length > 0) {
         const firstMissingBuilding = missingBuildings[0];
+        
+        // Collect unique tax_region values from assets that belong to this building
+        const taxRegionsForBuilding = new Set<string>();
+        importedAssets.forEach(asset => {
+          const buildingNum = typeof asset.building_number === 'string' 
+            ? parseInt(String(asset.building_number), 10) 
+            : asset.building_number;
+          if (buildingNum === firstMissingBuilding && asset.tax_region !== undefined && asset.tax_region != null) {
+            const taxRegionStr = typeof asset.tax_region === 'string' 
+              ? asset.tax_region.trim()
+              : String(asset.tax_region);
+            if (taxRegionStr && !isNaN(parseInt(taxRegionStr))) {
+              taxRegionsForBuilding.add(taxRegionStr);
+            }
+          }
+        });
+        
+        // Convert to comma-separated string (sorted)
+        const taxRegionString = taxRegionsForBuilding.size > 0 
+          ? Array.from(taxRegionsForBuilding).sort().join(',')
+          : undefined;
+        
         setPendingBuildingNumber(firstMissingBuilding);
-        setBuildingCreateData({ building_number: firstMissingBuilding });
+        setBuildingCreateData({ 
+          building_number: firstMissingBuilding,
+          tax_region: taxRegionString
+        });
         
         // Store the continuation function - re-run handleSave after building is created
         pendingImportCallback.current = () => {
@@ -3176,7 +3250,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       value={buildingCreateData.tax_region || ''}
                       readOnly
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                      placeholder="יועבר מהנכסים המיובאים"
+                      placeholder={buildingCreateData.tax_region ? '' : 'יועבר מהנכסים המיובאים'}
                     />
                     {buildingValidationErrors.tax_region && (
                       <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.tax_region}</p>

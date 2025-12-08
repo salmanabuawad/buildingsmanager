@@ -90,6 +90,7 @@ export interface AssetType {
   business_private?: string;
   shared_area_usage?: string;
   active?: string;
+  accountable?: boolean; // נספר
   min_size?: number;
   max_size?: number;
   created_at: string;

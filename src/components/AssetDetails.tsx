@@ -1619,6 +1619,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       cellStyle: (params) => getCellStyle(params, 'payer_id'),
     },
     {
+      field: 'tax_region',
+      headerName: 'אזור מס',
+      width: 100,
+      editable: (params) => params.data.is_latest === true && editMode === 'inline',
+      type: 'numericColumn',
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
+      },
+      cellStyle: (params) => getCellStyle(params, 'tax_region'),
+    },
+    {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',

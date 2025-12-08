@@ -1660,6 +1660,23 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
+      field: 'tax_region',
+      headerName: 'אזור מס',
+      width: 100,
+      editable: (params) => {
+        const assetId = String(params.data?.asset_id);
+        return newAssets.has(assetId) || !!taxRegion;
+      },
+      type: 'numericColumn',
+      valueParser: (params) => {
+        if (!params.newValue || params.newValue === '') return null;
+        const num = parseInt(params.newValue, 10);
+        return isNaN(num) ? null : num;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',

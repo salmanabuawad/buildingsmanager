@@ -23,12 +23,13 @@
     - `townhouses` (TEXT) - Townhouses indicator (מבנים צמודי קרקע טוריים מעל 2 יחידות)
     - `business_private` (TEXT) - Business/Private indicator (עסקי/פרטי)
     - `shared_area_usage` (TEXT) - Shared area usage indicator (שימוש בשטח משותף)
-    - `min_size` (NUMERIC) - Minimum size (שטח מ)
-    - `max_size` (NUMERIC) - Maximum size (שטח עד)
-    - `active` (TEXT) - Active status (default: 'כן')
-    - `area_description_for_tab` (TEXT) - Area description for tab
-    - `created_at` (TIMESTAMPTZ) - Creation timestamp
-    - `updated_at` (TIMESTAMPTZ) - Update timestamp
+  - `min_size` (NUMERIC) - Minimum size (שטח מ)
+  - `max_size` (NUMERIC) - Maximum size (שטח עד)
+  - `active` (TEXT) - Active status (default: 'כן')
+  - `accountable` (BOOLEAN) - Accountable indicator (נספר)
+  - `area_description_for_tab` (TEXT) - Area description for tab
+  - `created_at` (TIMESTAMPTZ) - Creation timestamp
+  - `updated_at` (TIMESTAMPTZ) - Update timestamp
   
   3. Security
     - Enable RLS on asset_types table
@@ -58,6 +59,7 @@ CREATE TABLE asset_types (
   min_size NUMERIC,
   max_size NUMERIC,
   active TEXT DEFAULT 'כן',
+  accountable BOOLEAN DEFAULT false,
   area_description_for_tab TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

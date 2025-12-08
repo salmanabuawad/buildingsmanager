@@ -341,7 +341,7 @@ function App() {
       buildingNumber,
       taxRegion: combinedTaxRegion,
       selectedAssetIds,
-      label: `העברת שטחים - מבנה ${buildingNumber}`
+      label: `העברת שטחים - מבנה ${buildingNumber}${combinedTaxRegion ? ` - ${getAreaDescriptionsForTaxRegions(combinedTaxRegion)}` : ''}`
     };
     // Remove all other transfer-areas tabs, then add new one
     openTab(newTab);

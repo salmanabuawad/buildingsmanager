@@ -1041,7 +1041,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                   if (!trimmedRegion) return null;
                   return (
                     <p key={index} className="text-sm text-white font-semibold bg-purple-700 px-3 py-1 rounded">
-                      {getAreaDescriptionForTaxRegion(trimmedRegion)}
+                      {trimmedRegion}
                     </p>
                   );
                 })}

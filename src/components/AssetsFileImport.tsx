@@ -2162,6 +2162,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     return { textAlign: 'right' };
   };
 
+  const getRowStyle = (params: any) => {
+    const row = params.data as ImportAssetRow;
+    if (row._validationErrors && row._validationErrors.length > 0) {
+      return { 
+        backgroundColor: '#fee2e2', 
+        border: '2px solid #ef4444',
+        borderRadius: '4px'
+      };
+    }
+    return null;
+  };
+
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => {
     // For skeleton mode, show only building_number and asset_id
     if (mode === 'skeleton') {
@@ -2593,11 +2605,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     return undefined;
   };
 
-  const gridOptions = {
-    suppressColumnVirtualisation: true,
-    alwaysShowHorizontalScroll: true,
-    getRowStyle: getRowStyle,
-  };
+  // Grid options are now defined inline in the AgGridReact component
 
   function downloadTemplate() {
     const headers = [
@@ -2897,19 +2905,49 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </div>
             </div>
 
-            <div className="ag-theme-alpine" style={{ height: '600px', width: '100%', overflowX: 'auto' }}>
+            <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
               <AgGridReact
                 ref={gridRef}
                 rowData={importedAssets}
                 columnDefs={columnDefs}
-                gridOptions={gridOptions}
-                onCellValueChanged={onCellValueChanged}
+                getRowStyle={getRowStyle}
                 defaultColDef={{
                   resizable: true,
-                  sortable: true,
-                  filter: true,
+                  wrapHeaderText: true,
+                  autoHeaderHeight: true,
+                  wrapText: true,
+                  autoHeight: false,
+                  headerClass: 'ag-right-aligned-header',
                   minWidth: 100
                 }}
+                gridOptions={{
+                  suppressColumnVirtualisation: true,
+                  alwaysShowHorizontalScroll: true,
+                }}
+                domLayout="normal"
+                onCellValueChanged={onCellValueChanged}
+                onGridReady={async (params) => {
+                  // Ensure all columns are visible and grid calculates proper width
+                  params.api.refreshCells({ force: true });
+                  // Scroll to left on grid ready
+                  setTimeout(() => {
+                    const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+                    if (gridElement) {
+                      gridElement.scrollLeft = 0;
+                    }
+                  }, 300);
+                }}
+                onFirstDataRendered={async (params) => {
+                  // Scroll to left after data render
+                  setTimeout(() => {
+                    const gridElement = document.querySelector('.ag-body-horizontal-scroll-viewport');
+                    if (gridElement) {
+                      gridElement.scrollLeft = 0;
+                    }
+                  }, 200);
+                }}
+                animateRows={true}
+                enableRtl={true}
                 suppressHorizontalScroll={false}
               />
             </div>

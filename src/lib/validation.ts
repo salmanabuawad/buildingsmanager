@@ -2443,8 +2443,17 @@ export const buildingValidators = {
       taxRegionsByType.set('עסקים', new Set<number>());
       taxRegionsByType.set('מגורים', new Set<number>());
 
-      // Process each asset
+      // Process each asset (skip non-accountable assets)
       for (const asset of assets) {
+        // Skip assets where main_asset_type has not_accountable = true
+        if (asset.main_asset_type) {
+          const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
+          if (mainAssetType && mainAssetType.not_accountable === true) {
+            // Skip this asset entirely - don't process main or sub asset types
+            continue;
+          }
+        }
+
         // Process main asset type
         if (asset.main_asset_type) {
           const assetType = assetTypeMap.get(String(asset.main_asset_type));

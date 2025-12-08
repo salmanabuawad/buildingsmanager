@@ -943,25 +943,14 @@ export async function validateAssetTypeComplete(
 
     // Further filter asset types based on required tax region
     // Priority: assetData.tax_region > taxRegion parameter > building tax_region
+    // Use taxRegionsToCheck which already handles comma-separated values
     let requiredTaxRegionsForMatching: number[] = [];
     
-    // Priority 1: Use assetData.tax_region if available
-    if (assetData?.tax_region != null) {
-      const assetTaxRegion = typeof assetData.tax_region === 'string' 
-        ? parseInt(assetData.tax_region, 10) 
-        : assetData.tax_region;
-      if (!isNaN(assetTaxRegion)) {
-        requiredTaxRegionsForMatching = [assetTaxRegion];
-      }
+    // Priority 1: Use taxRegionsToCheck (already processed from assetData.tax_region or taxRegion parameter)
+    if (taxRegionsToCheck.length > 0) {
+      requiredTaxRegionsForMatching = taxRegionsToCheck.map(r => parseInt(r, 10)).filter(n => !isNaN(n));
     }
-    // Priority 2: Use taxRegion parameter if assetData.tax_region is not available
-    else if (taxRegion && taxRegion.trim() !== '') {
-      const tabTaxRegion = parseInt(taxRegion.trim(), 10);
-      if (!isNaN(tabTaxRegion)) {
-        requiredTaxRegionsForMatching = [tabTaxRegion];
-      }
-    }
-    // Priority 3: Use building tax_region as fallback (for multi-tax region buildings)
+    // Priority 2: Use building tax_region as fallback (for multi-tax region buildings)
     else if (building.tax_region) {
       requiredTaxRegionsForMatching = String(building.tax_region)
         .split(',')
@@ -1005,25 +994,14 @@ export async function validateAssetTypeComplete(
       // ============================================
       // Start with tax region - this is the first filter against asset_types table
       // Priority: assetData.tax_region > taxRegion parameter > building tax_region
+      // Use taxRegionsToCheck which already handles comma-separated values
       let requiredTaxRegions: number[] = [];
       
-      // Priority 1: Use assetData.tax_region if available
-      if (assetData?.tax_region != null) {
-        const assetTaxRegion = typeof assetData.tax_region === 'string' 
-          ? parseInt(assetData.tax_region, 10) 
-          : assetData.tax_region;
-        if (!isNaN(assetTaxRegion)) {
-          requiredTaxRegions = [assetTaxRegion];
-        }
+      // Priority 1: Use taxRegionsToCheck (already processed from assetData.tax_region or taxRegion parameter)
+      if (taxRegionsToCheck.length > 0) {
+        requiredTaxRegions = taxRegionsToCheck.map(r => parseInt(r, 10)).filter(n => !isNaN(n));
       }
-      // Priority 2: Use taxRegion parameter if assetData.tax_region is not available
-      else if (taxRegion && taxRegion.trim() !== '') {
-        const tabTaxRegion = parseInt(taxRegion.trim(), 10);
-        if (!isNaN(tabTaxRegion)) {
-          requiredTaxRegions = [tabTaxRegion];
-        }
-      }
-      // Priority 3: Use building tax_region as fallback
+      // Priority 2: Use building tax_region as fallback
       else if (building.tax_region) {
         requiredTaxRegions = String(building.tax_region)
           .split(',')

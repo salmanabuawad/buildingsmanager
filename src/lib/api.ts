@@ -1172,7 +1172,7 @@ export const api = {
       const { error } = await supabase
         .from('assets')
         .delete()
-        .eq('id', id);
+        .eq('asset_id', id);
 
       if (error) throw error;
       return { message: 'Asset deleted successfully' };

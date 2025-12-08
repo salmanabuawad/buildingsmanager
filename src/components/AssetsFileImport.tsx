@@ -1045,10 +1045,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         discount_date_to: null
       }));
 
+      // Sanitize assets before insert (same as regular mode)
+      const { sanitizeAssetInput } = await import('../lib/api');
+      const sanitizedAssets = assetsToInsert.map(asset => sanitizeAssetInput(asset as any));
+
       // Bulk insert skeleton assets
       const { data: insertedAssets, error: insertError } = await supabase
         .from('assets')
-        .insert(assetsToInsert)
+        .insert(sanitizedAssets)
         .select();
 
       if (insertError) {

@@ -1397,12 +1397,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         successCount = insertedAssets?.length || 0;
         const failedCount = validatedSkeletonAssets.length - successCount;
         
-        // Track successfully saved asset IDs
-        const successfullySavedAssetIds = new Set<string | number>();
+        // Track successfully saved asset IDs (normalize to string for consistent comparison)
+        const successfullySavedAssetIds = new Set<string>();
         if (insertedAssets && insertedAssets.length > 0) {
           insertedAssets.forEach((savedAsset: any) => {
             if (savedAsset.asset_id != null) {
-              successfullySavedAssetIds.add(savedAsset.asset_id);
+              // Normalize asset_id to string for consistent comparison
+              const normalizedId = String(savedAsset.asset_id);
+              successfullySavedAssetIds.add(normalizedId);
             }
           });
         }
@@ -1410,7 +1412,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // Remove successfully saved assets from the imported list
         setImportedAssets(prev => prev.filter((asset: ImportAssetRow) => {
           if (!asset.asset_id) return true; // Keep assets without asset_id (shouldn't happen)
-          return !successfullySavedAssetIds.has(asset.asset_id);
+          // Normalize asset_id to string for consistent comparison
+          const normalizedAssetId = String(asset.asset_id);
+          return !successfullySavedAssetIds.has(normalizedAssetId);
         }));
         
         setSaveResult({
@@ -1944,12 +1948,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       const failedCount = errors.length;
       
-      // Track successfully saved asset IDs
-      const successfullySavedAssetIds = new Set<string | number>();
+      // Track successfully saved asset IDs (normalize to string for consistent comparison)
+      const successfullySavedAssetIds = new Set<string>();
       if (insertedAssetsResult && insertedAssetsResult.length > 0) {
         insertedAssetsResult.forEach((savedAsset: any) => {
           if (savedAsset.asset_id != null) {
-            successfullySavedAssetIds.add(savedAsset.asset_id);
+            // Normalize asset_id to string for consistent comparison
+            const normalizedId = String(savedAsset.asset_id);
+            successfullySavedAssetIds.add(normalizedId);
           }
         });
       }
@@ -1957,7 +1963,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       // Remove successfully saved assets from the imported list
       setImportedAssets(prev => prev.filter((asset: ImportAssetRow) => {
         if (!asset.asset_id) return true; // Keep assets without asset_id
-        return !successfullySavedAssetIds.has(asset.asset_id);
+        // Normalize asset_id to string for consistent comparison
+        const normalizedAssetId = String(asset.asset_id);
+        return !successfullySavedAssetIds.has(normalizedAssetId);
       }));
 
       setSaveResult({

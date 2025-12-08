@@ -192,14 +192,16 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     // For transfer areas tab: combine asset's tax_region with tab's taxRegion
     // This allows validation against both the original asset tax region and the transferred tax region
     let combinedTaxRegion = '';
-    const assetTaxRegion = asset.tax_region != null ? String(asset.tax_region) : '';
+    // Parse asset.tax_region - can be number or string (including comma-separated)
+    const assetTaxRegionStr = asset.tax_region != null ? String(asset.tax_region) : '';
+    const assetTaxRegions = assetTaxRegionStr 
+      ? assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r)
+      : [];
     const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
     
-    // Combine tax regions - use asset's tax_region first, then add tab's tax regions
+    // Combine tax regions - merge both lists and remove duplicates
     const allTaxRegions = new Set<string>();
-    if (assetTaxRegion) {
-      allTaxRegions.add(assetTaxRegion);
-    }
+    assetTaxRegions.forEach(tr => allTaxRegions.add(tr));
     tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
     
     combinedTaxRegion = Array.from(allTaxRegions).join(',');
@@ -548,14 +550,16 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           // For transfer areas tab: combine asset's tax_region with tab's taxRegion
           // This allows validation against both the original asset tax region and the transferred tax region
           let combinedTaxRegion = '';
-          const assetTaxRegion = updatedData.tax_region != null ? String(updatedData.tax_region) : '';
+          // Parse updatedData.tax_region - can be number or string (including comma-separated)
+          const assetTaxRegionStr = updatedData.tax_region != null ? String(updatedData.tax_region) : '';
+          const assetTaxRegions = assetTaxRegionStr 
+            ? assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r)
+            : [];
           const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
           
-          // Combine tax regions - use asset's tax_region first, then add tab's tax regions
+          // Combine tax regions - merge both lists and remove duplicates
           const allTaxRegions = new Set<string>();
-          if (assetTaxRegion) {
-            allTaxRegions.add(assetTaxRegion);
-          }
+          assetTaxRegions.forEach(tr => allTaxRegions.add(tr));
           tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
           
           combinedTaxRegion = Array.from(allTaxRegions).join(',');

@@ -2168,8 +2168,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     if (mode === 'skeleton') {
       return [
         {
-          field: 'payer_id',
-          headerName: t('payerId'),
+          field: 'building_number',
+          headerName: t('buildingNumber'),
+          width: 120,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'asset_id',
+          headerName: t('assetId'),
           width: 120,
           editable: true,
           cellStyle: getCellStyle
@@ -2182,15 +2189,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           cellStyle: getCellStyle
         },
         {
-          field: 'asset_id',
-          headerName: t('assetId'),
-          width: 120,
-          editable: true,
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'building_number',
-          headerName: t('buildingNumber'),
+          field: 'payer_id',
+          headerName: t('payerId'),
           width: 120,
           editable: true,
           cellStyle: getCellStyle

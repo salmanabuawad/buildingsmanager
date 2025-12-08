@@ -24,10 +24,9 @@ export interface Building {
 }
 
 export interface Asset {
-  id: number;
   building_number: number;
   payer_id?: string;
-  asset_id: number;
+  asset_id: number; // Primary key (was id field previously)
   measurement_date: string;
   main_asset_type?: string;
   asset_size: number;
@@ -1095,7 +1094,7 @@ export const api = {
       const sanitizedInput = sanitizeAssetInput(input);
       
       // Remove fields that shouldn't be updated
-      delete (sanitizedInput as any).id;
+      // No id field to delete - asset_id is now the primary key
       delete (sanitizedInput as any).created_at;
       // Only include is_new_measurement if explicitly provided (for "save as new measurement")
       // For regular updates, omit it entirely to avoid errors if column doesn't exist

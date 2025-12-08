@@ -699,7 +699,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             matchedAssetTypeRecord: undefined
           });
 
-          // Update validation errors in asset row
+          // Update validation errors in asset row (use id as row identifier, asset_id for asset identification)
           setImportedAssets(prev => prev.map(a => 
             a.id === asset.id 
               ? { ...a, _validationErrors: allErrors.length > 0 ? allErrors : undefined }
@@ -712,6 +712,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             buildingNumber: asset.building_number || 0,
             errors: [errorMsg]
           });
+          // Update validation errors in asset row (use id as row identifier)
           setImportedAssets(prev => prev.map(a => 
             a.id === asset.id 
               ? { ...a, _validationErrors: [errorMsg] }

@@ -116,7 +116,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [asset?.main_asset_type, assetTypes]);
 
   const getRowStyle = useCallback((params: any) => {
-    const assetId = params.data?.id;
+    const assetId = params.data?.asset_id;
     if (!assetId) return undefined;
 
     const assetErrors = validationErrors.get(assetId);
@@ -385,7 +385,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Update allMeasurements state with changes
       setAllMeasurements(prev => {
         return prev.map(asset => {
-          if (asset.id === assetId) {
+          if (asset.asset_id === assetId) {
             const updatedAsset = { ...asset, ...changes };
             return updatedAsset;
           }
@@ -414,7 +414,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Also update asset state if it's the latest measurement
       if (selectedRowForEdit.is_latest) {
         setAsset(prev => {
-          if (prev && prev.id === assetId) {
+          if (prev && prev.asset_id === assetId) {
             return { ...prev, ...changes };
           }
           return prev;
@@ -497,7 +497,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             if (!gridApi) return;
             
             gridApi.forEachNode((node: any) => {
-              if (node.data && node.data.id === assetId) {
+              if (node.data && node.data.asset_id === assetId) {
                 // Update the entire node data with the merged updated asset
                 const mergedData = { ...node.data, ...updatedAsset };
                 
@@ -625,10 +625,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     try {
       // Prepare asset data with all current values (including changes from dirtyAssets)
       // This must be done first so we validate the actual current state
-      const currentAssetData = { ...latestMeasurement, ...(dirtyAssets.get(latestMeasurement.id) || {}) };
+      const currentAssetData = { ...latestMeasurement, ...(dirtyAssets.get(String(latestMeasurement.asset_id)) || {}) };
       
-      // Handle new asset (id === 0)
-      if (latestMeasurement.id === 0 || !assetId) {
+      // Handle new asset (asset_id === 0 or empty)
+      if (!latestMeasurement.asset_id || latestMeasurement.asset_id === 0 || !assetId) {
         console.log('[AssetDetails] Creating new asset', {
           building_number: currentAssetData.building_number,
           asset_id: currentAssetData.asset_id,
@@ -845,7 +845,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         
         // Notify parent to update the tab with the new asset ID
         if (onAssetCreated && newAsset) {
-          onAssetCreated(newAsset.id, newAsset.asset_id);
+          onAssetCreated(newAsset.asset_id, String(newAsset.asset_id));
         }
         
         // Clear dirty assets and validation errors
@@ -855,7 +855,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         
         // Refresh data to load the newly created asset with the new asset ID
         if (onDataUpdate) onDataUpdate();
-        await fetchData(newAsset.id);
+        await fetchData(newAsset.asset_id);
         return;
       }
 
@@ -1050,7 +1050,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     try {
       // Get the current measurement with all changes applied
       const currentAsset = latestMeasurement;
-      const changes = dirtyAssets.get(currentAsset.id) || {};
+      const changes = dirtyAssets.get(String(currentAsset.asset_id)) || {};
       
       // Merge current asset with changes
       const newAssetData = {
@@ -1069,10 +1069,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
 
       // Store the old asset ID before updating it
-      const oldAssetId = currentAsset.id;
+      const oldAssetId = currentAsset.asset_id;
 
-      // Remove id and created_at to create a new record
-      delete (newAssetData as any).id;
+      // Remove asset_id and created_at to create a new record (asset_id will be assigned by DB)
+      // Note: We keep asset_id in newAssetData as it might be used for linking
       delete (newAssetData as any).created_at;
       delete (newAssetData as any).updated_at;
       delete (newAssetData as any).is_latest;
@@ -1317,12 +1317,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       // Update validationErrors state to reflect validation results
       // This ensures the invalid icon is updated based on the validation results
-      if (latestRow.id) {
+      if (latestRow.asset_id) {
+        const latestRowId = String(latestRow.asset_id);
         setValidationErrors(prev => {
           const newMap = new Map(prev);
           if (actualValid) {
             // Validation passed - clear errors for this asset
-            newMap.delete(latestRow.id);
+            newMap.delete(latestRowId);
           } else if (allErrors.length > 0) {
             // Validation failed - set errors for this asset
             const errorMap = new Map<string, string>();
@@ -1330,7 +1331,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               // Use a generic field name or index if we can't determine the field
               errorMap.set(`error_${index}`, error);
             });
-            newMap.set(latestRow.id, errorMap);
+            newMap.set(latestRowId, errorMap);
           }
           return newMap;
         });
@@ -1371,7 +1372,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Helper function to get cell style for dirty fields
   const getCellStyle = (params: any, fieldName: string) => {
-    const assetId = params.data?.id;
+    const assetId = params.data?.asset_id;
     if (!assetId) return {};
     
     const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
@@ -1446,12 +1447,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     accept="*/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file && asset.id) {
-                        handleFileUpload(asset.id, file);
+                      if (file && asset.asset_id) {
+                        handleFileUpload(asset.asset_id, file);
                         e.target.value = '';
                       }
                     }}
-                    disabled={uploadingAssetId === asset.id}
+                    disabled={uploadingAssetId === asset.asset_id}
                   />
                 </label>
                 {uploadingAssetId === asset.id && uploadProgress && (
@@ -1998,7 +1999,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const dateStr = `${day}/${month}/${year}`;
         
         const newAsset: Asset = {
-          id: 0, // Temporary ID for new asset
           building_number: buildingNumber,
           asset_id: '',
           payer_id: '',
@@ -2420,7 +2420,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   // This prevents duplicates when same record appears in both tables
                   const isLatest = params.data.is_latest ? 'latest' : 'history';
                   const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
-                  return `${params.data.id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
+                  return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                 }}
                 getRowStyle={getRowStyle}
                 getPinnedRowStyle={(params) => {
@@ -2510,7 +2510,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     getRowId={(params) => {
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
-                      return `${params.data.id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
+                      return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                     }}
                     getRowStyle={getRowStyle}
                     onGridReady={async (params) => {

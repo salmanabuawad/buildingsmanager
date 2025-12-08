@@ -199,8 +199,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Ensure all assets have valid IDs
       const validFilteredAssets = (filteredAssets || []).filter(asset => {
         if (!asset) return false;
-        if (asset.id === undefined || asset.id === null) {
-          console.warn('[AssetsList] Asset missing ID:', asset);
+        if (asset.asset_id === undefined || asset.asset_id === null) {
+          console.warn('[AssetsList] Asset missing asset_id:', asset);
           return false;
         }
         return true;
@@ -208,8 +208,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       
       // Preserve new assets that haven't been saved yet (failed saves remain visible)
       const existingNewAssets = assets.filter(a => {
-        if (!a || a.id === undefined || a.id === null) return false;
-        return newAssets.has(String(a.id));
+        if (!a || a.asset_id === undefined || a.asset_id === null) return false;
+        return newAssets.has(String(a.asset_id));
       });
       const mergedAssets = [...validFilteredAssets, ...existingNewAssets];
       
@@ -220,7 +220,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         buildingNumber,
         taxRegion,
         sampleAsset: mergedAssets[0] ? {
-          id: mergedAssets[0].id,
           asset_id: mergedAssets[0].asset_id,
           main_asset_type: mergedAssets[0].main_asset_type
         } : null
@@ -286,7 +285,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     try {
       const { data, colDef } = event;
       const field = colDef.field;
-      const assetId = data.id;
+      const assetId = String(data.asset_id);
       const newValue = event.newValue;
 
       // Create updated asset with new value
@@ -303,7 +302,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Update the assets state immediately (no debounce)
       setAssets(prevAssets =>
         prevAssets.map(asset =>
-          String(asset.id) === String(assetId) ? updatedAsset : asset
+          String(asset.asset_id) === String(assetId) ? updatedAsset : asset
         )
       );
 
@@ -446,7 +445,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       console.log(`[Batch Validation] Using assets from grid: ${gridAssets.length} assets`, {
         buildingNumber,
         taxRegion: taxRegion || 'all',
-        sampleAssetIds: gridAssets.slice(0, 3).map(a => ({ id: a.id, asset_id: a.asset_id, tax_region: a.tax_region }))
+        sampleAssetIds: gridAssets.slice(0, 3).map(a => ({ asset_id: a.asset_id, tax_region: a.tax_region }))
       });
 
       // IMPORTANT: Filter out historical records - only validate latest measurements (is_latest === true)
@@ -466,15 +465,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // If assets are selected, only validate selected ones; otherwise validate all
       let assetsToValidate: Asset[];
       if (selectedAssets.size > 0) {
-        // Filter to only selected assets - match by database id (stored in selectedAssets)
-        // selectedAssets contains asset.id (database ID), not asset.asset_id
+        // Filter to only selected assets - match by asset_id (stored in selectedAssets)
+        // selectedAssets contains asset.asset_id (primary key), not database id
         assetsToValidate = latestAssets.filter(asset => {
-          const dbId = String(asset.id);
-          return selectedAssets.has(dbId);
+          const assetIdKey = String(asset.asset_id);
+          return selectedAssets.has(assetIdKey);
         });
         console.log(`[Batch Validation] Selected assets count: ${selectedAssets.size}, Grid assets count: ${latestAssets.length}, Assets to validate: ${assetsToValidate.length}`);
-        console.log(`[Batch Validation] Selected database IDs:`, Array.from(selectedAssets));
-        console.log(`[Batch Validation] Assets to validate database IDs:`, assetsToValidate.map(a => String(a.id)));
+        console.log(`[Batch Validation] Selected asset IDs:`, Array.from(selectedAssets));
+        console.log(`[Batch Validation] Assets to validate asset IDs:`, assetsToValidate.map(a => String(a.asset_id)));
       } else {
         // Validate all assets shown in the grid
         assetsToValidate = latestAssets;
@@ -483,7 +482,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Apply dirty changes to assets before validating (so we validate the current edited state)
       assetsToValidate = assetsToValidate.map(asset => {
-        const dirtyChanges = dirtyAssets.get(String(asset.id));
+        const dirtyChanges = dirtyAssets.get(String(asset.asset_id));
         if (dirtyChanges) {
           return { ...asset, ...dirtyChanges };
         }
@@ -589,7 +588,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           });
           return {
             assetId: String(result.assetId),
-            assetDbId: asset ? String(asset.id) : undefined,
+            assetDbId: asset ? String(asset.asset_id) : undefined,
             buildingNumber: asset?.building_number || buildingNumber,
             errors: result.errors || [], // Ensure errors is always an array
             passed: result.passed,
@@ -613,7 +612,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           if (!dbId) {
             const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
             if (asset) {
-              dbId = String(asset.id);
+              dbId = String(asset.asset_id);
             }
           }
           
@@ -722,7 +721,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Process deletions first
       for (const assetId of deletedAssets) {
         try {
-          const asset = assets.find(a => String(a.id) === String(assetId));
+          const asset = assets.find(a => String(a.asset_id) === String(assetId));
           if (!asset) continue;
 
           // Skip deletion if it's a temp asset (not saved to database yet)
@@ -736,7 +735,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           deletedCount++;
           successfullyDeleted.add(String(assetId));
         } catch (err) {
-          const asset = assets.find(a => String(a.id) === String(assetId));
+          const asset = assets.find(a => String(a.asset_id) === String(assetId));
           const assetIdent = asset?.asset_id || assetId;
           errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה במחיקה'}`);
         }
@@ -746,7 +745,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       for (const newAssetId of newAssets) {
         if (!dirtyAssets.has(newAssetId) && !deletedAssets.has(newAssetId)) {
           // Add to dirtyAssets so it gets processed below
-          const asset = assets.find(a => String(a.id) === newAssetId);
+          const asset = assets.find(a => String(a.asset_id) === newAssetId);
           if (asset) {
             setDirtyAssets(prev => {
               const next = new Map(prev);
@@ -763,12 +762,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           if (deletedAssets.has(assetId)) continue;
 
           // Get the full asset data
-          const asset = assets.find(a => String(a.id) === String(assetId));
+          const asset = assets.find(a => String(a.asset_id) === String(assetId));
           if (!asset) continue;
 
           const updatedData = { ...asset, ...changes };
           const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
-          const currentAssetId = isNewAsset ? undefined : (typeof assetId === 'number' ? assetId : (typeof asset.id === 'number' ? asset.id : undefined));
+          const currentAssetId = isNewAsset ? undefined : (typeof assetId === 'number' ? assetId : (typeof asset.asset_id === 'number' ? asset.asset_id : undefined));
 
           // For new assets, validate all required fields
           if (isNewAsset) {
@@ -1147,19 +1146,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   const handleCancelAll = () => {
     // Remove new assets (temp IDs) from assets
-    setAssets(prev => prev.filter(a => !newAssets.has(String(a.id))));
+    setAssets(prev => prev.filter(a => !newAssets.has(String(a.asset_id))));
     
     // Restore original assets
     setAssets(prev => {
-      const existingIds = new Set(prev.map(a => String(a.id)));
+      const existingIds = new Set(prev.map(a => String(a.asset_id)));
       const restored = JSON.parse(JSON.stringify(originalAssets));
       // Only add restored assets that aren't new
-      const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.id)));
+      const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.asset_id)));
       // Merge with existing non-new assets
-      const merged = [...prev.filter(a => !newAssets.has(String(a.id))), ...filtered];
+      const merged = [...prev.filter(a => !newAssets.has(String(a.asset_id))), ...filtered];
       // Remove duplicates by id
       const unique = merged.filter((a, index, self) => 
-        index === self.findIndex(b => String(b.id) === String(a.id))
+        index === self.findIndex(b => String(b.asset_id) === String(a.asset_id))
       );
       return unique;
     });
@@ -1182,7 +1181,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const getCellStyle = useCallback((params: any) => {
     if (!params || !params.data) return { textAlign: 'right' };
     
-    const assetId = String(params.data?.id);
+    const assetId = String(params.data?.asset_id);
     if (!assetId || assetId === 'undefined' || assetId === 'null') return { textAlign: 'right' };
     
     // Safety check: ensure validationErrors and newAssets are defined
@@ -1379,7 +1378,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const penthouseCellRenderer = useCallback((params: any) => {
     if (!params || !params.data) return null;
     
-    const assetId = params.data?.id;
+    const assetId = params.data?.asset_id;
     if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
     
     // Safety check: ensure newAssets and dirtyAssets are defined
@@ -1416,7 +1415,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               
               // Update assets state
               setAssets(prev => prev.map(a => 
-                String(a.id) === assetIdStr ? { ...a, penthouse: newValue } : a
+                String(a.asset_id) === assetIdStr ? { ...a, penthouse: newValue } : a
               ));
               
               // Refresh only this specific cell
@@ -1462,7 +1461,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const asset = params.data as Asset;
         if (!asset) return null;
         
-        const assetId = String(asset.id);
+        const assetId = String(asset.asset_id);
         // Allow temporary IDs for new assets (e.g., "temp-1234567890")
         if (!assetId || assetId === 'undefined' || assetId === 'null') return null;
         
@@ -1558,7 +1557,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                     title="העלה קובץ"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {uploadingAssetId === asset.id ? (
+                    {uploadingAssetId === asset.asset_id ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <Upload className="h-5 w-5" />
@@ -1573,7 +1572,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          handleFileUpload(asset.id, file);
+                          handleFileUpload(asset.asset_id, file);
                         }
                         // Reset input
                         if (fileInputRefs.current.has(assetId)) {
@@ -1599,7 +1598,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       suppressMovable: true,
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
@@ -1611,7 +1610,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       width: 120,
       editable: (params) => {
         if (!params || !params.data || !newAssets) return false;
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       cellStyle: (params: any) => {
@@ -1619,7 +1618,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return { textAlign: 'right' };
         }
         
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         if (!assetId || assetId === 'undefined' || assetId === 'null') {
           return { textAlign: 'right' };
         }
@@ -1654,7 +1653,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('payerId'),
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
@@ -1675,7 +1674,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: 'קומה',
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1692,7 +1691,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: 'סוג הנחה',
       width: 100,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
@@ -1703,7 +1702,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: 'תאריך הנחה מ',
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
@@ -1715,7 +1714,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: 'תאריך הנחה עד',
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
@@ -1727,7 +1726,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('mainAssetType'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1743,7 +1742,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('mainAssetSize'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1761,7 +1760,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType1'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1777,7 +1776,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize1'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1795,7 +1794,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType2'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1811,7 +1810,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize2'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1829,7 +1828,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType3'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1845,7 +1844,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize3'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1863,7 +1862,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType4'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1879,7 +1878,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize4'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1897,7 +1896,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType5'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1913,7 +1912,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize5'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1931,7 +1930,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetType6'),
       width: 60,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       tooltipValueGetter: (params) => {
@@ -1947,7 +1946,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: t('subAssetSize6'),
       width: 80,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       type: 'numericColumn',
@@ -1965,7 +1964,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: '',
       width: 120,
       editable: (params) => {
-        const assetId = String(params.data?.id);
+        const assetId = String(params.data?.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
       headerClass: 'ag-right-aligned-header',
@@ -2186,7 +2185,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             rowData={assets}
             columnDefs={columnDefs}
             getRowStyle={(params) => {
-              const assetId = String(params.data?.id);
+              const assetId = String(params.data?.asset_id);
               if (deletedAssets.has(assetId)) {
                 return { backgroundColor: '#fee2e2', opacity: 0.7 }; // Light red for deleted
               }
@@ -2213,7 +2212,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               alwaysShowHorizontalScroll: true,
             }}
             domLayout="normal"
-            getRowId={(params) => String(params.data.id)}
+            getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
               // Ensure all columns are visible and grid calculates proper width

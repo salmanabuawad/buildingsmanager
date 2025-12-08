@@ -157,12 +157,12 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
                 <tbody>
                   {results.map((asset) => (
                     <tr
-                      key={asset.id}
+                      key={asset.asset_id}
                       className="border-b border-slate-100 hover:bg-blue-50/50 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => onSelectAsset(asset.id, asset.asset_id, asset.building_number)}
+                          onClick={() => onSelectAsset(String(asset.asset_id), String(asset.asset_id), asset.building_number)}
                           className="px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg hover:scale-105 text-sm font-semibold whitespace-nowrap"
                         >
                           {t('viewDetails') || 'View Details'}

@@ -1177,6 +1177,176 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   };
 
+  // Distribute shared area to all residential assets
+  const handleDistributeSharedArea = useCallback(async () => {
+    if (!building || !building.shared_area || building.shared_area <= 0) {
+      setError('אין שטח משותף מגורים במבנה או השטח הוא 0');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!assetTypes || assetTypes.length === 0) {
+      setError('לא ניתן לטעון את סוגי הנכסים');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Filter assets: only residential assets that are not not_accountable
+      const residentialAssets = assets.filter(asset => {
+        // Skip deleted assets
+        if (deletedAssets.has(String(asset.asset_id))) return false;
+        
+        // Check if asset type is not_accountable
+        if (asset.main_asset_type) {
+          const assetType = assetTypes.find(at => at.name === asset.main_asset_type);
+          if (assetType?.not_accountable === true) return false;
+        }
+        
+        return true;
+      });
+
+      if (residentialAssets.length === 0) {
+        setError('אין נכסי מגורים במבנה לפזר בהם שטח משותף');
+        setTimeout(() => setError(null), 3000);
+        setLoading(false);
+        return;
+      }
+
+      // Calculate area per asset
+      const areaPerAsset = building.shared_area! / residentialAssets.length;
+      
+      // Track changes
+      const updatedDirtyAssets = new Map(dirtyAssets);
+      const updatedAssets = [...assets];
+      let updatedCount = 0;
+
+      for (const asset of residentialAssets) {
+        const assetId = String(asset.asset_id);
+        const assetTaxRegion = asset.tax_region != null ? String(asset.tax_region) : null;
+        
+        // Find shared area usage asset type for this tax region
+        let sharedAreaAssetType: AssetType | undefined;
+        if (assetTaxRegion) {
+          // Try to find asset type with shared_area_usage = true for this tax region
+          sharedAreaAssetType = assetTypes.find(at => 
+            at.active === 'כן' &&
+            at.tax_region !== null &&
+            String(at.tax_region) === assetTaxRegion &&
+            at.shared_area_usage === 'כן'
+          );
+        }
+        
+        if (!sharedAreaAssetType) {
+          // Try to find any asset type with shared_area_usage = true
+          sharedAreaAssetType = assetTypes.find(at => 
+            at.active === 'כן' && at.shared_area_usage === 'כן'
+          );
+        }
+
+        if (!sharedAreaAssetType) {
+          setError(`לא נמצא סוג נכס משנה עם שימוש בשטח משותף לנכס ${asset.asset_id}`);
+          setTimeout(() => setError(null), 5000);
+          setLoading(false);
+          return;
+        }
+
+        // Find first available sub asset slot
+        const subAssetFields = [
+          { type: 'sub_asset_type_1', size: 'sub_asset_size_1' },
+          { type: 'sub_asset_type_2', size: 'sub_asset_size_2' },
+          { type: 'sub_asset_type_3', size: 'sub_asset_size_3' },
+          { type: 'sub_asset_type_4', size: 'sub_asset_size_4' },
+          { type: 'sub_asset_type_5', size: 'sub_asset_size_5' },
+          { type: 'sub_asset_type_6', size: 'sub_asset_size_6' }
+        ];
+
+        // First, check if asset already has a shared area sub-asset type
+        let existingSharedAreaSlot: { type: string; size: string } | null = null;
+        for (const field of subAssetFields) {
+          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          const currentType = currentAsset?.[field.type as keyof Asset] as string | undefined;
+          
+          if (currentType && currentType.trim() !== '') {
+            // Check if this type is a shared area usage type
+            const currentAssetType = assetTypes.find(at => at.name === currentType);
+            if (currentAssetType?.shared_area_usage === 'כן') {
+              existingSharedAreaSlot = field;
+              break;
+            }
+          }
+        }
+
+        // If found existing shared area slot, update it
+        // Otherwise, find first empty slot
+        let slotToUse: { type: string; size: string } | null = null;
+        
+        if (existingSharedAreaSlot) {
+          slotToUse = existingSharedAreaSlot;
+        } else {
+          // Find first empty slot
+          for (const field of subAssetFields) {
+            const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+            const currentType = currentAsset?.[field.type as keyof Asset] as string | undefined;
+            
+            if (!currentType || currentType.trim() === '') {
+              slotToUse = field;
+              break;
+            }
+          }
+        }
+
+        if (!slotToUse) {
+          setError(`לא נמצא מקום פנוי בנכסי משנה לנכס ${asset.asset_id}`);
+          setTimeout(() => setError(null), 5000);
+          setLoading(false);
+          return;
+        }
+
+        // Update or add to the slot
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        updatedDirtyAssets.set(assetId, {
+          ...existingChanges,
+          [slotToUse.type]: sharedAreaAssetType.name,
+          [slotToUse.size]: areaPerAsset
+        });
+
+        // Update local assets array for immediate UI update
+        const assetIndex = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
+        if (assetIndex !== -1) {
+          updatedAssets[assetIndex] = {
+            ...updatedAssets[assetIndex],
+            [slotToUse.type]: sharedAreaAssetType.name,
+            [slotToUse.size]: areaPerAsset
+          } as Asset;
+        }
+
+        updatedCount++;
+      }
+
+      // Update state
+      setDirtyAssets(updatedDirtyAssets);
+      setAssets(updatedAssets);
+      
+      setSuccess(`פוזר שטח משותף מגורים (${building.shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
+      setTimeout(() => setSuccess(null), 5000);
+
+      // Refresh grid
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }, [building, assets, assetTypes, dirtyAssets, deletedAssets]);
+
   // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {
     if (!params || !params.data) return { textAlign: 'right' };
@@ -2168,6 +2338,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   >
                     <ArrowRightLeft className="h-4 w-4" />
                     העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
+                  </button>
+                )}
+                {building && building.shared_area && building.shared_area > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDistributeSharedArea}
+                    disabled={loading || assets.length === 0}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+                    title={`פזר שטח משותף מגורים (${building.shared_area?.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
+                  >
+                    <Download className="h-4 w-4" />
+                    פזר שטח משותף
                   </button>
                 )}
                 <button

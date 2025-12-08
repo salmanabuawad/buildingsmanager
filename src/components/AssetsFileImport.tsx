@@ -1020,6 +1020,61 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const year = today.getFullYear();
       const defaultDate = `${day}/${month}/${year}`;
 
+      // Check for duplicate asset_ids within the batch first
+      const assetIdCounts = new Map<string | number, number>();
+      const duplicateAssetIds = new Set<string | number>();
+      validatedSkeletonAssets.forEach((asset: ImportAssetRow) => {
+        if (asset.asset_id != null) {
+          const count = assetIdCounts.get(asset.asset_id) || 0;
+          assetIdCounts.set(asset.asset_id, count + 1);
+          if (count + 1 > 1) {
+            duplicateAssetIds.add(asset.asset_id);
+          }
+        }
+      });
+      
+      if (duplicateAssetIds.size > 0) {
+        const duplicateErrors: string[] = [];
+        duplicateAssetIds.forEach((assetId) => {
+          duplicateErrors.push(`נכס ${assetId}: מזהה נכס מופיע מספר פעמים בקובץ הייבוא`);
+        });
+        
+        // Add errors to assets in the grid
+        setImportedAssets(prev => prev.map((asset: ImportAssetRow) => {
+          if (asset.asset_id != null && duplicateAssetIds.has(asset.asset_id)) {
+            const existingErrors = asset._validationErrors || [];
+            return {
+              ...asset,
+              _validationErrors: [...existingErrors, 'מזהה נכס מופיע מספר פעמים בקובץ הייבוא']
+            };
+          }
+          return asset;
+        }));
+        
+        setSaveResult({
+          successful: 0,
+          failed: validatedSkeletonAssets.length,
+          errors: duplicateErrors
+        });
+        
+        const errorMessage = duplicateErrors.length === 1
+          ? duplicateErrors[0]
+          : `נכשלו ${duplicateErrors.length} נכסים עם מזהה כפול בקובץ: ${duplicateErrors.slice(0, 3).join('; ')}${duplicateErrors.length > 3 ? ` ...ועוד ${duplicateErrors.length - 3} שגיאות` : ''}`;
+        setToast({ message: errorMessage, type: 'error' });
+        setTimeout(() => setToast(null), 10000);
+        
+        // Refresh grid
+        if (gridRef.current?.api) {
+          setTimeout(() => {
+            gridRef.current?.api.refreshCells({ force: true });
+          }, 100);
+        }
+        
+        setIsSaving(false);
+        setIsParsing(false);
+        return;
+      }
+
       // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
       const assetsToInsert: Partial<Asset>[] = validatedSkeletonAssets.map(asset => ({
         building_number: asset.building_number!,
@@ -1154,6 +1209,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 if (duplicatesInBatch.length > 0) {
                   duplicatesInBatch.forEach(([assetId]) => {
                     errors.push(`נכס ${assetId}: מזהה נכס מופיע מספר פעמים בקובץ הייבוא.`);
+                    
+                    // Also add error to the asset in the grid so it shows with red icon
+                    setImportedAssets(prev => prev.map((asset: ImportAssetRow) => {
+                      const assetIdMatch = typeof asset.asset_id === 'string' 
+                        ? String(asset.asset_id) === String(assetId)
+                        : asset.asset_id === assetId;
+                      
+                      if (assetIdMatch) {
+                        const existingErrors = asset._validationErrors || [];
+                        return {
+                          ...asset,
+                          _validationErrors: [...existingErrors, 'מזהה נכס מופיע מספר פעמים בקובץ הייבוא']
+                        };
+                      }
+                      return asset;
+                    }));
                   });
                 } else {
                   errors.push(`שגיאה: נכסים קיימים כבר במערכת (duplicate key violation). פרטים: ${insertError.message}`);
@@ -1463,6 +1534,60 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             }
           }
         }
+      }
+
+      // Check for duplicate asset_ids within the batch before insert
+      const assetIdCounts = new Map<string | number, number>();
+      const duplicateAssetIds = new Set<string | number>();
+      assetsToInsert.forEach(asset => {
+        if (asset.asset_id != null) {
+          const count = assetIdCounts.get(asset.asset_id) || 0;
+          assetIdCounts.set(asset.asset_id, count + 1);
+          if (count + 1 > 1) {
+            duplicateAssetIds.add(asset.asset_id);
+          }
+        }
+      });
+      
+      if (duplicateAssetIds.size > 0) {
+        const duplicateErrors: string[] = [];
+        duplicateAssetIds.forEach((assetId) => {
+          duplicateErrors.push(`נכס ${assetId}: מזהה נכס מופיע מספר פעמים בקובץ הייבוא`);
+        });
+        
+        // Add errors to assets in the grid
+        setImportedAssets(prev => prev.map((asset: ImportAssetRow) => {
+          if (asset.asset_id != null && duplicateAssetIds.has(asset.asset_id)) {
+            const existingErrors = asset._validationErrors || [];
+            return {
+              ...asset,
+              _validationErrors: [...existingErrors, 'מזהה נכס מופיע מספר פעמים בקובץ הייבוא']
+            };
+          }
+          return asset;
+        }));
+        
+        setSaveResult({
+          successful: 0,
+          failed: assetsToInsert.length,
+          errors: [...errors, ...duplicateErrors]
+        });
+        
+        const errorMessage = duplicateErrors.length === 1
+          ? duplicateErrors[0]
+          : `נכשלו ${duplicateErrors.length} נכסים עם מזהה כפול בקובץ: ${duplicateErrors.slice(0, 3).join('; ')}${duplicateErrors.length > 3 ? ` ...ועוד ${duplicateErrors.length - 3} שגיאות` : ''}`;
+        setToast({ message: errorMessage, type: 'error' });
+        setTimeout(() => setToast(null), 10000);
+        
+        // Refresh grid
+        if (gridRef.current?.api) {
+          setTimeout(() => {
+            gridRef.current?.api.refreshCells({ force: true });
+          }, 100);
+        }
+        
+        setIsSaving(false);
+        return;
       }
 
       // Sanitize all assets before bulk insert using the sanitizeAssetInput function

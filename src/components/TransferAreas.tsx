@@ -1088,19 +1088,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             <h1 className="text-lg sm:text-xl font-bold text-white">
               העברת שטחים - מבנה {building?.building_number}
             </h1>
-            {taxRegion && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {taxRegion.split(',').map((region, index) => {
-                  const trimmedRegion = region.trim();
-                  if (!trimmedRegion) return null;
-                  return (
-                    <p key={index} className="text-sm text-white font-semibold bg-purple-700 px-3 py-1 rounded">
-                      {trimmedRegion}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </div>

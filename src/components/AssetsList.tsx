@@ -2363,6 +2363,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               {selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}
             </button>
           </div>
+          {/* Distribute shared area button - always visible if building has shared_area (works on all assets, not just specific tax region) */}
+          {building && building.shared_area && building.shared_area > 0 && (
+            <button
+              type="button"
+              onClick={handleDistributeSharedArea}
+              disabled={loading || assets.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+              title={`פזר שטח משותף מגורים (${building.shared_area?.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
+            >
+              <Download className="h-4 w-4" />
+              פזר שטח משותף
+            </button>
+          )}
           {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
           {(() => {
             const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
@@ -2394,18 +2407,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   >
                     <ArrowRightLeft className="h-4 w-4" />
                     העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
-                  </button>
-                )}
-                {building && building.shared_area && building.shared_area > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleDistributeSharedArea}
-                    disabled={loading || assets.length === 0}
-                    className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-                    title={`פזר שטח משותף מגורים (${building.shared_area?.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
-                  >
-                    <Download className="h-4 w-4" />
-                    פזר שטח משותף
                   </button>
                 )}
                 <button

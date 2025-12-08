@@ -1645,9 +1645,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             return (
               <div className="flex items-center gap-2 w-full px-2">
                 {hasError && (
-                  <div className="flex items-center justify-center" title={errorMessages.join(', ')}>
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Show error messages in a tooltip/alert format
+                      alert(errorMessages.join('\n'));
+                    }}
+                    className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                    title={errorMessages.join('\n')}
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                  </button>
                 )}
                 <button
                   type="button"
@@ -1713,14 +1723,24 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       cellRenderer: (params: any) => {
         const row = params.data as ImportAssetRow;
         const hasError = row._validationErrors && row._validationErrors.length > 0;
-        const errorMessages = hasError ? row._validationErrors : [];
+        const errorMessages = hasError && row._validationErrors ? row._validationErrors : [];
 
         return (
           <div className="flex items-center gap-2 w-full px-2">
-            {hasError && (
-              <div className="flex items-center justify-center" title={errorMessages.join(', ')}>
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </div>
+            {hasError && errorMessages.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Show error messages in a tooltip/alert format
+                  alert(errorMessages.join('\n'));
+                }}
+                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                title={errorMessages.join('\n')}
+              >
+                <AlertCircle className="h-4 w-4" />
+              </button>
             )}
             <button
               type="button"
@@ -2025,7 +2045,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     if (hasValidationError) {
       return {
         backgroundColor: '#fee2e2',
-        borderLeft: '4px solid #ef4444'
+        border: '2px solid #ef4444',
+        borderRadius: '4px'
       };
     }
     return undefined;
@@ -2233,37 +2254,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             </p>
           </div>
         </div>
-        )}
-
-        {/* Failed Assets Summary - Display above grid */}
-        {validationResults && validationResults.invalid > 0 && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <h3 className="text-lg font-semibold text-red-900">
-                נכסים שנכשלו באימות ({validationResults.invalid})
-              </h3>
-            </div>
-            <div className="max-h-48 overflow-y-auto space-y-2">
-              {validationResults.errors
-                .filter(e => e.errors.length > 0)
-                .map((error, idx) => (
-                  <div key={idx} className="bg-white border border-red-300 rounded p-3">
-                    <div className="font-semibold text-red-900 mb-1">
-                      נכס {error.assetId} (מבנה {error.buildingNumber})
-                    </div>
-                    <ul className="text-sm text-red-700 space-y-1">
-                      {error.errors.map((err, errIdx) => (
-                        <li key={errIdx} className="flex items-start gap-2">
-                          <span className="text-red-500">•</span>
-                          <span>{err}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-            </div>
-          </div>
         )}
 
         {/* Save Result - Display above grid */}

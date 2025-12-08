@@ -2156,10 +2156,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       return {
         backgroundColor: '#fee2e2',
         border: '2px solid #ef4444',
-        textAlign: 'left'
+        textAlign: 'right'
       };
     }
-    return { textAlign: 'left' };
+    return { textAlign: 'right' };
   };
 
   const columnDefs: ColDef<ImportAssetRow>[] = useMemo(() => {
@@ -2167,15 +2167,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     if (mode === 'skeleton') {
       return [
         {
-          field: 'building_number',
-          headerName: t('buildingNumber'),
-          width: 120,
-          editable: true,
-          cellStyle: getCellStyle
-        },
-        {
-          field: 'asset_id',
-          headerName: t('assetId'),
+          field: 'payer_id',
+          headerName: t('payerId'),
           width: 120,
           editable: true,
           cellStyle: getCellStyle
@@ -2188,8 +2181,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           cellStyle: getCellStyle
         },
         {
-          field: 'payer_id',
-          headerName: t('payerId'),
+          field: 'asset_id',
+          headerName: t('assetId'),
+          width: 120,
+          editable: true,
+          cellStyle: getCellStyle
+        },
+        {
+          field: 'building_number',
+          headerName: t('buildingNumber'),
           width: 120,
           editable: true,
           cellStyle: getCellStyle

@@ -742,15 +742,13 @@ export async function validateAssetTypeComplete(
     if (taxRegionsToCheck.length > 0) {
       // IMPORTANT: Now using asset.tax_region (if available), then taxRegion parameter
       // NOTE: We do NOT use building.tax_region - validation is against asset.tax_region only
-      // For multiple tax regions, we'll validate against the first one (or all if needed)
+      // For multiple tax regions, check if asset type is valid for at least one
       // Direct validation: check if asset type exists for the tax region(s)
       // Use cached assetTypes if provided to avoid database query
-      const firstTaxRegion = taxRegionsToCheck[0];
-      const taxRegionNum = parseInt(firstTaxRegion);
       
       // Get valid tax regions for this asset type from the asset_types table
       const validTaxRegions = getValidTaxRegionsForAssetType(assetTypeName, cachedData);
-      if (validTaxRegions.length > 0 && !validTaxRegions.includes(taxRegionNum)) {
+      if (validTaxRegions.length > 0) {
         // Check if any of the tax regions in the list is valid
         const taxRegionNumbers = taxRegionsToCheck.map(r => parseInt(r)).filter(n => !isNaN(n));
         const hasValidTaxRegion = taxRegionNumbers.some(tr => validTaxRegions.includes(tr));
@@ -776,8 +774,10 @@ export async function validateAssetTypeComplete(
           return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים בטבלת סוגי הנכסים` };
         }
         
-        // Check if the provided tax region is valid for this asset type
-        if (!validTaxRegionsForType.includes(taxRegionNum)) {
+        // Check if any of the provided tax regions is valid for this asset type
+        const taxRegionNumbers = taxRegionsToCheck.map(r => parseInt(r)).filter(n => !isNaN(n));
+        const hasValidTaxRegion = taxRegionNumbers.some(tr => validTaxRegionsForType.includes(tr));
+        if (!hasValidTaxRegion) {
           const validRegionsStr = validTaxRegionsForType.join(', ');
           return { valid: false, error: `סוג נכס ${assetTypeName} תקף רק באזורי מס: ${validRegionsStr}` };
         }
@@ -805,8 +805,10 @@ export async function validateAssetTypeComplete(
           return { valid: false, error: `סוג הנכס "${assetTypeName}" לא קיים בטבלת סוגי הנכסים` };
         }
         
-        // Check if the provided tax region is valid for this asset type
-        if (!validTaxRegionsForType.includes(taxRegionNum)) {
+        // Check if any of the provided tax regions is valid for this asset type
+        const taxRegionNumbers = taxRegionsToCheck.map(r => parseInt(r)).filter(n => !isNaN(n));
+        const hasValidTaxRegion = taxRegionNumbers.some(tr => validTaxRegionsForType.includes(tr));
+        if (!hasValidTaxRegion) {
           const validRegionsStr = validTaxRegionsForType.join(', ');
           return { valid: false, error: `סוג נכס ${assetTypeName} תקף רק באזורי מס: ${validRegionsStr}` };
         }
@@ -902,9 +904,14 @@ export async function validateAssetTypeComplete(
       // Use in-memory asset types
       assetTypes = getAssetTypesByName(assetTypeName);
 
+      // Determine tax regions to filter by
+      // Support comma-separated tax regions - use taxRegionsToCheck if available
       let buildingTaxRegions: string[];
-      if (taxRegion && taxRegion.trim() !== '') {
-        buildingTaxRegions = [taxRegion.trim()];
+      if (taxRegionsToCheck.length > 0) {
+        // Use the tax regions we determined above (from asset or parameter)
+        buildingTaxRegions = taxRegionsToCheck;
+      } else if (taxRegion && taxRegion.trim() !== '') {
+        buildingTaxRegions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
       } else {
         buildingTaxRegions = building.tax_region != null
           ? String(building.tax_region).split(',').map(r => r.trim())

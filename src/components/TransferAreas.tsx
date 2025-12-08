@@ -205,6 +205,19 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
     
     combinedTaxRegion = Array.from(allTaxRegions).join(',');
+    
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[TransferAreas.validateAsset] Combining tax regions:', {
+        assetTaxRegion: asset.tax_region,
+        assetTaxRegionStr,
+        assetTaxRegions,
+        tabTaxRegion: taxRegion,
+        tabTaxRegions,
+        combinedTaxRegion,
+        allTaxRegions: Array.from(allTaxRegions)
+      });
+    }
 
     // Create a modified asset object with combined tax region for validation
     // This ensures validateAssetTypeComplete uses the combined tax regions

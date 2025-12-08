@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2 } from 'lucide-react';
+import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -50,6 +50,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const gridRef = useRef<AgGridReact>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [importedAssets, setImportedAssets] = useState<ImportAssetRow[]>([]);
+  const [originalImportedAssets, setOriginalImportedAssets] = useState<ImportAssetRow[]>([]); // Store original state for rollback
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isValidating, setIsValidating] = useState(false);
@@ -150,6 +151,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     // Clear all previous import data to start fresh
     setIsParsing(true);
     setImportedAssets([]);
+    setOriginalImportedAssets([]); // Clear original state as well
     setSaveResult(null);
     setValidationResults(null);
     setValidationProgress(null);
@@ -372,47 +374,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         assets.push(asset);
       }
 
+      // Create deep copy for original state
+      const assetsCopy = JSON.parse(JSON.stringify(assets));
       setImportedAssets(assets);
+      setOriginalImportedAssets(assetsCopy); // Save original state for rollback
       setValidationCompleted(false); // Reset validation status when new file is loaded
-      
-      // Automatically validate all imported assets after loading
-      if (assets.length > 0) {
-        // Ensure buildings and assets are loaded into memory before validation
-        const ensureDataLoaded = async () => {
-          try {
-            // Check if buildings are already loaded
-            if (buildings.length === 0) {
-              const [bldgs, allAssets] = await Promise.all([
-                api.buildings.getAll(),
-                api.assets.getAll() // Load all assets for uniqueness validation
-              ]);
-              setBuildings(bldgs);
-              // Update in-memory stores for validation
-              const { setValidationData, setAllAssets } = await import('../lib/validation');
-              const currentAssetTypes = assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll();
-              setValidationData({ buildings: bldgs, assetTypes: currentAssetTypes, assets: allAssets });
-              setAllAssets(allAssets);
-            }
-            
-            // Also ensure validation context has loaded
-            if (validationContextLoading) {
-              await refreshRules();
-            }
-            
-            // Now trigger validation
-            handleValidate();
-          } catch (err) {
-            console.error('Error loading data for validation:', err);
-            // Still try to validate even if loading fails
-            handleValidate();
-          }
-        };
-        
-        // Trigger validation after ensuring data is loaded
-        setTimeout(() => {
-          ensureDataLoaded();
-        }, 100);
-      }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File');
     } finally {
@@ -592,6 +558,36 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         })
       );
 
+      // For skeleton mode, check for duplicates within the batch first
+      if (mode === 'skeleton') {
+        const assetIdToRows = new Map<string | number, number[]>();
+        importedAssets.forEach((asset, index) => {
+          if (asset.asset_id) {
+            const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
+            if (!assetIdToRows.has(assetIdKey)) {
+              assetIdToRows.set(assetIdKey, []);
+            }
+            assetIdToRows.get(assetIdKey)!.push(index);
+          }
+        });
+
+        // Find duplicates within batch and mark them with errors
+        assetIdToRows.forEach((rows, assetId) => {
+          if (rows.length > 1) {
+            const rowNumbers = rows.map(r => r + 1).join(', ');
+            const duplicateError = `מזהה נכס ${assetId} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers})`;
+            rows.forEach(rowIndex => {
+              const asset = importedAssets[rowIndex];
+              setImportedAssets(prev => prev.map((a, idx) => 
+                idx === rowIndex 
+                  ? { ...a, _validationErrors: [duplicateError] }
+                  : a
+              ));
+            });
+          }
+        });
+      }
+
       const results: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
 
       for (let i = 0; i < importedAssets.length; i++) {
@@ -611,27 +607,85 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             ? buildingsMap.get(buildingNum) 
             : null;
 
-          // Include asset and building in cachedData for validation
-          const cachedData = {
-            ...cachedDataBase,
-            asset: asset,
-            building: building
-          };
+          let allErrors: string[] = [];
 
-          // Use full validation with AssetValidationHandler.validateSingleAsset
-          const result = await AssetValidationHandler.validateSingleAsset(asset, {
-            cachedData
-          });
-          
-          // Add discount validation errors
-          const discountErrors = validateDiscountDates(asset);
-          const allErrors = [...result.errors, ...discountErrors];
+          // Check if asset already has duplicate error from batch check
+          const existingDuplicateError = asset._validationErrors?.find(err => err.includes('מופיע מספר פעמים בקובץ הייבוא'));
+
+          // For skeleton mode, only validate the 4 required fields: building_number, asset_id, tax_region, payer_id
+          if (mode === 'skeleton') {
+            const assetErrors: string[] = [];
+
+            // If already has duplicate error, skip other validations
+            if (existingDuplicateError) {
+              allErrors = [existingDuplicateError];
+            } else {
+              // Validate building_number
+              if (!buildingNum || isNaN(buildingNum)) {
+                assetErrors.push('מספר מבנה חייב להיות מספר תקין');
+              }
+
+              // Validate asset_id
+              if (!asset.asset_id || asset.asset_id.trim() === '') {
+                assetErrors.push('מזהה נכס חובה');
+              }
+
+              // Validate tax_region
+              const taxRegionNum = typeof asset.tax_region === 'string' 
+                ? parseInt(String(asset.tax_region), 10) 
+                : asset.tax_region;
+              if (!taxRegionNum || isNaN(taxRegionNum)) {
+                assetErrors.push('אזור מס חייב להיות מספר תקין');
+              }
+
+              // Validate payer_id
+              if (!asset.payer_id || asset.payer_id.trim() === '') {
+                assetErrors.push('מזהה משלם חובה');
+              }
+
+              // Check asset ID uniqueness against database (only if all basic validations pass)
+              if (assetErrors.length === 0 && asset.asset_id && buildingNum && !isNaN(buildingNum)) {
+                const { assetValidators } = await import('../lib/validation');
+                const { setValidationData, getAllAssets } = await import('../lib/validation');
+                const allAssets = getAllAssets();
+                const uniquenessValidation = await assetValidators.validateAssetIdUnique(
+                  asset.asset_id,
+                  undefined,
+                  undefined,
+                  { buildings: buildings, assets: allAssets },
+                  buildingNum
+                );
+                if (!uniquenessValidation.valid) {
+                  assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
+                }
+              }
+
+              allErrors = assetErrors;
+            }
+          } else {
+            // Regular mode - use full validation
+            // Include asset and building in cachedData for validation
+            const cachedData = {
+              ...cachedDataBase,
+              asset: asset,
+              building: building
+            };
+
+            // Use full validation with AssetValidationHandler.validateSingleAsset
+            const result = await AssetValidationHandler.validateSingleAsset(asset, {
+              cachedData
+            });
+            
+            // Add discount validation errors
+            const discountErrors = validateDiscountDates(asset);
+            allErrors = [...result.errors, ...discountErrors];
+          }
           
           results.push({
             assetId: asset.asset_id || `שורה ${i + 1}`,
             buildingNumber: asset.building_number || 0,
             errors: allErrors,
-            matchedAssetTypeRecord: result.matchedAssetTypeRecord
+            matchedAssetTypeRecord: undefined
           });
 
           // Update validation errors in asset row
@@ -681,6 +735,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     // Clear all previous import data to start fresh
     setIsParsing(true);
     setImportedAssets([]);
+    setOriginalImportedAssets([]); // Clear original state as well
     setSaveResult(null);
     setValidationResults(null);
     setValidationProgress(null);
@@ -811,8 +866,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         sub_asset_size_6: 0
       }));
 
+      // Create deep copy for original state
+      const importedRowsCopy = JSON.parse(JSON.stringify(importedRows));
       // Set imported assets to display in grid
       setImportedAssets(importedRows);
+      setOriginalImportedAssets(importedRowsCopy); // Save original state for rollback
+      setValidationCompleted(false); // Reset validation status when new file is loaded
 
       // Show errors if any (but don't block display)
       if (errors.length > 0) {
@@ -839,6 +898,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const handleImportSkeleton = async () => {
     if (importedAssets.length === 0) return;
 
+    // Validation must be completed before saving
+    if (!validationCompleted) {
+      alert('יש להריץ אימות לפני שמירה');
+      return;
+    }
+
     setIsSaving(true);
     const errors: string[] = [];
     let successCount = 0;
@@ -856,21 +921,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         setAllAssets(allAssets);
       }
 
-      const { assetValidators } = await import('../lib/validation');
       const { supabase } = await import('../lib/supabase');
 
-      // Filter assets that have all required fields: building_number, asset_id, tax_region, and payer_id
-      const skeletonAssets = importedAssets.filter(asset => 
-        asset.building_number != null && 
-        asset.asset_id != null && 
-        asset.asset_id !== '' &&
-        asset.tax_region != null &&
-        asset.payer_id != null &&
-        asset.payer_id !== ''
-      );
+      // Filter assets that passed validation (no validation errors)
+      const validatedSkeletonAssets = importedAssets.filter(asset => {
+        // Must have all required fields
+        if (!asset.building_number || !asset.asset_id || asset.asset_id === '' || 
+            asset.tax_region == null || !asset.payer_id || asset.payer_id === '') {
+          return false;
+        }
+        // Must have no validation errors (validation was already done in handleValidate)
+        return !asset._validationErrors || asset._validationErrors.length === 0;
+      });
 
-      if (skeletonAssets.length === 0) {
-        errors.push('אין נכסים תקינים לייבא. כל הנכסים חייבים לכלול: מספר מבנה, מזהה נכס, אזור מס ומזהה משלם.');
+      if (validatedSkeletonAssets.length === 0) {
+        errors.push('אין נכסים תקינים לייבא. יש לתקן את כל השגיאות לפני שמירה.');
         setSaveResult({
           successful: 0,
           failed: 1,
@@ -880,43 +945,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return;
       }
 
-      // First, check for duplicates within the batch
-      const assetIdToRows = new Map<string | number, number[]>();
-      skeletonAssets.forEach((asset, index) => {
-        if (asset.asset_id) {
-          const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
-          if (!assetIdToRows.has(assetIdKey)) {
-            assetIdToRows.set(assetIdKey, []);
-          }
-          assetIdToRows.get(assetIdKey)!.push(index);
-        }
-      });
-
-      // Find duplicates within batch
-      const duplicatesInBatch: Array<{ assetId: string | number; rows: number[] }> = [];
-      assetIdToRows.forEach((rows, assetId) => {
-        if (rows.length > 1) {
-          duplicatesInBatch.push({ assetId, rows });
-        }
-      });
-
-      if (duplicatesInBatch.length > 0) {
-        duplicatesInBatch.forEach(({ assetId, rows }) => {
-          const rowNumbers = rows.map(r => r + 1).join(', ');
-          errors.push(`מזהה נכס ${assetId} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers})`);
-        });
-        setSaveResult({
-          successful: 0,
-          failed: duplicatesInBatch.length,
-          errors: errors
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      // First, check all buildings and collect missing ones
+      // Check all buildings and collect missing ones
       const uniqueBuildingNumbers = new Set<number>();
-      skeletonAssets.forEach(asset => {
+      validatedSkeletonAssets.forEach(asset => {
         const buildingNum = typeof asset.building_number === 'string' 
           ? parseInt(String(asset.building_number), 10) 
           : asset.building_number;
@@ -935,13 +966,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // If there are missing buildings, show modal for the first one
-      // After creating, the function will be called again recursively
       if (missingBuildings.length > 0) {
         const firstMissingBuilding = missingBuildings[0];
         
         // Collect unique tax_region values from assets that belong to this building
         const taxRegionsForBuilding = new Set<string>();
-        skeletonAssets.forEach(asset => {
+        validatedSkeletonAssets.forEach(asset => {
           const buildingNum = typeof asset.building_number === 'string' 
             ? parseInt(String(asset.building_number), 10) 
             : asset.building_number;
@@ -968,72 +998,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         };
         
         setShowBuildingCreateModal(true);
-        setIsSaving(false);
-        return;
-      }
-
-      // All buildings exist - continue with validation
-      // For skeleton import, only validate: building_number, asset_id, tax_region, payer_id
-      const validatedSkeletonAssets: ImportAssetRow[] = [];
-
-      for (const asset of skeletonAssets) {
-        const assetErrors: string[] = [];
-
-        // Validate building_number
-        const buildingNum = typeof asset.building_number === 'string' 
-          ? parseInt(String(asset.building_number), 10) 
-          : asset.building_number;
-        
-        if (!buildingNum || isNaN(buildingNum)) {
-          assetErrors.push('מספר מבנה חייב להיות מספר תקין');
-        }
-
-        // Validate asset_id
-        if (!asset.asset_id || asset.asset_id.trim() === '') {
-          assetErrors.push('מזהה נכס חובה');
-        }
-
-        // Validate tax_region
-        const taxRegionNum = typeof asset.tax_region === 'string' 
-          ? parseInt(String(asset.tax_region), 10) 
-          : asset.tax_region;
-        if (!taxRegionNum || isNaN(taxRegionNum)) {
-          assetErrors.push('אזור מס חייב להיות מספר תקין');
-        }
-
-        // Validate payer_id
-        if (!asset.payer_id || asset.payer_id.trim() === '') {
-          assetErrors.push('מזהה משלם חובה');
-        }
-
-        // Check asset ID uniqueness against database (only if all basic validations pass)
-        if (assetErrors.length === 0 && asset.asset_id && buildingNum && !isNaN(buildingNum)) {
-          const uniquenessValidation = await assetValidators.validateAssetIdUnique(
-            asset.asset_id,
-            undefined,
-            undefined,
-            { buildings: buildings, assets: [] },
-            buildingNum
-          );
-          if (!uniquenessValidation.valid) {
-            assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
-          }
-        }
-
-        if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
-          validatedSkeletonAssets.push(asset);
-        } else if (assetErrors.length > 0) {
-          errors.push(`נכס ${asset.asset_id || 'לא ידוע'} (מבנה ${asset.building_number || 'לא ידוע'}): ${assetErrors.join('; ')}`);
-        }
-      }
-
-      if (validatedSkeletonAssets.length === 0) {
-        errors.push('אין נכסים תקינים לייבא לאחר בדיקת תקינות.');
-        setSaveResult({
-          successful: 0,
-          failed: errors.length,
-          errors: errors
-        });
         setIsSaving(false);
         return;
       }
@@ -1577,15 +1541,53 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     setImportedAssets(prev => prev.filter(a => a.id !== rowId));
   }, []);
 
-  // Check if all assets are valid (building_number and asset_id exist, no validation errors)
-  // Allow partial data - only building_number and asset_id are required
+  const handleCancelChanges = useCallback(() => {
+    if (originalImportedAssets.length === 0) return;
+    
+    // Restore original assets (deep copy) and clear validation state
+    const originalCopy = JSON.parse(JSON.stringify(originalImportedAssets)).map((asset: ImportAssetRow) => ({
+      ...asset,
+      _validationErrors: undefined,
+      _isDirty: false
+    }));
+    
+    setImportedAssets(originalCopy);
+    
+    // Clear validation state
+    setValidationCompleted(false);
+    setValidationResults(null);
+    setValidationProgress(null);
+    setSaveResult(null);
+    
+    // Refresh grid to reflect changes
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    }, 100);
+  }, [originalImportedAssets]);
+
+  // Check if all assets are valid
+  // For skeleton mode: building_number, asset_id, tax_region, and payer_id are required, no validation errors
+  // For regular mode: building_number and asset_id are required, no validation errors
   const allAssetsValid = useMemo(() => {
     if (importedAssets.length === 0) return false;
     
-    // Check that all assets have building_number and asset_id
-    const hasRequiredFields = importedAssets.every(asset => 
-      asset.building_number != null && asset.asset_id != null && asset.asset_id !== ''
-    );
+    // Check that all assets have required fields
+    const hasRequiredFields = importedAssets.every(asset => {
+      if (mode === 'skeleton') {
+        // Skeleton mode requires: building_number, asset_id, tax_region, payer_id
+        return asset.building_number != null && 
+               asset.asset_id != null && 
+               asset.asset_id !== '' &&
+               asset.tax_region != null &&
+               asset.payer_id != null &&
+               asset.payer_id !== '';
+      } else {
+        // Regular mode requires: building_number and asset_id
+        return asset.building_number != null && asset.asset_id != null && asset.asset_id !== '';
+      }
+    });
     
     if (!hasRequiredFields) return false;
     
@@ -1595,7 +1597,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     );
     
     return !hasValidationErrors;
-  }, [importedAssets]);
+  }, [importedAssets, mode]);
 
   const getCellStyle = (params: any) => {
     const row = params.data as ImportAssetRow;
@@ -2302,6 +2304,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <div className="flex gap-2">
                 <button
                   type="button"
+                  onClick={handleCancelChanges}
+                  disabled={isValidating || isSaving || originalImportedAssets.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  title="בטל שינויים והחזר למצב המקורי"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>ביטול</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleValidate}
                   disabled={isValidating || isSaving}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
@@ -2321,9 +2333,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <button
                   type="button"
                   onClick={() => mode === 'skeleton' ? handleImportSkeleton() : handleSave(false)}
-                  disabled={mode === 'skeleton' ? (isValidating || isSaving) : (isValidating || isSaving || !validationCompleted || !allAssetsValid)}
+                  disabled={mode === 'skeleton' ? (isValidating || isSaving || !validationCompleted || !allAssetsValid) : (isValidating || isSaving || !validationCompleted || !allAssetsValid)}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title={mode === 'skeleton' ? '' : (!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : '')}
+                  title={!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
                 >
                   {isSaving ? (
                     <>

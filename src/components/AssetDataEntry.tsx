@@ -660,7 +660,18 @@ export function AssetDataEntry() {
         const savedList = savedAssets.join('\n');
         showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
       }
-      setRowData(prev => prev.filter(row => !row._isNew || !row.building_number || !row.asset_id));
+      // Update rowData: remove unsaved new rows and update originalRowData after successful save
+      const updatedRowData = rowData.filter(row => !row._isNew || !row.building_number || !row.asset_id);
+      setRowData(updatedRowData);
+      
+      // Update originalRowData after successful save (store clean state)
+      const cleanRowData = updatedRowData.map(r => ({
+        ...r,
+        _isDirty: false,
+        _dirtyFields: new Set<string>(),
+        _validationErrors: new Map<string, string>()
+      }));
+      setOriginalRowData(JSON.parse(JSON.stringify(cleanRowData)));
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'שגיאה בשמירת נכסים';
       showToast(`שגיאה קריטית: ${errorMsg}`, 'error');
@@ -1397,6 +1408,27 @@ export function AssetDataEntry() {
       cellStyle: { textAlign: 'right' }
     }
   ], [t, buildings, assetTypes, getCellStyle]);
+  // Store original row data for cancel functionality - update when rowData is initially loaded or after save
+  const [originalRowData, setOriginalRowData] = useState<AssetRow[]>([]);
+  
+  // Update originalRowData when rowData changes (after save operations)
+  useEffect(() => {
+    // Only update if rowData is not empty and different from current originalRowData
+    if (rowData.length > 0) {
+      const currentDataStr = JSON.stringify(rowData.map(r => ({ ...r, _isDirty: false, _dirtyFields: new Set(), _validationErrors: new Map() })));
+      const originalDataStr = JSON.stringify(originalRowData.map(r => ({ ...r, _isDirty: false, _dirtyFields: new Set(), _validationErrors: new Map() })));
+      if (currentDataStr !== originalDataStr) {
+        // Check if this is after a save operation (rows without _isDirty or _isNew)
+        const hasCleanRows = rowData.some(r => !r._isDirty && !r._isNew);
+        if (hasCleanRows) {
+          setOriginalRowData(JSON.parse(JSON.stringify(rowData)));
+        }
+      }
+    } else if (rowData.length === 0 && originalRowData.length > 0) {
+      // If rowData becomes empty, keep originalRowData
+    }
+  }, [rowData, originalRowData]);
+
   const filteredRowData = useMemo(() => {
     if (selectedBuilding === 'all') {
       return rowData;
@@ -1475,7 +1507,36 @@ export function AssetDataEntry() {
               <button
                 type="button"
                 onClick={() => {
-                  setRowData(JSON.parse(JSON.stringify(originalRowData)));
+                  if (originalRowData.length === 0) {
+                    // If no original data, just clear new rows and dirty flags
+                    setRowData(prev => prev
+                      .filter(row => !row._isNew)
+                      .map(row => ({
+                        ...row,
+                        _isDirty: false,
+                        _dirtyFields: new Set<string>(),
+                        _validationErrors: new Map<string, string>()
+                      }))
+                    );
+                  } else {
+                    // Restore original row data (deep copy) with clean state
+                    const restored = JSON.parse(JSON.stringify(originalRowData));
+                    setRowData(restored);
+                  }
+                  
+                  // Clear error/success messages
+                  setError(null);
+                  setSuccess(null);
+                  setToast(null);
+                  
+                  // Refresh grid
+                  setTimeout(() => {
+                    if (gridRef.current?.api) {
+                      gridRef.current.api.refreshCells({ force: true });
+                      gridRef.current.api.redrawRows();
+                    }
+                  }, 0);
+                  
                   showToast('השינויים בוטלו', 'info');
                 }}
                 disabled={loading}

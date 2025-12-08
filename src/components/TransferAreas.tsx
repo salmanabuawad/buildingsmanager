@@ -797,8 +797,14 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   };
 
   const handleCancelAll = () => {
+    // Clear all dirty changes and validation errors
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
+    setError(null);
+    setSuccess(null);
+    setToast(null);
+    
+    // Reload data from database to restore original state
     fetchData();
   };
 

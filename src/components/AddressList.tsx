@@ -127,12 +127,17 @@ export function AddressListComponent() {
       return;
     }
 
+    // Clear all changes and reload from database to restore original state
     setDirtyAddresses(new Map());
     setDeletedAddresses(new Set());
+    setMessage(null);
+    
+    // Reload data from database
     fetchAddresses(false);
     
     if (gridRef.current) {
       gridRef.current.api.refreshCells({ force: true });
+      gridRef.current.api.redrawRows();
     }
   }
 

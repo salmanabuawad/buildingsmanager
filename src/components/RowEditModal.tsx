@@ -120,7 +120,9 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: R
   };
 
   const handleCancel = () => {
+    // Restore original row data and clear all validation errors
     setFormData({ ...rowData });
+    setDateError(null);
     handleClose();
   };
 

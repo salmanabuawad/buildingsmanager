@@ -1169,19 +1169,20 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         } else {
           errors.push(`שגיאה בשמירה: ${insertError.message || insertError.code || 'שגיאה לא ידועה'}`);
         }
+        const failedCount = validatedSkeletonAssets.length;
         setSaveResult({
           successful: 0,
-          failed: validatedSkeletonAssets.length,
+          failed: failedCount,
           errors: errors
         });
         
-        // Show toast with error message
+        // Show toast with detailed error message
         if (errors.length > 0) {
-          const errorMessage = errors.length === 1 
-            ? errors[0]
-            : `שגיאה בשמירה: ${errors.length} נכסים נכשלו. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`;
+          const errorMessage = failedCount === 1 && errors.length === 1
+            ? `כל הנכסים נכשלו (${failedCount}). שגיאה: ${errors[0]}`
+            : `כל הנכסים נכשלו (${failedCount}). שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
           setToast({ message: errorMessage, type: 'error' });
-          setTimeout(() => setToast(null), 8000); // Auto-close after 8 seconds
+          setTimeout(() => setToast(null), 10000); // Auto-close after 10 seconds
         }
         
         // Refresh grid to show validation errors
@@ -1194,30 +1195,49 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         successCount = insertedAssets?.length || 0;
         const failedCount = validatedSkeletonAssets.length - successCount;
         
+        // Track successfully saved asset IDs
+        const successfullySavedAssetIds = new Set<string | number>();
+        if (insertedAssets && insertedAssets.length > 0) {
+          insertedAssets.forEach((savedAsset: any) => {
+            if (savedAsset.asset_id != null) {
+              successfullySavedAssetIds.add(savedAsset.asset_id);
+            }
+          });
+        }
+        
+        // Remove successfully saved assets from the imported list
+        setImportedAssets(prev => prev.filter((asset: ImportAssetRow) => {
+          if (!asset.asset_id) return true; // Keep assets without asset_id (shouldn't happen)
+          return !successfullySavedAssetIds.has(asset.asset_id);
+        }));
+        
         setSaveResult({
           successful: successCount,
           failed: failedCount,
           errors: errors
         });
 
-        // Show toast for success or errors
-        if (failedCount > 0 && errors.length > 0) {
-          const errorMessage = errors.length === 1 
-            ? errors[0]
-            : `שגיאה בשמירה: ${failedCount} נכסים נכשלו. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`;
-          setToast({ message: errorMessage, type: 'error' });
-          setTimeout(() => setToast(null), 8000);
+        // Show toast with detailed message
+        let toastMessage = '';
+        if (successCount > 0 && failedCount > 0) {
+          toastMessage = `נשמרו בהצלחה ${successCount} נכסים. נכשלו ${failedCount} נכסים: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
+          setToast({ message: toastMessage, type: 'error' });
+          setTimeout(() => setToast(null), 10000);
+        } else if (failedCount > 0 && errors.length > 0) {
+          toastMessage = `כל הנכסים נכשלו (${failedCount}). שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
+          setToast({ message: toastMessage, type: 'error' });
+          setTimeout(() => setToast(null), 10000);
         } else if (successCount > 0) {
-          setToast({ message: `נשמרו בהצלחה ${successCount} נכסים`, type: 'success' });
+          toastMessage = `נשמרו בהצלחה ${successCount} נכסים`;
+          setToast({ message: toastMessage, type: 'success' });
           setTimeout(() => setToast(null), 5000);
         }
-
-        if (successCount > 0) {
-          // Clear imported assets after successful save
-          setImportedAssets([]);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
+        
+        // Refresh grid to show updated list
+        if (gridRef.current?.api) {
+          setTimeout(() => {
+            gridRef.current?.api.refreshCells({ force: true });
+          }, 100);
         }
       }
     } catch (error) {
@@ -1450,10 +1470,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const sanitizedAssets = assetsToInsert.map(asset => sanitizeAssetInput(asset as any));
 
       // Perform bulk insert
+      let insertedAssetsResult: any[] | null = null;
       const { data: insertedAssets, error: bulkError } = await supabase
         .from('assets')
         .insert(sanitizedAssets)
         .select();
+      insertedAssetsResult = insertedAssets;
 
       if (bulkError) {
         // If bulk insert fails, try to identify which assets failed
@@ -1560,6 +1582,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 
                 if (!newError && newInserted) {
                   successCount = newInserted.length;
+                  // Store newInserted as insertedAssetsResult for removal tracking
+                  insertedAssetsResult = newInserted;
                 } else if (newError) {
                   errors.push(`שגיאה בשמירת נכסים: ${newError.message}`);
                 }
@@ -1600,26 +1624,54 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       } else {
         // Bulk insert succeeded
-        successCount = insertedAssets?.length || assetsToInsert.length;
+        successCount = insertedAssetsResult?.length || assetsToInsert.length;
       }
+
+      const failedCount = errors.length;
+      
+      // Track successfully saved asset IDs
+      const successfullySavedAssetIds = new Set<string | number>();
+      if (insertedAssetsResult && insertedAssetsResult.length > 0) {
+        insertedAssetsResult.forEach((savedAsset: any) => {
+          if (savedAsset.asset_id != null) {
+            successfullySavedAssetIds.add(savedAsset.asset_id);
+          }
+        });
+      }
+      
+      // Remove successfully saved assets from the imported list
+      setImportedAssets(prev => prev.filter((asset: ImportAssetRow) => {
+        if (!asset.asset_id) return true; // Keep assets without asset_id
+        return !successfullySavedAssetIds.has(asset.asset_id);
+      }));
 
       setSaveResult({
         successful: successCount,
-        failed: errors.length,
+        failed: failedCount,
         errors: errors.slice(0, 20)
       });
       
-      // Show toast for success or errors
-      const failedCount = errors.length;
-      if (failedCount > 0 && errors.length > 0) {
-        const errorMessage = errors.length === 1 
-          ? errors[0]
-          : `שגיאה בשמירה: ${failedCount} נכסים נכשלו. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`;
-        setToast({ message: errorMessage, type: 'error' });
-        setTimeout(() => setToast(null), 8000);
+      // Show toast with detailed message
+      let toastMessage = '';
+      if (successCount > 0 && failedCount > 0) {
+        toastMessage = `נשמרו בהצלחה ${successCount} נכסים. נכשלו ${failedCount} נכסים: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
+        setToast({ message: toastMessage, type: 'error' });
+        setTimeout(() => setToast(null), 10000);
+      } else if (failedCount > 0 && errors.length > 0) {
+        toastMessage = `כל הנכסים נכשלו (${failedCount}). שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` ...ועוד ${errors.length - 3} שגיאות` : ''}`;
+        setToast({ message: toastMessage, type: 'error' });
+        setTimeout(() => setToast(null), 10000);
       } else if (successCount > 0) {
-        setToast({ message: `נשמרו בהצלחה ${successCount} נכסים`, type: 'success' });
+        toastMessage = `נשמרו בהצלחה ${successCount} נכסים`;
+        setToast({ message: toastMessage, type: 'success' });
         setTimeout(() => setToast(null), 5000);
+      }
+      
+      // Refresh grid to show updated list (after successful saves are removed)
+      if (gridRef.current?.api) {
+        setTimeout(() => {
+          gridRef.current?.api.refreshCells({ force: true });
+        }, 100);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'שגיאה בשמירה';

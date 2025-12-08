@@ -680,7 +680,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
     // Clear all previous import data to start fresh
     setIsParsing(true);
-    setIsSaving(true);
     setImportedAssets([]);
     setSaveResult(null);
     setValidationResults(null);
@@ -688,6 +687,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     setValidationCompleted(false);
     setShowValidationModal(false);
     setIsValidating(false);
+    setIsSaving(false);
     setShowMeasurementDateModal(false);
     setMeasurementDate('');
     setPendingSaveAsNew(false);
@@ -698,20 +698,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     }
 
     const errors: string[] = [];
-    let successCount = 0;
     let skeletonAssets: Array<{ building_number: number | null; asset_id: string; tax_region?: number; payer_id?: string }> = [];
 
     try {
       const lines = await parseExcelFile(file);
 
       if (lines.length === 0) {
-        throw new Error('קובץ File ריק');
+        throw new Error('קובץ ריק');
       }
 
       // Process headers - exact name matching only for skeleton import
       const originalHeaders = lines[0].map(h => (h || '').trim());
       
-      // Find building_number, asset_id, tax_region, and payer_id columns by exact name match
+      // Find building_number and asset_id columns by exact name match
       let buildingNumberIndex = -1;
       let assetIdIndex = -1;
       let taxRegionIndex = -1;
@@ -759,6 +758,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             tax_region: taxRegion && !isNaN(taxRegion) ? taxRegion : undefined,
             payer_id: payerId
           });
+        } else {
+          // Log row errors
+          if (!buildingNumber || isNaN(buildingNumber)) {
+            errors.push(`שורה ${i + 1}: מספר מבנה חסר או לא תקין`);
+          }
+          if (!assetId || assetId.trim() === '') {
+            errors.push(`שורה ${i + 1}: מזהה נכס חסר`);
+          }
         }
       }
 
@@ -769,280 +776,56 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           failed: 1,
           errors: errors
         });
-        setIsSaving(false);
-        setIsParsing(false);
-        if (skeletonFileInputRef.current) {
-          skeletonFileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Ensure buildings and assets are loaded
-      if (buildings.length === 0) {
-        const [bldgs, allAssets] = await Promise.all([
-          api.buildings.getAll(),
-          api.assets.getAll()
-        ]);
-        setBuildings(bldgs);
-        const { setValidationData, setAllAssets } = await import('../lib/validation');
-        setValidationData({ buildings: bldgs, assetTypes: assetTypes || [], assets: allAssets });
-        setAllAssets(allAssets);
-      }
-
-      const { assetValidators } = await import('../lib/validation');
-      const { supabase } = await import('../lib/supabase');
-
-      // First, check for duplicates within the batch
-      const assetIdToRows = new Map<string | number, number[]>();
-      skeletonAssets.forEach((asset, index) => {
-        if (asset.asset_id) {
-          const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
-          if (!assetIdToRows.has(assetIdKey)) {
-            assetIdToRows.set(assetIdKey, []);
-          }
-          assetIdToRows.get(assetIdKey)!.push(index);
-        }
-      });
-
-      // Find duplicates within batch
-      const duplicatesInBatch: Array<{ assetId: string | number; rows: number[] }> = [];
-      assetIdToRows.forEach((rows, assetId) => {
-        if (rows.length > 1) {
-          duplicatesInBatch.push({ assetId, rows });
-        }
-      });
-
-      if (duplicatesInBatch.length > 0) {
-        duplicatesInBatch.forEach(({ assetId, rows }) => {
-          const rowNumbers = rows.map(r => r + 1).join(', ');
-          errors.push(`מזהה נכס ${assetId} מופיע מספר פעמים בקובץ הייבוא (שורות: ${rowNumbers})`);
-        });
-        setSaveResult({
-          successful: 0,
-          failed: duplicatesInBatch.length,
-          errors: errors
-        });
-        setIsSaving(false);
-        setIsParsing(false);
-        if (skeletonFileInputRef.current) {
-          skeletonFileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Check all buildings and collect missing ones
-      const uniqueBuildingNumbers = new Set<number>();
-      skeletonAssets.forEach(asset => {
-        const buildingNum = typeof asset.building_number === 'string' 
-          ? parseInt(String(asset.building_number), 10) 
-          : asset.building_number;
-        if (!isNaN(buildingNum) && buildingNum) {
-          uniqueBuildingNumbers.add(buildingNum);
-        }
-      });
-
-      // Check each building and prompt for creation if missing
-      const missingBuildings: number[] = [];
-      for (const buildingNum of uniqueBuildingNumbers) {
-        const exists = await checkBuildingExists(buildingNum);
-        if (!exists) {
-          missingBuildings.push(buildingNum);
-        }
-      }
-
-      // If there are missing buildings, show modal for the first one
-      if (missingBuildings.length > 0) {
-        const firstMissingBuilding = missingBuildings[0];
-        
-        // Collect unique tax_region values from assets that belong to this building
-        const taxRegionsForBuilding = new Set<string>();
-        skeletonAssets.forEach(asset => {
-          const buildingNum = typeof asset.building_number === 'string' 
-            ? parseInt(String(asset.building_number), 10) 
-            : asset.building_number;
-          if (buildingNum === firstMissingBuilding && asset.tax_region !== undefined && !isNaN(asset.tax_region)) {
-            taxRegionsForBuilding.add(String(asset.tax_region));
-          }
-        });
-        
-        // Convert to comma-separated string (sorted)
-        const taxRegionString = taxRegionsForBuilding.size > 0 
-          ? Array.from(taxRegionsForBuilding).sort().join(',')
-          : undefined;
-        
-        setPendingBuildingNumber(firstMissingBuilding);
-        setBuildingCreateData({ 
-          building_number: firstMissingBuilding,
-          tax_region: taxRegionString
-        });
-        
-        // Store skeleton assets and continuation function
-        // We need to store them somewhere to resume after building creation
-        // For now, set them in importedAssets as a temporary measure
-        const tempImportedAssets: ImportAssetRow[] = skeletonAssets.map((asset, idx) => ({
-          id: `skeleton_${idx}_${Date.now()}`,
-          building_number: asset.building_number,
-          payer_id: asset.payer_id || '',
-          asset_id: asset.asset_id,
-          measurement_date: '',
-          main_asset_type: '',
-          asset_size: 0,
-          tax_region: asset.tax_region,
-          sub_asset_type_1: '',
-          sub_asset_size_1: 0,
-          sub_asset_type_2: '',
-          sub_asset_size_2: 0,
-          sub_asset_type_3: '',
-          sub_asset_size_3: 0,
-          sub_asset_type_4: '',
-          sub_asset_size_4: 0,
-          sub_asset_type_5: '',
-          sub_asset_size_5: 0,
-          sub_asset_type_6: '',
-          sub_asset_size_6: 0
-        }));
-        setImportedAssets(tempImportedAssets);
-        
-        // Store the continuation function - will call handleImportSkeleton after building is created
-        pendingImportCallback.current = () => {
-          handleImportSkeleton();
-        };
-        
-        setShowBuildingCreateModal(true);
-        setIsSaving(false);
         setIsParsing(false);
         return;
       }
 
-      // All buildings exist - continue with validation and import
-      const validSkeletonAssets: Array<{ building_number: number; asset_id: string; tax_region?: number; payer_id?: string }> = [];
+      // Convert skeleton assets to ImportAssetRow format for display in grid
+      const importedRows: ImportAssetRow[] = skeletonAssets.map((asset, idx) => ({
+        id: `skeleton_${idx}_${Date.now()}`,
+        building_number: asset.building_number,
+        payer_id: asset.payer_id || '',
+        asset_id: asset.asset_id,
+        measurement_date: '',
+        main_asset_type: '',
+        asset_size: 0,
+        tax_region: asset.tax_region,
+        sub_asset_type_1: '',
+        sub_asset_size_1: 0,
+        sub_asset_type_2: '',
+        sub_asset_size_2: 0,
+        sub_asset_type_3: '',
+        sub_asset_size_3: 0,
+        sub_asset_type_4: '',
+        sub_asset_size_4: 0,
+        sub_asset_type_5: '',
+        sub_asset_size_5: 0,
+        sub_asset_type_6: '',
+        sub_asset_size_6: 0
+      }));
 
-      for (const asset of skeletonAssets) {
-        const assetErrors: string[] = [];
+      // Set imported assets to display in grid
+      setImportedAssets(importedRows);
 
-        // Check building existence (should all exist now, but double-check)
-        const buildingNum = typeof asset.building_number === 'string' 
-          ? parseInt(String(asset.building_number), 10) 
-          : asset.building_number;
-        
-        if (!buildingNum || isNaN(buildingNum)) {
-          assetErrors.push('מספר מבנה חייב להיות מספר תקין');
-        }
-
-        // Check asset ID uniqueness against database (duplicates in batch already checked above)
-        if (asset.asset_id && assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
-          const uniquenessValidation = await assetValidators.validateAssetIdUnique(
-            asset.asset_id,
-            undefined,
-            undefined,
-            { buildings: buildings, assets: [] },
-            buildingNum
-          );
-          if (!uniquenessValidation.valid) {
-            assetErrors.push(uniquenessValidation.error || `מזהה נכס ${asset.asset_id} כבר קיים במערכת`);
-          }
-        }
-
-        if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
-          validSkeletonAssets.push({
-            building_number: buildingNum,
-            asset_id: asset.asset_id,
-            tax_region: asset.tax_region,
-            payer_id: asset.payer_id
-          });
-        } else if (assetErrors.length > 0) {
-          errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
-        }
-      }
-
-      if (validSkeletonAssets.length === 0) {
-        errors.push('אין נכסים תקינים לייבא לאחר בדיקת תקינות.');
+      // Show errors if any (but don't block display)
+      if (errors.length > 0) {
         setSaveResult({
           successful: 0,
           failed: errors.length,
           errors: errors
         });
-        setIsSaving(false);
-        setIsParsing(false);
-        if (skeletonFileInputRef.current) {
-          skeletonFileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Get current date for measurement_date
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, '0');
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const year = today.getFullYear();
-      const defaultDate = `${day}/${month}/${year}`;
-
-      // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
-      const assetsToInsert: Partial<Asset>[] = validSkeletonAssets.map(asset => ({
-        building_number: asset.building_number!,
-        payer_id: asset.payer_id || undefined,
-        asset_id: asset.asset_id,
-        measurement_date: defaultDate,
-        main_asset_type: null,
-        asset_size: 0,
-        tax_region: asset.tax_region || undefined,
-        sub_asset_type_1: null,
-        sub_asset_size_1: 0,
-        sub_asset_type_2: null,
-        sub_asset_size_2: 0,
-        sub_asset_type_3: null,
-        sub_asset_size_3: 0,
-        sub_asset_type_4: null,
-        sub_asset_size_4: 0,
-        sub_asset_type_5: null,
-        sub_asset_size_5: 0,
-        sub_asset_type_6: null,
-        sub_asset_size_6: 0,
-        floor: null,
-        discount_type: null,
-        discount_date_from: null,
-        discount_date_to: null
-      }));
-
-      // Bulk insert skeleton assets
-      const { data: insertedAssets, error: insertError } = await supabase
-        .from('assets')
-        .insert(assetsToInsert)
-        .select();
-
-      if (insertError) {
-        errors.push(`שגיאה בשמירה: ${insertError.message}`);
-        setSaveResult({
-          successful: 0,
-          failed: validSkeletonAssets.length,
-          errors: errors
-        });
-      } else {
-        successCount = insertedAssets?.length || 0;
-        const failedCount = validSkeletonAssets.length - successCount;
-        
-        setSaveResult({
-          successful: successCount,
-          failed: failedCount,
-          errors: errors
-        });
       }
     } catch (error) {
-      console.error('Error importing skeleton from file:', error);
-      const errorMsg = error instanceof Error ? error.message : 'שגיאה בלתי צפויה בייבא שלד';
+      console.error('Error parsing skeleton file:', error);
+      const errorMsg = error instanceof Error ? error.message : 'שגיאה בפרסור קובץ שלד';
       errors.push(errorMsg);
-      const totalAttempted = skeletonAssets.length;
       setSaveResult({
-        successful: successCount,
-        failed: totalAttempted > successCount ? totalAttempted - successCount : 1,
+        successful: 0,
+        failed: 1,
         errors: errors
       });
     } finally {
-      setIsSaving(false);
       setIsParsing(false);
-      if (skeletonFileInputRef.current) {
-        skeletonFileInputRef.current.value = '';
-      }
     }
   };
 
@@ -1087,7 +870,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       // First, check for duplicates within the batch
       const assetIdToRows = new Map<string | number, number[]>();
-      skeletonAssets.forEach((asset, index) => {
+      validSkeletonAssets.forEach((asset, index) => {
         if (asset.asset_id) {
           const assetIdKey = typeof asset.asset_id === 'string' ? asset.asset_id : String(asset.asset_id);
           if (!assetIdToRows.has(assetIdKey)) {
@@ -1121,7 +904,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       // First, check all buildings and collect missing ones
       const uniqueBuildingNumbers = new Set<number>();
-      skeletonAssets.forEach(asset => {
+      validSkeletonAssets.forEach(asset => {
         const buildingNum = typeof asset.building_number === 'string' 
           ? parseInt(String(asset.building_number), 10) 
           : asset.building_number;
@@ -1146,7 +929,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         
         // Collect unique tax_region values from assets that belong to this building
         const taxRegionsForBuilding = new Set<string>();
-        skeletonAssets.forEach(asset => {
+        validSkeletonAssets.forEach(asset => {
           const buildingNum = typeof asset.building_number === 'string' 
             ? parseInt(String(asset.building_number), 10) 
             : asset.building_number;
@@ -1178,9 +961,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // All buildings exist - continue with validation
-      const validSkeletonAssets: ImportAssetRow[] = [];
+      const validatedSkeletonAssets: ImportAssetRow[] = [];
 
-      for (const asset of skeletonAssets) {
+      for (const asset of validSkeletonAssets) {
         const assetErrors: string[] = [];
 
         // Check building existence (should all exist now, but double-check)
@@ -1207,13 +990,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
 
         if (assetErrors.length === 0 && buildingNum && !isNaN(buildingNum)) {
-          validSkeletonAssets.push(asset);
+          validatedSkeletonAssets.push(asset);
         } else if (assetErrors.length > 0) {
           errors.push(`נכס ${asset.asset_id} (מבנה ${asset.building_number}): ${assetErrors.join('; ')}`);
         }
       }
 
-      if (validSkeletonAssets.length === 0) {
+      if (validatedSkeletonAssets.length === 0) {
         errors.push('אין נכסים תקינים לייבא לאחר בדיקת תקינות.');
         setSaveResult({
           successful: 0,
@@ -1232,7 +1015,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const defaultDate = `${day}/${month}/${year}`;
 
       // Prepare skeleton assets for insert (building_number, asset_id, tax_region, and payer_id)
-      const assetsToInsert: Partial<Asset>[] = validSkeletonAssets.map(asset => ({
+      const assetsToInsert: Partial<Asset>[] = validatedSkeletonAssets.map(asset => ({
         building_number: asset.building_number!,
         payer_id: asset.payer_id || undefined,
         asset_id: asset.asset_id,
@@ -1268,12 +1051,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         errors.push(`שגיאה בשמירה: ${insertError.message}`);
         setSaveResult({
           successful: 0,
-          failed: validSkeletonAssets.length,
+          failed: validatedSkeletonAssets.length,
           errors: errors
         });
       } else {
         successCount = insertedAssets?.length || 0;
-        const failedCount = validSkeletonAssets.length - successCount;
+        const failedCount = validatedSkeletonAssets.length - successCount;
         
         setSaveResult({
           successful: successCount,
@@ -1293,7 +1076,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       console.error('Error importing skeleton:', error);
       const errorMsg = error instanceof Error ? error.message : 'שגיאה בלתי צפויה בייבא שלד';
       errors.push(errorMsg);
-      const totalAttempted = skeletonAssets.length;
+      const totalAttempted = importedAssets.length;
       setSaveResult({
         successful: successCount,
         failed: totalAttempted > successCount ? totalAttempted - successCount : 1,
@@ -2235,7 +2018,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   function downloadSkeletonTemplate() {
     const headers = [
       'מזהה מבנה',
-      'מזהה נכס'
+      'מזהה נכס',
+      'אזור מס',
+      'מזהה משלם'
     ];
 
     const data = [headers];
@@ -2388,7 +2173,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </button>
             </div>
             <p className="text-xs text-orange-700">
-              ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס בלבד. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס
+              ייבוא ישיר של נכסים עם מספר מבנה ומזהה נכס. הקובץ חייב לכלול עמודות: מזהה מבנה (חובה), מזהה נכס (חובה). אפשר להוסיף: אזור מס (אופציונלי), מזהה משלם (אופציונלי)
             </p>
           </div>
         </div>
@@ -2490,10 +2275,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSave(false)}
-                  disabled={isValidating || isSaving || !validationCompleted || !allAssetsValid}
+                  onClick={() => mode === 'skeleton' ? handleImportSkeleton() : handleSave(false)}
+                  disabled={mode === 'skeleton' ? (isValidating || isSaving) : (isValidating || isSaving || !validationCompleted || !allAssetsValid)}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  title={!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : ''}
+                  title={mode === 'skeleton' ? '' : (!validationCompleted ? 'יש להריץ אימות לפני שמירה' : !allAssetsValid ? 'יש לתקן את כל השגיאות לפני שמירה' : '')}
                 >
                   {isSaving ? (
                     <>
@@ -2503,7 +2288,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      <span>שמור</span>
+                      <span>{mode === 'skeleton' ? 'ייבא שלד' : 'שמור'}</span>
                     </>
                   )}
                 </button>
@@ -2589,9 +2374,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <li><strong>מזהה נכס</strong> (Asset ID)</li>
                   </ul>
                 </div>
+                <div className="mt-3">
+                  <h3 className="font-semibold text-slate-900 mb-2 text-sm">שדות אופציונליים:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-slate-700 text-xs mr-4">
+                    <li><strong>אזור מס</strong> (Tax region)</li>
+                    <li><strong>מזהה משלם</strong> (Payer ID)</li>
+                  </ul>
+                </div>
               </div>
               <p className="text-xs text-slate-600 mt-3">
-                <span className="font-medium text-slate-700">ייבוא שלד - רק מספר מבנה ומזהה נכס</span>
+                <span className="font-medium text-slate-700">ייבוא שלד - מזהה מבנה ומזהה נכס (חובה), אזור מס ומזהה משלם (אופציונלי)</span>
               </p>
             </div>
           ) : (

@@ -6,6 +6,7 @@ import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { buildingValidators } from '../lib/validation';
+import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
@@ -64,6 +65,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [measurementDate, setMeasurementDate] = useState('');
   const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
   const [validationCompleted, setValidationCompleted] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skeletonFileInputRef = useRef<HTMLInputElement>(null);
   const [showBuildingCreateModal, setShowBuildingCreateModal] = useState(false);
@@ -1172,6 +1174,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           failed: validatedSkeletonAssets.length,
           errors: errors
         });
+        
+        // Show toast with error message
+        if (errors.length > 0) {
+          const errorMessage = errors.length === 1 
+            ? errors[0]
+            : `שגיאה בשמירה: ${errors.length} נכסים נכשלו. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`;
+          setToast({ message: errorMessage, type: 'error' });
+          setTimeout(() => setToast(null), 8000); // Auto-close after 8 seconds
+        }
+        
+        // Refresh grid to show validation errors
+        if (gridRef.current?.api) {
+          setTimeout(() => {
+            gridRef.current?.api.refreshCells({ force: true });
+          }, 100);
+        }
       } else {
         successCount = insertedAssets?.length || 0;
         const failedCount = validatedSkeletonAssets.length - successCount;
@@ -1181,6 +1199,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           failed: failedCount,
           errors: errors
         });
+
+        // Show toast for success or errors
+        if (failedCount > 0 && errors.length > 0) {
+          const errorMessage = errors.length === 1 
+            ? errors[0]
+            : `שגיאה בשמירה: ${failedCount} נכסים נכשלו. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`;
+          setToast({ message: errorMessage, type: 'error' });
+          setTimeout(() => setToast(null), 8000);
+        } else if (successCount > 0) {
+          setToast({ message: `נשמרו בהצלחה ${successCount} נכסים`, type: 'success' });
+          setTimeout(() => setToast(null), 5000);
+        }
 
         if (successCount > 0) {
           // Clear imported assets after successful save
@@ -1200,6 +1230,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         failed: totalAttempted > successCount ? totalAttempted - successCount : 1,
         errors: errors
       });
+      
+      // Show toast for error
+      setToast({ message: errorMsg, type: 'error' });
+      setTimeout(() => setToast(null), 8000);
     } finally {
       setIsSaving(false);
       setIsParsing(false);
@@ -1249,6 +1283,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           failed: 1,
           errors: errors
         });
+        setToast({ message: errors[0], type: 'error' });
+        setTimeout(() => setToast(null), 8000);
         setIsSaving(false);
         return;
       }
@@ -1572,8 +1608,23 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         failed: errors.length,
         errors: errors.slice(0, 20)
       });
+      
+      // Show toast for success or errors
+      const failedCount = errors.length;
+      if (failedCount > 0 && errors.length > 0) {
+        const errorMessage = errors.length === 1 
+          ? errors[0]
+          : `שגיאה בשמירה: ${failedCount} נכסים נכשלו. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`;
+        setToast({ message: errorMessage, type: 'error' });
+        setTimeout(() => setToast(null), 8000);
+      } else if (successCount > 0) {
+        setToast({ message: `נשמרו בהצלחה ${successCount} נכסים`, type: 'success' });
+        setTimeout(() => setToast(null), 5000);
+      }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'שגיאה בשמירה');
+      const errorMsg = error instanceof Error ? error.message : 'שגיאה בשמירה';
+      setToast({ message: errorMsg, type: 'error' });
+      setTimeout(() => setToast(null), 8000);
     } finally {
       setIsSaving(false);
     }
@@ -2542,6 +2593,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           )}
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {/* Validation Results Modal */}
       <ValidationResultModal

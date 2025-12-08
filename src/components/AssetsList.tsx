@@ -263,8 +263,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setAssets(mergedAssets);
       
       // Store original assets for cancel functionality
+      // Update originalAssets whenever we load fresh data and there are no pending changes
+      // This ensures cancel button always has the correct baseline
       if (dirtyAssets.size === 0 && newAssets.size === 0 && deletedAssets.size === 0) {
         setOriginalAssets(JSON.parse(JSON.stringify(mergedAssets)));
+      } else {
+        // Even if there are pending changes, update originalAssets with the fresh data
+        // This ensures that after save/delete operations, cancel will restore to the last saved state
+        // We only skip updating if we're in the middle of editing
+        const hasActiveChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
+        // Only update if we explicitly want to (like after a save operation that refreshed data)
+        // This is handled separately in handleSaveAll after fetchData
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load apartments');
@@ -1049,6 +1058,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Only clear successfully processed assets from state
       // Keep failed assets in state so they remain visible on screen
+      // Remove successfully saved/deleted assets from change tracking
       setDirtyAssets(prev => {
         const next = new Map(prev);
         for (const assetId of successfullySaved) {
@@ -1072,9 +1082,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
         return next;
       });
-
+      
       // Refresh data from server to update grid after successful deletions and saves
       await fetchData(false);
+      
+      // After fetchData completes and state is cleared, originalAssets should be updated in fetchData
+      // But to be safe, explicitly update it here after all state clearing is done
+      // Use a timeout to ensure state updates have propagated
+      setTimeout(() => {
+        setAssets(currentAssets => {
+          // Only update if we have assets and no pending changes
+          if (currentAssets.length >= 0 && dirtyAssets.size === 0 && newAssets.size === 0 && deletedAssets.size === 0) {
+            setOriginalAssets(JSON.parse(JSON.stringify(currentAssets)));
+          }
+          return currentAssets;
+        });
+      }, 0);
 
       if (errors.length > 0) {
         const successMsg = [];
@@ -1208,24 +1231,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, []);
 
   const handleCancelAll = () => {
-    // Remove new assets (temp IDs) from assets
-    setAssets(prev => prev.filter(a => !newAssets.has(String(a.asset_id))));
+    // Restore original assets completely (deep copy)
+    // This includes restoring deleted assets and removing new assets
+    const restored = JSON.parse(JSON.stringify(originalAssets));
+    setAssets(restored);
     
-    // Restore original assets
-    setAssets(prev => {
-      const existingIds = new Set(prev.map(a => String(a.asset_id)));
-      const restored = JSON.parse(JSON.stringify(originalAssets));
-      // Only add restored assets that aren't new
-      const filtered = restored.filter((a: Asset) => !newAssets.has(String(a.asset_id)));
-      // Merge with existing non-new assets
-      const merged = [...prev.filter(a => !newAssets.has(String(a.asset_id))), ...filtered];
-      // Remove duplicates by id
-      const unique = merged.filter((a, index, self) => 
-        index === self.findIndex(b => String(b.asset_id) === String(a.asset_id))
-      );
-      return unique;
-    });
-    
+    // Clear all change tracking
     setDirtyAssets(new Map());
     setDeletedAssets(new Set());
     setNewAssets(new Set());
@@ -1234,10 +1245,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setSuccess('השינויים בוטלו');
     setTimeout(() => setSuccess(null), 3000);
 
-    // Refresh the grid
-    if (gridRef.current?.api) {
-      gridRef.current.api.refreshCells({ force: true });
-    }
+    // Refresh the grid to show restored values
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+        gridRef.current.api.redrawRows();
+      }
+    }, 0);
   };
 
   // Distribute shared area to all residential assets

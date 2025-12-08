@@ -857,6 +857,17 @@ export async function validateAssetTypeComplete(
       assetTypes = cachedData.assetTypes.filter(at => 
         at.name === assetTypeName && at.active === 'כן'
       );
+      
+      // Apply tax region filtering if taxRegionsToCheck is available
+      if (taxRegionsToCheck.length > 0) {
+        const validTaxRegionsForType = getValidTaxRegionsForAssetType(assetTypeName, cachedData);
+        if (validTaxRegionsForType.length > 0) {
+          const taxRegionNumbers = taxRegionsToCheck.map(r => parseInt(r)).filter(n => !isNaN(n));
+          assetTypes = assetTypes.filter(at => 
+            at.tax_region != null && taxRegionNumbers.includes(Number(at.tax_region))
+          );
+        }
+      }
 
       // Determine tax regions to filter by
       // Support comma-separated tax regions
@@ -979,6 +990,20 @@ export async function validateAssetTypeComplete(
       if (assetTypes.length === 0) {
         const requiredRegionsStr = requiredTaxRegionsForMatching.join(', ');
         return { valid: false, error: `סוג נכס ${assetTypeName} לא קיים באזורי מס: ${requiredRegionsStr}` };
+      }
+    }
+
+    // ============================================
+    // STEP: Check if asset type is not_accountable (only for main assets)
+    // ============================================
+    // If the main asset type has not_accountable = true, skip all remaining validations
+    // This check happens AFTER we've verified the asset type exists and is valid for the tax region
+    if (!isSubAsset && assetTypes.length > 0) {
+      const hasNotAccountable = assetTypes.some(at => at.not_accountable === true);
+      if (hasNotAccountable) {
+        // Asset type exists, is valid for tax region, and is not_accountable
+        // Skip all remaining validations (size, building attributes, etc.)
+        return { valid: true };
       }
     }
 

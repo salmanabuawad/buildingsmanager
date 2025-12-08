@@ -26,7 +26,7 @@
   - `min_size` (NUMERIC) - Minimum size (שטח מ)
   - `max_size` (NUMERIC) - Maximum size (שטח עד)
   - `active` (TEXT) - Active status (default: 'כן')
-  - `accountable` (BOOLEAN) - Accountable indicator (נספר)
+  - `not_accountable` (BOOLEAN) - Not accountable indicator (לא נספר)
   - `area_description_for_tab` (TEXT) - Area description for tab
   - `created_at` (TIMESTAMPTZ) - Creation timestamp
   - `updated_at` (TIMESTAMPTZ) - Update timestamp
@@ -59,7 +59,7 @@ CREATE TABLE asset_types (
   min_size NUMERIC,
   max_size NUMERIC,
   active TEXT DEFAULT 'כן',
-  accountable BOOLEAN DEFAULT false,
+  not_accountable BOOLEAN DEFAULT false,
   area_description_for_tab TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -128,8 +128,9 @@ CREATE TRIGGER update_asset_types_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Add comment on active column
+-- Add comments on columns
 COMMENT ON COLUMN asset_types.active IS 'Indicates if the asset type is active. Values: "כן" (yes) or NULL (no)';
+COMMENT ON COLUMN asset_types.not_accountable IS 'Indicates if the asset type is NOT accountable (should NOT be counted). Values: true (לא נספר) or false (נספר)';
 
 -- Note: To import data from asset_types.xlsx, you can:
 -- 1. Use Supabase Dashboard: Table Editor > asset_types > Import data from CSV/Excel
@@ -147,6 +148,7 @@ COMMENT ON COLUMN asset_types.active IS 'Indicates if the asset type is active. 
 --   - מבנים צמודי קרקע טוריים מעל 2 יחידות (townhouses)
 --   - עסקי/פרטי (business_private)
 --   - שימוש בשטח משותף (shared_area_usage)
+--   - לא נספר (not_accountable)
 --   - שטח מ (min_size)
 --   - שטח עד (max_size)
 --

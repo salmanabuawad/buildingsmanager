@@ -185,8 +185,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       }
 
       setAssets(fetchedAssets);
+      setAssetTypes(assetTypesData || []);
       
+      // Wait for assetTypes state to be set before calculating initial total area
       // Calculate initial total area (sum of asset_size, excluding assets with not_accountable = true)
+      // Use the helper function to check if asset type is not_accountable
       const totalArea = fetchedAssets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
         if (asset.main_asset_type && assetTypesData) {

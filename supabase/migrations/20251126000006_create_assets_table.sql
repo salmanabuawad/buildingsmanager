@@ -257,7 +257,14 @@ BEGIN
   sql_query := 'UPDATE ' || quote_ident(COALESCE(building_table_name, 'buildings')) || ' SET ';
   
   IF has_total_building_area THEN
-    sql_query := sql_query || 'total_building_area = COALESCE((SELECT SUM(asset_size) FROM assets WHERE building_number = $1), 0)';
+    -- Exclude assets with not_accountable = true from total building area calculation
+    sql_query := sql_query || 'total_building_area = COALESCE((
+      SELECT SUM(a.asset_size) 
+      FROM assets a
+      LEFT JOIN asset_types at ON at.name = a.main_asset_type AND at.active = ''כן''
+      WHERE a.building_number = $1 
+        AND (at.not_accountable IS NULL OR at.not_accountable = false)
+    ), 0)';
   END IF;
   
   IF has_total_building_area AND has_total_assets THEN
@@ -358,26 +365,37 @@ RETURNS TABLE (
 BEGIN
   RETURN QUERY
   WITH latest_measurements AS (
-    SELECT DISTINCT ON (asset_id)
-      asset_id,
-      building_number,
-      asset_size,
-      measurement_date
-    FROM assets
-    WHERE building_number = p_building_number
+    SELECT DISTINCT ON (a.asset_id)
+      a.asset_id,
+      a.building_number,
+      a.asset_size,
+      a.measurement_date,
+      a.main_asset_type
+    FROM assets a
+    WHERE a.building_number = p_building_number
     ORDER BY 
-      asset_id,
+      a.asset_id,
       CASE 
-        WHEN measurement_date ~ '^\d{2}/\d{2}/\d{4}$' THEN
-          TO_DATE(measurement_date, 'DD/MM/YYYY')
+        WHEN a.measurement_date ~ '^\d{2}/\d{2}/\d{4}$' THEN
+          TO_DATE(a.measurement_date, 'DD/MM/YYYY')
         ELSE
           TO_DATE('01/01/1900', 'DD/MM/YYYY')
       END DESC
+  ),
+  filtered_measurements AS (
+    SELECT 
+      lm.asset_id,
+      lm.building_number,
+      lm.asset_size,
+      lm.measurement_date
+    FROM latest_measurements lm
+    LEFT JOIN asset_types at ON at.name = lm.main_asset_type AND at.active = 'כן'
+    WHERE at.not_accountable IS NULL OR at.not_accountable = false
   )
   SELECT 
     COUNT(*)::integer as total_assets,
     COALESCE(SUM(asset_size), 0) as total_building_area
-  FROM latest_measurements;
+  FROM filtered_measurements;
 END;
 $$ LANGUAGE plpgsql STABLE;
 

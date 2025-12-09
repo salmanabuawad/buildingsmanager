@@ -1,4 +1,4 @@
-import { api, ValidationRule, AssetType } from './api';
+import { api, ValidationRule, AssetType, Building } from './api';
 import { supabase } from './supabase';
 
 export interface ValidationResult {
@@ -2515,13 +2515,17 @@ export const buildingValidators = {
 
   validateAssetAreaDistribution: async (buildingNumber: number): Promise<ValidationResult> => {
     try {
-      // Get building data
-      const building = await api.buildings.getOne(buildingNumber);
-      if (!building) {
-        return {
-          valid: false,
-          error: 'מבנה לא נמצא'
-        };
+      // Get building data - catch error if building doesn't exist
+      let building: Building;
+      try {
+        building = await api.buildings.getOne(buildingNumber);
+      } catch (error: any) {
+        // If building doesn't exist, return valid (nothing to validate)
+        if (error?.message === 'Building not found') {
+          return { valid: true };
+        }
+        // Re-throw other errors
+        throw error;
       }
 
       // Get all assets for the building

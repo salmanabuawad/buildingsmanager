@@ -1398,24 +1398,41 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const changes: Partial<Asset> = { ...existingChanges };
         
         if (currentMainType !== '199' && currentMainType !== '' && String(currentMainType) !== '199') {
-          // Move current main type to sub_asset_type_1
-          // First check if sub_asset_type_1 is already used
-          const currentSub1Type = existingChanges.sub_asset_type_1 !== undefined
-            ? existingChanges.sub_asset_type_1
-            : (currentAsset?.sub_asset_type_1 || '');
-          const currentSub1Size = existingChanges.sub_asset_size_1 !== undefined
-            ? existingChanges.sub_asset_size_1
-            : (currentAsset?.sub_asset_size_1 || 0);
+          // Helper to get current sub-asset value (from changes first, then existingChanges, then currentAsset)
+          const getCurrentSubAsset = (index: number, changesMap: Partial<Asset>) => {
+            const typeKey = `sub_asset_type_${index}` as keyof Asset;
+            const sizeKey = `sub_asset_size_${index}` as keyof Asset;
+            return {
+              type: changesMap[typeKey] !== undefined
+                ? (changesMap[typeKey] as string | undefined)
+                : (existingChanges[typeKey] !== undefined
+                    ? (existingChanges[typeKey] as string | undefined)
+                    : (currentAsset?.[typeKey] as string | undefined || '')),
+              size: changesMap[sizeKey] !== undefined
+                ? (changesMap[sizeKey] as number | undefined)
+                : (existingChanges[sizeKey] !== undefined
+                    ? (existingChanges[sizeKey] as number | undefined)
+                    : (currentAsset?.[sizeKey] as number | undefined || 0))
+            };
+          };
 
-          // Only move if sub_asset_type_1 is empty
-          if (!currentSub1Type || currentSub1Type.trim() === '') {
-            changes.sub_asset_type_1 = String(currentMainType);
-            changes.sub_asset_size_1 = currentAssetSize;
-          } else {
-            // If sub_asset_type_1 is already used, we need to find the first empty slot
-            // But this is less common, so we'll skip moving in this case
-            // The main type will still be changed to 199
+          // Shift all existing sub-assets down by one position (if needed)
+          // Only shift if sub_asset_type_1 is already used
+          const currentSub1 = getCurrentSubAsset(1, changes);
+          if (currentSub1.type && currentSub1.type.trim() !== '') {
+            // Shift sub-assets 1-5 to positions 2-6 (shift backwards to avoid overwriting)
+            for (let i = 5; i >= 1; i--) {
+              const current = getCurrentSubAsset(i, changes);
+              if (current.type && current.type.trim() !== '') {
+                changes[`sub_asset_type_${i + 1}` as keyof Asset] = current.type;
+                changes[`sub_asset_size_${i + 1}` as keyof Asset] = current.size;
+              }
+            }
           }
+
+          // Move current main type to sub_asset_type_1
+          changes.sub_asset_type_1 = String(currentMainType);
+          changes.sub_asset_size_1 = currentAssetSize;
 
           // Set main asset type to 199
           changes.main_asset_type = '199';

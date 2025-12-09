@@ -1432,24 +1432,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Add the distributed area to existing size in this slot
         changes[slotToUse.size as keyof Asset] = (currentSlotSize || 0) + areaPerAsset;
 
-        // Calculate main asset size as sum of all sub-asset sizes
-        // This applies to both assets that were just converted to 199 and assets that already were 199
-        const getSubAssetSize = (index: number): number => {
-          const subSizeKey = `sub_asset_size_${index}` as keyof Asset;
-          if (changes[subSizeKey] !== undefined) {
-            return (changes[subSizeKey] as number || 0);
+        // Ensure all sub-asset sizes in `changes` reflect the effective state,
+        // then calculate main asset size as the sum of all sub-asset sizes.
+        let totalSubAssetSize = 0;
+        for (let i = 1; i <= 6; i++) {
+          const sizeKey = `sub_asset_size_${i}` as keyof Asset;
+          // If this size wasn't explicitly changed, populate it from existingChanges/currentAsset
+          if (changes[sizeKey] === undefined) {
+            const fromExisting = existingChanges[sizeKey] as number | undefined;
+            const fromCurrent = currentAsset?.[sizeKey] as number | undefined;
+            changes[sizeKey] = (fromExisting ?? fromCurrent ?? 0) as any;
           }
-          const currentSubSize = currentAsset?.[subSizeKey] as number | undefined;
-          return currentSubSize || 0;
-        };
-
-        const totalSubAssetSize = 
-          getSubAssetSize(1) +
-          getSubAssetSize(2) +
-          getSubAssetSize(3) +
-          getSubAssetSize(4) +
-          getSubAssetSize(5) +
-          getSubAssetSize(6);
+          const sizeVal = (changes[sizeKey] as number | undefined) ?? 0;
+          totalSubAssetSize += sizeVal || 0;
+        }
 
         // Always update the main asset size to be the sum of all sub-asset sizes
         // This ensures that both newly converted 199 assets and existing 199 assets get updated

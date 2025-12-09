@@ -312,28 +312,11 @@ export function ValidationResultModal({
                                   : (
                                     onSelectAsset ? (
                                       <button
-                                        onClick={async () => {
-                                          // Use assetDbId if available, otherwise try to look it up
-                                          let dbId = error.assetDbId;
-                                          if (!dbId && error.assetId && error.buildingNumber) {
-                                            // Try to get asset database ID from in-memory assets
-                                            try {
-                                              const { getAssetsByAssetId } = await import('../lib/validation');
-                                              const assets = getAssetsByAssetId(error.assetId);
-                                              const matchingAsset = assets.find(a => 
-                                                a.building_number === error.buildingNumber
-                                              );
-                                              if (matchingAsset && matchingAsset.id) {
-                                                dbId = String(matchingAsset.id);
-                                              }
-                                            } catch (err) {
-                                              console.warn('Could not look up asset database ID:', err);
-                                            }
-                                          }
-                                          
-                                          if (dbId) {
+                                        onClick={() => {
+                                          // Since asset_id is now the primary key, use it directly
+                                          if (error.assetId && error.buildingNumber) {
                                             onSelectAsset(
-                                              dbId,
+                                              error.assetId,
                                               error.assetId,
                                               error.buildingNumber,
                                               taxRegion

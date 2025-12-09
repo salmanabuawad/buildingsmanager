@@ -1332,7 +1332,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return;
         }
 
-        // Find first available sub asset slot
+        // Get current asset state (including any dirty changes) - need this for checking existing slots
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+
+        // Helper to get current sub-asset type (checking dirty changes first, then existing asset state)
+        const getCurrentSubAssetType = (index: number): string => {
+          const typeKey = `sub_asset_type_${index}` as keyof Asset;
+          if (existingChanges[typeKey] !== undefined) {
+            return String(existingChanges[typeKey] || '');
+          }
+          return String(currentAsset?.[typeKey] || '');
+        };
+
+        // Find first available sub asset slot (for the shared-area subtype)
         const subAssetFields = [
           { type: 'sub_asset_type_1', size: 'sub_asset_size_1' },
           { type: 'sub_asset_type_2', size: 'sub_asset_size_2' },
@@ -1342,19 +1355,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           { type: 'sub_asset_type_6', size: 'sub_asset_size_6' }
         ];
 
-        // First, check if asset already has a shared area sub-asset type
+        // First, check if asset already has THIS SPECIFIC shared area asset type
         let existingSharedAreaSlot: { type: string; size: string } | null = null;
         for (const field of subAssetFields) {
-          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-          const currentType = currentAsset?.[field.type as keyof Asset] as string | undefined;
+          const index = parseInt(field.type.replace('sub_asset_type_', ''));
+          const currentType = getCurrentSubAssetType(index);
           
-          if (currentType && currentType.trim() !== '') {
-            // Check if this type is a shared area usage type
-            const currentAssetType = assetTypes.find(at => at.name === currentType);
-            if (currentAssetType?.shared_area_usage === 'כן') {
-              existingSharedAreaSlot = field;
-              break;
-            }
+          // Check if this slot already has the exact same shared area asset type
+          if (currentType && currentType.trim() === sharedAreaAssetType.name) {
+            existingSharedAreaSlot = field;
+            break;
           }
         }
 
@@ -1367,8 +1377,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         } else {
           // Find first empty slot
           for (const field of subAssetFields) {
-            const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-            const currentType = currentAsset?.[field.type as keyof Asset] as string | undefined;
+            const index = parseInt(field.type.replace('sub_asset_type_', ''));
+            const currentType = getCurrentSubAssetType(index);
             
             if (!currentType || currentType.trim() === '') {
               slotToUse = field;
@@ -1384,9 +1394,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return;
         }
 
-        // Get current asset state (including any dirty changes)
-        const existingChanges = updatedDirtyAssets.get(assetId) || {};
-        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+        // Get current main type and size (using existingChanges and currentAsset already declared above)
         const currentMainType = existingChanges.main_asset_type !== undefined 
           ? existingChanges.main_asset_type 
           : (currentAsset?.main_asset_type || '');
@@ -1394,51 +1402,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           ? existingChanges.asset_size
           : (currentAsset?.asset_size || 0);
 
-        // If main asset type is not 199, move it to sub_asset_type_1 and set main to 199
+        // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
-        
-        if (currentMainType !== '199' && currentMainType !== '' && String(currentMainType) !== '199') {
-          // Helper to get current sub-asset value (from changes first, then existingChanges, then currentAsset)
-          const getCurrentSubAsset = (index: number, changesMap: Partial<Asset>) => {
-            const typeKey = `sub_asset_type_${index}` as keyof Asset;
-            const sizeKey = `sub_asset_size_${index}` as keyof Asset;
-            return {
-              type: changesMap[typeKey] !== undefined
-                ? (changesMap[typeKey] as string | undefined)
-                : (existingChanges[typeKey] !== undefined
-                    ? (existingChanges[typeKey] as string | undefined)
-                    : (currentAsset?.[typeKey] as string | undefined || '')),
-              size: changesMap[sizeKey] !== undefined
-                ? (changesMap[sizeKey] as number | undefined)
-                : (existingChanges[sizeKey] !== undefined
-                    ? (existingChanges[sizeKey] as number | undefined)
-                    : (currentAsset?.[sizeKey] as number | undefined || 0))
-            };
-          };
 
-          // Shift all existing sub-assets down by one position (if needed)
-          // Only shift if sub_asset_type_1 is already used
-          const currentSub1 = getCurrentSubAsset(1, changes);
-          if (currentSub1.type && currentSub1.type.trim() !== '') {
-            // Shift sub-assets 1-5 to positions 2-6 (shift backwards to avoid overwriting)
-            for (let i = 5; i >= 1; i--) {
-              const current = getCurrentSubAsset(i, changes);
-              if (current.type && current.type.trim() !== '') {
-                changes[`sub_asset_type_${i + 1}` as keyof Asset] = current.type;
-                changes[`sub_asset_size_${i + 1}` as keyof Asset] = current.size;
-              }
-            }
-          }
-
-          // Move current main type to sub_asset_type_1
+        // If main asset type is not 199, move it to sub_asset_type_1 (type + size)
+        // and set main asset type to 199, before doing the distribution
+        if (currentMainType && String(currentMainType) !== '199') {
           changes.sub_asset_type_1 = String(currentMainType);
           changes.sub_asset_size_1 = currentAssetSize;
-
-          // Set main asset type to 199
           changes.main_asset_type = '199';
         }
 
-        // Now add/update the shared area in the slot
+        // Now add/update the shared area in the selected slot
         changes[slotToUse.type as keyof Asset] = sharedAreaAssetType.name;
         const currentSlotSize = existingChanges[slotToUse.size as keyof Asset] !== undefined
           ? (existingChanges[slotToUse.size as keyof Asset] as number || 0)

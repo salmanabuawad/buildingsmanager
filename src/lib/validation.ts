@@ -158,10 +158,12 @@ export function getBuildings(): any[] {
 
 /**
  * Get asset types from memory (synchronous)
+ * If data is not yet loaded, returns empty array (validation should use cachedData parameter instead)
  */
 export function getAssetTypes(): any[] {
   if (!dataLoaded) {
-    console.warn('[validation] Asset types not yet loaded, returning empty array');
+    // Don't log warning - this is expected during initial load
+    // Validation functions should use cachedData parameter to provide asset types
     return [];
   }
   return inMemoryAssetTypes;

@@ -263,6 +263,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         } : null
       });
       
+      // Update assets state - this will trigger AG Grid to update row data
+      // The isRefreshingAfterSaveRef flag should prevent onCellValueChanged from firing
       setAssets(mergedAssets);
       
       // Store original assets for cancel functionality
@@ -330,7 +332,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   const onCellValueChanged = useCallback(async (event: any) => {
     // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)
+    // This is critical - when fetchData updates assets state, AG Grid may trigger this event
+    // for cells that have changed values, even though the user didn't edit them
     if (isRefreshingAfterSaveRef.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetsList.onCellValueChanged] Skipping validation - refreshing after save', {
+          assetId: event.data?.asset_id,
+          field: event.colDef?.field,
+          newValue: event.newValue
+        });
+      }
+      // Still update the local state to reflect the change, but skip validation
+      const { data, colDef } = event;
+      const field = colDef.field;
+      const assetId = String(data.asset_id);
+      const newValue = event.newValue;
+      const updatedAsset = { ...data, [field]: newValue };
+      
+      // Update assets state without triggering validation
+      setAssets(prevAssets =>
+        prevAssets.map(asset =>
+          String(asset.asset_id) === String(assetId) ? updatedAsset : asset
+        )
+      );
       return;
     }
     
@@ -1097,15 +1121,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       validationTimerRef.current.clear();
       
       // Set flag to prevent onCellValueChanged from triggering validations during refresh
+      // Set this BEFORE fetchData to prevent any cell change events during the refresh
       isRefreshingAfterSaveRef.current = true;
       
       // Refresh data from server to update grid after successful deletions and saves
       await fetchData(false);
       
-      // Clear the flag after a short delay to allow grid to update
+      // Keep the flag set for a longer period to ensure all grid updates complete
+      // AG Grid may batch updates, so we need to wait for all re-renders to finish
       setTimeout(() => {
         isRefreshingAfterSaveRef.current = false;
-      }, 1000);
+      }, 2000);
       
       // After fetchData completes and state is cleared, originalAssets should be updated in fetchData
       // But to be safe, explicitly update it here after all state clearing is done
@@ -2680,6 +2706,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             gridOptions={{
               suppressColumnVirtualisation: true,
               alwaysShowHorizontalScroll: true,
+              // Prevent onCellValueChanged from firing when row data is updated programmatically
+              suppressRowDataUpdated: false, // Keep default - we want row updates
+              // Ensure onCellValueChanged only fires on user edits, not programmatic updates
+              suppressCellFlash: true,
             }}
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}

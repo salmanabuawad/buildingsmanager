@@ -866,6 +866,11 @@ export const api = {
       return result;
     },
     getOne: async (id: string): Promise<Asset> => {
+      // Log warning if this is called - it should rarely be needed since getAll should be used
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[api.assets.getOne] Individual asset fetch detected. This should be avoided - use getAll() instead. Asset ID:', id, new Error().stack);
+      }
+      
       const { data, error } = await supabase
         .from('assets')
         .select('*')

@@ -43,6 +43,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const isRefreshingAfterSaveRef = useRef<boolean>(false);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -328,6 +329,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, []);
 
   const onCellValueChanged = useCallback(async (event: any) => {
+    // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)
+    if (isRefreshingAfterSaveRef.current) {
+      return;
+    }
+    
     try {
       const { data, colDef } = event;
       const field = colDef.field;
@@ -1085,8 +1091,21 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return next;
       });
       
+      // Clear all pending validation timers before refreshing data
+      // This prevents individual asset validations from running after save
+      validationTimerRef.current.forEach(timer => clearTimeout(timer));
+      validationTimerRef.current.clear();
+      
+      // Set flag to prevent onCellValueChanged from triggering validations during refresh
+      isRefreshingAfterSaveRef.current = true;
+      
       // Refresh data from server to update grid after successful deletions and saves
       await fetchData(false);
+      
+      // Clear the flag after a short delay to allow grid to update
+      setTimeout(() => {
+        isRefreshingAfterSaveRef.current = false;
+      }, 1000);
       
       // After fetchData completes and state is cleared, originalAssets should be updated in fetchData
       // But to be safe, explicitly update it here after all state clearing is done

@@ -2513,6 +2513,66 @@ export const buildingValidators = {
     }
   },
 
+  validateAssetAreaDistribution: async (buildingNumber: number): Promise<ValidationResult> => {
+    try {
+      // Get building data
+      const building = await api.buildings.getOne(buildingNumber);
+      if (!building) {
+        return {
+          valid: false,
+          error: 'מבנה לא נמצא'
+        };
+      }
+
+      // Get all assets for the building
+      const assets = await api.assets.getAll(buildingNumber);
+      if (!assets || assets.length === 0) {
+        // No assets means distribution is valid (empty building)
+        return { valid: true };
+      }
+
+      // Get asset types to check for not_accountable
+      const assetTypes = await api.assetTypes.getAll();
+      const assetTypeMap = new Map<string, any>();
+      for (const at of assetTypes) {
+        assetTypeMap.set(String(at.name), at);
+      }
+
+      // Calculate total asset area (excluding not_accountable assets)
+      const totalAssetArea = assets.reduce((sum, asset) => {
+        // Skip assets where main_asset_type has not_accountable = true
+        if (asset.main_asset_type) {
+          const assetType = assetTypeMap.get(String(asset.main_asset_type));
+          if (assetType && assetType.not_accountable === true) {
+            return sum;
+          }
+        }
+        return sum + (asset.asset_size || 0);
+      }, 0);
+
+      // Compare with building's total_building_area or area_for_control
+      const expectedArea = building.area_for_control ?? building.total_building_area;
+      
+      if (expectedArea != null) {
+        const expectedAreaNum = Number(expectedArea);
+        if (!isNaN(expectedAreaNum) && Math.abs(totalAssetArea - expectedAreaNum) > 0.01) {
+          return {
+            valid: false,
+            error: `סכום שטחי הנכסים (${totalAssetArea.toLocaleString('he-IL')}) אינו תואם לשטח הכולל של המבנה (${expectedAreaNum.toLocaleString('he-IL')})`
+          };
+        }
+      }
+
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating asset area distribution:', error);
+      return {
+        valid: false,
+        error: 'שגיאה בבדיקת פיזור שטחי הנכסים'
+      };
+    }
+  },
+
   validateAllFields: async (building: any): Promise<{ valid: boolean; errors: Record<string, string> }> => {
     const errors: Record<string, string> = {};
 

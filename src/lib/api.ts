@@ -1137,6 +1137,20 @@ export const api = {
   },
   assetTypes: {
     getAll: async (): Promise<AssetType[]> => {
+      // Try to get from in-memory cache first (loaded on app startup)
+      try {
+        const { getAssetTypes } = await import('./validation');
+        const inMemoryTypes = getAssetTypes();
+        if (inMemoryTypes && inMemoryTypes.length > 0) {
+          // Return a copy to avoid mutations
+          return [...inMemoryTypes];
+        }
+      } catch (err) {
+        // If validation module not available, fall back to database
+        console.warn('[api.assetTypes.getAll] Could not access in-memory cache, falling back to database');
+      }
+
+      // Fallback to database query if cache is not available
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
@@ -1155,6 +1169,23 @@ export const api = {
       return mappedData;
     },
     getOne: async (id: number): Promise<AssetType> => {
+      // Try to get from in-memory cache first
+      try {
+        const { getAssetTypes } = await import('./validation');
+        const inMemoryTypes = getAssetTypes();
+        const found = inMemoryTypes.find((at: any) => {
+          const atId = at.id ?? at.asset_type;
+          return atId === id;
+        });
+        if (found) {
+          return found as AssetType;
+        }
+      } catch (err) {
+        // If validation module not available, fall back to database
+        console.warn('[api.assetTypes.getOne] Could not access in-memory cache, falling back to database');
+      }
+
+      // Fallback to database query if not found in cache
       // Try id first, then asset_type as fallback
       let { data, error } = await supabase
         .from('asset_types')
@@ -1183,6 +1214,20 @@ export const api = {
       return data;
     },
     getByName: async (name: string): Promise<AssetType[]> => {
+      // Try to get from in-memory cache first
+      try {
+        const { getAssetTypesByName } = await import('./validation');
+        const inMemoryTypes = getAssetTypesByName(name);
+        if (inMemoryTypes && inMemoryTypes.length > 0) {
+          // Return a copy to avoid mutations
+          return [...inMemoryTypes];
+        }
+      } catch (err) {
+        // If validation module not available, fall back to database
+        console.warn('[api.assetTypes.getByName] Could not access in-memory cache, falling back to database');
+      }
+
+      // Fallback to database query if not found in cache
       const { data, error } = await supabase
         .from('asset_types')
         .select('*')
@@ -1217,6 +1262,15 @@ export const api = {
         .single();
 
       if (error) throw error;
+      
+      // Refresh in-memory cache after create
+      try {
+        const { refreshAssetTypesCache } = await import('./validation');
+        await refreshAssetTypesCache();
+      } catch (err) {
+        console.warn('[api.assetTypes.create] Failed to refresh cache:', err);
+      }
+      
       return data;
     },
     update: async (id: number, input: Partial<AssetType>): Promise<AssetType> => {
@@ -1276,6 +1330,15 @@ export const api = {
       }
 
       if (error) throw error;
+      
+      // Refresh in-memory cache after update
+      try {
+        const { refreshAssetTypesCache } = await import('./validation');
+        await refreshAssetTypesCache();
+      } catch (err) {
+        console.warn('[api.assetTypes.update] Failed to refresh cache:', err);
+      }
+      
       return data;
     },
     delete: async (id: number): Promise<{ message: string }> => {
@@ -1295,6 +1358,15 @@ export const api = {
       }
 
       if (error) throw error;
+      
+      // Refresh in-memory cache after delete
+      try {
+        const { refreshAssetTypesCache } = await import('./validation');
+        await refreshAssetTypesCache();
+      } catch (err) {
+        console.warn('[api.assetTypes.delete] Failed to refresh cache:', err);
+      }
+      
       return { message: 'Asset type deleted successfully' };
     },
   },

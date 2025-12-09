@@ -257,7 +257,10 @@ BEGIN
   sql_query := 'UPDATE ' || quote_ident(COALESCE(building_table_name, 'buildings')) || ' SET ';
   
   IF has_total_building_area THEN
-    -- Exclude assets with not_accountable = true from total building area calculation
+    -- Building size is the sum of all assets' main size (asset_size) only, excluding:
+    -- 1. Assets with not_accountable = true
+    -- 2. Subtype sizes (sub_asset_size_1 through sub_asset_size_6) are NOT included
+    -- Only the main asset size (asset_size) is summed for the building total
     sql_query := sql_query || 'total_building_area = COALESCE((
       SELECT SUM(a.asset_size) 
       FROM assets a
@@ -392,6 +395,7 @@ BEGIN
     LEFT JOIN asset_types at ON at.name = lm.main_asset_type AND at.active = 'כן'
     WHERE at.not_accountable IS NULL OR at.not_accountable = false
   )
+  -- Building size is the sum of main asset sizes (asset_size) only, NOT including subtype sizes
   SELECT 
     COUNT(*)::integer as total_assets,
     COALESCE(SUM(asset_size), 0) as total_building_area

@@ -46,6 +46,38 @@ export function setValidationData(data: { buildings: any[]; assetTypes: any[]; a
 }
 
 /**
+ * Refresh asset types in memory (called after create/update/delete operations)
+ * Queries database directly to avoid circular dependency with api.assetTypes.getAll()
+ */
+export async function refreshAssetTypesCache(): Promise<void> {
+  try {
+    const { supabase } = await import('./supabase');
+    const { data, error } = await supabase
+      .from('asset_types')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('[validation] Failed to refresh asset types cache:', error);
+      return;
+    }
+
+    // Map asset_type to id if the column was renamed
+    const mappedData = (data || []).map((item: any) => {
+      if (item.asset_type !== undefined && item.id === undefined) {
+        return { ...item, id: item.asset_type };
+      }
+      return item;
+    });
+
+    inMemoryAssetTypes = mappedData;
+    console.log(`[validation] Refreshed ${mappedData.length} asset types in memory`);
+  } catch (err) {
+    console.error('[validation] Failed to refresh asset types cache:', err);
+  }
+}
+
+/**
  * Set all assets in memory (for uniqueness validation)
  */
 export function setAllAssets(assets: any[]): void {
@@ -157,50 +189,66 @@ export function getAssetTypesByName(name: string): any[] {
   return assetTypes.filter(at => at.name === name && at.active === 'כן');
 }
 
+// Memoization cache for getValidTaxRegionsForAssetType
+// Key: assetTypeName, Value: tax regions array
+const taxRegionsCache = new Map<string, number[]>();
+// Track if we're using cached data to determine cache key
+const taxRegionsCacheWithData = new Map<string, number[]>();
+
 /**
  * Get valid tax regions for an asset type from the asset_types table
  * Returns an array of tax region numbers where the asset type exists and is active
+ * Results are memoized to avoid repeated calculations
  */
 function getValidTaxRegionsForAssetType(
   assetTypeName: string,
   cachedData?: { assetTypes?: any[] }
 ): number[] {
+  // Create cache key based on asset type name and whether we have cached data
+  const cacheKey = cachedData?.assetTypes 
+    ? `cached:${assetTypeName}` 
+    : `memory:${assetTypeName}`;
+  
+  // Check cache first
+  const cache = cachedData?.assetTypes ? taxRegionsCacheWithData : taxRegionsCache;
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey)!;
+  }
+  
   let assetTypes: any[];
   
   if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
     // Filter from cached data - it may contain all asset types, so filter by name
-    // First, check what we have in cached data
     const allMatchingByName = cachedData.assetTypes.filter(
       at => String(at.name) === String(assetTypeName)
     );
-    console.log(`[getValidTaxRegionsForAssetType] Found ${allMatchingByName.length} asset types with name ${assetTypeName} in cached data (before active filter)`);
     
     // Then filter by active status
     assetTypes = allMatchingByName.filter(at => at.active === 'כן');
-    console.log(`[getValidTaxRegionsForAssetType] Found ${assetTypes.length} active asset types for ${assetTypeName} in cached data`);
     
-    // If no active ones found, log details for debugging
+    // Only log warnings for actual issues (not every call)
     if (assetTypes.length === 0 && allMatchingByName.length > 0) {
-      console.warn(`[getValidTaxRegionsForAssetType] Asset type ${assetTypeName} exists but is not active. Active values:`, 
-        allMatchingByName.map(at => ({ name: at.name, active: at.active, tax_region: at.tax_region }))
-      );
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[getValidTaxRegionsForAssetType] Asset type ${assetTypeName} exists but is not active. Active values:`, 
+          allMatchingByName.map(at => ({ name: at.name, active: at.active, tax_region: at.tax_region }))
+        );
+      }
     } else if (allMatchingByName.length === 0) {
       // Check if asset type exists with different name format
       const similarNames = cachedData.assetTypes.filter(at => 
         String(at.name).includes(String(assetTypeName)) || String(assetTypeName).includes(String(at.name))
       );
-      if (similarNames.length > 0) {
+      if (similarNames.length > 0 && process.env.NODE_ENV === 'development') {
         console.warn(`[getValidTaxRegionsForAssetType] No exact match for ${assetTypeName}, but found similar names:`, 
           similarNames.map(at => ({ name: at.name, active: at.active }))
         );
-      } else {
+      } else if (process.env.NODE_ENV === 'development') {
         console.warn(`[getValidTaxRegionsForAssetType] Asset type ${assetTypeName} not found in cached data. Total asset types in cache: ${cachedData.assetTypes.length}`);
       }
     }
   } else {
     // Use in-memory data which is already filtered by name
     assetTypes = getAssetTypesByName(assetTypeName);
-    console.log(`[getValidTaxRegionsForAssetType] Found ${assetTypes.length} asset types for ${assetTypeName} in memory`);
   }
   
   // Extract unique tax regions
@@ -209,12 +257,14 @@ function getValidTaxRegionsForAssetType(
     if (at.tax_region != null) {
       const taxRegionNum = Number(at.tax_region);
       taxRegions.add(taxRegionNum);
-      console.log(`[getValidTaxRegionsForAssetType] Asset type ${assetTypeName} found in tax region ${taxRegionNum}`);
     }
   }
   
   const result = Array.from(taxRegions);
-  console.log(`[getValidTaxRegionsForAssetType] Valid tax regions for ${assetTypeName}: ${JSON.stringify(result)}`);
+  
+  // Cache the result
+  cache.set(cacheKey, result);
+  
   return result;
 }
 
@@ -1582,6 +1632,15 @@ export async function validateSubAssetsFor199Or299(
   // Use cached asset types if available, otherwise query database
   // ALWAYS check against asset_types table first - ignore building.tax_region when taxRegion is provided
   if (validSubAssets.length > 0) {
+    // Cache valid tax regions for each asset type to avoid redundant calls
+    const validTaxRegionsCache = new Map<string, number[]>();
+    const getCachedValidTaxRegions = (subAssetType: string): number[] => {
+      if (!validTaxRegionsCache.has(subAssetType)) {
+        validTaxRegionsCache.set(subAssetType, getValidTaxRegionsForAssetType(subAssetType, cachedData));
+      }
+      return validTaxRegionsCache.get(subAssetType)!;
+    };
+
     if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
       // Filter from cache
       let matchingAssetTypes = cachedData.assetTypes.filter(at => 
@@ -1590,7 +1649,7 @@ export async function validateSubAssetsFor199Or299(
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
       for (const subAssetType of validSubAssets) {
-        const validTaxRegionsForSubType = getValidTaxRegionsForAssetType(subAssetType, cachedData);
+        const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
         
         // If asset type doesn't exist in asset_types table, it's invalid
         if (validTaxRegionsForSubType.length === 0) {
@@ -1623,8 +1682,8 @@ export async function validateSubAssetsFor199Or299(
       // Check each sub-asset type against the cache results
       for (const subAssetType of validSubAssets) {
         if (!foundAssetTypes.has(subAssetType)) {
-          // Get valid tax regions for better error message
-          const validTaxRegionsForSubType = getValidTaxRegionsForAssetType(subAssetType, cachedData);
+          // Get valid tax regions for better error message (use cached result)
+          const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
           if (validTaxRegionsForSubType.length > 0) {
             const validRegionsStr = validTaxRegionsForSubType.join(', ');
             return { valid: false, error: `סוג נכס משנה ${subAssetType} תקף רק באזורי מס: ${validRegionsStr}` };
@@ -1641,7 +1700,7 @@ export async function validateSubAssetsFor199Or299(
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
       for (const subAssetType of validSubAssets) {
-        const validTaxRegionsForSubType = getValidTaxRegionsForAssetType(subAssetType, cachedData);
+        const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
         
         // If asset type doesn't exist in asset_types table, it's invalid
         if (validTaxRegionsForSubType.length === 0) {
@@ -1672,8 +1731,8 @@ export async function validateSubAssetsFor199Or299(
 
       for (const subAssetType of validSubAssets) {
         if (!foundAssetTypes.has(subAssetType)) {
-          // Get valid tax regions for better error message
-          const validTaxRegionsForSubType = getValidTaxRegionsForAssetType(subAssetType, cachedData);
+          // Get valid tax regions for better error message (use cached result)
+          const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
           if (validTaxRegionsForSubType.length > 0) {
             const validRegionsStr = validTaxRegionsForSubType.join(', ');
             return { valid: false, error: `סוג נכס משנה ${subAssetType} תקף רק באזורי מס: ${validRegionsStr}` };

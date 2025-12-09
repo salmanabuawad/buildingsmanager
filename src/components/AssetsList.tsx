@@ -1345,7 +1345,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return String(currentAsset?.[typeKey] || '');
         };
 
-        // Find first available sub asset slot (for the shared-area subtype)
+        // Find all sub-asset slots
         const subAssetFields = [
           { type: 'sub_asset_type_1', size: 'sub_asset_size_1' },
           { type: 'sub_asset_type_2', size: 'sub_asset_size_2' },
@@ -1368,32 +1368,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
         }
 
-        // If found existing shared area slot, update it
-        // Otherwise, find first empty slot
-        let slotToUse: { type: string; size: string } | null = null;
-        
-        if (existingSharedAreaSlot) {
-          slotToUse = existingSharedAreaSlot;
-        } else {
-          // Find first empty slot
-          for (const field of subAssetFields) {
-            const index = parseInt(field.type.replace('sub_asset_type_', ''));
-            const currentType = getCurrentSubAssetType(index);
-            
-            if (!currentType || currentType.trim() === '') {
-              slotToUse = field;
-              break;
-            }
-          }
-        }
-
-        if (!slotToUse) {
-          setError(`לא נמצא מקום פנוי בנכסי משנה לנכס ${asset.asset_id}`);
-          setTimeout(() => setError(null), 5000);
-          setLoading(false);
-          return;
-        }
-
         // Get current main type and size (using existingChanges and currentAsset already declared above)
         const currentMainType = existingChanges.main_asset_type !== undefined 
           ? existingChanges.main_asset_type 
@@ -1405,15 +1379,51 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // If main asset type is not 199, move it to sub_asset_type_1 (type + size)
-        // and set main asset type to 199, before doing the distribution
+        // Decide which sub-asset slot to use for the DISTRIBUTION subtype
+        let slotToUse: { type: string; size: string } | null = null;
+
         if (currentMainType && String(currentMainType) !== '199') {
+          // Case 1: main asset type is NOT 199
+          // Step 1: move main type + size to subtype 1
           changes.sub_asset_type_1 = String(currentMainType);
           changes.sub_asset_size_1 = currentAssetSize;
+          // Step 2: set main type to 199
           changes.main_asset_type = '199';
+
+          // Step 3: for distribution, if we already have this shared subtype somewhere, update that slot;
+          // otherwise, use subtype 2 explicitly
+          if (existingSharedAreaSlot) {
+            slotToUse = existingSharedAreaSlot;
+          } else {
+            slotToUse = { type: 'sub_asset_type_2', size: 'sub_asset_size_2' };
+          }
+        } else {
+          // Case 2: main asset type is already 199
+          if (existingSharedAreaSlot) {
+            // Update existing slot
+            slotToUse = existingSharedAreaSlot;
+          } else {
+            // Find first empty slot
+            for (const field of subAssetFields) {
+              const index = parseInt(field.type.replace('sub_asset_type_', ''));
+              const currentType = getCurrentSubAssetType(index);
+              
+              if (!currentType || currentType.trim() === '') {
+                slotToUse = field;
+                break;
+              }
+            }
+          }
         }
 
-        // Now add/update the shared area in the selected slot
+        if (!slotToUse) {
+          setError(`לא נמצא מקום פנוי בנכסי משנה לנכס ${asset.asset_id}`);
+          setTimeout(() => setError(null), 5000);
+          setLoading(false);
+          return;
+        }
+
+        // Now add/update the shared area in the selected slot (subtype 2 when converting to 199)
         changes[slotToUse.type as keyof Asset] = sharedAreaAssetType.name;
         const currentSlotSize = existingChanges[slotToUse.size as keyof Asset] !== undefined
           ? (existingChanges[slotToUse.size as keyof Asset] as number || 0)

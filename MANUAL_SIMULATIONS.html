@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סימולציות - מערכת ניהול מבנים ונכסים</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial Hebrew', 'David', Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            direction: rtl;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #2563eb;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2563eb;
+            text-align: center;
+        }
+
+        h2 {
+            color: #1e40af;
+            font-size: 2em;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #93c5fd;
+        }
+
+        .simulation-section {
+            margin-bottom: 50px;
+            padding: 25px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border-right: 4px solid #3b82f6;
+        }
+
+        .simulation-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #6b7280;
+        }
+
+        button.secondary:hover {
+            background: #4b5563;
+        }
+
+        button.success {
+            background: #10b981;
+        }
+
+        button.success:hover {
+            background: #059669;
+        }
+
+        button.danger {
+            background: #ef4444;
+        }
+
+        button.danger:hover {
+            background: #dc2626;
+        }
+
+        .simulation-display {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 400px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .simulation-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .simulation-table th,
+        .simulation-table td {
+            border: 1px solid #d1d5db;
+            padding: 10px;
+            text-align: right;
+        }
+
+        .simulation-table th {
+            background: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
+
+        .simulation-table tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        .simulation-table tr:hover {
+            background: #eff6ff;
+        }
+
+        .editable-cell {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .editable-cell:hover {
+            background: #fef3c7;
+        }
+
+        .editable-cell.editing {
+            background: #dbeafe;
+        }
+
+        .cell-error {
+            background: #fee2e2;
+            border: 2px solid #ef4444 !important;
+        }
+
+        .cell-success {
+            background: #d1fae5;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .status-indicator.valid {
+            background: #10b981;
+        }
+
+        .status-indicator.invalid {
+            background: #ef4444;
+        }
+
+        .status-indicator.pending {
+            background: #f59e0b;
+        }
+
+        .sidebar-sim {
+            width: 250px;
+            background: #1f2937;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-sim ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar-sim li {
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .sidebar-sim li:hover {
+            background: #374151;
+        }
+
+        .sidebar-sim li.active {
+            background: #3b82f6;
+        }
+
+        .form-simulation {
+            max-width: 600px;
+            margin: 20px 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group input.error {
+            border-color: #ef4444;
+        }
+
+        .form-group .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .steps-container {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .step.active {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .step-number {
+            position: absolute;
+            top: -12px;
+            right: 15px;
+            background: #3b82f6;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .step.completed .step-number {
+            background: #10b981;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #10b981;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        .toast.info {
+            background: #3b82f6;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .highlight-box {
+            background: #fef3c7;
+            border-right: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .code-block {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+
+        .tabs-simulation {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .grid-example {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>סימולציות אינטראקטיביות - מערכת ניהול מבנים ונכסים</h1>
+
+        <!-- סימולציה 1: יצירת מבנה חדש -->
+        <div class="simulation-section">
+            <h2>סימולציה 1: יצירת מבנה חדש</h2>
+            <p>סימולציה אינטראקטיבית של תהליך יצירת מבנה חדש במערכת.</p>
+            
+            <div class="simulation-display">
+                <h3>טופס יצירת מבנה חדש</h3>
+                <div class="form-simulation">
+                    <div class="form-group">
+                        <label>מספר מבנה *</label>
+                        <input type="number" id="building-number" placeholder="הכנס מספר מבנה" />
+                        <div class="error-message" id="building-number-error"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>אזור מס</label>
+                        <input type="text" id="tax-region" placeholder="לדוגמה: 100 או 100,200" />
+                    </div>
+                    <div class="form-group">
+                        <label>שטח משותף מגורים</label>
+                        <input type="number" id="shared-area" placeholder="0" step="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label>שטח משותף עסקים</label>
+                        <input type="number" id="shared-business-area" placeholder="0" step="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label>שטח לבקרה</label>
+                        <input type="number" id="area-control" placeholder="0" step="0.01" />
+                    </div>
+                    <div class="simulation-controls">
+                        <button class="success" onclick="simulateCreateBuilding()">שמור מבנה</button>
+                        <button class="secondary" onclick="resetBuildingForm()">אפס טופס</button>
+                    </div>
+                    <div id="building-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 2: יצירת נכס חדש -->
+        <div class="simulation-section">
+            <h2>סימולציה 2: יצירת נכס חדש</h2>
+            <p>סימולציה של תהליך יצירת נכס חדש בטבלה.</p>
+            
+            <div class="simulation-display">
+                <div class="simulation-controls">
+                    <button onclick="addNewAssetRow()">הוסף נכס חדש</button>
+                    <button class="success" onclick="simulateSaveAssets()">שמור נכסים</button>
+                    <button class="secondary" onclick="resetAssetTable()">אפס טבלה</button>
+                </div>
+                <table class="simulation-table" id="assets-table">
+                    <thead>
+                        <tr>
+                            <th>מספר נכס</th>
+                            <th>מספר מבנה</th>
+                            <th>מזהה משלם</th>
+                            <th>אזור מס</th>
+                            <th>סוג נכס ראשי</th>
+                            <th>גודל נכס</th>
+                            <th>סטטוס</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assets-tbody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: #6b7280;">אין נכסים. לחץ על "הוסף נכס חדש"</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div id="assets-result"></div>
+            </div>
+        </div>
+
+        <!-- סימולציה 3: תהליך ייבוא שלד -->
+        <div class="simulation-section">
+            <h2>סימולציה 3: תהליך ייבוא שלד</h2>
+            <p>סימולציה של תהליך ייבוא שלד מקובץ Excel.</p>
+            
+            <div class="steps-container">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <h4>הכנת קובץ</h4>
+                    <p>הכן קובץ Excel עם העמודות: מספר מבנה, מזהה נכס, אזור מס, מזהה משלם</p>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <h4>טעינת קובץ</h4>
+                    <p>טען את הקובץ למערכת</p>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <h4>אימות נתונים</h4>
+                    <p>אמת את הנתונים שטענת</p>
+                </div>
+                <div class="step" id="step4">
+                    <div class="step-number">4</div>
+                    <h4>שמירה</h4>
+                    <p>שמור את הנתונים למערכת</p>
+                </div>
+            </div>
+            
+            <div class="simulation-display">
+                <div class="simulation-controls">
+                    <button onclick="simulateStep(1)">שלב 1: הכנת קובץ</button>
+                    <button onclick="simulateStep(2)">שלב 2: טעינת קובץ</button>
+                    <button onclick="simulateStep(3)">שלב 3: אימות</button>
+                    <button onclick="simulateStep(4)">שלב 4: שמירה</button>
+                    <button class="secondary" onclick="resetSteps()">אפס תהליך</button>
+                </div>
+                <div id="import-simulation-result"></div>
+            </div>
+        </div>
+
+        <!-- סימולציה 4: תפריט ניווט -->
+        <div class="simulation-section">
+            <h2>סימולציה 4: תפריט ניווט</h2>
+            <p>סימולציה של תפריט הצד והניווט במערכת.</p>
+            
+            <div class="simulation-display">
+                <div class="sidebar-sim">
+                    <ul>
+                        <li class="active" onclick="selectMenu(this, 'main')">תפריט ראשי</li>
+                        <li onclick="selectMenu(this, 'buildings')">רשימת מבנים</li>
+                        <li onclick="selectMenu(this, 'asset-types')">סוגי נכסים</li>
+                        <li onclick="selectMenu(this, 'validation')">כללי אימות</li>
+                        <li onclick="selectMenu(this, 'addresses')">רשימת כתובות</li>
+                        <li onclick="selectMenu(this, 'import-skeleton')">ייבוא שלד</li>
+                        <li onclick="selectMenu(this, 'import-full')">ייבוא מלא</li>
+                    </ul>
+                </div>
+                <div id="menu-content" style="margin-top: 20px;">
+                    <h3>תפריט ראשי</h3>
+                    <p>ברוכים הבאים למערכת ניהול מבנים ונכסים. בחר אפשרות מהתפריט משמאל.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 5: לשוניות -->
+        <div class="simulation-section">
+            <h2>סימולציה 5: לשוניות לפי אזורי מס</h2>
+            <p>סימולציה של מערכת הלשוניות כאשר פותחים מבנה.</p>
+            
+            <div class="simulation-display">
+                <div class="tabs-simulation">
+                    <button class="tab active" onclick="switchTab(this, 'all')">כל הנכסים</button>
+                    <button class="tab" onclick="switchTab(this, '100')">אזור מס 100</button>
+                    <button class="tab" onclick="switchTab(this, '200')">אזור מס 200</button>
+                </div>
+                <div id="tab-content">
+                    <h3>כל הנכסים - מבנה 123456</h3>
+                    <p>בסימולציה זו תראה את כל הנכסים במבנה, ללא סינון לפי אזור מס.</p>
+                    <div class="grid-example">
+                        <div class="card">
+                            <h4>נכס 826812810</h4>
+                            <p>אזור מס: 100</p>
+                            <p>גודל: 45 מ"ר</p>
+                        </div>
+                        <div class="card">
+                            <h4>נכס 826812811</h4>
+                            <p>אזור מס: 200</p>
+                            <p>גודל: 60 מ"ר</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 6: אימות בזמן אמת -->
+        <div class="simulation-section">
+            <h2>סימולציה 6: אימות נכס בזמן אמת</h2>
+            <p>סימולציה של אימות נכס בעת עריכה.</p>
+            
+            <div class="simulation-display">
+                <h3>עריכת נכס</h3>
+                <div class="form-simulation">
+                    <div class="form-group">
+                        <label>מספר נכס *</label>
+                        <input type="text" id="validate-asset-id" placeholder="826812810" 
+                               onkeyup="validateAssetField('asset-id', this.value)" />
+                        <div class="error-message" id="validate-asset-id-error"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>מספר מבנה *</label>
+                        <input type="number" id="validate-building" placeholder="123456"
+                               onkeyup="validateAssetField('building', this.value)" />
+                        <div class="error-message" id="validate-building-error"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>גודל נכס</label>
+                        <input type="number" id="validate-size" placeholder="45.5" step="0.01"
+                               onkeyup="validateAssetField('size', this.value)" />
+                        <div class="error-message" id="validate-size-error"></div>
+                    </div>
+                    <div id="validation-status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 7: טבלת נכסים עם עריכה -->
+        <div class="simulation-section">
+            <h2>סימולציה 7: טבלת נכסים אינטראקטיבית</h2>
+            <p>סימולציה של טבלת נכסים עם אפשרות לערוך תאים.</p>
+            
+            <div class="simulation-display">
+                <div class="simulation-controls">
+                    <button onclick="addSampleAssets()">הוסף נכסי דוגמה</button>
+                    <button class="success" onclick="saveAllChanges()">שמור הכל</button>
+                    <button class="secondary" onclick="cancelAllChanges()">ביטול</button>
+                </div>
+                <table class="simulation-table" id="editable-assets-table">
+                    <thead>
+                        <tr>
+                            <th>מספר נכס</th>
+                            <th>מזהה משלם</th>
+                            <th>אזור מס</th>
+                            <th>סוג נכס ראשי</th>
+                            <th>גודל נכס</th>
+                            <th>סטטוס</th>
+                        </tr>
+                    </thead>
+                    <tbody id="editable-assets-tbody">
+                    </tbody>
+                </table>
+                <div id="edit-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // סימולציה 1: יצירת מבנה
+        function simulateCreateBuilding() {
+            const buildingNumber = document.getElementById('building-number').value;
+            const taxRegion = document.getElementById('tax-region').value;
+            const sharedArea = document.getElementById('shared-area').value;
+            
+            let errors = [];
+            
+            if (!buildingNumber) {
+                errors.push('מספר מבנה חובה');
+                document.getElementById('building-number').classList.add('error');
+            } else {
+                document.getElementById('building-number').classList.remove('error');
+            }
+            
+            const resultDiv = document.getElementById('building-result');
+            
+            if (errors.length > 0) {
+                resultDiv.innerHTML = `
+                    <div class="highlight-box" style="background: #fee2e2; border-color: #ef4444; margin-top: 20px;">
+                        <strong>שגיאות:</strong>
+                        <ul style="margin-top: 10px;">
+                            ${errors.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="highlight-box" style="background: #d1fae5; border-color: #10b981; margin-top: 20px;">
+                        <strong>✓ המבנה נוצר בהצלחה!</strong>
+                        <p style="margin-top: 10px;">
+                            מספר מבנה: ${buildingNumber}<br>
+                            אזור מס: ${taxRegion || 'לא צוין'}<br>
+                            שטח משותף מגורים: ${sharedArea || '0'} מ"ר
+                        </p>
+                    </div>
+                `;
+                showToast('המבנה נוצר בהצלחה!', 'success');
+            }
+        }
+
+        function resetBuildingForm() {
+            document.getElementById('building-number').value = '';
+            document.getElementById('tax-region').value = '';
+            document.getElementById('shared-area').value = '';
+            document.getElementById('shared-business-area').value = '';
+            document.getElementById('area-control').value = '';
+            document.getElementById('building-result').innerHTML = '';
+            document.getElementById('building-number').classList.remove('error');
+        }
+
+        // סימולציה 2: נכסים
+        let assetCounter = 0;
+        function addNewAssetRow() {
+            assetCounter++;
+            const tbody = document.getElementById('assets-tbody');
+            
+            if (tbody.children[0] && tbody.children[0].textContent.includes('אין נכסים')) {
+                tbody.innerHTML = '';
+            }
+            
+            const row = document.createElement('tr');
+            row.id = `asset-row-${assetCounter}`;
+            row.innerHTML = `
+                <td><input type="text" value="" placeholder="826812810" style="width: 100%; border: none; background: transparent;" /></td>
+                <td><input type="number" value="123456" style="width: 100%; border: none; background: transparent;" /></td>
+                <td><input type="text" value="" placeholder="123456789" style="width: 100%; border: none; background: transparent;" /></td>
+                <td><input type="number" value="100" style="width: 100%; border: none; background: transparent;" /></td>
+                <td><input type="text" value="" placeholder="101" style="width: 100%; border: none; background: transparent;" /></td>
+                <td><input type="number" value="0" step="0.01" style="width: 100%; border: none; background: transparent;" /></td>
+                <td><span class="status-indicator pending"></span> חדש</td>
+                <td><button class="danger" onclick="deleteAssetRow(${assetCounter})" style="padding: 5px 10px; font-size: 12px;">מחק</button></td>
+            `;
+            tbody.appendChild(row);
+            showToast('נכס חדש נוסף', 'info');
+        }
+
+        function deleteAssetRow(id) {
+            document.getElementById(`asset-row-${id}`).remove();
+            showToast('נכס נמחק', 'info');
+        }
+
+        function simulateSaveAssets() {
+            const tbody = document.getElementById('assets-tbody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            if (rows.length === 0) {
+                showToast('אין נכסים לשמור', 'error');
+                return;
+            }
+            
+            showToast(`נשמרו ${rows.length} נכסים בהצלחה!`, 'success');
+            
+            rows.forEach(row => {
+                const statusCell = row.querySelector('.status-indicator');
+                if (statusCell) {
+                    statusCell.classList.remove('pending');
+                    statusCell.classList.add('valid');
+                    statusCell.parentElement.innerHTML = '<span class="status-indicator valid"></span> נשמר';
+                }
+            });
+        }
+
+        function resetAssetTable() {
+            document.getElementById('assets-tbody').innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; color: #6b7280;">אין נכסים. לחץ על "הוסף נכס חדש"</td>
+                </tr>
+            `;
+            assetCounter = 0;
+        }
+
+        // סימולציה 3: תהליך ייבוא
+        let currentStep = 1;
+        function simulateStep(step) {
+            // הסר active מכל השלבים
+            for (let i = 1; i <= 4; i++) {
+                const stepEl = document.getElementById(`step${i}`);
+                stepEl.classList.remove('active', 'completed');
+            }
+            
+            // סמן את השלבים הקודמים כ-completed
+            for (let i = 1; i < step; i++) {
+                document.getElementById(`step${i}`).classList.add('completed');
+            }
+            
+            // סמן את השלב הנוכחי כ-active
+            document.getElementById(`step${step}`).classList.add('active');
+            
+            const resultDiv = document.getElementById('import-simulation-result');
+            
+            const messages = {
+                1: {
+                    type: 'info',
+                    message: 'שלב 1: הכנת קובץ - ודא שהקובץ כולל את העמודות הנדרשות: מספר מבנה, מזהה נכס, אזור מס, מזהה משלם'
+                },
+                2: {
+                    type: 'info',
+                    message: 'שלב 2: טעינת קובץ - הקובץ נטען בהצלחה! נמצאו 15 רשומות.'
+                },
+                3: {
+                    type: 'success',
+                    message: 'שלב 3: אימות - כל הרשומות תקינות. אין שגיאות.'
+                },
+                4: {
+                    type: 'success',
+                    message: 'שלב 4: שמירה - נשמרו 15 נכסים בהצלחה!'
+                }
+            };
+            
+            const msg = messages[step];
+            resultDiv.innerHTML = `
+                <div class="highlight-box" style="background: ${msg.type === 'success' ? '#d1fae5' : '#dbeafe'}; border-color: ${msg.type === 'success' ? '#10b981' : '#3b82f6'};">
+                    ${msg.message}
+                </div>
+            `;
+            
+            showToast(msg.message, msg.type);
+            currentStep = step;
+        }
+
+        function resetSteps() {
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`step${i}`).classList.remove('active', 'completed');
+            }
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('import-simulation-result').innerHTML = '';
+            currentStep = 1;
+        }
+
+        // סימולציה 4: תפריט
+        function selectMenu(element, menu) {
+            document.querySelectorAll('.sidebar-sim li').forEach(li => li.classList.remove('active'));
+            element.classList.add('active');
+            
+            const content = {
+                'main': '<h3>תפריט ראשי</h3><p>ברוכים הבאים למערכת. בחר אפשרות מהתפריט.</p>',
+                'buildings': '<h3>רשימת מבנים</h3><p>כאן תראה את כל המבנים במערכת. תוכל ליצור, לערוך ולמחוק מבנים.</p>',
+                'asset-types': '<h3>סוגי נכסים</h3><p>ניהול סוגי הנכסים במערכת. הגדר תכונות לכל סוג נכס.</p>',
+                'validation': '<h3>כללי אימות</h3><p>הגדר כללי אימות לכללי הנתונים במערכת.</p>',
+                'addresses': '<h3>רשימת כתובות</h3><p>ניהול רשימת הכתובות במערכת.</p>',
+                'import-skeleton': '<h3>ייבוא שלד</h3><p>ייבוא מהיר של נכסים עם שדות מינימליים בלבד.</p>',
+                'import-full': '<h3>ייבוא מלא</h3><p>ייבוא מלא של נכסים עם כל הפרטים.</p>'
+            };
+            
+            document.getElementById('menu-content').innerHTML = content[menu] || content['main'];
+            showToast(`נבחר: ${element.textContent}`, 'info');
+        }
+
+        // סימולציה 5: לשוניות
+        function switchTab(element, tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            element.classList.add('active');
+            
+            const contents = {
+                'all': {
+                    title: 'כל הנכסים - מבנה 123456',
+                    description: 'מציג את כל הנכסים במבנה, ללא סינון לפי אזור מס.',
+                    count: 25
+                },
+                '100': {
+                    title: 'אזור מס 100 - מבנה 123456',
+                    description: 'מציג רק את הנכסים באזור מס 100.',
+                    count: 15
+                },
+                '200': {
+                    title: 'אזור מס 200 - מבנה 123456',
+                    description: 'מציג רק את הנכסים באזור מס 200.',
+                    count: 10
+                }
+            };
+            
+            const content = contents[tabId];
+            document.getElementById('tab-content').innerHTML = `
+                <h3>${content.title}</h3>
+                <p>${content.description}</p>
+                <p><strong>מספר נכסים:</strong> ${content.count}</p>
+                <div class="grid-example">
+                    ${Array.from({length: Math.min(content.count, 3)}, (_, i) => `
+                        <div class="card">
+                            <h4>נכס ${826812810 + i}</h4>
+                            <p>אזור מס: ${tabId === 'all' ? (i % 2 === 0 ? '100' : '200') : tabId}</p>
+                            <p>גודל: ${45 + i * 5} מ"ר</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // סימולציה 6: אימות
+        function validateAssetField(field, value) {
+            const errorDiv = document.getElementById(`validate-${field}-error`);
+            const input = document.getElementById(`validate-${field}`);
+            const statusDiv = document.getElementById('validation-status');
+            
+            let isValid = true;
+            let error = '';
+            
+            switch(field) {
+                case 'asset-id':
+                    if (!value || value.trim() === '') {
+                        isValid = false;
+                        error = 'מספר נכס חובה';
+                    } else if (value.length < 6) {
+                        isValid = false;
+                        error = 'מספר נכס חייב להיות לפחות 6 תווים';
+                    }
+                    break;
+                case 'building':
+                    if (!value || value.trim() === '') {
+                        isValid = false;
+                        error = 'מספר מבנה חובה';
+                    } else if (isNaN(value) || parseInt(value) <= 0) {
+                        isValid = false;
+                        error = 'מספר מבנה חייב להיות מספר חיובי';
+                    }
+                    break;
+                case 'size':
+                    if (value && (isNaN(value) || parseFloat(value) < 0)) {
+                        isValid = false;
+                        error = 'גודל נכס חייב להיות מספר חיובי';
+                    }
+                    break;
+            }
+            
+            if (error) {
+                errorDiv.textContent = error;
+                input.classList.add('error');
+                input.classList.remove('cell-success');
+            } else {
+                errorDiv.textContent = '';
+                input.classList.remove('error');
+                input.classList.add('cell-success');
+            }
+            
+            // עדכן סטטוס כללי
+            const allInputs = ['asset-id', 'building', 'size'];
+            const allValid = allInputs.every(f => {
+                const inp = document.getElementById(`validate-${f}`);
+                return !inp.classList.contains('error') && (f === 'size' || inp.value.trim() !== '');
+            });
+            
+            if (allValid) {
+                statusDiv.innerHTML = '<div class="highlight-box" style="background: #d1fae5; border-color: #10b981;"><strong>✓ כל השדות תקינים</strong></div>';
+            } else {
+                statusDiv.innerHTML = '<div class="highlight-box" style="background: #fef3c7; border-color: #f59e0b;"><strong>⚠ יש לשנות שדות לפני שמירה</strong></div>';
+            }
+        }
+
+        // סימולציה 7: טבלה אינטראקטיבית
+        function addSampleAssets() {
+            const tbody = document.getElementById('editable-assets-tbody');
+            const sampleData = [
+                { assetId: '826812810', payerId: '123456789', taxRegion: '100', type: '101', size: '45.5' },
+                { assetId: '826812811', payerId: '987654321', taxRegion: '100', type: '102', size: '60.0' },
+                { assetId: '826812812', payerId: '555555555', taxRegion: '200', type: '201', size: '75.5' }
+            ];
+            
+            tbody.innerHTML = sampleData.map((asset, idx) => `
+                <tr data-id="${idx}">
+                    <td class="editable-cell" onclick="editCell(this)">${asset.assetId}</td>
+                    <td class="editable-cell" onclick="editCell(this)">${asset.payerId}</td>
+                    <td class="editable-cell" onclick="editCell(this)">${asset.taxRegion}</td>
+                    <td class="editable-cell" onclick="editCell(this)">${asset.type}</td>
+                    <td class="editable-cell" onclick="editCell(this)">${asset.size}</td>
+                    <td><span class="status-indicator valid"></span> תקין</td>
+                </tr>
+            `).join('');
+            
+            showToast('נוספו 3 נכסי דוגמה', 'info');
+        }
+
+        function editCell(cell) {
+            if (cell.classList.contains('editing')) return;
+            
+            const originalValue = cell.textContent;
+            cell.classList.add('editing');
+            cell.innerHTML = `<input type="text" value="${originalValue}" 
+                style="width: 100%; border: 2px solid #3b82f6; padding: 5px; border-radius: 4px;"
+                onblur="saveCell(this, '${originalValue}')"
+                onkeypress="if(event.key==='Enter') this.blur()" />`;
+            cell.querySelector('input').focus();
+        }
+
+        function saveCell(input, originalValue) {
+            const cell = input.parentElement;
+            const newValue = input.value;
+            cell.classList.remove('editing');
+            cell.textContent = newValue;
+            
+            if (newValue !== originalValue) {
+                cell.classList.add('cell-success');
+                setTimeout(() => cell.classList.remove('cell-success'), 2000);
+            }
+        }
+
+        function saveAllChanges() {
+            showToast('כל השינויים נשמרו בהצלחה!', 'success');
+        }
+
+        function cancelAllChanges() {
+            const tbody = document.getElementById('editable-assets-tbody');
+            tbody.innerHTML = '';
+            showToast('כל השינויים בוטלו', 'info');
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+

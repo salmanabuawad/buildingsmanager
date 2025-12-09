@@ -454,7 +454,13 @@ export class AssetValidationHandler {
       ])
     );
 
-    validationNames.push('אימות גודל נכסי משנה');
+    // Validate sub-asset sizes match main asset size (required for 199 and 299)
+    const isComplexType = asset.main_asset_type === '199' || asset.main_asset_type === '299';
+    if (isComplexType) {
+      validationNames.push('אימות חלוקת שטח - גודל נכס ראשי חייב להיות שווה לסכום נכסי משנה');
+    } else {
+      validationNames.push('אימות גודל נכסי משנה');
+    }
     validations.push(
       assetValidators.validateSubAssetSizeMatchesMain(
         asset.asset_size,
@@ -473,7 +479,8 @@ export class AssetValidationHandler {
           asset.sub_asset_size_4,
           asset.sub_asset_size_5,
           asset.sub_asset_size_6
-        ]
+        ],
+        asset.main_asset_type
       )
     );
 

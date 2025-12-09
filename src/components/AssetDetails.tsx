@@ -759,7 +759,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               currentAssetData.sub_asset_size_4,
               currentAssetData.sub_asset_size_5,
               currentAssetData.sub_asset_size_6
-            ]
+            ],
+            currentAssetData.main_asset_type
           ),
           assetValidators.validateSubAssetsFor199Or299(
             currentAssetData.building_number,

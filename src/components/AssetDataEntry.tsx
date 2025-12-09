@@ -245,7 +245,8 @@ export function AssetDataEntry() {
           updatedRow.sub_asset_size_4,
           updatedRow.sub_asset_size_5,
           updatedRow.sub_asset_size_6
-        ]
+        ],
+        updatedRow.main_asset_type
       ),
       assetValidators.validateSubAssetsFor199Or299(
         updatedRow.building_number,
@@ -405,7 +406,8 @@ export function AssetDataEntry() {
                 row.sub_asset_size_4,
                 row.sub_asset_size_5,
                 row.sub_asset_size_6
-              ]
+              ],
+              row.main_asset_type
             ),
             assetValidators.validateSubAssetsFor199Or299(
               row.building_number,
@@ -557,7 +559,8 @@ export function AssetDataEntry() {
                 row.sub_asset_size_4,
                 row.sub_asset_size_5,
                 row.sub_asset_size_6
-              ]
+              ],
+              row.main_asset_type
             ),
             assetValidators.validateSubAssetsFor199Or299(
               row.building_number,
@@ -781,7 +784,8 @@ export function AssetDataEntry() {
             row.sub_asset_size_4,
             row.sub_asset_size_5,
             row.sub_asset_size_6
-          ]
+          ],
+          row.main_asset_type
         ),
         assetValidators.validateSubAssetsFor199Or299(
           row.building_number,

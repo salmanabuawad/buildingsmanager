@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סימולציות מתקדמות - מערכת ניהול מבנים ונכסים</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial Hebrew', 'David', Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            direction: rtl;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #2563eb;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2563eb;
+            text-align: center;
+        }
+
+        h2 {
+            color: #1e40af;
+            font-size: 2em;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #93c5fd;
+        }
+
+        .simulation-section {
+            margin-bottom: 60px;
+            padding: 30px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border-right: 4px solid #3b82f6;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .simulation-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        button.secondary { background: #6b7280; }
+        button.secondary:hover { background: #4b5563; }
+        button.success { background: #10b981; }
+        button.success:hover { background: #059669; }
+        button.danger { background: #ef4444; }
+        button.danger:hover { background: #dc2626; }
+        button.warning { background: #f59e0b; }
+        button.warning:hover { background: #d97706; }
+
+        .simulation-display {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 25px;
+            min-height: 500px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Advanced Grid Styles */
+        .advanced-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .advanced-grid th {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            font-weight: bold;
+            padding: 15px 12px;
+            text-align: right;
+            border: 1px solid #1e40af;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .advanced-grid td {
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            text-align: right;
+            transition: all 0.2s;
+        }
+
+        .advanced-grid tr {
+            transition: background 0.2s;
+        }
+
+        .advanced-grid tbody tr:hover {
+            background: #eff6ff;
+            transform: scale(1.01);
+        }
+
+        .advanced-grid tr.new-row {
+            background: #d1fae5;
+            animation: highlightNewRow 1s ease-in-out;
+        }
+
+        .advanced-grid tr.deleted-row {
+            background: #fee2e2;
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .advanced-grid tr.dirty-row {
+            border-right: 3px solid #f59e0b;
+        }
+
+        @keyframes highlightNewRow {
+            0% { background: #10b981; }
+            100% { background: #d1fae5; }
+        }
+
+        .editable-cell {
+            cursor: pointer;
+            position: relative;
+            padding: 8px !important;
+        }
+
+        .editable-cell:hover {
+            background: #fef3c7 !important;
+            box-shadow: inset 0 0 0 2px #f59e0b;
+        }
+
+        .editable-cell input {
+            width: 100%;
+            border: 2px solid #3b82f6;
+            padding: 6px;
+            border-radius: 4px;
+            background: #dbeafe;
+            font-size: 14px;
+        }
+
+        .editable-cell input:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .cell-error {
+            background: #fee2e2 !important;
+            border: 2px solid #ef4444 !important;
+            position: relative;
+        }
+
+        .cell-error::after {
+            content: "⚠";
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+        }
+
+        .cell-success {
+            background: #d1fae5 !important;
+        }
+
+        .cell-validating {
+            background: #fef3c7 !important;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.valid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.invalid {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.new {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #1e40af;
+            font-size: 1.5em;
+        }
+
+        .close-modal {
+            background: #ef4444;
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-modal:hover {
+            background: #dc2626;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .progress-bar.error {
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        /* Wizard Steps */
+        .wizard-container {
+            margin: 30px 0;
+        }
+
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .wizard-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: 0;
+            left: 0;
+            height: 3px;
+            background: #e5e7eb;
+            z-index: 0;
+        }
+
+        .wizard-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .wizard-step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-weight: bold;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .wizard-step.active .wizard-step-circle {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.2);
+        }
+
+        .wizard-step.completed .wizard-step-circle {
+            background: #10b981;
+            color: white;
+        }
+
+        .wizard-step.completed .wizard-step-circle::after {
+            content: '✓';
+        }
+
+        .wizard-content {
+            min-height: 300px;
+            padding: 30px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            width: 280px;
+            background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .sidebar-nav h3 {
+            color: white;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #374151;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar-nav li {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-nav li:hover {
+            background: #374151;
+            transform: translateX(-5px);
+        }
+
+        .sidebar-nav li.active {
+            background: #3b82f6;
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .sidebar-nav li .icon {
+            font-size: 18px;
+        }
+
+        /* Form Styles */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group input.error,
+        .form-group select.error {
+            border-color: #ef4444;
+        }
+
+        .form-group .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .form-group .help-text {
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            margin: 20px 0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            right: 0;
+            left: 0;
+            height: 3px;
+            background: #3b82f6;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideInRight 0.3s;
+            min-width: 300px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .toast.error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .toast.info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .toast.warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Action Buttons in Grid */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .action-btn.view {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .action-btn.view:hover {
+            background: #2563eb;
+        }
+
+        .action-btn.delete {
+            background: #ef4444;
+            color: white;
+        }
+
+        .action-btn.delete:hover {
+            background: #dc2626;
+        }
+
+        .action-btn.edit {
+            background: #10b981;
+            color: white;
+        }
+
+        .action-btn.edit:hover {
+            background: #059669;
+        }
+
+        /* Statistics Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .stat-card.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .stat-card.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .stat-card h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Validation Results */
+        .validation-results {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+
+        .validation-summary {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .validation-item {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .validation-item.valid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .validation-item.invalid {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .validation-errors {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #fee2e2;
+        }
+
+        .validation-error-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fee2e2;
+            border-right: 4px solid #ef4444;
+            border-radius: 4px;
+        }
+
+        /* Drag and Drop */
+        .draggable {
+            cursor: move;
+            user-select: none;
+        }
+
+        .dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            background: #1f2937;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            right: 50%;
+            transform: translateX(50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Highlight Boxes */
+        .highlight-box {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-right: 4px solid;
+        }
+
+        .highlight-box.info {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+
+        .highlight-box.success {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .highlight-box.warning {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .highlight-box.error {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .wizard-steps {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 סימולציות מתקדמות - מערכת ניהול מבנים ונכסים</h1>
+
+        <!-- סימולציה 1: תהליך ייבוא מלא עם וויזארד -->
+        <div class="simulation-section">
+            <h2>סימולציה 1: תהליך ייבוא מלא עם וויזארד</h2>
+            <p>תהליך ייבוא שלב אחר שלב עם הדרכה אינטראקטיבית.</p>
+            
+            <div class="wizard-container">
+                <div class="wizard-steps">
+                    <div class="wizard-step active" id="wiz-step-1">
+                        <div class="wizard-step-circle">1</div>
+                        <div>טעינת קובץ</div>
+                    </div>
+                    <div class="wizard-step" id="wiz-step-2">
+                        <div class="wizard-step-circle">2</div>
+                        <div>אימות נתונים</div>
+                    </div>
+                    <div class="wizard-step" id="wiz-step-3">
+                        <div class="wizard-step-circle">3</div>
+                        <div>עריכת שגיאות</div>
+                    </div>
+                    <div class="wizard-step" id="wiz-step-4">
+                        <div class="wizard-step-circle">4</div>
+                        <div>שמירה</div>
+                    </div>
+                </div>
+
+                <div class="wizard-content">
+                    <div id="wizard-step-1-content" class="wizard-step-content">
+                        <h3>שלב 1: טעינת קובץ</h3>
+                        <div class="drop-zone" id="drop-zone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                            <p style="font-size: 18px; margin-bottom: 10px;">📁 גרור קובץ לכאן או לחץ לבחירה</p>
+                            <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display: none;" onchange="handleFileSelect(event)" />
+                            <button onclick="document.getElementById('file-input').click()">בחר קובץ</button>
+                        </div>
+                        <div id="file-info" style="margin-top: 20px;"></div>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button class="success" onclick="wizardNext(2)" id="wiz-next-1" disabled>המשך לשלב 2</button>
+                        </div>
+                    </div>
+
+                    <div id="wizard-step-2-content" class="wizard-step-content" style="display: none;">
+                        <h3>שלב 2: אימות נתונים</h3>
+                        <div class="progress-container">
+                            <div class="progress-bar" id="validation-progress" style="width: 0%">0%</div>
+                        </div>
+                        <div id="validation-summary" class="validation-summary" style="display: none;">
+                            <div class="validation-item valid">
+                                <div class="value" id="valid-count">0</div>
+                                <div>תקינים</div>
+                            </div>
+                            <div class="validation-item invalid">
+                                <div class="value" id="invalid-count">0</div>
+                                <div>שגיאות</div>
+                            </div>
+                        </div>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button onclick="wizardPrevious(1)">חזור</button>
+                            <button class="success" onclick="simulateValidation()">התחל אימות</button>
+                            <button class="success" onclick="wizardNext(3)" id="wiz-next-2" disabled>המשך לשלב 3</button>
+                        </div>
+                    </div>
+
+                    <div id="wizard-step-3-content" class="wizard-step-content" style="display: none;">
+                        <h3>שלב 3: עריכת שגיאות</h3>
+                        <p>תוכל לערוך את השגיאות ישירות בטבלה:</p>
+                        <table class="advanced-grid" id="wizard-table">
+                            <thead>
+                                <tr>
+                                    <th>שורה</th>
+                                    <th>מספר נכס</th>
+                                    <th>מספר מבנה</th>
+                                    <th>אזור מס</th>
+                                    <th>שגיאות</th>
+                                    <th>סטטוס</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wizard-tbody">
+                            </tbody>
+                        </table>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button onclick="wizardPrevious(2)">חזור</button>
+                            <button class="success" onclick="wizardNext(4)" id="wiz-next-3" disabled>המשך לשלב 4</button>
+                        </div>
+                    </div>
+
+                    <div id="wizard-step-4-content" class="wizard-step-content" style="display: none;">
+                        <h3>שלב 4: שמירה</h3>
+                        <div class="stats-grid">
+                            <div class="stat-card success">
+                                <h4>נשמרו בהצלחה</h4>
+                                <div class="value" id="saved-count">0</div>
+                            </div>
+                            <div class="stat-card error">
+                                <h4>נכשלו</h4>
+                                <div class="value" id="failed-count">0</div>
+                            </div>
+                        </div>
+                        <div id="save-progress-container" style="display: none;">
+                            <div class="progress-container">
+                                <div class="progress-bar" id="save-progress" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button onclick="wizardPrevious(3)">חזור</button>
+                            <button class="success" onclick="simulateSave()">שמור למערכת</button>
+                            <button onclick="resetWizard()">התחל מחדש</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 2: טבלת נכסים מתקדמת -->
+        <div class="simulation-section">
+            <h2>סימולציה 2: טבלת נכסים מתקדמת עם עריכה</h2>
+            <p>טבלה אינטראקטיבית מלאה עם כל התכונות המתקדמות.</p>
+            
+            <div class="simulation-display">
+                <div class="simulation-controls">
+                    <button onclick="addAdvancedAsset()">➕ הוסף נכס</button>
+                    <button class="success" onclick="saveAllAdvancedAssets()">💾 שמור הכל</button>
+                    <button class="secondary" onclick="cancelAllAdvancedAssets()">↩️ ביטול</button>
+                    <button onclick="validateAllAdvancedAssets()">✓ אמת הכל</button>
+                    <button class="warning" onclick="exportAdvancedAssets()">📥 ייצא לקובץ</button>
+                </div>
+
+                <div class="stats-grid" id="advanced-stats" style="margin: 20px 0;">
+                    <div class="stat-card">
+                        <h4>סה"כ נכסים</h4>
+                        <div class="value" id="total-assets">0</div>
+                    </div>
+                    <div class="stat-card success">
+                        <h4>תקינים</h4>
+                        <div class="value" id="valid-assets">0</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <h4>עריכה</h4>
+                        <div class="value" id="dirty-assets">0</div>
+                    </div>
+                    <div class="stat-card error">
+                        <h4>שגיאות</h4>
+                        <div class="value" id="error-assets">0</div>
+                    </div>
+                </div>
+
+                <table class="advanced-grid" id="advanced-assets-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">
+                                <input type="checkbox" onchange="toggleAllAssets(this)" />
+                            </th>
+                            <th>מספר נכס</th>
+                            <th>מספר מבנה</th>
+                            <th>מזהה משלם</th>
+                            <th>אזור מס</th>
+                            <th>סוג נכס ראשי</th>
+                            <th>גודל נכס</th>
+                            <th>תאריך מדידה</th>
+                            <th>סטטוס</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="advanced-assets-tbody">
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 40px; color: #6b7280;">
+                                אין נכסים. לחץ על "הוסף נכס" כדי להתחיל.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- סימולציה 3: מודל יצירת מבנה מתקדם -->
+        <div class="simulation-section">
+            <h2>סימולציה 3: יצירת מבנה עם אימות מתקדם</h2>
+            <p>טופס יצירת מבנה עם אימות בזמן אמת ועדכונים דינמיים.</p>
+            
+            <div class="simulation-display">
+                <button onclick="openBuildingModal()" class="success">פתח טופס יצירת מבנה</button>
+                
+                <div class="modal-overlay" id="building-modal">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h3>יצירת מבנה חדש</h3>
+                            <button class="close-modal" onclick="closeBuildingModal()">×</button>
+                        </div>
+                        <form id="building-form" onsubmit="handleBuildingSubmit(event)">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>מספר מבנה *</label>
+                                    <input type="number" id="modal-building-number" 
+                                           onblur="validateBuildingField('number', this.value)"
+                                           required />
+                                    <div class="error-message" id="modal-building-number-error"></div>
+                                    <div class="help-text">מספר מזהה ייחודי למבנה</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>אזור מס</label>
+                                    <input type="text" id="modal-tax-region" 
+                                           placeholder="100 או 100,200"
+                                           onblur="validateBuildingField('tax_region', this.value)" />
+                                    <div class="error-message" id="modal-tax-region-error"></div>
+                                    <div class="help-text">אזור מס אחד או יותר, מופרדים בפסיקים</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>שטח משותף מגורים</label>
+                                    <input type="number" id="modal-shared-area" step="0.01"
+                                           onblur="validateBuildingField('shared_area', this.value)" />
+                                    <div class="error-message" id="modal-shared-area-error"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>שטח משותף עסקים</label>
+                                    <input type="number" id="modal-shared-business" step="0.01" />
+                                </div>
+                                <div class="form-group">
+                                    <label>שטח לבקרה</label>
+                                    <input type="number" id="modal-area-control" step="0.01" />
+                                </div>
+                                <div class="form-group">
+                                    <label>אחוז העמסה</label>
+                                    <input type="number" id="modal-overload" step="0.1" min="0" max="100" />
+                                </div>
+                            </div>
+                            <div id="building-form-status" style="margin: 20px 0;"></div>
+                            <div class="simulation-controls">
+                                <button type="submit" class="success">שמור מבנה</button>
+                                <button type="button" class="secondary" onclick="closeBuildingModal()">ביטול</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 4: העברת שטחים מתקדמת -->
+        <div class="simulation-section">
+            <h2>סימולציה 4: העברת שטחים בין נכסים</h2>
+            <p>סימולציה מלאה של תהליך העברת שטחים עם חישובים אוטומטיים.</p>
+            
+            <div class="simulation-display">
+                <div class="tabs-container">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTransferTab('select')">1. בחירת נכסים</button>
+                        <button class="tab" onclick="switchTransferTab('transfer')">2. העברת שטחים</button>
+                        <button class="tab" onclick="switchTransferTab('validate')">3. אימות</button>
+                    </div>
+
+                    <div id="transfer-select-tab" class="tab-content active">
+                        <h3>בחר 2 נכסים או יותר להעברת שטחים</h3>
+                        <table class="advanced-grid">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">בחר</th>
+                                    <th>מספר נכס</th>
+                                    <th>גודל נכס</th>
+                                    <th>נכס משנה 1</th>
+                                    <th>נכס משנה 2</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transfer-select-tbody">
+                                <tr>
+                                    <td><input type="checkbox" data-asset-id="826812810" /></td>
+                                    <td>826812810</td>
+                                    <td>100.0</td>
+                                    <td>50.0</td>
+                                    <td>50.0</td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox" data-asset-id="826812811" /></td>
+                                    <td>826812811</td>
+                                    <td>80.0</td>
+                                    <td>40.0</td>
+                                    <td>40.0</td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox" data-asset-id="826812812" /></td>
+                                    <td>826812812</td>
+                                    <td>120.0</td>
+                                    <td>60.0</td>
+                                    <td>60.0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button class="success" onclick="proceedToTransfer()" id="proceed-transfer-btn" disabled>
+                                המשך להעברת שטחים (0 נבחרו)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="transfer-transfer-tab" class="tab-content">
+                        <h3>העבר שטחים בין הנכסים</h3>
+                        <div class="highlight-box info">
+                            <strong>סה"כ שטח לפני העברה:</strong> <span id="total-before">0</span> מ"ר<br>
+                            <strong>סה"כ שטח אחרי העברה:</strong> <span id="total-after">0</span> מ"ר<br>
+                            <strong>הפרש:</strong> <span id="total-diff" style="font-weight: bold;">0</span> מ"ר
+                        </div>
+                        <table class="advanced-grid" id="transfer-table">
+                            <thead>
+                                <tr>
+                                    <th>מספר נכס</th>
+                                    <th>גודל נכס ראשי</th>
+                                    <th>נכס משנה 1</th>
+                                    <th>נכס משנה 2</th>
+                                    <th>נכס משנה 3</th>
+                                    <th>סה"כ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transfer-tbody">
+                            </tbody>
+                        </table>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button onclick="switchTransferTab('select')">חזור</button>
+                            <button onclick="resetTransferAreas()">איפוס</button>
+                            <button class="success" onclick="switchTransferTab('validate')">המשך לאימות</button>
+                        </div>
+                    </div>
+
+                    <div id="transfer-validate-tab" class="tab-content">
+                        <h3>תוצאות אימות</h3>
+                        <div id="transfer-validation-results"></div>
+                        <div class="simulation-controls" style="margin-top: 20px;">
+                            <button onclick="switchTransferTab('transfer')">חזור</button>
+                            <button class="success" onclick="saveTransferAreas()">שמור שינויים</button>
+                            <button class="secondary" onclick="cancelTransferAreas()">ביטול</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- סימולציה 5: ניהול סוגי נכסים מתקדם -->
+        <div class="simulation-section">
+            <h2>סימולציה 5: ניהול סוגי נכסים עם חיפוש וסינון</h2>
+            <p>טבלה מתקדמת עם חיפוש, סינון, מיון ועריכה.</p>
+            
+            <div class="simulation-display">
+                <div class="simulation-controls">
+                    <input type="text" id="asset-type-search" placeholder="🔍 חפש סוג נכס..." 
+                           style="flex: 1; padding: 10px; border: 2px solid #d1d5db; border-radius: 6px;"
+                           onkeyup="searchAssetTypes(this.value)" />
+                    <select id="asset-type-filter" onchange="filterAssetTypes()" 
+                            style="padding: 10px; border: 2px solid #d1d5db; border-radius: 6px;">
+                        <option value="">כל האזורים</option>
+                        <option value="100">אזור 100</option>
+                        <option value="200">אזור 200</option>
+                    </select>
+                    <button onclick="addAssetType()">➕ הוסף סוג נכס</button>
+                </div>
+
+                <table class="advanced-grid" id="asset-types-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortAssetTypes('name')" style="cursor: pointer;">סוג נכס ↕</th>
+                            <th>תיאור</th>
+                            <th onclick="sortAssetTypes('tax_region')" style="cursor: pointer;">אזור מס ↕</th>
+                            <th>עסקים/מגורים</th>
+                            <th>לא נספר</th>
+                            <th>גודל מינ'</th>
+                            <th>גודל מקס'</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="asset-types-tbody">
+                        <tr>
+                            <td>101</td>
+                            <td>דירת מגורים</td>
+                            <td>100</td>
+                            <td>מגורים</td>
+                            <td>❌</td>
+                            <td>20</td>
+                            <td>200</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="action-btn edit" onclick="editAssetType('101')">ערוך</button>
+                                    <button class="action-btn delete" onclick="deleteAssetType('101')">מחק</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>102</td>
+                            <td>דירת מגורים גדולה</td>
+                            <td>100</td>
+                            <td>מגורים</td>
+                            <td>❌</td>
+                            <td>200</td>
+                            <td>500</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="action-btn edit" onclick="editAssetType('102')">ערוך</button>
+                                    <button class="action-btn delete" onclick="deleteAssetType('102')">מחק</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>990</td>
+                            <td>שטח משותף</td>
+                            <td>100</td>
+                            <td>מגורים</td>
+                            <td>✅</td>
+                            <td>0</td>
+                            <td>1000</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="action-btn edit" onclick="editAssetType('990')">ערוך</button>
+                                    <button class="action-btn delete" onclick="deleteAssetType('990')">מחק</button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- סימולציה 6: תצוגת נכס עם היסטוריה -->
+        <div class="simulation-section">
+            <h2>סימולציה 6: תצוגת נכס מפורטת עם היסטוריה</h2>
+            <p>מודל מפורט של נכס עם כל הפרטים והיסטוריית המדידות.</p>
+            
+            <div class="simulation-display">
+                <button onclick="openAssetDetailsModal()" class="success">פתח נכס לדוגמה</button>
+                
+                <div class="modal-overlay" id="asset-details-modal">
+                    <div class="modal" style="max-width: 1000px;">
+                        <div class="modal-header">
+                            <h3>פרטי נכס: 826812810</h3>
+                            <button class="close-modal" onclick="closeAssetDetailsModal()">×</button>
+                        </div>
+                        
+                        <div class="tabs-container">
+                            <div class="tabs">
+                                <button class="tab active" onclick="switchAssetTab('details')">פרטים</button>
+                                <button class="tab" onclick="switchAssetTab('history')">היסטוריה</button>
+                                <button class="tab" onclick="switchAssetTab('validation')">אימות</button>
+                            </div>
+
+                            <div id="asset-details-tab" class="tab-content active">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>מספר נכס</label>
+                                        <input type="text" value="826812810" readonly style="background: #f3f4f6;" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>מספר מבנה</label>
+                                        <input type="number" value="123456" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>מזהה משלם</label>
+                                        <input type="text" value="123456789" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>אזור מס</label>
+                                        <input type="number" value="100" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>סוג נכס ראשי</label>
+                                        <input type="text" value="101" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>גודל נכס</label>
+                                        <input type="number" value="45.5" step="0.01" />
+                                    </div>
+                                </div>
+                                <div class="simulation-controls" style="margin-top: 20px;">
+                                    <button class="success">שמור שינויים</button>
+                                    <button class="secondary" onclick="closeAssetDetailsModal()">סגור</button>
+                                </div>
+                            </div>
+
+                            <div id="asset-history-tab" class="tab-content">
+                                <h4>היסטוריית מדידות</h4>
+                                <table class="advanced-grid">
+                                    <thead>
+                                        <tr>
+                                            <th>תאריך מדידה</th>
+                                            <th>גודל נכס</th>
+                                            <th>סוג נכס</th>
+                                            <th>תאריך יצירה</th>
+                                            <th>פעולות</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>01/01/2024</td>
+                                            <td>45.5</td>
+                                            <td>101</td>
+                                            <td>01/01/2024 10:30</td>
+                                            <td>
+                                                <button class="action-btn view">צפה</button>
+                                            </td>
+                                        </tr>
+                                        <tr style="opacity: 0.6;">
+                                            <td>01/06/2023</td>
+                                            <td>45.0</td>
+                                            <td>101</td>
+                                            <td>01/06/2023 14:20</td>
+                                            <td>
+                                                <button class="action-btn view">צפה</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div id="asset-validation-tab" class="tab-content">
+                                <h4>תוצאות אימות</h4>
+                                <button onclick="runAssetValidation()" class="success" style="margin-bottom: 20px;">
+                                    אמת נכס
+                                </button>
+                                <div id="asset-validation-results"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Global state
+        let wizardData = {
+            currentStep: 1,
+            fileLoaded: false,
+            validated: false,
+            assets: []
+        };
+
+        let advancedAssets = [];
+        let selectedTransferAssets = [];
+        let assetTypesData = [
+            { name: '101', description: 'דירת מגורים', tax_region: '100', type: 'מגורים', not_accountable: false },
+            { name: '102', description: 'דירת מגורים גדולה', tax_region: '100', type: 'מגורים', not_accountable: false },
+            { name: '990', description: 'שטח משותף', tax_region: '100', type: 'מגורים', not_accountable: true }
+        ];
+
+        // Toast notifications
+        function showToast(message, type = 'success', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = {
+                success: '✓',
+                error: '✗',
+                info: 'ℹ',
+                warning: '⚠'
+            }[type] || 'ℹ';
+            
+            toast.innerHTML = `<span style="font-size: 20px;">${icon}</span><span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.3s reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Wizard functions
+        function wizardNext(step) {
+            if (step === 2 && !wizardData.fileLoaded) {
+                showToast('יש לטעון קובץ קודם', 'error');
+                return;
+            }
+            if (step === 3 && !wizardData.validated) {
+                showToast('יש לאמת נתונים קודם', 'error');
+                return;
+            }
+
+            document.getElementById(`wiz-step-${wizardData.currentStep}`).classList.remove('active');
+            document.getElementById(`wizard-step-${wizardData.currentStep}-content`).style.display = 'none';
+            
+            document.getElementById(`wiz-step-${wizardData.currentStep}`).classList.add('completed');
+            wizardData.currentStep = step;
+            
+            document.getElementById(`wiz-step-${step}`).classList.add('active');
+            document.getElementById(`wizard-step-${step}-content`).style.display = 'block';
+        }
+
+        function wizardPrevious(step) {
+            document.getElementById(`wiz-step-${wizardData.currentStep}`).classList.remove('active');
+            document.getElementById(`wizard-step-${wizardData.currentStep}-content`).style.display = 'none';
+            
+            wizardData.currentStep = step;
+            
+            document.getElementById(`wiz-step-${step}`).classList.add('active');
+            document.getElementById(`wizard-step-${step}-content`).style.display = 'block';
+        }
+
+        function resetWizard() {
+            wizardData = { currentStep: 1, fileLoaded: false, validated: false, assets: [] };
+            
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`wiz-step-${i}`).classList.remove('active', 'completed');
+                document.getElementById(`wizard-step-${i}-content`).style.display = 'none';
+            }
+            
+            document.getElementById('wiz-step-1').classList.add('active');
+            document.getElementById('wizard-step-1-content').style.display = 'block';
+            document.getElementById('file-info').innerHTML = '';
+            document.getElementById('wizard-tbody').innerHTML = '';
+            document.getElementById('validation-summary').style.display = 'none';
+            document.getElementById('wiz-next-1').disabled = true;
+            document.getElementById('wiz-next-2').disabled = true;
+            document.getElementById('wiz-next-3').disabled = true;
+            showToast('התהליך אופס', 'info');
+        }
+
+        // File handling
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        }
+
+        function processFile(file) {
+            const fileInfo = document.getElementById('file-info');
+            fileInfo.innerHTML = `
+                <div class="highlight-box success">
+                    <strong>✓ קובץ נטען בהצלחה!</strong><br>
+                    שם קובץ: ${file.name}<br>
+                    גודל: ${(file.size / 1024).toFixed(2)} KB<br>
+                    סוג: ${file.type || 'CSV/Excel'}
+                </div>
+            `;
+            wizardData.fileLoaded = true;
+            document.getElementById('wiz-next-1').disabled = false;
+            showToast('קובץ נטען בהצלחה', 'success');
+        }
+
+        // Validation simulation
+        function simulateValidation() {
+            const progressBar = document.getElementById('validation-progress');
+            const summary = document.getElementById('validation-summary');
+            let progress = 0;
+            
+            // Simulate validation progress
+            const interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+                    
+                    // Show results
+                    const validCount = 12;
+                    const invalidCount = 3;
+                    
+                    document.getElementById('valid-count').textContent = validCount;
+                    document.getElementById('invalid-count').textContent = invalidCount;
+                    summary.style.display = 'flex';
+                    
+                    // Populate table with results
+                    const tbody = document.getElementById('wizard-tbody');
+                    tbody.innerHTML = `
+                        ${Array.from({length: invalidCount}, (_, i) => `
+                            <tr class="dirty-row">
+                                <td>${i + 1}</td>
+                                <td class="editable-cell" onclick="editWizardCell(this)">8268128${10 + i}</td>
+                                <td class="editable-cell" onclick="editWizardCell(this)">123456</td>
+                                <td class="editable-cell" onclick="editWizardCell(this)">100</td>
+                                <td class="cell-error">מספר נכס חסר</td>
+                                <td><span class="status-badge invalid">שגיאה</span></td>
+                            </tr>
+                        `).join('')}
+                    `;
+                    
+                    wizardData.validated = true;
+                    document.getElementById('wiz-next-2').disabled = false;
+                    showToast(`אימות הושלם: ${validCount} תקינים, ${invalidCount} שגיאות`, 'info');
+                }
+            }, 200);
+        }
+
+        function editWizardCell(cell) {
+            if (cell.classList.contains('editing')) return;
+            
+            const originalValue = cell.textContent;
+            cell.classList.add('editing');
+            cell.innerHTML = `<input type="text" value="${originalValue}" 
+                style="width: 100%; border: 2px solid #3b82f6; padding: 4px;"
+                onblur="saveWizardCell(this, '${originalValue}')"
+                onkeypress="if(event.key==='Enter') this.blur()" />`;
+            cell.querySelector('input').focus();
+        }
+
+        function saveWizardCell(input, originalValue) {
+            const cell = input.parentElement;
+            const newValue = input.value;
+            cell.classList.remove('editing');
+            cell.textContent = newValue;
+            
+            if (newValue !== originalValue && newValue.trim() !== '') {
+                cell.classList.remove('cell-error');
+                cell.classList.add('cell-success');
+                cell.parentElement.querySelector('.status-badge').textContent = 'תקין';
+                cell.parentElement.querySelector('.status-badge').className = 'status-badge valid';
+                cell.parentElement.querySelector('td:last-child').textContent = '';
+                setTimeout(() => {
+                    cell.classList.remove('cell-success');
+                    checkWizardCompletion();
+                }, 2000);
+            }
+        }
+
+        function checkWizardCompletion() {
+            const errors = document.querySelectorAll('#wizard-tbody .cell-error');
+            if (errors.length === 0) {
+                document.getElementById('wiz-next-3').disabled = false;
+                showToast('כל השגיאות תוקנו!', 'success');
+            }
+        }
+
+        // Save simulation
+        function simulateSave() {
+            const progressContainer = document.getElementById('save-progress-container');
+            const progressBar = document.getElementById('save-progress');
+            progressContainer.style.display = 'block';
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    const saved = 12;
+                    const failed = 3;
+                    
+                    document.getElementById('saved-count').textContent = saved;
+                    document.getElementById('failed-count').textContent = failed;
+                    showToast(`נשמרו ${saved} נכסים בהצלחה!`, 'success');
+                }
+            }, 100);
+        }
+
+        // Advanced assets table
+        let assetIdCounter = 826812810;
+        function addAdvancedAsset() {
+            assetIdCounter++;
+            const asset = {
+                id: assetIdCounter,
+                asset_id: assetIdCounter,
+                building_number: 123456,
+                payer_id: '',
+                tax_region: 100,
+                main_asset_type: '',
+                asset_size: 0,
+                measurement_date: new Date().toLocaleDateString('he-IL'),
+                status: 'new',
+                errors: []
+            };
+            
+            advancedAssets.push(asset);
+            updateAdvancedAssetsTable();
+            updateAdvancedStats();
+            showToast('נכס חדש נוסף', 'info');
+        }
+
+        function updateAdvancedAssetsTable() {
+            const tbody = document.getElementById('advanced-assets-tbody');
+            
+            if (advancedAssets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #6b7280;">
+                            אין נכסים. לחץ על "הוסף נכס" כדי להתחיל.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = advancedAssets.map((asset, idx) => {
+                const isNew = asset.status === 'new';
+                const isDirty = asset.status === 'dirty';
+                const hasErrors = asset.errors && asset.errors.length > 0;
+                
+                return `
+                    <tr class="${isNew ? 'new-row' : ''} ${isDirty ? 'dirty-row' : ''}">
+                        <td><input type="checkbox" onchange="updateAdvancedStats()" /></td>
+                        <td class="editable-cell" onclick="editAdvancedCell(${idx}, 'asset_id')">${asset.asset_id}</td>
+                        <td class="editable-cell" onclick="editAdvancedCell(${idx}, 'building_number')">${asset.building_number}</td>
+                        <td class="editable-cell" onclick="editAdvancedCell(${idx}, 'payer_id')">${asset.payer_id || ''}</td>
+                        <td class="editable-cell" onclick="editAdvancedCell(${idx}, 'tax_region')">${asset.tax_region}</td>
+                        <td class="editable-cell" onclick="editAdvancedCell(${idx}, 'main_asset_type')">${asset.main_asset_type || ''}</td>
+                        <td class="editable-cell" onclick="editAdvancedCell(${idx}, 'asset_size')">${asset.asset_size}</td>
+                        <td>${asset.measurement_date}</td>
+                        <td>
+                            <span class="status-badge ${hasErrors ? 'invalid' : isNew ? 'new' : 'valid'}">
+                                ${hasErrors ? 'שגיאה' : isNew ? 'חדש' : 'תקין'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn view" onclick="viewAdvancedAsset(${idx})">👁️</button>
+                                <button class="action-btn delete" onclick="deleteAdvancedAsset(${idx})">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function editAdvancedCell(index, field) {
+            const asset = advancedAssets[index];
+            const row = document.querySelector(`#advanced-assets-tbody tr:nth-child(${index + 1})`);
+            const cell = row.querySelector(`td:nth-child(${getColumnIndex(field)})`);
+            
+            if (cell.classList.contains('editing')) return;
+            
+            cell.classList.add('editing');
+            const originalValue = asset[field] || '';
+            
+            cell.innerHTML = `<input type="text" value="${originalValue}" 
+                style="width: 100%; border: 2px solid #3b82f6; padding: 6px;"
+                onblur="saveAdvancedCell(${index}, '${field}', this.value, '${originalValue}')"
+                onkeypress="if(event.key==='Enter') this.blur()" />`;
+            cell.querySelector('input').focus();
+        }
+
+        function getColumnIndex(field) {
+            const fields = ['checkbox', 'asset_id', 'building_number', 'payer_id', 'tax_region', 
+                          'main_asset_type', 'asset_size', 'measurement_date', 'status', 'actions'];
+            return fields.indexOf(field) + 1;
+        }
+
+        function saveAdvancedCell(index, field, newValue, originalValue) {
+            const asset = advancedAssets[index];
+            const row = document.querySelector(`#advanced-assets-tbody tr:nth-child(${index + 1})`);
+            const cell = row.querySelector(`td:nth-child(${getColumnIndex(field)})`);
+            
+            cell.classList.remove('editing');
+            
+            // Update asset data
+            if (field === 'building_number' || field === 'tax_region' || field === 'asset_size') {
+                asset[field] = parseFloat(newValue) || 0;
+            } else {
+                asset[field] = newValue;
+            }
+            
+            asset.status = 'dirty';
+            cell.textContent = newValue;
+            
+            if (newValue !== originalValue) {
+                cell.classList.add('cell-success');
+                setTimeout(() => cell.classList.remove('cell-success'), 2000);
+            }
+            
+            updateAdvancedStats();
+            updateAdvancedAssetsTable();
+        }
+
+        function deleteAdvancedAsset(index) {
+            if (confirm('האם אתה בטוח שברצונך למחוק נכס זה?')) {
+                advancedAssets.splice(index, 1);
+                updateAdvancedAssetsTable();
+                updateAdvancedStats();
+                showToast('נכס נמחק', 'info');
+            }
+        }
+
+        function viewAdvancedAsset(index) {
+            openAssetDetailsModal();
+        }
+
+        function updateAdvancedStats() {
+            const total = advancedAssets.length;
+            const valid = advancedAssets.filter(a => !a.errors || a.errors.length === 0).length;
+            const dirty = advancedAssets.filter(a => a.status === 'dirty').length;
+            const errors = advancedAssets.filter(a => a.errors && a.errors.length > 0).length;
+            
+            document.getElementById('total-assets').textContent = total;
+            document.getElementById('valid-assets').textContent = valid;
+            document.getElementById('dirty-assets').textContent = dirty;
+            document.getElementById('error-assets').textContent = errors;
+        }
+
+        function saveAllAdvancedAssets() {
+            showToast(`נשמרו ${advancedAssets.length} נכסים בהצלחה!`, 'success');
+            advancedAssets.forEach(a => a.status = 'saved');
+            updateAdvancedAssetsTable();
+            updateAdvancedStats();
+        }
+
+        function cancelAllAdvancedAssets() {
+            if (confirm('האם אתה בטוח שברצונך לבטל את כל השינויים?')) {
+                advancedAssets = [];
+                updateAdvancedAssetsTable();
+                updateAdvancedStats();
+                showToast('כל השינויים בוטלו', 'info');
+            }
+        }
+
+        function validateAllAdvancedAssets() {
+            showToast('מתחיל אימות...', 'info');
+            setTimeout(() => {
+                advancedAssets.forEach((asset, idx) => {
+                    if (!asset.asset_id || !asset.building_number) {
+                        asset.errors = ['מספר נכס ומספר מבנה חובה'];
+                    } else {
+                        asset.errors = [];
+                    }
+                });
+                updateAdvancedAssetsTable();
+                updateAdvancedStats();
+                showToast('אימות הושלם', 'success');
+            }, 1500);
+        }
+
+        function exportAdvancedAssets() {
+            showToast('קובץ Excel נשלח להורדה', 'success');
+        }
+
+        function toggleAllAssets(checkbox) {
+            const checkboxes = document.querySelectorAll('#advanced-assets-tbody input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+            updateAdvancedStats();
+        }
+
+        // Building modal
+        function openBuildingModal() {
+            document.getElementById('building-modal').classList.add('show');
+        }
+
+        function closeBuildingModal() {
+            document.getElementById('building-modal').classList.remove('show');
+        }
+
+        function validateBuildingField(field, value) {
+            const errorDiv = document.getElementById(`modal-${field.replace('_', '-')}-error`);
+            const input = document.getElementById(`modal-${field.replace('_', '-')}`);
+            
+            if (field === 'number' && (!value || value <= 0)) {
+                errorDiv.textContent = 'מספר מבנה חייב להיות מספר חיובי';
+                input.classList.add('error');
+                return false;
+            }
+            
+            if (field === 'tax_region' && value && !/^\d+([,]\d+)*$/.test(value)) {
+                errorDiv.textContent = 'פורמט שגוי. השתמש בפורמט: 100 או 100,200';
+                input.classList.add('error');
+                return false;
+            }
+            
+            errorDiv.textContent = '';
+            input.classList.remove('error');
+            return true;
+        }
+
+        function handleBuildingSubmit(e) {
+            e.preventDefault();
+            showToast('המבנה נוצר בהצלחה!', 'success');
+            setTimeout(() => closeBuildingModal(), 1500);
+        }
+
+        // Transfer areas
+        function switchTransferTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`transfer-${tab}-tab`).classList.add('active');
+        }
+
+        function proceedToTransfer() {
+            const checked = document.querySelectorAll('#transfer-select-tbody input[type="checkbox"]:checked');
+            if (checked.length < 2) {
+                showToast('יש לבחור לפחות 2 נכסים', 'error');
+                return;
+            }
+            
+            selectedTransferAssets = Array.from(checked).map(cb => {
+                const row = cb.closest('tr');
+                return {
+                    asset_id: row.cells[1].textContent,
+                    asset_size: parseFloat(row.cells[2].textContent),
+                    sub1: parseFloat(row.cells[3].textContent),
+                    sub2: parseFloat(row.cells[4].textContent)
+                };
+            });
+            
+            switchTransferTab('transfer');
+            renderTransferTable();
+            showToast(`${checked.length} נכסים נבחרו`, 'success');
+        }
+
+        function renderTransferTable() {
+            const tbody = document.getElementById('transfer-tbody');
+            let totalBefore = 0;
+            let totalAfter = 0;
+            
+            tbody.innerHTML = selectedTransferAssets.map((asset, idx) => {
+                totalBefore += asset.asset_size;
+                const rowTotal = asset.sub1 + asset.sub2;
+                totalAfter += rowTotal;
+                
+                return `
+                    <tr>
+                        <td>${asset.asset_id}</td>
+                        <td>${asset.asset_size.toFixed(2)}</td>
+                        <td class="editable-cell" onclick="editTransferSubAsset(${idx}, 1)">${asset.sub1.toFixed(2)}</td>
+                        <td class="editable-cell" onclick="editTransferSubAsset(${idx}, 2)">${asset.sub2.toFixed(2)}</td>
+                        <td>0.00</td>
+                        <td><strong>${rowTotal.toFixed(2)}</strong></td>
+                    </tr>
+                `;
+            }).join('');
+            
+            document.getElementById('total-before').textContent = totalBefore.toFixed(2);
+            document.getElementById('total-after').textContent = totalAfter.toFixed(2);
+            const diff = Math.abs(totalBefore - totalAfter);
+            const diffEl = document.getElementById('total-diff');
+            diffEl.textContent = diff.toFixed(2);
+            diffEl.style.color = diff < 0.01 ? '#10b981' : '#ef4444';
+        }
+
+        function editTransferSubAsset(assetIndex, subIndex) {
+            // Similar to other edit functions
+        }
+
+        function resetTransferAreas() {
+            selectedTransferAssets.forEach(asset => {
+                asset.sub1 = asset.asset_size / 2;
+                asset.sub2 = asset.asset_size / 2;
+            });
+            renderTransferTable();
+            showToast('השטחים אופסו', 'info');
+        }
+
+        function saveTransferAreas() {
+            showToast('העברת השטחים נשמרה בהצלחה!', 'success');
+        }
+
+        function cancelTransferAreas() {
+            resetTransferAreas();
+            switchTransferTab('select');
+        }
+
+        // Asset types
+        function searchAssetTypes(query) {
+            const rows = document.querySelectorAll('#asset-types-tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query.toLowerCase()) ? '' : 'none';
+            });
+        }
+
+        function filterAssetTypes() {
+            const filter = document.getElementById('asset-type-filter').value;
+            const rows = document.querySelectorAll('#asset-types-tbody tr');
+            rows.forEach(row => {
+                const taxRegion = row.cells[2].textContent;
+                row.style.display = !filter || taxRegion === filter ? '' : 'none';
+            });
+        }
+
+        function sortAssetTypes(field) {
+            showToast(`מיון לפי ${field}`, 'info');
+        }
+
+        function addAssetType() {
+            showToast('פתח טופס הוספת סוג נכס', 'info');
+        }
+
+        function editAssetType(id) {
+            showToast(`עריכת סוג נכס ${id}`, 'info');
+        }
+
+        function deleteAssetType(id) {
+            if (confirm(`האם אתה בטוח שברצונך למחוק סוג נכס ${id}?`)) {
+                showToast(`סוג נכס ${id} נמחק`, 'success');
+            }
+        }
+
+        // Asset details modal
+        function openAssetDetailsModal() {
+            document.getElementById('asset-details-modal').classList.add('show');
+        }
+
+        function closeAssetDetailsModal() {
+            document.getElementById('asset-details-modal').classList.remove('show');
+        }
+
+        function switchAssetTab(tab) {
+            document.querySelectorAll('#asset-details-modal .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#asset-details-modal .tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`asset-${tab}-tab`).classList.add('active');
+        }
+
+        function runAssetValidation() {
+            const resultsDiv = document.getElementById('asset-validation-results');
+            resultsDiv.innerHTML = '<div class="spinner"></div>';
+            
+            setTimeout(() => {
+                resultsDiv.innerHTML = `
+                    <div class="validation-results">
+                        <div class="validation-summary">
+                            <div class="validation-item valid">
+                                <div class="value">8</div>
+                                <div>אימותים עברו</div>
+                            </div>
+                            <div class="validation-item invalid">
+                                <div class="value">1</div>
+                                <div>אימותים נכשלו</div>
+                            </div>
+                        </div>
+                        <div class="validation-errors">
+                            <div class="validation-error-item">
+                                <strong>שגיאה:</strong> גודל נכס (45.5) קטן מהמינימום המותר (50) לסוג נכס זה
+                            </div>
+                        </div>
+                    </div>
+                `;
+                showToast('אימות הושלם', 'success');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
+

@@ -2120,9 +2120,10 @@ export const assetValidators = {
   validateSubAssetSizeMatchesMain: async (
     mainAssetSize: number | undefined,
     subAssetTypes: (string | undefined)[],
-    subAssetSizes: (number | undefined)[]
+    subAssetSizes: (number | undefined)[],
+    mainAssetType?: string | undefined
   ): Promise<ValidationResult> => {
-    return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes);
+    return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes, mainAssetType);
   },
 
   validateSubAssetOrder: async (
@@ -2539,6 +2540,12 @@ export const buildingValidators = {
       const taxRegionsByTypeResult = await buildingValidators.validateTaxRegionsByBusinessType(building.building_number, building.tax_region);
       if (!taxRegionsByTypeResult.valid) {
         errors.tax_region = taxRegionsByTypeResult.error || 'Invalid tax regions by business type';
+      }
+
+      // Validate that all assets in the building have properly distributed areas
+      const areaDistributionResult = await buildingValidators.validateAssetAreaDistribution(building.building_number);
+      if (!areaDistributionResult.valid) {
+        errors.assets_area_distribution = areaDistributionResult.error || 'Invalid asset area distribution';
       }
     }
 

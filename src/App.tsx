@@ -569,7 +569,8 @@ function App() {
               asset.sub_asset_size_4,
               asset.sub_asset_size_5,
               asset.sub_asset_size_6
-            ]
+            ],
+            asset.main_asset_type
           ),
           assetValidators.validateSubAssetsFor199Or299(
             asset.building_number,

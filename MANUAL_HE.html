@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מדריך משתמש - מערכת ניהול מבנים ונכסים</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial Hebrew', 'David', Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2563eb;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2563eb;
+            text-align: center;
+        }
+
+        h2 {
+            color: #1e40af;
+            font-size: 2em;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #93c5fd;
+        }
+
+        h3 {
+            color: #3b82f6;
+            font-size: 1.5em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            color: #60a5fa;
+            font-size: 1.2em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-right: 30px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        code {
+            background-color: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #dc2626;
+        }
+
+        pre {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        .toc {
+            background-color: #eff6ff;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            border-right: 4px solid #2563eb;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            color: #1e40af;
+            font-size: 1.8em;
+        }
+
+        .toc ol {
+            list-style-type: none;
+            counter-reset: item;
+        }
+
+        .toc ol li {
+            counter-increment: item;
+            margin-bottom: 8px;
+        }
+
+        .toc ol li::before {
+            content: counters(item, ".") ". ";
+            font-weight: bold;
+            color: #2563eb;
+            margin-left: 5px;
+        }
+
+        .toc a {
+            color: #1e40af;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .toc a:hover {
+            color: #3b82f6;
+            text-decoration: underline;
+        }
+
+        .toc ul {
+            margin-top: 10px;
+            margin-right: 20px;
+        }
+
+        .toc ul li {
+            margin-bottom: 5px;
+        }
+
+        .toc ul li::before {
+            content: "";
+        }
+
+        .highlight {
+            background-color: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .warning {
+            background-color: #fef2f2;
+            border-right: 4px solid #ef4444;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info {
+            background-color: #eff6ff;
+            border-right: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .tip {
+            background-color: #f0fdf4;
+            border-right: 4px solid #10b981;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            text-align: right;
+        }
+
+        th {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section::before {
+            content: "";
+            display: block;
+            height: 80px;
+            margin-top: -80px;
+            visibility: hidden;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            h2 {
+                font-size: 1.6em;
+            }
+            h3 {
+                font-size: 1.3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>מדריך משתמש - מערכת ניהול מבנים ונכסים</h1>
+
+        <div class="toc">
+            <h2>תוכן עניינים</h2>
+            <ol>
+                <li><a href="#הקדמה">הקדמה</a></li>
+                <li><a href="#מסך-ראשי-וניווט">מסך ראשי וניווט</a></li>
+                <li><a href="#ניהול-מבנים">ניהול מבנים</a>
+                    <ul>
+                        <li><a href="#יצירת-מבנה-חדש">יצירת מבנה חדש</a></li>
+                        <li><a href="#עריכת-מבנה">עריכת מבנה</a></li>
+                        <li><a href="#מחיקת-מבנה">מחיקת מבנה</a></li>
+                        <li><a href="#חיפוש-וסינון">חיפוש וסינון</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ניהול-נכסים">ניהול נכסים</a>
+                    <ul>
+                        <li><a href="#צפייה-בנכסים">צפייה בנכסים</a></li>
+                        <li><a href="#יצירת-נכס-חדש">יצירת נכס חדש</a></li>
+                        <li><a href="#עריכת-נכס-קיים">עריכת נכס קיים</a></li>
+                        <li><a href="#מחיקת-נכס">מחיקת נכס</a></li>
+                        <li><a href="#צפייה-בפרטי-נכס">צפייה בפרטי נכס</a></li>
+                        <li><a href="#פזר-שטח-משותף">פזר שטח משותף</a></li>
+                        <li><a href="#העברת-שטחים-בין-נכסים">העברת שטחים בין נכסים</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ייבוא-נתונים">ייבוא נתונים</a>
+                    <ul>
+                        <li><a href="#ייבוא-שלד">ייבוא שלד (Skeleton Import)</a></li>
+                        <li><a href="#ייבוא-מלא">ייבוא מלא (Full Import)</a></li>
+                        <li><a href="#טיפול-בשגיאות-ייבוא">טיפול בשגיאות ייבוא</a></li>
+                        <li><a href="#ביטול-שינויים">ביטול שינויים</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ניהול-סוגי-נכסים">ניהול סוגי נכסים</a>
+                    <ul>
+                        <li><a href="#צפייה-בסוגי-נכסים">צפייה בסוגי נכסים</a></li>
+                        <li><a href="#יצירת-סוג-נכס-חדש">יצירת סוג נכס חדש</a></li>
+                        <li><a href="#עריכת-סוג-נכס">עריכת סוג נכס</a></li>
+                        <li><a href="#מחיקת-סוג-נכס">מחיקת סוג נכס</a></li>
+                        <li><a href="#ייצוא-ייבוא-סוגי-נכסים">ייצוא/ייבוא סוגי נכסים</a></li>
+                    </ul>
+                </li>
+                <li><a href="#כללי-אימות">כללי אימות</a>
+                    <ul>
+                        <li><a href="#צפייה-בכללי-אימות">צפייה בכללי אימות</a></li>
+                        <li><a href="#יצירת-כלל-אימות-חדש">יצירת כלל אימות חדש</a></li>
+                        <li><a href="#עריכת-כלל-אימות">עריכת כלל אימות</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ניהול-כתובות">ניהול כתובות</a>
+                    <ul>
+                        <li><a href="#צפייה-בכתובות">צפייה בכתובות</a></li>
+                        <li><a href="#יצירת-כתובת-חדשה">יצירת כתובת חדשה</a></li>
+                        <li><a href="#עריכת-כתובת">עריכת כתובת</a></li>
+                        <li><a href="#ייבוא-כתובות">ייבוא כתובות</a></li>
+                    </ul>
+                </li>
+                <li><a href="#תכונות-מתקדמות">תכונות מתקדמות</a>
+                    <ul>
+                        <li><a href="#אימות-נכסים">אימות נכסים</a></li>
+                        <li><a href="#היסטוריית-מדידות">היסטוריית מדידות</a></li>
+                        <li><a href="#נכסים-לא-נספרים">נכסים לא נספרים</a></li>
+                    </ul>
+                </li>
+                <li><a href="#פתרון-בעיות">פתרון בעיות</a>
+                    <ul>
+                        <li><a href="#בעיות-נפוצות">בעיות נפוצות</a></li>
+                        <li><a href="#הודעות-שגיאה-נפוצות">הודעות שגיאה נפוצות</a></li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section" id="הקדמה">
+            <h2>1. הקדמה</h2>
+            <p>מערכת ניהול מבנים ונכסים מאפשרת לך לנהל מבנים, נכסים, סוגי נכסים, כללי אימות ועוד. המערכת תומכת ביבוא נתונים מקובצי Excel/CSV ובעבודה עם אזורי מס שונים.</p>
+            
+            <h3>דרישות מערכת</h3>
+            <ul>
+                <li>דפדפן מודרני (Chrome, Firefox, Edge)</li>
+                <li>חיבור לאינטרנט</li>
+            </ul>
+        </div>
+
+        <div class="section" id="מסך-ראשי-וניווט">
+            <h2>2. מסך ראשי וניווט</h2>
+            
+            <h3>תפריט הצד</h3>
+            <p>בצד שמאל של המסך נמצא תפריט ניווט עם האפשרויות הבאות:</p>
+            <ul>
+                <li><strong>תפריט ראשי</strong> - חזרה למסך הראשי</li>
+                <li><strong>רשימת מבנים</strong> - ניהול כל המבנים במערכת</li>
+                <li><strong>סוגי נכסים</strong> - ניהול סוגי הנכסים הקיימים</li>
+                <li><strong>כללי אימות</strong> - ניהול כללי האימות</li>
+                <li><strong>רשימת כתובות</strong> - ניהול רשימת הכתובות</li>
+                <li><strong>ייבוא שלד</strong> - ייבוא נכסים עם שדות מינימליים</li>
+                <li><strong>ייבוא מלא</strong> - ייבוא נכסים עם כל הפרטים</li>
+            </ul>
+
+            <h3>לשוניות (Tabs)</h3>
+            <p>כאשר אתה פותח מבנה, המערכת יוצרת לשוניות לפי אזורי המס של המבנה:</p>
+            <ul>
+                <li><strong>כל הנכסים</strong> - מציג את כל הנכסים במבנה (למבנים עם מספר אזורי מס)</li>
+                <li><strong>אזור מס ספציפי</strong> - לשונית לכל אזור מס במבנה</li>
+            </ul>
+        </div>
+
+        <div class="section" id="ניהול-מבנים">
+            <h2>3. ניהול מבנים</h2>
+
+            <div id="יצירת-מבנה-חדש">
+                <h3>יצירת מבנה חדש</h3>
+                <ol>
+                    <li>לחץ על <strong>"רשימת מבנים"</strong> בתפריט הצד</li>
+                    <li>לחץ על כפתור <strong>"מבנה חדש"</strong></li>
+                    <li>מלא את הפרטים:
+                        <ul>
+                            <li><strong>מספר מבנה</strong> - מספר מזהה ייחודי</li>
+                            <li><strong>אזור מס</strong> - אזור מס אחד או יותר (מופרדים בפסיקים)</li>
+                            <li><strong>שטח משותף מגורים</strong> - שטח משותף למגורים</li>
+                            <li><strong>שטח משותף עסקים</strong> - שטח משותף לעסקים</li>
+                            <li><strong>שטח לבקרה</strong> - שטח כולל לבקרה</li>
+                            <li><strong>אחוז העמסה</strong> - אחוז העמסה</li>
+                            <li>פרטים נוספים (גוש, חלקה, מספר בניין ברחוב, כתובת)</li>
+                        </ul>
+                    </li>
+                    <li>לחץ על <strong>"שמור"</strong> כדי ליצור את המבנה</li>
+                </ol>
+            </div>
+
+            <div id="עריכת-מבנה">
+                <h3>עריכת מבנה</h3>
+                <ol>
+                    <li>פתח את <strong>"רשימת מבנים"</strong></li>
+                    <li>לחץ על השורה של המבנה שברצונך לערוך</li>
+                    <li>ערוך את השדות הרצויים</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור את השינויים</li>
+                </ol>
+            </div>
+
+            <div id="מחיקת-מבנה">
+                <h3>מחיקת מבנה</h3>
+                <ol>
+                    <li>פתח את <strong>"רשימת מבנים"</strong></li>
+                    <li>לחץ על כפתור המחיקה (🗑️) בשורה של המבנה</li>
+                    <li>המבנה יסומן למחיקה ויוצג ברקע אדום בהיר</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי למחוק את המבנה מהמסד</li>
+                </ol>
+            </div>
+
+            <div id="חיפוש-וסינון">
+                <h3>חיפוש וסינון</h3>
+                <p>בדף רשימת המבנים תוכל:</p>
+                <ul>
+                    <li>לסנן לפי מספר מבנה</li>
+                    <li>לחפש לפי כתובת</li>
+                    <li>למיין לפי עמודות שונות</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="ניהול-נכסים">
+            <h2>4. ניהול נכסים</h2>
+
+            <div id="צפייה-בנכסים">
+                <h3>צפייה בנכסים</h3>
+                <ol>
+                    <li>פתח מבנה מרשימת המבנים</li>
+                    <li>בחר לשונית עם אזור מס ספציפי (או "כל הנכסים")</li>
+                    <li>תראה טבלה עם כל הנכסים באזור המס הנבחר</li>
+                </ol>
+            </div>
+
+            <div id="יצירת-נכס-חדש">
+                <h3>יצירת נכס חדש</h3>
+                <ol>
+                    <li>בדף רשימת הנכסים, לחץ על כפתור <strong>"הוסף נכס"</strong></li>
+                    <li>נפתח טבלה עם שורה חדשה</li>
+                    <li>מלא את השדות הבאים (חובה):
+                        <ul>
+                            <li><strong>מספר נכס</strong> (asset_id) - מזהה ייחודי</li>
+                            <li><strong>מספר מבנה</strong> - מספר המבנה</li>
+                            <li><strong>מזהה משלם</strong> - מזהה המשלם</li>
+                            <li><strong>אזור מס</strong> - ימולא אוטומטית לפי הלשונית</li>
+                        </ul>
+                    </li>
+                    <li>מלא שדות נוספים (אופציונלי):
+                        <ul>
+                            <li><strong>תאריך מדידה</strong> - תאריך המדידה בפורמט DD/MM/YYYY</li>
+                            <li><strong>סוג נכס ראשי</strong> - קוד סוג הנכס הראשי</li>
+                            <li><strong>גודל נכס</strong> - גודל הנכס במ"ר</li>
+                            <li><strong>סוגי נכסי משנה</strong> - עד 6 סוגי נכסי משנה</li>
+                            <li><strong>גדלי נכסי משנה</strong> - גדלים תואמים</li>
+                            <li><strong>דירת גג</strong> - האם דירת גג (כן/לא)</li>
+                            <li><strong>קומה</strong> - מספר קומה</li>
+                            <li><strong>פרטי הנחה</strong> - סוג הנחה ותאריכים</li>
+                        </ul>
+                    </li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+
+            <div id="עריכת-נכס-קיים">
+                <h3>עריכת נכס קיים</h3>
+                <ol>
+                    <li>בדף רשימת הנכסים, לחץ על התא שברצונך לערוך</li>
+                    <li>ערוך את הערך</li>
+                    <li>המערכת תאמת את הערך בזמן אמת</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור את השינויים</li>
+                </ol>
+            </div>
+
+            <div id="מחיקת-נכס">
+                <h3>מחיקת נכס</h3>
+                <ol>
+                    <li>בחר לשונית עם אזור מס ספציפי</li>
+                    <li>לחץ על כפתור המחיקה (🗑️) בשורה של הנכס</li>
+                    <li>הנכס יסומן למחיקה ויוצג ברקע אדום בהיר</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי למחוק את הנכס</li>
+                </ol>
+            </div>
+
+            <div id="צפייה-בפרטי-נכס">
+                <h3>צפייה בפרטי נכס</h3>
+                <ol>
+                    <li>לחץ על כפתור הצפייה (👁️) בשורה של הנכס</li>
+                    <li>נפתח חלון עם כל הפרטים וההיסטוריה של הנכס</li>
+                    <li>תוכל לערוך את הנכס ישירות מהחלון</li>
+                </ol>
+            </div>
+
+            <div id="פזר-שטח-משותף">
+                <h3>פזר שטח משותף</h3>
+                <p>במבנים עם שטח משותף מגורים:</p>
+                <ol>
+                    <li>לחץ על כפתור <strong>"פזר שטח משותף"</strong></li>
+                    <li>המערכת תפזר את השטח המשותף שווה בשווה בין כל נכסי המגורים במבנה</li>
+                    <li>השטח יועבר לנכס משנה מתאים (עם <code>shared_area_usage = true</code>)</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור את השינויים</li>
+                </ol>
+            </div>
+
+            <div id="העברת-שטחים-בין-נכסים">
+                <h3>העברת שטחים בין נכסים</h3>
+                <ol>
+                    <li>בחר לשונית עם אזור מס ספציפי</li>
+                    <li>סמן 2 נכסים או יותר באמצעות תיבות הסימון</li>
+                    <li>לחץ על כפתור <strong>"העברת שטחים"</strong></li>
+                    <li>נפתחת לשונית חדשה עם אפשרות להעביר שטחים בין הנכסים</li>
+                    <li>שנה את הגדלים של נכסי המשנה</li>
+                    <li>המערכת תאמת שהסכום הכולל נשאר זהה</li>
+                    <li>לחץ על <strong>"שמור"</strong> כדי לשמור את השינויים</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="section" id="ייבוא-נתונים">
+            <h2>5. ייבוא נתונים</h2>
+
+            <div id="ייבוא-שלד">
+                <h3>ייבוא שלד (Skeleton Import)</h3>
+                <p>ייבוא מהיר עם שדות מינימליים בלבד:</p>
+                <ol>
+                    <li>לחץ על <strong>"ייבוא שלד"</strong> בתפריט הצד</li>
+                    <li>הורד תבנית על ידי לחיצה על <strong>"הורד תבנית שלד"</strong></li>
+                    <li>מלא את הקובץ עם העמודות הבאות (חובה):
+                        <ul>
+                            <li><strong>מספר מבנה</strong> (building_number)</li>
+                            <li><strong>מזהה נכס</strong> (asset_id)</li>
+                            <li><strong>אזור מס</strong> (tax_region)</li>
+                            <li><strong>מזהה משלם</strong> (payer_id)</li>
+                        </ul>
+                    </li>
+                    <li>שמור את הקובץ בפורמט Excel (.xlsx) או CSV</li>
+                    <li>לחץ על <strong>"ייבוא שלד מקובץ"</strong> ובחר את הקובץ</li>
+                    <li>הנתונים יוצגו בטבלה</li>
+                    <li>לחץ על <strong>"אמת"</strong> כדי לאמת את הנתונים</li>
+                    <li>בדוק את תוצאות האימות</li>
+                    <li>לחץ על <strong>"שמור"</strong> כדי לשמור את הנתונים</li>
+                </ol>
+                <div class="warning">
+                    <strong>הערה:</strong> שדות הייבוא חייבים להתאים לשמות העמודות בדיוק (case-sensitive).
+                </div>
+            </div>
+
+            <div id="ייבוא-מלא">
+                <h3>ייבוא מלא (Full Import)</h3>
+                <p>ייבוא עם כל הפרטים:</p>
+                <ol>
+                    <li>לחץ על <strong>"ייבוא מלא"</strong> בתפריט הצד</li>
+                    <li>הורד תבנית על ידי לחיצה על <strong>"הורד תבנית"</strong></li>
+                    <li>מלא את הקובץ עם כל השדות הרלוונטיים</li>
+                    <li>שמור את הקובץ בפורמט Excel (.xlsx) או CSV</li>
+                    <li>לחץ על <strong>"ייבוא מקובץ"</strong> ובחר את הקובץ</li>
+                    <li>הנתונים יוצגו בטבלה</li>
+                    <li>אם המבנה לא קיים, תוכל ליצור אותו מהטבלה</li>
+                    <li>לחץ על <strong>"אמת"</strong> כדי לאמת את הנתונים</li>
+                    <li>בדוק את תוצאות האימות (שגיאות מסומנות באדום)</li>
+                    <li>תוכל לערוך נתונים ישירות בטבלה או למחוק שורות</li>
+                    <li>לחץ על <strong>"שמור"</strong> או <strong>"שמור כמדידה חדשה"</strong> כדי לשמור</li>
+                </ol>
+                <div class="warning">
+                    <strong>הערה:</strong> שדות הייבוא חייבים להתאים לשמות העמודות בדיוק.
+                </div>
+            </div>
+
+            <div id="טיפול-בשגיאות-ייבוא">
+                <h3>טיפול בשגיאות ייבוא</h3>
+                <ul>
+                    <li><strong>שגיאות ולידציה</strong> - מסומנות באדום בטבלה עם אייקון אזהרה</li>
+                    <li><strong>שגיאות שמירה</strong> - מוצגות בהודעת שגיאה עם פרטים</li>
+                    <li>תוצאות השמירה מציגות כמה רשומות נשמרו וכמה נכשלו</li>
+                </ul>
+            </div>
+
+            <div id="ביטול-שינויים">
+                <h3>ביטול שינויים</h3>
+                <p>לאחר טעינת נתונים בטבלה:</p>
+                <ul>
+                    <li>לחץ על <strong>"ביטול"</strong> כדי להסיר את כל השינויים ולחזור למצב המקורי</li>
+                    <li>כל העריכות והמחיקות יבוטלו</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="ניהול-סוגי-נכסים">
+            <h2>6. ניהול סוגי נכסים</h2>
+
+            <div id="צפייה-בסוגי-נכסים">
+                <h3>צפייה בסוגי נכסים</h3>
+                <ol>
+                    <li>לחץ על <strong>"סוגי נכסים"</strong> בתפריט הצד</li>
+                    <li>תראה טבלה עם כל סוגי הנכסים במערכת</li>
+                </ol>
+            </div>
+
+            <div id="יצירת-סוג-נכס-חדש">
+                <h3>יצירת סוג נכס חדש</h3>
+                <ol>
+                    <li>בדף סוגי הנכסים, לחץ על כפתור <strong>"הוסף שורה"</strong></li>
+                    <li>מלא את הפרטים:
+                        <ul>
+                            <li><strong>סוג נכס</strong> (name) - קוד הסוג (חובה)</li>
+                            <li><strong>תיאור</strong> - תיאור הסוג</li>
+                            <li><strong>אזור מס</strong> - אזור המס</li>
+                            <li><strong>תיאור אזור ללשונית</strong> - תיאור לתצוגה בלשונית</li>
+                            <li><strong>עסקים/מגורים</strong> - סוג הנכס (עסקים/מגורים)</li>
+                            <li><strong>שימוש בשטח משותף</strong> - האם משמש לחלוקת שטח משותף</li>
+                            <li><strong>לא נספר</strong> - האם הנכס לא נספר (לא נכלל בחישובים)</li>
+                            <li><strong>גודל מינימלי/מקסימלי</strong> - גדלים מותרים</li>
+                            <li>פרטים נוספים (מעלית, דירה פרטית, קומה, דירת גג, קונדו, בתים צמודי קרקע)</li>
+                        </ul>
+                    </li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+
+            <div id="עריכת-סוג-נכס">
+                <h3>עריכת סוג נכס</h3>
+                <ol>
+                    <li>לחץ על התא שברצונך לערוך</li>
+                    <li>ערוך את הערך</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+
+            <div id="מחיקת-סוג-נכס">
+                <h3>מחיקת סוג נכס</h3>
+                <ol>
+                    <li>לחץ על כפתור המחיקה (🗑️) בשורה של סוג הנכס</li>
+                    <li>סוג הנכס יסומן למחיקה ויוצג ברקע אדום בהיר</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי למחוק</li>
+                </ol>
+                <div class="info">
+                    <strong>הערה:</strong> מחיקה היא מחיקה "רכה" - סוג הנכס מסומן למחיקה אך לא נמחק מיד.
+                </div>
+            </div>
+
+            <div id="ייצוא-ייבוא-סוגי-נכסים">
+                <h3>ייצוא/ייבוא סוגי נכסים</h3>
+                <ul>
+                    <li><strong>ייצוא</strong> - לחץ על <strong>"ייצא לקובץ"</strong> כדי להוריד קובץ Excel עם כל סוגי הנכסים</li>
+                    <li><strong>ייבוא</strong> - לחץ על <strong>"ייבא מקובץ"</strong> כדי לייבא סוגי נכסים מקובץ Excel</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="כללי-אימות">
+            <h2>7. כללי אימות</h2>
+
+            <div id="צפייה-בכללי-אימות">
+                <h3>צפייה בכללי אימות</h3>
+                <ol>
+                    <li>לחץ על <strong>"כללי אימות"</strong> בתפריט הצד</li>
+                    <li>תראה טבלה עם כל כללי האימות במערכת</li>
+                </ol>
+            </div>
+
+            <div id="יצירת-כלל-אימות-חדש">
+                <h3>יצירת כלל אימות חדש</h3>
+                <ol>
+                    <li>בדף כללי האימות, לחץ על כפתור <strong>"הוסף כלל"</strong></li>
+                    <li>מלא את הפרטים:
+                        <ul>
+                            <li><strong>סוג ישות</strong> - סוג הישות (נכס, מדידה, מבנה)</li>
+                            <li><strong>שם שדה</strong> - שם השדה לאימות</li>
+                            <li><strong>סוג כלל</strong> - סוג הכלל (נדרש, דפוס, מספר, וכו')</li>
+                            <li><strong>הודעה</strong> - הודעת שגיאה להצגה</li>
+                            <li><strong>ערך</strong> - ערך לכלל (אם רלוונטי)</li>
+                        </ul>
+                    </li>
+                    <li>לחץ על <strong>"שמור"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+
+            <div id="עריכת-כלל-אימות">
+                <h3>עריכת כלל אימות</h3>
+                <ol>
+                    <li>לחץ על השורה של הכלל שברצונך לערוך</li>
+                    <li>ערוך את הפרטים</li>
+                    <li>לחץ על <strong>"שמור"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="section" id="ניהול-כתובות">
+            <h2>8. ניהול כתובות</h2>
+
+            <div id="צפייה-בכתובות">
+                <h3>צפייה בכתובות</h3>
+                <ol>
+                    <li>לחץ על <strong>"רשימת כתובות"</strong> בתפריט הצד</li>
+                    <li>תראה טבלה עם כל הכתובות במערכת</li>
+                </ol>
+            </div>
+
+            <div id="יצירת-כתובת-חדשה">
+                <h3>יצירת כתובת חדשה</h3>
+                <ol>
+                    <li>בדף רשימת הכתובות, לחץ על כפתור <strong>"הוסף שורה"</strong></li>
+                    <li>מלא את הפרטים:
+                        <ul>
+                            <li><strong>סמל רחוב</strong> - קוד הרחוב</li>
+                            <li><strong>שם רחוב</strong> - שם הרחוב</li>
+                        </ul>
+                    </li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+
+            <div id="עריכת-כתובת">
+                <h3>עריכת כתובת</h3>
+                <ol>
+                    <li>לחץ על התא שברצונך לערוך</li>
+                    <li>ערוך את הערך</li>
+                    <li>לחץ על <strong>"שמור הכל"</strong> כדי לשמור</li>
+                </ol>
+            </div>
+
+            <div id="ייבוא-כתובות">
+                <h3>ייבוא כתובות</h3>
+                <ol>
+                    <li>לחץ על <strong>"ייבא מקובץ"</strong></li>
+                    <li>הורד תבנית על ידי לחיצה על <strong>"הורד תבנית"</strong></li>
+                    <li>מלא את הקובץ עם העמודות:
+                        <ul>
+                            <li><strong>סמל_רחוב</strong> (street_code)</li>
+                            <li><strong>שם_רחוב</strong> (street_description)</li>
+                        </ul>
+                    </li>
+                    <li>שמור את הקובץ וטען אותו</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="section" id="תכונות-מתקדמות">
+            <h2>9. תכונות מתקדמות</h2>
+
+            <div id="אימות-נכסים">
+                <h3>אימות נכסים</h3>
+                
+                <h4>אימות נכס בודד</h4>
+                <ol>
+                    <li>בדף רשימת הנכסים, לחץ על כפתור הצפייה (👁️) בנכס</li>
+                    <li>בדף פרטי הנכס, לחץ על <strong>"אמת נכס"</strong></li>
+                    <li>המערכת תאמת את כל הפרטים ותציג תוצאות</li>
+                </ol>
+
+                <h4>אימות כל הנכסים</h4>
+                <ol>
+                    <li>בדף רשימת הנכסים, לחץ על <strong>"אמת הכל"</strong></li>
+                    <li>המערכת תאמת את כל הנכסים בטבלה</li>
+                    <li>תראה מודל עם התקדמות ותוצאות</li>
+                </ol>
+
+                <h4>אימות נכסים נבחרים</h4>
+                <ol>
+                    <li>סמן נכסים באמצעות תיבות הסימון</li>
+                    <li>לחץ על <strong>"אמת נבחרים"</strong></li>
+                    <li>רק הנכסים המסומנים יאומתו</li>
+                </ol>
+            </div>
+
+            <div id="היסטוריית-מדידות">
+                <h3>היסטוריית מדידות</h3>
+                <ol>
+                    <li>פתח נכס מהרשימה (כפתור הצפייה 👁️)</li>
+                    <li>בדף פרטי הנכס תראה את כל ההיסטוריה</li>
+                    <li>כל מדידה מציגה את הפרטים והתאריך</li>
+                </ol>
+            </div>
+
+            <div id="נכסים-לא-נספרים">
+                <h3>נכסים לא נספרים</h3>
+                <p>נכסים עם סוג נכס מסומן כ-"לא נספר" (<code>not_accountable = true</code>):</p>
+                <ul>
+                    <li>לא נכללים בחישובי שטח כולל של מבנה</li>
+                    <li>לא נכללים בחישובי העברת שטחים</li>
+                    <li>לא עוברים אימות מלא</li>
+                    <li>כל השדות נעשים לקריאה בלבד (חוץ מסוג הנכס הראשי)</li>
+                </ul>
+
+                <h4>עריכת נכסים בלתי נספרים</h4>
+                <ul>
+                    <li>רק שדה <strong>"סוג נכס ראשי"</strong> ניתן לעריכה</li>
+                    <li>כל השדות האחרים נעולים</li>
+                    <li>אם תשנה את סוג הנכס הראשי לאחד "נספר", כל השדות יפתחו לעריכה</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="פתרון-בעיות">
+            <h2>10. פתרון בעיות</h2>
+
+            <div id="בעיות-נפוצות">
+                <h3>בעיות נפוצות</h3>
+
+                <h4>כפתור "שמור" לא פעיל</h4>
+                <ul>
+                    <li>ודא שאימתת את הנתונים (לחץ על "אמת")</li>
+                    <li>בדוק שאין שגיאות ולידציה (מסומנות באדום)</li>
+                </ul>
+
+                <h4>שגיאות ייבוא</h4>
+                <ul>
+                    <li>ודא ששמות העמודות בקובץ מתאימים בדיוק לתבנית</li>
+                    <li>ודא שכל השדות החובה מלאים</li>
+                    <li>בדוק שאין נכסים כפולים (אותו <code>asset_id</code>)</li>
+                </ul>
+
+                <h4>נכסים לא מופיעים בטבלה</h4>
+                <ul>
+                    <li>בדוק שסינית לפי אזור מס נכון</li>
+                    <li>ודא שהנכסים לא מסומנים למחיקה</li>
+                    <li>רענן את הדף</li>
+                </ul>
+
+                <h4>שמירה נכשלה</h4>
+                <ul>
+                    <li>בדוק את הודעת השגיאה</li>
+                    <li>ודא שיש חיבור לאינטרנט</li>
+                    <li>בדוק שהנתונים תקינים (אין ערכים שליליים, תאריכים תקינים, וכו')</li>
+                </ul>
+            </div>
+
+            <div id="הודעות-שגיאה-נפוצות">
+                <h3>הודעות שגיאה נפוצות</h3>
+                <ul>
+                    <li><strong>"מזהה נכס כבר קיים"</strong> - נכס עם אותו <code>asset_id</code> כבר קיים במערכת</li>
+                    <li><strong>"מספר מבנה לא תקין"</strong> - מספר המבנה חסר או לא תקין</li>
+                    <li><strong>"סוג נכס לא תקין"</strong> - סוג הנכס לא קיים או לא חוקי לאזור המס</li>
+                    <li><strong>"גודל נכס לא תקין"</strong> - הגודל לא בטווח המותר לסוג הנכס</li>
+                    <li><strong>"אזור מס לא תקין"</strong> - אזור המס לא קיים או לא חוקי</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>11. טיפים לשימוש</h2>
+
+            <h3>עבודה יעילה</h3>
+            <ol>
+                <li><strong>השתמש בתבניות</strong> - תמיד הורד תבנית לפני ייבוא כדי לוודא את הפורמט הנכון</li>
+                <li><strong>אמת לפני שמירה</strong> - תמיד אמת את הנתונים לפני שמירה</li>
+                <li><strong>שמור לעיתים קרובות</strong> - שמור שינויים לעיתים קרובות כדי למנוע אובדן נתונים</li>
+                <li><strong>השתמש בביטול</strong> - אם עשית שינויים לא רצויים, לחץ על "ביטול" כדי לחזור למצב הקודם</li>
+            </ol>
+
+            <h3>עבודה עם אזורי מס מרובים</h3>
+            <ul>
+                <li>במבנים עם מספר אזורי מס, תראה לשוניות נפרדות</li>
+                <li>כל לשונית מציגה רק את הנכסים של אזור המס הספציפי</li>
+                <li>הלשונית "כל הנכסים" מציגה את כל הנכסים במבנה</li>
+            </ul>
+
+            <h3>עבודה עם נכסי משנה</h3>
+            <ul>
+                <li>נכסים מסוג 199 או 299 <strong>חייבים</strong> להיות עם נכסי משנה</li>
+                <li>סכום גדלי נכסי המשנה <strong>חייב</strong> להיות שווה לגודל הנכס הראשי</li>
+                <li>נכסי משנה חייבים להיות מסוגים חוקיים לאזור המס</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>גרסה:</strong> 1.0</p>
+            <p><strong>תאריך עדכון אחרון:</strong> דצמבר 2024</p>
+            <p>לשאלות ותמיכה, פנה למנהל המערכת.</p>
+        </div>
+    </div>
+</body>
+</html>
+

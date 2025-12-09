@@ -1384,21 +1384,83 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return;
         }
 
-        // Update or add to the slot
+        // Get current asset state (including any dirty changes)
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
-        updatedDirtyAssets.set(assetId, {
-          ...existingChanges,
-          [slotToUse.type]: sharedAreaAssetType.name,
-          [slotToUse.size]: areaPerAsset
-        });
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+        const currentMainType = existingChanges.main_asset_type !== undefined 
+          ? existingChanges.main_asset_type 
+          : (currentAsset?.main_asset_type || '');
+        const currentAssetSize = existingChanges.asset_size !== undefined
+          ? existingChanges.asset_size
+          : (currentAsset?.asset_size || 0);
+
+        // If main asset type is not 199, move it to sub_asset_type_1 and set main to 199
+        const changes: Partial<Asset> = { ...existingChanges };
+        
+        if (currentMainType !== '199' && currentMainType !== '' && String(currentMainType) !== '199') {
+          // Move current main type to sub_asset_type_1
+          // First check if sub_asset_type_1 is already used
+          const currentSub1Type = existingChanges.sub_asset_type_1 !== undefined
+            ? existingChanges.sub_asset_type_1
+            : (currentAsset?.sub_asset_type_1 || '');
+          const currentSub1Size = existingChanges.sub_asset_size_1 !== undefined
+            ? existingChanges.sub_asset_size_1
+            : (currentAsset?.sub_asset_size_1 || 0);
+
+          // Only move if sub_asset_type_1 is empty
+          if (!currentSub1Type || currentSub1Type.trim() === '') {
+            changes.sub_asset_type_1 = String(currentMainType);
+            changes.sub_asset_size_1 = currentAssetSize;
+          } else {
+            // If sub_asset_type_1 is already used, we need to find the first empty slot
+            // But this is less common, so we'll skip moving in this case
+            // The main type will still be changed to 199
+          }
+
+          // Set main asset type to 199
+          changes.main_asset_type = '199';
+        }
+
+        // Now add/update the shared area in the slot
+        changes[slotToUse.type as keyof Asset] = sharedAreaAssetType.name;
+        const currentSlotSize = existingChanges[slotToUse.size as keyof Asset] !== undefined
+          ? (existingChanges[slotToUse.size as keyof Asset] as number || 0)
+          : (currentAsset?.[slotToUse.size as keyof Asset] as number || 0);
+        
+        // Add the distributed area to existing size in this slot
+        changes[slotToUse.size as keyof Asset] = (currentSlotSize || 0) + areaPerAsset;
+
+        // Calculate main asset size as sum of all sub-asset sizes
+        // This applies to both assets that were just converted to 199 and assets that already were 199
+        const getSubAssetSize = (index: number): number => {
+          const subSizeKey = `sub_asset_size_${index}` as keyof Asset;
+          if (changes[subSizeKey] !== undefined) {
+            return (changes[subSizeKey] as number || 0);
+          }
+          const currentSubSize = currentAsset?.[subSizeKey] as number | undefined;
+          return currentSubSize || 0;
+        };
+
+        const totalSubAssetSize = 
+          getSubAssetSize(1) +
+          getSubAssetSize(2) +
+          getSubAssetSize(3) +
+          getSubAssetSize(4) +
+          getSubAssetSize(5) +
+          getSubAssetSize(6);
+
+        // Always update the main asset size to be the sum of all sub-asset sizes
+        // This ensures that both newly converted 199 assets and existing 199 assets get updated
+        changes.asset_size = totalSubAssetSize;
+
+        updatedDirtyAssets.set(assetId, changes);
 
         // Update local assets array for immediate UI update
         const assetIndex = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
         if (assetIndex !== -1) {
           updatedAssets[assetIndex] = {
             ...updatedAssets[assetIndex],
-            [slotToUse.type]: sharedAreaAssetType.name,
-            [slotToUse.size]: areaPerAsset
+            ...changes
           } as Asset;
         }
 

@@ -1425,12 +1425,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
         // Now add/update the shared area in the selected slot (subtype 2 when converting to 199)
         changes[slotToUse.type as keyof Asset] = sharedAreaAssetType.name;
-        const currentSlotSize = existingChanges[slotToUse.size as keyof Asset] !== undefined
-          ? (existingChanges[slotToUse.size as keyof Asset] as number || 0)
-          : (currentAsset?.[slotToUse.size as keyof Asset] as number || 0);
         
-        // Add the distributed area to existing size in this slot
-        changes[slotToUse.size as keyof Asset] = (currentSlotSize || 0) + areaPerAsset;
+        // Overwrite the existing size with the new distributed area (don't add to existing)
+        changes[slotToUse.size as keyof Asset] = areaPerAsset;
 
         // Ensure all sub-asset sizes in `changes` reflect the effective state,
         // then calculate main asset size as the sum of all sub-asset sizes.

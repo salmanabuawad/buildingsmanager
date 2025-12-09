@@ -5,7 +5,8 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft, Upload } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
@@ -1481,6 +1482,133 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
 
+  // Export assets to Excel
+  const handleExportToExcel = useCallback(() => {
+    if (!assets || assets.length === 0) {
+      setError('אין נכסים לייצוא');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      // Get all assets with dirty changes applied
+      const assetsToExport = assets.map(asset => {
+        const assetId = String(asset.asset_id);
+        const dirtyChanges = dirtyAssets.get(assetId) || {};
+        return { ...asset, ...dirtyChanges };
+      }).filter(asset => !deletedAssets.has(String(asset.asset_id)));
+
+      // Define headers matching the grid columns
+      const headers = [
+        'מספר מבנה',
+        'מספר נכס',
+        'מזהה משלם',
+        'אזור מס',
+        'דירת גג',
+        'קומה',
+        'סוג הנחה',
+        'תאריך הנחה מ',
+        'תאריך הנחה עד',
+        'תאריך מדידה',
+        'סוג נכס ראשי',
+        'גודל נכס ראשי',
+        'סוג נכס משנה 1',
+        'גודל נכס משנה 1',
+        'סוג נכס משנה 2',
+        'גודל נכס משנה 2',
+        'סוג נכס משנה 3',
+        'גודל נכס משנה 3',
+        'סוג נכס משנה 4',
+        'גודל נכס משנה 4',
+        'סוג נכס משנה 5',
+        'גודל נכס משנה 5',
+        'סוג נכס משנה 6',
+        'גודל נכס משנה 6'
+      ];
+
+      // Convert assets to rows
+      const rows = assetsToExport.map(asset => [
+        asset.building_number || '',
+        asset.asset_id || '',
+        asset.payer_id || '',
+        asset.tax_region || '',
+        asset.penthouse || '',
+        asset.floor || '',
+        asset.discount_type || '',
+        formatDateToDDMMYYYY(asset.discount_date_from) || '',
+        formatDateToDDMMYYYY(asset.discount_date_to) || '',
+        formatDateToDDMMYYYY(asset.measurement_date) || '',
+        asset.main_asset_type || '',
+        asset.asset_size || '',
+        asset.sub_asset_type_1 || '',
+        asset.sub_asset_size_1 || '',
+        asset.sub_asset_type_2 || '',
+        asset.sub_asset_size_2 || '',
+        asset.sub_asset_type_3 || '',
+        asset.sub_asset_size_3 || '',
+        asset.sub_asset_type_4 || '',
+        asset.sub_asset_size_4 || '',
+        asset.sub_asset_type_5 || '',
+        asset.sub_asset_size_5 || '',
+        asset.sub_asset_type_6 || '',
+        asset.sub_asset_size_6 || ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Set column widths for better readability
+      worksheet['!cols'] = [
+        { wch: 12 }, // מספר מבנה
+        { wch: 12 }, // מספר נכס
+        { wch: 12 }, // מזהה משלם
+        { wch: 10 }, // אזור מס
+        { wch: 8 },  // דירת גג
+        { wch: 8 },  // קומה
+        { wch: 12 }, // סוג הנחה
+        { wch: 12 }, // תאריך הנחה מ
+        { wch: 12 }, // תאריך הנחה עד
+        { wch: 12 }, // תאריך מדידה
+        { wch: 12 }, // סוג נכס ראשי
+        { wch: 12 }, // גודל נכס ראשי
+        { wch: 12 }, // סוג נכס משנה 1
+        { wch: 12 }, // גודל נכס משנה 1
+        { wch: 12 }, // סוג נכס משנה 2
+        { wch: 12 }, // גודל נכס משנה 2
+        { wch: 12 }, // סוג נכס משנה 3
+        { wch: 12 }, // גודל נכס משנה 3
+        { wch: 12 }, // סוג נכס משנה 4
+        { wch: 12 }, // גודל נכס משנה 4
+        { wch: 12 }, // סוג נכס משנה 5
+        { wch: 12 }, // גודל נכס משנה 5
+        { wch: 12 }, // סוג נכס משנה 6
+        { wch: 12 }  // גודל נכס משנה 6
+      ];
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
+
+      // Generate filename with current date and building number
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `נכסים_מבנה_${buildingNumber}${taxRegion ? `_אזור_${taxRegion}` : ''}_${dateStr}.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(workbook, filename);
+      
+      setSuccess(`יוצאו ${rows.length} נכסים בהצלחה`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      setError('שגיאה בייצוא לקובץ Excel');
+      setTimeout(() => setError(null), 3000);
+    }
+  }, [assets, dirtyAssets, deletedAssets, buildingNumber, taxRegion]);
+
   // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {
     if (!params || !params.data) return { textAlign: 'right' };
@@ -2418,6 +2546,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             >
               <CheckCircle2 className="h-4 w-4" />
               {selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}
+            </button>
+            <button
+              type="button"
+              onClick={handleExportToExcel}
+              disabled={loading || assets.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+              title="ייצא את כל הנכסים לקובץ Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              ייצא ל-Excel
             </button>
           </div>
           {/* Distribute shared area button - always visible if building has shared_area (works on all assets, not just specific tax region) */}

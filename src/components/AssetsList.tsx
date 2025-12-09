@@ -57,8 +57,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       return false;
     }
     
-    // Find asset type by name
-    const assetType = assetTypes.find(at => at.name === assetTypeName);
+    // Find asset type by name - ensure both are strings for comparison
+    const assetTypeNameStr = String(assetTypeName).trim();
+    const assetType = assetTypes.find(at => String(at.name).trim() === assetTypeNameStr);
     return assetType?.not_accountable === true;
   }, [assetTypes]);
 
@@ -1278,10 +1279,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Skip deleted assets
         if (deletedAssets.has(String(asset.asset_id))) return false;
         
-        // Check if asset type is not_accountable
-        if (asset.main_asset_type) {
-          const assetType = assetTypes.find(at => at.name === asset.main_asset_type);
-          if (assetType?.not_accountable === true) return false;
+        // Exclude non-accountable assets using the helper function
+        if (isAssetNotAccountable(asset)) {
+          return false;
         }
         
         return true;
@@ -1484,7 +1484,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     } finally {
       setLoading(false);
     }
-  }, [building, assets, assetTypes, dirtyAssets, deletedAssets]);
+  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
 
   // Helper function to get cell style for validation errors and read-only indication
   const getCellStyle = useCallback((params: any) => {

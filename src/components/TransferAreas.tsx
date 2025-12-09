@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
+import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
@@ -187,21 +188,53 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           }
         }
       } else {
-        // Initial load: fetch by asset_ids
-        for (const assetId of selectedAssetIds) {
+        // Initial load: batch fetch all assets by asset_ids in a single query
+        // Convert selectedAssetIds to numbers for the query
+        const assetIdNumbers = selectedAssetIds.map(id => Number(id)).filter(id => !isNaN(id));
+        
+        if (assetIdNumbers.length > 0) {
           try {
-            // assetId is actually asset_id, fetch using getAllByAssetId
-            const asset = await api.assets.getOne(Number(assetId));
-            fetchedAssets.push(asset);
-            // Store asset identifier for future reloads (key is asset_id)
-            setAssetIdentifiers(prev => {
-              const next = new Map(prev);
-              next.set(String(asset.asset_id), { asset_id: asset.asset_id, building_number: asset.building_number });
-              return next;
-            });
+            // Batch fetch all assets at once using 'in' filter
+            const { data, error } = await supabase
+              .from('assets')
+              .select('*')
+              .in('asset_id', assetIdNumbers);
+
+            if (error) {
+              console.error('Error batch fetching assets:', error);
+            } else if (data) {
+              fetchedAssets.push(...data);
+              // Store asset identifiers for future reloads
+              setAssetIdentifiers(prev => {
+                const next = new Map(prev);
+                data.forEach(asset => {
+                  next.set(String(asset.asset_id), { 
+                    asset_id: asset.asset_id, 
+                    building_number: asset.building_number 
+                  });
+                });
+                return next;
+              });
+            }
           } catch (err) {
-            console.error(`Error fetching asset ${assetId}:`, err);
-            // Don't add to errors array here - just log it
+            console.error('Error batch fetching assets:', err);
+            // Fallback to individual fetches if batch fails
+            for (const assetId of selectedAssetIds) {
+              try {
+                const asset = await api.assets.getOne(Number(assetId));
+                fetchedAssets.push(asset);
+                setAssetIdentifiers(prev => {
+                  const next = new Map(prev);
+                  next.set(String(asset.asset_id), { 
+                    asset_id: asset.asset_id, 
+                    building_number: asset.building_number 
+                  });
+                  return next;
+                });
+              } catch (individualErr) {
+                console.error(`Error fetching asset ${assetId}:`, individualErr);
+              }
+            }
           }
         }
       }

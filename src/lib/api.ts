@@ -978,26 +978,7 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
-      
-      // First, get the existing asset
-      const { data: existingAsset, error: fetchError } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('asset_id', id)
-        .maybeSingle();
-
-      if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          throw new Error('Asset not found');
-        }
-        throw new Error(`שגיאה בטעינת נכס: ${fetchError.message}`);
-      }
-
-      if (!existingAsset) {
-        throw new Error('Asset not found');
-      }
-
-      // Sanitize the input data
+      // Sanitize the input data first (no need to fetch existing asset - we can update directly)
       const sanitizedInput = sanitizeAssetInput(input);
       
       // Remove fields that shouldn't be updated
@@ -1020,6 +1001,11 @@ export const api = {
         .single();
 
       if (updateError) {
+        // Handle "not found" error (PGRST116 = 0 rows updated)
+        if (updateError.code === 'PGRST116') {
+          throw new Error('Asset not found');
+        }
+        
         let errorMessage = updateError.message || 'Failed to update asset';
 
         if (updateError.code === '23514') {

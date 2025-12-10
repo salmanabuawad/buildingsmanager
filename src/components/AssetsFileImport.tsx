@@ -3367,7 +3367,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      אחוז העמסה
+                      אחוז העמסה (%)
                     </label>
                     <input
                       type="number"
@@ -3376,6 +3376,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       onChange={(e) => setBuildingCreateData(prev => ({ ...prev, overload_ratio: e.target.value ? parseFloat(e.target.value) : undefined }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       disabled={isCreatingBuilding}
+                      placeholder="לדוגמה: 15.50"
                     />
                   </div>
 

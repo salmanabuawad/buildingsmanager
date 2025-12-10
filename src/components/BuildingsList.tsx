@@ -1567,14 +1567,16 @@ export function BuildingsList({
         if (!params) return null;
         const newValue = params.newValue;
         if (newValue === null || newValue === undefined || newValue === '') return null;
-        const numValue = Number(newValue);
+        // Remove % sign if present
+        const cleanValue = String(newValue).replace('%', '').trim();
+        const numValue = Number(cleanValue);
         return isNaN(numValue) ? null : numValue;
       },
       valueFormatter: (params: any) => {
         if (params.value == null || params.value === undefined) return '';
         const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
         if (isNaN(num)) return '';
-        return num.toFixed(2);
+        return `${num.toFixed(2)}%`;
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
@@ -1586,7 +1588,7 @@ export function BuildingsList({
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
-        const value = params.value != null ? Number(params.value).toFixed(2) : '';
+        const value = params.value != null ? `${Number(params.value).toFixed(2)}%` : '';
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>

@@ -1538,6 +1538,174 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
 
+  const handleDistributeBusinessSharedArea = useCallback(async () => {
+    if (!building || !building.shared_business_area || building.shared_business_area <= 0) {
+      setError('אין שטח משותף עסקים במבנה או השטח הוא 0');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!assetTypes || assetTypes.length === 0) {
+      setError('לא ניתן לטעון את סוגי הנכסים');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Create asset type map for quick lookup
+      const assetTypeMap = new Map<string, AssetType>();
+      assetTypes.forEach(at => {
+        assetTypeMap.set(at.name, at);
+      });
+
+      // Filter assets: only business assets that are accountable
+      const businessAssets = assets.filter(asset => {
+        // Skip deleted assets
+        if (deletedAssets.has(String(asset.asset_id))) return false;
+        
+        // Exclude non-accountable assets
+        if (isAssetNotAccountable(asset)) {
+          return false;
+        }
+        
+        // Check if asset is business type
+        if (!asset.main_asset_type) return false;
+        const assetType = assetTypeMap.get(String(asset.main_asset_type));
+        if (!assetType || assetType.business_private !== 'עסקים') {
+          return false;
+        }
+        
+        return true;
+      });
+
+      if (businessAssets.length === 0) {
+        setError('אין נכסי עסקים במבנה לפזר בהם שטח משותף');
+        setTimeout(() => setError(null), 3000);
+        setLoading(false);
+        return;
+      }
+
+      // Sum all business accountable assets' main size
+      let totalMainSize = 0;
+      for (const asset of businessAssets) {
+        const assetId = String(asset.asset_id);
+        const existingChanges = dirtyAssets.get(assetId) || {};
+        const currentAssetSize = existingChanges.asset_size !== undefined
+          ? existingChanges.asset_size
+          : (asset.asset_size || 0);
+        totalMainSize += currentAssetSize;
+      }
+
+      if (totalMainSize <= 0) {
+        setError('סכום שטחי הנכסים העסקיים הוא 0 או שלילי');
+        setTimeout(() => setError(null), 3000);
+        setLoading(false);
+        return;
+      }
+
+      // Calculate overload ratio = shared_business_area / totalMainSize
+      const overloadRatio = building.shared_business_area! / totalMainSize;
+      // Convert to percentage for storage (multiply by 100)
+      const overloadRatioPercentage = overloadRatio * 100;
+
+      // Save overload ratio to building as percentage (update via API)
+      try {
+        await api.buildings.update(building.building_number, {
+          overload_ratio: overloadRatioPercentage
+        });
+        // Update local building state
+        if (setBuilding) {
+          setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
+        }
+      } catch (err) {
+        console.warn('Failed to save overload ratio to building:', err);
+        // Continue anyway - the ratio is still calculated and used
+      }
+
+      // Track changes
+      const updatedDirtyAssets = new Map(dirtyAssets);
+      const updatedAssets = [...assets];
+      let updatedCount = 0;
+
+      for (const asset of businessAssets) {
+        const assetId = String(asset.asset_id);
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+
+        // Get current main type and size
+        const currentMainType = existingChanges.main_asset_type !== undefined 
+          ? existingChanges.main_asset_type 
+          : (currentAsset?.main_asset_type || '');
+        const currentAssetSize = existingChanges.asset_size !== undefined
+          ? existingChanges.asset_size
+          : (currentAsset?.asset_size || 0);
+
+        // Prepare changes object
+        const changes: Partial<Asset> = { ...existingChanges };
+
+        if (String(currentMainType) === '299') {
+          // Case: main type is 299
+          // Update sub_asset_size_1 = (overload_ratio * main asset size) + sub_asset_size_1
+          const currentSubSize1 = existingChanges.sub_asset_size_1 !== undefined
+            ? existingChanges.sub_asset_size_1
+            : (currentAsset?.sub_asset_size_1 || 0);
+          
+          const additionalArea = overloadRatio * currentAssetSize;
+          changes.sub_asset_size_1 = (currentSubSize1 || 0) + additionalArea;
+
+          // Update main size = sum of all subtypes
+          let totalSubAssetSize = changes.sub_asset_size_1 || 0;
+          for (let i = 2; i <= 6; i++) {
+            const sizeKey = `sub_asset_size_${i}` as keyof Asset;
+            const currentSubSize = existingChanges[sizeKey] !== undefined
+              ? existingChanges[sizeKey]
+              : (currentAsset?.[sizeKey] as number | undefined);
+            totalSubAssetSize += (currentSubSize || 0);
+          }
+          changes.asset_size = totalSubAssetSize;
+        } else {
+          // Case: main type is NOT 299
+          // Update main size = main size * (1 + overload_ratio)
+          changes.asset_size = currentAssetSize * (1 + overloadRatio);
+        }
+
+        updatedDirtyAssets.set(assetId, changes);
+
+        // Update local assets array for immediate UI update
+        const assetIndex = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
+        if (assetIndex !== -1) {
+          updatedAssets[assetIndex] = {
+            ...updatedAssets[assetIndex],
+            ...changes
+          } as Asset;
+        }
+
+        updatedCount++;
+      }
+
+      // Update state
+      setDirtyAssets(updatedDirtyAssets);
+      setAssets(updatedAssets);
+      
+      setSuccess(`פוזר שטח משותף עסקים (${building.shared_business_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`);
+      setTimeout(() => setSuccess(null), 5000);
+
+      // Refresh grid
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
+
   // Export assets to Excel
   const handleExportToExcel = useCallback(() => {
     if (!assets || assets.length === 0) {
@@ -2608,6 +2776,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             >
               <Download className="h-4 w-4" />
               פזר שטח משותף
+            </button>
+          )}
+          {/* Distribute business shared area button - always visible if building has shared_business_area */}
+          {building && building.shared_business_area && building.shared_business_area > 0 && (
+            <button
+              type="button"
+              onClick={handleDistributeBusinessSharedArea}
+              disabled={loading || assets.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+              title={`פזר שטח משותף עסקים (${building.shared_business_area?.toLocaleString('he-IL')}) בין כל נכסי העסקים`}
+            >
+              <Download className="h-4 w-4" />
+              פזר שטח משותף עסקים
             </button>
           )}
           {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}

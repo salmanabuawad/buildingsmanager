@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { GridApi } from 'ag-grid-community';
 import { api } from './api';
+import { gridRegistry } from './gridRegistry';
 
 export interface GridColumnState {
   colId: string;
@@ -133,14 +134,17 @@ export function useGridPreferences<T = any>(
     debouncedSave();
   }, [debouncedSave]);
 
-  // Cleanup timeout on unmount
+  // Register save function in global registry
   useEffect(() => {
+    gridRegistry.register(preferenceKey, saveColumnState);
+    
     return () => {
+      gridRegistry.unregister(preferenceKey);
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, []);
+  }, [preferenceKey, saveColumnState]);
 
   return {
     handleColumnResized,

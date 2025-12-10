@@ -1,5 +1,6 @@
 import { api } from './api';
 import { GridColumnState } from './useGridPreferences';
+import { gridRegistry } from './gridRegistry';
 
 /**
  * Known grid names in the system
@@ -20,36 +21,16 @@ export const GRID_NAMES = {
 
 /**
  * Save all grid states to user preferences
- * This function saves the current state of all known grids
- * Note: This saves the last known state from preferences, not the current DOM state
- * For saving current DOM state, each grid component should call its saveColumnState function
+ * This function saves the current state of all registered grids
+ * It calls each grid's save function to save the current DOM state
  */
 export async function saveAllGridStates(userId: string = 'default'): Promise<{
   saved: number;
   errors: string[];
 }> {
-  const errors: string[] = [];
-  let saved = 0;
-
-  // Get all grid preferences that exist
-  const gridKeys = Object.values(GRID_NAMES);
-  
-  for (const gridName of gridKeys) {
-    try {
-      const preferenceKey = `grid-${gridName}`;
-      // Get current saved state (if exists)
-      const currentState = await api.userPreferences.get(userId, preferenceKey);
-      
-      if (currentState) {
-        // State already exists, it's already saved
-        saved++;
-      }
-    } catch (error) {
-      errors.push(`Error saving ${gridName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  return { saved, errors };
+  // Save all currently registered grids (those that are mounted and visible)
+  const result = await gridRegistry.saveAll();
+  return result;
 }
 
 /**

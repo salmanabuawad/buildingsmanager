@@ -127,7 +127,8 @@ export function AdminPDFManager() {
     );
   };
 
-  const columnDefs: ColDef<ApartmentWithBuilding>[] = useMemo(() => [
+  const columnDefs: ColDef<ApartmentWithBuilding>[] = useMemo(() => {
+    const defs: ColDef<ApartmentWithBuilding>[] = [
     {
       colId: 'actions',
       headerName: 'Actions',
@@ -165,7 +166,17 @@ export function AdminPDFManager() {
       headerName: '',
       editable: false
     }
-  ], [uploadingIds]);
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [uploadingIds]);
 
   const defaultColDef = useMemo(() => ({
     resizable: true,

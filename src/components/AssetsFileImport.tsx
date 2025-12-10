@@ -10,6 +10,7 @@ import { Toast } from './Toast';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 
 interface ImportAssetRow {
   id: string;
@@ -2355,11 +2356,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             );
           }
         }
-      ];
+      ].map(colDef => {
+        if (colDef.headerName && typeof colDef.headerName === 'string') {
+          const processed = processColumnHeader(colDef.headerName);
+          return { ...colDef, ...processed };
+        }
+        return colDef;
+      });
     }
 
     // For regular mode, show all columns
-    return [
+    const defs: ColDef<ImportAssetRow>[] = [
     {
       colId: 'actions',
       field: 'actions',
@@ -2665,7 +2672,16 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       editable: true,
       cellStyle: getCellStyle
     }
-  ];
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
   }, [t, assetTypes, handleDeleteRow, mode]);
 
   const getRowStyle = (params: any) => {

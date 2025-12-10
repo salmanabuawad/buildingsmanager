@@ -8,6 +8,7 @@ import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -906,7 +907,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     return { textAlign: 'right' };
   }, [dirtyAssets, validationErrors]);
 
-  const columnDefs: ColDef<Asset>[] = useMemo(() => [
+  const columnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
     {
       colId: 'actions',
       headerName: t('actions'),
@@ -1170,7 +1172,17 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
-  ], [t, validationErrors, getCellStyle]);
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, validationErrors, getCellStyle]);
 
   if (loading) {
     return (

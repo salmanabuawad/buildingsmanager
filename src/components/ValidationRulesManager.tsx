@@ -148,7 +148,8 @@ export function ValidationRulesManager() {
     }
   }
 
-  const columnDefs: ColDef[] = useMemo(() => [
+  const columnDefs: ColDef[] = useMemo(() => {
+    const defs: ColDef[] = [
     {
       colId: 'actions',
       headerName: t('actions'),
@@ -296,7 +297,17 @@ export function ValidationRulesManager() {
       headerName: '',
       editable: false
     }
-  ], [editingId, editValues]);
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [editingId, editValues]);
 
   const gridRef = useRef<AgGridReact<ValidationRule>>(null);
   

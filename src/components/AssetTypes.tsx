@@ -8,6 +8,7 @@ import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent, GridReadyEvent } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -292,7 +293,8 @@ export function AssetTypes() {
   }, []);
 
   // Column definitions for ag-grid
-  const columnDefs: ColDef<AssetType>[] = useMemo(() => [
+  const columnDefs: ColDef<AssetType>[] = useMemo(() => {
+    const defs: ColDef<AssetType>[] = [
     {
       field: 'active',
       headerName: 'פעיל',

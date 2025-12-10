@@ -148,7 +148,8 @@ export function AddressListComponent() {
     }
   }
 
-  const columnDefs: ColDef<AddressList>[] = useMemo(() => [
+  const columnDefs: ColDef<AddressList>[] = useMemo(() => {
+    const defs: ColDef<AddressList>[] = [
     {
       colId: 'actions',
       headerName: 'פעולות',
@@ -254,7 +255,17 @@ export function AddressListComponent() {
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
-  ], [dirtyAddresses, deletedAddresses]);
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [dirtyAddresses, deletedAddresses]);
 
   async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

@@ -7,6 +7,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -1394,7 +1395,17 @@ export function AssetDataEntry() {
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
-  ], [t, buildings, assetTypes, getCellStyle]);
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, buildings, assetTypes, getCellStyle]);
   // Store original row data for cancel functionality - update when rowData is initially loaded or after save
   const [originalRowData, setOriginalRowData] = useState<AssetRow[]>([]);
   

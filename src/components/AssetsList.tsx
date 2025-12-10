@@ -2442,7 +2442,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
-  ], [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
+    ];
+    
+    // Process all headers to add icons for long headers (>2 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

@@ -1805,7 +1805,7 @@ export function BuildingsList({
                 params.node.setDataValue('elevator', newValue);
                 handleCheckboxChange(building, 'elevator', newValue);
               }}
-              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -1845,7 +1845,7 @@ export function BuildingsList({
                 params.node.setDataValue('single_double_family', newValue);
                 handleCheckboxChange(building, 'single_double_family', newValue);
               }}
-              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -1877,7 +1877,7 @@ export function BuildingsList({
                 params.node.setDataValue('condo', newValue);
                 handleCheckboxChange(building, 'condo', newValue);
               }}
-              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -1909,7 +1909,7 @@ export function BuildingsList({
                 params.node.setDataValue('townhouses', newValue);
                 handleCheckboxChange(building, 'townhouses', newValue);
               }}
-              className={`w-5 h-5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );

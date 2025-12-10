@@ -2050,9 +2050,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     });
   }, [t, assetTypes, getCellStyle]);
 
-  // Apply field configurations to column definitions
-  const configuredColumnDefs = useFieldConfig(columnDefs);
-
 
 
 
@@ -2647,6 +2644,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       return colDef;
     });
   }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
+
+  // Apply field configurations to column definitions (must be after columnDefs is defined)
+  const configuredColumnDefs = useFieldConfig(columnDefs);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

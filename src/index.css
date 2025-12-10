@@ -32,18 +32,10 @@ input[type="number"] {
   color: white;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
-  font-size: 8px;
+  font-size: 11px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-}
-
-.ag-theme-alpine.buildings-list-grid .ag-header {
-  font-size: 8px !important;
-}
-
-.ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
-  font-size: 8px !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-cell {
@@ -164,7 +156,7 @@ input[type="number"] {
   overflow: hidden !important;
   position: relative !important;
   max-width: 100% !important;
-  font-size: 8px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
@@ -190,6 +182,7 @@ input[type="number"] {
   overflow: hidden !important;
   max-width: 100% !important;
   text-overflow: clip !important; /* Use clip instead of ellipsis */
+  font-size: 11px !important;
   line-height: 1.2 !important;
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;

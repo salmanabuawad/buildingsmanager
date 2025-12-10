@@ -1467,7 +1467,7 @@ export function BuildingsList({
               className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
               title={t('viewAssets')}
             >
-              <Eye className="h-5 w-5" />
+              <Eye className="h-4 w-4" />
             </button>
             <button
               onClick={() => handleDeleteBuilding(building.building_number)}
@@ -1478,7 +1478,7 @@ export function BuildingsList({
               }`}
               title={markedForDeletion ? 'מסומן למחיקה' : 'מחק מבנה'}
             >
-              <Trash2 className="h-5 w-5" />
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         );

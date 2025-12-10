@@ -1485,7 +1485,7 @@ export function BuildingsList({
     },
     {
       field: 'building_number',
-      headerName: 'מספר מבנה *',
+      headerName: 'מספר מבנה',
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;

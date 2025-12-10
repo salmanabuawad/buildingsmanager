@@ -2296,6 +2296,7 @@ export function BuildingsList({
                     });
                     params.api.applyColumnState({
                       state: updatedState,
+                      applyOrder: true, // Preserve column order
                       defaultState: { pinned: null }
                     });
                   }

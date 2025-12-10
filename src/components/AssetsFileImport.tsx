@@ -108,6 +108,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [pendingBuildingNumber, setPendingBuildingNumber] = useState<number | null>(null);
   const [buildingCreateData, setBuildingCreateData] = useState<Partial<Building>>({});
   const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
+  const [showColumnMappingModal, setShowColumnMappingModal] = useState(false);
+  const [fileHeaders, setFileHeaders] = useState<string[]>([]);
+  const [columnMapping, setColumnMapping] = useState<Record<number, string>>({});
+  const [pendingFileLines, setPendingFileLines] = useState<string[][]>([]);
   const pendingImportCallback = useRef<(() => void) | null>(null);
   const [addressList, setAddressList] = useState<AddressList[]>([]);
   const [addressSearchValue, setAddressSearchValue] = useState('');
@@ -213,7 +217,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         throw new Error('קובץ File ריק');
       }
 
-      // Process headers - exact name matching only
+      // Process headers
       const originalHeaders = lines[0].map(h => (h || '').trim());
       
       // Create header mapping - map header index to field name
@@ -261,15 +265,44 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
       });
 
-      // Require headers - must have header row with field names
       // Check if we have valid headers (at least some key headers found)
       const hasRequiredHeaders = headerMap['building_number'] !== undefined && 
                                  headerMap['asset_id'] !== undefined;
       
-      if (!hasRequiredHeaders || Object.keys(headerMap).length === 0) {
-        throw new Error('קובץ חייב לכלול שורת כותרות עם שמות שדות. נדרש לפחות: מזהה מבנה ומזהה נכס');
+      // If automatic mapping found required headers, use it; otherwise show mapping modal
+      if (hasRequiredHeaders && Object.keys(headerMap).length > 0) {
+        // Continue with automatic mapping
+        await parseFileWithMapping(lines, headerMap);
+      } else {
+        // Show mapping modal - store headers and lines for mapping
+        setFileHeaders(originalHeaders);
+        setPendingFileLines(lines);
+        // Pre-populate with any automatic matches found
+        const initialMapping: Record<number, string> = {};
+        Object.entries(headerMap).forEach(([fieldName, columnIndex]) => {
+          initialMapping[columnIndex] = fieldName;
+        });
+        setColumnMapping(initialMapping);
+        setIsParsing(false);
+        setShowColumnMappingModal(true);
+        return;
       }
+    } catch (error) {
+      setErrorModal({ 
+        isOpen: true, 
+        message: error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File',
+        title: 'שגיאה בקריאת קובץ'
+      });
+    } finally {
+      setIsParsing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }
 
+  async function parseFileWithMapping(lines: string[][], headerMap: Record<string, number>) {
+    try {
       const assets: ImportAssetRow[] = [];
 
       // Get current date for default measurement_date
@@ -416,6 +449,39 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  }
+
+  const handleConfirmMapping = async () => {
+    // Validate that required fields are mapped
+    const requiredFields = ['building_number', 'asset_id'];
+    const mappedFields = Object.values(columnMapping);
+    const hasRequiredFields = requiredFields.every(field => mappedFields.includes(field));
+    
+    if (!hasRequiredFields) {
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'חובה למפות את השדות: מזהה מבנה ומזהה נכס',
+        title: 'מיפוי לא שלם'
+      });
+      return;
+    }
+
+    // Convert columnMapping (columnIndex -> fieldName) to headerMap (fieldName -> columnIndex)
+    const headerMap: Record<string, number> = {};
+    Object.entries(columnMapping).forEach(([columnIndexStr, fieldName]) => {
+      const columnIndex = parseInt(columnIndexStr, 10);
+      if (!isNaN(columnIndex) && fieldName) {
+        headerMap[fieldName] = columnIndex;
+      }
+    });
+
+    setShowColumnMappingModal(false);
+    setIsParsing(true);
+    try {
+      await parseFileWithMapping(pendingFileLines, headerMap);
+    } finally {
+      setIsParsing(false);
     }
   }
 
@@ -3189,6 +3255,108 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {/* Column Mapping Modal */}
+      {showColumnMappingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <FileText className="h-6 w-6 text-indigo-600" />
+                <h2 className="text-lg font-semibold text-gray-900">
+                  מיפוי עמודות
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowColumnMappingModal(false);
+                  setFileHeaders([]);
+                  setColumnMapping({});
+                  setPendingFileLines([]);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="סגור"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <p className="text-sm text-gray-600 mb-4">
+                אנא בחר עבור כל עמודה בקובץ את השדה המתאים במערכת. שדות חובה: מזהה מבנה ומזהה נכס
+              </p>
+              <div className="space-y-2">
+                {fileHeaders.map((header, index) => (
+                  <div key={index} className="flex items-center gap-3 p-2 border border-gray-200 rounded-lg">
+                    <div className="flex-1 text-right">
+                      <span className="font-medium text-gray-700">{header || `עמודה ${index + 1}`}</span>
+                    </div>
+                    <div className="flex-1">
+                      <select
+                        value={columnMapping[index] || ''}
+                        onChange={(e) => {
+                          const newMapping = { ...columnMapping };
+                          if (e.target.value) {
+                            newMapping[index] = e.target.value;
+                          } else {
+                            delete newMapping[index];
+                          }
+                          setColumnMapping(newMapping);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-right"
+                      >
+                        <option value="">-- לא למפות --</option>
+                        <option value="building_number">מזהה מבנה (חובה)</option>
+                        <option value="asset_id">מזהה נכס (חובה)</option>
+                        <option value="payer_id">מזהה משלם</option>
+                        <option value="measurement_date">תאריך מדידה</option>
+                        <option value="main_asset_type">סוג נכס ראשי</option>
+                        <option value="asset_size">גודל נכס ראשי</option>
+                        <option value="tax_region">אזור מס</option>
+                        <option value="sub_asset_type_1">סוג נכס משנה 1</option>
+                        <option value="sub_asset_size_1">גודל נכס משנה 1</option>
+                        <option value="sub_asset_type_2">סוג נכס משנה 2</option>
+                        <option value="sub_asset_size_2">גודל נכס משנה 2</option>
+                        <option value="sub_asset_type_3">סוג נכס משנה 3</option>
+                        <option value="sub_asset_size_3">גודל נכס משנה 3</option>
+                        <option value="sub_asset_type_4">סוג נכס משנה 4</option>
+                        <option value="sub_asset_size_4">גודל נכס משנה 4</option>
+                        <option value="sub_asset_type_5">סוג נכס משנה 5</option>
+                        <option value="sub_asset_size_5">גודל נכס משנה 5</option>
+                        <option value="sub_asset_type_6">סוג נכס משנה 6</option>
+                        <option value="sub_asset_size_6">גודל נכס משנה 6</option>
+                        <option value="penthouse">דירת גג</option>
+                        <option value="floor">קומה</option>
+                        <option value="discount_type">סוג הנחה</option>
+                        <option value="discount_date_from">תאריך הנחה מ</option>
+                        <option value="discount_date_to">תאריך הנחה עד</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowColumnMappingModal(false);
+                  setFileHeaders([]);
+                  setColumnMapping({});
+                  setPendingFileLines([]);
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleConfirmMapping}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              >
+                המשך
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Error Modal */}

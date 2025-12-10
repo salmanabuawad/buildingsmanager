@@ -172,13 +172,13 @@ input[type="number"] {
   white-space: nowrap !important;
   overflow: hidden !important;
   max-width: 100% !important;
-  /* Chrome-style fade effect - fades the last 20px */
-  mask-image: linear-gradient(to right, black 0%, black calc(100% - 20px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 20px), transparent 100%);
+  /* Chrome-style fade effect for RTL Hebrew - fades on the left (end of text) */
+  mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
 
 .ag-theme-alpine .ag-right-aligned-header .ag-header-cell-text {
-  /* For RTL headers, fade from left (start of text) */
+  /* Same fade direction for RTL headers */
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }

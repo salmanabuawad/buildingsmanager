@@ -304,21 +304,7 @@ export const api = {
 
       if (error) throw error;
 
-      const buildings = data || [];
-
-      const buildingsWithStats = await Promise.all(
-        buildings.map(async (building) => {
-          const { data: stats } = await supabase
-            .rpc('get_building_stats', { p_building_number: building.building_number });
-
-          return {
-            ...building,
-            total_building_area: stats?.[0]?.total_building_area || 0
-          };
-        })
-      );
-
-      return buildingsWithStats;
+      return data || [];
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
       const { data, error } = await supabase
@@ -329,6 +315,7 @@ export const api = {
 
       if (error) throw error;
       if (!data) throw new Error('Building not found');
+
       return data;
     },
     getAvailableTaxRegions: async (buildingNumber: number): Promise<string | null> => {

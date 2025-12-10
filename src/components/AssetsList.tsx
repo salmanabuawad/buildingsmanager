@@ -1769,7 +1769,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 60,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1780,14 +1779,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 80,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 60,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1798,14 +1795,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 80,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 60,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
         const assetType = assetTypes.find(at => at.name === params.value);
@@ -1816,33 +1811,28 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 80,
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'floor',
       headerName: 'קומה',
-      width: 80,
       cellStyle: { textAlign: 'right' }
     },
     {
       field: 'discount_type',
       headerName: 'סוג הנחה',
-      width: 100,
       cellStyle: { textAlign: 'right' }
     },
     {
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
-      width: 120,
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
-      width: 120,
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     }
@@ -1930,9 +1920,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      width: 140,
-      maxWidth: 140,
-      minWidth: 140,
       headerClass: 'ag-right-aligned-header',
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
@@ -2073,7 +2060,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
-      width: 120,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2084,7 +2070,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      width: 120,
       editable: (params) => isFieldEditable(params, 'measurement_date'),
       cellStyle: (params: any) => {
         if (!params || !params.data) {
@@ -2124,7 +2109,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      width: 120,
       editable: (params) => isFieldEditable(params, 'payer_id'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -2132,7 +2116,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'tax_region',
       headerName: 'אזור מס',
-      width: 100,
       editable: (params) => isFieldEditable(params, 'tax_region'),
       type: 'numericColumn',
       valueParser: (params) => {
@@ -2155,7 +2138,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const assetId = String(asset.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },
-      width: 60,
       cellRenderer: penthouseCellRenderer,
       cellStyle: { textAlign: 'center' },
       headerClass: 'text-center'
@@ -2163,7 +2145,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'floor',
       headerName: 'קומה',
-      width: 80,
       editable: (params) => isFieldEditable(params, 'floor'),
       type: 'numericColumn',
       valueParser: (params) => {
@@ -2177,7 +2158,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'discount_type',
       headerName: 'סוג הנחה',
-      width: 100,
       editable: (params) => isFieldEditable(params, 'discount_type'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
@@ -2185,7 +2165,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
-      width: 120,
       editable: (params) => isFieldEditable(params, 'discount_date_from'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
@@ -2194,7 +2173,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
-      width: 120,
       editable: (params) => isFieldEditable(params, 'discount_date_to'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
@@ -2203,7 +2181,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 60,
       editable: (params) => isFieldEditable(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2216,7 +2193,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 80,
       editable: (params) => isFieldEditable(params, 'asset_size'),
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2231,7 +2207,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2247,7 +2222,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2265,7 +2239,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2281,7 +2254,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2299,7 +2271,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2315,7 +2286,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2333,7 +2303,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2349,7 +2318,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2367,7 +2335,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2383,7 +2350,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2401,7 +2367,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2417,7 +2382,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2435,7 +2399,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'extra_field',
       headerName: '',
-      width: 120,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2446,7 +2409,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'extra_field_1',
       headerName: '',
-      width: 120,
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
@@ -2454,7 +2416,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'extra_field_2',
       headerName: '',
-      width: 120,
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }

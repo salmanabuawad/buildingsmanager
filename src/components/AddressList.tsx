@@ -236,7 +236,6 @@ export function AddressListComponent() {
     {
       field: 'extra_field_1',
       headerName: '',
-      width: 120,
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
@@ -244,7 +243,6 @@ export function AddressListComponent() {
     {
       field: 'extra_field_2',
       headerName: '',
-      width: 120,
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }

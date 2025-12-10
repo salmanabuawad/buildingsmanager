@@ -2272,7 +2272,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'building_number',
           headerName: t('buildingNumber'),
-          width: 120,
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);
@@ -2282,7 +2281,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'asset_id',
           headerName: t('assetId'),
-          width: 120,
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);
@@ -2292,7 +2290,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'tax_region',
           headerName: 'אזור מס',
-          width: 100,
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);
@@ -2302,7 +2299,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'payer_id',
           headerName: t('payerId'),
-          width: 120,
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);
@@ -2417,14 +2413,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'building_number',
       headerName: t('buildingNumber'),
-      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
@@ -2433,7 +2427,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         return (
@@ -2463,21 +2456,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'measurement_date',
       headerName: 'תאריך מדידה',
-      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2489,7 +2479,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2505,7 +2494,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2517,7 +2505,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2531,7 +2518,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2543,7 +2529,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2557,7 +2542,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2569,7 +2553,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2583,7 +2566,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2595,7 +2577,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2609,7 +2590,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2621,7 +2601,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2635,7 +2614,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 60,
       editable: true,
       tooltipValueGetter: (params) => {
         if (!params.value) return '';
@@ -2647,7 +2625,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueFormatter: (params) => {
@@ -2661,7 +2638,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'floor',
       headerName: 'קומה',
-      width: 80,
       editable: true,
       type: 'numericColumn',
       valueParser: (params) => {
@@ -2674,21 +2650,18 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     {
       field: 'discount_type',
       headerName: 'סוג הנחה',
-      width: 100,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'discount_date_from',
       headerName: 'תאריך הנחה מ',
-      width: 120,
       editable: true,
       cellStyle: getCellStyle
     },
     {
       field: 'discount_date_to',
       headerName: 'תאריך הנחה עד',
-      width: 120,
       editable: true,
       cellStyle: getCellStyle
     }

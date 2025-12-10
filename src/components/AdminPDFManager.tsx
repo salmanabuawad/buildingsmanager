@@ -151,13 +151,11 @@ export function AdminPDFManager() {
     {
       field: 'extra_field_1',
       headerName: '',
-      width: 120,
       editable: false
     },
     {
       field: 'extra_field_2',
       headerName: '',
-      width: 120,
       editable: false
     }
   ], [uploadingIds]);

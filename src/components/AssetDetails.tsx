@@ -1543,7 +1543,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'asset_id',
       headerName: t('assetId'),
-      width: 120,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1561,7 +1560,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
-      width: 120,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1655,7 +1653,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'payer_id',
       headerName: t('payerId'),
-      width: 120,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1665,7 +1662,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'tax_region',
       headerName: 'אזור מס',
-      width: 100,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1686,7 +1682,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      width: 60,
       cellRenderer: (params: any) => {
         const isChecked = params.value === 'כן';
         const isEditable = params.data.is_latest === true && editMode === 'inline';
@@ -1766,7 +1761,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      width: 80,
       type: 'numericColumn',
       valueParser: (params) => {
         if (!params.newValue || params.newValue === '') return null;
@@ -1782,7 +1776,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      width: 100,
       cellStyle: (params) => getCellStyle(params, 'discount_type')
     },
     {
@@ -1792,7 +1785,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      width: 120,
       cellStyle: (params) => getCellStyle(params, 'discount_date_from'),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
@@ -1803,14 +1795,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      width: 120,
       cellStyle: (params) => getCellStyle(params, 'discount_date_to'),
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1826,7 +1816,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'asset_size',
       headerName: t('mainAssetSize'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1842,7 +1831,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_type_1',
       headerName: t('subAssetType1'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1858,7 +1846,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_size_1',
       headerName: t('subAssetSize1'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1874,7 +1861,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_type_2',
       headerName: t('subAssetType2'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1890,7 +1876,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_size_2',
       headerName: t('subAssetSize2'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1906,7 +1891,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_type_3',
       headerName: t('subAssetType3'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1922,7 +1906,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_size_3',
       headerName: t('subAssetSize3'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1938,7 +1921,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_type_4',
       headerName: t('subAssetType4'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1954,7 +1936,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_size_4',
       headerName: t('subAssetSize4'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1970,7 +1951,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_type_5',
       headerName: t('subAssetType5'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -1986,7 +1966,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_size_5',
       headerName: t('subAssetSize5'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2002,7 +1981,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_type_6',
       headerName: t('subAssetType6'),
-      width: 60,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2018,7 +1996,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'sub_asset_size_6',
       headerName: t('subAssetSize6'),
-      width: 80,
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -2034,7 +2011,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'extra_field_1',
       headerName: '',
-      width: 120,
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
@@ -2042,7 +2018,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     {
       field: 'extra_field_2',
       headerName: '',
-      width: 120,
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }

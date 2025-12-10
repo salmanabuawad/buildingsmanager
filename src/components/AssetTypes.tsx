@@ -290,7 +290,6 @@ export function AssetTypes() {
       field: 'active',
       headerName: 'פעיל',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -315,7 +314,6 @@ export function AssetTypes() {
       field: 'description',
       headerName: 'תיאור',
       editable: true,
-      width: 200,
       cellEditor: 'agTextCellEditor',
       cellEditorParams: {
         useFormatter: false,
@@ -334,7 +332,6 @@ export function AssetTypes() {
       field: 'tax_region',
       headerName: 'אזור מיסים',
       editable: true,
-      width: 120,
       valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;
         const num = parseInt(params.newValue);
@@ -353,7 +350,6 @@ export function AssetTypes() {
       field: 'area_description_for_tab',
       headerName: 'תיאור אזור לתצוגה בלשונית',
       editable: true,
-      width: 200,
       cellEditor: 'agTextCellEditor',
       cellEditorParams: {
         useFormatter: false,
@@ -372,7 +368,6 @@ export function AssetTypes() {
       field: 'elevator',
       headerName: 'מעלית',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -397,7 +392,6 @@ export function AssetTypes() {
       field: 'single_double_family',
       headerName: 'בית פרטי',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -422,7 +416,6 @@ export function AssetTypes() {
       field: 'penthouse',
       headerName: 'דירת גג',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -447,7 +440,6 @@ export function AssetTypes() {
       field: 'condo',
       headerName: 'בית משותף',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -472,7 +464,6 @@ export function AssetTypes() {
       field: 'townhouses',
       headerName: 'טוריים',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -497,7 +488,6 @@ export function AssetTypes() {
       field: 'business_private',
       headerName: 'עסקים/מגורים',
       editable: true,
-      width: 120,
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
         values: ['', 'עסקים', 'מגורים']
@@ -515,7 +505,6 @@ export function AssetTypes() {
       field: 'shared_area_usage',
       headerName: 'שטח משותף',
       editable: true,
-      width: 60,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -540,7 +529,6 @@ export function AssetTypes() {
       field: 'not_accountable',
       headerName: 'לא נספר',
       editable: true,
-      width: 80,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -565,7 +553,6 @@ export function AssetTypes() {
       field: 'min_size',
       headerName: 'שטח מ',
       editable: true,
-      width: 80,
       valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;
         const num = parseFloat(params.newValue);
@@ -584,7 +571,6 @@ export function AssetTypes() {
       field: 'max_size',
       headerName: 'שטח עד',
       editable: true,
-      width: 80,
       valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;
         const num = parseFloat(params.newValue);
@@ -602,7 +588,6 @@ export function AssetTypes() {
     {
       field: 'extra_field_1',
       headerName: '',
-      width: 120,
       editable: false,
       sortable: false,
       filter: false,
@@ -612,7 +597,6 @@ export function AssetTypes() {
     {
       field: 'extra_field_2',
       headerName: '',
-      width: 120,
       editable: false,
       sortable: false,
       filter: false,
@@ -629,7 +613,6 @@ export function AssetTypes() {
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      width: 80,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -660,7 +643,6 @@ export function AssetTypes() {
       lockPinned: true,
       suppressMovable: true,
       editable: true,
-      width: 100,
       cellEditor: 'agTextCellEditor',
       cellEditorParams: {
         useFormatter: false,

@@ -7,6 +7,7 @@ import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 // Custom cell editor for address dropdown with filtering
 interface AddressCellEditorParams extends ICellEditorParams {
@@ -2302,6 +2303,8 @@ export function BuildingsList({
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
+                  // Detect and apply text overflow fade
+                  detectAndApplyTextOverflow(params.api);
                 }, 200);
               }}
               onFirstDataRendered={async (params) => {
@@ -2310,9 +2313,17 @@ export function BuildingsList({
                   if (gridElement) {
                     gridElement.scrollLeft = 0;
                   }
+                  // Detect and apply text overflow fade
+                  detectAndApplyTextOverflow(params.api);
+                  // Set up observer for dynamic changes
+                  setupTextOverflowObserver(params.api);
                 }, 200);
               }}
-              onColumnResized={gridPreferences.handleColumnResized}
+              onColumnResized={(params) => {
+                gridPreferences.handleColumnResized();
+                // Re-check overflow after column resize
+                setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+              }}
               onColumnMoved={(params) => {
                 // Preserve column order, only ensure actions column is pinned to right
                 try {

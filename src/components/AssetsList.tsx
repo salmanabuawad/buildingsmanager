@@ -1627,16 +1627,23 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Save overload ratio to building as percentage (update via API)
       try {
-        await api.buildings.update(building.building_number, {
+        const updatedBuilding = await api.buildings.update(building.building_number, {
           overload_ratio: overloadRatioPercentage
         });
-        // Update local building state
+        // Update local building state with the returned data from the server
+        // This ensures the building state includes the updated overload_ratio
+        if (setBuilding) {
+          setBuilding(updatedBuilding);
+        }
+        console.log('Overload ratio updated successfully:', overloadRatioPercentage);
+      } catch (err) {
+        console.error('Failed to save overload ratio to building:', err);
+        // Update local state anyway so UI shows the calculated value
         if (setBuilding) {
           setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
         }
-      } catch (err) {
-        console.warn('Failed to save overload ratio to building:', err);
-        // Continue anyway - the ratio is still calculated and used
+        // Log warning but don't show error to user - distribution still succeeded
+        console.warn('Overload ratio update failed, but distribution completed successfully');
       }
 
       // Track changes
@@ -1704,6 +1711,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
       
+      // Note: Building state with updated overload_ratio was already set in the try block above
       setSuccess(`פוזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`);
       setTimeout(() => setSuccess(null), 5000);
 

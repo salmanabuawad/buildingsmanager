@@ -1,4 +1,4 @@
--- Complete script to add and rename shared area columns in buildings table
+-- Complete script to add and rename shared area columns and add overload_ratio in buildings table
 -- Run this script directly in your Supabase SQL editor or PostgreSQL client
 -- This combines all the migration steps into one script
 
@@ -74,7 +74,26 @@ BEGIN
   END IF;
 END $$;
 
--- Step 5: Update comments
+-- Step 5: Add overload_ratio column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name = 'buildings' 
+    AND column_name = 'overload_ratio'
+  ) THEN
+    ALTER TABLE buildings
+    ADD COLUMN overload_ratio numeric(5,2);
+    
+    RAISE NOTICE 'Column overload_ratio added';
+  ELSE
+    RAISE NOTICE 'Column overload_ratio already exists';
+  END IF;
+END $$;
+
+-- Step 6: Update comments
 COMMENT ON COLUMN buildings.private_shared_area IS 'Private/residential shared area in the building (שטח משותף מגורים)';
 COMMENT ON COLUMN buildings.business_shared_area IS 'Business/commercial shared area in the building (שטח משותף עסקים)';
+COMMENT ON COLUMN buildings.overload_ratio IS 'Overload ratio percentage (אחוז העמסה)';
 

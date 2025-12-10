@@ -86,6 +86,11 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-header-cell-label {
   color: white;
+  padding: 0 !important;
+}
+
+.ag-theme-alpine .ag-header-cell {
+  padding: 0 !important;
 }
 
 .ag-theme-alpine .ag-icon {
@@ -167,10 +172,8 @@ input[type="number"] {
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
   text-align: right !important;
   direction: rtl !important;
 }

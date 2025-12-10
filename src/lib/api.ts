@@ -108,6 +108,7 @@ export interface FieldConfiguration {
   field_name: string;
   width_chars: number;
   padding: number;
+  hebrew_name?: string;
   created_at?: string;
   updated_at?: string;
 }

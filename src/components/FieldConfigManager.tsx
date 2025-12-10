@@ -11,20 +11,21 @@ function FieldConfigRow({
   saving 
 }: { 
   config: FieldConfiguration; 
-  onSave: (fieldName: string, widthChars: number, padding: number) => Promise<void>;
+  onSave: (fieldName: string, widthChars: number, padding: number, hebrewName?: string) => Promise<void>;
   onDelete: (fieldName: string) => Promise<void>;
   saving: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [widthChars, setWidthChars] = useState(config.width_chars);
   const [padding, setPadding] = useState(config.padding);
+  const [hebrewName, setHebrewName] = useState(config.hebrew_name || '');
 
   const calculatePreviewWidth = (chars: number, pad: number) => {
     return (chars * 8) + (pad * 2);
   };
 
   const handleSave = async () => {
-    await onSave(config.field_name, widthChars, padding);
+    await onSave(config.field_name, widthChars, padding, hebrewName);
     setIsEditing(false);
   };
 
@@ -32,12 +33,26 @@ function FieldConfigRow({
     setIsEditing(false);
     setWidthChars(config.width_chars);
     setPadding(config.padding);
+    setHebrewName(config.hebrew_name || '');
   };
 
   return (
     <tr className="border-b border-slate-200 hover:bg-slate-50">
       <td className="px-4 py-3 text-slate-900 font-medium">
         {config.field_name}
+      </td>
+      <td className="px-4 py-3 text-slate-700">
+        {isEditing ? (
+          <input
+            type="text"
+            value={hebrewName}
+            onChange={(e) => setHebrewName(e.target.value)}
+            placeholder="שם בעברית"
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          />
+        ) : (
+          <span>{config.hebrew_name || '-'}</span>
+        )}
       </td>
       <td className="px-4 py-3">
         {isEditing ? (
@@ -123,6 +138,7 @@ export function FieldConfigManager() {
   const [newFieldName, setNewFieldName] = useState('');
   const [newWidthChars, setNewWidthChars] = useState(10);
   const [newPadding, setNewPadding] = useState(8);
+  const [newHebrewName, setNewHebrewName] = useState('');
 
   // Load configurations on mount
   useEffect(() => {
@@ -146,13 +162,14 @@ export function FieldConfigManager() {
     }
   }
 
-  async function saveConfiguration(fieldName: string, widthChars: number, padding: number) {
+  async function saveConfiguration(fieldName: string, widthChars: number, padding: number, hebrewName?: string) {
     try {
       setSaving(true);
       await api.fieldConfigurations.upsert({
         field_name: fieldName,
         width_chars: widthChars,
         padding: padding,
+        hebrew_name: hebrewName || undefined,
       });
       
       // Reload configurations
@@ -217,10 +234,11 @@ export function FieldConfigManager() {
       return;
     }
 
-    await saveConfiguration(newFieldName.trim(), newWidthChars, newPadding);
+    await saveConfiguration(newFieldName.trim(), newWidthChars, newPadding, newHebrewName.trim() || undefined);
     setNewFieldName('');
     setNewWidthChars(10);
     setNewPadding(8);
+    setNewHebrewName('');
   }
 
   // Sort configurations by field name
@@ -269,7 +287,7 @@ export function FieldConfigManager() {
         {/* Add new field configuration */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">הוסף שדה חדש</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 שם שדה
@@ -279,6 +297,18 @@ export function FieldConfigManager() {
                 value={newFieldName}
                 onChange={(e) => setNewFieldName(e.target.value)}
                 placeholder="לדוגמה: building_number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                שם בעברית
+              </label>
+              <input
+                type="text"
+                value={newHebrewName}
+                onChange={(e) => setNewHebrewName(e.target.value)}
+                placeholder="לדוגמה: מספר מבנה"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -325,6 +355,7 @@ export function FieldConfigManager() {
             <thead>
               <tr className="bg-slate-100 border-b-2 border-slate-300">
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם שדה</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם בעברית</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב (תווים)</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפיחה (פיקסלים)</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>

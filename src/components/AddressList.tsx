@@ -700,6 +700,7 @@ export function AddressListComponent() {
               sortable: true,
               filter: true,
               headerClass: 'ag-right-aligned-header',
+              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
               minWidth: 40
             }}
             gridOptions={{

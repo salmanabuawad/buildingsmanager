@@ -180,8 +180,11 @@ export function AdminPDFManager() {
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
+    wrapHeaderText: true,
+    autoHeaderHeight: true,
     wrapText: true,
     autoHeight: false,
+    headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
     minWidth: 40
   }), []);
 

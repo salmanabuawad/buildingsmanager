@@ -1258,6 +1258,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 wrapText: true,
                 autoHeight: false,
                 headerClass: 'ag-right-aligned-header',
+                headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                 minWidth: 40
               }}
               gridOptions={{

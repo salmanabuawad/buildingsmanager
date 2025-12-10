@@ -2622,6 +2622,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       autoHeight: false,
                       sortable: false,
                       headerClass: 'ag-right-aligned-header',
+                      headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                       minWidth: 40
                     }}
                     gridOptions={{

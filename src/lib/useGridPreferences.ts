@@ -35,8 +35,8 @@ export function useGridPreferences<T = any>(
 
   // Load saved column state function
   const loadColumnState = useCallback(async (gridApi?: GridApi) => {
-    const api = gridApi || gridRef?.current?.api;
-    if (!api || hasLoadedRef.current) return;
+    const agGridApi = gridApi || gridRef?.current?.api;
+    if (!agGridApi || hasLoadedRef.current) return;
 
     try {
       isRestoringRef.current = true;
@@ -45,7 +45,7 @@ export function useGridPreferences<T = any>(
       
       if (savedState && Array.isArray(savedState) && savedState.length > 0) {
         // Apply saved column state
-        api.applyColumnState({
+        agGridApi.applyColumnState({
           state: savedState,
           applyOrder: true,
           defaultState: { sort: null }

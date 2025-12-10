@@ -5,17 +5,17 @@ import {
   Settings, CheckCircle, Store, Calculator, 
   Package, SquareStack, Building2, AlertCircle,
   TrendingDown, Minus, Plus, X, Search,
-  Bank, Box, Grid3x3, TrendingUp, ArrowDown, ArrowUp,
+  Landmark, Box, Grid3x3, TrendingUp, ArrowDown, ArrowUp,
   BarChart3, PieChart, Activity, Zap, Target, Shield,
   Clipboard, List, Grid, Columns, Table, Database,
   Folder, File, FileCheck, FileX, FileSearch, FileBarChart,
-  Home2, BuildingIcon, Factory, Warehouse, Hotel, School,
+  Home2, Factory, Warehouse, Hotel, School,
   Briefcase, ShoppingBag, ShoppingCart, Truck, Car, Bike,
   TreePine, Mountain, Waves, Sun, Moon, Star,
   Heart, ThumbsUp, ThumbsDown, Flag, Award, Trophy,
   Bell, MessageSquare, Mail, Phone, Video, Camera,
   Music, Film, Book, BookOpen, GraduationCap, Lightbulb,
-  Wrench, Hammer, Cog, Sliders, Filter, Search as SearchIcon
+  Wrench, Hammer, Cog, Sliders, Filter
 } from 'lucide-react';
 import { IHeaderParams } from 'ag-grid-community';
 
@@ -95,7 +95,7 @@ function getHeaderIcon(headerName: string): React.ComponentType<any> {
     Truck, Car, Bike, TreePine, Mountain, Waves, Sun, Moon, Star, Heart,
     ThumbsUp, ThumbsDown, Flag, Award, Trophy, Bell, MessageSquare, Mail,
     Phone, Video, Camera, Music, Film, Book, BookOpen, GraduationCap, Lightbulb,
-    Wrench, Hammer, Cog, Sliders, Filter, SearchIcon
+    Wrench, Hammer, Cog, Sliders, Filter, Search
   ];
   
   // Select icon based on hash (ensures same header always gets same unique icon)
@@ -134,7 +134,7 @@ function getHeaderIcon(headerName: string): React.ComponentType<any> {
   
   // Tax region
   if (lowerName.includes('אזור מיסים') || lowerName.includes('אזור מס') || lowerName.includes('tax region')) {
-    return Bank;
+    return Landmark;
   }
   
   // Building number

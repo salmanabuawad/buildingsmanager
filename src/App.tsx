@@ -55,6 +55,9 @@ function App() {
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [savingGridStates, setSavingGridStates] = useState(false);
+  const [clearingGridStates, setClearingGridStates] = useState(false);
+  const [gridStatesMessage, setGridStatesMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Load asset types on mount
   useEffect(() => {

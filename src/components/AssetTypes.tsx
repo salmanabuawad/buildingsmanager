@@ -666,7 +666,15 @@ export function AssetTypes() {
         };
       }
     },
-  ], [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes]);
+    ];
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes]);
 
 
   function downloadTemplate() {

@@ -1331,13 +1331,26 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setSuccess(null);
 
     try {
-      // Filter assets: only residential assets that are not not_accountable
+      // Create asset type map for quick lookup
+      const assetTypeMap = new Map<string, AssetType>();
+      assetTypes.forEach(at => {
+        assetTypeMap.set(at.name, at);
+      });
+
+      // Filter assets: only private/residential assets that are accountable
       const residentialAssets = assets.filter(asset => {
         // Skip deleted assets
         if (deletedAssets.has(String(asset.asset_id))) return false;
         
         // Exclude non-accountable assets using the helper function
         if (isAssetNotAccountable(asset)) {
+          return false;
+        }
+        
+        // Check if asset is private/residential type (not business)
+        if (!asset.main_asset_type) return false;
+        const assetType = assetTypeMap.get(String(asset.main_asset_type));
+        if (!assetType || assetType.business_private !== 'מגורים') {
           return false;
         }
         

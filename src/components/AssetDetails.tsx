@@ -1204,7 +1204,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
   }
 
-  async function handleFileUpload(assetId: number, file: File) {
+  const handleFileUpload = useCallback(async (assetId: number, file: File) => {
     try {
       setUploadingAssetId(assetId);
       setUploadProgress({ assetId, progress: 0, fileName: file.name });
@@ -1277,16 +1277,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setUploadProgress(null);
       setUploadingAssetId(null);
     }
-  }
+  }, [t]);
 
-  function handleViewDrawing(url: string, fileName?: string) {
+  const handleViewDrawing = useCallback((url: string, fileName?: string) => {
     setSelectedDrawingUrl(url);
     setSelectedFileName(fileName || null);
-  }
+  }, []);
 
   function handleCancelChanges() {
-    // Restore original data using deep copy
-    setAllMeasurements(JSON.parse(JSON.stringify(originalMeasurements)));
+    // Restore original data using shallow copy (better performance)
+    setAllMeasurements(originalMeasurements.map(asset => ({ ...asset })));
     setDirtyAssets(new Map());
     setValidationErrors(new Map());
     validationErrorsRef.current = new Map();
@@ -1423,8 +1423,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
 
   // Helper function to get cell style for dirty fields
-  const getCellStyle = (params: any, fieldName: string) => {
-    const assetId = params.data?.asset_id;
+  // Memoize getCellStyle to prevent recreation on every render
+  const getCellStyle = useCallback((params: any, fieldName: string) => {
+    const assetId = params.data?.id;
     if (!assetId) return {};
     
     const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
@@ -1436,8 +1437,115 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       color: isLatest ? undefined : '#6b7280',
       cursor: isLatest ? 'text' : 'default'
     };
-  };
+  }, [dirtyAssets]);
 
+
+  // Memoize the structure_drawing_url cell renderer to prevent recreation
+  const structureDrawingCellRenderer = useCallback((params: any) => {
+    const asset = params.data as Asset;
+    if (!asset) return null;
+    
+    const assetId = asset.id;
+    const hasDrawing = !!asset.structure_drawing_url;
+    const isLatest = asset.is_latest === true;
+
+    // Use ref to get the latest validationErrors to avoid stale closure issues
+    const currentValidationErrors = validationErrorsRef.current;
+    const errors: string[] = [];
+    if (currentValidationErrors.has(assetId)) {
+      const fieldErrors = currentValidationErrors.get(assetId);
+      if (fieldErrors && fieldErrors.size > 0) {
+        fieldErrors.forEach((errorMsg) => {
+          errors.push(errorMsg);
+        });
+      }
+    }
+
+    const hasErrors = errors.length > 0;
+
+    return (
+      <div className="flex items-center justify-center gap-1 h-full">
+        {hasErrors && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const errorMsg = errors.join('\n');
+              setToast({ message: errorMsg, type: 'error' });
+            }}
+            className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+            title={errors.join('\n')}
+          >
+            <AlertCircle className="h-5 w-5" />
+          </button>
+        )}
+        {isLatest ? (
+          <div className="flex flex-col items-center gap-1">
+            <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
+              <Upload className="h-5 w-5" />
+              <input
+                type="file"
+                className="hidden"
+                accept="*/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && asset.asset_id) {
+                    handleFileUpload(asset.asset_id, file);
+                    e.target.value = '';
+                  }
+                }}
+                disabled={uploadingAssetId === asset.asset_id}
+              />
+            </label>
+            {uploadingAssetId === asset.id && uploadProgress && (
+              <div className="w-24 flex flex-col items-center gap-1">
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-600 transition-all duration-300"
+                    style={{ width: `${uploadProgress.progress}%` }}
+                  />
+                </div>
+                <div className="text-[10px] text-gray-700 text-center truncate w-full" title={uploadProgress.fileName}>
+                  {Math.round(uploadProgress.progress)}%
+                </div>
+                <div className="text-[8px] text-gray-500 text-center truncate w-full max-w-[80px]" title={uploadProgress.fileName}>
+                  {uploadProgress.fileName}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title="Read-only">
+            <Upload className="h-5 w-5" />
+          </div>
+        )}
+        {hasDrawing && asset.structure_drawing_url ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // Extract filename from URL if possible
+              const urlParts = asset.structure_drawing_url.split('/');
+              const fileName = urlParts[urlParts.length - 1].split('?')[0];
+              handleViewDrawing(asset.structure_drawing_url, fileName);
+            }}
+            className={`p-1 transition-colors hover:scale-110 ${
+              selectedDrawingUrl === asset.structure_drawing_url
+                ? 'text-green-600 hover:text-green-700'
+                : 'text-green-600 hover:text-green-700'
+            }`}
+            title={selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') || 'צופה' : t('view') || 'צפה בקובץ'}
+          >
+            <FileText className="h-5 w-5" />
+          </button>
+        ) : (
+          <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title={t('noFile') || 'אין קובץ'}>
+            <FileText className="h-5 w-5" />
+          </div>
+        )}
+      </div>
+    );
+  }, [t, uploadingAssetId, uploadProgress, selectedDrawingUrl, handleFileUpload, handleViewDrawing]);
+
+  // Optimize columnDefs dependencies - only recreate when necessary
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
@@ -1452,110 +1560,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
       headerClass: 'ag-right-aligned-header',
-      cellRenderer: (params: any) => {
-        const asset = params.data as Asset;
-        if (!asset) return null;
-        
-        const assetId = asset.id;
-        const hasDrawing = !!asset.structure_drawing_url;
-        const isLatest = asset.is_latest === true;
-
-        // Only show errors from validationErrors state - validation logic handles all checks
-        // Use ref to get the latest validationErrors to avoid stale closure issues
-        const currentValidationErrors = validationErrorsRef.current;
-        const errors: string[] = [];
-        if (currentValidationErrors.has(assetId)) {
-          const fieldErrors = currentValidationErrors.get(assetId);
-          if (fieldErrors && fieldErrors.size > 0) {
-            fieldErrors.forEach((errorMsg) => {
-              errors.push(errorMsg);
-            });
-          }
-        }
-
-        const hasErrors = errors.length > 0;
-
-        return (
-          <div className="flex items-center justify-center gap-1 h-full">
-            {hasErrors && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const errorMsg = errors.join('\n');
-                  setToast({ message: errorMsg, type: 'error' });
-                }}
-                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                title={errors.join('\n')}
-              >
-                <AlertCircle className="h-5 w-5" />
-              </button>
-            )}
-            {isLatest ? (
-              <div className="flex flex-col items-center gap-1">
-                <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
-                  <Upload className="h-5 w-5" />
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="*/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file && asset.asset_id) {
-                        handleFileUpload(asset.asset_id, file);
-                        e.target.value = '';
-                      }
-                    }}
-                    disabled={uploadingAssetId === asset.asset_id}
-                  />
-                </label>
-                {uploadingAssetId === asset.id && uploadProgress && (
-                  <div className="w-24 flex flex-col items-center gap-1">
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-600 transition-all duration-300"
-                        style={{ width: `${uploadProgress.progress}%` }}
-                      />
-                    </div>
-                    <div className="text-[10px] text-gray-700 text-center truncate w-full" title={uploadProgress.fileName}>
-                      {Math.round(uploadProgress.progress)}%
-                    </div>
-                    <div className="text-[8px] text-gray-500 text-center truncate w-full max-w-[80px]" title={uploadProgress.fileName}>
-                      {uploadProgress.fileName}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title="Read-only">
-                <Upload className="h-5 w-5" />
-              </div>
-            )}
-            {hasDrawing && asset.structure_drawing_url ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Extract filename from URL if possible
-                  const urlParts = asset.structure_drawing_url.split('/');
-                  const fileName = urlParts[urlParts.length - 1].split('?')[0];
-                  handleViewDrawing(asset.structure_drawing_url, fileName);
-                }}
-                className={`p-1 transition-colors hover:scale-110 ${
-                  selectedDrawingUrl === asset.structure_drawing_url
-                    ? 'text-green-600 hover:text-green-700'
-                    : 'text-green-600 hover:text-green-700'
-                }`}
-                title={selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') || 'צופה' : t('view') || 'צפה בקובץ'}
-              >
-                <FileText className="h-5 w-5" />
-              </button>
-            ) : (
-              <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title={t('noFile') || 'אין קובץ'}>
-                <FileText className="h-5 w-5" />
-              </div>
-            )}
-          </div>
-        );
-      },
+      cellRenderer: structureDrawingCellRenderer,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
     },
     {
@@ -2050,7 +2055,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
       return colDef;
     });
-  }, [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets, editMode]);
+  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer]);
 
   useEffect(() => {
     fetchData();
@@ -2079,27 +2084,72 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     validationErrorsRef.current = validationErrors;
   }, [validationErrors]);
 
-  // Refresh grid cells when validationErrors change to update invalid icons
+  // Optimized: Only refresh specific cells when validationErrors change
+  // Track previous validation errors to only refresh changed rows
+  const prevValidationErrorsRef = useRef<Map<number, Map<string, string>>>(new Map());
+  
   useEffect(() => {
     const refreshGrid = () => {
-      if (gridRef.current?.api) {
-        // Force refresh all cells to ensure cellRenderer gets fresh validationErrors
-        // Since columnDefs depends on validationErrors, the cellRenderer should have the latest value
-        gridRef.current.api.refreshCells({ force: true });
-        // Also explicitly refresh the structure_drawing_url column where the icon is shown
-        gridRef.current.api.refreshCells({ 
-          columns: ['structure_drawing_url'],
-          force: true 
-        });
+      const currentErrors = validationErrorsRef.current;
+      const prevErrors = prevValidationErrorsRef.current;
+      
+      // Find which asset IDs have changed
+      const changedAssetIds = new Set<number>();
+      
+      // Check for new or modified errors
+      currentErrors.forEach((errors, assetId) => {
+        const prevAssetErrors = prevErrors.get(assetId);
+        if (!prevAssetErrors || prevAssetErrors.size !== errors.size) {
+          changedAssetIds.add(assetId);
+        } else {
+          // Check if error messages changed
+          for (const [key, value] of errors.entries()) {
+            if (prevAssetErrors.get(key) !== value) {
+              changedAssetIds.add(assetId);
+              break;
+            }
+          }
+        }
+      });
+      
+      // Check for removed errors
+      prevErrors.forEach((_, assetId) => {
+        if (!currentErrors.has(assetId)) {
+          changedAssetIds.add(assetId);
+        }
+      });
+      
+      // Only refresh cells for changed assets
+      if (changedAssetIds.size > 0) {
+        const refreshCellsForAsset = (gridApi: any) => {
+          if (!gridApi) return;
+          
+          gridApi.forEachNode((node: any) => {
+            if (node.data && changedAssetIds.has(node.data.id)) {
+              // Only refresh the structure_drawing_url column where the icon is shown
+              gridApi.refreshCells({ 
+                rowNodes: [node], 
+                columns: ['structure_drawing_url'],
+                force: true 
+              });
+            }
+          });
+        };
+        
+        if (gridRef.current?.api) {
+          refreshCellsForAsset(gridRef.current.api);
+        }
+        if (historyGridRef.current?.api) {
+          refreshCellsForAsset(historyGridRef.current.api);
+        }
       }
-      if (historyGridRef.current?.api) {
-        historyGridRef.current.api.refreshCells({ force: true });
-      }
+      
+      // Update previous errors
+      prevValidationErrorsRef.current = new Map(currentErrors);
     };
     
-    // Use a delay to ensure React has committed the state update and columnDefs have been updated
-    // This ensures the cellRenderer closure has the latest validationErrors
-    const timer = setTimeout(refreshGrid, 100);
+    // Use a delay to ensure React has committed the state update
+    const timer = setTimeout(refreshGrid, 50);
     return () => clearTimeout(timer);
   }, [validationErrors]);
 
@@ -2232,8 +2282,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       setAllMeasurements(allAssetMeasurements);
       // Store original data only if dirtyAssets is empty (initial load or after save)
+      // Use shallow copy instead of deep clone for better performance
       if (dirtyAssets.size === 0) {
-        setOriginalMeasurements(JSON.parse(JSON.stringify(allAssetMeasurements)));
+        setOriginalMeasurements(allAssetMeasurements.map(asset => ({ ...asset })));
       }
 
     } catch (err) {

@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -1769,7 +1770,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
   }
 
-  const detailColumnDefs: ColDef<Asset>[] = useMemo(() => [
+  const detailColumnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
     {
       field: 'measurement_date',
       headerName: t('measurementDate'),
@@ -1845,7 +1847,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     }
-  ], [t, assetTypes, getCellStyle]);
+    ];
+    
+    // Process all headers to add icons for long headers (>3 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, assetTypes, getCellStyle]);
 
 
 
@@ -1917,7 +1929,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     );
   }, [newAssets, dirtyAssets]);
 
-  const columnDefs: ColDef<Asset>[] = useMemo(() => [
+  const columnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
     {
       colId: 'actions',
       headerName: t('actions'),
@@ -2189,7 +2202,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     },
     {
       field: 'main_asset_type',
-      headerName: t('mainAssetType'),
+      ...processColumnHeader(t('mainAssetType')),
       editable: (params) => isFieldEditable(params, 'main_asset_type'),
       tooltipValueGetter: (params) => {
         if (!params.value) return '';

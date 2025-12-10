@@ -6,6 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 
 // Custom cell editor for address dropdown with filtering
 interface AddressCellEditorParams extends ICellEditorParams {
@@ -1398,7 +1399,8 @@ export function BuildingsList({
   };
 
   // Column definitions
-  const columnDefs: ColDef<Building>[] = useMemo(() => [
+  const columnDefs: ColDef<Building>[] = useMemo(() => {
+    const defs: ColDef<Building>[] = [
     {
       colId: 'actions',
       headerName: 'פעולות',

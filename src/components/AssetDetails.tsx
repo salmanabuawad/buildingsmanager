@@ -16,6 +16,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -1436,7 +1437,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     };
   };
 
-  const columnDefs: ColDef<Asset>[] = useMemo(() => [
+  const columnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
     {
       headerName: t('structureDrawing'),
       field: 'structure_drawing_url',
@@ -2037,7 +2039,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
-  ], [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets, editMode]);
+    ];
+    
+    // Process all headers to add icons for long headers (>3 words)
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, assetTypes, latestMeasurement, validationErrors, selectedDrawingUrl, dirtyAssets, editMode]);
 
   useEffect(() => {
     fetchData();

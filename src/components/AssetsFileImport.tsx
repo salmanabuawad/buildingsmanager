@@ -863,7 +863,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       const lines = await parseExcelFile(file);
 
       if (lines.length === 0) {
-        throw new Error('קובץ ריק');
+        setErrorModal({ 
+          isOpen: true, 
+          message: 'קובץ ריק',
+          title: 'שגיאה בפרסור קובץ שלד'
+        });
+        setIsParsing(false);
+        return;
       }
 
       // Process headers - exact name matching only for skeleton import
@@ -897,7 +903,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       });
 
       if (buildingNumberIndex === -1 || assetIdIndex === -1 || taxRegionIndex === -1 || payerIdIndex === -1) {
-        throw new Error('קובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם');
+        const missingColumns: string[] = [];
+        if (buildingNumberIndex === -1) missingColumns.push('מזהה מבנה');
+        if (assetIdIndex === -1) missingColumns.push('מזהה נכס');
+        if (taxRegionIndex === -1) missingColumns.push('אזור מס');
+        if (payerIdIndex === -1) missingColumns.push('מזהה משלם');
+        
+        setErrorModal({ 
+          isOpen: true, 
+          message: `קובץ חייב לכלול עמודות: ${missingColumns.join(', ')}`,
+          title: 'שגיאה בפרסור קובץ שלד'
+        });
+        setIsParsing(false);
+        return;
       }
 
       // Parse skeleton assets (building_number, asset_id, tax_region, and payer_id)
@@ -988,6 +1006,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     } catch (error) {
       console.error('Error parsing skeleton file:', error);
       const errorMsg = error instanceof Error ? error.message : 'שגיאה בפרסור קובץ שלד';
+      setErrorModal({ 
+        isOpen: true, 
+        message: errorMsg,
+        title: 'שגיאה בפרסור קובץ שלד'
+      });
       errors.push(errorMsg);
       setSaveResult({
         successful: 0,

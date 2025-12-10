@@ -89,6 +89,23 @@ function FieldConfigRow({
         )}px
       </td>
       <td className="px-4 py-3">
+        {isEditing ? (
+          <select
+            value={pinned === 'false' ? '' : pinned}
+            onChange={(e) => setPinned(e.target.value === '' ? 'false' : (e.target.value as 'left' | 'right'))}
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">ללא נעיצה</option>
+            <option value="left">שמאל</option>
+            <option value="right">ימין</option>
+          </select>
+        ) : (
+          <span className="text-slate-700">
+            {config.pinned === 'left' ? 'שמאל' : config.pinned === 'right' ? 'ימין' : '-'}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3">
         <div className="flex items-center justify-center gap-2">
           {isEditing ? (
             <>

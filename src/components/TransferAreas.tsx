@@ -34,6 +34,13 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   // Store initial total area for validation
   const [initialTotalArea, setInitialTotalArea] = useState<number | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'transfer-areas',
+    'default'
+  );
 
   useEffect(() => {
     fetchData();

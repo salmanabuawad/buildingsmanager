@@ -37,6 +37,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'assets-list',
+    'default'
+  );
+  
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationLoading, setBatchValidationLoading] = useState(false);
   const [batchValidationProgress, setBatchValidationProgress] = useState<ValidationProgress | null>(null);

@@ -2676,9 +2676,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             gridOptions={{
               suppressColumnVirtualisation: true,
               alwaysShowHorizontalScroll: true,
-              // Prevent onCellValueChanged from firing when row data is updated programmatically
-              // Ensure onCellValueChanged only fires on user edits, not programmatic updates
-              suppressCellFlash: true,
             }}
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}

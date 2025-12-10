@@ -137,7 +137,10 @@ input[type="number"] {
   overflow: hidden !important;
   white-space: nowrap !important;
   line-height: 1.5 !important;
-  /* Chrome-style fade effect for cell content */
+}
+
+/* Chrome-style fade effect for cell content - only when text overflows */
+.ag-theme-alpine .ag-cell.text-overflow {
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
@@ -172,13 +175,10 @@ input[type="number"] {
   white-space: nowrap !important;
   overflow: hidden !important;
   max-width: 100% !important;
-  /* Chrome-style fade effect for RTL Hebrew - fades on the left (end of text) */
-  mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
 
-.ag-theme-alpine .ag-right-aligned-header .ag-header-cell-text {
-  /* Same fade direction for RTL headers */
+/* Chrome-style fade effect for headers - only when text overflows */
+.ag-theme-alpine .ag-header-cell-label.text-overflow .ag-header-cell-text {
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }

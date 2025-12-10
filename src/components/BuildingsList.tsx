@@ -2243,7 +2243,7 @@ export function BuildingsList({
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
-          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 300px)', minHeight: '400px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+          <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 400px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               ref={gridRef}
               rowData={filteredBuildings}

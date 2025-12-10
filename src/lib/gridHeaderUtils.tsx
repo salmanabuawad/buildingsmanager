@@ -1,9 +1,21 @@
 import React from 'react';
 import { 
   Info, Calendar, DollarSign, Home, Building, MapPin, Tag, 
-  Ruler, Layers, FileText, User, Hash, ArrowUpDown, Percent,
-  Image, Edit, Trash2, Eye, CheckCircle, X, Plus, Search,
-  Settings, Download, Upload, Filter, BarChart, PieChart
+  Ruler, Layers, FileText, User, Hash, Percent, Image, 
+  Settings, CheckCircle, Store, Calculator, 
+  Package, SquareStack, Building2, AlertCircle,
+  TrendingDown, Minus, Plus, X, Search,
+  Bank, Box, Grid3x3, TrendingUp, ArrowDown, ArrowUp,
+  BarChart3, PieChart, Activity, Zap, Target, Shield,
+  Clipboard, List, Grid, Columns, Table, Database,
+  Folder, File, FileCheck, FileX, FileSearch, FileBarChart,
+  Home2, BuildingIcon, Factory, Warehouse, Hotel, School,
+  Briefcase, ShoppingBag, ShoppingCart, Truck, Car, Bike,
+  TreePine, Mountain, Waves, Sun, Moon, Star,
+  Heart, ThumbsUp, ThumbsDown, Flag, Award, Trophy,
+  Bell, MessageSquare, Mail, Phone, Video, Camera,
+  Music, Film, Book, BookOpen, GraduationCap, Lightbulb,
+  Wrench, Hammer, Cog, Sliders, Filter, Search as SearchIcon
 } from 'lucide-react';
 import { IHeaderParams } from 'ag-grid-community';
 
@@ -17,72 +29,226 @@ export function countWords(text: string | undefined | null): number {
 
 /**
  * Gets an appropriate icon for a header based on its content
+ * Uses exact header name matching first, then pattern matching
+ * Ensures each unique header gets a unique icon
  */
 function getHeaderIcon(headerName: string): React.ComponentType<any> {
   const lowerName = headerName.toLowerCase();
+  const normalizedName = headerName.trim();
+  
+  // Exact header name mappings for unique icons (most specific first)
+  // Each long header (>2 words) gets a unique, descriptive icon
+  const exactMappings: Record<string, React.ComponentType<any>> = {
+    // BuildingsList headers (>2 words)
+    'אחוז העמסה': Activity,
+    'שטח משותף מגורים': Home2,
+    'שטח משותף עסקים': Store,
+    'ס"כ גודל': BarChart3,
+    'שטח לבקרה': Shield,
+    'בית פרטי חד משפחתי דו משפחתי': Home,
+    'מבנים צמודי קרקע טוריים מעל 2 יחידות': Building2,
+    
+    // AssetTypes headers (>2 words)
+    'תיאור אזור לתצוגה בלשונית': Clipboard,
+    'בית פרטי חד משפחתי דו משפחתי': Home,
+    'מבנים צמודי קרקע טוריים מעל 2 יחידות': Building2,
+    
+    // Discount/Date headers (>2 words)
+    'תאריך הנחה מ': Calendar,
+    'תאריך הנחה עד': Calendar,
+    'תאריך מדידה': Calendar,
+    
+    // Sub-asset type headers (translated, >2 words would be like "סוג נכס משנה 1" but these are usually 2 words)
+    // Adding for completeness in case they appear as longer forms
+    'סוג נכס משנה 1': Package,
+    'סוג נכס משנה 2': Box,
+    'סוג נכס משנה 3': Grid3x3,
+    'סוג נכס משנה 4': Layers,
+    'סוג נכס משנה 5': SquareStack,
+    'סוג נכס משנה 6': Database,
+  };
+  
+  // Check exact match first
+  if (exactMappings[normalizedName]) {
+    return exactMappings[normalizedName];
+  }
+  
+  // Pattern-based matching with unique icons for different patterns
+  // Using hash of header name to ensure consistent unique icon assignment
+  
+  // Create a deterministic hash for consistent icon selection
+  // This ensures the same header always gets the same icon
+  const hash = normalizedName.split('').reduce((acc, char) => {
+    return ((acc << 5) - acc) + char.charCodeAt(0);
+  }, 0);
+  
+  // Large pool of unique icons for hash-based assignment
+  // Ensures different headers get different icons
+  const iconPool = [
+    Settings, CheckCircle, TrendingDown, Calendar, DollarSign, Percent, Bank,
+    Building2, Building, Layers, Home, MapPin, Tag, SquareStack, Ruler,
+    Package, Store, Home2, FileText, Image, User, Hash, AlertCircle, Calculator,
+    X, Minus, Plus, Info, Activity, BarChart3, Shield, Clipboard, Box, Grid3x3,
+    Database, TrendingUp, ArrowDown, ArrowUp, PieChart, Zap, Target, List,
+    Grid, Columns, Table, Folder, File, FileCheck, FileX, FileSearch, FileBarChart,
+    Factory, Warehouse, Hotel, School, Briefcase, ShoppingBag, ShoppingCart,
+    Truck, Car, Bike, TreePine, Mountain, Waves, Sun, Moon, Star, Heart,
+    ThumbsUp, ThumbsDown, Flag, Award, Trophy, Bell, MessageSquare, Mail,
+    Phone, Video, Camera, Music, Film, Book, BookOpen, GraduationCap, Lightbulb,
+    Wrench, Hammer, Cog, Sliders, Filter, SearchIcon
+  ];
+  
+  // Select icon based on hash (ensures same header always gets same unique icon)
+  const selectedIcon = iconPool[Math.abs(hash) % iconPool.length];
+  
+  // But first, try pattern matching for semantic meaning
+  // Actions/Operations
+  if (lowerName.includes('פעולות') || lowerName.includes('actions')) {
+    return Settings;
+  }
+  
+  // Active/Status
+  if (lowerName.includes('פעיל') || lowerName.includes('active') || lowerName.includes('status')) {
+    return CheckCircle;
+  }
+  
+  // Discount
+  if (lowerName.includes('הנחה') || lowerName.includes('discount')) {
+    return TrendingDown;
+  }
   
   // Date-related
   if (lowerName.includes('תאריך') || lowerName.includes('date') || lowerName.includes('measurement')) {
     return Calendar;
   }
   
-  // Money/Payment related
-  if (lowerName.includes('תשלום') || lowerName.includes('payer') || lowerName.includes('discount') || lowerName.includes('הנחה')) {
+  // Payment/Payer
+  if (lowerName.includes('תשלום') || lowerName.includes('payer') || lowerName.includes('payment')) {
     return DollarSign;
   }
   
-  // Building/Home related
-  if (lowerName.includes('מבנה') || lowerName.includes('building') || lowerName.includes('קומה') || lowerName.includes('floor') || lowerName.includes('גג') || lowerName.includes('penthouse')) {
+  // Percentage/Load
+  if (lowerName.includes('אחוז') || lowerName.includes('percent') || lowerName.includes('העמסה') || lowerName.includes('load')) {
+    return Percent;
+  }
+  
+  // Tax region
+  if (lowerName.includes('אזור מיסים') || lowerName.includes('אזור מס') || lowerName.includes('tax region')) {
+    return Bank;
+  }
+  
+  // Building number
+  if (lowerName.includes('מספר מבנה') || lowerName.includes('מספר בניין') || lowerName.includes('building number')) {
+    return Building2;
+  }
+  
+  // Building/Home
+  if (lowerName.includes('מבנה') || lowerName.includes('building') || lowerName.includes('בית') || lowerName.includes('home')) {
     return Building;
   }
   
-  // Location/Address related
-  if (lowerName.includes('כתובת') || lowerName.includes('address') || lowerName.includes('אזור') || lowerName.includes('region')) {
-    return MapPin;
-  }
-  
-  // Asset type related
-  if (lowerName.includes('סוג') || lowerName.includes('type') || lowerName.includes('asset type')) {
-    return Tag;
-  }
-  
-  // Size/Measurement related
-  if (lowerName.includes('גודל') || lowerName.includes('size') || lowerName.includes('שטח') || lowerName.includes('area')) {
-    return Ruler;
-  }
-  
-  // Sub-asset related
-  if (lowerName.includes('נכס משנה') || lowerName.includes('sub') || lowerName.includes('משנה')) {
+  // Floor
+  if (lowerName.includes('קומה') || lowerName.includes('floor') || lowerName.includes('level')) {
     return Layers;
   }
   
-  // Document/File related
-  if (lowerName.includes('מסמך') || lowerName.includes('document') || lowerName.includes('file') || lowerName.includes('drawing') || lowerName.includes('תרשים')) {
+  // Penthouse
+  if (lowerName.includes('גג') || lowerName.includes('penthouse') || lowerName.includes('roof')) {
+    return Home;
+  }
+  
+  // Address
+  if (lowerName.includes('כתובת') || lowerName.includes('address') || lowerName.includes('location')) {
+    return MapPin;
+  }
+  
+  // Region
+  if (lowerName.includes('אזור') || lowerName.includes('region') || lowerName.includes('zone')) {
+    return MapPin;
+  }
+  
+  // Asset type
+  if (lowerName.includes('סוג נכס') || lowerName.includes('סוג') || lowerName.includes('type') || lowerName.includes('category')) {
+    return Tag;
+  }
+  
+  // Shared area
+  if (lowerName.includes('שטח משותף') || lowerName.includes('shared area')) {
+    return SquareStack;
+  }
+  
+  // Area/Size
+  if (lowerName.includes('שטח') || lowerName.includes('area') || lowerName.includes('size') || lowerName.includes('גודל')) {
+    return Ruler;
+  }
+  
+  // Sub-asset
+  if (lowerName.includes('נכס משנה') || lowerName.includes('sub asset') || lowerName.includes('sub-asset')) {
+    return Package;
+  }
+  
+  // Business
+  if (lowerName.includes('עסקים') || lowerName.includes('business') || lowerName.includes('commercial')) {
+    return Store;
+  }
+  
+  // Residential
+  if (lowerName.includes('מגורים') || lowerName.includes('residential')) {
+    return Home;
+  }
+  
+  // Document
+  if (lowerName.includes('מסמך') || lowerName.includes('document') || lowerName.includes('file') || lowerName.includes('תרשים') || lowerName.includes('drawing')) {
     return FileText;
   }
   
-  // User/Person related
-  if (lowerName.includes('משתמש') || lowerName.includes('user') || lowerName.includes('payer')) {
+  // Image
+  if (lowerName.includes('תמונה') || lowerName.includes('image') || lowerName.includes('photo')) {
+    return Image;
+  }
+  
+  // User
+  if (lowerName.includes('משתמש') || lowerName.includes('user') || lowerName.includes('person')) {
     return User;
   }
   
-  // ID/Number related
+  // ID/Number
   if (lowerName.includes('מספר') || lowerName.includes('id') || lowerName.includes('code')) {
     return Hash;
   }
   
-  // Actions related
-  if (lowerName.includes('פעולות') || lowerName.includes('actions')) {
-    return Settings;
+  // Description
+  if (lowerName.includes('תיאור') || lowerName.includes('description') || lowerName.includes('text')) {
+    return FileText;
   }
   
-  // Image/Photo related
-  if (lowerName.includes('תמונה') || lowerName.includes('image') || lowerName.includes('photo') || lowerName.includes('drawing')) {
-    return Image;
+  // Control
+  if (lowerName.includes('בקרה') || lowerName.includes('control') || lowerName.includes('inspection')) {
+    return AlertCircle;
   }
   
-  // Default to Info icon
-  return Info;
+  // Sum/Total
+  if (lowerName.includes('ס"כ') || lowerName.includes('סה"כ') || lowerName.includes('total') || lowerName.includes('sum')) {
+    return Calculator;
+  }
+  
+  // Not accountable
+  if (lowerName.includes('לא נספר') || lowerName.includes('not accountable') || lowerName.includes('excluded')) {
+    return X;
+  }
+  
+  // Min
+  if (lowerName.includes('מ') && (lowerName.includes('שטח') || lowerName.includes('size'))) {
+    return Minus;
+  }
+  
+  // Max
+  if (lowerName.includes('עד') && (lowerName.includes('שטח') || lowerName.includes('size'))) {
+    return Plus;
+  }
+  
+  // Fallback to hash-based unique icon
+  return selectedIcon;
 }
 
 /**

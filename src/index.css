@@ -30,17 +30,20 @@ input[type="number"] {
 .ag-theme-alpine .ag-header {
   background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
   color: white;
-  font-weight: 700;
+  font-weight: 600;
   box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
-  font-size: 9px;
+  font-size: 8px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header {
-  font-size: 10px !important;
+  font-size: 8px !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
-  font-size: 10px !important;
+  font-size: 8px !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-cell {
@@ -157,10 +160,20 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-start !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
   overflow: hidden !important;
   position: relative !important;
   max-width: 100% !important;
+  font-size: 8px !important;
+  font-weight: 600 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+  line-height: 1.2 !important;
+  max-height: calc(1.2em * 2) !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
@@ -173,10 +186,15 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-header-cell-text {
-  white-space: nowrap !important;
+  white-space: normal !important;
   overflow: hidden !important;
   max-width: 100% !important;
   text-overflow: clip !important; /* Use clip instead of ellipsis */
+  line-height: 1.2 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  word-wrap: break-word !important;
 }
 
 /* Chrome-style fade effect for headers - only when text overflows */

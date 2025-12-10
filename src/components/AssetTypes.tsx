@@ -1404,7 +1404,10 @@ export function AssetTypes() {
                   return {};
                 }}
                 onCellValueChanged={onCellValueChanged}
-                onGridReady={onGridReady}
+                onGridReady={async (params) => {
+                  await gridPreferences.loadColumnState(params.api);
+                  onGridReady(params);
+                }}
                 onColumnResized={gridPreferences.handleColumnResized}
                 onColumnMoved={gridPreferences.handleColumnMoved}
                 getRowId={(params: any) => String(params.data.id)}

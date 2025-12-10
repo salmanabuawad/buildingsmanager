@@ -573,7 +573,10 @@ export function ValidationRulesManager() {
                 defaultColDef={defaultColDef}
                 gridOptions={gridOptions}
                 suppressHorizontalScroll={false}
-                onGridReady={onGridReady}
+                onGridReady={async (params) => {
+                  await gridPreferences.loadColumnState(params.api);
+                  onGridReady(params);
+                }}
                 onFirstDataRendered={async (params) => {
                   
                   setTimeout(() => {

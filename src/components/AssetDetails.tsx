@@ -68,6 +68,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     'default'
   );
   
+  // History grid preferences hook for saving/loading column state
+  const historyGridPreferences = useGridPreferences(
+    historyGridRef,
+    `asset-details-history-${assetId || buildingNumber || 'new'}`,
+    'default'
+  );
+  
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
   const validationTaxRegion = useMemo(() => {
@@ -2538,6 +2545,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 }}
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {
+                  await gridPreferences.loadColumnState(params.api);
                 }}
                 onFirstDataRendered={async (params) => {
                 }}
@@ -2616,6 +2624,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     getRowStyle={getRowStyle}
                     onGridReady={async (params) => {
+                      // Load saved column state first
+                      await historyGridPreferences.loadColumnState(params.api);
                       // Ensure structure drawing column is visible
                       const columnState = params.api.getColumnState();
                       const structureDrawingCol = columnState.find((col: any) => col.colId === 'structure_drawing_url');

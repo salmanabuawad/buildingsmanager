@@ -2681,6 +2681,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
+              // Load saved column state first
+              await gridPreferences.loadColumnState(params.api);
               // Ensure all columns are visible and grid calculates proper width
               params.api.refreshCells({ force: true });
               // Scroll to left on grid ready

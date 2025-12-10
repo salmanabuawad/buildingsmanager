@@ -1263,6 +1263,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 return null;
               }}
               onGridReady={async (params) => {
+                await gridPreferences.loadColumnState(params.api);
               }}
               onFirstDataRendered={async (params) => {
               }}

@@ -33,42 +33,46 @@ export function useGridPreferences<T = any>(
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedRef = useRef(false);
 
+  // Load saved column state function
+  const loadColumnState = useCallback(async (gridApi?: GridApi) => {
+    const api = gridApi || gridRef?.current?.api;
+    if (!api || hasLoadedRef.current) return;
+
+    try {
+      isRestoringRef.current = true;
+      hasLoadedRef.current = true;
+      const savedState = await api.userPreferences.get(userId, preferenceKey);
+      
+      if (savedState && Array.isArray(savedState) && savedState.length > 0) {
+        // Apply saved column state
+        api.applyColumnState({
+          state: savedState,
+          applyOrder: true,
+          defaultState: { sort: null }
+        });
+      }
+    } catch (error) {
+      console.error(`[useGridPreferences] Error loading preferences for ${gridName}:`, error);
+    } finally {
+      // Allow saving after a short delay to prevent saving during restore
+      setTimeout(() => {
+        isRestoringRef.current = false;
+      }, 500);
+    }
+  }, [gridRef, preferenceKey, userId, gridName]);
+
   // Load saved column state when grid API becomes available
   useEffect(() => {
     const gridApi = gridRef?.current?.api;
     if (!gridApi) return;
 
-    const loadPreferences = async () => {
-      try {
-        isRestoringRef.current = true;
-        hasLoadedRef.current = true;
-        const savedState = await api.userPreferences.get(userId, preferenceKey);
-        
-        if (savedState && Array.isArray(savedState) && savedState.length > 0) {
-          // Apply saved column state
-          gridApi.applyColumnState({
-            state: savedState,
-            applyOrder: true,
-            defaultState: { sort: null }
-          });
-        }
-      } catch (error) {
-        console.error(`[useGridPreferences] Error loading preferences for ${gridName}:`, error);
-      } finally {
-        // Allow saving after a short delay to prevent saving during restore
-        setTimeout(() => {
-          isRestoringRef.current = false;
-        }, 500);
-      }
-    };
-
     // Small delay to ensure grid is fully initialized
     const timeoutId = setTimeout(() => {
-      loadPreferences();
-    }, 100);
+      loadColumnState(gridApi);
+    }, 200);
 
     return () => clearTimeout(timeoutId);
-  }, [gridRef?.current?.api, preferenceKey, userId, gridName]);
+  }, [gridRef?.current?.api, preferenceKey, userId, gridName, loadColumnState]);
 
   // Reset hasLoadedRef when gridName changes (for dynamic grids like assets-list with different building numbers)
   useEffect(() => {
@@ -142,6 +146,7 @@ export function useGridPreferences<T = any>(
     handleColumnResized,
     handleColumnMoved,
     saveColumnState,
+    loadColumnState,
     gridApi: gridRef?.current?.api || null,
   };
 }

@@ -1568,6 +1568,7 @@ export function AssetDataEntry() {
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {
+              await gridPreferences.loadColumnState(params.api);
               if (filteredRowData.length > 0) {
                 params.api.setFocusedCell(0, 'building_number');
               }

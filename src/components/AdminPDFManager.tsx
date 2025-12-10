@@ -239,6 +239,7 @@ export function AdminPDFManager() {
           }}
           suppressHorizontalScroll={false}
           onGridReady={async (params) => {
+            await gridPreferences.loadColumnState(params.api);
           }}
           onFirstDataRendered={async (params) => {
             const firstCol = params.api.getAllDisplayedColumns()[0];

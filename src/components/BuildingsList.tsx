@@ -2263,6 +2263,8 @@ export function BuildingsList({
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {
+                // Load saved column state first
+                await gridPreferences.loadColumnState(params.api);
                 setTimeout(() => {
                   const columnState = params.api.getColumnState();
                   const actionsCol = columnState.find((col: any) => col.colId === 'actions');

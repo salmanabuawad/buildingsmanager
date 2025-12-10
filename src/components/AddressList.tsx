@@ -698,6 +698,7 @@ export function AddressListComponent() {
             suppressHorizontalScroll={false}
             getRowId={(params) => String(params.data.street_code)}
             onGridReady={async (params) => {
+              await gridPreferences.loadColumnState(params.api);
             }}
             onFirstDataRendered={async (params) => {
             }}

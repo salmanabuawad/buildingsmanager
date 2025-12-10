@@ -137,10 +137,8 @@ input[type="number"] {
   overflow: hidden !important;
   white-space: nowrap !important;
   line-height: 1.5 !important;
-}
-
-/* Chrome-style fade effect for cell content - only when text overflows */
-.ag-theme-alpine .ag-cell.text-overflow {
+  text-overflow: clip !important; /* Use clip instead of ellipsis */
+  /* Chrome-style fade effect for cell content - fades on the left (end of text in RTL) */
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
@@ -175,10 +173,8 @@ input[type="number"] {
   white-space: nowrap !important;
   overflow: hidden !important;
   max-width: 100% !important;
-}
-
-/* Chrome-style fade effect for headers - only when text overflows */
-.ag-theme-alpine .ag-header-cell-label.text-overflow .ag-header-cell-text {
+  text-overflow: clip !important; /* Use clip instead of ellipsis */
+  /* Chrome-style fade effect for headers - fades on the left (end of text in RTL) */
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }

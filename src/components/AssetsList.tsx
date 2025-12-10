@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 interface AssetsListProps {
@@ -2049,6 +2050,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     });
   }, [t, assetTypes, getCellStyle]);
 
+  // Apply field configurations to column definitions
+  const configuredColumnDefs = useFieldConfig(columnDefs);
+
 
 
 
@@ -2875,7 +2879,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           <AgGridReact
             ref={gridRef}
             rowData={assets}
-            columnDefs={columnDefs}
+            columnDefs={configuredColumnDefs}
             getRowStyle={(params) => {
               const assetId = String(params.data?.asset_id);
               if (deletedAssets.has(assetId)) {
@@ -2891,7 +2895,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               return null;
             }}
             defaultColDef={{
-              resizable: true,
+              resizable: false, // Disabled - use field configurations instead
               wrapHeaderText: true,
               autoHeaderHeight: true,
               wrapText: true,

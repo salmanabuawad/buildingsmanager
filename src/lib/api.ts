@@ -104,6 +104,14 @@ export interface AddressList {
   updated_at: string;
 }
 
+export interface FieldConfiguration {
+  field_name: string;
+  width_chars: number;
+  padding: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ValidationRule {
   id: string;
   rule_key: string;
@@ -1554,6 +1562,67 @@ export const api = {
         .eq('preference_key', preferenceKey);
 
       if (error) throw error;
+    },
+  },
+  fieldConfigurations: {
+    getAll: async (): Promise<FieldConfiguration[]> => {
+      const { data, error } = await supabase
+        .from('field_configurations')
+        .select('*')
+        .order('field_name');
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (fieldName: string): Promise<FieldConfiguration | null> => {
+      const { data, error } = await supabase
+        .from('field_configurations')
+        .select('*')
+        .eq('field_name', fieldName)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    create: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
+      const { data, error } = await supabase
+        .from('field_configurations')
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    update: async (fieldName: string, input: Partial<Omit<FieldConfiguration, 'field_name' | 'created_at' | 'updated_at'>>): Promise<FieldConfiguration> => {
+      const { data, error } = await supabase
+        .from('field_configurations')
+        .update(input)
+        .eq('field_name', fieldName)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    upsert: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
+      const { data, error } = await supabase
+        .from('field_configurations')
+        .upsert(input, { onConflict: 'field_name' })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    delete: async (fieldName: string): Promise<{ message: string }> => {
+      const { error } = await supabase
+        .from('field_configurations')
+        .delete()
+        .eq('field_name', fieldName);
+
+      if (error) throw error;
+      return { message: 'Field configuration deleted successfully' };
     },
   },
 };

@@ -6,6 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
@@ -2115,6 +2116,9 @@ export function BuildingsList({
     });
   }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);
 
+  // Apply field configurations to column definitions
+  const configuredColumnDefs = useFieldConfig(columnDefs);
+
   // Handle create building modal
   const handleCreateBuilding = async () => {
     try {
@@ -2258,9 +2262,9 @@ export function BuildingsList({
             <AgGridReact
               ref={gridRef}
               rowData={filteredBuildings}
-              columnDefs={columnDefs}
-              defaultColDef={{
-                resizable: true,
+                columnDefs={configuredColumnDefs}
+                defaultColDef={{
+                  resizable: false, // Disabled - use field configurations instead
                 wrapHeaderText: true,
                 autoHeaderHeight: true,
                 wrapText: true,

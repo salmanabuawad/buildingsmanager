@@ -27,6 +27,13 @@ window.addEventListener('unhandledrejection', (event) => {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+// Preload field configurations on application startup
+import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
+  loadFieldConfigurations().catch(error => {
+    console.warn('Failed to preload field configurations:', error);
+  });
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PreferencesProvider>

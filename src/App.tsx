@@ -10,6 +10,7 @@ import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
+import { FieldConfigManager } from './components/FieldConfigManager';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
@@ -18,7 +19,7 @@ import { saveAllGridStates, clearAllGridStates } from './lib/gridPreferencesMana
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -411,6 +412,19 @@ function App() {
     };
 
     // Remove all other validation-rules tabs, then add new one
+    openTab(newTab);
+  }
+
+  function openFieldConfig() {
+    const fieldConfigTabId = 'field-config-panel';
+
+    const newTab: Tab = {
+      id: fieldConfigTabId,
+      type: 'field-config',
+      label: 'הגדרות שדות'
+    };
+
+    // Remove all other field-config tabs, then add new one
     openTab(newTab);
   }
 
@@ -910,6 +924,13 @@ function App() {
                   <Settings className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
+                  onClick={openFieldConfig}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">הגדרות שדות</span>
+                  <Settings className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
                   onClick={openAddressList}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
@@ -993,6 +1014,8 @@ function App() {
                       <Search className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'field-config' ? (
+                      <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'address-list' ? (
                       <MapPin className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'building-list-import' ? (
@@ -1073,6 +1096,9 @@ function App() {
             )}
             {activeTab?.type === 'address-list' && (
               <AddressListComponent />
+            )}
+            {activeTab?.type === 'field-config' && (
+              <FieldConfigManager />
             )}
             {activeTab?.type === 'building-list-import' && (
               <BuildingListImport />

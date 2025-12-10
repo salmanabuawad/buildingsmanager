@@ -52,12 +52,56 @@ export function useGridPreferences<T = any>(
       const savedState = await api.userPreferences.get(userId, preferenceKey);
       
       if (savedState && Array.isArray(savedState) && savedState.length > 0) {
-        // Apply saved column state
+        // Apply saved column state (order, visibility, pinned, etc.)
+        // NOTE: We don't apply width - field configurations control width
+        const stateWithoutWidth = savedState.map(col => ({
+          ...col,
+          width: undefined, // Remove width so field configurations can apply it
+        }));
+        
         agGridApi.applyColumnState({
-          state: savedState,
-          applyOrder: true,
+          state: stateWithoutWidth,
+          applyOrder: true, // Preserve column order from user preferences
           defaultState: { sort: null }
         });
+        
+        // After applying order, re-apply field configuration widths
+        // This ensures field config widths are not overridden by saved preferences
+        setTimeout(async () => {
+          try {
+            const { loadFieldConfigurations, calculateWidthFromChars } = await import('./fieldConfigUtils');
+            const fieldConfigs = await loadFieldConfigurations();
+            
+            // Get current column state to preserve order
+            const currentState = agGridApi.getColumnState();
+            
+            // Apply field config widths while preserving order
+            // Note: getColumnState() returns a more complete type than GridColumnState
+            const updatedState = currentState.map((col: any) => {
+              const fieldName = col.colId;
+              const fieldConfig = fieldConfigs.get(fieldName);
+              
+              if (fieldConfig) {
+                const width = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
+                return {
+                  ...col,
+                  width: width,
+                  minWidth: width,
+                  maxWidth: width,
+                };
+              }
+              return col;
+            });
+            
+            // Apply updated state with widths
+            agGridApi.applyColumnState({
+              state: updatedState,
+              applyOrder: false, // Don't change order, just update widths
+            });
+          } catch (error) {
+            console.warn('Error applying field configuration widths:', error);
+          }
+        }, 100);
       }
     } catch (error) {
       console.error(`[useGridPreferences] Error loading preferences for ${gridName}:`, error);
@@ -104,9 +148,10 @@ export function useGridPreferences<T = any>(
       if (columnState && columnState.length > 0) {
         // Clean up the state - only save relevant properties
         // IMPORTANT: Preserve the order by using the array as-is
+        // NOTE: We don't save width anymore - field configurations control width
         const cleanedState: GridColumnState[] = columnState.map(col => ({
           colId: col.colId,
-          width: col.width,
+          // width: col.width, // Removed - field configurations control width
           hide: col.hide,
           pinned: col.pinned,
           sort: col.sort,
@@ -147,9 +192,12 @@ export function useGridPreferences<T = any>(
   }, [saveColumnState]);
 
   // Handle column resized
+  // NOTE: We don't save width changes anymore - field configurations control width
+  // But we still need to handle the event to prevent errors
   const handleColumnResized = useCallback(() => {
-    debouncedSave();
-  }, [debouncedSave]);
+    // Width changes are now controlled by field configurations, not user preferences
+    // We don't save width anymore, but we keep this handler for compatibility
+  }, []);
 
   // Handle column moved (order changed)
   const handleColumnMoved = useCallback(() => {

@@ -109,6 +109,7 @@ export interface FieldConfiguration {
   width_chars: number;
   padding: number;
   hebrew_name?: string;
+  pinned?: 'left' | 'right' | null;
   created_at?: string;
   updated_at?: string;
 }

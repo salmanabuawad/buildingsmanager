@@ -11,7 +11,7 @@ function FieldConfigRow({
   saving 
 }: { 
   config: FieldConfiguration; 
-  onSave: (fieldName: string, widthChars: number, padding: number, hebrewName?: string) => Promise<void>;
+  onSave: (fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | null) => Promise<void>;
   onDelete: (fieldName: string) => Promise<void>;
   saving: boolean;
 }) {
@@ -19,13 +19,14 @@ function FieldConfigRow({
   const [widthChars, setWidthChars] = useState(config.width_chars);
   const [padding, setPadding] = useState(config.padding);
   const [hebrewName, setHebrewName] = useState(config.hebrew_name || '');
+  const [pinned, setPinned] = useState<'left' | 'right' | null>(config.pinned || null);
 
   const calculatePreviewWidth = (chars: number, pad: number) => {
     return (chars * 8) + (pad * 2);
   };
 
   const handleSave = async () => {
-    await onSave(config.field_name, widthChars, padding, hebrewName);
+    await onSave(config.field_name, widthChars, padding, hebrewName, pinned);
     setIsEditing(false);
   };
 
@@ -34,6 +35,7 @@ function FieldConfigRow({
     setWidthChars(config.width_chars);
     setPadding(config.padding);
     setHebrewName(config.hebrew_name || '');
+    setPinned(config.pinned || null);
   };
 
   return (
@@ -139,6 +141,7 @@ export function FieldConfigManager() {
   const [newWidthChars, setNewWidthChars] = useState(10);
   const [newPadding, setNewPadding] = useState(8);
   const [newHebrewName, setNewHebrewName] = useState('');
+  const [newPinned, setNewPinned] = useState<'left' | 'right' | null>(null);
 
   // Load configurations on mount
   useEffect(() => {
@@ -162,7 +165,7 @@ export function FieldConfigManager() {
     }
   }
 
-  async function saveConfiguration(fieldName: string, widthChars: number, padding: number, hebrewName?: string) {
+  async function saveConfiguration(fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | null) {
     try {
       setSaving(true);
       await api.fieldConfigurations.upsert({
@@ -170,6 +173,7 @@ export function FieldConfigManager() {
         width_chars: widthChars,
         padding: padding,
         hebrew_name: hebrewName || undefined,
+        pinned: pinned || undefined,
       });
       
       // Reload configurations
@@ -234,11 +238,12 @@ export function FieldConfigManager() {
       return;
     }
 
-    await saveConfiguration(newFieldName.trim(), newWidthChars, newPadding, newHebrewName.trim() || undefined);
+    await saveConfiguration(newFieldName.trim(), newWidthChars, newPadding, newHebrewName.trim() || undefined, newPinned);
     setNewFieldName('');
     setNewWidthChars(10);
     setNewPadding(8);
     setNewHebrewName('');
+    setNewPinned(null);
   }
 
   // Sort configurations by field name
@@ -336,6 +341,20 @@ export function FieldConfigManager() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                נעיצה
+              </label>
+              <select
+                value={newPinned || ''}
+                onChange={(e) => setNewPinned(e.target.value === '' ? null : (e.target.value as 'left' | 'right'))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">ללא נעיצה</option>
+                <option value="left">שמאל</option>
+                <option value="right">ימין</option>
+              </select>
+            </div>
             <div className="flex items-end">
               <button
                 onClick={addNewConfiguration}
@@ -359,6 +378,7 @@ export function FieldConfigManager() {
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב (תווים)</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפיחה (פיקסלים)</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>
+                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נעיצה</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">פעולות</th>
               </tr>
             </thead>

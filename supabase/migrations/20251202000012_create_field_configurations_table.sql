@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS field_configurations (
   width_chars integer NOT NULL DEFAULT 10,
   padding integer NOT NULL DEFAULT 8,
   hebrew_name text,
+  pinned text, -- 'left', 'right', or NULL for no pinning
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -38,6 +39,22 @@ BEGIN
     ADD COLUMN hebrew_name text;
     
     RAISE NOTICE 'Column hebrew_name added to field_configurations';
+  END IF;
+END $$;
+
+-- Add pinned column if it doesn't exist (for existing tables)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name = 'field_configurations' 
+    AND column_name = 'pinned'
+  ) THEN
+    ALTER TABLE field_configurations
+    ADD COLUMN pinned text;
+    
+    RAISE NOTICE 'Column pinned added to field_configurations';
   END IF;
 END $$;
 
@@ -87,9 +104,10 @@ COMMENT ON COLUMN field_configurations.field_name IS 'Field identifier (e.g., bu
 COMMENT ON COLUMN field_configurations.width_chars IS 'Width in number of characters';
 COMMENT ON COLUMN field_configurations.padding IS 'Padding in pixels';
 COMMENT ON COLUMN field_configurations.hebrew_name IS 'Hebrew translation/display name for the field';
+COMMENT ON COLUMN field_configurations.pinned IS 'Pin position: left, right, or NULL for no pinning';
 
 -- Insert default configurations for common fields
-INSERT INTO field_configurations (field_name, width_chars, padding, hebrew_name) VALUES
+INSERT INTO field_configurations (field_name, width_chars, padding, hebrew_name, pinned) VALUES
   ('building_number', 12, 8, 'מספר מבנה'),
   ('asset_id', 12, 8, 'זיהוי נכס'),
   ('payer_id', 12, 8, 'זיהוי משלם'),
@@ -131,9 +149,11 @@ INSERT INTO field_configurations (field_name, width_chars, padding, hebrew_name)
   ('gosh', 8, 8, 'גוש'),
   ('helka', 8, 8, 'חלקה'),
   ('building_number_in_street', 12, 8, 'מספר בניין'),
-  ('building_address', 10, 8, 'כתובת')
+  ('building_address', 10, 8, 'כתובת', NULL),
+  ('actions', 10, 8, 'פעולות', 'right')
 ON CONFLICT (field_name) DO UPDATE SET 
   hebrew_name = EXCLUDED.hebrew_name,
   width_chars = EXCLUDED.width_chars,
-  padding = EXCLUDED.padding;
+  padding = EXCLUDED.padding,
+  pinned = EXCLUDED.pinned;
 

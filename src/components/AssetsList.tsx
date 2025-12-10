@@ -2648,6 +2648,32 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs);
 
+  // Check if all visible assets are private/residential assets (מגורים)
+  const areAllAssetsPrivate = useMemo(() => {
+    if (!assets || assets.length === 0 || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Create asset type map for quick lookup
+    const assetTypeMap = new Map<string, AssetType>();
+    assetTypes.forEach(at => {
+      assetTypeMap.set(at.name, at);
+    });
+    
+    // Check if all assets are private/residential (מגורים)
+    const visibleAssets = assets.filter(asset => !deletedAssets.has(String(asset.asset_id)));
+    if (visibleAssets.length === 0) return false;
+    
+    // Check if all assets have business_private === 'מגורים'
+    const allPrivate = visibleAssets.every(asset => {
+      if (!asset.main_asset_type) return false;
+      const assetType = assetTypeMap.get(String(asset.main_asset_type));
+      return assetType && assetType.business_private === 'מגורים';
+    });
+    
+    return allPrivate;
+  }, [assets, assetTypes, deletedAssets]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -2832,8 +2858,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             // Hide transfer button for:
             // 1. Private buildings (single_double_family)
             // 2. Multi tax region tabs (when taxRegion is not set, i.e., "all assets" tab)
-            // Show only when: taxRegion is set AND building is not private AND (no multiple tax regions OR taxRegion is set)
-            const shouldShowTransferButton = taxRegion && !isPrivateBuilding;
+            // 3. Tabs showing only private/residential assets (all assets are מגורים)
+            // Show only when: taxRegion is set AND building is not private AND not all assets are private
+            const shouldShowTransferButton = taxRegion && !isPrivateBuilding && !areAllAssetsPrivate;
             
             // Check if we have 2 or more selected assets for transfer areas button
             const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;

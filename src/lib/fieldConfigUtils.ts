@@ -76,7 +76,7 @@ export function applyFieldConfigToColumn(
 
   const width = calculateWidthFromChars(fieldConfig.width_chars, fieldConfig.padding);
   
-  return {
+  const result: any = {
     ...colDef,
     width: width,
     minWidth: width,
@@ -88,6 +88,18 @@ export function applyFieldConfigToColumn(
       paddingRight: `${fieldConfig.padding}px`,
     },
   };
+
+  // Apply pinning if configured
+  if (fieldConfig.pinned === 'left' || fieldConfig.pinned === 'right') {
+    result.pinned = fieldConfig.pinned;
+    // If pinning is set via field config, also lock it
+    result.lockPinned = true;
+  } else if (fieldConfig.pinned === null || fieldConfig.pinned === undefined) {
+    // Explicitly set to null if not pinned (to override any existing pin)
+    result.pinned = null;
+  }
+
+  return result;
 }
 
 /**

@@ -152,6 +152,7 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-start !important;
+  align-items: flex-start !important;
   white-space: normal !important;
   overflow: hidden !important;
   position: relative !important;
@@ -166,6 +167,10 @@ input[type="number"] {
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
@@ -188,6 +193,11 @@ input[type="number"] {
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   word-wrap: break-word !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  align-self: flex-start !important;
 }
 
 /* Chrome-style fade effect for headers - only when text overflows */

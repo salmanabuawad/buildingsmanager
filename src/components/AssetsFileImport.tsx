@@ -98,6 +98,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [showMeasurementDateModal, setShowMeasurementDateModal] = useState(false);
   const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
   const [measurementDate, setMeasurementDate] = useState('');
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; message: string; title?: string }>({ isOpen: false, message: '' });
   const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
   const [validationCompleted, setValidationCompleted] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
@@ -405,7 +406,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       setOriginalImportedAssets(assetsCopy); // Save original state for rollback
       setValidationCompleted(false); // Reset validation status when new file is loaded
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File');
+      setErrorModal({ 
+        isOpen: true, 
+        message: error instanceof Error ? error.message : 'שגיאה בקריאת קובץ File',
+        title: 'שגיאה בקריאת קובץ'
+      });
     } finally {
       setIsParsing(false);
       if (fileInputRef.current) {
@@ -458,7 +463,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
     } catch (error) {
       console.error('Error creating building:', error);
-      alert(`שגיאה ביצירת מבנה: ${error instanceof Error ? error.message : 'שגיאה לא ידועה'}`);
+      setErrorModal({ 
+        isOpen: true, 
+        message: error instanceof Error ? error.message : 'שגיאה לא ידועה',
+        title: 'שגיאה ביצירת מבנה'
+      });
     } finally {
       setIsCreatingBuilding(false);
     }
@@ -811,7 +820,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       setValidationCompleted(true); // Mark validation as completed
       setShowValidationModal(true);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'שגיאה באימות');
+      setErrorModal({ 
+        isOpen: true, 
+        message: error instanceof Error ? error.message : 'שגיאה באימות',
+        title: 'שגיאה באימות'
+      });
       setValidationCompleted(false); // Mark validation as not completed on error
     } finally {
       setIsValidating(false);
@@ -991,7 +1004,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
     // Validation must be completed before saving
     if (!validationCompleted) {
-      alert('יש להריץ אימות לפני שמירה');
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'יש להריץ אימות לפני שמירה',
+        title: 'שגיאה'
+      });
       return;
     }
 
@@ -2112,14 +2129,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
   const handleConfirmMeasurementDate = () => {
     if (!measurementDate || measurementDate.trim() === '') {
-      alert('יש להזין תאריך מדידה');
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'יש להזין תאריך מדידה',
+        title: 'שגיאה'
+      });
       return;
     }
 
     // Validate date format (DD/MM/YYYY)
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (!dateRegex.test(measurementDate)) {
-      alert('תאריך מדידה חייב להיות בפורמט DD/MM/YYYY');
+      setErrorModal({ 
+        isOpen: true, 
+        message: 'תאריך מדידה חייב להיות בפורמט DD/MM/YYYY',
+        title: 'שגיאה בפורמט תאריך'
+      });
       return;
     }
 
@@ -2333,7 +2358,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       e.preventDefault();
                       e.stopPropagation();
                       // Show error messages in a tooltip/alert format
-                      alert(errorMessages.join('\n'));
+                      setErrorModal({ 
+                        isOpen: true, 
+                        message: errorMessages.join('\n'),
+                        title: 'שגיאות אימות'
+                      });
                     }}
                     className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
                     title={errorMessages.join('\n')}
@@ -2394,7 +2423,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   // Show error messages in a tooltip/alert format
-                  alert(errorMessages.join('\n'));
+                  setErrorModal({ 
+                    isOpen: true, 
+                    message: errorMessages.join('\n'),
+                    title: 'שגיאות אימות'
+                  });
                 }}
                 className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
                 title={errorMessages.join('\n')}
@@ -2783,7 +2816,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
                     
                     if (!isValidFile) {
-                      alert('יש לבחור קובץ Excel בלבד (.xlsx או .xls)');
+                      setErrorModal({ 
+                        isOpen: true, 
+                        message: 'יש לבחור קובץ Excel בלבד (.xlsx או .xls)',
+                        title: 'סוג קובץ לא תקין'
+                      });
                       e.target.value = '';
                       return;
                     }
@@ -2851,7 +2888,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
                     
                     if (!isValidFile) {
-                      alert('יש לבחור קובץ Excel בלבד (.xlsx או .xls)');
+                      setErrorModal({ 
+                        isOpen: true, 
+                        message: 'יש לבחור קובץ Excel בלבד (.xlsx או .xls)',
+                        title: 'סוג קובץ לא תקין'
+                      });
                       e.target.value = '';
                       return;
                     }
@@ -3125,6 +3166,42 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {/* Error Modal */}
+      {errorModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {errorModal.title || 'שגיאה'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setErrorModal({ isOpen: false, message: '' })}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="סגור"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <div className="text-gray-700 whitespace-pre-wrap break-words">
+                {errorModal.message}
+              </div>
+            </div>
+            <div className="flex justify-end p-4 border-t border-gray-200">
+              <button
+                onClick={() => setErrorModal({ isOpen: false, message: '' })}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Validation Results Modal */}

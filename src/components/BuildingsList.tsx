@@ -2265,7 +2265,7 @@ export function BuildingsList({
                 autoHeight: false,
                 cellStyle: { textAlign: 'right', fontSize: '16px' },
                 headerClass: 'buildings-list-header',
-                headerStyle: { fontSize: '11px', textAlign: 'left', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+                headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                 minWidth: 40
               }}
               gridOptions={{

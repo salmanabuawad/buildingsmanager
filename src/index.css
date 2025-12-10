@@ -151,7 +151,7 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-header-cell-label {
-  justify-content: flex-start !important;
+  justify-content: flex-end !important;
   align-items: flex-start !important;
   white-space: normal !important;
   overflow: hidden !important;
@@ -171,15 +171,18 @@ input[type="number"] {
   padding-bottom: 0 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
+  text-align: right !important;
+  direction: rtl !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
   justify-content: flex-start !important;
-  text-align: left !important;
+  text-align: right !important;
 }
 
 .ag-theme-alpine .ag-right-aligned-header .ag-header-cell-label {
   justify-content: flex-end !important;
+  text-align: right !important;
 }
 
 .ag-theme-alpine .ag-header-cell-text {

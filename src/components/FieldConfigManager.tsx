@@ -11,7 +11,7 @@ function FieldConfigRow({
   saving 
 }: { 
   config: FieldConfiguration; 
-  onSave: (fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | null) => Promise<void>;
+  onSave: (fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | 'false') => Promise<void>;
   onDelete: (fieldName: string) => Promise<void>;
   saving: boolean;
 }) {
@@ -19,7 +19,7 @@ function FieldConfigRow({
   const [widthChars, setWidthChars] = useState(config.width_chars);
   const [padding, setPadding] = useState(config.padding);
   const [hebrewName, setHebrewName] = useState(config.hebrew_name || '');
-  const [pinned, setPinned] = useState<'left' | 'right' | null>(config.pinned || null);
+  const [pinned, setPinned] = useState<'left' | 'right' | 'false'>(config.pinned === 'left' || config.pinned === 'right' ? config.pinned : 'false');
 
   const calculatePreviewWidth = (chars: number, pad: number) => {
     return (chars * 8) + (pad * 2);
@@ -35,7 +35,7 @@ function FieldConfigRow({
     setWidthChars(config.width_chars);
     setPadding(config.padding);
     setHebrewName(config.hebrew_name || '');
-    setPinned(config.pinned || null);
+    setPinned(config.pinned === 'left' || config.pinned === 'right' ? config.pinned : 'false');
   };
 
   return (
@@ -141,7 +141,7 @@ export function FieldConfigManager() {
   const [newWidthChars, setNewWidthChars] = useState(10);
   const [newPadding, setNewPadding] = useState(8);
   const [newHebrewName, setNewHebrewName] = useState('');
-  const [newPinned, setNewPinned] = useState<'left' | 'right' | null>(null);
+  const [newPinned, setNewPinned] = useState<'left' | 'right' | 'false'>('false');
 
   // Load configurations on mount
   useEffect(() => {
@@ -165,7 +165,7 @@ export function FieldConfigManager() {
     }
   }
 
-  async function saveConfiguration(fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | null) {
+  async function saveConfiguration(fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | 'false') {
     try {
       setSaving(true);
       await api.fieldConfigurations.upsert({
@@ -173,7 +173,7 @@ export function FieldConfigManager() {
         width_chars: widthChars,
         padding: padding,
         hebrew_name: hebrewName || undefined,
-        pinned: pinned || undefined,
+        pinned: pinned === 'false' ? 'false' : (pinned || 'false'),
       });
       
       // Reload configurations
@@ -243,7 +243,7 @@ export function FieldConfigManager() {
     setNewWidthChars(10);
     setNewPadding(8);
     setNewHebrewName('');
-    setNewPinned(null);
+    setNewPinned('false');
   }
 
   // Sort configurations by field name
@@ -346,8 +346,8 @@ export function FieldConfigManager() {
                 נעיצה
               </label>
               <select
-                value={newPinned || ''}
-                onChange={(e) => setNewPinned(e.target.value === '' ? null : (e.target.value as 'left' | 'right'))}
+                value={newPinned === 'false' ? '' : newPinned}
+                onChange={(e) => setNewPinned(e.target.value === '' ? 'false' : (e.target.value as 'left' | 'right'))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">ללא נעיצה</option>

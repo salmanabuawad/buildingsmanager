@@ -94,7 +94,7 @@ export function applyFieldConfigToColumn(
     result.pinned = fieldConfig.pinned;
     // If pinning is set via field config, also lock it
     result.lockPinned = true;
-  } else if (fieldConfig.pinned === null || fieldConfig.pinned === undefined) {
+  } else if (fieldConfig.pinned === 'false' || fieldConfig.pinned === null || fieldConfig.pinned === undefined) {
     // Explicitly set to null if not pinned (to override any existing pin)
     result.pinned = null;
   }

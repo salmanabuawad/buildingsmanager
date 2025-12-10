@@ -2825,12 +2825,21 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             
             if (!shouldShowButtons) return null;
             
+            // Check if building is private (single_double_family)
+            const isPrivateBuilding = building?.single_double_family === 'כן' || building?.single_double_family === 'yes';
+            
+            // Hide transfer button for:
+            // 1. Private buildings (single_double_family)
+            // 2. Multi tax region tabs (when taxRegion is not set, i.e., "all assets" tab)
+            // Show only when: taxRegion is set AND building is not private AND (no multiple tax regions OR taxRegion is set)
+            const shouldShowTransferButton = taxRegion && !isPrivateBuilding;
+            
             // Check if we have 2 or more selected assets for transfer areas button
-            const canTransferAreas = selectedAssets.size >= 2 && taxRegion;
+            const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;
             
             return (
               <div className="flex gap-2">
-                {taxRegion && (
+                {shouldShowTransferButton && (
                   <button
                     type="button"
                     onClick={() => {

@@ -1401,7 +1401,7 @@ export function AssetTypes() {
                   autoHeight: false,
                   cellStyle: { textAlign: 'right', direction: 'rtl' },
                   headerClass: 'ag-right-aligned-header',
-                  minWidth: 100,
+                  minWidth: 40,
                   sortable: true,
                   filter: true
                 }}

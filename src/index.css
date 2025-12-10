@@ -153,7 +153,7 @@ input[type="number"] {
   justify-content: flex-start !important;
   white-space: nowrap !important;
   overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  position: relative !important;
   max-width: 100% !important;
 }
 
@@ -169,9 +169,16 @@ input[type="number"] {
 .ag-theme-alpine .ag-header-cell-text {
   white-space: nowrap !important;
   overflow: hidden !important;
-  text-overflow: ellipsis !important;
   max-width: 100% !important;
-  word-break: break-word !important;
+  /* Chrome-style fade effect - fades the last 20px */
+  mask-image: linear-gradient(to right, black 0%, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 20px), transparent 100%);
+}
+
+.ag-theme-alpine .ag-right-aligned-header .ag-header-cell-text {
+  /* For RTL headers, fade from left (start of text) */
+  mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
 
 .ag-theme-alpine .ag-row-selected {

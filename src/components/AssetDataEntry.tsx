@@ -1571,7 +1571,7 @@ export function AssetDataEntry() {
               wrapText: true,
               autoHeight: false,
               cellStyle: { textAlign: 'right' },
-              minWidth: 100
+              minWidth: 40
             }}
             gridOptions={{
               suppressColumnVirtualisation: true,

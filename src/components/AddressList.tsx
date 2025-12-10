@@ -700,7 +700,7 @@ export function AddressListComponent() {
               sortable: true,
               filter: true,
               headerClass: 'ag-right-aligned-header',
-              minWidth: 100
+              minWidth: 40
             }}
             gridOptions={{
               suppressColumnVirtualisation: true,

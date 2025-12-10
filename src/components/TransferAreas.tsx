@@ -1258,7 +1258,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 wrapText: true,
                 autoHeight: false,
                 headerClass: 'ag-right-aligned-header',
-                minWidth: 100
+                minWidth: 40
               }}
               gridOptions={{
                 suppressColumnVirtualisation: true,

@@ -2265,7 +2265,7 @@ export function BuildingsList({
                 cellStyle: { textAlign: 'right', fontSize: '16px' },
                 headerClass: 'buildings-list-header',
                 headerStyle: { fontSize: '10px', textAlign: 'left' },
-                minWidth: 100
+                minWidth: 40
               }}
               gridOptions={{
                 suppressColumnVirtualisation: true,

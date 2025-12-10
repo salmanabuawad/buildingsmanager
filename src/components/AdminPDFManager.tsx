@@ -182,7 +182,7 @@ export function AdminPDFManager() {
     resizable: true,
     wrapText: true,
     autoHeight: false,
-    minWidth: 100
+    minWidth: 40
   }), []);
 
   const apartmentsWithPDF = apartments.filter(a => a.dwg_file_url).length;

@@ -2694,7 +2694,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               wrapText: true,
               autoHeight: false,
               headerClass: 'ag-right-aligned-header',
-              minWidth: 100
+              minWidth: 40
             }}
             gridOptions={{
               suppressColumnVirtualisation: true,

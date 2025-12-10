@@ -2532,7 +2532,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   autoHeight: false,
                   sortable: false,
                   headerClass: 'ag-right-aligned-header',
-                  minWidth: 100
+                  minWidth: 40
                 }}
                 getRowId={(params) => {
                   // Use id + measurement_date + is_latest to ensure uniqueness
@@ -2622,7 +2622,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       autoHeight: false,
                       sortable: false,
                       headerClass: 'ag-right-aligned-header',
-                      minWidth: 100
+                      minWidth: 40
                     }}
                     gridOptions={{
                       suppressColumnVirtualisation: true,

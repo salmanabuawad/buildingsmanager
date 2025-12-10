@@ -322,7 +322,7 @@ export function ValidationRulesManager() {
     resizable: true,
     wrapText: true,
     autoHeight: true,
-    minWidth: 100
+    minWidth: 40
   }), []);
 
   const gridOptions = useMemo(() => ({

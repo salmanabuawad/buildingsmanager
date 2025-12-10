@@ -6,6 +6,7 @@ import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X } from 'lucide-re
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
+import { useGridPreferences } from '../lib/useGridPreferences';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -41,6 +42,13 @@ interface AssetRow {
 export function AssetDataEntry() {
   const { t } = useTranslation();
   const gridRef = useRef<AgGridReact>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'asset-data-entry',
+    'default'
+  );
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
 
@@ -1566,7 +1574,7 @@ export function AssetDataEntry() {
             }}
             onFirstDataRendered={async (params) => {
             }}
-            onColumnResized={() => {}}
+            onColumnResized={gridPreferences.handleColumnResized}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to first position
               const actionsColumn = params.columnApi.getColumn('actions');
@@ -1590,6 +1598,8 @@ export function AssetDataEntry() {
                   return;
                 }
               }
+              // Save column state after move
+              gridPreferences.handleColumnMoved();
             }}
             onSortChanged={() => {}}
             singleClickEdit={true}

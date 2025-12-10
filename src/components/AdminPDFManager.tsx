@@ -16,6 +16,13 @@ export function AdminPDFManager() {
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const gridRef = useRef<AgGridReact<ApartmentWithBuilding>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'admin-pdf-manager',
+    'default'
+  );
 
   useEffect(() => {
     fetchApartments();
@@ -246,7 +253,7 @@ export function AdminPDFManager() {
               }
             }, 200);
           }}
-          onColumnResized={() => {}}
+          onColumnResized={gridPreferences.handleColumnResized}
           onColumnMoved={(params) => {
             // Prevent actions column from being moved - force it back to first position
             const actionsColumn = params.columnApi.getColumn('actions');
@@ -270,6 +277,8 @@ export function AdminPDFManager() {
                 return;
               }
             }
+            // Save column state after move
+            gridPreferences.handleColumnMoved();
           }}
           onSortChanged={() => {}}
           pagination={true}

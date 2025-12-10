@@ -10,10 +10,11 @@ import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
+import { saveAllGridStates, clearAllGridStates } from './lib/gridPreferencesManager';
 
 interface Tab {
   id: string;
@@ -666,6 +667,75 @@ function App() {
     }
   }
 
+  async function handleSaveAllGridStates() {
+    setSavingGridStates(true);
+    setGridStatesMessage(null);
+    
+    try {
+      const result = await saveAllGridStates('default');
+      
+      if (result.errors.length > 0) {
+        setGridStatesMessage({
+          type: 'error',
+          text: `נשמרו ${result.saved} טבלאות. שגיאות: ${result.errors.join(', ')}`
+        });
+      } else {
+        setGridStatesMessage({
+          type: 'success',
+          text: `נשמרו ${result.saved} טבלאות בהצלחה`
+        });
+      }
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setGridStatesMessage(null);
+      }, 3000);
+    } catch (error) {
+      setGridStatesMessage({
+        type: 'error',
+        text: `שגיאה בשמירת מצב טבלאות: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+      setTimeout(() => {
+        setGridStatesMessage(null);
+      }, 5000);
+    } finally {
+      setSavingGridStates(false);
+    }
+  }
+
+  async function handleClearAllGridStates() {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את כל מצבי הטבלאות השמורים? פעולה זו לא ניתנת לביטול.')) {
+      return;
+    }
+
+    setClearingGridStates(true);
+    setGridStatesMessage(null);
+    
+    try {
+      await clearAllGridStates('default');
+      
+      setGridStatesMessage({
+        type: 'success',
+        text: 'כל מצבי הטבלאות נמחקו בהצלחה'
+      });
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setGridStatesMessage(null);
+      }, 3000);
+    } catch (error) {
+      setGridStatesMessage({
+        type: 'error',
+        text: `שגיאה במחיקת מצב טבלאות: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+      setTimeout(() => {
+        setGridStatesMessage(null);
+      }, 5000);
+    } finally {
+      setClearingGridStates(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex flex-col md:flex-row" dir="rtl">
       {/* Mobile menu button */}
@@ -843,10 +913,56 @@ function App() {
                   <span className="font-medium text-slate-700">רשימת כתובות</span>
                   <MapPin className="h-3.5 w-3.5 text-pink-600" />
                 </button>
+                <button
+                  onClick={handleSaveAllGridStates}
+                  disabled={savingGridStates}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-teal-50/50 hover:bg-teal-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="font-medium text-slate-700">
+                    {savingGridStates ? 'שומר...' : 'שמור מצב טבלאות'}
+                  </span>
+                  {savingGridStates ? (
+                    <Loader2 className="h-3.5 w-3.5 text-teal-600 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5 text-teal-600" />
+                  )}
+                </button>
+                <button
+                  onClick={handleClearAllGridStates}
+                  disabled={clearingGridStates}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-red-50/50 hover:bg-red-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="font-medium text-slate-700">
+                    {clearingGridStates ? 'מוחק...' : 'מחק מצב טבלאות'}
+                  </span>
+                  {clearingGridStates ? (
+                    <Loader2 className="h-3.5 w-3.5 text-red-600 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                  )}
+                </button>
               </div>
             )}
           </div>
         </nav>
+        
+        {/* Grid states save message */}
+        {gridStatesMessage && (
+          <div className={`p-3 mx-3 mb-3 rounded-lg border ${
+            gridStatesMessage.type === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            <div className="flex items-center gap-2 text-xs">
+              {gridStatesMessage.type === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              )}
+              <span>{gridStatesMessage.text}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">

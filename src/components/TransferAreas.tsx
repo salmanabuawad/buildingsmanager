@@ -7,6 +7,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
 import { Toast } from './Toast';
+import { useGridPreferences } from '../lib/useGridPreferences';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -1258,8 +1259,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               }}
               onFirstDataRendered={async (params) => {
               }}
-              onColumnResized={() => {}}
-              onColumnMoved={() => {}}
+              onColumnResized={gridPreferences.handleColumnResized}
+              onColumnMoved={gridPreferences.handleColumnMoved}
               onSortChanged={() => {}}
               enableRtl={true}
               animateRows={true}

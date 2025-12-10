@@ -18,6 +18,13 @@ export function AddressListComponent() {
   const [deletedAddresses, setDeletedAddresses] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AddressList>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'address-list',
+    'default'
+  );
 
   useEffect(() => {
     fetchAddresses();
@@ -694,8 +701,8 @@ export function AddressListComponent() {
             }}
             onFirstDataRendered={async (params) => {
             }}
-            onColumnResized={() => {}}
-            onColumnMoved={() => {}}
+            onColumnResized={gridPreferences.handleColumnResized}
+            onColumnMoved={gridPreferences.handleColumnMoved}
             onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
             enableRtl={true}

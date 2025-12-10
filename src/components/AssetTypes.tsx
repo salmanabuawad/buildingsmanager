@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent, GridReadyEvent } from 'ag-grid-community';
+import { useGridPreferences } from '../lib/useGridPreferences';
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -23,6 +24,12 @@ export function AssetTypes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
   
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'asset-types',
+    'default'
+  );
 
   const [formData, setFormData] = useState({
     name: '',
@@ -1398,6 +1405,8 @@ export function AssetTypes() {
                 }}
                 onCellValueChanged={onCellValueChanged}
                 onGridReady={onGridReady}
+                onColumnResized={gridPreferences.handleColumnResized}
+                onColumnMoved={gridPreferences.handleColumnMoved}
                 getRowId={(params: any) => String(params.data.id)}
                 gridOptions={{
                   suppressColumnVirtualisation: true,

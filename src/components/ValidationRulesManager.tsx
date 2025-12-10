@@ -299,6 +299,13 @@ export function ValidationRulesManager() {
   ], [editingId, editValues]);
 
   const gridRef = useRef<AgGridReact<ValidationRule>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'validation-rules-manager',
+    'default'
+  );
 
   const defaultColDef = useMemo(() => ({
     resizable: true,
@@ -576,7 +583,7 @@ export function ValidationRulesManager() {
                     }
                   }, 200);
                 }}
-                onColumnResized={() => {}}
+                onColumnResized={gridPreferences.handleColumnResized}
                 onColumnMoved={(params) => {
                   // Prevent actions column from being moved - force it back to first position
                   const actionsColumn = params.columnApi.getColumn('actions');
@@ -600,6 +607,8 @@ export function ValidationRulesManager() {
                       return;
                     }
                   }
+                  // Save column state after move
+                  gridPreferences.handleColumnMoved();
                 }}
                 onSortChanged={() => {}}
                 pagination={true}

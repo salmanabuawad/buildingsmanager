@@ -12,6 +12,7 @@ import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { useGridPreferences } from '../lib/useGridPreferences';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -2695,9 +2696,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 }
               }, 200);
             }}
-            onColumnResized={() => {}}
+            onColumnResized={gridPreferences.handleColumnResized}
             onColumnMoved={(params) => {
-              // Prevent actions column from being moved - force it back to first position
+              // Prevent actions column from being moved - force it back to pinned right
               try {
                 const columnApi = (params as any).columnApi || params.api;
                 if (columnApi && columnApi.getColumn) {
@@ -2726,6 +2727,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               } catch (error) {
                 console.warn('Error in onColumnMoved:', error);
               }
+              // Save column state after move
+              gridPreferences.handleColumnMoved();
             }}
             onSortChanged={() => {}}
             animateRows={true}

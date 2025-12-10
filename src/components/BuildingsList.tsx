@@ -5,6 +5,7 @@ import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
+import { useGridPreferences } from '../lib/useGridPreferences';
 
 // Custom cell editor for address dropdown with filtering
 interface AddressCellEditorParams extends ICellEditorParams {
@@ -406,6 +407,13 @@ export function BuildingsList({
   
   // Grid reference
   const gridRef = useRef<AgGridReact<Building>>(null);
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'buildings-list',
+    'default'
+  );
 
   // Calculate total changes: new buildings count as 1 each, even if edited
   const totalChanges = useMemo(() => {
@@ -2292,7 +2300,7 @@ export function BuildingsList({
                   }
                 }, 200);
               }}
-              onColumnResized={() => {}}
+              onColumnResized={gridPreferences.handleColumnResized}
               onColumnMoved={(params) => {
                 // Preserve column order, only ensure actions column is pinned to right
                 try {
@@ -2326,6 +2334,8 @@ export function BuildingsList({
                   // Silently ignore errors
                   console.warn('Error handling column move:', error);
                 }
+                // Save column state after move
+                gridPreferences.handleColumnMoved();
               }}
               onSortChanged={() => {}}
               domLayout="normal"

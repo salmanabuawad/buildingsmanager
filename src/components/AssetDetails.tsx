@@ -15,6 +15,7 @@ import { RowEditModal } from './RowEditModal';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { useGridPreferences } from '../lib/useGridPreferences';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -59,6 +60,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
   const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
+  // Grid preferences hook for saving/loading column state
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    `asset-details-${assetId || buildingNumber || 'new'}`,
+    'default'
+  );
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -2533,7 +2541,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 }}
                 onFirstDataRendered={async (params) => {
                 }}
-                onColumnResized={() => {}}
+                onColumnResized={gridPreferences.handleColumnResized}
                 onColumnMoved={(params) => {
                   // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
                   try {
@@ -2563,6 +2571,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   } catch (error) {
                     console.warn('Error in onColumnMoved:', error);
                   }
+                  // Save column state after move
+                  gridPreferences.handleColumnMoved();
                 }}
                 onSortChanged={() => {}}
                 onCellValueChanged={onCellValueChanged}

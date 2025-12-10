@@ -151,8 +151,10 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-start !important;
-  white-space: normal !important;
-  word-wrap: break-word !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
 }
 
 .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
@@ -165,8 +167,10 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-header-cell-text {
-  white-space: normal !important;
-  overflow-wrap: break-word !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
   word-break: break-word !important;
 }
 

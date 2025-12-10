@@ -3,7 +3,7 @@
  * Allows grids to register their save functions so they can be called when "Save All Grid States" is clicked
  */
 
-type GridSaveFunction = () => Promise<void> | void;
+type GridSaveFunction = ((force?: boolean) => Promise<void> | void) | (() => Promise<void> | void);
 
 class GridRegistry {
   private saveFunctions: Map<string, GridSaveFunction> = new Map();
@@ -41,7 +41,12 @@ class GridRegistry {
 
     for (const [gridName, saveFunction] of this.saveFunctions.entries()) {
       try {
-        await saveFunction();
+        // Call saveFunction with force=true to bypass restore checks
+        if (typeof saveFunction === 'function') {
+          await saveFunction(true);
+        } else {
+          await saveFunction();
+        }
         saved++;
       } catch (error) {
         errors.push(`${gridName}: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -33,11 +33,18 @@ export function useGridPreferences<T = any>(
   const isRestoringRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedRef = useRef(false);
+  const justSavedRef = useRef(false);
 
   // Load saved column state function
   const loadColumnState = useCallback(async (gridApi?: GridApi) => {
     const agGridApi = gridApi || gridRef?.current?.api;
     if (!agGridApi || hasLoadedRef.current) return;
+    
+    // Don't reload if we just saved (to prevent restoring old state after manual save)
+    if (justSavedRef.current) {
+      justSavedRef.current = false;
+      return;
+    }
 
     try {
       isRestoringRef.current = true;
@@ -81,16 +88,22 @@ export function useGridPreferences<T = any>(
   }, [gridName]);
 
   // Save column state when it changes
-  const saveColumnState = useCallback(async () => {
+  const saveColumnState = useCallback(async (force: boolean = false) => {
     const gridApi = gridRef?.current?.api;
-    if (!gridApi || isRestoringRef.current) return;
+    if (!gridApi) return;
+    
+    // If force is true (manual save), bypass the isRestoringRef check
+    if (!force && isRestoringRef.current) return;
 
     try {
+      // Get current column state BEFORE any operations
+      // This ensures we capture the current visual order
       const columnState = gridApi.getColumnState();
       
       // Only save if we have column state
       if (columnState && columnState.length > 0) {
         // Clean up the state - only save relevant properties
+        // IMPORTANT: Preserve the order by using the array as-is
         const cleanedState: GridColumnState[] = columnState.map(col => ({
           colId: col.colId,
           width: col.width,
@@ -106,10 +119,19 @@ export function useGridPreferences<T = any>(
           flex: col.flex,
         }));
 
+        // Set flag to prevent reload after save
+        justSavedRef.current = true;
+        
         await api.userPreferences.set(userId, preferenceKey, cleanedState);
+        
+        // Clear the flag after a delay to allow normal reloads later
+        setTimeout(() => {
+          justSavedRef.current = false;
+        }, 1000);
       }
     } catch (error) {
       console.error(`[useGridPreferences] Error saving preferences for ${gridName}:`, error);
+      justSavedRef.current = false;
     }
   }, [gridRef, preferenceKey, userId, gridName]);
 

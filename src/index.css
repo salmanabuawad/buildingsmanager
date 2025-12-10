@@ -134,10 +134,12 @@ input[type="number"] {
   border-color: #cbd5e1;
   text-align: right !important;
   direction: rtl !important;
-  overflow: visible !important;
-  white-space: normal !important;
-  word-wrap: break-word !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
   line-height: 1.5 !important;
+  /* Chrome-style fade effect for cell content */
+  mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
 
 /* Fix RTL for ag-grid cell editors */

@@ -2677,7 +2677,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               suppressColumnVirtualisation: true,
               alwaysShowHorizontalScroll: true,
               // Prevent onCellValueChanged from firing when row data is updated programmatically
-              suppressRowDataUpdated: false, // Keep default - we want row updates
               // Ensure onCellValueChanged only fires on user edits, not programmatic updates
               suppressCellFlash: true,
             }}

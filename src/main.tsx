@@ -11,9 +11,19 @@ import { PreferencesProvider } from './contexts/PreferencesContext';
 window.addEventListener('error', (event) => {
   if (event.filename && (event.filename.includes('chmln.js') || event.filename.includes('messo.min.js'))) {
     event.preventDefault();
+    event.stopPropagation();
     return true;
   }
 }, true);
+
+// Also suppress unhandled promise rejections from external scripts
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && typeof event.reason === 'string' && 
+      (event.reason.includes('chmln') || event.reason.includes('messo'))) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+});
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 

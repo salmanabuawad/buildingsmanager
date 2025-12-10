@@ -5,8 +5,8 @@ import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './s
 export interface Building {
   building_number: number;
   tax_region?: string;
-  shared_area?: number;
-  shared_business_area?: number;
+  private_shared_area?: number;
+  business_shared_area?: number;
   elevator?: string;
   area_for_control?: number;
   created_at: string;
@@ -202,11 +202,11 @@ function sanitizeBuildingInput(input: any): any {
   if (input.tax_region != null && input.tax_region !== '') {
     sanitized.tax_region = sanitizeText(input.tax_region);
   }
-  if (input.shared_area != null) {
-    sanitized.shared_area = sanitizeNumber(input.shared_area);
+  if (input.private_shared_area != null) {
+    sanitized.private_shared_area = sanitizeNumber(input.private_shared_area);
   }
-  if (input.shared_business_area != null) {
-    sanitized.shared_business_area = sanitizeNumber(input.shared_business_area);
+  if (input.business_shared_area != null) {
+    sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);
   }
   if (input.area_for_control != null) {
     sanitized.area_for_control = sanitizeNumber(input.area_for_control);

@@ -2681,10 +2681,17 @@ export const buildingValidators = {
       }
     }
 
-    // Validate shared_area (should be positive number if provided)
-    if (building.shared_area != null) {
-      if (isNaN(Number(building.shared_area)) || Number(building.shared_area) < 0) {
-        errors.shared_area = 'Shared area must be a positive number';
+    // Validate private_shared_area (should be positive number if provided)
+    if (building.private_shared_area != null) {
+      if (isNaN(Number(building.private_shared_area)) || Number(building.private_shared_area) < 0) {
+        errors.private_shared_area = 'Private shared area must be a positive number';
+      }
+    }
+    
+    // Validate business_shared_area (should be positive number if provided)
+    if (building.business_shared_area != null) {
+      if (isNaN(Number(building.business_shared_area)) || Number(building.business_shared_area) < 0) {
+        errors.business_shared_area = 'Business shared area must be a positive number';
       }
     }
 

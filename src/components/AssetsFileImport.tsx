@@ -3573,21 +3573,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="number"
                       step="0.01"
-                      value={buildingCreateData.shared_area || ''}
+                      value={buildingCreateData.private_shared_area || ''}
                       onChange={async (e) => {
-                        const newData = { ...buildingCreateData, shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
+                        const newData = { ...buildingCreateData, private_shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
                         setBuildingCreateData(newData);
                         await validateBuildingData(newData);
                       }}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                        buildingValidationErrors.shared_area 
+                        buildingValidationErrors.private_shared_area 
                           ? 'border-red-500' 
                           : 'border-gray-300'
                       }`}
                       disabled={isCreatingBuilding}
                     />
-                    {buildingValidationErrors.shared_area && (
-                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.shared_area}</p>
+                    {buildingValidationErrors.private_shared_area && (
+                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.private_shared_area}</p>
                     )}
                   </div>
 
@@ -3598,8 +3598,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="number"
                       step="0.01"
-                      value={buildingCreateData.shared_business_area || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, shared_business_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                      value={buildingCreateData.business_shared_area || ''}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, business_shared_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       disabled={isCreatingBuilding}
                     />

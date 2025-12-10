@@ -899,8 +899,8 @@ export function BuildingsList({
     const newBuilding: Building = {
       building_number: 0, // Use 0 as placeholder, will be updated when user enters real number
       tax_region: null,
-      shared_area: null,
-      shared_business_area: null,
+      private_shared_area: null,
+      business_shared_area: null,
       area_for_control: null,
       total_building_area: null,
       elevator: null,
@@ -1604,7 +1604,7 @@ export function BuildingsList({
       cellStyle: (params) => getCellStyle(params, 'overload_ratio')
     },
     {
-      field: 'shared_area',
+      field: 'private_shared_area',
       headerName: 'שטח משותף מגורים',
       editable: (params: any) => {
         if (!params || !params.data) return false;
@@ -1626,7 +1626,7 @@ export function BuildingsList({
         const isNew = isNewBuilding(building);
         const buildingKey = getBuildingKey(building);
         const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['shared_area'];
+        const errorMsg = errors && errors['private_shared_area'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
@@ -1643,10 +1643,10 @@ export function BuildingsList({
         }
         return value;
       },
-      cellStyle: (params) => getCellStyle(params, 'shared_area')
+      cellStyle: (params) => getCellStyle(params, 'private_shared_area')
     },
     {
-      field: 'shared_business_area',
+      field: 'business_shared_area',
       headerName: 'שטח משותף עסקים',
       editable: (params: any) => {
         if (!params || !params.data) return false;
@@ -1668,7 +1668,7 @@ export function BuildingsList({
         const isNew = isNewBuilding(building);
         const buildingKey = getBuildingKey(building);
         const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['shared_business_area'];
+        const errorMsg = errors && errors['business_shared_area'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
@@ -1685,7 +1685,7 @@ export function BuildingsList({
         }
         return value;
       },
-      cellStyle: (params) => getCellStyle(params, 'shared_business_area')
+      cellStyle: (params) => getCellStyle(params, 'business_shared_area')
     },
     {
       field: 'total_building_area',

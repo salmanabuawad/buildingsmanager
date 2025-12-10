@@ -17,6 +17,7 @@ import { useValidationRules } from '../contexts/ValidationContext';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -2558,10 +2559,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
+                  setTimeout(() => {
+                    detectAndApplyTextOverflow(params.api);
+                  }, 200);
                 }}
                 onFirstDataRendered={async (params) => {
+                  setTimeout(() => {
+                    detectAndApplyTextOverflow(params.api);
+                    setupTextOverflowObserver(params.api);
+                  }, 200);
                 }}
-                onColumnResized={gridPreferences.handleColumnResized}
+                onColumnResized={(params) => {
+                  gridPreferences.handleColumnResized();
+                  setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                }}
                 onColumnMoved={(params) => {
                   // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
                   try {
@@ -2645,7 +2656,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       if (structureDrawingCol && structureDrawingCol.hide) {
                         params.api.setColumnVisible('structure_drawing_url', true);
                       }
-                      
+                      setTimeout(() => {
+                        detectAndApplyTextOverflow(params.api);
+                      }, 200);
                     }}
                     onFirstDataRendered={async (params) => {
                       // Ensure actions column is visible
@@ -2654,9 +2667,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       if (actionsCol && actionsCol.hide) {
                         params.api.setColumnVisible('actions', true);
                       }
-                      
+                      setTimeout(() => {
+                        detectAndApplyTextOverflow(params.api);
+                        setupTextOverflowObserver(params.api);
+                      }, 200);
                     }}
-                    onColumnResized={() => {}}
+                    onColumnResized={(params) => {
+                      setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                    }}
                     onColumnMoved={(params) => {
                       // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
                       try {

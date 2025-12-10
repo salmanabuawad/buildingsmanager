@@ -9,6 +9,7 @@ import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCir
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -1277,10 +1278,20 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               }}
               onGridReady={async (params) => {
                 await gridPreferences.loadColumnState(params.api);
+                setTimeout(() => {
+                  detectAndApplyTextOverflow(params.api);
+                }, 200);
               }}
               onFirstDataRendered={async (params) => {
+                setTimeout(() => {
+                  detectAndApplyTextOverflow(params.api);
+                  setupTextOverflowObserver(params.api);
+                }, 200);
               }}
-              onColumnResized={gridPreferences.handleColumnResized}
+              onColumnResized={(params) => {
+                gridPreferences.handleColumnResized();
+                setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+              }}
               onColumnMoved={gridPreferences.handleColumnMoved}
               onSortChanged={() => {}}
               enableRtl={true}

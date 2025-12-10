@@ -9,6 +9,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent, GridReadyEvent } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -1418,8 +1419,20 @@ export function AssetTypes() {
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
                   onGridReady(params);
+                  setTimeout(() => {
+                    detectAndApplyTextOverflow(params.api);
+                  }, 200);
                 }}
-                onColumnResized={gridPreferences.handleColumnResized}
+                onFirstDataRendered={async (params) => {
+                  setTimeout(() => {
+                    detectAndApplyTextOverflow(params.api);
+                    setupTextOverflowObserver(params.api);
+                  }, 200);
+                }}
+                onColumnResized={(params) => {
+                  gridPreferences.handleColumnResized();
+                  setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                }}
                 onColumnMoved={gridPreferences.handleColumnMoved}
                 getRowId={(params: any) => String(params.data.id)}
                 gridOptions={{

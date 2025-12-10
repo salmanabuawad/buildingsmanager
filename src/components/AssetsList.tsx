@@ -14,6 +14,7 @@ import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -2715,6 +2716,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 if (gridElement) {
                   gridElement.scrollLeft = 0;
                 }
+                // Detect and apply text overflow fade
+                detectAndApplyTextOverflow(params.api);
               }, 300);
             }}
             onFirstDataRendered={async (params) => {
@@ -2724,9 +2727,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 if (gridElement) {
                   gridElement.scrollLeft = 0;
                 }
+                // Detect and apply text overflow fade
+                detectAndApplyTextOverflow(params.api);
+                // Set up observer for dynamic changes
+                setupTextOverflowObserver(params.api);
               }, 200);
             }}
-            onColumnResized={gridPreferences.handleColumnResized}
+            onColumnResized={(params) => {
+              gridPreferences.handleColumnResized();
+              // Re-check overflow after column resize
+              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+            }}
             onColumnMoved={(params) => {
               // Prevent actions column from being moved - force it back to pinned right
               try {

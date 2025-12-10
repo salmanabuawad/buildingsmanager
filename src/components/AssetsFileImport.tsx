@@ -11,6 +11,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 interface ImportAssetRow {
   id: string;
@@ -3035,6 +3036,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     if (gridElement) {
                       gridElement.scrollLeft = 0;
                     }
+                    // Detect and apply text overflow fade
+                    detectAndApplyTextOverflow(params.api);
                   }, 300);
                 }}
                 onFirstDataRendered={async (params) => {
@@ -3044,7 +3047,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     if (gridElement) {
                       gridElement.scrollLeft = 0;
                     }
+                    // Detect and apply text overflow fade
+                    detectAndApplyTextOverflow(params.api);
+                    // Set up observer for dynamic changes
+                    setupTextOverflowObserver(params.api);
                   }, 200);
+                }}
+                onColumnResized={(params) => {
+                  setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
                 }}
                 animateRows={true}
                 enableRtl={true}

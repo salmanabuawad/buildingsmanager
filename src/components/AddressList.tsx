@@ -5,6 +5,9 @@ import { Upload, Save, X, Loader2, MapPin, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
+import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 export function AddressListComponent() {
   const { t } = useTranslation();
@@ -711,10 +714,20 @@ export function AddressListComponent() {
             getRowId={(params) => String(params.data.street_code)}
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
+              setTimeout(() => {
+                detectAndApplyTextOverflow(params.api);
+              }, 200);
             }}
             onFirstDataRendered={async (params) => {
+              setTimeout(() => {
+                detectAndApplyTextOverflow(params.api);
+                setupTextOverflowObserver(params.api);
+              }, 200);
             }}
-            onColumnResized={gridPreferences.handleColumnResized}
+            onColumnResized={(params) => {
+              gridPreferences.handleColumnResized();
+              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+            }}
             onColumnMoved={gridPreferences.handleColumnMoved}
             onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}

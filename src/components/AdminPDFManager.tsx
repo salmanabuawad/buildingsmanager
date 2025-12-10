@@ -4,6 +4,9 @@ import { Apartment, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Upload, FileCheck, FileX, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useGridPreferences } from '../lib/useGridPreferences';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 interface ApartmentWithBuilding extends Apartment {
   building_name: string;
@@ -254,6 +257,9 @@ export function AdminPDFManager() {
           suppressHorizontalScroll={false}
           onGridReady={async (params) => {
             await gridPreferences.loadColumnState(params.api);
+            setTimeout(() => {
+              detectAndApplyTextOverflow(params.api);
+            }, 200);
           }}
           onFirstDataRendered={async (params) => {
             const firstCol = params.api.getAllDisplayedColumns()[0];
@@ -266,9 +272,16 @@ export function AdminPDFManager() {
               if (gridElement) {
                 gridElement.scrollLeft = 0;
               }
+              // Detect and apply text overflow fade
+              detectAndApplyTextOverflow(params.api);
+              // Set up observer for dynamic changes
+              setupTextOverflowObserver(params.api);
             }, 200);
           }}
-          onColumnResized={gridPreferences.handleColumnResized}
+          onColumnResized={(params) => {
+            gridPreferences.handleColumnResized();
+            setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+          }}
           onColumnMoved={(params) => {
             // Prevent actions column from being moved - force it back to first position
             const actionsColumn = params.columnApi.getColumn('actions');

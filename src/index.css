@@ -172,7 +172,7 @@ input[type="number"] {
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
-  padding: 0 !important;
+  padding: 0 4px 0 0 !important;
   margin: 0 !important;
   text-align: right !important;
   direction: rtl !important;

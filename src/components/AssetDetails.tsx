@@ -99,7 +99,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return [];
   }, [latestMeasurement]);
 
-  // Get history rows (all except the latest)
+  // Get history rows (all except the latest) - memoized for performance
   const historyRows = useMemo(() => {
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
@@ -2137,35 +2137,45 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       // Only refresh cells for changed assets
       if (changedAssetIds.size > 0) {
+        // Batch refresh all changed nodes at once for better performance
         const refreshCellsForAsset = (gridApi: any) => {
           if (!gridApi) return;
           
+          // Collect all nodes that need refreshing
+          const nodesToRefresh: any[] = [];
           gridApi.forEachNode((node: any) => {
             if (node.data && changedAssetIds.has(node.data.id)) {
-              // Only refresh the structure_drawing_url column where the icon is shown
-              gridApi.refreshCells({ 
-                rowNodes: [node], 
-                columns: ['structure_drawing_url'],
-                force: true 
-              });
+              nodesToRefresh.push(node);
             }
           });
+          
+          // Batch refresh all changed nodes at once for better performance
+          if (nodesToRefresh.length > 0) {
+            gridApi.refreshCells({ 
+              rowNodes: nodesToRefresh, 
+              columns: ['structure_drawing_url'],
+              force: true 
+            });
+          }
         };
         
-        if (gridRef.current?.api) {
-          refreshCellsForAsset(gridRef.current.api);
-        }
-        if (historyGridRef.current?.api) {
-          refreshCellsForAsset(historyGridRef.current.api);
-        }
+        // Use requestAnimationFrame to batch DOM updates
+        requestAnimationFrame(() => {
+          if (gridRef.current?.api) {
+            refreshCellsForAsset(gridRef.current.api);
+          }
+          if (historyGridRef.current?.api) {
+            refreshCellsForAsset(historyGridRef.current.api);
+          }
+        });
       }
       
       // Update previous errors
       prevValidationErrorsRef.current = new Map(currentErrors);
     };
     
-    // Use a delay to ensure React has committed the state update
-    const timer = setTimeout(refreshGrid, 50);
+    // Debounce grid refresh to avoid excessive updates and improve performance
+    const timer = setTimeout(refreshGrid, 150);
     return () => clearTimeout(timer);
   }, [validationErrors]);
 
@@ -2281,13 +2291,24 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       try {
         allAssetMeasurements = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
         
-        // Log for debugging
-        console.log('[AssetDetails] Fetched measurements:', {
-          totalCount: allAssetMeasurements.length,
-          latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-          historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-          allIds: allAssetMeasurements.map(m => ({ id: m.id, measurement_date: m.measurement_date, is_latest: m.is_latest }))
-        });
+        // Limit history records to last 50 to prevent performance issues with very large history
+        const latestRecord = allAssetMeasurements.find(m => m.is_latest === true);
+        const historyRecords = allAssetMeasurements
+          .filter(m => m.is_latest !== true)
+          .slice(0, 50); // Only keep last 50 history records
+        
+        allAssetMeasurements = latestRecord 
+          ? [latestRecord, ...historyRecords]
+          : historyRecords;
+        
+        // Log for debugging (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AssetDetails] Fetched measurements:', {
+            totalCount: allAssetMeasurements.length,
+            latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+            historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+          });
+        }
       } catch (historyErr) {
         console.error('[AssetDetails] Error fetching asset history:', historyErr);
         // If history fetch fails, at least show the master record
@@ -2656,23 +2677,27 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   };
                 }}
                 gridOptions={{
-                  suppressColumnVirtualisation: true,
+                  suppressColumnVirtualisation: false, // Enable virtualization for better performance
                   alwaysShowHorizontalScroll: true,
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
+                  rowBuffer: 10, // Reduce row buffer for better performance
+                  debounceVerticalScrollbar: true,
                 }}
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
+                  // Delay text overflow detection to avoid blocking initial render
                   setTimeout(() => {
                     detectAndApplyTextOverflow(params.api);
-                  }, 200);
+                  }, 500);
                 }}
                 onFirstDataRendered={async (params) => {
+                  // Delay text overflow detection to avoid blocking initial render
                   setTimeout(() => {
                     detectAndApplyTextOverflow(params.api);
                     setupTextOverflowObserver(params.api);
-                  }, 200);
+                  }, 500);
                 }}
                 onColumnResized={(params) => {
                   gridPreferences.handleColumnResized();
@@ -2781,8 +2806,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       minWidth: 40
                     }}
                     gridOptions={{
-                      suppressColumnVirtualisation: true,
+                      suppressColumnVirtualisation: false, // Enable virtualization for better performance
                       alwaysShowHorizontalScroll: true,
+                      suppressMovableColumns: true,
+                      suppressColumnMoveAnimation: true,
+                      rowBuffer: 10, // Reduce row buffer for better performance
+                      debounceVerticalScrollbar: true,
                     }}
                     suppressHorizontalScroll={false}
                     getRowId={(params) => {
@@ -2800,9 +2829,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       if (structureDrawingCol && structureDrawingCol.hide) {
                         params.api.setColumnVisible('structure_drawing_url', true);
                       }
+                      // Delay text overflow detection to avoid blocking initial render
                       setTimeout(() => {
                         detectAndApplyTextOverflow(params.api);
-                      }, 200);
+                      }, 500);
                     }}
                     onFirstDataRendered={async (params) => {
                       // Ensure actions column is visible

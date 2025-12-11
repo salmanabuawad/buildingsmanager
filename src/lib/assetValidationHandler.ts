@@ -410,6 +410,36 @@ export class AssetValidationHandler {
       });
     }
     
+    // Check if asset type is not_accountable - skip all validation if true
+    if (asset.main_asset_type) {
+      let assetTypes = cachedData?.assetTypes;
+      if (!assetTypes || assetTypes.length === 0) {
+        // Fetch asset types if not cached
+        try {
+          const { api } = await import('./api');
+          assetTypes = await api.assetTypes.getAll();
+        } catch (error) {
+          console.error('[AssetValidationHandler] Failed to fetch asset types:', error);
+        }
+      }
+      
+      if (assetTypes && assetTypes.length > 0) {
+        const assetTypeNameStr = String(asset.main_asset_type).trim();
+        const assetType = assetTypes.find(at => String(at.name).trim() === assetTypeNameStr);
+        
+        if (assetType && assetType.not_accountable === true) {
+          // Asset type is not_accountable - skip all validation
+          return {
+            assetId: asset.asset_id,
+            assetIdentifier,
+            valid: true,
+            errors: [],
+            passed: ['נכס לא נספר - דילוג על אימות']
+          };
+        }
+      }
+    }
+    
     const allErrors: string[] = [];
     const passedRules: string[] = [];
     let matchedAssetTypeRecord: string | undefined;

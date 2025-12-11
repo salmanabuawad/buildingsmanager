@@ -386,6 +386,30 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Create updated asset with new value
       const updatedAsset = { ...data, [field]: newValue };
 
+      // Skip validation if asset is not_accountable
+      if (isAssetNotAccountable(updatedAsset)) {
+        // Still update the local state and clear any existing validation errors
+        setDirtyAssets(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(assetId) || {};
+          newMap.set(assetId, { ...existing, [field]: newValue });
+          return newMap;
+        });
+        setAssets(prevAssets =>
+          prevAssets.map(asset =>
+            String(asset.asset_id) === String(assetId) ? updatedAsset : asset
+          )
+        );
+        // Clear validation errors for this asset
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(assetId);
+          return newMap;
+        });
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        return;
+      }
+
       // Track the change in dirtyAssets immediately (no debounce)
       setDirtyAssets(prev => {
         const newMap = new Map(prev);

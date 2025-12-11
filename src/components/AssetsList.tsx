@@ -1315,7 +1315,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   // Distribute shared area to all residential assets
   const handleDistributeSharedArea = useCallback(async () => {
-    if (!building || !building.private_shared_area || building.private_shared_area <= 0) {
+    if (!building || !building.residence_shared_area || building.residence_shared_area <= 0) {
       setError('אין שטח משותף מגורים במבנה או השטח הוא 0');
       setTimeout(() => setError(null), 3000);
       return;
@@ -1351,7 +1351,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Check if asset is private/residential type (not business)
         if (!asset.main_asset_type) return false;
         const assetType = assetTypeMap.get(String(asset.main_asset_type));
-        if (!assetType || assetType.business_private !== 'מגורים') {
+        if (!assetType || assetType.business_residence !== 'מגורים') {
           return false;
         }
         
@@ -1366,7 +1366,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       // Calculate area per asset
-      const areaPerAsset = building.private_shared_area! / residentialAssets.length;
+      const areaPerAsset = building.residence_shared_area! / residentialAssets.length;
       
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
@@ -1537,7 +1537,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
       
-      setSuccess(`פוזר שטח משותף מגורים (${building.private_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
+      setSuccess(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
       setTimeout(() => setSuccess(null), 5000);
 
       // Refresh grid
@@ -1589,7 +1589,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Check if asset is business type
         if (!asset.main_asset_type) return false;
         const assetType = assetTypeMap.get(String(asset.main_asset_type));
-        if (!assetType || assetType.business_private !== 'עסקים') {
+        if (!assetType || assetType.business_residence !== 'עסקים') {
           return false;
         }
         
@@ -2664,11 +2664,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     const visibleAssets = assets.filter(asset => !deletedAssets.has(String(asset.asset_id)));
     if (visibleAssets.length === 0) return false;
     
-    // Check if all assets have business_private === 'מגורים'
+    // Check if all assets have business_residence === 'מגורים'
     const allPrivate = visibleAssets.every(asset => {
       if (!asset.main_asset_type) return false;
       const assetType = assetTypeMap.get(String(asset.main_asset_type));
-      return assetType && assetType.business_private === 'מגורים';
+      return assetType && assetType.business_residence === 'מגורים';
     });
     
     return allPrivate;
@@ -2817,14 +2817,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               ייצא ל-Excel
             </button>
           </div>
-          {/* Distribute shared area button - always visible if building has private_shared_area (works on all assets, not just specific tax region) */}
-          {building && building.private_shared_area && building.private_shared_area > 0 && (
+          {/* Distribute shared area button - always visible if building has residence_shared_area (works on all assets, not just specific tax region) */}
+          {building && building.residence_shared_area && building.residence_shared_area > 0 && (
             <button
               type="button"
               onClick={handleDistributeSharedArea}
               disabled={loading || assets.length === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-              title={`פזר שטח משותף מגורים (${building.private_shared_area?.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
+              title={`פזר שטח משותף מגורים (${building.residence_shared_area?.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
             >
               <Download className="h-4 w-4" />
               פזר שטח משותף

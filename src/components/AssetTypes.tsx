@@ -42,7 +42,7 @@ export function AssetTypes() {
     penthouse: '',
     condo: '',
     townhouses: '',
-    business_private: '',
+    business_residence: '',
     shared_area_usage: '',
     not_accountable: false,
     min_size: '',
@@ -76,7 +76,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', business_private: '', shared_area_usage: '', not_accountable: false, min_size: '', max_size: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', business_residence: '', shared_area_usage: '', not_accountable: false, min_size: '', max_size: '' });
     setIsAdding(false);
   }
 
@@ -108,7 +108,7 @@ export function AssetTypes() {
         penthouse: formData.penthouse || undefined,
         condo: formData.condo || undefined,
         townhouses: formData.townhouses || undefined,
-        business_private: formData.business_private || undefined,
+        business_residence: formData.business_residence || undefined,
         shared_area_usage: formData.shared_area_usage || undefined,
         not_accountable: formData.not_accountable || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
@@ -158,8 +158,8 @@ export function AssetTypes() {
         }
       }
 
-      // Validate business_private field
-      if (field === 'business_private') {
+      // Validate business_residence field
+      if (field === 'business_residence') {
         if (newValue !== null && newValue !== undefined && newValue !== '' && newValue !== 'עסקים' && newValue !== 'מגורים') {
           showMessage('error', 'עסקים/מגורים חייב להיות "עסקים" או "מגורים"');
           return;
@@ -495,7 +495,7 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'business_private',
+      field: 'business_residence',
       headerName: 'עסקים/מגורים',
       editable: true,
       cellEditor: 'agSelectCellEditor',
@@ -503,7 +503,7 @@ export function AssetTypes() {
         values: ['', 'עסקים', 'מגורים']
       },
       cellStyle: (params: any) => {
-        const isDirty = params.data && isFieldDirty(params.data.id, 'business_private');
+        const isDirty = params.data && isFieldDirty(params.data.id, 'business_residence');
         return { 
           textAlign: 'right',
           backgroundColor: isDirty ? '#fef3c7' : undefined,
@@ -691,7 +691,7 @@ export function AssetTypes() {
       'דירת גג',                 // penthouse
       'בית משותף',               // condo
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
-      'עסקים/מגורים',            // business_private
+      'עסקים/מגורים',            // business_residence
       'שימוש בשטח משותף',         // shared_area_usage
       'לא נספר',                  // not_accountable
       'שטח מ',                   // min_size
@@ -754,7 +754,7 @@ export function AssetTypes() {
       'דירת גג',                 // penthouse
       'בית משותף',               // condo
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
-      'עסקים/מגורים',            // business_private
+      'עסקים/מגורים',            // business_residence
       'שימוש בשטח משותף',         // shared_area_usage
       'לא נספר',                  // not_accountable
       'שטח מ',                   // min_size
@@ -774,7 +774,7 @@ export function AssetTypes() {
         assetType.penthouse || '',
         assetType.condo || '',
         assetType.townhouses || '',
-        assetType.business_private || '',
+        assetType.business_residence || '',
         assetType.shared_area_usage || '',
         assetType.not_accountable ? 'כן' : 'לא',
         assetType.min_size?.toString() || '',
@@ -910,11 +910,11 @@ export function AssetTypes() {
         'townhouses': 'townhouses',
         'מבנים צמודי קרקע טוריים מעל 2 יחידות': 'townhouses',
         'טוריים': 'townhouses',
-        // business_private field
-        'business_private': 'business_private',
-        'businessprivate': 'business_private',
-        'עסקים/מגורים': 'business_private',
-        'עסקיםמגורים': 'business_private',
+        // business_residence field
+        'business_residence': 'business_residence',
+        'businessresidence': 'business_residence',
+        'עסקים/מגורים': 'business_residence',
+        'עסקיםמגורים': 'business_residence',
         // shared_area_usage field
         'shared_area_usage': 'shared_area_usage',
         'sharedareausage': 'shared_area_usage',
@@ -1010,18 +1010,18 @@ export function AssetTypes() {
           const penthouse = getValue('penthouse');
           const condo = getValue('condo');
           const townhouses = getValue('townhouses');
-          const business_private = getValue('business_private');
+          const business_residence = getValue('business_residence');
           const shared_area_usage = getValue('shared_area_usage');
           const not_accountable = getValue('not_accountable');
           const min_size = getValue('min_size');
           const max_size = getValue('max_size');
 
-          // Validate business_private field - only allow 'עסקים', 'מגורים', or empty
-          let validBusinessPrivate: string | undefined = undefined;
-          if (business_private && business_private.trim() !== '') {
-            const trimmed = business_private.trim();
+          // Validate business_residence field - only allow 'עסקים', 'מגורים', or empty
+          let validBusinessResidence: string | undefined = undefined;
+          if (business_residence && business_residence.trim() !== '') {
+            const trimmed = business_residence.trim();
             if (trimmed === 'עסקים' || trimmed === 'מגורים') {
-              validBusinessPrivate = trimmed;
+              validBusinessResidence = trimmed;
             } else {
               errors.push(`שורה ${i + 1}: עסקים/מגורים חייב להיות "עסקים" או "מגורים"`);
               errorCount++;
@@ -1039,7 +1039,7 @@ export function AssetTypes() {
             penthouse: penthouse || undefined,
             condo: condo || undefined,
             townhouses: townhouses || undefined,
-            business_private: validBusinessPrivate,
+            business_residence: validBusinessResidence,
             shared_area_usage: shared_area_usage || undefined,
             not_accountable: not_accountable && (not_accountable.toLowerCase() === 'כן' || not_accountable.toLowerCase() === 'yes' || not_accountable === '1' || not_accountable === 'true') ? true : (not_accountable && (not_accountable.toLowerCase() === 'לא' || not_accountable.toLowerCase() === 'no' || not_accountable === '0' || not_accountable === 'false') ? false : undefined),
             min_size: min_size ? parseFloat(min_size) : undefined,
@@ -1300,8 +1300,8 @@ export function AssetTypes() {
                   עסקים/מגורים
                 </label>
                 <select
-                  value={formData.business_private || ''}
-                  onChange={(e) => setFormData({ ...formData, business_private: e.target.value || '' })}
+                  value={formData.business_residence || ''}
+                  onChange={(e) => setFormData({ ...formData, business_residence: e.target.value || '' })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 >
                   <option value="">-- בחר --</option>

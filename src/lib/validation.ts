@@ -2436,14 +2436,14 @@ export const buildingValidators = {
           const components = trimmedValue.split(',').map(v => v.trim()).map(v => parseInt(v)).filter(v => !isNaN(v));
           
           if (components.length > 1) {
-            // Get all asset types to check business_private for each tax region
+            // Get all asset types to check business_residence for each tax region
             const assetTypes = await api.assetTypes.getAll();
             
-            // Map tax regions to their business_private types
+            // Map tax regions to their business_residence types
             const taxRegionToBusinessType = new Map<number, string>();
             for (const at of assetTypes) {
-              if (at.tax_region != null && at.business_private) {
-                taxRegionToBusinessType.set(at.tax_region, at.business_private);
+              if (at.tax_region != null && at.business_residence) {
+                taxRegionToBusinessType.set(at.tax_region, at.business_residence);
               }
             }
             
@@ -2500,7 +2500,7 @@ export const buildingValidators = {
         assetTypeMap.set(String(at.name), at);
       }
 
-      // Collect tax regions by business_private type
+      // Collect tax regions by business_residence type
       const taxRegionsByType = new Map<string, Set<number>>();
       taxRegionsByType.set('עסקים', new Set<number>());
       taxRegionsByType.set('מגורים', new Set<number>());
@@ -2519,8 +2519,8 @@ export const buildingValidators = {
         // Process main asset type
         if (asset.main_asset_type) {
           const assetType = assetTypeMap.get(String(asset.main_asset_type));
-          if (assetType && assetType.business_private && assetType.tax_region != null) {
-            const businessType = assetType.business_private;
+          if (assetType && assetType.business_residence && assetType.tax_region != null) {
+            const businessType = assetType.business_residence;
             if (taxRegionsByType.has(businessType)) {
               taxRegionsByType.get(businessType)!.add(assetType.tax_region);
             }
@@ -2532,8 +2532,8 @@ export const buildingValidators = {
           const subTypeName = asset[`sub_asset_type_${i}` as keyof typeof asset] as string | undefined;
           if (subTypeName) {
             const assetType = assetTypeMap.get(String(subTypeName));
-            if (assetType && assetType.business_private && assetType.tax_region != null) {
-              const businessType = assetType.business_private;
+            if (assetType && assetType.business_residence && assetType.tax_region != null) {
+              const businessType = assetType.business_residence;
               if (taxRegionsByType.has(businessType)) {
                 taxRegionsByType.get(businessType)!.add(assetType.tax_region);
               }
@@ -2681,10 +2681,10 @@ export const buildingValidators = {
       }
     }
 
-    // Validate private_shared_area (should be positive number if provided)
-    if (building.private_shared_area != null) {
-      if (isNaN(Number(building.private_shared_area)) || Number(building.private_shared_area) < 0) {
-        errors.private_shared_area = 'Private shared area must be a positive number';
+    // Validate residence_shared_area (should be positive number if provided)
+    if (building.residence_shared_area != null) {
+      if (isNaN(Number(building.residence_shared_area)) || Number(building.residence_shared_area) < 0) {
+        errors.residence_shared_area = 'Residence shared area must be a positive number';
       }
     }
     

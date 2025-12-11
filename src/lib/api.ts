@@ -5,7 +5,7 @@ import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './s
 export interface Building {
   building_number: number;
   tax_region?: string;
-  private_shared_area?: number;
+  residence_shared_area?: number;
   business_shared_area?: number;
   elevator?: string;
   area_for_control?: number;
@@ -87,7 +87,7 @@ export interface AssetType {
   penthouse?: string;
   condo?: string;
   townhouses?: string;
-  business_private?: string;
+  business_residence?: string;
   shared_area_usage?: string;
   active?: string;
   not_accountable?: boolean; // לא נספר
@@ -212,8 +212,8 @@ function sanitizeBuildingInput(input: any): any {
   if (input.tax_region != null && input.tax_region !== '') {
     sanitized.tax_region = sanitizeText(input.tax_region);
   }
-  if (input.private_shared_area != null) {
-    sanitized.private_shared_area = sanitizeNumber(input.private_shared_area);
+  if (input.residence_shared_area != null) {
+    sanitized.residence_shared_area = sanitizeNumber(input.residence_shared_area);
   }
   if (input.business_shared_area != null) {
     sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);

@@ -3614,21 +3614,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="number"
                       step="0.01"
-                      value={buildingCreateData.private_shared_area || ''}
+                      value={buildingCreateData.residence_shared_area || ''}
                       onChange={async (e) => {
-                        const newData = { ...buildingCreateData, private_shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
+                        const newData = { ...buildingCreateData, residence_shared_area: e.target.value ? parseFloat(e.target.value) : undefined };
                         setBuildingCreateData(newData);
                         await validateBuildingData(newData);
                       }}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                        buildingValidationErrors.private_shared_area 
+                        buildingValidationErrors.residence_shared_area 
                           ? 'border-red-500' 
                           : 'border-gray-300'
                       }`}
                       disabled={isCreatingBuilding}
                     />
-                    {buildingValidationErrors.private_shared_area && (
-                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.private_shared_area}</p>
+                    {buildingValidationErrors.residence_shared_area && (
+                      <p className="mt-1 text-sm text-red-600">{buildingValidationErrors.residence_shared_area}</p>
                     )}
                   </div>
 

@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS asset_types (
   penthouse TEXT,
   condo TEXT,
   townhouses TEXT,
-  business_private TEXT,
+  business_residence TEXT,
   shared_area_usage TEXT,
   min_size NUMERIC,
   max_size NUMERIC,
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS buildings (
   single_double_family text,
   condo text,
   townhouses text,
-  shared_area numeric(10,2) DEFAULT 0,
+  residence_shared_area numeric(10,2) DEFAULT 0,
   shared_business_area numeric(10,2),
   total_area_for_control numeric,
   building_address integer,
@@ -288,7 +288,7 @@ COMMENT ON COLUMN buildings.helka IS 'חלקה - Parcel number';
 COMMENT ON COLUMN buildings.building_number_in_street IS 'מספר בניין - Building number in street';
 COMMENT ON COLUMN buildings.building_address IS 'Street code from address_list table (foreign key to address_list.street_code)';
 COMMENT ON COLUMN buildings.overload_ratio IS 'אחוז העמסה - Overload ratio percentage';
-COMMENT ON COLUMN buildings.shared_area IS 'Shared/common area in the building (שטח משותף)';
+COMMENT ON COLUMN buildings.residence_shared_area IS 'Residence shared/common area in the building (שטח משותף מגורים)';
 COMMENT ON COLUMN buildings.shared_business_area IS 'Shared business/commercial area in the building (שטח משותף עסקים)';
 
 -- ============================================================================

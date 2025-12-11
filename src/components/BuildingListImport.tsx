@@ -54,7 +54,7 @@ export function BuildingListImport() {
       const exactHeaders: Record<string, string[]> = {
         'building_number': ['מספר מבנה', 'מספר_מבנה', 'building_number'],
         'tax_region': ['אזור מס', 'אזור_מס', 'tax_region'],
-        'private_shared_area': ['שטח משותף מגורים', 'שטח_משותף_מגורים', 'private_shared_area', 'shared_area'],
+        'residence_shared_area': ['שטח משותף מגורים', 'שטח_משותף_מגורים', 'residence_shared_area', 'shared_area'],
         'business_shared_area': ['שטח משותף עסקים', 'שטח_משותף_עסקים', 'business_shared_area', 'shared_business_area'],
         'building_address': ['סמל רחוב', 'סמל_רחוב', 'building_address']
       };
@@ -114,8 +114,8 @@ export function BuildingListImport() {
         const taxRegion = headerMap['tax_region'] !== undefined 
           ? (parts[headerMap['tax_region']] || '').trim() 
           : '';
-        const sharedAreaStr = headerMap['private_shared_area'] !== undefined 
-          ? (parts[headerMap['private_shared_area']] || '').trim() 
+        const sharedAreaStr = headerMap['residence_shared_area'] !== undefined 
+          ? (parts[headerMap['residence_shared_area']] || '').trim() 
           : '';
         const sharedBusinessAreaStr = headerMap['business_shared_area'] !== undefined 
           ? (parts[headerMap['business_shared_area']] || '').trim() 
@@ -157,7 +157,7 @@ export function BuildingListImport() {
           await api.buildings.create({
             building_number: buildingNumber,
             tax_region: taxRegion || undefined,
-            private_shared_area: sharedArea,
+            residence_shared_area: sharedArea,
             business_shared_area: sharedBusinessArea,
             building_address: buildingAddress
           });

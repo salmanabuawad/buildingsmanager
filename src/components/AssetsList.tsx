@@ -1329,15 +1329,39 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       return;
     }
 
+    // Check if assets array is empty or not loaded BEFORE setting loading state
+    if (!assets || assets.length === 0) {
+      setError('אין נכסים במבנה');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      // Create asset type map for quick lookup
+
+      // Create asset type map for quick lookup - use multiple keys for flexibility
       const assetTypeMap = new Map<string, AssetType>();
       assetTypes.forEach(at => {
-        assetTypeMap.set(at.name, at);
+        const nameKey = String(at.name).trim();
+        assetTypeMap.set(nameKey, at);
+        // Also add numeric version if name is numeric
+        const nameAsNum = parseInt(nameKey, 10);
+        if (!isNaN(nameAsNum)) {
+          assetTypeMap.set(String(nameAsNum), at);
+        }
+      });
+
+      console.log('[DistributeResidence] Starting distribution:', {
+        totalAssets: assets.length,
+        assetTypesCount: assetTypes.length,
+        residenceSharedArea: building.residence_shared_area,
+        sampleAssetTypes: assetTypes.slice(0, 3).map(at => ({
+          name: at.name,
+          business_residence: at.business_residence
+        }))
       });
 
       // Filter assets: only private/residential assets that are accountable
@@ -1346,6 +1370,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
       let notResidentialCount = 0;
+      let residentialFoundCount = 0;
       
       const residentialAssets = assets.filter(asset => {
         // Skip deleted assets
@@ -1370,28 +1395,53 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const mainTypeStr = String(asset.main_asset_type).trim();
         let assetType = assetTypeMap.get(mainTypeStr);
         
-        // If not found, try finding by name directly (case-insensitive, handle number/string mismatches)
+        // If not found, try numeric lookup
+        if (!assetType) {
+          const mainTypeNum = parseInt(mainTypeStr, 10);
+          if (!isNaN(mainTypeNum)) {
+            assetType = assetTypeMap.get(String(mainTypeNum));
+          }
+        }
+        
+        // If still not found, try finding by name directly
         if (!assetType) {
           assetType = assetTypes.find(at => {
             const atNameStr = String(at.name).trim();
-            return atNameStr === mainTypeStr || 
-                   atNameStr === String(asset.main_asset_type) ||
-                   String(atNameStr) === String(mainTypeStr);
+            return atNameStr === mainTypeStr;
           });
         }
         
         if (!assetType) {
           assetTypeNotFoundCount++;
+          console.warn('[DistributeResidence] Asset type not found:', {
+            assetId: asset.asset_id,
+            mainAssetType: asset.main_asset_type,
+            mainTypeStr,
+            availableTypes: Array.from(assetTypeMap.keys()).slice(0, 10)
+          });
           return false;
         }
         
         // Check if asset type is residential
-        if (!assetType.business_residence || assetType.business_residence.trim() !== 'מגורים') {
+        const businessResidence = assetType.business_residence ? String(assetType.business_residence).trim() : '';
+        if (businessResidence !== 'מגורים') {
           notResidentialCount++;
           return false;
         }
         
+        residentialFoundCount++;
         return true;
+      });
+
+      console.log('[DistributeResidence] Filter results:', {
+        totalAssets: assets.length,
+        residentialFound: residentialFoundCount,
+        deletedCount,
+        notAccountableCount,
+        noMainTypeCount,
+        assetTypeNotFoundCount,
+        notResidentialCount,
+        finalResidentialAssets: residentialAssets.length
       });
 
       if (residentialAssets.length === 0) {
@@ -1409,12 +1459,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';
         if (reasons.length > 0) {
           errorMsg += `. סיבות: ${reasons.join(', ')}`;
+        } else if (totalAssets > 0) {
+          errorMsg += `. נמצאו ${totalAssets} נכסים במבנה, אך אף אחד מהם לא מסוג מגורים`;
         }
         if (totalAssets === 0) {
           errorMsg = 'אין נכסים במבנה';
-        } else if (totalFiltered === totalAssets) {
+        } else if (totalFiltered === totalAssets && totalAssets > 0) {
           errorMsg += `. כל הנכסים במבנה נפסלו (סה"כ ${totalAssets} נכסים)`;
         }
+        
+        console.error('[DistributeResidence] Error:', errorMsg, {
+          totalAssets,
+          totalFiltered,
+          reasons
+        });
         
         setError(errorMsg);
         setTimeout(() => setError(null), 5000);

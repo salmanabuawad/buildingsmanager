@@ -185,34 +185,17 @@ function FieldConfigRow({
           </span>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3" style={{ maxWidth: '80px', width: '80px' }}>
         {isEditing ? (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setColumnOrder(Math.max(0, (columnOrder || 0) - 1))}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
-              title="הפחת"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <input
-              type="number"
-              min="0"
-              value={columnOrder || ''}
-              onChange={(e) => setColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="סדר"
-              className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
-            />
-            <button
-              type="button"
-              onClick={() => setColumnOrder((columnOrder || 0) + 1)}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
-              title="הוסף"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
+          <input
+            type="number"
+            min="0"
+            value={columnOrder || ''}
+            onChange={(e) => setColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
+            placeholder="סדר"
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+            style={{ maxWidth: '60px' }}
+          />
         ) : (
           <span className="text-slate-700">{config.column_order ?? '-'}</span>
         )}
@@ -466,7 +449,7 @@ export function FieldConfigManager() {
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נעיצה</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נראה</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">סדר</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700" style={{ maxWidth: '80px', width: '80px' }}>סדר</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">פעולות</th>
                   </tr>
                 </thead>

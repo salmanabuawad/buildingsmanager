@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { FieldConfiguration, api } from '../lib/api';
-import { Save, X, Plus, Trash2, RefreshCw, Edit, Minus } from 'lucide-react';
+import { Save, X, Plus, Trash2, RefreshCw, Edit, Minus, Download, Upload, Filter } from 'lucide-react';
 import { Toast } from './Toast';
+import * as XLSX from 'xlsx';
 
 // Editable row component
 function FieldConfigRow({ 
@@ -249,6 +250,8 @@ export function FieldConfigManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [selectedGridName, setSelectedGridName] = useState<string>('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load configurations on mount
   useEffect(() => {
@@ -339,12 +342,256 @@ export function FieldConfigManager() {
     }
   }
 
+  // Export configurations to Excel
+  function handleExportToExcel() {
+    try {
+      // Filter configurations based on selected grid
+      const configsToExport = selectedGridName === 'all' 
+        ? configurations 
+        : configurations.filter(config => config.grid_name === selectedGridName);
 
-  // Group configurations by grid_name and sort
+      if (configsToExport.length === 0) {
+        setToast({ 
+          message: 'אין הגדרות שדות לייצוא', 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+
+      // Define headers
+      const headers = [
+        'שם גריד',
+        'שם שדה',
+        'שם בעברית',
+        'רוחב (תווים)',
+        'תפיחה (פיקסלים)',
+        'נעוץ',
+        'צד נעיצה',
+        'נראה',
+        'סדר עמודה'
+      ];
+
+      // Convert configurations to rows
+      const rows = configsToExport.map(config => [
+        config.grid_name || '',
+        config.field_name || '',
+        config.hebrew_name || '',
+        config.width_chars || 10,
+        config.padding || 8,
+        config.pinned ? 'כן' : 'לא',
+        config.pin_side || '',
+        config.visible !== false ? 'כן' : 'לא',
+        config.column_order || ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 20 }, // שם גריד
+        { wch: 20 }, // שם שדה
+        { wch: 20 }, // שם בעברית
+        { wch: 12 }, // רוחב (תווים)
+        { wch: 12 }, // תפיחה (פיקסלים)
+        { wch: 8 },  // נעוץ
+        { wch: 12 }, // צד נעיצה
+        { wch: 8 },  // נראה
+        { wch: 12 }  // סדר עמודה
+      ];
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'הגדרות שדות');
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const gridSuffix = selectedGridName !== 'all' ? `_${selectedGridName}` : '';
+      const filename = `הגדרות_שדות${gridSuffix}_${dateStr}.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(workbook, filename);
+      
+      setToast({ 
+        message: `יוצאו ${rows.length} הגדרות שדות בהצלחה`, 
+        type: 'success' 
+      });
+      setTimeout(() => setToast(null), 3000);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      setToast({ 
+        message: 'שגיאה בייצוא לקובץ Excel', 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 3000);
+    }
+  }
+
+  // Import configurations from Excel
+  async function handleImportFromExcel(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+      if (jsonData.length < 2) {
+        setToast({ 
+          message: 'קובץ Excel אינו תקין - חסרים נתונים', 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+
+      // Get headers (first row)
+      const headers = jsonData[0] as string[];
+      
+      // Find column indices
+      const gridNameIndex = headers.findIndex(h => h === 'שם גריד' || h === 'grid_name');
+      const fieldNameIndex = headers.findIndex(h => h === 'שם שדה' || h === 'field_name');
+      const hebrewNameIndex = headers.findIndex(h => h === 'שם בעברית' || h === 'hebrew_name');
+      const widthCharsIndex = headers.findIndex(h => h === 'רוחב (תווים)' || h === 'width_chars');
+      const paddingIndex = headers.findIndex(h => h === 'תפיחה (פיקסלים)' || h === 'padding');
+      const pinnedIndex = headers.findIndex(h => h === 'נעוץ' || h === 'pinned');
+      const pinSideIndex = headers.findIndex(h => h === 'צד נעיצה' || h === 'pin_side');
+      const visibleIndex = headers.findIndex(h => h === 'נראה' || h === 'visible');
+      const columnOrderIndex = headers.findIndex(h => h === 'סדר עמודה' || h === 'column_order');
+
+      if (gridNameIndex === -1 || fieldNameIndex === -1) {
+        setToast({ 
+          message: 'קובץ Excel אינו תקין - חסרים עמודות חובה (שם גריד, שם שדה)', 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+
+      // Process rows (skip header row)
+      const rowsToImport = jsonData.slice(1);
+      let importedCount = 0;
+      let errorCount = 0;
+
+      setSaving(true);
+
+      for (const row of rowsToImport) {
+        try {
+          const gridName = String(row[gridNameIndex] || '').trim();
+          const fieldName = String(row[fieldNameIndex] || '').trim();
+
+          if (!gridName || !fieldName) {
+            errorCount++;
+            continue;
+          }
+
+          const hebrewName = hebrewNameIndex !== -1 ? String(row[hebrewNameIndex] || '').trim() : undefined;
+          const widthChars = widthCharsIndex !== -1 ? parseInt(String(row[widthCharsIndex] || '10')) : 10;
+          const padding = paddingIndex !== -1 ? parseInt(String(row[paddingIndex] || '8')) : 8;
+          const pinned = pinnedIndex !== -1 ? (String(row[pinnedIndex] || '').trim() === 'כן' || String(row[pinnedIndex] || '').trim().toLowerCase() === 'yes' || String(row[pinnedIndex] || '').trim() === 'true') : false;
+          const pinSide = pinSideIndex !== -1 ? (String(row[pinSideIndex] || '').trim() === 'שמאל' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'left' ? 'left' : String(row[pinSideIndex] || '').trim() === 'ימין' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'right' ? 'right' : null) : null;
+          const visible = visibleIndex !== -1 ? (String(row[visibleIndex] || '').trim() !== 'לא' && String(row[visibleIndex] || '').trim().toLowerCase() !== 'no' && String(row[visibleIndex] || '').trim() !== 'false') : true;
+          const columnOrder = columnOrderIndex !== -1 ? (row[columnOrderIndex] ? parseInt(String(row[columnOrderIndex])) : undefined) : undefined;
+
+          await api.fieldConfigurations.upsert({
+            grid_name: gridName,
+            field_name: fieldName,
+            width_chars: widthChars,
+            padding: padding,
+            hebrew_name: hebrewName || undefined,
+            pinned: pinned,
+            pin_side: pinSide,
+            visible: visible,
+            column_order: columnOrder,
+          });
+
+          importedCount++;
+        } catch (rowError) {
+          console.error('Error importing row:', rowError);
+          errorCount++;
+        }
+      }
+
+      // Reload configurations
+      await loadConfigurations();
+      
+      // Clear cache
+      const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
+      clearFieldConfigCache();
+
+      setToast({ 
+        message: `יובאו ${importedCount} הגדרות שדות בהצלחה${errorCount > 0 ? `, ${errorCount} שגיאות` : ''}`, 
+        type: importedCount > 0 ? 'success' : 'error' 
+      });
+      setTimeout(() => setToast(null), 5000);
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error importing from Excel:', error);
+      setToast({ 
+        message: 'שגיאה בייבוא מקובץ Excel', 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+
+  // Get unique grid names for dropdown
+  const uniqueGridNames = useMemo(() => {
+    const gridNames = new Set<string>();
+    configurations.forEach(config => {
+      const gridName = config.grid_name || 'ללא גריד';
+      gridNames.add(gridName);
+    });
+    
+    // Define custom order for grid names (priority grids first)
+    const gridOrder = [
+      'buildings-list',
+      'assets-list',
+      'asset-details-main',
+      'asset-details-history'
+    ];
+    
+    // Sort grid names: priority grids first, then alphabetically
+    return Array.from(gridNames).sort((a, b) => {
+      const aIndex = gridOrder.indexOf(a);
+      const bIndex = gridOrder.indexOf(b);
+      
+      // If both are in the priority list, sort by their order in the list
+      if (aIndex !== -1 && bIndex !== -1) {
+        return aIndex - bIndex;
+      }
+      // If only one is in the priority list, it comes first
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      // If neither is in the priority list, sort alphabetically
+      return a.localeCompare(b);
+    });
+  }, [configurations]);
+
+  // Group configurations by grid_name and sort, filtered by selected grid
   const groupedConfigurations = useMemo(() => {
     const grouped = new Map<string, FieldConfiguration[]>();
     configurations.forEach(config => {
       const gridName = config.grid_name || 'ללא גריד';
+      // Filter by selected grid name
+      if (selectedGridName !== 'all' && gridName !== selectedGridName) {
+        return;
+      }
       if (!grouped.has(gridName)) {
         grouped.set(gridName, []);
       }
@@ -391,7 +638,7 @@ export function FieldConfigManager() {
       gridName,
       configs: grouped.get(gridName)!
     }));
-  }, [configurations]);
+  }, [configurations, selectedGridName]);
 
   if (loading) {
     return (
@@ -418,13 +665,56 @@ export function FieldConfigManager() {
       <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-slate-800">ניהול הגדרות שדות</h1>
-          <button
-            onClick={loadConfigurations}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            רענן
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportToExcel}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              title="ייצא ל-Excel"
+            >
+              <Download className="h-4 w-4" />
+              ייצא
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              title="ייבא מ-Excel"
+            >
+              <Upload className="h-4 w-4" />
+              ייבא
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportFromExcel}
+              className="hidden"
+            />
+            <button
+              onClick={loadConfigurations}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+            >
+              <RefreshCw className="h-4 w-4" />
+              רענן
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-slate-600" />
+            <label className="text-slate-700 font-medium">סינון לפי גריד:</label>
+            <select
+              value={selectedGridName}
+              onChange={(e) => setSelectedGridName(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+              <option value="all">הכל</option>
+              {uniqueGridNames.map(gridName => (
+                <option key={gridName} value={gridName}>{gridName}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <p className="text-slate-600 mb-6">

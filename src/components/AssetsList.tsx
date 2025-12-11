@@ -2881,8 +2881,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               ייצא ל-Excel
             </button>
           </div>
-          {/* Distribute shared area button - always visible, disabled if residence_shared_area is 0 or null */}
-          {building && (
+          {/* Distribute shared area button - only visible in residence tabs, disabled if residence_shared_area is 0 or null */}
+          {building && isResidentTaxRegion && (
             <button
               type="button"
               onClick={handleDistributeSharedArea}
@@ -2896,8 +2896,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               פזר שטח משותף
             </button>
           )}
-          {/* Distribute business shared area button - always visible, disabled if business_shared_area is 0 or null */}
-          {building && (
+          {/* Distribute business shared area button - only visible in business tabs, disabled if business_shared_area is 0 or null */}
+          {building && !isResidentTaxRegion && (
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}

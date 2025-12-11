@@ -334,31 +334,26 @@ export function ValidationResultModal({
                                     )
                                   )}
                               </div>
-                              {error.matchedAssetTypeRecord && (
-                                <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                                  <p className="text-xs font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                                  <p className="text-xs text-blue-700">{error.matchedAssetTypeRecord}</p>
-                                </div>
-                              )}
                               {error.errors.length > 0 && (
-                                <ul className="mt-2 space-y-1">
-                                  {error.errors.map((err, errIdx) => (
-                                    <li key={errIdx} className="text-sm text-red-700 flex items-start gap-2">
-                                      <span className="text-red-500">•</span>
-                                      <span>{err}</span>
-                                    </li>
-                                  ))}
-                                </ul>
+                                <>
+                                  {error.matchedAssetTypeRecord && (
+                                    <div className="mt-2 mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                      <p className="text-xs font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
+                                      <p className="text-xs text-blue-700">{error.matchedAssetTypeRecord}</p>
+                                    </div>
+                                  )}
+                                  <ul className="mt-2 space-y-1">
+                                    {error.errors.map((err, errIdx) => (
+                                      <li key={errIdx} className="text-sm text-red-700 flex items-start gap-2">
+                                        <span className="text-red-500">•</span>
+                                        <span>{err}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </>
                               )}
-                              {error.errors.length === 0 && error.passed && error.passed.length > 0 && (
-                                <ul className="mt-2 space-y-1">
-                                  {error.passed.map((passed, passedIdx) => (
-                                    <li key={passedIdx} className="text-sm text-green-700 flex items-start gap-2">
-                                      <span className="text-green-500">✓</span>
-                                      <span>{passed}</span>
-                                    </li>
-                                  ))}
-                                </ul>
+                              {error.errors.length === 0 && (
+                                <p className="text-xs text-green-600 mt-1">תקין</p>
                               )}
                             </div>
                           </div>
@@ -434,26 +429,7 @@ export function ValidationResultModal({
                 <div className="flex flex-col items-center justify-center py-2">
                   <CheckCircle2 className="h-10 w-10 text-green-500 mb-2" />
                   <p className="text-sm font-semibold text-green-700 mb-1">הנכס תקין</p>
-                  <p className="text-xs text-slate-600 mb-2">כל האימותים עברו בהצלחה</p>
-                  {singleResult.matchedAssetTypeRecord && (
-                    <div className="w-full mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm font-semibold text-blue-900 mb-1">רישום מסוג נכס שתואם:</p>
-                      <p className="text-xs text-blue-700">{singleResult.matchedAssetTypeRecord}</p>
-                    </div>
-                  )}
-                  {singleResult.passed && singleResult.passed.length > 0 && (
-                    <div className="w-full mt-4">
-                      <p className="text-sm font-semibold text-green-900 mb-2">אימותים שעברו בהצלחה:</p>
-                      <ul className="space-y-1">
-                        {singleResult.passed.map((passed, index) => (
-                          <li key={index} className="text-sm text-green-700 flex items-start gap-2 p-2 bg-green-50 border border-green-200 rounded">
-                            <span className="text-green-500">✓</span>
-                            <span>{passed}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <p className="text-xs text-slate-600">כל האימותים עברו בהצלחה</p>
                 </div>
               ) : (
                 <div>

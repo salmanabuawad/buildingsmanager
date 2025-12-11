@@ -1121,8 +1121,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         newAssetData.tax_region = taxRegionValue;
       }
 
-      // Store the old asset ID before updating it
+      // Store the old asset ID and get the full current asset data
       const oldAssetId = currentAsset.asset_id;
+      
+      // Get the complete current asset data from the database to ensure we copy everything
+      // This ensures we have all fields including any that might not be in the current state
+      let fullCurrentAssetData: Asset;
+      try {
+        fullCurrentAssetData = await api.assets.getOne(String(oldAssetId));
+      } catch (err) {
+        // If getOne fails, use the current asset data we have
+        console.warn('[AssetDetails] Could not fetch full asset data, using current state:', err);
+        fullCurrentAssetData = currentAsset;
+      }
 
       // Remove asset_id and created_at to create a new record (asset_id will be assigned by DB)
       // Note: We keep asset_id in newAssetData as it might be used for linking
@@ -1131,13 +1142,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       delete (newAssetData as any).is_latest;
       delete (newAssetData as any).history_created_at;
 
-      // First, update the old record with is_new_measurement flag set to true
-      // The database trigger will automatically move it to assets_history
+      // Step 1: Update the old record with is_new_measurement flag set to true
+      // The database trigger (copy_asset_to_history) will automatically copy the OLD record 
+      // (current asset data) to assets_history table before the update
+      // We only update the flag, so OLD contains all the current asset data
       await api.assets.update(oldAssetId, { is_new_measurement: true });
 
-      // Then create the new measurement in assets table (without the flag)
+      // Step 2: Update the same asset with the new measurement data
+      // Since we already copied the old data to history, we can now update with new data
+      // This replaces the current asset data with the new measurement data (same asset_id, new measurement_date)
       delete (newAssetData as any).is_new_measurement;
-      await api.assets.create(newAssetData as any);
+      const updatedAsset = await api.assets.update(oldAssetId, newAssetData as any);
 
       setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
       setDirtyAssets(new Map());

@@ -1422,10 +1422,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Check if asset type is residential
+        // Check if asset type is residential - must be explicitly 'מגורים'
         const businessResidence = assetType.business_residence ? String(assetType.business_residence).trim() : '';
         if (businessResidence !== 'מגורים') {
           notResidentialCount++;
+          // Log for debugging
+          if (notResidentialCount <= 3) { // Only log first 3 to avoid spam
+            console.log('[DistributeResidence] Asset not residential:', {
+              assetId: asset.asset_id,
+              mainAssetType: asset.main_asset_type,
+              assetTypeName: assetType.name,
+              businessResidence: businessResidence || '(empty/null)',
+              expected: 'מגורים'
+            });
+          }
           return false;
         }
         

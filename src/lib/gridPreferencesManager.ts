@@ -43,7 +43,8 @@ export async function getAllGridStates(userId: string = 'default'): Promise<Reco
   for (const gridName of gridKeys) {
     try {
       const preferenceKey = `grid-${gridName}`;
-      const state = await api.userPreferences.get(userId, preferenceKey);
+      // TODO: Load from field_configurations table instead
+      const state = null;
       if (state && Array.isArray(state)) {
         states[gridName] = state;
       }
@@ -61,30 +62,8 @@ export async function getAllGridStates(userId: string = 'default'): Promise<Reco
  */
 export async function clearAllGridStates(userId: string = 'default'): Promise<void> {
   try {
-    // Get all user preferences
-    const { data, error } = await api.userPreferences.getAll(userId);
-    
-    if (error) {
-      throw error;
-    }
-    
-    if (!data) {
-      return;
-    }
-    
-    // Filter to only grid preferences (those starting with "grid-")
-    const gridPreferences = data.filter((pref: any) => 
-      pref.preference_key && pref.preference_key.startsWith('grid-')
-    );
-    
-    // Delete each grid preference
-    for (const pref of gridPreferences) {
-      try {
-        await api.userPreferences.delete(userId, pref.preference_key);
-      } catch (error) {
-        console.error(`Error clearing grid state for ${pref.preference_key}:`, error);
-      }
-    }
+    // TODO: Clear from field_configurations table instead
+    console.log('[clearAllGridStates] Would clear from field_configurations');
   } catch (error) {
     console.error('Error getting user preferences for clearing:', error);
     throw error;

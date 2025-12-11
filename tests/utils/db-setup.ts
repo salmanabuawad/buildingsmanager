@@ -53,7 +53,6 @@ export async function setupTestDatabase(): Promise<void> {
     DROP TABLE IF EXISTS asset_types CASCADE;        -- Reference table
     DROP TABLE IF EXISTS validation_rules CASCADE;   -- Reference table
     DROP TABLE IF EXISTS address_list CASCADE;       -- Reference table
-    DROP TABLE IF EXISTS user_preferences CASCADE;
     DROP TABLE IF EXISTS assets_history CASCADE;
   `);
   
@@ -133,7 +132,6 @@ export async function clearTestData(): Promise<void> {
     TRUNCATE TABLE asset_types CASCADE;        -- Reference table
     TRUNCATE TABLE validation_rules CASCADE;   -- Reference table
     TRUNCATE TABLE address_list CASCADE;       -- Reference table
-    TRUNCATE TABLE user_preferences CASCADE;
   `);
 }
 

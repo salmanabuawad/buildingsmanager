@@ -49,7 +49,8 @@ export function useGridPreferences<T = any>(
     try {
       isRestoringRef.current = true;
       hasLoadedRef.current = true;
-      const savedState = await api.userPreferences.get(userId, preferenceKey);
+      // TODO: Load from field_configurations table instead
+      const savedState = null;
       
       if (savedState && Array.isArray(savedState) && savedState.length > 0) {
         // Apply saved column state (order, visibility, pinned, etc.)
@@ -167,7 +168,8 @@ export function useGridPreferences<T = any>(
         // Set flag to prevent reload after save
         justSavedRef.current = true;
         
-        await api.userPreferences.set(userId, preferenceKey, cleanedState);
+        // TODO: Save to field_configurations table instead
+        console.log('[useGridPreferences] Would save to field_configurations:', cleanedState);
         
         // Clear the flag after a delay to allow normal reloads later
         setTimeout(() => {

@@ -11,8 +11,7 @@
   4. buildings - Building information
   5. assets - Asset records (main table)
   6. assets_history - Historical asset measurements
-  7. user_preferences - User preferences storage
-  8. field_configurations - Field width/padding configurations
+  7. field_configurations - Field width/padding configurations
   9. asset_type_fields - Field level configurations
   
   Includes:
@@ -691,45 +690,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 -- ============================================================================
--- 7. USER PREFERENCES TABLE
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS user_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL DEFAULT 'default',
-  preference_key TEXT NOT NULL,
-  preference_value JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, preference_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_preferences_user_key ON user_preferences(user_id, preference_key);
-
-CREATE OR REPLACE FUNCTION update_user_preferences_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
-CREATE TRIGGER update_user_preferences_updated_at
-  BEFORE UPDATE ON user_preferences
-  FOR EACH ROW
-  EXECUTE FUNCTION update_user_preferences_updated_at();
-
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON user_preferences;
-CREATE POLICY "Allow all operations for authenticated users" ON user_preferences
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
--- ============================================================================
--- 8. FIELD CONFIGURATIONS TABLE
+-- 7. FIELD CONFIGURATIONS TABLE
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS field_configurations (

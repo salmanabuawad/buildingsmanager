@@ -1572,51 +1572,6 @@ export const api = {
 
     return { message: 'Assets deleted successfully' };
   },
-  userPreferences: {
-    get: async (userId: string = 'default', preferenceKey: string): Promise<any | null> => {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('preference_value')
-        .eq('user_id', userId)
-        .eq('preference_key', preferenceKey)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data?.preference_value || null;
-    },
-    getAll: async (userId: string = 'default'): Promise<Array<{ preference_key: string; preference_value: any }>> => {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('preference_key, preference_value')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      return data || [];
-    },
-    set: async (userId: string = 'default', preferenceKey: string, preferenceValue: any): Promise<void> => {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: userId,
-          preference_key: preferenceKey,
-          preference_value: preferenceValue,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,preference_key'
-        });
-
-      if (error) throw error;
-    },
-    delete: async (userId: string = 'default', preferenceKey: string): Promise<void> => {
-      const { error } = await supabase
-        .from('user_preferences')
-        .delete()
-        .eq('user_id', userId)
-        .eq('preference_key', preferenceKey);
-
-      if (error) throw error;
-    },
-  },
   fieldConfigurations: {
     getAll: async (): Promise<FieldConfiguration[]> => {
       const { data, error } = await supabase

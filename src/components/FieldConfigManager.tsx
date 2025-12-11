@@ -11,22 +11,25 @@ function FieldConfigRow({
   saving 
 }: { 
   config: FieldConfiguration; 
-  onSave: (fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | 'false') => Promise<void>;
-  onDelete: (fieldName: string) => Promise<void>;
+  onSave: (gridName: string, fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: boolean, pinSide?: 'left' | 'right' | null, visible?: boolean, columnOrder?: number) => Promise<void>;
+  onDelete: (gridName: string, fieldName: string) => Promise<void>;
   saving: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [widthChars, setWidthChars] = useState(config.width_chars);
   const [padding, setPadding] = useState(config.padding);
   const [hebrewName, setHebrewName] = useState(config.hebrew_name || '');
-  const [pinned, setPinned] = useState<'left' | 'right' | 'false'>(config.pinned === 'left' || config.pinned === 'right' ? config.pinned : 'false');
+  const [pinned, setPinned] = useState<boolean>(config.pinned || false);
+  const [pinSide, setPinSide] = useState<'left' | 'right' | null>(config.pin_side || null);
+  const [visible, setVisible] = useState<boolean>(config.visible !== undefined ? config.visible : true);
+  const [columnOrder, setColumnOrder] = useState<number | undefined>(config.column_order);
 
   const calculatePreviewWidth = (chars: number, pad: number) => {
     return (chars * 8) + (pad * 2);
   };
 
   const handleSave = async () => {
-    await onSave(config.field_name, widthChars, padding, hebrewName, pinned);
+    await onSave(config.grid_name, config.field_name, widthChars, padding, hebrewName, pinned, pinSide, visible, columnOrder);
     setIsEditing(false);
   };
 
@@ -35,11 +38,17 @@ function FieldConfigRow({
     setWidthChars(config.width_chars);
     setPadding(config.padding);
     setHebrewName(config.hebrew_name || '');
-    setPinned(config.pinned === 'left' || config.pinned === 'right' ? config.pinned : 'false');
+    setPinned(config.pinned || false);
+    setPinSide(config.pin_side || null);
+    setVisible(config.visible !== undefined ? config.visible : true);
+    setColumnOrder(config.column_order);
   };
 
   return (
     <tr className="border-b border-slate-200 hover:bg-slate-50">
+      <td className="px-4 py-3 text-slate-900 font-medium">
+        {config.grid_name}
+      </td>
       <td className="px-4 py-3 text-slate-900 font-medium">
         {config.field_name}
       </td>
@@ -90,19 +99,66 @@ function FieldConfigRow({
       </td>
       <td className="px-4 py-3">
         {isEditing ? (
-          <select
-            value={pinned === 'false' ? '' : pinned}
-            onChange={(e) => setPinned(e.target.value === '' ? 'false' : (e.target.value as 'left' | 'right'))}
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">ללא נעיצה</option>
-            <option value="left">שמאל</option>
-            <option value="right">ימין</option>
-          </select>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={pinned}
+                onChange={(e) => {
+                  setPinned(e.target.checked);
+                  if (!e.target.checked) setPinSide(null);
+                }}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">נעוץ</span>
+            </label>
+            {pinned && (
+              <select
+                value={pinSide || ''}
+                onChange={(e) => setPinSide(e.target.value === '' ? null : (e.target.value as 'left' | 'right'))}
+                className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">בחר צד</option>
+                <option value="left">שמאל</option>
+                <option value="right">ימין</option>
+              </select>
+            )}
+          </div>
         ) : (
           <span className="text-slate-700">
-            {config.pinned === 'left' ? 'שמאל' : config.pinned === 'right' ? 'ימין' : '-'}
+            {config.pinned ? (config.pin_side === 'left' ? 'שמאל' : config.pin_side === 'right' ? 'ימין' : 'כן') : 'לא'}
           </span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {isEditing ? (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={visible}
+              onChange={(e) => setVisible(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">נראה</span>
+          </label>
+        ) : (
+          <span className="text-slate-700">
+            {config.visible ? 'כן' : 'לא'}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {isEditing ? (
+          <input
+            type="number"
+            min="0"
+            value={columnOrder || ''}
+            onChange={(e) => setColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
+            placeholder="סדר"
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          />
+        ) : (
+          <span className="text-slate-700">{config.column_order ?? '-'}</span>
         )}
       </td>
       <td className="px-4 py-3">
@@ -135,7 +191,7 @@ function FieldConfigRow({
                 <Edit className="h-4 w-4" />
               </button>
               <button
-                onClick={() => onDelete(config.field_name)}
+                onClick={() => onDelete(config.grid_name, config.field_name)}
                 className="p-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
                 title="מחק"
               >
@@ -154,11 +210,15 @@ export function FieldConfigManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [newGridName, setNewGridName] = useState('');
   const [newFieldName, setNewFieldName] = useState('');
   const [newWidthChars, setNewWidthChars] = useState(10);
   const [newPadding, setNewPadding] = useState(8);
   const [newHebrewName, setNewHebrewName] = useState('');
-  const [newPinned, setNewPinned] = useState<'left' | 'right' | 'false'>('false');
+  const [newPinned, setNewPinned] = useState<boolean>(false);
+  const [newPinSide, setNewPinSide] = useState<'left' | 'right' | null>(null);
+  const [newVisible, setNewVisible] = useState<boolean>(true);
+  const [newColumnOrder, setNewColumnOrder] = useState<number | undefined>(undefined);
 
   // Load configurations on mount
   useEffect(() => {
@@ -182,15 +242,19 @@ export function FieldConfigManager() {
     }
   }
 
-  async function saveConfiguration(fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: 'left' | 'right' | 'false') {
+  async function saveConfiguration(gridName: string, fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: boolean, pinSide?: 'left' | 'right' | null, visible?: boolean, columnOrder?: number) {
     try {
       setSaving(true);
       await api.fieldConfigurations.upsert({
+        grid_name: gridName,
         field_name: fieldName,
         width_chars: widthChars,
         padding: padding,
         hebrew_name: hebrewName || undefined,
-        pinned: pinned === 'false' ? 'false' : (pinned || 'false'),
+        pinned: pinned ?? false,
+        pin_side: pinSide || null,
+        visible: visible ?? true,
+        column_order: columnOrder,
       });
       
       // Reload configurations
@@ -217,13 +281,13 @@ export function FieldConfigManager() {
     }
   }
 
-  async function deleteConfiguration(fieldName: string) {
-    if (!confirm(`האם אתה בטוח שברצונך למחוק את הגדרות השדה "${fieldName}"?`)) {
+  async function deleteConfiguration(gridName: string, fieldName: string) {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את הגדרות השדה "${fieldName}" מהגריד "${gridName}"?`)) {
       return;
     }
 
     try {
-      await api.fieldConfigurations.delete(fieldName);
+      await api.fieldConfigurations.delete(gridName, fieldName);
       await loadConfigurations();
       
       // Clear cache
@@ -246,6 +310,14 @@ export function FieldConfigManager() {
   }
 
   async function addNewConfiguration() {
+    if (!newGridName.trim()) {
+      setToast({ 
+        message: 'יש להזין שם גריד', 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
     if (!newFieldName.trim()) {
       setToast({ 
         message: 'יש להזין שם שדה', 
@@ -255,17 +327,47 @@ export function FieldConfigManager() {
       return;
     }
 
-    await saveConfiguration(newFieldName.trim(), newWidthChars, newPadding, newHebrewName.trim() || undefined, newPinned);
+    await saveConfiguration(newGridName.trim(), newFieldName.trim(), newWidthChars, newPadding, newHebrewName.trim() || undefined, newPinned, newPinSide, newVisible, newColumnOrder);
+    setNewGridName('');
     setNewFieldName('');
     setNewWidthChars(10);
     setNewPadding(8);
     setNewHebrewName('');
-    setNewPinned('false');
+    setNewPinned(false);
+    setNewPinSide(null);
+    setNewVisible(true);
+    setNewColumnOrder(undefined);
   }
 
-  // Sort configurations by field name
-  const sortedConfigurations = useMemo(() => {
-    return [...configurations].sort((a, b) => a.field_name.localeCompare(b.field_name));
+  // Group configurations by grid_name and sort
+  const groupedConfigurations = useMemo(() => {
+    const grouped = new Map<string, FieldConfiguration[]>();
+    configurations.forEach(config => {
+      const gridName = config.grid_name || 'ללא גריד';
+      if (!grouped.has(gridName)) {
+        grouped.set(gridName, []);
+      }
+      grouped.get(gridName)!.push(config);
+    });
+    
+    // Sort each group by column_order, then by field_name
+    grouped.forEach((configs) => {
+      configs.sort((a, b) => {
+        if (a.column_order !== undefined && b.column_order !== undefined) {
+          return a.column_order - b.column_order;
+        }
+        if (a.column_order !== undefined) return -1;
+        if (b.column_order !== undefined) return 1;
+        return a.field_name.localeCompare(b.field_name);
+      });
+    });
+    
+    // Sort grid names
+    const sortedGrids = Array.from(grouped.keys()).sort();
+    return sortedGrids.map(gridName => ({
+      gridName,
+      configs: grouped.get(gridName)!
+    }));
   }, [configurations]);
 
   if (loading) {
@@ -309,10 +411,22 @@ export function FieldConfigManager() {
         {/* Add new field configuration */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h2 className="text-lg font-semibold text-slate-800 mb-4">הוסף שדה חדש</h2>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                שם שדה
+                שם גריד *
+              </label>
+              <input
+                type="text"
+                value={newGridName}
+                onChange={(e) => setNewGridName(e.target.value)}
+                placeholder="לדוגמה: buildings-list"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                שם שדה *
               </label>
               <input
                 type="text"
@@ -362,20 +476,63 @@ export function FieldConfigManager() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 נעיצה
               </label>
-              <select
-                value={newPinned === 'false' ? '' : newPinned}
-                onChange={(e) => setNewPinned(e.target.value === '' ? 'false' : (e.target.value as 'left' | 'right'))}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newPinned}
+                    onChange={(e) => {
+                      setNewPinned(e.target.checked);
+                      if (!e.target.checked) setNewPinSide(null);
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">נעוץ</span>
+                </label>
+                {newPinned && (
+                  <select
+                    value={newPinSide || ''}
+                    onChange={(e) => setNewPinSide(e.target.value === '' ? null : (e.target.value as 'left' | 'right'))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">בחר צד</option>
+                    <option value="left">שמאל</option>
+                    <option value="right">ימין</option>
+                  </select>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                נראה
+              </label>
+              <label className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  checked={newVisible}
+                  onChange={(e) => setNewVisible(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">נראה</span>
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                סדר עמודה
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={newColumnOrder || ''}
+                onChange={(e) => setNewColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="אופציונלי"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">ללא נעיצה</option>
-                <option value="left">שמאל</option>
-                <option value="right">ימין</option>
-              </select>
+              />
             </div>
             <div className="flex items-end">
               <button
                 onClick={addNewConfiguration}
-                disabled={saving || !newFieldName.trim()}
+                disabled={saving || !newGridName.trim() || !newFieldName.trim()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
               >
                 <Plus className="h-4 w-4" />
@@ -385,35 +542,45 @@ export function FieldConfigManager() {
           </div>
         </div>
 
-        {/* Existing configurations */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-100 border-b-2 border-slate-300">
-                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם שדה</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם בעברית</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב (תווים)</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפיחה (פיקסלים)</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נעיצה</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedConfigurations.map((config) => (
-                <FieldConfigRow
-                  key={config.field_name}
-                  config={config}
-                  onSave={saveConfiguration}
-                  onDelete={deleteConfiguration}
-                  saving={saving}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Existing configurations grouped by grid */}
+        {groupedConfigurations.map(({ gridName, configs }) => (
+          <div key={gridName} className="mb-8">
+            <h3 className="text-xl font-semibold text-slate-800 mb-4 pb-2 border-b-2 border-slate-300">
+              {gridName}
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b-2 border-slate-300">
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם גריד</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם שדה</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם בעברית</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב (תווים)</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפיחה (פיקסלים)</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נעיצה</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נראה</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">סדר</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">פעולות</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {configs.map((config) => (
+                    <FieldConfigRow
+                      key={`${config.grid_name}-${config.field_name}`}
+                      config={config}
+                      onSave={saveConfiguration}
+                      onDelete={deleteConfiguration}
+                      saving={saving}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
 
-        {sortedConfigurations.length === 0 && (
+        {groupedConfigurations.length === 0 && (
           <div className="text-center py-12 text-slate-500">
             אין הגדרות שדות. הוסף שדה חדש כדי להתחיל.
           </div>

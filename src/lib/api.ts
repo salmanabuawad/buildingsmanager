@@ -105,11 +105,15 @@ export interface AddressList {
 }
 
 export interface FieldConfiguration {
+  grid_name: string;
   field_name: string;
   width_chars: number;
   padding: number;
   hebrew_name?: string;
-  pinned?: 'left' | 'right' | 'false';
+  pinned: boolean;
+  pin_side?: 'left' | 'right' | null;
+  visible: boolean;
+  column_order?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -1573,19 +1577,28 @@ export const api = {
     return { message: 'Assets deleted successfully' };
   },
   fieldConfigurations: {
-    getAll: async (): Promise<FieldConfiguration[]> => {
-      const { data, error } = await supabase
+    getAll: async (gridName?: string): Promise<FieldConfiguration[]> => {
+      let query = supabase
         .from('field_configurations')
-        .select('*')
+        .select('*');
+      
+      if (gridName) {
+        query = query.eq('grid_name', gridName);
+      }
+      
+      const { data, error } = await query
+        .order('grid_name')
+        .order('column_order', { ascending: true, nullsFirst: false })
         .order('field_name');
 
       if (error) throw error;
       return data || [];
     },
-    getOne: async (fieldName: string): Promise<FieldConfiguration | null> => {
+    getOne: async (gridName: string, fieldName: string): Promise<FieldConfiguration | null> => {
       const { data, error } = await supabase
         .from('field_configurations')
         .select('*')
+        .eq('grid_name', gridName)
         .eq('field_name', fieldName)
         .maybeSingle();
 
@@ -1602,10 +1615,11 @@ export const api = {
       if (error) throw error;
       return data;
     },
-    update: async (fieldName: string, input: Partial<Omit<FieldConfiguration, 'field_name' | 'created_at' | 'updated_at'>>): Promise<FieldConfiguration> => {
+    update: async (gridName: string, fieldName: string, input: Partial<Omit<FieldConfiguration, 'grid_name' | 'field_name' | 'created_at' | 'updated_at'>>): Promise<FieldConfiguration> => {
       const { data, error } = await supabase
         .from('field_configurations')
         .update(input)
+        .eq('grid_name', gridName)
         .eq('field_name', fieldName)
         .select()
         .single();
@@ -1616,17 +1630,18 @@ export const api = {
     upsert: async (input: Omit<FieldConfiguration, 'created_at' | 'updated_at'>): Promise<FieldConfiguration> => {
       const { data, error } = await supabase
         .from('field_configurations')
-        .upsert(input, { onConflict: 'field_name' })
+        .upsert(input, { onConflict: 'grid_name,field_name' })
         .select()
         .single();
 
       if (error) throw error;
       return data;
     },
-    delete: async (fieldName: string): Promise<{ message: string }> => {
+    delete: async (gridName: string, fieldName: string): Promise<{ message: string }> => {
       const { error } = await supabase
         .from('field_configurations')
         .delete()
+        .eq('grid_name', gridName)
         .eq('field_name', fieldName);
 
       if (error) throw error;

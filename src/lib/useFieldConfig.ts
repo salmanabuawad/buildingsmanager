@@ -6,16 +6,18 @@ import { FieldConfiguration } from './api';
 /**
  * Hook to apply field configurations to column definitions
  * Loads field configurations and applies them to columns based on field name
+ * @param columnDefs Column definitions to configure
+ * @param gridName Optional grid name to filter configurations for this specific grid
  */
-export function useFieldConfig<T = any>(columnDefs: ColDef<T>[]): ColDef<T>[] {
+export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: string): ColDef<T>[] {
   const [fieldConfigs, setFieldConfigs] = useState<Map<string, FieldConfiguration>>(new Map());
   const [loading, setLoading] = useState(true);
 
-  // Load field configurations on mount
+  // Load field configurations on mount or when gridName changes
   useEffect(() => {
     async function loadConfigs() {
       try {
-        const configs = await loadFieldConfigurations();
+        const configs = await loadFieldConfigurations(gridName);
         setFieldConfigs(configs);
       } catch (error) {
         console.error('Error loading field configurations:', error);
@@ -24,7 +26,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[]): ColDef<T>[] {
       }
     }
     loadConfigs();
-  }, []);
+  }, [gridName]);
 
   // Apply field configurations to column definitions
   const configuredColumnDefs = useMemo(() => {
@@ -39,8 +41,18 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[]): ColDef<T>[] {
         return colDef;
       }
 
-      // Get field configuration
-      const fieldConfig = fieldConfigs.get(fieldName);
+      // Get field configuration - try composite key first if gridName is provided
+      let fieldConfig: FieldConfiguration | undefined;
+      if (gridName) {
+        const compositeKey = `${gridName}:${fieldName}`;
+        fieldConfig = fieldConfigs.get(compositeKey);
+      }
+      
+      // Fallback to field_name only (for backward compatibility)
+      if (!fieldConfig) {
+        fieldConfig = fieldConfigs.get(fieldName);
+      }
+
       if (!fieldConfig) {
         // No configuration found, return original with resizable disabled
         return {
@@ -52,7 +64,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[]): ColDef<T>[] {
       // Apply field configuration
       return applyFieldConfigToColumn(colDef, fieldConfig);
     });
-  }, [columnDefs, fieldConfigs, loading]);
+  }, [columnDefs, fieldConfigs, loading, gridName]);
 
   return configuredColumnDefs;
 }

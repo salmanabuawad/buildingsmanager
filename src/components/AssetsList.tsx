@@ -1341,7 +1341,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setSuccess(null);
 
     try {
-
       // Create asset type map for quick lookup - use multiple keys for flexibility
       const assetTypeMap = new Map<string, AssetType>();
       assetTypes.forEach(at => {
@@ -1360,14 +1359,50 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return br === 'מגורים';
       });
       
+      // Check for null/undefined business_residence values
+      const assetTypesWithNullBusinessResidence = assetTypes.filter(at => 
+        at.business_residence == null || at.business_residence === ''
+      );
+      
+      // Direct database query to verify business_residence values
+      let directDbCheck: any = null;
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data: dbData, error: dbError } = await supabase
+          .from('asset_types')
+          .select('name, business_residence')
+          .limit(10);
+        
+        if (!dbError && dbData) {
+          directDbCheck = {
+            sampleFromDb: dbData,
+            countWithBusinessResidence: dbData.filter((at: any) => at.business_residence != null).length,
+            countWithMegurim: dbData.filter((at: any) => at.business_residence === 'מגורים').length
+          };
+        }
+      } catch (dbCheckError) {
+        console.warn('[DistributeResidence] Failed to check database directly:', dbCheckError);
+      }
+
       console.log('[DistributeResidence] Starting distribution - DEEP CHECK:', {
         totalAssets: assets.length,
         assetTypesCount: assetTypes.length,
         residenceSharedArea: building.residence_shared_area,
         residentialAssetTypesCount: residentialAssetTypes.length,
         residentialAssetTypeNames: residentialAssetTypes.map(at => at.name),
+        assetTypesWithNullBusinessResidence: assetTypesWithNullBusinessResidence.length,
+        sampleNullBusinessResidenceTypes: assetTypesWithNullBusinessResidence.slice(0, 5).map(at => ({
+          name: at.name,
+          id: at.id,
+          hasBusinessResidenceField: 'business_residence' in at,
+          businessResidenceValue: at.business_residence,
+          businessResidenceType: typeof at.business_residence,
+          allKeys: Object.keys(at),
+          rawObject: JSON.stringify(at)
+        })),
+        directDatabaseCheck: directDbCheck,
         allAssetTypesWithBusinessResidence: assetTypes
-          .filter(at => at.business_residence)
+          .filter(at => at.business_residence != null && at.business_residence !== '')
           .map(at => ({
             name: at.name,
             business_residence: at.business_residence,

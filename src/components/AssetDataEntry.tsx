@@ -952,7 +952,8 @@ export function AssetDataEntry() {
     }
     return { textAlign: 'right' };
   };
-  const columnDefs: ColDef<AssetRow>[] = useMemo(() => [
+  const columnDefs: ColDef<AssetRow>[] = useMemo(() => {
+    const defs: ColDef<AssetRow>[] = [
     {
       colId: 'actions',
       field: 'actions',
@@ -1561,7 +1562,7 @@ export function AssetDataEntry() {
                       row.measurement_date || '',
                       row.main_asset_type || '',
                       row.asset_size || '',
-                      row.tax_region || ''
+                      '' // tax_region not in AssetRow interface
                     ]);
                     const data = [headers, ...rows];
                     const worksheet = XLSX.utils.aoa_to_sheet(data);

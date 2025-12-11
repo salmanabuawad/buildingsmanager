@@ -137,6 +137,18 @@ export interface ValidationRule {
   updated_at: string;
 }
 
+export interface AuditLog {
+  id: string;
+  user_name: string;
+  action_type: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform';
+  entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
+  entity_id?: string;
+  before_data?: any; // JSONB
+  after_data?: any; // JSONB
+  description?: string;
+  created_at: string;
+}
+
 
 /**
  * Sanitizes asset data before sending to the server
@@ -1724,6 +1736,180 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Field configuration deleted successfully' };
+    },
+  },
+  auditLog: {
+    getAll: async (filters?: {
+      user_name?: string;
+      action_type?: string;
+      entity_type?: string;
+      entity_id?: string;
+      start_date?: string;
+      end_date?: string;
+      limit?: number;
+      offset?: number;
+    }): Promise<AuditLog[]> => {
+      let query = supabase
+        .from('audit')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (filters) {
+        if (filters.user_name) {
+          query = query.eq('user_name', filters.user_name);
+        }
+        if (filters.action_type) {
+          query = query.eq('action_type', filters.action_type);
+        }
+        if (filters.entity_type) {
+          query = query.eq('entity_type', filters.entity_type);
+        }
+        if (filters.entity_id) {
+          query = query.eq('entity_id', filters.entity_id);
+        }
+        if (filters.start_date) {
+          query = query.gte('created_at', filters.start_date);
+        }
+        if (filters.end_date) {
+          query = query.lte('created_at', filters.end_date);
+        }
+        if (filters.limit) {
+          query = query.limit(filters.limit);
+        }
+        if (filters.offset) {
+          query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
+        }
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (id: string): Promise<AuditLog> => {
+      const { data, error } = await supabase
+        .from('audit')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    logEntry: async (input: {
+      user_name?: string;
+      action_type: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform';
+      entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
+      entity_id?: string;
+      before_data?: any;
+      after_data?: any;
+      description?: string;
+    }): Promise<{ id: string }> => {
+      const { data, error } = await supabase
+        .rpc('log_audit_entry', {
+          p_action_type: input.action_type,
+          p_entity_type: input.entity_type,
+          p_entity_id: input.entity_id || null,
+          p_user_name: input.user_name || 'default',
+          p_before_data: input.before_data || null,
+          p_after_data: input.after_data || null,
+          p_description: input.description || null,
+        });
+
+      if (error) throw error;
+      return { id: data };
+    },
+    logBuildingAction: async (
+      buildingNumber: number,
+      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      beforeData?: any,
+      afterData?: any,
+      description?: string,
+      userName?: string
+    ): Promise<{ id: string }> => {
+      // Get building data with assets if not provided
+      let before = beforeData;
+      let after = afterData;
+
+      if (!before && !after) {
+        const { data: buildingData } = await supabase
+          .rpc('get_building_audit_data', { p_building_number: buildingNumber });
+        after = buildingData;
+      }
+
+      return api.auditLog.logEntry({
+        user_name: userName,
+        action_type: actionType,
+        entity_type: 'building',
+        entity_id: buildingNumber.toString(),
+        before_data: before,
+        after_data: after,
+        description,
+      });
+    },
+    logAssetAction: async (
+      assetId: number,
+      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      beforeData?: any,
+      afterData?: any,
+      description?: string,
+      userName?: string
+    ): Promise<{ id: string }> => {
+      // Get asset data with building if not provided
+      let before = beforeData;
+      let after = afterData;
+
+      if (!before && !after) {
+        const { data: assetData } = await supabase
+          .rpc('get_asset_audit_data', { p_asset_id: assetId });
+        after = assetData;
+      }
+
+      return api.auditLog.logEntry({
+        user_name: userName,
+        action_type: actionType,
+        entity_type: 'asset',
+        entity_id: assetId.toString(),
+        before_data: before,
+        after_data: after,
+        description,
+      });
+    },
+    logBulkBuildingAction: async (
+      buildingNumbers: number[],
+      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      beforeData?: any,
+      afterData?: any,
+      description?: string,
+      userName?: string
+    ): Promise<{ id: string }> => {
+      return api.auditLog.logEntry({
+        user_name: userName,
+        action_type: actionType,
+        entity_type: 'bulk_building',
+        entity_id: buildingNumbers.join(','),
+        before_data: beforeData,
+        after_data: afterData,
+        description,
+      });
+    },
+    logBulkAssetAction: async (
+      assetIds: number[],
+      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      beforeData?: any,
+      afterData?: any,
+      description?: string,
+      userName?: string
+    ): Promise<{ id: string }> => {
+      return api.auditLog.logEntry({
+        user_name: userName,
+        action_type: actionType,
+        entity_type: 'bulk_asset',
+        entity_id: assetIds.join(','),
+        before_data: beforeData,
+        after_data: afterData,
+        description,
+      });
     },
   },
 };

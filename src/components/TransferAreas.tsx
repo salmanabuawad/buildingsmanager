@@ -1258,30 +1258,30 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
             }
           }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-medium"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
           title="ייצא ל-Excel"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="h-3 w-3" />
           ייצא ל-Excel
         </button>
         <button
           onClick={handleCancelAll}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-normal"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-3 w-3" />
           ביטול
         </button>
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
           disabled={loading || !hasChanges || validationErrors.size > 0}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-normal"
           title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-3 w-3" />
           )}
           {loading ? 'שומר...' : `שמור כמדידות חדשות${hasChanges ? ` (${dirtyAssets.size})` : ''}${validationErrors.size > 0 ? ` - ${validationErrors.size} שגיאות` : ''}`}
         </button>
@@ -1450,20 +1450,20 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                     setMeasurementDateModalClosing(false);
                   }, 300);
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-normal"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3 w-3" />
                 ביטול
               </button>
               <button
                 onClick={handleSaveAsNewMeasurements}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-normal"
               >
                 {loading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <CheckCircle2 className="h-3 w-3" />
                 )}
                 אישור
               </button>

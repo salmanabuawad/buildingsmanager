@@ -2351,25 +2351,25 @@ export function BuildingsList({
             <button
               type="button"
               onClick={addEmptyBuildingRow}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-medium"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3 w-3" />
               הוסף מבנה
             </button>
             <button
               type="button"
               onClick={handleValidateAll}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-medium"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
             >
-              <CheckCircle2 className="h-3.5 w-3.5" />
+              <CheckCircle2 className="h-3 w-3" />
               אמת הכל
             </button>
             <button
               type="button"
               onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-medium"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3 w-3" />
               ייצא ל-Excel
             </button>
           </div>

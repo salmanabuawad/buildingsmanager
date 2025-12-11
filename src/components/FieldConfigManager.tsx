@@ -65,7 +65,7 @@ function FieldConfigRow({
           <span>{config.hebrew_name || '-'}</span>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3" style={{ maxWidth: '80px', width: '80px' }}>
         {isEditing ? (
           <div className="flex items-center gap-1">
             <button
@@ -82,6 +82,7 @@ function FieldConfigRow({
               value={widthChars}
               onChange={(e) => setWidthChars(parseInt(e.target.value) || 10)}
               className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+              style={{ maxWidth: '40px' }}
             />
             <button
               type="button"
@@ -96,7 +97,7 @@ function FieldConfigRow({
           <span className="text-slate-700">{config.width_chars}</span>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3" style={{ maxWidth: '80px', width: '80px' }}>
         {isEditing ? (
           <div className="flex items-center gap-1">
             <button
@@ -113,6 +114,7 @@ function FieldConfigRow({
               value={padding}
               onChange={(e) => setPadding(parseInt(e.target.value) || 8)}
               className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+              style={{ maxWidth: '40px' }}
             />
             <button
               type="button"
@@ -459,8 +461,8 @@ export function FieldConfigManager() {
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם גריד</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם שדה</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם בעברית</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב (תווים)</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">תפיחה (פיקסלים)</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700" style={{ maxWidth: '80px', width: '80px' }}>רוחב (תווים)</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700" style={{ maxWidth: '80px', width: '80px' }}>תפיחה (פיקסלים)</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נעיצה</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נראה</th>

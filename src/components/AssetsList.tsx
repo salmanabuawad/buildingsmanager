@@ -1398,12 +1398,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }))
       });
 
-      // Filter assets: only private/residential assets that are accountable
+      // Filter assets: only accountable assets (excluding type 990)
       let deletedCount = 0;
       let notAccountableCount = 0;
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
-      let notResidentialCount = 0;
       let excludedType990Count = 0;
       let residentialFoundCount = 0;
       
@@ -1485,42 +1484,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Deep check: Compare business_residence with 'מגורים'
-        // Handle potential encoding/whitespace issues
-        const businessResidenceRaw = assetType.business_residence;
-        const businessResidence = businessResidenceRaw ? String(businessResidenceRaw).trim() : '';
-        const expectedValue = 'מגורים';
-        
-        // Multiple comparison strategies
-        const isExactMatch = businessResidence === expectedValue;
-        const isNormalizedMatch = businessResidence.replace(/\s+/g, ' ') === expectedValue.replace(/\s+/g, ' ');
-        const isCharCodeMatch = businessResidence.length === expectedValue.length && 
-          Array.from(businessResidence).every((c, i) => c.charCodeAt(0) === expectedValue.charCodeAt(i));
-        
-        const isMatch = isExactMatch || isNormalizedMatch || isCharCodeMatch;
-        
-        debugInfo.businessResidenceRaw = businessResidenceRaw;
-        debugInfo.businessResidence = businessResidence || '(empty/null)';
-        debugInfo.expectedValue = expectedValue;
-        debugInfo.isExactMatch = isExactMatch;
-        debugInfo.isNormalizedMatch = isNormalizedMatch;
-        debugInfo.isCharCodeMatch = isCharCodeMatch;
-        debugInfo.isMatch = isMatch;
-        debugInfo.businessResidenceLength = businessResidence.length;
-        debugInfo.expectedLength = expectedValue.length;
-        debugInfo.businessResidenceChars = Array.from(businessResidence).map(c => c.charCodeAt(0));
-        debugInfo.expectedChars = Array.from(expectedValue).map(c => c.charCodeAt(0));
-        debugInfo.businessResidenceType = typeof businessResidenceRaw;
-        
-        if (!isMatch) {
-          notResidentialCount++;
-          debugInfo.reason = 'not_residential';
-          // Log first 5 for deep debugging
-          if (notResidentialCount <= 5) {
-            console.log('[DistributeResidence] Asset not residential - DEEP CHECK:', debugInfo);
-          }
-          return false;
-        }
+        // Skip business_residence check - accept all assets that passed previous filters
         
         residentialFoundCount++;
         if (residentialFoundCount <= 3) {
@@ -1537,7 +1501,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         noMainTypeCount,
         assetTypeNotFoundCount,
         excludedType990Count,
-        notResidentialCount,
         finalResidentialAssets: residentialAssets.length
       });
 
@@ -1549,9 +1512,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
         if (excludedType990Count > 0) reasons.push(`${excludedType990Count} נכסים מסוג 990 (לא מקבלים שטח משותף)`);
-        if (notResidentialCount > 0) reasons.push(`${notResidentialCount} נכסים שאינם מסוג מגורים`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + excludedType990Count + notResidentialCount;
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + excludedType990Count;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';

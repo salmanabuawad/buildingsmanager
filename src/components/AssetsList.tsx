@@ -1354,13 +1354,30 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
       });
 
-      console.log('[DistributeResidence] Starting distribution:', {
+      // Deep check: Log all asset types with business_residence = 'מגורים'
+      const residentialAssetTypes = assetTypes.filter(at => {
+        const br = at.business_residence ? String(at.business_residence).trim() : '';
+        return br === 'מגורים';
+      });
+      
+      console.log('[DistributeResidence] Starting distribution - DEEP CHECK:', {
         totalAssets: assets.length,
         assetTypesCount: assetTypes.length,
         residenceSharedArea: building.residence_shared_area,
-        sampleAssetTypes: assetTypes.slice(0, 3).map(at => ({
-          name: at.name,
-          business_residence: at.business_residence
+        residentialAssetTypesCount: residentialAssetTypes.length,
+        residentialAssetTypeNames: residentialAssetTypes.map(at => at.name),
+        allAssetTypesWithBusinessResidence: assetTypes
+          .filter(at => at.business_residence)
+          .map(at => ({
+            name: at.name,
+            business_residence: at.business_residence,
+            business_residence_length: String(at.business_residence).length,
+            business_residence_chars: Array.from(String(at.business_residence)).map(c => c.charCodeAt(0))
+          })),
+        sampleAssets: assets.slice(0, 5).map(a => ({
+          asset_id: a.asset_id,
+          main_asset_type: a.main_asset_type,
+          tax_region: a.tax_region
         }))
       });
 
@@ -1372,34 +1389,49 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       let notResidentialCount = 0;
       let residentialFoundCount = 0;
       
-      const residentialAssets = assets.filter(asset => {
+      const residentialAssets = assets.filter((asset, index) => {
+        const debugInfo: any = {
+          assetId: asset.asset_id,
+          index,
+          mainAssetType: asset.main_asset_type
+        };
+        
         // Skip deleted assets
         if (deletedAssets.has(String(asset.asset_id))) {
           deletedCount++;
+          debugInfo.reason = 'deleted';
+          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
         
         // Exclude non-accountable assets using the helper function
         if (isAssetNotAccountable(asset)) {
           notAccountableCount++;
+          debugInfo.reason = 'not_accountable';
+          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
         
         // Check if asset is private/residential type (not business)
         if (!asset.main_asset_type) {
           noMainTypeCount++;
+          debugInfo.reason = 'no_main_type';
+          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
         
         // Try multiple lookup strategies to handle type mismatches
         const mainTypeStr = String(asset.main_asset_type).trim();
         let assetType = assetTypeMap.get(mainTypeStr);
+        debugInfo.mainTypeStr = mainTypeStr;
+        debugInfo.foundInMap = !!assetType;
         
         // If not found, try numeric lookup
         if (!assetType) {
           const mainTypeNum = parseInt(mainTypeStr, 10);
           if (!isNaN(mainTypeNum)) {
             assetType = assetTypeMap.get(String(mainTypeNum));
+            debugInfo.foundNumeric = !!assetType;
           }
         }
         
@@ -1409,37 +1441,65 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             const atNameStr = String(at.name).trim();
             return atNameStr === mainTypeStr;
           });
+          debugInfo.foundInArray = !!assetType;
         }
         
         if (!assetType) {
           assetTypeNotFoundCount++;
-          console.warn('[DistributeResidence] Asset type not found:', {
-            assetId: asset.asset_id,
-            mainAssetType: asset.main_asset_type,
-            mainTypeStr,
-            availableTypes: Array.from(assetTypeMap.keys()).slice(0, 10)
-          });
+          debugInfo.reason = 'asset_type_not_found';
+          debugInfo.availableTypes = Array.from(assetTypeMap.keys()).slice(0, 10);
+          console.warn('[DistributeResidence] Asset type not found:', debugInfo);
           return false;
         }
         
-        // Check if asset type is residential - must be explicitly 'מגורים'
-        const businessResidence = assetType.business_residence ? String(assetType.business_residence).trim() : '';
-        if (businessResidence !== 'מגורים') {
+        debugInfo.assetTypeName = assetType.name;
+        debugInfo.assetTypeId = assetType.id;
+        debugInfo.assetTypeKeys = Object.keys(assetType);
+        debugInfo.assetTypeHasBusinessResidence = 'business_residence' in assetType;
+        debugInfo.assetTypeBusinessResidenceValue = assetType.business_residence;
+        debugInfo.assetTypeBusinessResidenceType = typeof assetType.business_residence;
+        
+        // Deep check: Compare business_residence with 'מגורים'
+        // Handle potential encoding/whitespace issues
+        const businessResidenceRaw = assetType.business_residence;
+        const businessResidence = businessResidenceRaw ? String(businessResidenceRaw).trim() : '';
+        const expectedValue = 'מגורים';
+        
+        // Multiple comparison strategies
+        const isExactMatch = businessResidence === expectedValue;
+        const isNormalizedMatch = businessResidence.replace(/\s+/g, ' ') === expectedValue.replace(/\s+/g, ' ');
+        const isCharCodeMatch = businessResidence.length === expectedValue.length && 
+          Array.from(businessResidence).every((c, i) => c.charCodeAt(0) === expectedValue.charCodeAt(i));
+        
+        const isMatch = isExactMatch || isNormalizedMatch || isCharCodeMatch;
+        
+        debugInfo.businessResidenceRaw = businessResidenceRaw;
+        debugInfo.businessResidence = businessResidence || '(empty/null)';
+        debugInfo.expectedValue = expectedValue;
+        debugInfo.isExactMatch = isExactMatch;
+        debugInfo.isNormalizedMatch = isNormalizedMatch;
+        debugInfo.isCharCodeMatch = isCharCodeMatch;
+        debugInfo.isMatch = isMatch;
+        debugInfo.businessResidenceLength = businessResidence.length;
+        debugInfo.expectedLength = expectedValue.length;
+        debugInfo.businessResidenceChars = Array.from(businessResidence).map(c => c.charCodeAt(0));
+        debugInfo.expectedChars = Array.from(expectedValue).map(c => c.charCodeAt(0));
+        debugInfo.businessResidenceType = typeof businessResidenceRaw;
+        
+        if (!isMatch) {
           notResidentialCount++;
-          // Log for debugging
-          if (notResidentialCount <= 3) { // Only log first 3 to avoid spam
-            console.log('[DistributeResidence] Asset not residential:', {
-              assetId: asset.asset_id,
-              mainAssetType: asset.main_asset_type,
-              assetTypeName: assetType.name,
-              businessResidence: businessResidence || '(empty/null)',
-              expected: 'מגורים'
-            });
+          debugInfo.reason = 'not_residential';
+          // Log first 5 for deep debugging
+          if (notResidentialCount <= 5) {
+            console.log('[DistributeResidence] Asset not residential - DEEP CHECK:', debugInfo);
           }
           return false;
         }
         
         residentialFoundCount++;
+        if (residentialFoundCount <= 3) {
+          console.log('[DistributeResidence] Asset IS residential:', debugInfo);
+        }
         return true;
       });
 

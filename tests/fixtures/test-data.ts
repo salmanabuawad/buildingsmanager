@@ -37,7 +37,7 @@ export const testAssetTypes: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>
     tax_region: 10,
     min_size: 10,
     max_size: 100,
-    business_private: 'עסקים',
+    business_residence: 'עסקים',
     active: 'כן',
   },
   {
@@ -46,7 +46,7 @@ export const testAssetTypes: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>
     tax_region: 10,
     min_size: 15,
     max_size: 80,
-    business_private: 'עסקים',
+    business_residence: 'עסקים',
     active: 'כן',
   },
 ];

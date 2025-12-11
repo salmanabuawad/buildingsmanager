@@ -16,7 +16,7 @@ $columnPositions = @(
     "penthouse",               # 5
     "condo",                   # 6
     "townhouses",              # 7
-    "business_private",       # 8
+    "business_residence",       # 8
     "shared_area_usage",       # 9
     "min_size",                # 10
     "max_size"                 # 11

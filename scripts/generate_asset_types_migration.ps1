@@ -23,7 +23,7 @@ $columnPositions = @(
     "penthouse",               # 5
     "condo",                   # 6
     "townhouses",              # 7
-    "business_private",        # 8
+    "business_residence",        # 8
     "shared_area_usage",       # 9
     "min_size",                # 10
     "max_size"                 # 11
@@ -102,7 +102,7 @@ try {
     - `penthouse` (TEXT) - Penthouse indicator
     - `condo` (TEXT) - Condo indicator
     - `townhouses` (TEXT) - Townhouses indicator
-    - `business_private` (TEXT) - Business/Private indicator
+    - `business_residence` (TEXT) - Business/Residence indicator
     - `shared_area_usage` (TEXT) - Shared area usage indicator
     - `min_size` (NUMERIC) - Minimum size
     - `max_size` (NUMERIC) - Maximum size
@@ -129,7 +129,7 @@ CREATE TABLE asset_types (
   penthouse TEXT,
   condo TEXT,
   townhouses TEXT,
-  business_private TEXT,
+  business_residence TEXT,
   shared_area_usage TEXT,
   min_size NUMERIC,
   max_size NUMERIC,

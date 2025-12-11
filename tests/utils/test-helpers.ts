@@ -24,7 +24,7 @@ export async function insertReferenceData(): Promise<void> {
   // Insert asset types (asset_types - reference table)
   for (const assetType of testAssetTypes) {
     await pool.query(
-      `INSERT INTO asset_types (name, description, tax_region, min_size, max_size, elevator, condo, business_private, active)
+      `INSERT INTO asset_types (name, description, tax_region, min_size, max_size, elevator, condo, business_residence, active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (name) DO UPDATE SET
          description = EXCLUDED.description,
@@ -33,7 +33,7 @@ export async function insertReferenceData(): Promise<void> {
          max_size = EXCLUDED.max_size,
          elevator = EXCLUDED.elevator,
          condo = EXCLUDED.condo,
-         business_private = EXCLUDED.business_private,
+         business_residence = EXCLUDED.business_residence,
          active = EXCLUDED.active`,
       [
         assetType.name,
@@ -43,7 +43,7 @@ export async function insertReferenceData(): Promise<void> {
         assetType.max_size,
         assetType.elevator,
         assetType.condo,
-        assetType.business_private,
+        assetType.business_residence,
         assetType.active,
       ]
     );

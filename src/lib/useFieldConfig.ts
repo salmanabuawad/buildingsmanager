@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ColDef } from 'ag-grid-community';
-import { loadFieldConfigurations, applyFieldConfigToColumn } from './fieldConfigUtils';
+import { loadFieldConfigurations, applyFieldConfigToColumn, getFieldConfigCache, isFieldConfigCacheLoaded } from './fieldConfigUtils';
 import { FieldConfiguration } from './api';
 
 /**
  * Hook to apply field configurations to column definitions
- * Loads field configurations and applies them to columns based on field name
+ * Uses in-memory cache if available, otherwise loads from database
  * @param columnDefs Column definitions to configure
  * @param gridName Optional grid name to filter configurations for this specific grid
  */
@@ -17,6 +17,29 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
   useEffect(() => {
     async function loadConfigs() {
       try {
+        // Check if cache is already loaded
+        if (isFieldConfigCacheLoaded()) {
+          const cache = getFieldConfigCache();
+          if (cache) {
+            if (gridName) {
+              // Filter from cache by grid_name
+              const filtered = new Map<string, FieldConfiguration>();
+              cache.forEach((config, key) => {
+                if (config.grid_name === gridName) {
+                  filtered.set(key, config);
+                  filtered.set(config.field_name, config);
+                }
+              });
+              setFieldConfigs(filtered);
+            } else {
+              setFieldConfigs(cache);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Cache not loaded yet, load from database (will populate cache)
         const configs = await loadFieldConfigurations(gridName);
         setFieldConfigs(configs);
       } catch (error) {
@@ -28,17 +51,18 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
     loadConfigs();
   }, [gridName]);
 
-  // Apply field configurations to column definitions
+  // Apply field configurations to column definitions and sort by column_order
   const configuredColumnDefs = useMemo(() => {
     if (loading) {
       return columnDefs;
     }
 
-    return columnDefs.map(colDef => {
+    // Map columns with their configurations
+    const columnsWithConfig = columnDefs.map(colDef => {
       // Get field name from colDef (field or colId)
       const fieldName = colDef.field || colDef.colId;
       if (!fieldName) {
-        return colDef;
+        return { colDef, order: Infinity };
       }
 
       // Get field configuration - try composite key first if gridName is provided
@@ -56,14 +80,32 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
       if (!fieldConfig) {
         // No configuration found, return original with resizable disabled
         return {
-          ...colDef,
-          resizable: false,
+          colDef: {
+            ...colDef,
+            resizable: false,
+          },
+          order: Infinity
         };
       }
 
       // Apply field configuration
-      return applyFieldConfigToColumn(colDef, fieldConfig);
+      return {
+        colDef: applyFieldConfigToColumn(colDef, fieldConfig),
+        order: fieldConfig.column_order ?? Infinity
+      };
     });
+
+    // Sort by column_order, then by original order for items without order
+    columnsWithConfig.sort((a, b) => {
+      if (a.order !== Infinity && b.order !== Infinity) {
+        return a.order - b.order;
+      }
+      if (a.order !== Infinity) return -1;
+      if (b.order !== Infinity) return 1;
+      return 0; // Keep original order for items without column_order
+    });
+
+    return columnsWithConfig.map(item => item.colDef);
   }, [columnDefs, fieldConfigs, loading, gridName]);
 
   return configuredColumnDefs;

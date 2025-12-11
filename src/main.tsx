@@ -27,11 +27,15 @@ window.addEventListener('unhandledrejection', (event) => {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Preload field configurations on application startup
+// Preload field configurations on application startup and persist in memory
 import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {
-  loadFieldConfigurations().catch(error => {
-    console.warn('Failed to preload field configurations:', error);
-  });
+  loadFieldConfigurations()
+    .then(() => {
+      console.log('[main] Field configurations preloaded and cached in memory');
+    })
+    .catch(error => {
+      console.warn('[main] Failed to preload field configurations:', error);
+    });
 });
 
 createRoot(document.getElementById('root')!).render(

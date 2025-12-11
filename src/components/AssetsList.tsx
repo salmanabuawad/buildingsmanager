@@ -2685,7 +2685,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
 
   // Apply field configurations to column definitions (must be after columnDefs is defined)
-  const configuredColumnDefs = useFieldConfig(columnDefs);
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are private/residential assets (מגורים)
   const areAllAssetsPrivate = useMemo(() => {

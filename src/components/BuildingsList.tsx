@@ -2251,7 +2251,7 @@ export function BuildingsList({
   }, [onSelectBuilding, handleDeleteBuilding, buildingsToDelete, t, invalidTaxRegions, validationErrors, dirtyBuildings, newBuildings, isNewBuilding, getBuildingKey, handleCheckboxChange, addressList]);
 
   // Apply field configurations to column definitions
-  const configuredColumnDefs = useFieldConfig(columnDefs);
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'buildings-list');
 
   // Handle create building modal
   const handleCreateBuilding = async () => {

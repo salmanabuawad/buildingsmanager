@@ -362,8 +362,30 @@ export function FieldConfigManager() {
       });
     });
     
-    // Sort grid names
-    const sortedGrids = Array.from(grouped.keys()).sort();
+    // Define custom order for grid names (priority grids first)
+    const gridOrder = [
+      'buildings-list',
+      'assets-list',
+      'asset-details-main',
+      'asset-details-history'
+    ];
+    
+    // Sort grid names: priority grids first, then alphabetically
+    const sortedGrids = Array.from(grouped.keys()).sort((a, b) => {
+      const aIndex = gridOrder.indexOf(a);
+      const bIndex = gridOrder.indexOf(b);
+      
+      // If both are in the priority list, sort by their order in the list
+      if (aIndex !== -1 && bIndex !== -1) {
+        return aIndex - bIndex;
+      }
+      // If only one is in the priority list, it comes first
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      // If neither is in the priority list, sort alphabetically
+      return a.localeCompare(b);
+    });
+    
     return sortedGrids.map(gridName => ({
       gridName,
       configs: grouped.get(gridName)!

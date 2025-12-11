@@ -10,36 +10,61 @@ import { FieldConfiguration } from './api';
  * @param gridName Optional grid name to filter configurations for this specific grid
  */
 export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: string): ColDef<T>[] {
-  const [fieldConfigs, setFieldConfigs] = useState<Map<string, FieldConfiguration>>(new Map());
-  const [loading, setLoading] = useState(true);
+  // Initialize from cache immediately if available (synchronous)
+  const getInitialConfigs = (): Map<string, FieldConfiguration> => {
+    if (isFieldConfigCacheLoaded()) {
+      const cache = getFieldConfigCache();
+      if (cache) {
+        if (gridName) {
+          // Filter from cache by grid_name
+          const filtered = new Map<string, FieldConfiguration>();
+          cache.forEach((config) => {
+            if (config.grid_name === gridName) {
+              const key = `${gridName}:${config.field_name}`;
+              filtered.set(key, config);
+              // Also set by field_name for backward compatibility
+              filtered.set(config.field_name, config);
+            }
+          });
+          return filtered;
+        }
+        return cache;
+      }
+    }
+    return new Map();
+  };
+
+  const [fieldConfigs, setFieldConfigs] = useState<Map<string, FieldConfiguration>>(getInitialConfigs);
+  const [loading, setLoading] = useState(!isFieldConfigCacheLoaded());
 
   // Load field configurations on mount or when gridName changes
   useEffect(() => {
+    // If cache is already loaded, use it immediately
+    if (isFieldConfigCacheLoaded()) {
+      const cache = getFieldConfigCache();
+      if (cache) {
+        if (gridName) {
+          // Filter from cache by grid_name
+          const filtered = new Map<string, FieldConfiguration>();
+          cache.forEach((config) => {
+            if (config.grid_name === gridName) {
+              const key = `${gridName}:${config.field_name}`;
+              filtered.set(key, config);
+              filtered.set(config.field_name, config);
+            }
+          });
+          setFieldConfigs(filtered);
+        } else {
+          setFieldConfigs(cache);
+        }
+        setLoading(false);
+        return;
+      }
+    }
+    
+    // Cache not loaded yet, load from database (will populate cache)
     async function loadConfigs() {
       try {
-        // Check if cache is already loaded
-        if (isFieldConfigCacheLoaded()) {
-          const cache = getFieldConfigCache();
-          if (cache) {
-            if (gridName) {
-              // Filter from cache by grid_name
-              const filtered = new Map<string, FieldConfiguration>();
-              cache.forEach((config, key) => {
-                if (config.grid_name === gridName) {
-                  filtered.set(key, config);
-                  filtered.set(config.field_name, config);
-                }
-              });
-              setFieldConfigs(filtered);
-            } else {
-              setFieldConfigs(cache);
-            }
-            setLoading(false);
-            return;
-          }
-        }
-        
-        // Cache not loaded yet, load from database (will populate cache)
         const configs = await loadFieldConfigurations(gridName);
         setFieldConfigs(configs);
       } catch (error) {

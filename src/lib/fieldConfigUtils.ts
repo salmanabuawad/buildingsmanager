@@ -194,3 +194,29 @@ export function getFieldConfigCache(): Map<string, FieldConfiguration> | null {
   return fieldConfigCache;
 }
 
+/**
+ * Get all field configurations from memory (synchronous, same pattern as getAssetTypes)
+ * Returns empty array if cache is not loaded yet
+ */
+export function getFieldConfigurations(): FieldConfiguration[] {
+  if (!isCacheLoaded || !fieldConfigCache) {
+    console.warn('[fieldConfigUtils] Field configurations not yet loaded, returning empty array');
+    return [];
+  }
+  
+  // Convert Map to array, avoiding duplicates
+  const allConfigs: FieldConfiguration[] = [];
+  const seen = new Set<string>();
+  
+  fieldConfigCache.forEach((config) => {
+    // Only add each config once (avoid duplicates from composite key and field_name key)
+    const uniqueKey = `${config.grid_name}:${config.field_name}`;
+    if (!seen.has(uniqueKey)) {
+      seen.add(uniqueKey);
+      allConfigs.push(config);
+    }
+  });
+  
+  return allConfigs;
+}
+

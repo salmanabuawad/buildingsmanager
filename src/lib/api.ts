@@ -1578,6 +1578,53 @@ export const api = {
   },
   fieldConfigurations: {
     getAll: async (gridName?: string): Promise<FieldConfiguration[]> => {
+      // Try to get from in-memory cache first (loaded on app startup)
+      try {
+        const { getFieldConfigCache, isFieldConfigCacheLoaded } = await import('./fieldConfigUtils');
+        if (isFieldConfigCacheLoaded()) {
+          const cache = getFieldConfigCache();
+          if (cache && cache.size > 0) {
+            // Convert Map to array
+            const allConfigs: FieldConfiguration[] = [];
+            const seen = new Set<string>();
+            
+            cache.forEach((config) => {
+              // Only add each config once (avoid duplicates from composite key and field_name key)
+              const uniqueKey = `${config.grid_name}:${config.field_name}`;
+              if (!seen.has(uniqueKey)) {
+                seen.add(uniqueKey);
+                allConfigs.push(config);
+              }
+            });
+            
+            // Filter by gridName if specified
+            const filtered = gridName 
+              ? allConfigs.filter(config => config.grid_name === gridName)
+              : allConfigs;
+            
+            // Sort: by grid_name, then by column_order, then by field_name
+            filtered.sort((a, b) => {
+              if (a.grid_name !== b.grid_name) {
+                return a.grid_name.localeCompare(b.grid_name);
+              }
+              if (a.column_order !== undefined && b.column_order !== undefined) {
+                return a.column_order - b.column_order;
+              }
+              if (a.column_order !== undefined) return -1;
+              if (b.column_order !== undefined) return 1;
+              return a.field_name.localeCompare(b.field_name);
+            });
+            
+            // Return a copy to avoid mutations
+            return [...filtered];
+          }
+        }
+      } catch (err) {
+        // If fieldConfigUtils module not available, fall back to database
+        console.warn('[api.fieldConfigurations.getAll] Could not access in-memory cache, falling back to database');
+      }
+
+      // Fallback to database query if cache is not available
       let query = supabase
         .from('field_configurations')
         .select('*');

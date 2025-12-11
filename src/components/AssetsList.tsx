@@ -3056,12 +3056,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
                   חלקה: {building?.helka || '-'}
                 </p>
-                {isResidentTaxRegion && building?.residence_shared_area && building.residence_shared_area > 0 && (
+                {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (
                   <p className="text-sm text-white font-semibold bg-indigo-700 px-2 py-1 rounded">
                     שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}
                   </p>
                 )}
-                {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.business_shared_area && building.business_shared_area > 0 && (
+                {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.business_shared_area != null && building.business_shared_area > 0 && (
                   <p className="text-sm text-white font-semibold bg-purple-700 px-2 py-1 rounded">
                     שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}
                   </p>
@@ -3157,7 +3157,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             </button>
           </div>
           {/* Distribute shared area button - only visible in residence tabs when residence_shared_area > 0 */}
-          {building && isResidentTaxRegion && building.residence_shared_area && building.residence_shared_area > 0 && (
+          {building && isResidentTaxRegion && building.residence_shared_area != null && building.residence_shared_area > 0 && (
             <button
               type="button"
               onClick={handleDistributeSharedArea}
@@ -3170,7 +3170,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             </button>
           )}
           {/* Distribute business shared area button - only visible in business tabs (not multi tax region, not residence) when business_shared_area > 0 */}
-          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area && building.business_shared_area > 0 && (
+          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && building.business_shared_area > 0 && (
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}

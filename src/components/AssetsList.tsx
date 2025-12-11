@@ -1341,19 +1341,53 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       });
 
       // Filter assets: only private/residential assets that are accountable
+      let deletedCount = 0;
+      let notAccountableCount = 0;
+      let noMainTypeCount = 0;
+      let assetTypeNotFoundCount = 0;
+      let notResidentialCount = 0;
+      
       const residentialAssets = assets.filter(asset => {
         // Skip deleted assets
-        if (deletedAssets.has(String(asset.asset_id))) return false;
+        if (deletedAssets.has(String(asset.asset_id))) {
+          deletedCount++;
+          return false;
+        }
         
         // Exclude non-accountable assets using the helper function
         if (isAssetNotAccountable(asset)) {
+          notAccountableCount++;
           return false;
         }
         
         // Check if asset is private/residential type (not business)
-        if (!asset.main_asset_type) return false;
-        const assetType = assetTypeMap.get(String(asset.main_asset_type));
-        if (!assetType || assetType.business_residence !== 'מגורים') {
+        if (!asset.main_asset_type) {
+          noMainTypeCount++;
+          return false;
+        }
+        
+        // Try multiple lookup strategies to handle type mismatches
+        const mainTypeStr = String(asset.main_asset_type).trim();
+        let assetType = assetTypeMap.get(mainTypeStr);
+        
+        // If not found, try finding by name directly (case-insensitive, handle number/string mismatches)
+        if (!assetType) {
+          assetType = assetTypes.find(at => {
+            const atNameStr = String(at.name).trim();
+            return atNameStr === mainTypeStr || 
+                   atNameStr === String(asset.main_asset_type) ||
+                   String(atNameStr) === String(mainTypeStr);
+          });
+        }
+        
+        if (!assetType) {
+          assetTypeNotFoundCount++;
+          return false;
+        }
+        
+        // Check if asset type is residential
+        if (!assetType.business_residence || assetType.business_residence.trim() !== 'מגורים') {
+          notResidentialCount++;
           return false;
         }
         
@@ -1361,8 +1395,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       });
 
       if (residentialAssets.length === 0) {
-        setError('אין נכסי מגורים במבנה לפזר בהם שטח משותף');
-        setTimeout(() => setError(null), 3000);
+        // Provide detailed error message
+        const reasons: string[] = [];
+        if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
+        if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
+        if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
+        if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
+        if (notResidentialCount > 0) reasons.push(`${notResidentialCount} נכסים שאינם מסוג מגורים`);
+        
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + notResidentialCount;
+        const totalAssets = assets.length;
+        
+        let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';
+        if (reasons.length > 0) {
+          errorMsg += `. סיבות: ${reasons.join(', ')}`;
+        }
+        if (totalAssets === 0) {
+          errorMsg = 'אין נכסים במבנה';
+        } else if (totalFiltered === totalAssets) {
+          errorMsg += `. כל הנכסים במבנה נפסלו (סה"כ ${totalAssets} נכסים)`;
+        }
+        
+        setError(errorMsg);
+        setTimeout(() => setError(null), 5000);
         setLoading(false);
         return;
       }
@@ -1580,19 +1635,53 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       });
 
       // Filter assets: only business assets that are accountable
+      let deletedCount = 0;
+      let notAccountableCount = 0;
+      let noMainTypeCount = 0;
+      let assetTypeNotFoundCount = 0;
+      let notBusinessCount = 0;
+      
       const businessAssets = assets.filter(asset => {
         // Skip deleted assets
-        if (deletedAssets.has(String(asset.asset_id))) return false;
+        if (deletedAssets.has(String(asset.asset_id))) {
+          deletedCount++;
+          return false;
+        }
         
         // Exclude non-accountable assets
         if (isAssetNotAccountable(asset)) {
+          notAccountableCount++;
           return false;
         }
         
         // Check if asset is business type
-        if (!asset.main_asset_type) return false;
-        const assetType = assetTypeMap.get(String(asset.main_asset_type));
-        if (!assetType || assetType.business_residence !== 'עסקים') {
+        if (!asset.main_asset_type) {
+          noMainTypeCount++;
+          return false;
+        }
+        
+        // Try multiple lookup strategies to handle type mismatches
+        const mainTypeStr = String(asset.main_asset_type).trim();
+        let assetType = assetTypeMap.get(mainTypeStr);
+        
+        // If not found, try finding by name directly (case-insensitive, handle number/string mismatches)
+        if (!assetType) {
+          assetType = assetTypes.find(at => {
+            const atNameStr = String(at.name).trim();
+            return atNameStr === mainTypeStr || 
+                   atNameStr === String(asset.main_asset_type) ||
+                   String(atNameStr) === String(mainTypeStr);
+          });
+        }
+        
+        if (!assetType) {
+          assetTypeNotFoundCount++;
+          return false;
+        }
+        
+        // Check if asset type is business
+        if (!assetType.business_residence || assetType.business_residence.trim() !== 'עסקים') {
+          notBusinessCount++;
           return false;
         }
         
@@ -1600,8 +1689,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       });
 
       if (businessAssets.length === 0) {
-        setError('אין נכסי עסקים במבנה לפזר בהם שטח משותף');
-        setTimeout(() => setError(null), 3000);
+        // Provide detailed error message
+        const reasons: string[] = [];
+        if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
+        if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
+        if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
+        if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
+        if (notBusinessCount > 0) reasons.push(`${notBusinessCount} נכסים שאינם מסוג עסקים`);
+        
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount;
+        const totalAssets = assets.length;
+        
+        let errorMsg = 'אין נכסי עסקים במבנה לפזר בהם שטח משותף';
+        if (reasons.length > 0) {
+          errorMsg += `. סיבות: ${reasons.join(', ')}`;
+        }
+        if (totalAssets === 0) {
+          errorMsg = 'אין נכסים במבנה';
+        } else if (totalFiltered === totalAssets) {
+          errorMsg += `. כל הנכסים במבנה נפסלו (סה"כ ${totalAssets} נכסים)`;
+        }
+        
+        setError(errorMsg);
+        setTimeout(() => setError(null), 5000);
         setLoading(false);
         return;
       }

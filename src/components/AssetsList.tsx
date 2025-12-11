@@ -2713,6 +2713,31 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     return allPrivate;
   }, [assets, assetTypes, deletedAssets]);
 
+  // Check if tax region is "resident" (מגורים)
+  // Find asset types with this tax region and check if they are all "מגורים"
+  const isResidentTaxRegion = useMemo(() => {
+    if (!taxRegion || !assetTypes || assetTypes.length === 0) return false;
+    
+    // Parse tax region (could be single number or comma-separated)
+    const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
+    
+    if (taxRegionNumbers.length === 0) return false;
+    
+    // Check if all asset types with these tax regions are "מגורים" (residence)
+    const assetTypesForTaxRegions = assetTypes.filter(at => 
+      at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
+    );
+    
+    if (assetTypesForTaxRegions.length === 0) return false;
+    
+    // Check if all asset types are "מגורים" (residence)
+    const allAreResidence = assetTypesForTaxRegions.every(at => 
+      at.business_residence === 'מגורים'
+    );
+    
+    return allAreResidence;
+  }, [taxRegion, assetTypes]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -2894,12 +2919,17 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             // Check if building is private (single_double_family)
             const isPrivateBuilding = building?.single_double_family === 'כן' || building?.single_double_family === 'yes';
             
+            // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
+            const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
+            
             // Hide transfer button for:
             // 1. Private buildings (single_double_family)
             // 2. Multi tax region tabs (when taxRegion is not set, i.e., "all assets" tab)
             // 3. Tabs showing only private/residential assets (all assets are מגורים)
-            // Show only when: taxRegion is set AND building is not private AND not all assets are private
-            const shouldShowTransferButton = taxRegion && !isPrivateBuilding && !areAllAssetsPrivate;
+            // 4. Tax region is "resident" (מגורים)
+            // 5. Tax region is "multi" (multiple tax regions)
+            // Show only when: taxRegion is set AND building is not private AND not all assets are private AND not resident AND not multi
+            const shouldShowTransferButton = taxRegion && !isPrivateBuilding && !areAllAssetsPrivate && !isResidentTaxRegion && !isMultiTaxRegion;
             
             // Check if we have 2 or more selected assets for transfer areas button
             const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;

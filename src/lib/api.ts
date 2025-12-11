@@ -1168,9 +1168,10 @@ export const api = {
       }
 
       // Fallback to database query if cache is not available
+      // Explicitly select all fields including business_residence to ensure it's included
       const { data, error } = await supabase
         .from('asset_types')
-        .select('*')
+        .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, not_accountable, area_description_for_tab, created_at, updated_at')
         .order('name');
 
       if (error) throw error;
@@ -1182,6 +1183,21 @@ export const api = {
         }
         return item;
       });
+      
+      // Debug: Log sample data to verify business_residence is included
+      if (mappedData.length > 0) {
+        const sampleWithBusinessResidence = mappedData.filter((at: any) => at.business_residence != null);
+        if (sampleWithBusinessResidence.length > 0) {
+          console.log('[api.assetTypes.getAll] Sample asset types with business_residence:', 
+            sampleWithBusinessResidence.slice(0, 3).map((at: any) => ({
+              name: at.name,
+              business_residence: at.business_residence
+            }))
+          );
+        } else {
+          console.warn('[api.assetTypes.getAll] No asset types found with business_residence set. Total:', mappedData.length);
+        }
+      }
       
       return mappedData;
     },

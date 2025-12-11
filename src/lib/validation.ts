@@ -52,9 +52,10 @@ export function setValidationData(data: { buildings: any[]; assetTypes: any[]; a
 export async function refreshAssetTypesCache(): Promise<void> {
   try {
     const { supabase } = await import('./supabase');
+    // Explicitly select all fields including business_residence
     const { data, error } = await supabase
       .from('asset_types')
-      .select('*')
+      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, not_accountable, area_description_for_tab, created_at, updated_at')
       .order('name');
 
     if (error) {
@@ -71,7 +72,8 @@ export async function refreshAssetTypesCache(): Promise<void> {
     });
 
     inMemoryAssetTypes = mappedData;
-    console.log(`[validation] Refreshed ${mappedData.length} asset types in memory`);
+    const withBusinessResidence = mappedData.filter((at: any) => at.business_residence != null);
+    console.log(`[validation] Refreshed ${mappedData.length} asset types in memory. ${withBusinessResidence.length} have business_residence set.`);
   } catch (err) {
     console.error('[validation] Failed to refresh asset types cache:', err);
   }

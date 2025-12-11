@@ -984,19 +984,34 @@ export const api = {
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
+      // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
+      const isNewMeasurement = input.is_new_measurement;
+      
       // Sanitize the input data first (no need to fetch existing asset - we can update directly)
       const sanitizedInput = sanitizeAssetInput(input);
       
       // Remove fields that shouldn't be updated
       // No id field to delete - asset_id is now the primary key
       delete (sanitizedInput as any).created_at;
+      
       // Only include is_new_measurement if explicitly provided (for "save as new measurement")
       // For regular updates, omit it entirely to avoid errors if column doesn't exist
       // If column exists and is false, omitting it keeps it false (PostgreSQL behavior)
-      if (!('is_new_measurement' in input)) {
+      if (isNewMeasurement !== undefined) {
+        (sanitizedInput as any).is_new_measurement = isNewMeasurement;
+        console.log('[api.assets.update] Setting is_new_measurement flag:', isNewMeasurement, 'for asset_id:', id);
+      } else {
         delete (sanitizedInput as any).is_new_measurement;
       }
       
+      // Log what we're about to update (for debugging)
+      if (isNewMeasurement === true) {
+        console.log('[api.assets.update] About to update with is_new_measurement=true. Sanitized input:', {
+          asset_id: id,
+          is_new_measurement: sanitizedInput.is_new_measurement,
+          hasFlag: 'is_new_measurement' in sanitizedInput
+        });
+      }
 
       // Perform a regular UPDATE - the trigger will only move to history if is_new_measurement is true
       const { data: updatedAsset, error: updateError } = await supabase

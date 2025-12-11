@@ -425,10 +425,33 @@ export class AssetValidationHandler {
       
       if (assetTypes && assetTypes.length > 0) {
         const assetTypeNameStr = String(asset.main_asset_type).trim();
-        const assetType = assetTypes.find(at => String(at.name).trim() === assetTypeNameStr);
+        // Try multiple matching strategies
+        let assetType = assetTypes.find(at => {
+          const atNameStr = String(at.name).trim();
+          return atNameStr === assetTypeNameStr;
+        });
+        
+        // If not found, try numeric comparison
+        if (!assetType) {
+          const assetTypeNum = parseInt(assetTypeNameStr, 10);
+          if (!isNaN(assetTypeNum)) {
+            assetType = assetTypes.find(at => {
+              const atNameNum = parseInt(String(at.name).trim(), 10);
+              return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+            });
+          }
+        }
         
         if (assetType && assetType.not_accountable === true) {
           // Asset type is not_accountable - skip all validation
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AssetValidationHandler] Skipping validation for not_accountable asset:', {
+              assetId: asset.asset_id,
+              main_asset_type: asset.main_asset_type,
+              assetTypeName: assetType.name,
+              not_accountable: assetType.not_accountable
+            });
+          }
           return {
             assetId: asset.asset_id,
             assetIdentifier,

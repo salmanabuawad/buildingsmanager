@@ -386,30 +386,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Create updated asset with new value
       const updatedAsset = { ...data, [field]: newValue };
 
-      // Skip validation if asset is not_accountable
-      if (isAssetNotAccountable(updatedAsset)) {
-        // Still update the local state and clear any existing validation errors
-        setDirtyAssets(prev => {
-          const newMap = new Map(prev);
-          const existing = newMap.get(assetId) || {};
-          newMap.set(assetId, { ...existing, [field]: newValue });
-          return newMap;
-        });
-        setAssets(prevAssets =>
-          prevAssets.map(asset =>
-            String(asset.asset_id) === String(assetId) ? updatedAsset : asset
-          )
-        );
-        // Clear validation errors for this asset
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(assetId);
-          return newMap;
-        });
-        event.api.refreshCells({ rowNodes: [event.node!], force: true });
-        return;
-      }
-
       // Track the change in dirtyAssets immediately (no debounce)
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
@@ -424,6 +400,24 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           String(asset.asset_id) === String(assetId) ? updatedAsset : asset
         )
       );
+
+      // Skip validation if asset is not_accountable - skip ALL validations including quick ones
+      if (isAssetNotAccountable(updatedAsset)) {
+        // Clear existing validation timer for this asset
+        const existingTimer = validationTimerRef.current.get(String(assetId));
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          validationTimerRef.current.delete(String(assetId));
+        }
+        // Clear validation errors for this asset
+        setValidationErrors(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(assetId);
+          return newMap;
+        });
+        event.api.refreshCells({ rowNodes: [event.node!], force: true });
+        return;
+      }
 
       // Clear existing validation timer for this asset
       const existingTimer = validationTimerRef.current.get(String(assetId));
@@ -918,6 +912,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
           // For new assets, validate all required fields
           if (isNewAsset) {
+            // Skip validation if asset is not_accountable
+            if (isAssetNotAccountable(updatedData)) {
+              // Still save the asset, just skip validation
+              try {
+                await api.assets.create(updatedData);
+                savedCount++;
+                successfullySaved.add(assetId);
+              } catch (err) {
+                errors.push(`נכס ${updatedData.asset_id}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
+              }
+              continue;
+            }
+
             // Validate required fields
             if (!updatedData.asset_id) {
               errors.push(`נכס חדש: קוד נכס נדרש`);

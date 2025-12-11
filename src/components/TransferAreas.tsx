@@ -276,6 +276,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   // Helper function to validate a single asset
   const validateAsset = useCallback(async (asset: Asset): Promise<{ valid: boolean; error?: string }> => {
+    // Skip validation if asset is not_accountable
+    if (asset.main_asset_type && isAssetTypeNotAccountable(asset.main_asset_type)) {
+      return { valid: true };
+    }
+
     // For transfer areas tab: combine asset's tax_region with tab's taxRegion
     // This allows validation against both the original asset tax region and the transferred tax region
     let combinedTaxRegion = '';

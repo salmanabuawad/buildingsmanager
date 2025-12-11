@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ValidationRule, api } from '../lib/api';
 import { useValidationRules } from '../contexts/ValidationContext';
-import { Settings, Plus, Save, X, RefreshCw } from 'lucide-react';
+import { Settings, Plus, Save, X, RefreshCw, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
@@ -70,6 +71,86 @@ export function ValidationRulesManager() {
   function showMessage(type: 'success' | 'error', text: string) {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
+  }
+
+  function handleExportToExcel() {
+    if (!rules || rules.length === 0) {
+      showMessage('error', 'אין כללי תקינות לייצוא');
+      return;
+    }
+
+    try {
+      // Define headers
+      const headers = [
+        t('enabled'),
+        t('ruleKey'),
+        t('entityType'),
+        t('fieldName'),
+        t('ruleType'),
+        t('numericValue'),
+        t('textValue'),
+        t('errorMessage'),
+        t('compareTable'),
+        t('compareField'),
+        t('joinField'),
+        t('operator')
+      ];
+
+      // Convert rules to rows
+      const rows = rules.map(rule => [
+        rule.enabled ? 'כן' : 'לא',
+        rule.rule_key || '',
+        rule.entity_type || '',
+        rule.field_name || '',
+        rule.rule_type || '',
+        rule.value_numeric || '',
+        rule.value_text || '',
+        rule.error_message || '',
+        rule.compare_table || '',
+        rule.compare_field || '',
+        rule.join_field || '',
+        rule.comparison_operator || ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 8 },  // enabled
+        { wch: 20 }, // rule_key
+        { wch: 15 }, // entity_type
+        { wch: 20 }, // field_name
+        { wch: 15 }, // rule_type
+        { wch: 12 }, // value_numeric
+        { wch: 20 }, // value_text
+        { wch: 30 }, // error_message
+        { wch: 20 }, // compare_table
+        { wch: 20 }, // compare_field
+        { wch: 20 }, // join_field
+        { wch: 15 }  // comparison_operator
+      ];
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'כללי תקינות');
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `כללי_תקינות_${dateStr}.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(workbook, filename);
+      
+      showMessage('success', `יוצאו ${rows.length} כללי תקינות בהצלחה`);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      showMessage('error', 'שגיאה בייצוא לקובץ Excel');
+    }
   }
 
   function handleAdd() {
@@ -348,6 +429,13 @@ export function ValidationRulesManager() {
           <h2 className="text-lg font-bold text-slate-800">{t('validationRules')}</h2>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleExportToExcel}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            ייצא ל-Excel
+          </button>
           <button
             onClick={handleRefreshCache}
             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"

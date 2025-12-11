@@ -79,6 +79,61 @@ export function AddressListComponent() {
     XLSX.writeFile(wb, 'תבנית_רשימת_כתובות.xlsx');
   }
 
+  function handleExportToExcel() {
+    if (!addresses || addresses.length === 0) {
+      showMessage('error', 'אין כתובות לייצוא');
+      return;
+    }
+
+    try {
+      // Filter out deleted addresses and apply dirty changes
+      const addressesToExport = addresses
+        .filter(addr => !deletedAddresses.has(addr.street_code))
+        .map(addr => {
+          const dirtyChanges = dirtyAddresses.get(addr.street_code) || {};
+          return { ...addr, ...dirtyChanges };
+        });
+
+      // Define headers
+      const headers = ['סמל רחוב', 'שם רחוב'];
+
+      // Convert addresses to rows
+      const rows = addressesToExport.map(addr => [
+        addr.street_code || '',
+        addr.street_description || ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 15 }, // סמל רחוב
+        { wch: 40 }  // שם רחוב
+      ];
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'כתובות');
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `כתובות_${dateStr}.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(workbook, filename);
+      
+      showMessage('success', `יוצאו ${rows.length} כתובות בהצלחה`);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      showMessage('error', 'שגיאה בייצוא לקובץ Excel');
+    }
+  }
+
   const onCellValueChanged = useCallback(async (event: any) => {
     const address = event.data as AddressList;
     if (!address || !address.street_code) return;
@@ -646,6 +701,14 @@ export function AddressListComponent() {
               onChange={handleFileImport}
               className="hidden"
             />
+            <button
+              onClick={handleExportToExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              title="ייצא נתונים ל-Excel"
+            >
+              <Download className="h-5 w-5" />
+              <span className="hidden sm:inline">ייצא ל-Excel</span>
+            </button>
             <button
               onClick={handleExportTemplate}
               className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"

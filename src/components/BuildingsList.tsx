@@ -4,7 +4,8 @@ import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2 } from 'lucide-react';
+import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
@@ -1001,6 +1002,111 @@ export function BuildingsList({
       setTimeout(() => setError(null), 5000);
     }
   }, [buildings, dirtyBuildings, buildingsToDelete, getBuildingKey, isNewBuilding, totalChanges]);
+
+  // Export buildings to Excel
+  const handleExportToExcel = useCallback(() => {
+    if (!filteredBuildings || filteredBuildings.length === 0) {
+      setError('אין מבנים לייצוא');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      // Get all buildings with dirty changes applied, excluding deleted ones
+      const buildingsToExport = filteredBuildings
+        .filter(building => {
+          const buildingKey = getBuildingKey(building);
+          return !buildingsToDelete.has(buildingKey);
+        })
+        .map(building => {
+          const buildingKey = getBuildingKey(building);
+          const dirtyChanges = dirtyBuildings.get(buildingKey) || {};
+          return { ...building, ...dirtyChanges };
+        });
+
+      // Define headers matching the grid columns (excluding actions)
+      const headers = [
+        'מספר מבנה',
+        'אזור מיסים',
+        'אחוז העמסה',
+        'שטח משותף מגורים',
+        'שטח משותף עסקים',
+        'ס"כ גודל',
+        'שטח לבקרה',
+        'כתובת',
+        'גוש',
+        'חלקה',
+        'מספר בניין ברחוב',
+        'מעלית',
+        'בית פרטי חד/דו משפחתי',
+        'בית משותף',
+        'טוריים'
+      ];
+
+      // Convert buildings to rows
+      const rows = buildingsToExport.map(building => [
+        building.building_number || '',
+        building.tax_region || '',
+        building.overload_ratio != null ? `${building.overload_ratio}%` : '',
+        building.private_shared_area || '',
+        building.business_shared_area || '',
+        building.total_building_area || '',
+        building.area_for_control || '',
+        building.building_address ? (addressList.find(a => a.street_code === building.building_address)?.street_description || building.building_address) : '',
+        building.gosh || '',
+        building.helka || '',
+        building.building_number_in_street || '',
+        building.elevator || '',
+        building.single_double_family || '',
+        building.condo || '',
+        building.townhouses || ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 12 }, // מספר מבנה
+        { wch: 15 }, // אזור מיסים
+        { wch: 12 }, // אחוז העמסה
+        { wch: 18 }, // שטח משותף מגורים
+        { wch: 18 }, // שטח משותף עסקים
+        { wch: 12 }, // ס"כ גודל
+        { wch: 15 }, // שטח לבקרה
+        { wch: 30 }, // כתובת
+        { wch: 10 }, // גוש
+        { wch: 10 }, // חלקה
+        { wch: 18 }, // מספר בניין ברחוב
+        { wch: 10 }, // מעלית
+        { wch: 25 }, // בית פרטי חד/דו משפחתי
+        { wch: 12 }, // בית משותף
+        { wch: 12 }  // טוריים
+      ];
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'מבנים');
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `מבנים_${dateStr}.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(workbook, filename);
+      
+      setSuccess(`יוצאו ${rows.length} מבנים בהצלחה`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      setError('שגיאה בייצוא לקובץ Excel');
+      setTimeout(() => setError(null), 3000);
+    }
+  }, [filteredBuildings, dirtyBuildings, buildingsToDelete, getBuildingKey, addressList]);
 
   // Save all changes
   const handleSaveAll = async () => {
@@ -2225,6 +2331,14 @@ export function BuildingsList({
             >
               <CheckCircle2 className="h-4 w-4" />
               אמת הכל
+            </button>
+            <button
+              type="button"
+              onClick={handleExportToExcel}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+            >
+              <Download className="h-4 w-4" />
+              ייצא ל-Excel
             </button>
           </div>
           <div className="flex gap-2">

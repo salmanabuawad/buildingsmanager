@@ -2743,6 +2743,34 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     return !taxRegion || (building?.tax_region && building.tax_region.includes(','));
   }, [taxRegion, building?.tax_region]);
 
+  // Check if tax region is "business" (עסקים) - has at least one business asset type
+  const isBusinessTaxRegion = useMemo(() => {
+    if (!taxRegion || !assetTypes || assetTypes.length === 0) {
+      // If asset types aren't loaded yet, we can't determine - default to false
+      // The button will show if !isResidentTaxRegion (which will be false when asset types aren't loaded)
+      return false;
+    }
+    
+    // Parse tax region (could be single number or comma-separated)
+    const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
+    
+    if (taxRegionNumbers.length === 0) return false;
+    
+    // Check if there are any business asset types with these tax regions
+    const assetTypesForTaxRegions = assetTypes.filter(at => 
+      at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
+    );
+    
+    if (assetTypesForTaxRegions.length === 0) return false;
+    
+    // Check if at least one asset type is "עסקים" (business)
+    const hasBusiness = assetTypesForTaxRegions.some(at => 
+      at.business_residence === 'עסקים'
+    );
+    
+    return hasBusiness;
+  }, [taxRegion, assetTypes]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -2902,19 +2930,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             </button>
           )}
           {/* Distribute business shared area button - only visible in business tabs (not multi tax region, not residence), disabled if business_shared_area is 0 or null */}
-          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (
-            <button
-              type="button"
-              onClick={handleDistributeBusinessSharedArea}
-              disabled={loading || assets.length === 0 || !building.business_shared_area || building.business_shared_area <= 0}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-              title={building.business_shared_area && building.business_shared_area > 0
-                ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
-                : 'שטח משותף עסקים לא מוגדר או שווה לאפס'}
-            >
-              <Download className="h-4 w-4" />
-              פזר שטח משותף עסקים
-            </button>
+          {building && taxRegion && !isMultiTaxRegion && (
+            // Show if it's a business tab (has business asset types) OR if asset types aren't loaded yet (default to showing)
+            (isBusinessTaxRegion || !assetTypes || assetTypes.length === 0) && !isResidentTaxRegion && (
+              <button
+                type="button"
+                onClick={handleDistributeBusinessSharedArea}
+                disabled={loading || assets.length === 0 || !building.business_shared_area || building.business_shared_area <= 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+                title={building.business_shared_area && building.business_shared_area > 0
+                  ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
+                  : 'שטח משותף עסקים לא מוגדר או שווה לאפס'}
+              >
+                <Download className="h-4 w-4" />
+                פזר שטח משותף עסקים
+              </button>
+            )
           )}
           {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
           {(() => {

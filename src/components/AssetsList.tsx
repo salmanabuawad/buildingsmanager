@@ -1341,9 +1341,21 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     setSuccess(null);
 
     try {
+      // Refresh asset types to ensure we have latest data (in case cache is stale)
+      let currentAssetTypes = assetTypes;
+      try {
+        const refreshedAssetTypes = await api.assetTypes.getAll();
+        if (refreshedAssetTypes && refreshedAssetTypes.length > 0) {
+          currentAssetTypes = refreshedAssetTypes;
+          setAssetTypes(refreshedAssetTypes);
+        }
+      } catch (refreshError) {
+        console.warn('[DistributeResidence] Failed to refresh asset types, using existing:', refreshError);
+      }
+
       // Create asset type map for quick lookup - use multiple keys for flexibility
       const assetTypeMap = new Map<string, AssetType>();
-      assetTypes.forEach(at => {
+      currentAssetTypes.forEach(at => {
         const nameKey = String(at.name).trim();
         assetTypeMap.set(nameKey, at);
         // Also add numeric version if name is numeric
@@ -1354,75 +1366,24 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       });
 
       // Deep check: Log all asset types with business_residence = 'מגורים'
-      const residentialAssetTypes = assetTypes.filter(at => {
+      const residentialAssetTypes = currentAssetTypes.filter(at => {
         const br = at.business_residence ? String(at.business_residence).trim() : '';
         return br === 'מגורים';
       });
       
       // Check for null/undefined business_residence values
-      const assetTypesWithNullBusinessResidence = assetTypes.filter(at => 
+      const assetTypesWithNullBusinessResidence = currentAssetTypes.filter(at => 
         at.business_residence == null || at.business_residence === ''
       );
       
-      // Direct database query to verify business_residence values
-      // Check both old field name (business_private) and new field name (business_residence)
-      let directDbCheck: any = null;
-      try {
-        const { supabase } = await import('../lib/supabase');
-        
-        // Check new field name
-        const { data: dbData, error: dbError } = await supabase
-          .from('asset_types')
-          .select('name, business_residence')
-          .limit(20);
-        
-        // Also check if old field exists (for migration detection)
-        const { data: dbDataWithOldField } = await supabase
-          .from('asset_types')
-          .select('name, business_private, business_residence')
-          .limit(5);
-        
-        if (!dbError && dbData) {
-          const withBusinessResidence = dbData.filter((at: any) => at.business_residence != null);
-          const withMegurim = dbData.filter((at: any) => at.business_residence === 'מגורים');
-          
-          directDbCheck = {
-            sampleFromDb: dbData.slice(0, 5),
-            countWithBusinessResidence: withBusinessResidence.length,
-            countWithMegurim: withMegurim.length,
-            sampleWithMegurim: withMegurim.slice(0, 3).map((at: any) => ({
-              name: at.name,
-              business_residence: at.business_residence
-            })),
-            sampleWithNull: dbData.filter((at: any) => at.business_residence == null).slice(0, 3),
-            oldFieldCheck: dbDataWithOldField ? {
-              hasBusinessPrivate: dbDataWithOldField.some((at: any) => 'business_private' in at),
-              sample: dbDataWithOldField
-            } : null
-          };
-        }
-      } catch (dbCheckError) {
-        console.warn('[DistributeResidence] Failed to check database directly:', dbCheckError);
-      }
-
-      console.log('[DistributeResidence] Starting distribution - DEEP CHECK:', {
+      console.log('[DistributeResidence] Starting distribution:', {
         totalAssets: assets.length,
         assetTypesCount: assetTypes.length,
         residenceSharedArea: building.residence_shared_area,
         residentialAssetTypesCount: residentialAssetTypes.length,
         residentialAssetTypeNames: residentialAssetTypes.map(at => at.name),
         assetTypesWithNullBusinessResidence: assetTypesWithNullBusinessResidence.length,
-        sampleNullBusinessResidenceTypes: assetTypesWithNullBusinessResidence.slice(0, 5).map(at => ({
-          name: at.name,
-          id: at.id,
-          hasBusinessResidenceField: 'business_residence' in at,
-          businessResidenceValue: at.business_residence,
-          businessResidenceType: typeof at.business_residence,
-          allKeys: Object.keys(at),
-          rawObject: JSON.stringify(at)
-        })),
-        directDatabaseCheck: directDbCheck,
-        allAssetTypesWithBusinessResidence: assetTypes
+        allAssetTypesWithBusinessResidence: currentAssetTypes
           .filter(at => at.business_residence != null && at.business_residence !== '')
           .map(at => ({
             name: at.name,
@@ -1443,6 +1404,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
       let notResidentialCount = 0;
+      let excludedType990Count = 0;
       let residentialFoundCount = 0;
       
       const residentialAssets = assets.filter((asset, index) => {
@@ -1493,7 +1455,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         
         // If still not found, try finding by name directly
         if (!assetType) {
-          assetType = assetTypes.find(at => {
+          assetType = currentAssetTypes.find(at => {
             const atNameStr = String(at.name).trim();
             return atNameStr === mainTypeStr;
           });
@@ -1514,6 +1476,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         debugInfo.assetTypeHasBusinessResidence = 'business_residence' in assetType;
         debugInfo.assetTypeBusinessResidenceValue = assetType.business_residence;
         debugInfo.assetTypeBusinessResidenceType = typeof assetType.business_residence;
+        
+        // Exclude asset type 990 from receiving shared area
+        if (assetType.name === '990' || String(assetType.name).trim() === '990') {
+          excludedType990Count++;
+          debugInfo.reason = 'excluded_type_990';
+          if (index < 3) console.log('[DistributeResidence] Asset excluded (type 990):', debugInfo);
+          return false;
+        }
         
         // Deep check: Compare business_residence with 'מגורים'
         // Handle potential encoding/whitespace issues
@@ -1566,6 +1536,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         notAccountableCount,
         noMainTypeCount,
         assetTypeNotFoundCount,
+        excludedType990Count,
         notResidentialCount,
         finalResidentialAssets: residentialAssets.length
       });
@@ -1577,9 +1548,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
+        if (excludedType990Count > 0) reasons.push(`${excludedType990Count} נכסים מסוג 990 (לא מקבלים שטח משותף)`);
         if (notResidentialCount > 0) reasons.push(`${notResidentialCount} נכסים שאינם מסוג מגורים`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + notResidentialCount;
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + excludedType990Count + notResidentialCount;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';

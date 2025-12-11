@@ -256,20 +256,41 @@ DECLARE
   v_action_type audit_action_type;
   v_audit_id bigint;
   v_user_name text;
+  v_building_number bigint;
 BEGIN
+  -- Get building number (from OLD for DELETE/UPDATE, from NEW for INSERT)
+  v_building_number := COALESCE(OLD.building_number, NEW.building_number);
+  
   -- Determine action type based on operation
   IF TG_OP = 'INSERT' THEN
     v_action_type := 'manual_update';
-    v_before_data := NULL;
+    -- Capture building state before asset insertion
+    v_before_data := jsonb_build_object(
+      'asset', NULL,
+      'building', get_building_audit_data(v_building_number)
+    );
+    -- Capture asset and building state after insertion
     v_after_data := get_asset_audit_data(NEW.asset_id);
   ELSIF TG_OP = 'UPDATE' THEN
     v_action_type := 'manual_update';
-    v_before_data := get_asset_audit_data(OLD.asset_id);
+    -- Capture asset and building state BEFORE the update
+    -- Note: Since this is an AFTER trigger, the building might have already been updated
+    -- by other triggers, but we capture what we can
+    v_before_data := jsonb_build_object(
+      'asset', to_jsonb(OLD.*),
+      'building', get_building_audit_data(v_building_number)
+    );
+    -- Capture asset and building state AFTER the update
     v_after_data := get_asset_audit_data(NEW.asset_id);
   ELSIF TG_OP = 'DELETE' THEN
     v_action_type := 'manual_update';
+    -- Capture asset and building state before deletion
     v_before_data := get_asset_audit_data(OLD.asset_id);
-    v_after_data := NULL;
+    -- Capture building state after asset deletion
+    v_after_data := jsonb_build_object(
+      'asset', NULL,
+      'building', get_building_audit_data(v_building_number)
+    );
   END IF;
   
   -- Get current user from session or use default

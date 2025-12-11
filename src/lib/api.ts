@@ -1063,7 +1063,7 @@ export const api = {
   measurements: {
     getAll: async (assetId: string): Promise<AssetMeasurement[]> => {
       const { data, error } = await supabase
-        .from('apartment_measurements')
+        .from('asset_measurements')
         .select('*')
         .eq('asset_id', assetId);
 
@@ -1083,7 +1083,7 @@ export const api = {
     },
     getOne: async (id: string): Promise<AssetMeasurement> => {
       const { data, error } = await supabase
-        .from('apartment_measurements')
+        .from('asset_measurements')
         .select('*')
         .eq('id', id)
         .maybeSingle();
@@ -1094,7 +1094,7 @@ export const api = {
     },
     create: async (input: Omit<AssetMeasurement, 'id' | 'created_at' | 'total_area'>): Promise<AssetMeasurement> => {
       const { data, error } = await supabase
-        .from('apartment_measurements')
+        .from('asset_measurements')
         .insert(input)
         .select()
         .single();
@@ -1104,7 +1104,7 @@ export const api = {
     },
     update: async (id: string, input: Partial<AssetMeasurement>): Promise<AssetMeasurement> => {
       const { data, error } = await supabase
-        .from('apartment_measurements')
+        .from('asset_measurements')
         .update(input)
         .eq('id', id)
         .select()
@@ -1115,7 +1115,7 @@ export const api = {
     },
     delete: async (id: string): Promise<{ message: string }> => {
       const { error } = await supabase
-        .from('apartment_measurements')
+        .from('asset_measurements')
         .delete()
         .eq('id', id);
 

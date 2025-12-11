@@ -81,9 +81,6 @@ VITE_USE_LOCAL_DB=true
 # Update with your PostgreSQL credentials
 VITE_LOCAL_DB_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/buildings_manager
 
-# API URL (optional - for backend)
-VITE_API_URL=http://localhost:8000
-
 # Keep Supabase settings empty or for production fallback
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=

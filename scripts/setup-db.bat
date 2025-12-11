@@ -102,7 +102,6 @@ if not exist ".env" (
         echo # Local Development Environment Variables
         echo VITE_USE_LOCAL_DB=true
         echo VITE_LOCAL_DB_URL=postgresql://%DB_USER%:%DB_PASSWORD%@%DB_HOST%:%DB_PORT%/%DB_NAME%
-        echo VITE_API_URL=http://localhost:8000
         echo VITE_SUPABASE_URL=
         echo VITE_SUPABASE_ANON_KEY=
     ) > .env

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { BuildingsList } from './components/BuildingsList';
 import { AssetsList } from './components/AssetsList';
 import { AssetDetails } from './components/AssetDetails';
-import { AdminPDFManager } from './components/AdminPDFManager';
 import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
@@ -964,9 +963,6 @@ function App() {
                 taxRegion={activeTab.taxRegion}
                 selectedAssetIds={activeTab.selectedAssetIds}
               />
-            )}
-            {activeTab?.type === 'admin' && (
-              <AdminPDFManager />
             )}
             {activeTab?.type === 'asset-types' && (
               <AssetTypes />

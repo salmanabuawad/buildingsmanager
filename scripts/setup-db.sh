@@ -112,7 +112,6 @@ if [ ! -f ".env" ]; then
 # Local Development Environment Variables
 VITE_USE_LOCAL_DB=true
 VITE_LOCAL_DB_URL=postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME
-VITE_API_URL=http://localhost:8000
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 EOF

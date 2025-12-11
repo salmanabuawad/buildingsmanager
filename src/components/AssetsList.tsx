@@ -293,7 +293,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // This is handled separately in handleSaveAll after fetchData
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load apartments');
+      setError(err instanceof Error ? err.message : 'Failed to load assets');
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -2679,7 +2679,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
-          <p className="mt-4 text-slate-700 font-medium">{t('loadingApartments')}</p>
+          <p className="mt-4 text-slate-700 font-medium">{t('loadingAssets')}</p>
         </div>
       </div>
     );

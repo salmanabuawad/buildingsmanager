@@ -120,7 +120,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
       setUploadingFor(measurementId);
 
       const fileExt = file.name.split('.').pop();
-      const filePath = `${apartmentId}/measurements/${measurementId}-${Date.now()}.${fileExt}`;
+      const filePath = `${assetId}/measurements/${measurementId}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('dwg-files')
@@ -293,7 +293,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">
-                {t('apartmentArea')}
+                {t('assetArea')}
               </label>
               <input
                 type="number"
@@ -468,7 +468,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-slate-700 block mb-1">
-                        {t('apartmentArea')}
+                        {t('assetArea')}
                       </label>
                       <input
                         type="number"
@@ -578,7 +578,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     <div>
-                      <span className="text-slate-600">{t('apartmentArea')}:</span>
+                      <span className="text-slate-600">{t('assetArea')}:</span>
                       <span className="font-medium text-slate-900 mr-2">
                         {measurement.asset_area.toLocaleString()}
                       </span>

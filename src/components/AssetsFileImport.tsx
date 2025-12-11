@@ -2179,6 +2179,46 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return !successfullySavedAssetIds.has(normalizedAssetId);
       }));
 
+      // Log audit entry for import file action
+      if (successCount > 0) {
+        try {
+          const assetIds = insertedAssetsResult?.map(a => a.asset_id).filter((id): id is number => typeof id === 'number') || [];
+          const buildingNumbers = [...new Set(validAssets.map(a => {
+            const bn = typeof a.building_number === 'string' ? parseInt(a.building_number, 10) : a.building_number;
+            return !isNaN(bn) ? bn : null;
+          }).filter((bn): bn is number => bn !== null))];
+          
+          if (assetIds.length > 0) {
+            await api.auditLog.logBulkAssetAction(
+              assetIds,
+              'import_file',
+              undefined,
+              { assets: insertedAssetsResult },
+              `Imported ${successCount} assets from file${saveAsNew ? ' as new measurements' : ''}`
+            );
+          }
+          
+          // Also log building actions if buildings were created
+          for (const buildingNum of buildingNumbers) {
+            try {
+              const building = await api.buildings.getOne(buildingNum);
+              await api.auditLog.logBuildingAction(
+                buildingNum,
+                'import_file',
+                undefined,
+                { building, assets: insertedAssetsResult?.filter(a => a.building_number === buildingNum) },
+                `Building created/updated during file import`
+              );
+            } catch (err) {
+              // Skip if building doesn't exist or other error
+            }
+          }
+        } catch (auditError) {
+          console.warn('Failed to log audit entry for file import:', auditError);
+          // Don't block the operation if audit logging fails
+        }
+      }
+
       setSaveResult({
         successful: successCount,
         failed: failedCount,

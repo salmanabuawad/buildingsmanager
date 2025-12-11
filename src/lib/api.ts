@@ -2,6 +2,24 @@ import { supabase } from './supabase';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 
+/**
+ * Get the current user name from Supabase auth
+ * Returns 'default' if no user is logged in
+ */
+async function getCurrentUserName(): Promise<string> {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      return 'default';
+    }
+    // Try to get user email or id
+    return user.email || user.id || 'default';
+  } catch (error) {
+    console.warn('Error getting current user:', error);
+    return 'default';
+  }
+}
+
 export interface Building {
   building_number: number;
   tax_region?: string;
@@ -138,9 +156,9 @@ export interface ValidationRule {
 }
 
 export interface AuditLog {
-  id: string;
+  action_id: number;
   user_name: string;
-  action_type: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform';
+  action_type: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared';
   entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
   entity_id?: string;
   before_data?: any; // JSONB
@@ -1786,11 +1804,11 @@ export const api = {
       if (error) throw error;
       return data || [];
     },
-    getOne: async (id: string): Promise<AuditLog> => {
+    getOne: async (actionId: number): Promise<AuditLog> => {
       const { data, error } = await supabase
         .from('audit')
         .select('*')
-        .eq('id', id)
+        .eq('action_id', actionId)
         .single();
 
       if (error) throw error;
@@ -1798,35 +1816,38 @@ export const api = {
     },
     logEntry: async (input: {
       user_name?: string;
-      action_type: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform';
+      action_type: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared';
       entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
       entity_id?: string;
       before_data?: any;
       after_data?: any;
       description?: string;
-    }): Promise<{ id: string }> => {
+    }): Promise<{ action_id: number }> => {
+      // Get current user if not provided
+      const userName = input.user_name || await getCurrentUserName();
+      
       const { data, error } = await supabase
         .rpc('log_audit_entry', {
           p_action_type: input.action_type,
           p_entity_type: input.entity_type,
           p_entity_id: input.entity_id || null,
-          p_user_name: input.user_name || 'default',
+          p_user_name: userName,
           p_before_data: input.before_data || null,
           p_after_data: input.after_data || null,
           p_description: input.description || null,
         });
 
       if (error) throw error;
-      return { id: data };
+      return { action_id: Number(data) };
     },
     logBuildingAction: async (
       buildingNumber: number,
-      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
       beforeData?: any,
       afterData?: any,
       description?: string,
       userName?: string
-    ): Promise<{ id: string }> => {
+    ): Promise<{ action_id: number }> => {
       // Get building data with assets if not provided
       let before = beforeData;
       let after = afterData;
@@ -1837,8 +1858,11 @@ export const api = {
         after = buildingData;
       }
 
-      return api.auditLog.logEntry({
-        user_name: userName,
+      // Get current user if not provided
+      const currentUserName = userName || await getCurrentUserName();
+
+      const result = await api.auditLog.logEntry({
+        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'building',
         entity_id: buildingNumber.toString(),
@@ -1846,15 +1870,16 @@ export const api = {
         after_data: after,
         description,
       });
+      return { action_id: result.action_id };
     },
     logAssetAction: async (
       assetId: number,
-      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
       beforeData?: any,
       afterData?: any,
       description?: string,
       userName?: string
-    ): Promise<{ id: string }> => {
+    ): Promise<{ action_id: number }> => {
       // Get asset data with building if not provided
       let before = beforeData;
       let after = afterData;
@@ -1865,8 +1890,11 @@ export const api = {
         after = assetData;
       }
 
-      return api.auditLog.logEntry({
-        user_name: userName,
+      // Get current user if not provided
+      const currentUserName = userName || await getCurrentUserName();
+
+      const result = await api.auditLog.logEntry({
+        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'asset',
         entity_id: assetId.toString(),
@@ -1874,17 +1902,21 @@ export const api = {
         after_data: after,
         description,
       });
+      return { action_id: result.action_id };
     },
     logBulkBuildingAction: async (
       buildingNumbers: number[],
-      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
       beforeData?: any,
       afterData?: any,
       description?: string,
       userName?: string
-    ): Promise<{ id: string }> => {
-      return api.auditLog.logEntry({
-        user_name: userName,
+    ): Promise<{ action_id: number }> => {
+      // Get current user if not provided
+      const currentUserName = userName || await getCurrentUserName();
+
+      const result = await api.auditLog.logEntry({
+        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'bulk_building',
         entity_id: buildingNumbers.join(','),
@@ -1892,17 +1924,21 @@ export const api = {
         after_data: afterData,
         description,
       });
+      return { action_id: result.action_id };
     },
     logBulkAssetAction: async (
       assetIds: number[],
-      actionType: 'manual_update' | 'imported' | 'update' | 'distribute' | 'transform',
+      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
       beforeData?: any,
       afterData?: any,
       description?: string,
       userName?: string
-    ): Promise<{ id: string }> => {
-      return api.auditLog.logEntry({
-        user_name: userName,
+    ): Promise<{ action_id: number }> => {
+      // Get current user if not provided
+      const currentUserName = userName || await getCurrentUserName();
+
+      const result = await api.auditLog.logEntry({
+        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'bulk_asset',
         entity_id: assetIds.join(','),
@@ -1910,6 +1946,7 @@ export const api = {
         after_data: afterData,
         description,
       });
+      return { action_id: result.action_id };
     },
   },
 };

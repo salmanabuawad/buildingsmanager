@@ -823,6 +823,29 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         }
       }
 
+      // Log audit entry for transfer area action
+      if (savedCount > 0) {
+        try {
+          const assetIds = Array.from(dirtyAssets.keys()).map(id => {
+            const asset = assets.find(a => String(a.asset_id) === id);
+            return asset ? asset.asset_id : parseInt(id);
+          }).filter(id => !isNaN(id)) as number[];
+          
+          if (assetIds.length > 0) {
+            await api.auditLog.logBulkAssetAction(
+              assetIds,
+              'transfer_area',
+              { assets: assets },
+              undefined,
+              `Transferred areas for ${savedCount} assets as new measurements`
+            );
+          }
+        } catch (auditError) {
+          console.warn('Failed to log audit entry for transfer area:', auditError);
+          // Don't block the operation if audit logging fails
+        }
+      }
+
       if (errors.length > 0) {
         const successMsg = savedCount > 0 ? `נשמרו ${savedCount} נכסים כמדידות חדשות. ` : '';
         setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);

@@ -1748,6 +1748,28 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
       
+      // Log audit entry for distribute shared area action
+      try {
+        const beforeData = {
+          building: building,
+          assets: assets.filter(a => !deletedAssets.has(String(a.asset_id)))
+        };
+        const afterData = {
+          building: building,
+          assets: updatedAssets.filter(a => !deletedAssets.has(String(a.asset_id)))
+        };
+        await api.auditLog.logBuildingAction(
+          buildingNumber,
+          'distribute_shared',
+          beforeData,
+          afterData,
+          `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
+        );
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for distribute shared area:', auditError);
+        // Don't block the operation if audit logging fails
+      }
+      
       // Show result in modal
       setDistributionResult(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
       setDistributionModalOpen(true);
@@ -1978,6 +2000,28 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Update state
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
+      
+      // Log audit entry for distribute shared area action
+      try {
+        const beforeData = {
+          building: building,
+          assets: assets.filter(a => !deletedAssets.has(String(a.asset_id)))
+        };
+        const afterData = {
+          building: building,
+          assets: updatedAssets.filter(a => !deletedAssets.has(String(a.asset_id)))
+        };
+        await api.auditLog.logBuildingAction(
+          buildingNumber,
+          'distribute_shared',
+          beforeData,
+          afterData,
+          `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
+        );
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for distribute shared area:', auditError);
+        // Don't block the operation if audit logging fails
+      }
       
       // Note: Building state with updated overload_ratio was already set in the try block above
       // Show result in modal

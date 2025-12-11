@@ -4,11 +4,27 @@
 -- This migration creates an audit table to track all changes to buildings
 -- and assets, including the user who made the change, action type, and before/after data.
 
+-- Create enum for action types
+DO $$ BEGIN
+  CREATE TYPE audit_action_type AS ENUM (
+    'manual_update',
+    'import_file',
+    'transfer_area',
+    'distribute_shared'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Drop existing audit table if it exists (to recreate with action_id instead of id)
+-- This will also drop dependent objects like foreign keys
+DROP TABLE IF EXISTS audit CASCADE;
+
 -- Create audit table
-CREATE TABLE IF NOT EXISTS audit (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE audit (
+  action_id bigserial PRIMARY KEY,
   user_name text NOT NULL DEFAULT 'default',
-  action_type text NOT NULL CHECK (action_type IN ('manual_update', 'imported', 'update', 'distribute', 'transform')),
+  action_type audit_action_type NOT NULL,
   entity_type text NOT NULL CHECK (entity_type IN ('building', 'asset', 'bulk_building', 'bulk_asset')),
   entity_id text, -- Can be building_number, asset_id, or comma-separated IDs for bulk operations
   before_data jsonb, -- JSON containing all related building/asset data before the action
@@ -43,8 +59,9 @@ CREATE POLICY "Allow authenticated users to insert audit"
   WITH CHECK (true);
 
 COMMENT ON TABLE audit IS 'Audit table tracking all changes to buildings and assets';
+COMMENT ON COLUMN audit.action_id IS 'Primary key - sequential action ID';
 COMMENT ON COLUMN audit.user_name IS 'User who performed the action (default: "default")';
-COMMENT ON COLUMN audit.action_type IS 'Type of action: manual_update, imported, update, distribute, transform';
+COMMENT ON COLUMN audit.action_type IS 'Type of action: manual_update, import_file, transfer_area, distribute_shared';
 COMMENT ON COLUMN audit.entity_type IS 'Type of entity: building, asset, bulk_building, bulk_asset';
 COMMENT ON COLUMN audit.entity_id IS 'ID of the entity (building_number, asset_id, or comma-separated IDs for bulk)';
 COMMENT ON COLUMN audit.before_data IS 'JSON containing all related building/asset data before the action';
@@ -53,8 +70,14 @@ COMMENT ON COLUMN audit.after_data IS 'JSON containing all related building/asse
 -- ============================================================================
 -- Function to log audit entry
 -- ============================================================================
+-- Drop existing function if it exists (with all possible signatures)
+DROP FUNCTION IF EXISTS log_audit_entry(audit_action_type, text, text, text, jsonb, jsonb, text);
+DROP FUNCTION IF EXISTS log_audit_entry(text, text, text, text, jsonb, jsonb, text);
+DROP FUNCTION IF EXISTS log_audit_entry(audit_action_type, text, text);
+DROP FUNCTION IF EXISTS log_audit_entry(text, text, text);
+
 CREATE OR REPLACE FUNCTION log_audit_entry(
-  p_action_type text,
+  p_action_type audit_action_type,
   p_entity_type text,
   p_entity_id text,
   p_user_name text DEFAULT 'default',
@@ -62,9 +85,9 @@ CREATE OR REPLACE FUNCTION log_audit_entry(
   p_after_data jsonb DEFAULT NULL,
   p_description text DEFAULT NULL
 )
-RETURNS uuid AS $$
+RETURNS bigint AS $$
 DECLARE
-  v_audit_id uuid;
+  v_audit_id bigint;
 BEGIN
   INSERT INTO audit (
     user_name,
@@ -83,7 +106,7 @@ BEGIN
     p_after_data,
     p_description
   )
-  RETURNING id INTO v_audit_id;
+  RETURNING action_id INTO v_audit_id;
   
   RETURN v_audit_id;
 END;
@@ -165,33 +188,52 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_before_data jsonb;
   v_after_data jsonb;
-  v_action_type text;
+  v_action_type audit_action_type;
+  v_audit_id bigint;
+  v_user_name text;
 BEGIN
   -- Determine action type based on operation
   IF TG_OP = 'INSERT' THEN
-    v_action_type := 'update';
+    v_action_type := 'manual_update';
     v_before_data := NULL;
     v_after_data := get_building_audit_data(NEW.building_number);
   ELSIF TG_OP = 'UPDATE' THEN
-    v_action_type := 'update';
+    v_action_type := 'manual_update';
     v_before_data := get_building_audit_data(OLD.building_number);
     v_after_data := get_building_audit_data(NEW.building_number);
   ELSIF TG_OP = 'DELETE' THEN
-    v_action_type := 'update';
+    v_action_type := 'manual_update';
     v_before_data := get_building_audit_data(OLD.building_number);
     v_after_data := NULL;
   END IF;
   
-  -- Log the audit entry
-  PERFORM log_audit_entry(
+  -- Get current user from session or use default
+  BEGIN
+    -- Try to get user from Supabase auth context
+    v_user_name := coalesce(
+      current_setting('request.jwt.claims', true)::json->>'email',
+      current_setting('request.jwt.claims', true)::json->>'sub',
+      'default'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_user_name := 'default';
+  END;
+
+  -- Log the audit entry and update the building's action_id
+  SELECT log_audit_entry(
     v_action_type,
     'building',
     COALESCE(NEW.building_number::text, OLD.building_number::text),
-    'default', -- user_name (can be overridden by application)
+    v_user_name,
     v_before_data,
     v_after_data,
     'Automatic audit log: ' || TG_OP || ' operation on building'
-  );
+  ) INTO v_audit_id;
+  
+  -- Update the building's action_id
+  IF TG_OP != 'DELETE' THEN
+    NEW.action_id := v_audit_id;
+  END IF;
   
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;
@@ -211,34 +253,52 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_before_data jsonb;
   v_after_data jsonb;
-  v_action_type text;
-  v_audit_id uuid;
+  v_action_type audit_action_type;
+  v_audit_id bigint;
+  v_user_name text;
 BEGIN
   -- Determine action type based on operation
   IF TG_OP = 'INSERT' THEN
-    v_action_type := 'update';
+    v_action_type := 'manual_update';
     v_before_data := NULL;
     v_after_data := get_asset_audit_data(NEW.asset_id);
   ELSIF TG_OP = 'UPDATE' THEN
-    v_action_type := 'update';
+    v_action_type := 'manual_update';
     v_before_data := get_asset_audit_data(OLD.asset_id);
     v_after_data := get_asset_audit_data(NEW.asset_id);
   ELSIF TG_OP = 'DELETE' THEN
-    v_action_type := 'update';
+    v_action_type := 'manual_update';
     v_before_data := get_asset_audit_data(OLD.asset_id);
     v_after_data := NULL;
   END IF;
   
+  -- Get current user from session or use default
+  BEGIN
+    -- Try to get user from Supabase auth context
+    v_user_name := coalesce(
+      current_setting('request.jwt.claims', true)::json->>'email',
+      current_setting('request.jwt.claims', true)::json->>'sub',
+      'default'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_user_name := 'default';
+  END;
+
   -- Log the audit entry and get the audit_id
   SELECT log_audit_entry(
     v_action_type,
     'asset',
     COALESCE(NEW.asset_id::text, OLD.asset_id::text),
-    'default', -- user_name (can be overridden by application)
+    v_user_name,
     v_before_data,
     v_after_data,
     'Automatic audit log: ' || TG_OP || ' operation on asset'
   ) INTO v_audit_id;
+  
+  -- Update the asset's action_id
+  IF TG_OP != 'DELETE' THEN
+    NEW.action_id := v_audit_id;
+  END IF;
   
   -- Store audit_id in session variable for history trigger to use
   PERFORM set_config('app.current_audit_id', v_audit_id::text, false);
@@ -254,10 +314,53 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION audit_asset_changes IS 'Trigger function to automatically log asset changes';
 
 -- ============================================================================
--- Add action_id column to assets_history table
+-- Add action_id columns to assets, buildings, and assets_history tables
 -- ============================================================================
+
+-- Drop existing foreign key constraints if they exist (in case they were created with wrong types)
+ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_action_id_fkey;
+ALTER TABLE buildings DROP CONSTRAINT IF EXISTS buildings_action_id_fkey;
+ALTER TABLE assets_history DROP CONSTRAINT IF EXISTS assets_history_action_id_fkey;
+
+-- Drop existing columns if they exist (to recreate with correct type)
+ALTER TABLE assets DROP COLUMN IF EXISTS action_id;
+ALTER TABLE buildings DROP COLUMN IF EXISTS action_id;
+ALTER TABLE assets_history DROP COLUMN IF EXISTS action_id;
+
+-- Add action_id to assets table
+ALTER TABLE assets 
+ADD COLUMN action_id bigint;
+
+-- Add foreign key constraint
+ALTER TABLE assets
+ADD CONSTRAINT assets_action_id_fkey 
+FOREIGN KEY (action_id) REFERENCES audit(action_id);
+
+CREATE INDEX IF NOT EXISTS idx_assets_action_id ON assets(action_id);
+
+COMMENT ON COLUMN assets.action_id IS 'References the audit entry that caused this asset record to be created or updated';
+
+-- Add action_id to buildings table
+ALTER TABLE buildings 
+ADD COLUMN action_id bigint;
+
+-- Add foreign key constraint
+ALTER TABLE buildings
+ADD CONSTRAINT buildings_action_id_fkey 
+FOREIGN KEY (action_id) REFERENCES audit(action_id);
+
+CREATE INDEX IF NOT EXISTS idx_buildings_action_id ON buildings(action_id);
+
+COMMENT ON COLUMN buildings.action_id IS 'References the audit entry that caused this building record to be created or updated';
+
+-- Add action_id to assets_history table
 ALTER TABLE assets_history 
-ADD COLUMN IF NOT EXISTS action_id uuid REFERENCES audit(id);
+ADD COLUMN action_id bigint;
+
+-- Add foreign key constraint
+ALTER TABLE assets_history
+ADD CONSTRAINT assets_history_action_id_fkey 
+FOREIGN KEY (action_id) REFERENCES audit(action_id);
 
 CREATE INDEX IF NOT EXISTS idx_assets_history_action_id ON assets_history(action_id);
 
@@ -269,16 +372,16 @@ COMMENT ON COLUMN assets_history.action_id IS 'References the audit entry that c
 CREATE OR REPLACE FUNCTION copy_asset_to_history()
 RETURNS TRIGGER AS $$
 DECLARE
-  v_action_id uuid;
+  v_action_id bigint;
   v_is_new_measurement boolean;
 BEGIN
   -- Try to get the audit_id from session variable (set by audit trigger)
   -- If not available, try to get the most recent audit log entry for this asset
   BEGIN
-    v_action_id := current_setting('app.current_audit_id', true)::uuid;
+    v_action_id := current_setting('app.current_audit_id', true)::bigint;
   EXCEPTION WHEN OTHERS THEN
     -- If session variable not set, get the most recent audit log entry for this asset
-    SELECT id INTO v_action_id
+    SELECT action_id INTO v_action_id
     FROM audit
     WHERE entity_type = 'asset'
       AND entity_id = COALESCE(NEW.asset_id::text, OLD.asset_id::text)
@@ -372,20 +475,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trigger_audit_building_changes ON buildings;
 DROP TRIGGER IF EXISTS trigger_audit_asset_changes ON assets;
 
--- Create triggers - audit triggers must run AFTER to ensure they execute after history trigger
--- But we need the history trigger to run AFTER the audit trigger to get the audit_id
--- So we'll make the history trigger run AFTER and the audit trigger also AFTER
--- The order will be: BEFORE history -> UPDATE/DELETE -> AFTER audit -> AFTER history (if needed)
-
--- Actually, we need to change the approach:
--- 1. History trigger runs BEFORE (to copy OLD data)
--- 2. Audit trigger runs AFTER (to log the change)
--- 3. We'll query the most recent audit log entry in the history trigger
-
--- Re-create the history trigger to run AFTER so it can access the audit log
-DROP TRIGGER IF EXISTS trigger_copy_asset_to_history ON assets;
-
--- Create audit triggers first (AFTER)
+-- Create audit triggers (AFTER)
 CREATE TRIGGER trigger_audit_building_changes
   AFTER INSERT OR UPDATE OR DELETE ON buildings
   FOR EACH ROW
@@ -395,11 +485,6 @@ CREATE TRIGGER trigger_audit_asset_changes
   AFTER INSERT OR UPDATE OR DELETE ON assets
   FOR EACH ROW
   EXECUTE FUNCTION audit_asset_changes();
-
--- Note: The history trigger needs to handle both:
--- 1. Resetting is_new_measurement flag (BEFORE trigger)
--- 2. Copying to history with action_id (AFTER trigger, after audit log is created)
--- We'll create a BEFORE trigger for flag reset and an AFTER trigger for history copy
 
 -- Function to reset is_new_measurement flag and set session variable
 CREATE OR REPLACE FUNCTION reset_new_measurement_flag()
@@ -438,4 +523,3 @@ CREATE TRIGGER trigger_copy_asset_to_history
 COMMENT ON TRIGGER trigger_audit_building_changes ON buildings IS 'Automatically logs all building changes to audit';
 COMMENT ON TRIGGER trigger_audit_asset_changes ON assets IS 'Automatically logs all asset changes to audit';
 COMMENT ON TRIGGER trigger_copy_asset_to_history ON assets IS 'Copies asset data to history table and links to audit entry';
-

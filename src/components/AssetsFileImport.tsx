@@ -3195,6 +3195,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 gridOptions={{
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,
+                  suppressMovableColumns: true,
                 }}
                 domLayout="normal"
                 onCellValueChanged={onCellValueChanged}

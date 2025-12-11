@@ -1439,6 +1439,7 @@ export function AssetTypes() {
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,
                   enableRtl: true,
+                  suppressMovableColumns: true,
                 }}
               />
             </div>

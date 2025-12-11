@@ -1616,6 +1616,7 @@ export function AssetDataEntry() {
             gridOptions={{
               suppressColumnVirtualisation: true,
               alwaysShowHorizontalScroll: true,
+              suppressMovableColumns: true,
             }}
             onCellValueChanged={onCellValueChanged}
             onGridReady={async (params) => {

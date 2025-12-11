@@ -53,16 +53,16 @@ export function useGridPreferences<T = any>(
       const savedState = null;
       
       if (savedState && Array.isArray(savedState) && savedState.length > 0) {
-        // Apply saved column state (order, visibility, pinned, etc.)
-        // NOTE: We don't apply width - field configurations control width
-        const stateWithoutWidth = savedState.map(col => ({
+        // Apply saved column state (visibility, pinned, etc.)
+        // NOTE: We don't apply width or order - field configurations control both
+        const stateWithoutWidthAndOrder = savedState.map(col => ({
           ...col,
           width: undefined, // Remove width so field configurations can apply it
         }));
         
         agGridApi.applyColumnState({
-          state: stateWithoutWidth,
-          applyOrder: true, // Preserve column order from user preferences
+          state: stateWithoutWidthAndOrder,
+          applyOrder: false, // Column order comes ONLY from field_configurations.column_order
           defaultState: { sort: null }
         });
         

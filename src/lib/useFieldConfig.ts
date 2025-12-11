@@ -77,6 +77,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
   }, [gridName]);
 
   // Apply field configurations to column definitions and sort by column_order
+  // Only include columns that are visible (visible !== false)
   const configuredColumnDefs = useMemo(() => {
     if (loading) {
       return columnDefs;
@@ -87,7 +88,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
       // Get field name from colDef (field or colId)
       const fieldName = colDef.field || colDef.colId;
       if (!fieldName) {
-        return { colDef, order: Infinity };
+        return { colDef, order: Infinity, visible: true };
       }
 
       // Get field configuration - try composite key first if gridName is provided
@@ -109,19 +110,24 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
             ...colDef,
             resizable: false,
           },
-          order: Infinity
+          order: Infinity,
+          visible: true // Default to visible if no config
         };
       }
 
       // Apply field configuration
       return {
         colDef: applyFieldConfigToColumn(colDef, fieldConfig),
-        order: fieldConfig.column_order ?? Infinity
+        order: fieldConfig.column_order ?? Infinity,
+        visible: fieldConfig.visible !== false // Default to true if undefined
       };
     });
 
-    // Sort by column_order, then by original order for items without order
-    columnsWithConfig.sort((a, b) => {
+    // Filter out columns that are not visible (visible === false)
+    const visibleColumns = columnsWithConfig.filter(item => item.visible);
+
+    // Sort by column_order from field configuration ONLY
+    visibleColumns.sort((a, b) => {
       if (a.order !== Infinity && b.order !== Infinity) {
         return a.order - b.order;
       }
@@ -130,7 +136,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
       return 0; // Keep original order for items without column_order
     });
 
-    return columnsWithConfig.map(item => item.colDef);
+    return visibleColumns.map(item => item.colDef);
   }, [columnDefs, fieldConfigs, loading, gridName]);
 
   return configuredColumnDefs;

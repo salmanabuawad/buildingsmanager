@@ -415,6 +415,7 @@ export function ValidationRulesManager() {
   const gridOptions = useMemo(() => ({
     suppressColumnVirtualisation: true,
     alwaysShowHorizontalScroll: true,
+    suppressMovableColumns: true,
   }), []);
 
   const onGridReady = useCallback(async (params: any) => {

@@ -772,6 +772,7 @@ export function AddressListComponent() {
             gridOptions={{
               suppressColumnVirtualisation: true,
               alwaysShowHorizontalScroll: true,
+              suppressMovableColumns: true,
             }}
             suppressHorizontalScroll={false}
             getRowId={(params) => String(params.data.street_code)}

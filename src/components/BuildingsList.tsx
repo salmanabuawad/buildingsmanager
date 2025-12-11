@@ -1691,11 +1691,7 @@ export function BuildingsList({
     {
       field: 'total_building_area',
       headerName: 'ס"כ גודל',
-      editable: (params: any) => {
-        if (!params || !params.data) return false;
-        const building = params.data as Building;
-        return isNewBuilding(building);
-      },
+      editable: false,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;

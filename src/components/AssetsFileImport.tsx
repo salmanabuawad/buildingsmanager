@@ -3627,9 +3627,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="number"
                       step="0.01"
                       value={buildingCreateData.total_building_area || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, total_building_area: e.target.value ? parseFloat(e.target.value) : undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled={isCreatingBuilding}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                      disabled={true}
                     />
                   </div>
 
@@ -3751,68 +3751,60 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     })()}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="elevator"
+                      checked={buildingCreateData.elevator === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.checked ? 'כן' : undefined }))}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      disabled={isCreatingBuilding}
+                    />
+                    <label htmlFor="elevator" className="text-sm font-medium text-slate-700 cursor-pointer">
                       מעלית
                     </label>
-                    <select
-                      value={buildingCreateData.elevator || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.value || undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled={isCreatingBuilding}
-                    >
-                      <option value="">-- בחר --</option>
-                      <option value="כן">כן</option>
-                      <option value="לא">לא</option>
-                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="single_double_family"
+                      checked={buildingCreateData.single_double_family === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.checked ? 'כן' : undefined }))}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      disabled={isCreatingBuilding}
+                    />
+                    <label htmlFor="single_double_family" className="text-sm font-medium text-slate-700 cursor-pointer">
                       בית פרטי חד/דו משפחתי
                     </label>
-                    <select
-                      value={buildingCreateData.single_double_family || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.value || undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled={isCreatingBuilding}
-                    >
-                      <option value="">-- בחר --</option>
-                      <option value="כן">כן</option>
-                      <option value="לא">לא</option>
-                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="condo"
+                      checked={buildingCreateData.condo === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.checked ? 'כן' : undefined }))}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      disabled={isCreatingBuilding}
+                    />
+                    <label htmlFor="condo" className="text-sm font-medium text-slate-700 cursor-pointer">
                       בית משותף
                     </label>
-                    <select
-                      value={buildingCreateData.condo || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.value || undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled={isCreatingBuilding}
-                    >
-                      <option value="">-- בחר --</option>
-                      <option value="כן">כן</option>
-                      <option value="לא">לא</option>
-                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="townhouses"
+                      checked={buildingCreateData.townhouses === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.checked ? 'כן' : undefined }))}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      disabled={isCreatingBuilding}
+                    />
+                    <label htmlFor="townhouses" className="text-sm font-medium text-slate-700 cursor-pointer">
                       טוריים
                     </label>
-                    <select
-                      value={buildingCreateData.townhouses || ''}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.value || undefined }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      disabled={isCreatingBuilding}
-                    >
-                      <option value="">-- בחר --</option>
-                      <option value="כן">כן</option>
-                      <option value="לא">לא</option>
-                    </select>
                   </div>
 
                   <div>

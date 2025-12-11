@@ -1429,7 +1429,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Check if asset is private/residential type (not business)
+        // Check if asset is residential type (not business)
         if (!asset.main_asset_type) {
           noMainTypeCount++;
           debugInfo.reason = 'no_main_type';
@@ -2919,8 +2919,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
 
-  // Check if all visible assets are private/residential assets (מגורים)
-  const areAllAssetsPrivate = useMemo(() => {
+  // Check if all visible assets are residential assets (מגורים)
+  const areAllAssetsResidence = useMemo(() => {
     if (!assets || assets.length === 0 || !assetTypes || assetTypes.length === 0) {
       return false;
     }
@@ -2931,18 +2931,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       assetTypeMap.set(at.name, at);
     });
     
-    // Check if all assets are private/residential (מגורים)
+    // Check if all assets are residential (מגורים)
     const visibleAssets = assets.filter(asset => !deletedAssets.has(String(asset.asset_id)));
     if (visibleAssets.length === 0) return false;
     
     // Check if all assets have business_residence === 'מגורים'
-    const allPrivate = visibleAssets.every(asset => {
+    const allResidence = visibleAssets.every(asset => {
       if (!asset.main_asset_type) return false;
       const assetType = assetTypeMap.get(String(asset.main_asset_type));
       return assetType && assetType.business_residence === 'מגורים';
     });
     
-    return allPrivate;
+    return allResidence;
   }, [assets, assetTypes, deletedAssets]);
 
   // Check if tax region is "resident" (מגורים)
@@ -3197,14 +3197,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
             const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
             
-            // Hide transfer button for:
-            // 1. Private buildings (single_double_family)
-            // 2. Multi tax region tabs (when taxRegion is not set, i.e., "all assets" tab)
-            // 3. Tabs showing only private/residential assets (all assets are מגורים)
-            // 4. Tax region is "resident" (מגורים)
-            // 5. Tax region is "multi" (multiple tax regions)
-            // Show only when: taxRegion is set AND building is not private AND not all assets are private AND not resident AND not multi
-            const shouldShowTransferButton = taxRegion && !isPrivateBuilding && !areAllAssetsPrivate && !isResidentTaxRegion && !isMultiTaxRegion;
+            // Always show transfer button (previously hidden for private buildings, multi tax regions, etc.)
+            const shouldShowTransferButton = true;
             
             // Check if we have 2 or more selected assets for transfer areas button
             const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;

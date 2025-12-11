@@ -137,6 +137,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   useEffect(() => {
     fetchData();
   }, [buildingNumber, taxRegion]);
+
+  // Clear selection when switching tabs (buildingNumber or taxRegion changes)
+  useEffect(() => {
+    setSelectedAssets(new Set());
+  }, [buildingNumber, taxRegion]);
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);

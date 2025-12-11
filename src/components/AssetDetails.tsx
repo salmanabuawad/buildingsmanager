@@ -2430,20 +2430,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     setMeasurementDateModalClosing(false);
                   }, 300);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
                 ביטול
               </button>
               <button
                 onClick={handleSaveAsNewMeasurement}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
               >
                 {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <CheckCircle2 className="h-4 w-4" />
+                  <CheckCircle2 className="h-3.5 w-3.5" />
                 )}
                 אישור
               </button>
@@ -2568,7 +2568,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
                     title="ייצא ל-Excel"
                   >
                     <Download className="h-4 w-4" />
@@ -2577,20 +2577,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     )}
                     <span className="text-sm">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
                   </button>
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="flex items-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
@@ -2603,23 +2603,23 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <button
                     onClick={handleSaveChanges}
                     disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
-                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
                   >
                     {isSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Save className="h-4 w-4" />
+                      <Save className="h-3.5 w-3.5" />
                     )}
-                    <span className="text-sm">{t('save')}</span>
+                    <span className="text-xs">{t('save')}</span>
                   </button>
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
                   >
-                    <X className="h-4 w-4" />
-                    <span className="text-sm">{t('cancel')}</span>
+                    <X className="h-3.5 w-3.5" />
+                    <span className="text-xs">{t('cancel')}</span>
                   </button>
                 </div>
               </div>
@@ -2757,7 +2757,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
                     title="ייצא ל-Excel"
                   >
                     <Download className="h-4 w-4" />
@@ -2903,7 +2903,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                           setFileViewerClosing(false);
                         }, 300);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
                     >
                       <X className="h-4 w-4" />
                       <span>{t('closeViewer')}</span>

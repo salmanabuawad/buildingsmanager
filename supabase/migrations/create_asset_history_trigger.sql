@@ -86,3 +86,4 @@ CREATE TRIGGER trigger_copy_asset_to_history
 COMMENT ON FUNCTION copy_asset_to_history() IS 'Automatically copies asset data to assets_history when is_new_measurement is true (UPDATE) or when asset is deleted (DELETE)';
 COMMENT ON TRIGGER trigger_copy_asset_to_history ON assets IS 'Triggers before UPDATE or DELETE to copy asset data to history table';
 
+

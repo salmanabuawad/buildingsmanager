@@ -1051,12 +1051,37 @@ export const api = {
       return updatedAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
+      // Delete all existing history records for this asset_id first
+      const { error: historyError1 } = await supabase
+        .from('assets_history')
+        .delete()
+        .eq('asset_id', id);
+
+      if (historyError1) {
+        console.warn('Error deleting existing history from assets_history:', historyError1);
+        // Continue with asset deletion even if history deletion fails
+      }
+
+      // Delete from assets table
+      // Note: The trigger will run BEFORE DELETE and create a new history entry
       const { error } = await supabase
         .from('assets')
         .delete()
         .eq('asset_id', id);
 
       if (error) throw error;
+
+      // Delete from assets_history again to remove the entry created by the trigger
+      const { error: historyError2 } = await supabase
+        .from('assets_history')
+        .delete()
+        .eq('asset_id', id);
+
+      if (historyError2) {
+        console.warn('Error deleting trigger-created history from assets_history:', historyError2);
+        // Don't throw - asset is already deleted, this is just cleanup
+      }
+
       return { message: 'Asset deleted successfully' };
     },
   },
@@ -1500,12 +1525,51 @@ export const api = {
     return api.buildings.delete(buildingNumber);
   },
   deleteAssetsByBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
+    // Get all asset_ids for this building first
+    const { data: assets, error: fetchError } = await supabase
+      .from('assets')
+      .select('asset_id')
+      .eq('building_number', buildingNumber);
+
+    if (fetchError) throw fetchError;
+
+    const assetIds = assets?.map(a => a.asset_id) || [];
+
+    // Delete all existing history records for all assets in this building
+    if (assetIds.length > 0) {
+      const { error: historyError1 } = await supabase
+        .from('assets_history')
+        .delete()
+        .in('asset_id', assetIds);
+
+      if (historyError1) {
+        console.warn('Error deleting existing history from assets_history:', historyError1);
+        // Continue with asset deletion even if history deletion fails
+      }
+    }
+
+    // Delete from assets table
+    // Note: The trigger will run BEFORE DELETE and create new history entries
     const { error } = await supabase
       .from('assets')
       .delete()
       .eq('building_number', buildingNumber);
 
     if (error) throw error;
+
+    // Delete from assets_history again to remove entries created by the trigger
+    if (assetIds.length > 0) {
+      const { error: historyError2 } = await supabase
+        .from('assets_history')
+        .delete()
+        .in('asset_id', assetIds);
+
+      if (historyError2) {
+        console.warn('Error deleting trigger-created history from assets_history:', historyError2);
+        // Don't throw - assets are already deleted, this is just cleanup
+      }
+    }
+
     return { message: 'Assets deleted successfully' };
   },
   userPreferences: {

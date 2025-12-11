@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FieldConfiguration, api } from '../lib/api';
-import { Save, X, Plus, Trash2, RefreshCw, Edit } from 'lucide-react';
+import { Save, X, Plus, Trash2, RefreshCw, Edit, Minus } from 'lucide-react';
 import { Toast } from './Toast';
 
 // Editable row component
@@ -67,26 +67,62 @@ function FieldConfigRow({
       </td>
       <td className="px-4 py-3">
         {isEditing ? (
-          <input
-            type="number"
-            min="1"
-            value={widthChars}
-            onChange={(e) => setWidthChars(parseInt(e.target.value) || 10)}
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setWidthChars(Math.max(1, widthChars - 1))}
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
+              title="הפחת"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+            <input
+              type="number"
+              min="1"
+              value={widthChars}
+              onChange={(e) => setWidthChars(parseInt(e.target.value) || 10)}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+            />
+            <button
+              type="button"
+              onClick={() => setWidthChars(widthChars + 1)}
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
+              title="הוסף"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
         ) : (
           <span className="text-slate-700">{config.width_chars}</span>
         )}
       </td>
       <td className="px-4 py-3">
         {isEditing ? (
-          <input
-            type="number"
-            min="0"
-            value={padding}
-            onChange={(e) => setPadding(parseInt(e.target.value) || 8)}
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPadding(Math.max(0, padding - 1))}
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
+              title="הפחת"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+            <input
+              type="number"
+              min="0"
+              value={padding}
+              onChange={(e) => setPadding(parseInt(e.target.value) || 8)}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+            />
+            <button
+              type="button"
+              onClick={() => setPadding(padding + 1)}
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
+              title="הוסף"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
         ) : (
           <span className="text-slate-700">{config.padding}</span>
         )}
@@ -149,14 +185,32 @@ function FieldConfigRow({
       </td>
       <td className="px-4 py-3">
         {isEditing ? (
-          <input
-            type="number"
-            min="0"
-            value={columnOrder || ''}
-            onChange={(e) => setColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
-            placeholder="סדר"
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setColumnOrder(Math.max(0, (columnOrder || 0) - 1))}
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
+              title="הפחת"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+            <input
+              type="number"
+              min="0"
+              value={columnOrder || ''}
+              onChange={(e) => setColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="סדר"
+              className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+            />
+            <button
+              type="button"
+              onClick={() => setColumnOrder((columnOrder || 0) + 1)}
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
+              title="הוסף"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
         ) : (
           <span className="text-slate-700">{config.column_order ?? '-'}</span>
         )}
@@ -210,15 +264,6 @@ export function FieldConfigManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
-  const [newGridName, setNewGridName] = useState('');
-  const [newFieldName, setNewFieldName] = useState('');
-  const [newWidthChars, setNewWidthChars] = useState(10);
-  const [newPadding, setNewPadding] = useState(8);
-  const [newHebrewName, setNewHebrewName] = useState('');
-  const [newPinned, setNewPinned] = useState<boolean>(false);
-  const [newPinSide, setNewPinSide] = useState<'left' | 'right' | null>(null);
-  const [newVisible, setNewVisible] = useState<boolean>(true);
-  const [newColumnOrder, setNewColumnOrder] = useState<number | undefined>(undefined);
 
   // Load configurations on mount
   useEffect(() => {
@@ -309,35 +354,6 @@ export function FieldConfigManager() {
     }
   }
 
-  async function addNewConfiguration() {
-    if (!newGridName.trim()) {
-      setToast({ 
-        message: 'יש להזין שם גריד', 
-        type: 'error' 
-      });
-      setTimeout(() => setToast(null), 3000);
-      return;
-    }
-    if (!newFieldName.trim()) {
-      setToast({ 
-        message: 'יש להזין שם שדה', 
-        type: 'error' 
-      });
-      setTimeout(() => setToast(null), 3000);
-      return;
-    }
-
-    await saveConfiguration(newGridName.trim(), newFieldName.trim(), newWidthChars, newPadding, newHebrewName.trim() || undefined, newPinned, newPinSide, newVisible, newColumnOrder);
-    setNewGridName('');
-    setNewFieldName('');
-    setNewWidthChars(10);
-    setNewPadding(8);
-    setNewHebrewName('');
-    setNewPinned(false);
-    setNewPinSide(null);
-    setNewVisible(true);
-    setNewColumnOrder(undefined);
-  }
 
   // Group configurations by grid_name and sort
   const groupedConfigurations = useMemo(() => {
@@ -429,140 +445,6 @@ export function FieldConfigManager() {
         <p className="text-slate-600 mb-6">
           הגדר רוחב ותפיחה לכל שדה במערכת. כל הטבלאות ישתמשו בהגדרות אלה.
         </p>
-
-        {/* Add new field configuration */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">הוסף שדה חדש</h2>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                שם גריד *
-              </label>
-              <input
-                type="text"
-                value={newGridName}
-                onChange={(e) => setNewGridName(e.target.value)}
-                placeholder="לדוגמה: buildings-list"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                שם שדה *
-              </label>
-              <input
-                type="text"
-                value={newFieldName}
-                onChange={(e) => setNewFieldName(e.target.value)}
-                placeholder="לדוגמה: building_number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                שם בעברית
-              </label>
-              <input
-                type="text"
-                value={newHebrewName}
-                onChange={(e) => setNewHebrewName(e.target.value)}
-                placeholder="לדוגמה: מזהה מבנה"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                רוחב (מספר תווים)
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={newWidthChars}
-                onChange={(e) => setNewWidthChars(parseInt(e.target.value) || 10)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                תפיחה (פיקסלים)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={newPadding}
-                onChange={(e) => setNewPadding(parseInt(e.target.value) || 8)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                נעיצה
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={newPinned}
-                    onChange={(e) => {
-                      setNewPinned(e.target.checked);
-                      if (!e.target.checked) setNewPinSide(null);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">נעוץ</span>
-                </label>
-                {newPinned && (
-                  <select
-                    value={newPinSide || ''}
-                    onChange={(e) => setNewPinSide(e.target.value === '' ? null : (e.target.value as 'left' | 'right'))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">בחר צד</option>
-                    <option value="left">שמאל</option>
-                    <option value="right">ימין</option>
-                  </select>
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                נראה
-              </label>
-              <label className="flex items-center gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  checked={newVisible}
-                  onChange={(e) => setNewVisible(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm">נראה</span>
-              </label>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                סדר עמודה
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={newColumnOrder || ''}
-                onChange={(e) => setNewColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="אופציונלי"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={addNewConfiguration}
-                disabled={saving || !newGridName.trim() || !newFieldName.trim()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                הוסף
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Existing configurations grouped by grid */}
         {groupedConfigurations.map(({ gridName, configs }) => (

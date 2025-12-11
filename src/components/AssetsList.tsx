@@ -2738,6 +2738,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     return allAreResidence;
   }, [taxRegion, assetTypes]);
 
+  // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
+  const isMultiTaxRegion = useMemo(() => {
+    return !taxRegion || (building?.tax_region && building.tax_region.includes(','));
+  }, [taxRegion, building?.tax_region]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -2893,11 +2898,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 : 'שטח משותף מגורים לא מוגדר או שווה לאפס'}
             >
               <Download className="h-4 w-4" />
-              פזר שטח משותף
+              פזר שטח משותף מגורים
             </button>
           )}
-          {/* Distribute business shared area button - only visible in business tabs, disabled if business_shared_area is 0 or null */}
-          {building && !isResidentTaxRegion && (
+          {/* Distribute business shared area button - only visible in business tabs (not multi tax region), disabled if business_shared_area is 0 or null */}
+          {building && !isResidentTaxRegion && taxRegion && !isMultiTaxRegion && (
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}

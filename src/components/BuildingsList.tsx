@@ -1591,6 +1591,26 @@ export function BuildingsList({
           return '';
         }
 
+        const isClickable = !isNew;
+        if (isClickable) {
+          return (
+            <span 
+              style={{
+                color: '#059669',
+                fontWeight: '600',
+                textDecoration: 'underline',
+                textDecorationColor: '#10b981',
+                textUnderlineOffset: '2px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              className="hover:text-emerald-700 hover:decoration-emerald-600"
+              title={t('viewAssets') || 'לחץ לצפייה בנכסים'}
+            >
+              {value}
+            </span>
+          );
+        }
         return value;
       },
       cellStyle: (params) => {
@@ -1600,8 +1620,11 @@ export function BuildingsList({
           return {
             ...baseStyle,
             cursor: 'pointer',
-            color: '#0d9488',
-            textDecoration: 'underline'
+            color: '#059669',
+            fontWeight: '600',
+            textDecoration: 'underline',
+            textDecorationColor: '#10b981',
+            textUnderlineOffset: '2px'
           };
         }
         return baseStyle;

@@ -10,6 +10,7 @@ import { AssetsFileImport } from './components/AssetsFileImport';
 import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
+import { AssetDataEntry } from './components/AssetDataEntry';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
@@ -17,7 +18,7 @@ import { usePreferences } from './contexts/PreferencesContext';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -433,6 +434,19 @@ function App() {
     };
 
     // Remove all other address-list tabs, then add new one
+    openTab(newTab);
+  }
+
+  function openAssetDataEntry() {
+    const assetDataEntryTabId = 'asset-data-entry-panel';
+
+    const newTab: Tab = {
+      id: assetDataEntryTabId,
+      type: 'asset-data-entry',
+      label: 'הזנת נתוני נכס'
+    };
+
+    // Remove all other asset-data-entry tabs, then add new one
     openTab(newTab);
   }
 
@@ -864,6 +878,20 @@ function App() {
                   <span className="font-medium text-slate-700">רשימת כתובות</span>
                   <MapPin className="h-3.5 w-3.5 text-pink-600" />
                 </button>
+                <button
+                  onClick={openFileImport}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">ייבוא מבנים</span>
+                  <Upload className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
+                  onClick={openAssetDataEntry}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">הזנת נתוני נכס</span>
+                  <Edit className="h-3.5 w-3.5 text-pink-600" />
+                </button>
               </div>
             )}
           </div>
@@ -900,6 +928,8 @@ function App() {
                       <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'address-list' ? (
                       <MapPin className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'asset-data-entry' ? (
+                      <Edit className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'building-list-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'assets-file-import' ? (
@@ -978,6 +1008,9 @@ function App() {
             )}
             {activeTab?.type === 'field-config' && (
               <FieldConfigManager />
+            )}
+            {activeTab?.type === 'asset-data-entry' && (
+              <AssetDataEntry />
             )}
             {activeTab?.type === 'building-list-import' && (
               <BuildingListImport />

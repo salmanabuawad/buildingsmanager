@@ -5,7 +5,8 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2 } from 'lucide-react';
+import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
@@ -1222,6 +1223,47 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       )}
 
       <div className="mb-2 flex justify-end gap-2">
+        <button
+          onClick={() => {
+            if (!assets || assets.length === 0) {
+              setToast({ message: 'אין נכסים לייצוא', type: 'error' });
+              return;
+            }
+            try {
+              const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+              const rows = assets.map(asset => {
+                const assetId = String(asset.asset_id);
+                const dirtyChanges = dirtyAssets.get(assetId) || {};
+                const updatedAsset = { ...asset, ...dirtyChanges };
+                return [
+                  updatedAsset.building_number || '',
+                  updatedAsset.asset_id || '',
+                  updatedAsset.payer_id || '',
+                  updatedAsset.measurement_date || '',
+                  updatedAsset.main_asset_type || '',
+                  updatedAsset.asset_size || '',
+                  updatedAsset.tax_region || ''
+                ];
+              });
+              const data = [headers, ...rows];
+              const worksheet = XLSX.utils.aoa_to_sheet(data);
+              worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
+              const workbook = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(workbook, worksheet, 'העברת שטחים');
+              const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+              XLSX.writeFile(workbook, `העברת_שטחים_מבנה_${buildingNumber}_${dateStr}.xlsx`);
+              setToast({ message: `יוצאו ${rows.length} נכסים בהצלחה`, type: 'success' });
+            } catch (error) {
+              console.error('Error exporting to Excel:', error);
+              setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
+          title="ייצא ל-Excel"
+        >
+          <Download className="h-4 w-4" />
+          ייצא ל-Excel
+        </button>
         <button
           onClick={handleCancelAll}
           disabled={loading || !hasChanges}

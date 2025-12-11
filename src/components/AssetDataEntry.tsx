@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
-import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X } from 'lucide-react';
+import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import { Toast } from './Toast';
@@ -1546,6 +1547,42 @@ export function AssetDataEntry() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (!rowData || rowData.length === 0) {
+                    showToast('אין נתונים לייצוא', 'error');
+                    return;
+                  }
+                  try {
+                    const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                    const rows = rowData.map(row => [
+                      row.building_number || '',
+                      row.asset_id || '',
+                      row.payer_id || '',
+                      row.measurement_date || '',
+                      row.main_asset_type || '',
+                      row.asset_size || '',
+                      row.tax_region || ''
+                    ]);
+                    const data = [headers, ...rows];
+                    const worksheet = XLSX.utils.aoa_to_sheet(data);
+                    worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, 'הזנת נתונים');
+                    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                    XLSX.writeFile(workbook, `הזנת_נתונים_${dateStr}.xlsx`);
+                    showToast(`יוצאו ${rows.length} שורות בהצלחה`, 'success');
+                  } catch (error) {
+                    console.error('Error exporting to Excel:', error);
+                    showToast('שגיאה בייצוא לקובץ Excel', 'error');
+                  }
+                }}
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-all shadow-md hover:shadow-lg font-semibold"
+                title="ייצא ל-Excel"
+              >
+                <Download className="h-3.5 w-3.5" />
+                ייצא
+              </button>
+              <button
                 onClick={handleSaveAll}
                 disabled={loading}
                 className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"

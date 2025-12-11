@@ -3097,6 +3097,47 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     </>
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!importedAssets || importedAssets.length === 0) {
+                      setError('אין נכסים לייצוא');
+                      setTimeout(() => setError(null), 3000);
+                      return;
+                    }
+                    try {
+                      const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                      const rows = importedAssets.map(asset => [
+                        asset.building_number || '',
+                        asset.asset_id || '',
+                        asset.payer_id || '',
+                        asset.measurement_date || '',
+                        asset.main_asset_type || '',
+                        asset.asset_size || '',
+                        asset.tax_region || ''
+                      ]);
+                      const data = [headers, ...rows];
+                      const worksheet = XLSX.utils.aoa_to_sheet(data);
+                      worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
+                      const workbook = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(workbook, worksheet, mode === 'regular' ? 'ייבוא מלא' : 'ייבוא שלד');
+                      const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                      XLSX.writeFile(workbook, `${mode === 'regular' ? 'ייבוא_מלא' : 'ייבוא_שלד'}_${dateStr}.xlsx`);
+                      setSuccess(`יוצאו ${rows.length} נכסים בהצלחה`);
+                      setTimeout(() => setSuccess(null), 3000);
+                    } catch (error) {
+                      console.error('Error exporting to Excel:', error);
+                      setError('שגיאה בייצוא לקובץ Excel');
+                      setTimeout(() => setError(null), 3000);
+                    }
+                  }}
+                  disabled={importedAssets.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  title="ייצא ל-Excel"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>ייצא ל-Excel</span>
+                </button>
                 {mode === 'regular' && (
                 <button
                   type="button"

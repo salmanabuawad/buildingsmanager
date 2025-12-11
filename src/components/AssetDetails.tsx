@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { compressFile } from '../lib/fileCompression';
@@ -2523,6 +2524,42 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 <h3 className="text-lg font-semibold text-slate-800">מדידה אחרונה</h3>
                 <div className="flex gap-2">
                   <button
+                    onClick={() => {
+                      if (!pinnedTopRowData || pinnedTopRowData.length === 0) {
+                        setToast({ message: 'אין נתונים לייצוא', type: 'error' });
+                        return;
+                      }
+                      try {
+                        const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                        const rows = pinnedTopRowData.map(asset => [
+                          asset.building_number || '',
+                          asset.asset_id || '',
+                          asset.payer_id || '',
+                          formatDateToDDMMYYYY(asset.measurement_date) || '',
+                          asset.main_asset_type || '',
+                          asset.asset_size || '',
+                          asset.tax_region || ''
+                        ]);
+                        const data = [headers, ...rows];
+                        const worksheet = XLSX.utils.aoa_to_sheet(data);
+                        worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
+                        const workbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(workbook, worksheet, 'מדידה אחרונה');
+                        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                        XLSX.writeFile(workbook, `מדידה_אחרונה_${assetId || buildingNumber}_${dateStr}.xlsx`);
+                        setToast({ message: `יוצאו ${rows.length} מדידות בהצלחה`, type: 'success' });
+                      } catch (error) {
+                        console.error('Error exporting to Excel:', error);
+                        setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                    title="ייצא ל-Excel"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="text-sm">ייצא</span>
+                  </button>
+                  <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
                     className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
@@ -2670,7 +2707,46 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             {/* History Records Grid */}
             {historyRows.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-2">מדידות קודמות ({historyRows.length})</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-slate-800">מדידות קודמות ({historyRows.length})</h3>
+                  <button
+                    onClick={() => {
+                      if (!historyRows || historyRows.length === 0) {
+                        setToast({ message: 'אין נתונים לייצוא', type: 'error' });
+                        return;
+                      }
+                      try {
+                        const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'תאריך יצירה'];
+                        const rows = historyRows.map(asset => [
+                          asset.building_number || '',
+                          asset.asset_id || '',
+                          asset.payer_id || '',
+                          formatDateToDDMMYYYY(asset.measurement_date) || '',
+                          asset.main_asset_type || '',
+                          asset.asset_size || '',
+                          asset.tax_region || '',
+                          asset.history_created_at ? new Date(asset.history_created_at).toLocaleDateString('he-IL') : ''
+                        ]);
+                        const data = [headers, ...rows];
+                        const worksheet = XLSX.utils.aoa_to_sheet(data);
+                        worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 15 }];
+                        const workbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(workbook, worksheet, 'היסטוריית מדידות');
+                        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                        XLSX.writeFile(workbook, `היסטוריית_מדידות_${assetId || buildingNumber}_${dateStr}.xlsx`);
+                        setToast({ message: `יוצאו ${rows.length} מדידות היסטוריות בהצלחה`, type: 'success' });
+                      } catch (error) {
+                        console.error('Error exporting to Excel:', error);
+                        setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                    title="ייצא ל-Excel"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="text-sm">ייצא היסטוריה</span>
+                  </button>
+                </div>
                 <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%', overflowX: 'auto' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}

@@ -186,6 +186,87 @@ ON CONFLICT (grid_name, field_name) DO UPDATE SET
   updated_at = now();
 
 -- ============================================================================
+-- ASSET DETAILS MAIN GRID (asset-details-main)
+-- ============================================================================
+INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order) VALUES
+('asset-details-main', 'structure_drawing_url', 10, 8, 'שרטוט מבנה', true, 'right', true, 0),
+('asset-details-main', 'asset_id', 12, 8, 'מזהה נכס', true, 'right', true, 1),
+('asset-details-main', 'measurement_date', 12, 8, 'תאריך מדידה', false, NULL, true, 2),
+('asset-details-main', 'payer_id', 12, 8, 'מזהה משלם', false, NULL, true, 3),
+('asset-details-main', 'tax_region', 10, 8, 'אזור מס', false, NULL, true, 4),
+('asset-details-main', 'penthouse', 10, 8, 'דירת גג', false, NULL, true, 5),
+('asset-details-main', 'floor', 8, 8, 'קומה', false, NULL, true, 6),
+('asset-details-main', 'discount_type', 12, 8, 'סוג הנחה', false, NULL, true, 7),
+('asset-details-main', 'discount_date_from', 12, 8, 'תאריך הנחה מ', false, NULL, true, 8),
+('asset-details-main', 'discount_date_to', 12, 8, 'תאריך הנחה עד', false, NULL, true, 9),
+('asset-details-main', 'main_asset_type', 12, 8, 'סוג נכס ראשי', false, NULL, true, 10),
+('asset-details-main', 'asset_size', 12, 8, 'גודל נכס', false, NULL, true, 11),
+('asset-details-main', 'sub_asset_type_1', 12, 8, 'סוג נכס משנה 1', false, NULL, true, 12),
+('asset-details-main', 'sub_asset_size_1', 12, 8, 'גודל נכס משנה 1', false, NULL, true, 13),
+('asset-details-main', 'sub_asset_type_2', 12, 8, 'סוג נכס משנה 2', false, NULL, true, 14),
+('asset-details-main', 'sub_asset_size_2', 12, 8, 'גודל נכס משנה 2', false, NULL, true, 15),
+('asset-details-main', 'sub_asset_type_3', 12, 8, 'סוג נכס משנה 3', false, NULL, true, 16),
+('asset-details-main', 'sub_asset_size_3', 12, 8, 'גודל נכס משנה 3', false, NULL, true, 17),
+('asset-details-main', 'sub_asset_type_4', 12, 8, 'סוג נכס משנה 4', false, NULL, true, 18),
+('asset-details-main', 'sub_asset_size_4', 12, 8, 'גודל נכס משנה 4', false, NULL, true, 19),
+('asset-details-main', 'sub_asset_type_5', 12, 8, 'סוג נכס משנה 5', false, NULL, true, 20),
+('asset-details-main', 'sub_asset_size_5', 12, 8, 'גודל נכס משנה 5', false, NULL, true, 21),
+('asset-details-main', 'sub_asset_type_6', 12, 8, 'סוג נכס משנה 6', false, NULL, true, 22),
+('asset-details-main', 'sub_asset_size_6', 12, 8, 'גודל נכס משנה 6', false, NULL, true, 23),
+('asset-details-main', 'extra_field_1', 12, 8, 'שדה נוסף 1', false, NULL, true, 24),
+('asset-details-main', 'extra_field_2', 12, 8, 'שדה נוסף 2', false, NULL, true, 25)
+ON CONFLICT (grid_name, field_name) DO UPDATE SET
+  width_chars = EXCLUDED.width_chars,
+  padding = EXCLUDED.padding,
+  hebrew_name = EXCLUDED.hebrew_name,
+  pinned = EXCLUDED.pinned,
+  pin_side = EXCLUDED.pin_side,
+  visible = EXCLUDED.visible,
+  column_order = EXCLUDED.column_order,
+  updated_at = now();
+
+-- ============================================================================
+-- ASSET DETAILS HISTORY GRID (asset-details-history)
+-- ============================================================================
+-- Note: History grid typically has the same fields as main grid
+INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order) VALUES
+('asset-details-history', 'structure_drawing_url', 10, 8, 'שרטוט מבנה', true, 'right', true, 0),
+('asset-details-history', 'asset_id', 12, 8, 'מזהה נכס', true, 'right', true, 1),
+('asset-details-history', 'measurement_date', 12, 8, 'תאריך מדידה', false, NULL, true, 2),
+('asset-details-history', 'payer_id', 12, 8, 'מזהה משלם', false, NULL, true, 3),
+('asset-details-history', 'tax_region', 10, 8, 'אזור מס', false, NULL, true, 4),
+('asset-details-history', 'penthouse', 10, 8, 'דירת גג', false, NULL, true, 5),
+('asset-details-history', 'floor', 8, 8, 'קומה', false, NULL, true, 6),
+('asset-details-history', 'discount_type', 12, 8, 'סוג הנחה', false, NULL, true, 7),
+('asset-details-history', 'discount_date_from', 12, 8, 'תאריך הנחה מ', false, NULL, true, 8),
+('asset-details-history', 'discount_date_to', 12, 8, 'תאריך הנחה עד', false, NULL, true, 9),
+('asset-details-history', 'main_asset_type', 12, 8, 'סוג נכס ראשי', false, NULL, true, 10),
+('asset-details-history', 'asset_size', 12, 8, 'גודל נכס', false, NULL, true, 11),
+('asset-details-history', 'sub_asset_type_1', 12, 8, 'סוג נכס משנה 1', false, NULL, true, 12),
+('asset-details-history', 'sub_asset_size_1', 12, 8, 'גודל נכס משנה 1', false, NULL, true, 13),
+('asset-details-history', 'sub_asset_type_2', 12, 8, 'סוג נכס משנה 2', false, NULL, true, 14),
+('asset-details-history', 'sub_asset_size_2', 12, 8, 'גודל נכס משנה 2', false, NULL, true, 15),
+('asset-details-history', 'sub_asset_type_3', 12, 8, 'סוג נכס משנה 3', false, NULL, true, 16),
+('asset-details-history', 'sub_asset_size_3', 12, 8, 'גודל נכס משנה 3', false, NULL, true, 17),
+('asset-details-history', 'sub_asset_type_4', 12, 8, 'סוג נכס משנה 4', false, NULL, true, 18),
+('asset-details-history', 'sub_asset_size_4', 12, 8, 'גודל נכס משנה 4', false, NULL, true, 19),
+('asset-details-history', 'sub_asset_type_5', 12, 8, 'סוג נכס משנה 5', false, NULL, true, 20),
+('asset-details-history', 'sub_asset_size_5', 12, 8, 'גודל נכס משנה 5', false, NULL, true, 21),
+('asset-details-history', 'sub_asset_type_6', 12, 8, 'סוג נכס משנה 6', false, NULL, true, 22),
+('asset-details-history', 'sub_asset_size_6', 12, 8, 'גודל נכס משנה 6', false, NULL, true, 23),
+('asset-details-history', 'extra_field_1', 12, 8, 'שדה נוסף 1', false, NULL, true, 24),
+('asset-details-history', 'extra_field_2', 12, 8, 'שדה נוסף 2', false, NULL, true, 25)
+ON CONFLICT (grid_name, field_name) DO UPDATE SET
+  width_chars = EXCLUDED.width_chars,
+  padding = EXCLUDED.padding,
+  hebrew_name = EXCLUDED.hebrew_name,
+  pinned = EXCLUDED.pinned,
+  pin_side = EXCLUDED.pin_side,
+  visible = EXCLUDED.visible,
+  column_order = EXCLUDED.column_order,
+  updated_at = now();
+
+-- ============================================================================
 -- ASSET TYPES GRID (asset-types)
 -- ============================================================================
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order) VALUES
@@ -338,87 +419,6 @@ ON CONFLICT (grid_name, field_name) DO UPDATE SET
   updated_at = now();
 
 -- ============================================================================
--- ASSET DETAILS MAIN GRID (asset-details-main)
--- ============================================================================
-INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order) VALUES
-('asset-details-main', 'structure_drawing_url', 10, 8, 'שרטוט מבנה', true, 'right', true, 0),
-('asset-details-main', 'asset_id', 12, 8, 'מזהה נכס', true, 'right', true, 1),
-('asset-details-main', 'measurement_date', 12, 8, 'תאריך מדידה', false, NULL, true, 2),
-('asset-details-main', 'payer_id', 12, 8, 'מזהה משלם', false, NULL, true, 3),
-('asset-details-main', 'tax_region', 10, 8, 'אזור מס', false, NULL, true, 4),
-('asset-details-main', 'penthouse', 10, 8, 'דירת גג', false, NULL, true, 5),
-('asset-details-main', 'floor', 8, 8, 'קומה', false, NULL, true, 6),
-('asset-details-main', 'discount_type', 12, 8, 'סוג הנחה', false, NULL, true, 7),
-('asset-details-main', 'discount_date_from', 12, 8, 'תאריך הנחה מ', false, NULL, true, 8),
-('asset-details-main', 'discount_date_to', 12, 8, 'תאריך הנחה עד', false, NULL, true, 9),
-('asset-details-main', 'main_asset_type', 12, 8, 'סוג נכס ראשי', false, NULL, true, 10),
-('asset-details-main', 'asset_size', 12, 8, 'גודל נכס', false, NULL, true, 11),
-('asset-details-main', 'sub_asset_type_1', 12, 8, 'סוג נכס משנה 1', false, NULL, true, 12),
-('asset-details-main', 'sub_asset_size_1', 12, 8, 'גודל נכס משנה 1', false, NULL, true, 13),
-('asset-details-main', 'sub_asset_type_2', 12, 8, 'סוג נכס משנה 2', false, NULL, true, 14),
-('asset-details-main', 'sub_asset_size_2', 12, 8, 'גודל נכס משנה 2', false, NULL, true, 15),
-('asset-details-main', 'sub_asset_type_3', 12, 8, 'סוג נכס משנה 3', false, NULL, true, 16),
-('asset-details-main', 'sub_asset_size_3', 12, 8, 'גודל נכס משנה 3', false, NULL, true, 17),
-('asset-details-main', 'sub_asset_type_4', 12, 8, 'סוג נכס משנה 4', false, NULL, true, 18),
-('asset-details-main', 'sub_asset_size_4', 12, 8, 'גודל נכס משנה 4', false, NULL, true, 19),
-('asset-details-main', 'sub_asset_type_5', 12, 8, 'סוג נכס משנה 5', false, NULL, true, 20),
-('asset-details-main', 'sub_asset_size_5', 12, 8, 'גודל נכס משנה 5', false, NULL, true, 21),
-('asset-details-main', 'sub_asset_type_6', 12, 8, 'סוג נכס משנה 6', false, NULL, true, 22),
-('asset-details-main', 'sub_asset_size_6', 12, 8, 'גודל נכס משנה 6', false, NULL, true, 23),
-('asset-details-main', 'extra_field_1', 12, 8, 'שדה נוסף 1', false, NULL, true, 24),
-('asset-details-main', 'extra_field_2', 12, 8, 'שדה נוסף 2', false, NULL, true, 25)
-ON CONFLICT (grid_name, field_name) DO UPDATE SET
-  width_chars = EXCLUDED.width_chars,
-  padding = EXCLUDED.padding,
-  hebrew_name = EXCLUDED.hebrew_name,
-  pinned = EXCLUDED.pinned,
-  pin_side = EXCLUDED.pin_side,
-  visible = EXCLUDED.visible,
-  column_order = EXCLUDED.column_order,
-  updated_at = now();
-
--- ============================================================================
--- ASSET DETAILS HISTORY GRID (asset-details-history)
--- ============================================================================
--- Note: History grid typically has the same fields as main grid
-INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order) VALUES
-('asset-details-history', 'structure_drawing_url', 10, 8, 'שרטוט מבנה', true, 'right', true, 0),
-('asset-details-history', 'asset_id', 12, 8, 'מזהה נכס', true, 'right', true, 1),
-('asset-details-history', 'measurement_date', 12, 8, 'תאריך מדידה', false, NULL, true, 2),
-('asset-details-history', 'payer_id', 12, 8, 'מזהה משלם', false, NULL, true, 3),
-('asset-details-history', 'tax_region', 10, 8, 'אזור מס', false, NULL, true, 4),
-('asset-details-history', 'penthouse', 10, 8, 'דירת גג', false, NULL, true, 5),
-('asset-details-history', 'floor', 8, 8, 'קומה', false, NULL, true, 6),
-('asset-details-history', 'discount_type', 12, 8, 'סוג הנחה', false, NULL, true, 7),
-('asset-details-history', 'discount_date_from', 12, 8, 'תאריך הנחה מ', false, NULL, true, 8),
-('asset-details-history', 'discount_date_to', 12, 8, 'תאריך הנחה עד', false, NULL, true, 9),
-('asset-details-history', 'main_asset_type', 12, 8, 'סוג נכס ראשי', false, NULL, true, 10),
-('asset-details-history', 'asset_size', 12, 8, 'גודל נכס', false, NULL, true, 11),
-('asset-details-history', 'sub_asset_type_1', 12, 8, 'סוג נכס משנה 1', false, NULL, true, 12),
-('asset-details-history', 'sub_asset_size_1', 12, 8, 'גודל נכס משנה 1', false, NULL, true, 13),
-('asset-details-history', 'sub_asset_type_2', 12, 8, 'סוג נכס משנה 2', false, NULL, true, 14),
-('asset-details-history', 'sub_asset_size_2', 12, 8, 'גודל נכס משנה 2', false, NULL, true, 15),
-('asset-details-history', 'sub_asset_type_3', 12, 8, 'סוג נכס משנה 3', false, NULL, true, 16),
-('asset-details-history', 'sub_asset_size_3', 12, 8, 'גודל נכס משנה 3', false, NULL, true, 17),
-('asset-details-history', 'sub_asset_type_4', 12, 8, 'סוג נכס משנה 4', false, NULL, true, 18),
-('asset-details-history', 'sub_asset_size_4', 12, 8, 'גודל נכס משנה 4', false, NULL, true, 19),
-('asset-details-history', 'sub_asset_type_5', 12, 8, 'סוג נכס משנה 5', false, NULL, true, 20),
-('asset-details-history', 'sub_asset_size_5', 12, 8, 'גודל נכס משנה 5', false, NULL, true, 21),
-('asset-details-history', 'sub_asset_type_6', 12, 8, 'סוג נכס משנה 6', false, NULL, true, 22),
-('asset-details-history', 'sub_asset_size_6', 12, 8, 'גודל נכס משנה 6', false, NULL, true, 23),
-('asset-details-history', 'extra_field_1', 12, 8, 'שדה נוסף 1', false, NULL, true, 24),
-('asset-details-history', 'extra_field_2', 12, 8, 'שדה נוסף 2', false, NULL, true, 25)
-ON CONFLICT (grid_name, field_name) DO UPDATE SET
-  width_chars = EXCLUDED.width_chars,
-  padding = EXCLUDED.padding,
-  hebrew_name = EXCLUDED.hebrew_name,
-  pinned = EXCLUDED.pinned,
-  pin_side = EXCLUDED.pin_side,
-  visible = EXCLUDED.visible,
-  column_order = EXCLUDED.column_order,
-  updated_at = now();
-
--- ============================================================================
 -- ASSETS FILE IMPORT GRID (assets-file-import)
 -- ============================================================================
 -- Note: This grid shows imported assets, similar to assets-list
@@ -453,13 +453,13 @@ ON CONFLICT (grid_name, field_name) DO UPDATE SET
 -- This script has populated field configurations for all grids:
 -- 1. buildings-list: 16 fields
 -- 2. assets-list: 27 fields
--- 3. asset-types: 18 fields
--- 4. validation-rules: 16 fields
--- 5. address-list: 3 fields
--- 6. asset-data-entry: 26 fields
--- 7. transfer-areas: 19 fields
--- 8. asset-details-main: 26 fields
--- 9. asset-details-history: 26 fields
+-- 3. asset-details-main: 26 fields
+-- 4. asset-details-history: 26 fields
+-- 5. asset-types: 18 fields
+-- 6. validation-rules: 16 fields
+-- 7. address-list: 3 fields
+-- 8. asset-data-entry: 26 fields
+-- 9. transfer-areas: 19 fields
 -- 10. assets-file-import: 14 fields
 --
 -- Total: 191 field configurations across 10 grids

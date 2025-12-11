@@ -1467,13 +1467,47 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
   mainAssetType: string | undefined,
   subAssetTypes: (string | undefined)[]
 ): Promise<ValidationResult> {
+  // Skip validation if asset type is not_accountable
+  if (mainAssetType) {
+    try {
+      const { api } = await import('./api');
+      const assetTypes = await api.assetTypes.getAll();
+      if (assetTypes && assetTypes.length > 0) {
+        const assetTypeNameStr = String(mainAssetType).trim();
+        let assetType = assetTypes.find(at => {
+          const atNameStr = String(at.name).trim();
+          return atNameStr === assetTypeNameStr;
+        });
+        
+        // If not found, try numeric comparison
+        if (!assetType) {
+          const assetTypeNum = parseInt(assetTypeNameStr, 10);
+          if (!isNaN(assetTypeNum)) {
+            assetType = assetTypes.find(at => {
+              const atNameNum = parseInt(String(at.name).trim(), 10);
+              return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+            });
+          }
+        }
+        
+        if (assetType && assetType.not_accountable === true) {
+          // Asset type is not_accountable - skip validation
+          return { valid: true };
+        }
+      }
+    } catch (error) {
+      // If we can't check not_accountable, continue with normal validation
+      console.error('[validateOnlyComplexTypesCanHaveSubAssets] Failed to check not_accountable:', error);
+    }
+  }
+  
   const validSubAssets = subAssetTypes.filter(type => type && type.trim() !== '');
-
+  
   // If there are no sub assets, validation passes
   if (validSubAssets.length === 0) {
     return { valid: true };
   }
-
+  
   // HARDCODED RULE: Only 199 and 299 can have sub-assets
   if (!mainAssetType || (mainAssetType !== '199' && mainAssetType !== '299')) {
     return {
@@ -1481,7 +1515,7 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
       error: 'רק סוגי נכס 199 ו-299 יכולים לכלול נכסי משנה. נכסי משנה לא מותרים עבור סוגי נכס אחרים'
     };
   }
-
+  
   return { valid: true };
 }
 
@@ -1499,6 +1533,40 @@ export async function validateComplexTypesMustHaveSubAssets(
   mainAssetType: string | undefined,
   subAssetTypes: (string | undefined)[]
 ): Promise<ValidationResult> {
+  // Skip validation if asset type is not_accountable
+  if (mainAssetType) {
+    try {
+      const { api } = await import('./api');
+      const assetTypes = await api.assetTypes.getAll();
+      if (assetTypes && assetTypes.length > 0) {
+        const assetTypeNameStr = String(mainAssetType).trim();
+        let assetType = assetTypes.find(at => {
+          const atNameStr = String(at.name).trim();
+          return atNameStr === assetTypeNameStr;
+        });
+        
+        // If not found, try numeric comparison
+        if (!assetType) {
+          const assetTypeNum = parseInt(assetTypeNameStr, 10);
+          if (!isNaN(assetTypeNum)) {
+            assetType = assetTypes.find(at => {
+              const atNameNum = parseInt(String(at.name).trim(), 10);
+              return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+            });
+          }
+        }
+        
+        if (assetType && assetType.not_accountable === true) {
+          // Asset type is not_accountable - skip validation
+          return { valid: true };
+        }
+      }
+    } catch (error) {
+      // If we can't check not_accountable, continue with normal validation
+      console.error('[validateComplexTypesMustHaveSubAssets] Failed to check not_accountable:', error);
+    }
+  }
+
   if (!mainAssetType || (mainAssetType !== '199' && mainAssetType !== '299')) {
     return { valid: true };
   }

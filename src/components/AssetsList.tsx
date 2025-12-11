@@ -3197,8 +3197,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
             const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
             
-            // Always show transfer button (previously hidden for private buildings, multi tax regions, etc.)
-            const shouldShowTransferButton = true;
+            // Show transfer button only in business tabs (not in residence tabs)
+            const shouldShowTransferButton = !isResidentTaxRegion;
             
             // Check if we have 2 or more selected assets for transfer areas button
             const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;

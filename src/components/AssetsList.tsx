@@ -5,7 +5,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, Eye, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { useValidationRules } from '../contexts/ValidationContext';
@@ -2218,16 +2218,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             )}
             {!isNew && (
               <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectAsset(assetId, asset.asset_id, buildingNumber, validationTaxRegion);
-                  }}
-                  className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-                  title={t('viewDetails')}
-                >
-                  <Eye className="h-5 w-5" />
-                </button>
                 {taxRegion && (
                   <label
                     className="p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer"
@@ -2278,7 +2268,26 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return isFieldEditable(params, fieldName);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => {
+        const baseStyle = getCellStyle(params);
+        const asset = params.data as Asset;
+        if (asset && !newAssets.has(String(asset.asset_id))) {
+          return {
+            ...baseStyle,
+            cursor: 'pointer',
+            color: '#0d9488',
+            textDecoration: 'underline'
+          };
+        }
+        return baseStyle;
+      },
+      onCellClicked: (params: any) => {
+        const asset = params.data as Asset;
+        if (asset && !newAssets.has(String(asset.asset_id))) {
+          const assetId = String(asset.asset_id);
+          onSelectAsset(assetId, assetId, buildingNumber, validationTaxRegion);
+        }
+      }
     },
     {
       field: 'measurement_date',

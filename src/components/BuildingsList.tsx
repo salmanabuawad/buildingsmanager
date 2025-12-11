@@ -4,7 +4,7 @@ import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Search, AlertCircle, Plus, Loader2, Eye, Save, X, Trash2, CheckCircle2, Download } from 'lucide-react';
+import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, CheckCircle2, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
@@ -1545,38 +1545,6 @@ export function BuildingsList({
               </div>
             )}
             <button
-              onClick={async () => {
-                // First check if building has multiple tax regions defined
-                // If building has multiple tax regions, use them even if no assets exist yet
-                const buildingTaxRegions = params.data.tax_region;
-                const hasMultipleTaxRegions = buildingTaxRegions && typeof buildingTaxRegions === 'string' && buildingTaxRegions.includes(',');
-                
-                if (hasMultipleTaxRegions) {
-                  // Building has multiple tax regions - use them directly
-                  console.log('[BuildingsList] Building has multiple tax regions:', buildingTaxRegions);
-                  onSelectBuilding(params.data.building_number, buildingTaxRegions);
-                } else {
-                  // Try to get tax regions from assets, fallback to building tax_region if available
-                  try {
-                    const availableTaxRegions = await api.buildings.getAvailableTaxRegions(params.data.building_number);
-                    console.log('[BuildingsList] Available tax regions from assets:', availableTaxRegions);
-                    // If no tax regions from assets but building has tax_region, use building's tax_region
-                    const taxRegionsToUse = availableTaxRegions || (buildingTaxRegions ? String(buildingTaxRegions) : undefined);
-                    onSelectBuilding(params.data.building_number, taxRegionsToUse);
-                  } catch (err) {
-                    console.error('Error getting available tax regions:', err);
-                    // Fallback to building tax_region if available
-                    const fallbackTaxRegions = buildingTaxRegions ? String(buildingTaxRegions) : undefined;
-                    onSelectBuilding(params.data.building_number, fallbackTaxRegions);
-                  }
-                }
-              }}
-              className="p-1 text-teal-600 hover:text-teal-700 transition-colors hover:scale-110"
-              title={t('viewAssets')}
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-            <button
               onClick={() => handleDeleteBuilding(building.building_number)}
               className={`p-1 transition-colors hover:scale-110 ${
                 markedForDeletion
@@ -1625,7 +1593,48 @@ export function BuildingsList({
 
         return value;
       },
-      cellStyle: (params) => getCellStyle(params, 'building_number')
+      cellStyle: (params) => {
+        const baseStyle = getCellStyle(params, 'building_number');
+        const building = params.data as Building;
+        if (building && !isNewBuilding(building)) {
+          return {
+            ...baseStyle,
+            cursor: 'pointer',
+            color: '#0d9488',
+            textDecoration: 'underline'
+          };
+        }
+        return baseStyle;
+      },
+      onCellClicked: async (params: any) => {
+        const building = params.data as Building;
+        if (building && !isNewBuilding(building)) {
+          // First check if building has multiple tax regions defined
+          // If building has multiple tax regions, use them even if no assets exist yet
+          const buildingTaxRegions = building.tax_region;
+          const hasMultipleTaxRegions = buildingTaxRegions && typeof buildingTaxRegions === 'string' && buildingTaxRegions.includes(',');
+          
+          if (hasMultipleTaxRegions) {
+            // Building has multiple tax regions - use them directly
+            console.log('[BuildingsList] Building has multiple tax regions:', buildingTaxRegions);
+            onSelectBuilding(building.building_number, buildingTaxRegions);
+          } else {
+            // Try to get tax regions from assets, fallback to building tax_region if available
+            try {
+              const availableTaxRegions = await api.buildings.getAvailableTaxRegions(building.building_number);
+              console.log('[BuildingsList] Available tax regions from assets:', availableTaxRegions);
+              // If no tax regions from assets but building has tax_region, use building's tax_region
+              const taxRegionsToUse = availableTaxRegions || (buildingTaxRegions ? String(buildingTaxRegions) : undefined);
+              onSelectBuilding(building.building_number, taxRegionsToUse);
+            } catch (err) {
+              console.error('Error getting available tax regions:', err);
+              // Fallback to building tax_region if available
+              const fallbackTaxRegions = buildingTaxRegions ? String(buildingTaxRegions) : undefined;
+              onSelectBuilding(building.building_number, fallbackTaxRegions);
+            }
+          }
+        }
+      }
     },
     {
       field: 'tax_region',

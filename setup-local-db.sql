@@ -19,7 +19,6 @@ CREATE TABLE buildings (
   single_double_family TEXT,
   condo TEXT,
   townhouses TEXT,
-  total_units INTEGER DEFAULT 0,
   total_building_area NUMERIC DEFAULT 0,
   area_for_control NUMERIC,
   gosh BIGINT, -- גוש (Block number)

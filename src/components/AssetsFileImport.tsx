@@ -3306,8 +3306,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-right"
                       >
                         <option value="">-- לא למפות --</option>
-                        <option value="building_number">מזהה מבנה (חובה)</option>
-                        <option value="asset_id">מזהה נכס (חובה)</option>
+                        <option value="building_number">מזהה מבנה</option>
+                        <option value="asset_id">מזהה נכס</option>
                         <option value="payer_id">מזהה משלם</option>
                         <option value="measurement_date">תאריך מדידה</option>
                         <option value="main_asset_type">סוג נכס ראשי</option>

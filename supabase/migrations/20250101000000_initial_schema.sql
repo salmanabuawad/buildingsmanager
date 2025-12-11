@@ -529,6 +529,7 @@ CREATE TRIGGER trigger_copy_asset_to_history
   EXECUTE FUNCTION copy_asset_to_history();
 
 -- Function to update building total area from assets
+-- Fixed to prevent duplicates and be independent of asset_types table size
 CREATE OR REPLACE FUNCTION update_building_total_area()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -542,11 +543,26 @@ BEGIN
 
   UPDATE buildings
   SET total_building_area = COALESCE((
-    SELECT SUM(a.asset_size) 
-    FROM assets a
-    LEFT JOIN asset_types at ON at.name = a.main_asset_type AND at.active = 'כן'
-    WHERE a.building_number = target_building_number 
-      AND (at.not_accountable IS NULL OR at.not_accountable = false)
+    SELECT SUM(a.asset_size)
+    FROM (
+      SELECT DISTINCT ON (asset_id)
+        asset_id,
+        asset_size,
+        main_asset_type
+      FROM assets
+      WHERE building_number = target_building_number
+      ORDER BY asset_id, updated_at DESC
+    ) a
+    WHERE (
+      a.main_asset_type IS NULL 
+      OR EXISTS (
+        SELECT 1 
+        FROM asset_types at 
+        WHERE at.name = a.main_asset_type 
+          AND at.active = 'כן'
+          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+      )
+    )
   ), 0)
   WHERE building_number = target_building_number;
 
@@ -622,6 +638,7 @@ END;
 $$;
 
 -- Function to get building stats
+-- Fixed to prevent duplicates and be independent of asset_types table size
 CREATE OR REPLACE FUNCTION get_building_stats(p_building_number bigint)
 RETURNS TABLE (
   total_assets integer,
@@ -645,7 +662,8 @@ BEGIN
           TO_DATE(a.measurement_date, 'DD/MM/YYYY')
         ELSE
           TO_DATE('01/01/1900', 'DD/MM/YYYY')
-      END DESC
+      END DESC,
+      a.updated_at DESC
   ),
   filtered_measurements AS (
     SELECT 
@@ -654,8 +672,16 @@ BEGIN
       lm.asset_size,
       lm.measurement_date
     FROM latest_measurements lm
-    LEFT JOIN asset_types at ON at.name = lm.main_asset_type AND at.active = 'כן'
-    WHERE at.not_accountable IS NULL OR at.not_accountable = false
+    WHERE (
+      lm.main_asset_type IS NULL 
+      OR EXISTS (
+        SELECT 1 
+        FROM asset_types at 
+        WHERE at.name = lm.main_asset_type 
+          AND at.active = 'כן'
+          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+      )
+    )
   )
   SELECT 
     COUNT(*)::integer as total_assets,

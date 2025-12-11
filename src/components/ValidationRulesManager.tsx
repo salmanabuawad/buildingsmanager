@@ -416,6 +416,7 @@ export function ValidationRulesManager() {
     suppressColumnVirtualisation: true,
     alwaysShowHorizontalScroll: true,
     suppressMovableColumns: true,
+    suppressColumnMoveAnimation: true,
   }), []);
 
   const onGridReady = useCallback(async (params: any) => {

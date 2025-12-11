@@ -2644,6 +2644,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,
                   suppressMovableColumns: true,
+                  suppressColumnMoveAnimation: true,
                 }}
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {

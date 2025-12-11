@@ -2984,6 +2984,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               suppressColumnVirtualisation: true,
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
+              suppressColumnMoveAnimation: true,
             }}
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}

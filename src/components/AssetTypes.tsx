@@ -1440,6 +1440,7 @@ export function AssetTypes() {
                   alwaysShowHorizontalScroll: true,
                   enableRtl: true,
                   suppressMovableColumns: true,
+                  suppressColumnMoveAnimation: true,
                 }}
               />
             </div>

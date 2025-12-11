@@ -151,13 +151,17 @@ export function applyFieldConfigToColumn(
   };
 
   // Apply pinning if configured
+  // Note: Pinned columns will maintain their position in column_order
+  // The order is controlled by column_order, not by pinning
   if (fieldConfig.pinned && fieldConfig.pin_side) {
     result.pinned = fieldConfig.pin_side;
-    // If pinning is set via field config, also lock it
+    // Lock pinning but NOT position - position comes from column_order
     result.lockPinned = true;
+    result.lockPosition = false; // Allow order to be controlled by column_order
   } else {
     // Explicitly set to null if not pinned (to override any existing pin)
     result.pinned = null;
+    result.lockPosition = false;
   }
 
   // Apply visibility

@@ -127,6 +127,7 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
     const visibleColumns = columnsWithConfig.filter(item => item.visible);
 
     // Sort by column_order from field configuration ONLY
+    // This ensures pinned columns maintain their position in the order
     visibleColumns.sort((a, b) => {
       if (a.order !== Infinity && b.order !== Infinity) {
         return a.order - b.order;
@@ -136,7 +137,24 @@ export function useFieldConfig<T = any>(columnDefs: ColDef<T>[], gridName?: stri
       return 0; // Keep original order for items without column_order
     });
 
-    return visibleColumns.map(item => item.colDef);
+    // Map to column definitions - order is preserved from sorting above
+    // Pinned columns will maintain their position in this order
+    const sortedColumnDefs = visibleColumns.map(item => {
+      const colDef = item.colDef;
+      // Ensure pinned columns don't override the order
+      // The order is already set by the sort above
+      if (colDef.pinned) {
+        // Keep the pinned property but ensure order is maintained
+        return {
+          ...colDef,
+          // Don't set lockPosition - we want order to be controlled by column_order
+          // lockPinned is already set in applyFieldConfigToColumn
+        };
+      }
+      return colDef;
+    });
+
+    return sortedColumnDefs;
   }, [columnDefs, fieldConfigs, loading, gridName]);
 
   return configuredColumnDefs;

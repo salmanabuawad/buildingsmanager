@@ -2420,6 +2420,7 @@ export function BuildingsList({
                 suppressColumnVirtualisation: true,
                 alwaysShowHorizontalScroll: true,
                 suppressMovableColumns: true,
+                suppressColumnMoveAnimation: true,
               }}
               onCellValueChanged={onCellValueChanged}
               onGridReady={async (params) => {

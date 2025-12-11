@@ -1308,6 +1308,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 suppressColumnVirtualisation: true,
                 alwaysShowHorizontalScroll: true,
                 suppressMovableColumns: true,
+                suppressColumnMoveAnimation: true,
               }}
               suppressHorizontalScroll={false}
               getRowId={(params) => String(params.data.asset_id)}

@@ -2901,8 +2901,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               פזר שטח משותף מגורים
             </button>
           )}
-          {/* Distribute business shared area button - only visible in business tabs (not multi tax region), disabled if business_shared_area is 0 or null */}
-          {building && !isResidentTaxRegion && taxRegion && !isMultiTaxRegion && (
+          {/* Distribute business shared area button - only visible in business tabs (not multi tax region, not residence), disabled if business_shared_area is 0 or null */}
+          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}

@@ -3129,7 +3129,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                       addEmptyRow();
                     }
                   }}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-all shadow hover:shadow-md font-bold"
                 >
                   <Plus className="h-3 w-3" />
                   הוסף נכס
@@ -3139,7 +3139,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-all shadow hover:shadow-md font-bold"
               title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
             >
               <CheckCircle2 className="h-3 w-3" />
@@ -3149,7 +3149,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               type="button"
               onClick={handleExportToExcel}
               disabled={loading || assets.length === 0}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-bold"
               title="ייצא את כל הנכסים לקובץ Excel"
             >
               <FileSpreadsheet className="h-3 w-3" />
@@ -3162,7 +3162,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               type="button"
               onClick={handleDistributeSharedArea}
               disabled={loading || assets.length === 0}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-bold"
               title={`פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
             >
               <Download className="h-3 w-3" />
@@ -3175,7 +3175,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               type="button"
               onClick={handleDistributeBusinessSharedArea}
               disabled={loading || assets.length === 0}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-bold"
               title={`פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`}
             >
               <Download className="h-3 w-3" />
@@ -3223,7 +3223,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                       }
                     }}
                     disabled={!canTransferAreas}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-normal"
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-all shadow hover:shadow-md font-bold"
                     title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                   >
                     <ArrowRightLeft className="h-4 w-4" />
@@ -3234,7 +3234,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   type="button"
                   onClick={handleCancelAll}
                   disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-normal"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-bold"
                 >
                   <X className="h-4 w-4" />
                   ביטול
@@ -3243,7 +3243,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   type="button"
                   onClick={handleSaveAll}
                   disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-normal"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-bold"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

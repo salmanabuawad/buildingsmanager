@@ -1258,7 +1258,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
             }
           }}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-all shadow hover:shadow-md font-bold"
           title="ייצא ל-Excel"
         >
           <Download className="h-3 w-3" />
@@ -1267,7 +1267,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         <button
           onClick={handleCancelAll}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-normal"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-bold"
         >
           <X className="h-3 w-3" />
           ביטול
@@ -1275,7 +1275,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
           disabled={loading || !hasChanges || validationErrors.size > 0}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-normal"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-bold"
           title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
@@ -1450,7 +1450,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                     setMeasurementDateModalClosing(false);
                   }, 300);
                 }}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-normal"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-bold"
               >
                 <X className="h-3 w-3" />
                 ביטול
@@ -1458,7 +1458,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               <button
                 onClick={handleSaveAsNewMeasurements}
                 disabled={loading}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-normal"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-bold"
               >
                 {loading ? (
                   <Loader2 className="h-3 w-3 animate-spin" />

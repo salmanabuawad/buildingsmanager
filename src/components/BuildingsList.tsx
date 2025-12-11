@@ -2351,7 +2351,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={addEmptyBuildingRow}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-all shadow hover:shadow-md font-bold"
             >
               <Plus className="h-3 w-3" />
               הוסף מבנה
@@ -2359,7 +2359,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={handleValidateAll}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-all shadow hover:shadow-md font-bold"
             >
               <CheckCircle2 className="h-3 w-3" />
               אמת הכל
@@ -2367,7 +2367,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={handleExportToExcel}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-all shadow hover:shadow-md font-normal"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-all shadow hover:shadow-md font-bold"
             >
               <Download className="h-3 w-3" />
               ייצא ל-Excel

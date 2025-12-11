@@ -3056,6 +3056,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                 <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
                   חלקה: {building?.helka || '-'}
                 </p>
+                {isResidentTaxRegion && building?.residence_shared_area && building.residence_shared_area > 0 && (
+                  <p className="text-sm text-white font-semibold bg-indigo-700 px-2 py-1 rounded">
+                    שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}
+                  </p>
+                )}
+                {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.business_shared_area && building.business_shared_area > 0 && (
+                  <p className="text-sm text-white font-semibold bg-purple-700 px-2 py-1 rounded">
+                    שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}
+                  </p>
+                )}
               </div>
               {taxRegion ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">

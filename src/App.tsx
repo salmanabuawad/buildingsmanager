@@ -939,7 +939,7 @@ function App() {
                     ) : (
                       <Building className="h-4 w-4 text-purple-700" />
                     )}
-                    <span className={`font-semibold whitespace-nowrap text-sm ${
+                    <span className={`font-normal whitespace-nowrap text-sm ${
                       activeTabId === tab.id ? 'text-purple-900' : 'text-slate-600'
                     }`}>
                       {tab.label}

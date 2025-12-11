@@ -1610,7 +1610,7 @@ export function AssetDataEntry() {
               wrapText: true,
               autoHeight: false,
               cellStyle: { textAlign: 'right' },
-              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
               minWidth: 40
             }}
             gridOptions={{

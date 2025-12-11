@@ -1402,7 +1402,7 @@ export function AssetTypes() {
                   autoHeight: false,
                   cellStyle: { textAlign: 'right', direction: 'rtl' },
                   headerClass: 'ag-right-aligned-header',
-                  headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: '600', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+                  headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                   minWidth: 40,
                   sortable: true,
                   filter: true

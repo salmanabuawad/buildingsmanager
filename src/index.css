@@ -30,7 +30,7 @@ input[type="number"] {
 .ag-theme-alpine .ag-header {
   background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
   color: white;
-  font-weight: 600;
+  font-weight: normal;
   box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
   font-size: 11px;
   -webkit-font-smoothing: antialiased;
@@ -165,7 +165,7 @@ input[type="number"] {
   position: relative !important;
   max-width: 100% !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight: normal !important;
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
   text-rendering: optimizeLegibility !important;

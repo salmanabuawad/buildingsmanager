@@ -1,249 +1,12 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { FieldConfiguration, api } from '../lib/api';
 import { Save, X, Plus, Trash2, RefreshCw, Edit, Minus, Download, Upload, Filter } from 'lucide-react';
 import { Toast } from './Toast';
 import * as XLSX from 'xlsx';
-
-// Editable row component
-function FieldConfigRow({ 
-  config, 
-  onSave, 
-  onDelete, 
-  saving 
-}: { 
-  config: FieldConfiguration; 
-  onSave: (gridName: string, fieldName: string, widthChars: number, padding: number, hebrewName?: string, pinned?: boolean, pinSide?: 'left' | 'right' | null, visible?: boolean, columnOrder?: number) => Promise<void>;
-  onDelete: (gridName: string, fieldName: string) => Promise<void>;
-  saving: boolean;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [widthChars, setWidthChars] = useState(config.width_chars);
-  const [padding, setPadding] = useState(config.padding);
-  const [hebrewName, setHebrewName] = useState(config.hebrew_name || '');
-  const [pinned, setPinned] = useState<boolean>(config.pinned || false);
-  const [pinSide, setPinSide] = useState<'left' | 'right' | null>(config.pin_side || null);
-  const [visible, setVisible] = useState<boolean>(config.visible !== undefined ? config.visible : true);
-  const [columnOrder, setColumnOrder] = useState<number | undefined>(config.column_order);
-
-  const calculatePreviewWidth = (chars: number, pad: number) => {
-    return (chars * 8) + (pad * 2);
-  };
-
-  const handleSave = async () => {
-    await onSave(config.grid_name, config.field_name, widthChars, padding, hebrewName, pinned, pinSide, visible, columnOrder);
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setWidthChars(config.width_chars);
-    setPadding(config.padding);
-    setHebrewName(config.hebrew_name || '');
-    setPinned(config.pinned || false);
-    setPinSide(config.pin_side || null);
-    setVisible(config.visible !== undefined ? config.visible : true);
-    setColumnOrder(config.column_order);
-  };
-
-  return (
-    <tr className="border-b border-slate-200 hover:bg-slate-50">
-      <td className="px-4 py-3 text-slate-900 font-medium">
-        {config.grid_name}
-      </td>
-      <td className="px-4 py-3 text-slate-900 font-medium">
-        {config.field_name}
-      </td>
-      <td className="px-4 py-3 text-slate-700">
-        {isEditing ? (
-          <input
-            type="text"
-            value={hebrewName}
-            onChange={(e) => setHebrewName(e.target.value)}
-            placeholder="שם בעברית"
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          />
-        ) : (
-          <span>{config.hebrew_name || '-'}</span>
-        )}
-      </td>
-      <td className="px-4 py-3" style={{ maxWidth: '80px', width: '80px' }}>
-        {isEditing ? (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setWidthChars(Math.max(1, widthChars - 1))}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
-              title="הפחת"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <input
-              type="number"
-              min="1"
-              value={widthChars}
-              onChange={(e) => setWidthChars(parseInt(e.target.value) || 10)}
-              className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
-              style={{ maxWidth: '40px' }}
-            />
-            <button
-              type="button"
-              onClick={() => setWidthChars(widthChars + 1)}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
-              title="הוסף"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
-        ) : (
-          <span className="text-slate-700">{config.width_chars}</span>
-        )}
-      </td>
-      <td className="px-4 py-3" style={{ maxWidth: '80px', width: '80px' }}>
-        {isEditing ? (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPadding(Math.max(0, padding - 1))}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
-              title="הפחת"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <input
-              type="number"
-              min="0"
-              value={padding}
-              onChange={(e) => setPadding(parseInt(e.target.value) || 8)}
-              className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
-              style={{ maxWidth: '40px' }}
-            />
-            <button
-              type="button"
-              onClick={() => setPadding(padding + 1)}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300 flex items-center justify-center min-w-[28px]"
-              title="הוסף"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
-        ) : (
-          <span className="text-slate-700">{config.padding}</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-slate-600">
-        {calculatePreviewWidth(
-          isEditing ? widthChars : config.width_chars,
-          isEditing ? padding : config.padding
-        )}px
-      </td>
-      <td className="px-4 py-3">
-        {isEditing ? (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={pinned}
-                onChange={(e) => {
-                  setPinned(e.target.checked);
-                  if (!e.target.checked) setPinSide(null);
-                }}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">נעוץ</span>
-            </label>
-            {pinned && (
-              <select
-                value={pinSide || ''}
-                onChange={(e) => setPinSide(e.target.value === '' ? null : (e.target.value as 'left' | 'right'))}
-                className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">בחר צד</option>
-                <option value="left">שמאל</option>
-                <option value="right">ימין</option>
-              </select>
-            )}
-          </div>
-        ) : (
-          <span className="text-slate-700">
-            {config.pinned ? (config.pin_side === 'left' ? 'שמאל' : config.pin_side === 'right' ? 'ימין' : 'כן') : 'לא'}
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        {isEditing ? (
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={visible}
-              onChange={(e) => setVisible(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <span className="text-sm">נראה</span>
-          </label>
-        ) : (
-          <span className="text-slate-700">
-            {config.visible ? 'כן' : 'לא'}
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3" style={{ maxWidth: '80px', width: '80px' }}>
-        {isEditing ? (
-          <input
-            type="number"
-            min="0"
-            value={columnOrder || ''}
-            onChange={(e) => setColumnOrder(e.target.value ? parseInt(e.target.value) : undefined)}
-            placeholder="סדר"
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
-            style={{ maxWidth: '60px' }}
-          />
-        ) : (
-          <span className="text-slate-700">{config.column_order ?? '-'}</span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-center gap-2">
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="p-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded transition-colors"
-                title="שמור"
-              >
-                <Save className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleCancel}
-                className="p-2 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
-                title="ביטול"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                title="ערוך"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onDelete(config.grid_name, config.field_name)}
-                className="p-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                title="מחק"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
+import { useGridPreferences } from '../lib/useGridPreferences';
+import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 export function FieldConfigManager() {
   const [configurations, setConfigurations] = useState<FieldConfiguration[]>([]);
@@ -251,7 +14,18 @@ export function FieldConfigManager() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [selectedGridName, setSelectedGridName] = useState<string>('all');
+  const [editingRows, setEditingRows] = useState<Set<string>>(new Set());
+  const [editData, setEditData] = useState<Map<string, Partial<FieldConfiguration>>>(new Map());
+  const [dirtyConfigs, setDirtyConfigs] = useState<Map<string, FieldConfiguration>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<AgGridReact<FieldConfiguration>>(null);
+
+  // Grid preferences hook
+  const gridPreferences = useGridPreferences(
+    gridRef,
+    'field-config-manager',
+    'default'
+  );
 
   // Load configurations on mount
   useEffect(() => {
@@ -296,6 +70,23 @@ export function FieldConfigManager() {
       // Clear cache so grids reload the new settings
       const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
       clearFieldConfigCache();
+      
+      // Clear editing state
+      setEditingRows(new Set());
+      setEditData(new Map());
+      
+      // Clear dirty state for this specific config
+      const key = `${gridName}-${fieldName}`;
+      setDirtyConfigs(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(key);
+        return newMap;
+      });
+      
+      // Refresh grid
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
       
       setToast({ 
         message: 'הגדרות השדה נשמרו בהצלחה', 
@@ -549,7 +340,6 @@ export function FieldConfigManager() {
     }
   }
 
-
   // Get unique grid names for dropdown
   const uniqueGridNames = useMemo(() => {
     const gridNames = new Set<string>();
@@ -583,62 +373,633 @@ export function FieldConfigManager() {
     });
   }, [configurations]);
 
-  // Group configurations by grid_name and sort, filtered by selected grid
-  const groupedConfigurations = useMemo(() => {
-    const grouped = new Map<string, FieldConfiguration[]>();
-    configurations.forEach(config => {
-      const gridName = config.grid_name || 'ללא גריד';
-      // Filter by selected grid name
-      if (selectedGridName !== 'all' && gridName !== selectedGridName) {
-        return;
-      }
-      if (!grouped.has(gridName)) {
-        grouped.set(gridName, []);
-      }
-      grouped.get(gridName)!.push(config);
-    });
-    
-    // Sort each group by column_order, then by field_name
-    grouped.forEach((configs) => {
-      configs.sort((a, b) => {
-        if (a.column_order !== undefined && b.column_order !== undefined) {
-          return a.column_order - b.column_order;
-        }
-        if (a.column_order !== undefined) return -1;
-        if (b.column_order !== undefined) return 1;
-        return a.field_name.localeCompare(b.field_name);
-      });
-    });
-    
-    // Define custom order for grid names (priority grids first)
-    const gridOrder = [
-      'buildings-list',
-      'assets-list',
-      'asset-details-main',
-      'asset-details-history'
-    ];
-    
-    // Sort grid names: priority grids first, then alphabetically
-    const sortedGrids = Array.from(grouped.keys()).sort((a, b) => {
-      const aIndex = gridOrder.indexOf(a);
-      const bIndex = gridOrder.indexOf(b);
-      
-      // If both are in the priority list, sort by their order in the list
-      if (aIndex !== -1 && bIndex !== -1) {
-        return aIndex - bIndex;
-      }
-      // If only one is in the priority list, it comes first
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      // If neither is in the priority list, sort alphabetically
-      return a.localeCompare(b);
-    });
-    
-    return sortedGrids.map(gridName => ({
-      gridName,
-      configs: grouped.get(gridName)!
-    }));
+  // Filter configurations based on selected grid
+  const filteredConfigurations = useMemo(() => {
+    if (selectedGridName === 'all') {
+      return configurations;
+    }
+    return configurations.filter(config => config.grid_name === selectedGridName);
   }, [configurations, selectedGridName]);
+
+  // Calculate preview width
+  const calculatePreviewWidth = useCallback((chars: number, pad: number) => {
+    return (chars * 8) + (pad * 2);
+  }, []);
+
+  // Check if a config is dirty
+  const isConfigDirty = useCallback((config: FieldConfiguration) => {
+    const key = `${config.grid_name}-${config.field_name}`;
+    return dirtyConfigs.has(key);
+  }, [dirtyConfigs]);
+
+  // Mark config as dirty
+  const markDirty = useCallback((config: FieldConfiguration, edit: Partial<FieldConfiguration>) => {
+    const key = `${config.grid_name}-${config.field_name}`;
+    setDirtyConfigs(prev => {
+      const newMap = new Map(prev);
+      newMap.set(key, { ...config, ...edit });
+      return newMap;
+    });
+  }, []);
+
+  // Handle edit start
+  const handleStartEdit = useCallback((config: FieldConfiguration) => {
+    const key = `${config.grid_name}-${config.field_name}`;
+    setEditingRows(prev => new Set(prev).add(key));
+    setEditData(prev => {
+      const newMap = new Map(prev);
+      newMap.set(key, {
+        width_chars: config.width_chars,
+        padding: config.padding,
+        hebrew_name: config.hebrew_name,
+        pinned: config.pinned,
+        pin_side: config.pin_side,
+        visible: config.visible,
+        column_order: config.column_order,
+      });
+      return newMap;
+    });
+  }, []);
+
+  // Handle edit cancel
+  const handleCancelEdit = useCallback((config: FieldConfiguration) => {
+    const key = `${config.grid_name}-${config.field_name}`;
+    setEditingRows(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(key);
+      return newSet;
+    });
+    setEditData(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(key);
+      return newMap;
+    });
+  }, []);
+
+  // Handle edit save
+  const handleSaveEdit = useCallback(async (config: FieldConfiguration) => {
+    const key = `${config.grid_name}-${config.field_name}`;
+    const edit = editData.get(key);
+    if (!edit) return;
+
+    await saveConfiguration(
+      config.grid_name,
+      config.field_name,
+      edit.width_chars ?? config.width_chars,
+      edit.padding ?? config.padding,
+      edit.hebrew_name,
+      edit.pinned,
+      edit.pin_side,
+      edit.visible,
+      edit.column_order
+    );
+    
+    // Clear dirty state
+    setDirtyConfigs(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(key);
+      return newMap;
+    });
+  }, [editData]);
+
+  // Handle save all
+  const handleSaveAll = useCallback(async () => {
+    if (dirtyConfigs.size === 0) {
+      setToast({ 
+        message: 'אין שינויים לשמירה', 
+        type: 'info' 
+      });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      let savedCount = 0;
+      let errorCount = 0;
+
+      for (const [key, dirtyConfig] of dirtyConfigs.entries()) {
+        try {
+          await api.fieldConfigurations.upsert({
+            grid_name: dirtyConfig.grid_name,
+            field_name: dirtyConfig.field_name,
+            width_chars: dirtyConfig.width_chars,
+            padding: dirtyConfig.padding,
+            hebrew_name: dirtyConfig.hebrew_name || undefined,
+            pinned: dirtyConfig.pinned ?? false,
+            pin_side: dirtyConfig.pin_side || null,
+            visible: dirtyConfig.visible ?? true,
+            column_order: dirtyConfig.column_order,
+          });
+          savedCount++;
+        } catch (error) {
+          console.error(`Error saving config ${key}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Reload configurations
+      await loadConfigurations();
+      
+      // Clear cache
+      const { clearFieldConfigCache } = await import('../lib/fieldConfigUtils');
+      clearFieldConfigCache();
+      
+      // Clear all editing and dirty states
+      setEditingRows(new Set());
+      setEditData(new Map());
+      setDirtyConfigs(new Map());
+      
+      // Refresh grid
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+      
+      setToast({ 
+        message: `נשמרו ${savedCount} הגדרות בהצלחה${errorCount > 0 ? `, ${errorCount} שגיאות` : ''}`, 
+        type: savedCount > 0 ? 'success' : 'error' 
+      });
+      setTimeout(() => setToast(null), 5000);
+    } catch (error) {
+      console.error('Error saving all configurations:', error);
+      setToast({ 
+        message: 'שגיאה בשמירת ההגדרות', 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }, [dirtyConfigs]);
+
+  // Handle cancel all
+  const handleCancelAll = useCallback(() => {
+    if (dirtyConfigs.size === 0 && editingRows.size === 0) {
+      return;
+    }
+
+    if (confirm(`האם אתה בטוח שברצונך לבטל את כל השינויים? (${dirtyConfigs.size} שינויים)`)) {
+      setEditingRows(new Set());
+      setEditData(new Map());
+      setDirtyConfigs(new Map());
+      
+      // Refresh grid to show original values
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+      
+      setToast({ 
+        message: 'כל השינויים בוטלו', 
+        type: 'info' 
+      });
+      setTimeout(() => setToast(null), 3000);
+    }
+  }, [dirtyConfigs, editingRows]);
+
+  // Calculate total changes
+  const totalChanges = useMemo(() => dirtyConfigs.size, [dirtyConfigs]);
+
+  // Column definitions
+  const columnDefs: ColDef<FieldConfiguration>[] = useMemo(() => [
+    {
+      field: 'grid_name',
+      headerName: 'שם גריד',
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 150,
+    },
+    {
+      field: 'hebrew_name',
+      headerName: 'שם בעברית',
+      sortable: true,
+      filter: true,
+      editable: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 150,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        const edit = editData.get(key);
+        
+        if (isEditing) {
+          return (
+            <input
+              type="text"
+              value={edit?.hebrew_name ?? config.hebrew_name ?? ''}
+                onChange={(e) => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, hebrew_name: e.target.value };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              placeholder="שם בעברית"
+            />
+          );
+        }
+        return <span>{config.hebrew_name || '-'}</span>;
+      },
+    },
+    {
+      field: 'width_chars',
+      headerName: 'רוחב (תווים)',
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 120,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        const edit = editData.get(key);
+        const value = edit?.width_chars ?? config.width_chars;
+        
+        if (isEditing) {
+          return (
+            <div className="flex items-center gap-1 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, width_chars: Math.max(1, (existing.width_chars ?? config.width_chars) - 1) };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <input
+                type="number"
+                min="1"
+                value={value}
+                onChange={(e) => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, width_chars: parseInt(e.target.value) || 10 };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="w-16 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, width_chars: (existing.width_chars ?? config.width_chars) + 1 };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        }
+        return <span>{config.width_chars}</span>;
+      },
+    },
+    {
+      field: 'padding',
+      headerName: 'תפיחה (פיקסלים)',
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 120,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        const edit = editData.get(key);
+        const value = edit?.padding ?? config.padding;
+        
+        if (isEditing) {
+          return (
+            <div className="flex items-center gap-1 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, padding: Math.max(0, (existing.padding ?? config.padding) - 1) };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <input
+                type="number"
+                min="0"
+                value={value}
+                onChange={(e) => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, padding: parseInt(e.target.value) || 8 };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="w-16 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, padding: (existing.padding ?? config.padding) + 1 };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="p-1 bg-gray-200 hover:bg-gray-300 rounded border border-gray-300"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        }
+        return <span>{config.padding}</span>;
+      },
+    },
+    {
+      field: 'preview_width',
+      headerName: 'רוחב משוער (פיקסלים)',
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 150,
+      valueGetter: (params) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const edit = editData.get(key);
+        const widthChars = edit?.width_chars ?? config.width_chars;
+        const padding = edit?.padding ?? config.padding;
+        return calculatePreviewWidth(widthChars, padding);
+      },
+      valueFormatter: (params) => `${params.value}px`,
+    },
+    {
+      field: 'pinned',
+      headerName: 'נעוץ',
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 100,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        const edit = editData.get(key);
+        const pinned = edit?.pinned ?? config.pinned ?? false;
+        const pinSide = edit?.pin_side ?? config.pin_side;
+        
+        if (isEditing) {
+          return (
+            <div className="space-y-1">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={pinned}
+                  onChange={(e) => {
+                    setEditData(prev => {
+                      const newMap = new Map(prev);
+                      const existing = newMap.get(key) || {};
+                      const updated = { 
+                        ...existing, 
+                        pinned: e.target.checked,
+                        pin_side: e.target.checked ? existing.pin_side ?? config.pin_side : null
+                      };
+                      newMap.set(key, updated);
+                      markDirty(config, updated);
+                      return newMap;
+                    });
+                  }}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">נעוץ</span>
+              </label>
+              {pinned && (
+                <select
+                  value={pinSide || ''}
+                  onChange={(e) => {
+                    setEditData(prev => {
+                      const newMap = new Map(prev);
+                      const existing = newMap.get(key) || {};
+                      const updated = { ...existing, pin_side: e.target.value === '' ? null : (e.target.value as 'left' | 'right') };
+                      newMap.set(key, updated);
+                      markDirty(config, updated);
+                      return newMap;
+                    });
+                  }}
+                  className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="">בחר צד</option>
+                  <option value="left">שמאל</option>
+                  <option value="right">ימין</option>
+                </select>
+              )}
+            </div>
+          );
+        }
+        return (
+          <span>
+            {config.pinned ? (config.pin_side === 'left' ? 'שמאל' : config.pin_side === 'right' ? 'ימין' : 'כן') : 'לא'}
+          </span>
+        );
+      },
+    },
+    {
+      field: 'visible',
+      headerName: 'נראה',
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 80,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        const edit = editData.get(key);
+        const visible = edit?.visible ?? config.visible ?? true;
+        
+        if (isEditing) {
+          return (
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={visible}
+                onChange={(e) => {
+                  setEditData(prev => {
+                    const newMap = new Map(prev);
+                    const existing = newMap.get(key) || {};
+                    const updated = { ...existing, visible: e.target.checked };
+                    newMap.set(key, updated);
+                    markDirty(config, updated);
+                    return newMap;
+                  });
+                }}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">נראה</span>
+            </label>
+          );
+        }
+        return <span>{config.visible !== false ? 'כן' : 'לא'}</span>;
+      },
+    },
+    {
+      field: 'column_order',
+      headerName: 'סדר',
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      minWidth: 80,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        const edit = editData.get(key);
+        const value = edit?.column_order ?? config.column_order;
+        
+        if (isEditing) {
+          return (
+            <input
+              type="number"
+              min="0"
+              value={value || ''}
+              onChange={(e) => {
+                setEditData(prev => {
+                  const newMap = new Map(prev);
+                  const existing = newMap.get(key) || {};
+                  const updated = { ...existing, column_order: e.target.value ? parseInt(e.target.value) : undefined };
+                  newMap.set(key, updated);
+                  markDirty(config, updated);
+                  return newMap;
+                });
+              }}
+              placeholder="סדר"
+              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-center"
+            />
+          );
+        }
+        return <span>{config.column_order ?? '-'}</span>;
+      },
+    },
+    {
+      field: 'field_name',
+      headerName: 'שם שדה',
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const isDirty = isConfigDirty(config);
+        return { 
+          textAlign: 'right', 
+          fontWeight: isDirty ? 'bold' : '600',
+          backgroundColor: isDirty ? '#fef3c7' : undefined
+        };
+      },
+      minWidth: 150,
+    },
+    {
+      colId: 'actions',
+      headerName: 'פעולות',
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      sortable: false,
+      filter: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'center' },
+      minWidth: 120,
+      cellRenderer: (params: any) => {
+        const config = params.data as FieldConfiguration;
+        const key = `${config.grid_name}-${config.field_name}`;
+        const isEditing = editingRows.has(key);
+        
+        if (isEditing) {
+          return (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => handleSaveEdit(config)}
+                disabled={saving}
+                className="p-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-400 text-white rounded transition-colors"
+                title="שמור"
+              >
+                <Save className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleCancelEdit(config)}
+                className="p-2 bg-slate-500 hover:bg-slate-600 text-white rounded transition-colors"
+                title="ביטול"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => handleStartEdit(config)}
+              className="p-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded transition-colors"
+              title="ערוך"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => deleteConfiguration(config.grid_name, config.field_name)}
+              className="p-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+              title="מחק"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      },
+    },
+  ], [editingRows, editData, saving, calculatePreviewWidth, handleStartEdit, handleCancelEdit, handleSaveEdit, isConfigDirty, markDirty]);
 
   if (loading) {
     return (
@@ -700,66 +1061,104 @@ export function FieldConfigManager() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Filter className="h-5 w-5 text-slate-600" />
-            <label className="text-slate-700 font-medium">סינון לפי גריד:</label>
-            <select
-              value={selectedGridName}
-              onChange={(e) => setSelectedGridName(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              <option value="all">הכל</option>
-              {uniqueGridNames.map(gridName => (
-                <option key={gridName} value={gridName}>{gridName}</option>
-              ))}
-            </select>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-slate-600" />
+              <label className="text-slate-700 font-medium">סינון לפי גריד:</label>
+              <select
+                value={selectedGridName}
+                onChange={(e) => setSelectedGridName(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="all">הכל</option>
+                {uniqueGridNames.map(gridName => (
+                  <option key={gridName} value={gridName}>{gridName}</option>
+                ))}
+              </select>
+            </div>
           </div>
+          {totalChanges > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCancelAll}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              >
+                <X className="h-4 w-4" />
+                ביטול ({totalChanges})
+              </button>
+              <button
+                onClick={handleSaveAll}
+                disabled={saving || totalChanges === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              >
+                {saving ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? 'שומר...' : `שמור הכל (${totalChanges})`}
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-slate-600 mb-6">
           הגדר רוחב ותפיחה לכל שדה במערכת. כל הטבלאות ישתמשו בהגדרות אלה.
         </p>
 
-        {/* Existing configurations grouped by grid */}
-        {groupedConfigurations.map(({ gridName, configs }) => (
-          <div key={gridName} className="mb-8">
-            <h3 className="text-xl font-semibold text-slate-800 mb-4 pb-2 border-b-2 border-slate-300">
-              {gridName}
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 border-b-2 border-slate-300">
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם גריד</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם שדה</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">שם בעברית</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700" style={{ maxWidth: '80px', width: '80px' }}>רוחב (תווים)</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700" style={{ maxWidth: '80px', width: '80px' }}>תפיחה (פיקסלים)</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">רוחב משוער (פיקסלים)</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נעיצה</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">נראה</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700" style={{ maxWidth: '80px', width: '80px' }}>סדר</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">פעולות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {configs.map((config) => (
-                    <FieldConfigRow
-                      key={`${config.grid_name}-${config.field_name}`}
-                      config={config}
-                      onSave={saveConfiguration}
-                      onDelete={deleteConfiguration}
-                      saving={saving}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
+        <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
+          <AgGridReact<FieldConfiguration>
+            ref={gridRef}
+            rowData={filteredConfigurations}
+            columnDefs={columnDefs}
+            defaultColDef={{
+              resizable: true,
+              wrapHeaderText: true,
+              autoHeaderHeight: true,
+              wrapText: true,
+              autoHeight: false,
+              sortable: true,
+              filter: true,
+              headerClass: 'ag-right-aligned-header',
+              headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+              cellStyle: { textAlign: 'right' },
+              minWidth: 40
+            }}
+            gridOptions={{
+              suppressColumnVirtualisation: false,
+              alwaysShowHorizontalScroll: true,
+              suppressMovableColumns: true,
+              suppressColumnMoveAnimation: true,
+              rowBuffer: 10,
+              debounceVerticalScrollbar: true,
+            }}
+            suppressHorizontalScroll={false}
+            getRowId={(params) => `${params.data.grid_name}-${params.data.field_name}`}
+            onGridReady={async (params) => {
+              await gridPreferences.loadColumnState(params.api);
+              setTimeout(() => {
+                detectAndApplyTextOverflow(params.api);
+              }, 200);
+            }}
+            onFirstDataRendered={async (params) => {
+              setTimeout(() => {
+                detectAndApplyTextOverflow(params.api);
+                setupTextOverflowObserver(params.api);
+              }, 200);
+            }}
+            onColumnResized={(params) => {
+              gridPreferences.handleColumnResized();
+              setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+            }}
+            onColumnMoved={gridPreferences.handleColumnMoved}
+            enableRtl={true}
+            animateRows={true}
+          />
+        </div>
 
-        {groupedConfigurations.length === 0 && (
+        {filteredConfigurations.length === 0 && (
           <div className="text-center py-12 text-slate-500">
             אין הגדרות שדות. הוסף שדה חדש כדי להתחיל.
           </div>
@@ -768,4 +1167,3 @@ export function FieldConfigManager() {
     </div>
   );
 }
-

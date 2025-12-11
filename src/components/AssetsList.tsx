@@ -3146,31 +3146,27 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               ייצא ל-Excel
             </button>
           </div>
-          {/* Distribute shared area button - only visible in residence tabs, disabled if residence_shared_area is 0 or null */}
-          {building && isResidentTaxRegion && (
+          {/* Distribute shared area button - only visible in residence tabs when residence_shared_area > 0 */}
+          {building && isResidentTaxRegion && building.residence_shared_area && building.residence_shared_area > 0 && (
             <button
               type="button"
               onClick={handleDistributeSharedArea}
-              disabled={loading || assets.length === 0 || !building.residence_shared_area || building.residence_shared_area <= 0}
+              disabled={loading || assets.length === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-              title={building.residence_shared_area && building.residence_shared_area > 0 
-                ? `פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`
-                : 'שטח משותף מגורים לא מוגדר או שווה לאפס'}
+              title={`פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
             >
               <Download className="h-4 w-4" />
               פזר שטח משותף מגורים
             </button>
           )}
-          {/* Distribute business shared area button - only visible in business tabs (not multi tax region, not residence), disabled if business_shared_area is 0 or null */}
-          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (
+          {/* Distribute business shared area button - only visible in business tabs (not multi tax region, not residence) when business_shared_area > 0 */}
+          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area && building.business_shared_area > 0 && (
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}
-              disabled={loading || assets.length === 0 || !building.business_shared_area || building.business_shared_area <= 0}
+              disabled={loading || assets.length === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-md hover:shadow-lg font-semibold"
-              title={building.business_shared_area && building.business_shared_area > 0
-                ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
-                : 'שטח משותף עסקים לא מוגדר או שווה לאפס'}
+              title={`פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`}
             >
               <Download className="h-4 w-4" />
               פזר שטח משותף עסקים

@@ -1230,7 +1230,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               return;
             }
             try {
-              const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
               const rows = assets.map(asset => {
                 const assetId = String(asset.asset_id);
                 const dirtyChanges = dirtyAssets.get(assetId) || {};

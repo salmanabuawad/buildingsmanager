@@ -1026,7 +1026,7 @@ export function BuildingsList({
 
       // Define headers matching the grid columns (excluding actions)
       const headers = [
-        'מספר מבנה',
+        'מזהה מבנה',
         'אזור מיסים',
         'אחוז העמסה',
         'שטח משותף מגורים',
@@ -1070,7 +1070,7 @@ export function BuildingsList({
 
       // Set column widths
       worksheet['!cols'] = [
-        { wch: 12 }, // מספר מבנה
+        { wch: 12 }, // מזהה מבנה
         { wch: 15 }, // אזור מיסים
         { wch: 12 }, // אחוז העמסה
         { wch: 18 }, // שטח משותף מגורים
@@ -1212,7 +1212,7 @@ export function BuildingsList({
             });
             
             if (!finalBuilding.building_number || finalBuilding.building_number <= 0) {
-              errors.push(`מבנה חדש: מספר מבנה נדרש ו חייב להיות חיובי`);
+              errors.push(`מבנה חדש: מזהה מבנה נדרש ו חייב להיות חיובי`);
               continue;
             }
             if (!finalBuilding.tax_region) {
@@ -1246,7 +1246,7 @@ export function BuildingsList({
           } else {
             const actualBuildingNumber = building.building_number;
             if (!actualBuildingNumber || actualBuildingNumber <= 0) {
-              errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מספר מבנה לא תקין`);
+              errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מזהה מבנה לא תקין`);
               continue;
             }
             await api.buildings.update(actualBuildingNumber, changes);
@@ -1561,7 +1561,7 @@ export function BuildingsList({
     },
     {
       field: 'building_number',
-      headerName: 'מספר מבנה',
+      headerName: 'מזהה מבנה',
       editable: (params: any) => {
         if (!params || !params.data) return false;
         const building = params.data as Building;

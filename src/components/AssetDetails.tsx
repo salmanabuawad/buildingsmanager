@@ -2530,7 +2530,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         return;
                       }
                       try {
-                        const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                         const rows = pinnedTopRowData.map(asset => [
                           asset.building_number || '',
                           asset.asset_id || '',
@@ -2716,7 +2716,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         return;
                       }
                       try {
-                        const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'תאריך יצירה'];
+                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'תאריך יצירה'];
                         const rows = historyRows.map(asset => [
                           asset.building_number || '',
                           asset.asset_id || '',

@@ -577,7 +577,7 @@ export class AssetValidationHandler {
 
     // DB-dependent validations (run in parallel)
     // Pass validation rules and cached data to avoid database queries
-    validationNames.push('אימות מספר מבנה');
+    validationNames.push('אימות מזהה מבנה');
     validations.push(assetValidators.validateBuildingNumber(asset.building_number, validationRules, cachedData));
 
     validationNames.push('אימות מבנה קיים במערכת');

@@ -942,7 +942,7 @@ export const api = {
         // Handle constraint violations
         if (error.code === '23505') {
           if (error.message.includes('assets_pkey') || error.message.includes('primary key')) {
-            errorMessage = 'נכס עם זיהוי זה כבר קיים עם תאריך מדידה זה. כל שילוב של מספר נכס ותאריך מדידה חייב להיות ייחודי.';
+            errorMessage = 'נכס עם זיהוי זה כבר קיים עם תאריך מדידה זה. כל שילוב של מזהה נכס ותאריך מדידה חייב להיות ייחודי.';
           } else {
             errorMessage = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר המבנה.';
           }

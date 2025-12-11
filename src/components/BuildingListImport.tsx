@@ -52,7 +52,7 @@ export function BuildingListImport() {
       
       // Define exact header names (case-insensitive, trimmed)
       const exactHeaders: Record<string, string[]> = {
-        'building_number': ['מספר מבנה', 'מספר_מבנה', 'building_number'],
+        'building_number': ['מזהה מבנה', 'מזהה_מבנה', 'building_number'],
         'tax_region': ['אזור מס', 'אזור_מס', 'tax_region'],
         'residence_shared_area': ['שטח משותף מגורים', 'שטח_משותף_מגורים', 'residence_shared_area', 'shared_area'],
         'business_shared_area': ['שטח משותף עסקים', 'שטח_משותף_עסקים', 'business_shared_area', 'shared_business_area'],
@@ -75,7 +75,7 @@ export function BuildingListImport() {
 
       // Require at least building_number header
       if (headerMap['building_number'] === undefined) {
-        throw new Error('קובץ חייב לכלול שורת כותרות. נדרש לפחות עמודת "מספר מבנה" או "מספר_מבנה"');
+        throw new Error('קובץ חייב לכלול שורת כותרות. נדרש לפחות עמודת "מזהה מבנה" או "מזהה_מבנה"');
       }
 
       let successCount = 0;
@@ -130,7 +130,7 @@ export function BuildingListImport() {
         const buildingAddress = buildingAddressStr ? parseInt(buildingAddressStr) : undefined;
 
         if (isNaN(buildingNumber)) {
-          errors.push(`שורה ${rowNumber}: מספר מבנה לא תקין`);
+          errors.push(`שורה ${rowNumber}: מזהה מבנה לא תקין`);
           errorCount++;
           continue;
         }
@@ -185,7 +185,7 @@ export function BuildingListImport() {
   }
 
   function downloadTemplate() {
-    const template = `מספר מבנה,אזור מס,שטח משותף מגורים,שטח משותף עסקים,סמל רחוב
+    const template = `מזהה מבנה,אזור מס,שטח משותף מגורים,שטח משותף עסקים,סמל רחוב
 1001,10,150.5,50.2,603
 1002,20,200,75,
 1003,"40,10",300,100,604
@@ -233,7 +233,7 @@ export function BuildingListImport() {
           <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
             <p className="text-slate-700 mb-4 font-medium">כל שורה בקובץ File צריכה להכיל:</p>
             <ul className="list-disc list-inside space-y-2 text-slate-700 mb-4 mr-4">
-              <li><strong>מספר מבנה</strong> (חובה) - מספר שלם</li>
+              <li><strong>מזהה מבנה</strong> (חובה) - מספר שלם</li>
               <li><strong>אזור מס</strong> (אופציונלי) - יכול להיות ערך בודד או צירוף תקין</li>
               <li><strong>שטח משותף מגורים</strong> (אופציונלי) - מספר עשרוני</li>
               <li><strong>שטח משותף עסקים</strong> (אופציונלי) - מספר עשרוני</li>

@@ -748,7 +748,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
 
     // Create File header
-    const headers = ['מספר מבנה', 'מספר נכס', 'שגיאות'];
+    const headers = ['מזהה מבנה', 'מזהה נכס', 'שגיאות'];
     const rows: string[][] = [headers];
 
     // Add data rows
@@ -1746,8 +1746,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Define headers matching the grid columns
       const headers = [
-        'מספר מבנה',
-        'מספר נכס',
+        'מזהה מבנה',
+        'מזהה נכס',
         'מזהה משלם',
         'אזור מס',
         'דירת גג',
@@ -1808,8 +1808,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Set column widths for better readability
       worksheet['!cols'] = [
-        { wch: 12 }, // מספר מבנה
-        { wch: 12 }, // מספר נכס
+        { wch: 12 }, // מזהה מבנה
+        { wch: 12 }, // מזהה נכס
         { wch: 12 }, // מזהה משלם
         { wch: 10 }, // אזור מס
         { wch: 8 },  // דירת גג

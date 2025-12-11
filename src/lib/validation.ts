@@ -1904,7 +1904,7 @@ export const assetValidators = {
 
   validateBuildingExists: async (buildingNumber: number | string | null, validationRules?: any[], cachedData?: any): Promise<ValidationResult> => {
     if (!buildingNumber && buildingNumber !== 0) {
-      return { valid: false, error: 'מספר מבנה נדרש' };
+      return { valid: false, error: 'מזהה מבנה נדרש' };
     }
 
     // Use in-memory buildings if available
@@ -1993,7 +1993,7 @@ export const assetValidators = {
         // Building number not provided, but asset exists - this is OK if we're updating
         // Only error if we're creating new and building number is missing
         if (!currentAssetId) {
-          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת. יש לציין מספר מבנה.` };
+          return { valid: false, error: `מזהה נכס ${assetId} כבר קיים במערכת. יש לציין מזהה מבנה.` };
         }
         return { valid: true };
       }

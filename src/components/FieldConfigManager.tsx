@@ -330,7 +330,7 @@ export function FieldConfigManager() {
                 type="text"
                 value={newHebrewName}
                 onChange={(e) => setNewHebrewName(e.target.value)}
-                placeholder="לדוגמה: מספר מבנה"
+                placeholder="לדוגמה: מזהה מבנה"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

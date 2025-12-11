@@ -771,7 +771,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             } else {
               // Validate building_number
               if (!buildingNum || isNaN(buildingNum)) {
-                assetErrors.push('מספר מבנה חייב להיות מספר תקין');
+                assetErrors.push('מזהה מבנה חייב להיות מספר תקין');
               }
 
               // Validate asset_id
@@ -1005,7 +1005,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         } else {
           // Log row errors for missing required fields
           if (!buildingNumber || isNaN(buildingNumber)) {
-            errors.push(`שורה ${i + 1}: מספר מבנה חסר או לא תקין`);
+            errors.push(`שורה ${i + 1}: מזהה מבנה חסר או לא תקין`);
           }
           if (!assetId || assetId.trim() === '') {
             errors.push(`שורה ${i + 1}: מזהה נכס חסר`);
@@ -1020,7 +1020,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       if (skeletonAssets.length === 0) {
-        errors.push('לא נמצאו נכסים תקינים בקובץ. כל הנכסים חייבים לכלול: מספר מבנה, מזהה נכס, אזור מס ומזהה משלם.');
+        errors.push('לא נמצאו נכסים תקינים בקובץ. כל הנכסים חייבים לכלול: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם.');
         setSaveResult({
           successful: 0,
           failed: 1,
@@ -1689,7 +1689,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       });
 
       if (validAssets.length === 0) {
-        errors.push('אין נכסים תקינים לשמירה. כל הנכסים חייבים לכלול מספר מבנה ומזהה נכס תקינים וללא כפילויות.');
+        errors.push('אין נכסים תקינים לשמירה. כל הנכסים חייבים לכלול מזהה מבנה ומזהה נכס תקינים וללא כפילויות.');
         setSaveResult({
           successful: 0,
           failed: 1,
@@ -3106,7 +3106,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       return;
                     }
                     try {
-                      const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                      const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                       const rows = importedAssets.map(asset => [
                         asset.building_number || '',
                         asset.asset_id || '',
@@ -3581,7 +3581,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      מספר מבנה *
+                      מזהה מבנה *
                     </label>
                     <input
                       type="number"

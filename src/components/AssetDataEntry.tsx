@@ -335,7 +335,7 @@ export function AssetDataEntry() {
         const rowNum = index + 1;
         const missing: string[] = [];
         if (!row.building_number) {
-          missing.push('מספר מבנה');
+          missing.push('מזהה מבנה');
         }
         if (!row.asset_id) {
           missing.push('זיהוי נכס');
@@ -1554,7 +1554,7 @@ export function AssetDataEntry() {
                     return;
                   }
                   try {
-                    const headers = ['מספר מבנה', 'מספר נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+                    const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
                     const rows = rowData.map(row => [
                       row.building_number || '',
                       row.asset_id || '',
@@ -1676,7 +1676,7 @@ export function AssetDataEntry() {
       </div>
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מספר מבנה וזיהוי נכס) נדרשים. זיהוי משלם אופציונלי.
+          <strong>{t('tips')}:</strong> לחץ על כל תא לעריכה. שדות מסומנים בצהוב (מזהה מבנה ומזהה נכס) נדרשים. זיהוי משלם אופציונלי.
           השתמש ב-Tab או Enter לניווט בין תאים.
         </p>
       </div>

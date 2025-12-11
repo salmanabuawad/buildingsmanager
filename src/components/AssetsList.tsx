@@ -1365,19 +1365,40 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       );
       
       // Direct database query to verify business_residence values
+      // Check both old field name (business_private) and new field name (business_residence)
       let directDbCheck: any = null;
       try {
         const { supabase } = await import('../lib/supabase');
+        
+        // Check new field name
         const { data: dbData, error: dbError } = await supabase
           .from('asset_types')
           .select('name, business_residence')
-          .limit(10);
+          .limit(20);
+        
+        // Also check if old field exists (for migration detection)
+        const { data: dbDataWithOldField } = await supabase
+          .from('asset_types')
+          .select('name, business_private, business_residence')
+          .limit(5);
         
         if (!dbError && dbData) {
+          const withBusinessResidence = dbData.filter((at: any) => at.business_residence != null);
+          const withMegurim = dbData.filter((at: any) => at.business_residence === 'מגורים');
+          
           directDbCheck = {
-            sampleFromDb: dbData,
-            countWithBusinessResidence: dbData.filter((at: any) => at.business_residence != null).length,
-            countWithMegurim: dbData.filter((at: any) => at.business_residence === 'מגורים').length
+            sampleFromDb: dbData.slice(0, 5),
+            countWithBusinessResidence: withBusinessResidence.length,
+            countWithMegurim: withMegurim.length,
+            sampleWithMegurim: withMegurim.slice(0, 3).map((at: any) => ({
+              name: at.name,
+              business_residence: at.business_residence
+            })),
+            sampleWithNull: dbData.filter((at: any) => at.business_residence == null).slice(0, 3),
+            oldFieldCheck: dbDataWithOldField ? {
+              hasBusinessPrivate: dbDataWithOldField.some((at: any) => 'business_private' in at),
+              sample: dbDataWithOldField
+            } : null
           };
         }
       } catch (dbCheckError) {

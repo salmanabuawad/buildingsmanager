@@ -56,6 +56,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
+  const [distributionModalOpen, setDistributionModalOpen] = useState(false);
+  const [distributionResult, setDistributionResult] = useState<string | null>(null);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -1537,8 +1539,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
       
-      setSuccess(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
-      setTimeout(() => setSuccess(null), 5000);
+      // Show result in modal
+      setDistributionResult(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
+      setDistributionModalOpen(true);
 
       // Refresh grid
       if (gridRef.current?.api) {
@@ -1713,8 +1716,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setAssets(updatedAssets);
       
       // Note: Building state with updated overload_ratio was already set in the try block above
-      setSuccess(`פוזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`);
-      setTimeout(() => setSuccess(null), 5000);
+      // Show result in modal
+      setDistributionResult(`פוזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`);
+      setDistributionModalOpen(true);
 
       // Refresh grid
       if (gridRef.current?.api) {
@@ -3143,6 +3147,35 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         onSelectAsset={onSelectAsset}
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
       />
+
+      {/* Distribution Result Modal */}
+      {distributionModalOpen && distributionResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setDistributionModalOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">תוצאות פיזור שטח משותף</h3>
+              <button
+                onClick={() => setDistributionModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="סגור"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-6">
+              <p className="text-gray-700 text-lg text-center">{distributionResult}</p>
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setDistributionModalOpen(false)}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
+              >
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -179,7 +179,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     // Make history rows clickable with visual feedback
     const isHistoryRow = params.data?.is_latest === false;
-    const hasActionId = isHistoryRow && params.data?.action_id;
+    const hasActionId = isHistoryRow && params.data?.action_id != null;
 
     const asset = params.data as Asset;
     const numericRegex = /^[0-9]+$/;
@@ -220,7 +220,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   // Add row class for clickable history rows
   const getRowClass = useCallback((params: any) => {
     const isHistoryRow = params.data?.is_latest === false;
-    const hasActionId = isHistoryRow && params.data?.action_id;
+    const hasActionId = isHistoryRow && params.data?.action_id != null;
     
     if (hasActionId) {
       return 'clickable-history-row';
@@ -452,10 +452,25 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   const handleHistoryRowClick = useCallback((event: any) => {
     const rowData = event.data as Asset;
+    console.log('[AssetDetails] History row clicked:', {
+      asset_id: rowData?.asset_id,
+      action_id: (rowData as any)?.action_id,
+      is_latest: rowData?.is_latest,
+      rowData: rowData
+    });
+    
     // Check if the row has an action_id (from history records)
-    if (rowData && (rowData as any).action_id) {
-      setSelectedActionId((rowData as any).action_id);
+    const actionId = (rowData as any)?.action_id;
+    if (rowData && actionId) {
+      console.log('[AssetDetails] Opening audit details modal for action_id:', actionId);
+      setSelectedActionId(actionId);
       setIsAuditDetailsModalOpen(true);
+    } else {
+      console.warn('[AssetDetails] No action_id found for history row:', rowData);
+      setToast({ 
+        message: 'לא נמצא מזהה פעולה עבור רשומה זו', 
+        type: 'info' 
+      });
     }
   }, []);
 

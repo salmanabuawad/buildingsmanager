@@ -674,9 +674,10 @@ export const api = {
         }
 
         // Other records: fetch from assets_history table
+        // Explicitly include action_id in the select
         let historyQuery = supabase
           .from('assets_history')
-          .select('*')
+          .select('*, action_id')
           .eq('asset_id', assetId);
 
         if (buildingNumber) {

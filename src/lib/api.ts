@@ -421,6 +421,12 @@ export const api = {
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
       
+      // Remove read-only fields that shouldn't be updated directly
+      delete (cleanedInput as any).action_id;
+      delete (cleanedInput as any).created_at;
+      // Don't allow updating building_number (primary key)
+      delete (cleanedInput as any).building_number;
+      
       // If no fields to update, return the existing building
       if (Object.keys(cleanedInput).length === 0) {
         return api.buildings.getOne(buildingNumber);
@@ -434,6 +440,17 @@ export const api = {
         .single();
 
       if (error) {
+        // Log the error details for debugging
+        console.error('[api.buildings.update] Update error:', {
+          error,
+          buildingNumber,
+          cleanedInput,
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint
+        });
+        
         // Handle foreign key constraint violation for building_address
         if (error.code === '23503' && (error.message?.includes('fk_buildings_building_address') || error.details?.includes('address_list'))) {
           const streetCode = cleanedInput.building_address;

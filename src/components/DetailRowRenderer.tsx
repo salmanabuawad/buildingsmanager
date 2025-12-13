@@ -16,11 +16,7 @@ interface DetailRowParams extends ICellRendererParams {
   }>;
   assetColumnDefs: any[];
   beforeAssetGridRef: React.RefObject<AgGridReact<Asset>>;
-  afterAssetGridRef: React.RefObject<AgGridReact<Asset>>;
-  relatedAssetsGridRef: React.RefObject<AgGridReact<Asset>>;
   beforeAssetGridPreferences: any;
-  afterAssetGridPreferences: any;
-  relatedAssetsGridPreferences: any;
   onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
 }
 
@@ -72,12 +68,87 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return null;
   }
 
-  // Create asset column defs with clickable asset_id
-  const assetColumnDefsWithClickableId = useMemo(() => {
-    return params.assetColumnDefs.map((col: any) => {
+  // Combine all assets into one array with source indicators
+  const allDetailAssets = useMemo(() => {
+    const combined: any[] = [];
+    
+    // Add before assets
+    beforeAssets.forEach(asset => {
+      combined.push({
+        ...asset,
+        _source: 'before',
+        _changeSource: 'before_update'
+      });
+    });
+    
+    // Add after assets
+    afterAssets.forEach(asset => {
+      combined.push({
+        ...asset,
+        _source: 'after',
+        _changeSource: 'after_update'
+      });
+    });
+    
+    // Add related assets
+    relatedAssets.forEach(asset => {
+      combined.push({
+        ...asset,
+        _source: 'related',
+        _changeSource: 'affected'
+      });
+    });
+    
+    return combined;
+  }, [beforeAssets, afterAssets, relatedAssets]);
+
+  // Create unified column defs with clickable asset_id and source columns
+  const unifiedColumnDefs = useMemo(() => {
+    const cols: any[] = [
+      {
+        field: '_source',
+        headerName: 'מקור',
+        width: 100,
+        pinned: 'left',
+        lockPosition: true,
+        sortable: true,
+        filter: true,
+        headerClass: 'ag-right-aligned-header',
+        cellStyle: { textAlign: 'right' },
+        cellRenderer: (cellParams: any) => {
+          const source = cellParams.value;
+          if (source === 'before') return 'לפני';
+          if (source === 'after') return 'אחרי';
+          if (source === 'related') return 'מושפע';
+          return source;
+        }
+      },
+      {
+        field: '_changeSource',
+        headerName: 'סוג שינוי',
+        width: 120,
+        pinned: 'left',
+        lockPosition: true,
+        sortable: true,
+        filter: true,
+        headerClass: 'ag-right-aligned-header',
+        cellStyle: { textAlign: 'right' },
+        cellRenderer: (cellParams: any) => {
+          const changeSource = cellParams.value;
+          if (changeSource === 'before_update') return 'לפני עדכון';
+          if (changeSource === 'after_update') return 'אחרי עדכון';
+          if (changeSource === 'affected') return 'נכס מושפע';
+          return changeSource;
+        }
+      }
+    ];
+    
+    // Add asset columns with clickable asset_id
+    params.assetColumnDefs.forEach((col: any) => {
       if (col.field === 'asset_id') {
-        return {
+        cols.push({
           ...col,
+          pinned: 'left',
           cellRenderer: (cellParams: any) => {
             const assetId = cellParams.value;
             const asset = cellParams.data as Asset;
@@ -102,10 +173,13 @@ export function DetailRowRenderer(params: DetailRowParams) {
             }
             return assetId;
           }
-        };
+        });
+      } else {
+        cols.push(col);
       }
-      return col;
     });
+    
+    return cols;
   }, [params.assetColumnDefs, params.onSelectAsset]);
 
   return (
@@ -140,109 +214,17 @@ export function DetailRowRenderer(params: DetailRowParams) {
           </div>
         </div>
 
-        {/* Before Update Data */}
-        {beforeAssets.length > 0 && (
-          <div className="flex flex-col space-y-3">
-            <h5 className="text-sm font-semibold text-slate-700">נתונים לפני עדכון</h5>
-            
-            <div className="flex flex-col">
-              <h6 className="text-xs font-medium text-slate-600 mb-1">נכסים ({beforeAssets.length})</h6>
-              <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '200px' }}>
-                <AgGridReact<Asset>
-                  ref={params.beforeAssetGridRef}
-                  rowData={beforeAssets}
-                  columnDefs={assetColumnDefsWithClickableId}
-                  defaultColDef={{
-                    resizable: true,
-                    wrapHeaderText: true,
-                    autoHeaderHeight: true,
-                    wrapText: true,
-                    autoHeight: false,
-                    sortable: true,
-                    filter: true,
-                    headerClass: 'ag-right-aligned-header',
-                    cellStyle: { textAlign: 'right' },
-                    minWidth: 100
-                  }}
-                  gridOptions={{
-                    suppressColumnVirtualisation: false,
-                    alwaysShowHorizontalScroll: true,
-                    suppressMovableColumns: true,
-                    suppressColumnMoveAnimation: true,
-                    rowBuffer: 5,
-                    debounceVerticalScrollbar: true,
-                    enableCellTextSelection: false,
-                  }}
-                  onGridReady={async (gridParams: any) => {
-                    await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
-                  }}
-                  onFirstDataRendered={async (_gridParams: any) => {}}
-                  onColumnResized={(_gridParams: any) => {
-                    params.beforeAssetGridPreferences.handleColumnResized();
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* After Update Data */}
-        {afterAssets.length > 0 && (
-          <div className="flex flex-col space-y-3">
-            <h5 className="text-sm font-semibold text-slate-700">נתונים אחרי עדכון</h5>
-            
-            <div className="flex flex-col">
-              <h6 className="text-xs font-medium text-slate-600 mb-1">נכסים ({afterAssets.length})</h6>
-              <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '200px' }}>
-                <AgGridReact<Asset>
-                  ref={params.afterAssetGridRef}
-                  rowData={afterAssets}
-                  columnDefs={assetColumnDefsWithClickableId}
-                  defaultColDef={{
-                    resizable: true,
-                    wrapHeaderText: true,
-                    autoHeaderHeight: true,
-                    wrapText: true,
-                    autoHeight: false,
-                    sortable: true,
-                    filter: true,
-                    headerClass: 'ag-right-aligned-header',
-                    cellStyle: { textAlign: 'right' },
-                    minWidth: 100
-                  }}
-                  gridOptions={{
-                    suppressColumnVirtualisation: false,
-                    alwaysShowHorizontalScroll: true,
-                    suppressMovableColumns: true,
-                    suppressColumnMoveAnimation: true,
-                    rowBuffer: 5,
-                    debounceVerticalScrollbar: true,
-                    enableCellTextSelection: false,
-                  }}
-                  onGridReady={async (gridParams: any) => {
-                    await params.afterAssetGridPreferences.loadColumnState(gridParams.api);
-                  }}
-                  onFirstDataRendered={async (_gridParams: any) => {}}
-                  onColumnResized={(_gridParams: any) => {
-                    params.afterAssetGridPreferences.handleColumnResized();
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Related Assets */}
-        {relatedAssets.length > 0 && (
+        {/* Unified Assets Grid */}
+        {allDetailAssets.length > 0 && (
           <div className="flex flex-col">
             <h5 className="text-sm font-semibold text-slate-700 mb-2">
-              נכסים מושפעים ({relatedAssets.length})
+              נכסים מושפעים ({allDetailAssets.length})
             </h5>
-            <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '250px' }}>
+            <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '400px' }}>
               <AgGridReact<Asset>
-                ref={params.relatedAssetsGridRef}
-                rowData={relatedAssets}
-                columnDefs={assetColumnDefsWithClickableId}
+                ref={params.beforeAssetGridRef}
+                rowData={allDetailAssets}
+                columnDefs={unifiedColumnDefs}
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,
@@ -256,8 +238,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
                   minWidth: 100
                 }}
                 getRowId={(gridParams: any) => {
+                  const source = gridParams.data._source || 'unknown';
                   const isLatest = gridParams.data.is_latest ? 'latest' : 'history';
-                  return `${gridParams.data.asset_id}-${gridParams.data.measurement_date || ''}-${isLatest}`;
+                  return `${source}-${gridParams.data.asset_id}-${gridParams.data.measurement_date || ''}-${isLatest}`;
                 }}
                 gridOptions={{
                   suppressColumnVirtualisation: false,
@@ -269,11 +252,11 @@ export function DetailRowRenderer(params: DetailRowParams) {
                   enableCellTextSelection: false,
                 }}
                 onGridReady={async (gridParams: any) => {
-                  await params.relatedAssetsGridPreferences.loadColumnState(gridParams.api);
+                  await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
                 }}
                 onFirstDataRendered={async (_gridParams: any) => {}}
                 onColumnResized={(_gridParams: any) => {
-                  params.relatedAssetsGridPreferences.handleColumnResized();
+                  params.beforeAssetGridPreferences.handleColumnResized();
                 }}
               />
             </div>

@@ -72,14 +72,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     relatedAssets: Asset[];
   }>>(new Map());
   
-  // Refs for audit detail grids (only assets, no buildings)
+  // Refs for audit detail grid (unified grid for all assets)
   const beforeAssetGridRef = useRef<AgGridReact<Asset>>(null);
-  const afterAssetGridRef = useRef<AgGridReact<Asset>>(null);
-  const relatedAssetsGridRef = useRef<AgGridReact<Asset>>(null);
   
-  const beforeAssetGridPreferences = useGridPreferences(beforeAssetGridRef, 'audit-details-before-asset', 'default');
-  const afterAssetGridPreferences = useGridPreferences(afterAssetGridRef, 'audit-details-after-asset', 'default');
-  const relatedAssetsGridPreferences = useGridPreferences(relatedAssetsGridRef, 'audit-details-related-assets', 'default');
+  const beforeAssetGridPreferences = useGridPreferences(beforeAssetGridRef, 'audit-details-unified-assets', 'default');
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
   const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -3235,14 +3231,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       auditDataCache,
                       assetColumnDefs,
                       beforeAssetGridRef,
-                      afterAssetGridRef,
-                      relatedAssetsGridRef,
                       beforeAssetGridPreferences,
-                      afterAssetGridPreferences,
-                      relatedAssetsGridPreferences,
                       onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
-                        // Navigate to asset view - this will be handled by App.tsx through onDataUpdate or we need to pass it through props
-                        // For now, we'll trigger a custom event that App.tsx can listen to
+                        // Navigate to asset view - dispatch custom event that App.tsx can listen to
                         window.dispatchEvent(new CustomEvent('openAssetView', {
                           detail: { assetDbId, assetId, buildingNumber, taxRegion }
                         }));

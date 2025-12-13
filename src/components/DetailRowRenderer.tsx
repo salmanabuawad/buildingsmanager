@@ -138,32 +138,66 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return map;
   }, [beforeAssets, afterAssets]);
 
-  // Combine all assets into one array with source indicators, sorted by asset_id
+  // Combine all assets into one array with merged before/after records
   const allDetailAssets = useMemo(() => {
     const combined: any[] = [];
     const actionType = auditLog?.action_type || 'manual_update';
     
-    // Add before assets
+    // Create maps of before and after assets by asset_id
+    const beforeMap = new Map<number, Asset>();
+    const afterMap = new Map<number, Asset>();
+    
     beforeAssets.forEach(asset => {
-      combined.push({
-        ...asset,
-        _source: 'before',
-        _changeSource: actionType,
-        _changedFields: changedFieldsMap.get(asset.asset_id || 0) || new Set<string>()
-      });
+      if (asset.asset_id != null) {
+        beforeMap.set(asset.asset_id, asset);
+      }
     });
     
-    // Add after assets
     afterAssets.forEach(asset => {
-      combined.push({
-        ...asset,
-        _source: 'after',
-        _changeSource: actionType,
-        _changedFields: changedFieldsMap.get(asset.asset_id || 0) || new Set<string>()
-      });
+      if (asset.asset_id != null) {
+        afterMap.set(asset.asset_id, asset);
+      }
     });
     
-    // Add related assets
+    // Get all unique asset_ids
+    const allAssetIds = new Set([...beforeMap.keys(), ...afterMap.keys()]);
+    
+    // For each asset_id, create a merged record if both before and after exist
+    allAssetIds.forEach(assetId => {
+      const beforeAsset = beforeMap.get(assetId);
+      const afterAsset = afterMap.get(assetId);
+      
+      if (beforeAsset && afterAsset) {
+        // Merge before and after into one row
+        // Use after asset as base, but mark it as merged
+        combined.push({
+          ...afterAsset, // Use after as base (current state)
+          _source: 'merged', // Indicate this is a merged before/after record
+          _changeSource: actionType,
+          _changedFields: changedFieldsMap.get(assetId) || new Set<string>(),
+          _beforeAsset: beforeAsset, // Store before asset for reference
+          _isMerged: true // Flag to indicate merged row
+        });
+      } else if (beforeAsset) {
+        // Only before exists
+        combined.push({
+          ...beforeAsset,
+          _source: 'before',
+          _changeSource: actionType,
+          _changedFields: changedFieldsMap.get(assetId) || new Set<string>()
+        });
+      } else if (afterAsset) {
+        // Only after exists
+        combined.push({
+          ...afterAsset,
+          _source: 'after',
+          _changeSource: actionType,
+          _changedFields: changedFieldsMap.get(assetId) || new Set<string>()
+        });
+      }
+    });
+    
+    // Add related assets (not merged)
     relatedAssets.forEach(asset => {
       combined.push({
         ...asset,
@@ -200,6 +234,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
           const source = cellParams.value;
           if (source === 'before') return 'לפני';
           if (source === 'after') return 'אחרי';
+          if (source === 'merged') return 'לפני/אחרי'; // Merged before/after
           if (source === 'related') return 'מושפע';
           return source;
         }
@@ -282,9 +317,10 @@ export function DetailRowRenderer(params: DetailRowParams) {
             const asset = cellParams.data as any;
             const field = col.field;
             const changedFields = asset._changedFields as Set<string> | undefined;
+            const isMerged = asset._isMerged === true;
             
-            // Apply bold and italic if this field changed for before/after assets
-            if (changedFields && changedFields.has(field) && (asset._source === 'before' || asset._source === 'after')) {
+            // Apply bold and italic if this field changed for merged or before/after assets
+            if (changedFields && changedFields.has(field) && (isMerged || asset._source === 'before' || asset._source === 'after')) {
               return {
                 ...baseStyle,
                 fontWeight: 'bold',

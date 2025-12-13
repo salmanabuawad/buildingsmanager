@@ -5,7 +5,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { X, Loader2 } from 'lucide-react';
 import { useGridPreferences } from '../lib/useGridPreferences';
-import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 
 interface ParsedAuditData {
   asset?: any;
@@ -35,11 +34,8 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
   // Load audit log and related assets - memoized to prevent infinite loops
   const loadAuditDetails = useCallback(async () => {
     if (!actionId) {
-      console.warn('[AuditDetailsModal] No actionId provided');
       return;
     }
-    
-    console.log('[AuditDetailsModal] Loading audit details for actionId:', actionId);
     
     try {
       setLoading(true);
@@ -48,7 +44,6 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       // Load audit log entry
       const audit = await api.auditLog.getOne(actionId);
       setAuditLog(audit);
-      console.log('[AuditDetailsModal] Audit log loaded:', audit);
       
       // Load all assets with the same action_id
       const { data, error: assetsError } = await supabase
@@ -73,9 +68,10 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       ];
       
       setRelatedAssets(allAssets);
-      console.log('[AuditDetailsModal] Related assets loaded:', allAssets.length);
     } catch (err) {
-      console.error('[AuditDetailsModal] Error loading audit details:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[AuditDetailsModal] Error loading audit details:', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to load audit details');
     } finally {
       setLoading(false);
@@ -83,19 +79,19 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
   }, [actionId]);
 
   // Load audit log and related assets when actionId changes
+  // Don't include loadAuditDetails in dependencies to prevent infinite loops
   useEffect(() => {
-    console.log('[AuditDetailsModal] useEffect triggered:', { isOpen, actionId, hasLoadFunction: !!loadAuditDetails });
     if (isOpen && actionId) {
-      console.log('[AuditDetailsModal] Conditions met, calling loadAuditDetails');
       loadAuditDetails();
     } else {
-      console.log('[AuditDetailsModal] Conditions not met, clearing state');
+      // Clear state when modal closes
       setAuditLog(null);
       setRelatedAssets([]);
       setError(null);
       setLoading(false);
     }
-  }, [isOpen, actionId, loadAuditDetails]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, actionId]);
 
   // Parse JSON data
   const parseAuditData = (jsonData: any): ParsedAuditData | null => {
@@ -194,8 +190,16 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
     return columns;
   };
 
-  const beforeColumnDefs = useMemo(() => createColumnDefs(beforeData), [beforeData.length]);
-  const afterColumnDefs = useMemo(() => createColumnDefs(afterData), [afterData.length]);
+  // Memoize column definitions - only recreate when data actually changes
+  const beforeColumnDefs = useMemo(() => {
+    if (beforeData.length === 0) return [];
+    return createColumnDefs(beforeData);
+  }, [beforeData]);
+  
+  const afterColumnDefs = useMemo(() => {
+    if (afterData.length === 0) return [];
+    return createColumnDefs(afterData);
+  }, [afterData]);
 
   // Assets grid column definitions
   const assetsColumnDefs: ColDef<Asset>[] = useMemo(() => [
@@ -260,12 +264,24 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
     }
   ], []);
 
+  // Don't render anything if modal is not open - prevents unnecessary renders
   if (!isOpen) return null;
 
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+      onClick={(e) => {
+        // Only close if clicking the backdrop, not the modal content
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        // Close on Escape key
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      }}
     >
       <div 
         className="bg-white rounded-xl shadow-2xl max-w-7xl w-full mx-4 max-h-[90vh] flex flex-col"
@@ -352,26 +368,24 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                         minWidth: 100
                       }}
                       gridOptions={{
-                        suppressColumnVirtualisation: true,
+                        suppressColumnVirtualisation: false, // Enable virtualization for better performance
                         alwaysShowHorizontalScroll: true,
                         suppressMovableColumns: true,
                         suppressColumnMoveAnimation: true,
-                        rowBuffer: 20,
+                        rowBuffer: 5, // Reduce row buffer for better performance
                         debounceVerticalScrollbar: true,
+                        enableCellTextSelection: false, // Disable text selection for better performance
                       }}
-                      onGridReady={async (params) => {
+                      onGridReady={async (params: any) => {
                         await beforeGridPreferences.loadColumnState(params.api);
-                        setTimeout(() => detectAndApplyTextOverflow(params.api), 200);
+                        // Disable text overflow detection for performance
                       }}
-                      onFirstDataRendered={async (params) => {
-                        setTimeout(() => {
-                          detectAndApplyTextOverflow(params.api);
-                          setupTextOverflowObserver(params.api);
-                        }, 200);
+                      onFirstDataRendered={async (_params: any) => {
+                        // Disable text overflow observer for performance
                       }}
-                      onColumnResized={(params) => {
+                      onColumnResized={(_params: any) => {
                         beforeGridPreferences.handleColumnResized();
-                        setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                        // Disable text overflow detection for performance
                       }}
                     />
                   </div>
@@ -400,26 +414,24 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                         minWidth: 100
                       }}
                       gridOptions={{
-                        suppressColumnVirtualisation: true,
+                        suppressColumnVirtualisation: false, // Enable virtualization for better performance
                         alwaysShowHorizontalScroll: true,
                         suppressMovableColumns: true,
                         suppressColumnMoveAnimation: true,
-                        rowBuffer: 20,
+                        rowBuffer: 5, // Reduce row buffer for better performance
                         debounceVerticalScrollbar: true,
+                        enableCellTextSelection: false, // Disable text selection for better performance
                       }}
-                      onGridReady={async (params) => {
+                      onGridReady={async (params: any) => {
                         await afterGridPreferences.loadColumnState(params.api);
-                        setTimeout(() => detectAndApplyTextOverflow(params.api), 200);
+                        // Disable text overflow detection for performance
                       }}
-                      onFirstDataRendered={async (params) => {
-                        setTimeout(() => {
-                          detectAndApplyTextOverflow(params.api);
-                          setupTextOverflowObserver(params.api);
-                        }, 200);
+                      onFirstDataRendered={async (_params: any) => {
+                        // Disable text overflow observer for performance
                       }}
-                      onColumnResized={(params) => {
+                      onColumnResized={(_params: any) => {
                         afterGridPreferences.handleColumnResized();
-                        setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                        // Disable text overflow detection for performance
                       }}
                     />
                   </div>
@@ -449,31 +461,29 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                         cellStyle: { textAlign: 'right' },
                         minWidth: 100
                       }}
-                      getRowId={(params) => {
+                      getRowId={(params: any) => {
                         const isLatest = params.data.is_latest ? 'latest' : 'history';
                         return `${params.data.asset_id}-${params.data.measurement_date || ''}-${isLatest}`;
                       }}
                       gridOptions={{
-                        suppressColumnVirtualisation: true,
+                        suppressColumnVirtualisation: false, // Enable virtualization for better performance
                         alwaysShowHorizontalScroll: true,
                         suppressMovableColumns: true,
                         suppressColumnMoveAnimation: true,
-                        rowBuffer: 20,
+                        rowBuffer: 5, // Reduce row buffer for better performance
                         debounceVerticalScrollbar: true,
+                        enableCellTextSelection: false, // Disable text selection for better performance
                       }}
-                      onGridReady={async (params) => {
+                      onGridReady={async (params: any) => {
                         await assetsGridPreferences.loadColumnState(params.api);
-                        setTimeout(() => detectAndApplyTextOverflow(params.api), 200);
+                        // Disable text overflow detection for performance
                       }}
-                      onFirstDataRendered={async (params) => {
-                        setTimeout(() => {
-                          detectAndApplyTextOverflow(params.api);
-                          setupTextOverflowObserver(params.api);
-                        }, 200);
+                      onFirstDataRendered={async (_params: any) => {
+                        // Disable text overflow observer for performance
                       }}
-                      onColumnResized={(params) => {
+                      onColumnResized={(_params: any) => {
                         assetsGridPreferences.handleColumnResized();
-                        setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                        // Disable text overflow detection for performance
                       }}
                     />
                   </div>

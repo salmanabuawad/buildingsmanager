@@ -2676,12 +2676,19 @@ export const buildingValidators = {
       // Calculate total asset area (excluding not_accountable assets)
       // Note: Shared areas (residence_shared_area and business_shared_area) are distributed to assets
       // but should NOT be included in the size comparison
+      // Also exclude residence assets where asset_id % 1000 = 0 OR asset_id < 1000 (starts with 000)
       const totalAssetAreaWithShared = assets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
         if (asset.main_asset_type) {
           const assetType = assetTypeMap.get(String(asset.main_asset_type));
           if (assetType && assetType.not_accountable === true) {
             return sum;
+          }
+          // Exclude residence assets where asset_id % 1000 = 0 OR asset_id < 1000 (starts with 000)
+          if (assetType && assetType.business_residence === 'מגורים') {
+            if (asset.asset_id % 1000 === 0 || asset.asset_id < 1000) {
+              return sum;
+            }
           }
         }
         return sum + (asset.asset_size || 0);

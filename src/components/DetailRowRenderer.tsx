@@ -294,8 +294,10 @@ export function DetailRowRenderer(params: DetailRowParams) {
         cols.push({
           ...col,
           valueFormatter: isNumericField ? (cellParams: any) => {
-            // Use custom formatter for numeric fields
-            return formatNumberToTwoDecimals(cellParams.value, true);
+            // Use custom formatter for numeric fields, hide 0.00
+            const formatted = formatNumberToTwoDecimals(cellParams.value);
+            // Return empty string if value is 0.00 or empty
+            return formatted === '0.00' || formatted === '' ? '' : formatted;
           } : originalValueFormatter,
           cellStyle: (cellParams: any) => {
             const baseStyle = typeof originalCellStyle === 'function' 
@@ -328,8 +330,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
     <div className="p-4 bg-gray-50 border-t border-gray-200" style={{ width: '100%' }}>
       {/* Unified Assets Grid */}
       {allDetailAssets.length > 0 && (
-        <div className="flex flex-col">
-          <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
+        <div className="flex flex-col" dir="rtl">
+          <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px', width: '100%', overflowX: 'auto', direction: 'rtl' }}>
             <AgGridReact<Asset>
               ref={params.beforeAssetGridRef}
               rowData={allDetailAssets}

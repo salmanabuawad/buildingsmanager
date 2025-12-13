@@ -1213,11 +1213,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       // Get the complete current asset data from the database to ensure we copy everything
       // This ensures we have all fields including any that might not be in the current state
-      let fullCurrentAssetData: Asset;
+      // Use getAllByAssetId instead of getOne to avoid performance warning
+      let fullCurrentAssetData: Asset = currentAsset;
       try {
-        fullCurrentAssetData = await api.assets.getOne(String(oldAssetId));
+        // Try to get from getAllByAssetId first (preferred method)
+        const assetsByAssetId = await api.assets.getAllByAssetId(String(oldAssetId), currentAsset.building_number);
+        if (assetsByAssetId && assetsByAssetId.length > 0) {
+          // Get the latest one (should be first after sorting)
+          fullCurrentAssetData = assetsByAssetId[0];
+        }
       } catch (err) {
-        // If getOne fails, use the current asset data we have
+        // If getAllByAssetId fails, use the current asset data we have
         console.warn('[AssetDetails] Could not fetch full asset data, using current state:', err);
         fullCurrentAssetData = currentAsset;
       }
@@ -2331,32 +2337,44 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return;
       }
 
-      // Try to fetch by id first
+      // Try to fetch by id using getAll with filter (to avoid getOne warning)
+      // If we have asset state with asset_id, use that instead
       let assetData: Asset | null = null;
-      try {
-        assetData = await api.assets.getOne(String(currentAssetId));
-      } catch (err: any) {
-        console.error('Error fetching asset by id:', err);
-        // If asset not found by id, try to fetch by asset_id from the current asset state
-        if (err.message === 'Asset not found' && asset) {
-          console.log('Asset not found by id, trying to fetch by asset_id:', asset.asset_id);
-          try {
-            const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
-            if (assetsByAssetId && assetsByAssetId.length > 0) {
-              // Get the latest one (should be first after sorting)
-              assetData = assetsByAssetId[0];
-              console.log('Found asset by asset_id:', assetData);
-            }
-          } catch (assetIdErr) {
-            console.error('Error fetching asset by asset_id:', assetIdErr);
+      
+      if (asset && asset.asset_id) {
+        // If we already have asset state, use getAllByAssetId (preferred method)
+        try {
+          console.log('[AssetDetails] Using getAllByAssetId with existing asset_id:', asset.asset_id);
+          const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
+          if (assetsByAssetId && assetsByAssetId.length > 0) {
+            // Find the one matching the database id, or get the latest
+            assetData = assetsByAssetId.find(a => (a as any).id === currentAssetId) || assetsByAssetId[0];
+            console.log('[AssetDetails] Found asset by asset_id:', assetData);
           }
+        } catch (assetIdErr) {
+          console.error('[AssetDetails] Error fetching asset by asset_id:', assetIdErr);
         }
-        // If still not found, return error
-        if (!assetData) {
-          setError('הנכס לא נמצא');
-          setLoading(false);
-          return;
+      }
+      
+      // If not found yet, try using getAll with id filter (more efficient than getOne)
+      if (!assetData && currentAssetId) {
+        try {
+          console.log('[AssetDetails] Fetching asset by database id using getAll:', currentAssetId);
+          const allAssets = await api.assets.getAll(buildingNumber);
+          assetData = allAssets.find(a => (a as any).id === currentAssetId) || null;
+          if (assetData) {
+            console.log('[AssetDetails] Found asset by database id:', assetData);
+          }
+        } catch (err: any) {
+          console.error('[AssetDetails] Error fetching asset by database id:', err);
         }
+      }
+      
+      // If still not found, return error
+      if (!assetData) {
+        setError('הנכס לא נמצא');
+        setLoading(false);
+        return;
       }
 
       const assetTypesData = await api.assetTypes.getAll();
@@ -2962,12 +2980,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       }
                     }}
                     onSortChanged={() => {}}
-                    onRowDoubleClicked={(event: any) => {
-                      // Handle double-click for editing (only for latest records)
-                      handleRowDoubleClick(event);
-                      // Also prevent single click from firing after double-click
-                      event.event?.stopPropagation();
-                    }}
                     onRowDoubleClicked={(event: any) => {
                       // Handle double-click for editing (only for latest records)
                       handleRowDoubleClick(event);

@@ -526,13 +526,30 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
       if (actionType === 'transfer_area') {
         // Add current asset but mark it so it appears in history grid
-        rows.push({ ...latestMeasurement, is_latest: false } as Asset);
+        // Check if not already added to avoid duplicates
+        const alreadyExists = rows.some(r => 
+          r.asset_id === latestMeasurement.asset_id && 
+          r.measurement_date === latestMeasurement.measurement_date &&
+          r.action_id === latestMeasurement.action_id
+        );
+        if (!alreadyExists) {
+          rows.push({ ...latestMeasurement, is_latest: false } as Asset);
+        }
       }
     }
     
+    // Remove duplicates based on asset_id, action_id, and measurement_date
+    const uniqueRows = rows.filter((row, index, self) => 
+      index === self.findIndex(r => 
+        r.asset_id === row.asset_id && 
+        r.action_id === row.action_id && 
+        r.measurement_date === row.measurement_date
+      )
+    );
+    
     // Group by action_id and return only one master record per action_id
     const grouped = new Map<number, Asset>();
-    rows.forEach(row => {
+    uniqueRows.forEach(row => {
       if (row.action_id != null) {
         if (!grouped.has(row.action_id)) {
           grouped.set(row.action_id, row);

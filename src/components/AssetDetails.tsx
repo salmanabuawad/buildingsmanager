@@ -20,6 +20,7 @@ import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { DetailRowRenderer } from './DetailRowRenderer';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -61,26 +62,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
-  const [selectedActionId, setSelectedActionId] = useState<number | null>(null);
-  const [auditLog, setAuditLog] = useState<AuditLog | null>(null);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState<string | null>(null);
-  const [beforeBuildings, setBeforeBuildings] = useState<BuildingType[]>([]);
-  const [beforeAssets, setBeforeAssets] = useState<Asset[]>([]);
-  const [afterBuildings, setAfterBuildings] = useState<BuildingType[]>([]);
-  const [afterAssets, setAfterAssets] = useState<Asset[]>([]);
-  const [relatedAssets, setRelatedAssets] = useState<Asset[]>([]);
+  const [expandedHistoryRows, setExpandedHistoryRows] = useState<Set<string>>(new Set());
+  const [auditDataCache, setAuditDataCache] = useState<Map<number, {
+    auditLog: AuditLog | null;
+    loading: boolean;
+    error: string | null;
+    beforeAssets: Asset[];
+    afterAssets: Asset[];
+    relatedAssets: Asset[];
+  }>>(new Map());
   
-  // Refs for audit detail grids
-  const beforeBuildingGridRef = useRef<AgGridReact<BuildingType>>(null);
+  // Refs for audit detail grids (only assets, no buildings)
   const beforeAssetGridRef = useRef<AgGridReact<Asset>>(null);
-  const afterBuildingGridRef = useRef<AgGridReact<BuildingType>>(null);
   const afterAssetGridRef = useRef<AgGridReact<Asset>>(null);
   const relatedAssetsGridRef = useRef<AgGridReact<Asset>>(null);
   
-  const beforeBuildingGridPreferences = useGridPreferences(beforeBuildingGridRef, 'audit-details-before-building', 'default');
   const beforeAssetGridPreferences = useGridPreferences(beforeAssetGridRef, 'audit-details-before-asset', 'default');
-  const afterBuildingGridPreferences = useGridPreferences(afterBuildingGridRef, 'audit-details-after-building', 'default');
   const afterAssetGridPreferences = useGridPreferences(afterAssetGridRef, 'audit-details-after-asset', 'default');
   const relatedAssetsGridPreferences = useGridPreferences(relatedAssetsGridRef, 'audit-details-related-assets', 'default');
   const gridRef = useRef<AgGridReact<Asset>>(null);
@@ -507,69 +504,77 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return assets;
   }, []);
 
-  // Load audit details when actionId changes
-  useEffect(() => {
-    const loadAuditDetails = async () => {
-      if (!selectedActionId) {
-        setAuditLog(null);
-        setBeforeBuildings([]);
-        setBeforeAssets([]);
-        setAfterBuildings([]);
-        setAfterAssets([]);
-        setRelatedAssets([]);
-        return;
-      }
+  // Load audit details when a row is expanded
+  const loadAuditDetails = useCallback(async (actionId: number) => {
+    // Check if already loaded
+    if (auditDataCache.has(actionId)) {
+      return;
+    }
+    
+    // Set loading state
+    setAuditDataCache(prev => new Map(prev).set(actionId, {
+      auditLog: null,
+      loading: true,
+      error: null,
+      beforeAssets: [],
+      afterAssets: [],
+      relatedAssets: []
+    }));
+    
+    try {
+      // Load audit log entry
+      const audit = await api.auditLog.getOne(actionId);
       
-      try {
-        setAuditLoading(true);
-        setAuditError(null);
-        
-        // Load audit log entry
-        const audit = await api.auditLog.getOne(selectedActionId);
-        setAuditLog(audit);
-        
-        // Parse before and after data
+        // Parse before and after data (only assets, no buildings)
         const beforeParsed = parseAuditData(audit.before_data);
         const afterParsed = parseAuditData(audit.after_data);
         
-        setBeforeBuildings(extractBuildings(beforeParsed));
-        setBeforeAssets(extractAssets(beforeParsed));
-        setAfterBuildings(extractBuildings(afterParsed));
-        setAfterAssets(extractAssets(afterParsed));
-        
-        // Load related assets
-        const { data, error: assetsError } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('action_id', selectedActionId);
-        
-        if (assetsError) throw assetsError;
-        
-        const { data: historyData, error: historyError } = await supabase
-          .from('assets_history')
-          .select('*')
-          .eq('action_id', selectedActionId);
-        
-        if (historyError) throw historyError;
-        
-        const allAssets = [
-          ...(data || []).map((a: any) => ({ ...a, is_latest: true })),
-          ...(historyData || []).map((a: any) => ({ ...a, is_latest: false }))
-        ];
-        
-        setRelatedAssets(allAssets);
-      } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[AssetDetails] Error loading audit details:', err);
-        }
-        setAuditError(err instanceof Error ? err.message : 'Failed to load audit details');
-      } finally {
-        setAuditLoading(false);
+        const beforeAssets = extractAssets(beforeParsed);
+        const afterAssets = extractAssets(afterParsed);
+      
+      // Load related assets
+      const { data, error: assetsError } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('action_id', actionId);
+      
+      if (assetsError) throw assetsError;
+      
+      const { data: historyData, error: historyError } = await supabase
+        .from('assets_history')
+        .select('*')
+        .eq('action_id', actionId);
+      
+      if (historyError) throw historyError;
+      
+      const allAssets = [
+        ...(data || []).map((a: any) => ({ ...a, is_latest: true })),
+        ...(historyData || []).map((a: any) => ({ ...a, is_latest: false }))
+      ];
+      
+      // Update cache with loaded data (no buildings)
+      setAuditDataCache(prev => new Map(prev).set(actionId, {
+        auditLog: audit,
+        loading: false,
+        error: null,
+        beforeAssets,
+        afterAssets,
+        relatedAssets: allAssets
+      }));
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[AssetDetails] Error loading audit details:', err);
       }
-    };
-    
-    loadAuditDetails();
-  }, [selectedActionId, parseAuditData, extractBuildings, extractAssets]);
+      setAuditDataCache(prev => new Map(prev).set(actionId, {
+        auditLog: null,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Failed to load audit details',
+        beforeAssets: [],
+        afterAssets: [],
+        relatedAssets: []
+      }));
+    }
+  }, [auditDataCache, parseAuditData, extractAssets]);
 
   const handleHistoryRowClick = useCallback((event: any) => {
     const rowData = event.data as Asset;
@@ -584,12 +589,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     // Check if we have a valid action_id
     if (rowData && actionIdNum != null && !isNaN(actionIdNum)) {
-      // Toggle: if same row clicked, close detail; otherwise, show new detail
-      if (selectedActionId === actionIdNum) {
-        setSelectedActionId(null);
-      } else {
-        setSelectedActionId(actionIdNum);
-      }
+      const rowId = `${rowData.asset_id}-${rowData.measurement_date}-history${rowData.history_created_at ? `-${rowData.history_created_at}` : ''}`;
+      
+      // Toggle expanded state
+      setExpandedHistoryRows(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(rowId)) {
+          newSet.delete(rowId);
+        } else {
+          newSet.add(rowId);
+          // Load audit data if not already loaded
+          if (!auditDataCache.has(actionIdNum)) {
+            loadAuditDetails(actionIdNum);
+          }
+        }
+        return newSet;
+      });
     } else if (process.env.NODE_ENV === 'development') {
       console.warn('[AssetDetails] No valid action_id found for history row');
       setToast({ 
@@ -597,7 +612,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         type: 'info' 
       });
     }
-  }, [selectedActionId]);
+  }, [auditDataCache, loadAuditDetails]);
 
   // Handler for saving changes from modal
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
@@ -3192,8 +3207,28 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%', overflowX: 'auto' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
-                    rowData={historyRows}
+                    rowData={historyRowsWithDetails}
                     columnDefs={columnDefs}
+                    isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
+                    fullWidthCellRenderer={DetailRowRenderer}
+                    fullWidthCellRendererParams={(params: any) => ({
+                      expandedRows: expandedHistoryRows,
+                      auditDataCache,
+                      assetColumnDefs,
+                      beforeAssetGridRef,
+                      afterAssetGridRef,
+                      relatedAssetsGridRef,
+                      beforeAssetGridPreferences,
+                      afterAssetGridPreferences,
+                      relatedAssetsGridPreferences,
+                      onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
+                        // Navigate to asset view - this will be handled by App.tsx through onDataUpdate or we need to pass it through props
+                        // For now, we'll trigger a custom event that App.tsx can listen to
+                        window.dispatchEvent(new CustomEvent('openAssetView', {
+                          detail: { assetDbId, assetId, buildingNumber, taxRegion }
+                        }));
+                      }
+                    })}
                     defaultColDef={{
                       resizable: true,
                       wrapHeaderText: true,
@@ -3217,12 +3252,31 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     suppressHorizontalScroll={false}
                     getRowId={(params) => {
+                      if (params.data?._isDetailRow) {
+                        return `detail-${params.data._parentRowId}`;
+                      }
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
                       return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                     }}
-                    getRowStyle={getRowStyle}
-                    getRowClass={getRowClass}
+                    getRowHeight={(params) => {
+                      if (params.data?._isDetailRow) {
+                        return 600; // Fixed height for detail rows
+                      }
+                      return undefined; // Use default row height
+                    }}
+                    getRowStyle={(params) => {
+                      if (params.data?._isDetailRow) {
+                        return { padding: 0 };
+                      }
+                      return getRowStyle(params);
+                    }}
+                    getRowClass={(params) => {
+                      if (params.data?._isDetailRow) {
+                        return '';
+                      }
+                      return getRowClass(params);
+                    }}
                     onGridReady={async (params) => {
                       // Load saved column state first
                       await historyGridPreferences.loadColumnState(params.api);
@@ -3329,294 +3383,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               onSave={handleSaveFromModal}
             />
 
-            {/* Audit Details - Inline Detail View */}
-            {selectedActionId && (
-              <div className="mt-6 border-t border-gray-300 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-800">
-                    פרטי ביקורת - פעולה #{selectedActionId}
-                  </h3>
-                  <button
-                    onClick={() => setSelectedActionId(null)}
-                    className="flex items-center gap-2 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors text-sm"
-                  >
-                    <X className="h-4 w-4" />
-                    סגור
-                  </button>
-                </div>
-
-                {auditLoading && (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
-                    <span className="mr-2 text-slate-700">טוען...</span>
-                  </div>
-                )}
-
-                {auditError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                    <p className="text-red-800">שגיאה: {auditError}</p>
-                  </div>
-                )}
-
-                {!auditLoading && !auditError && auditLog && (
-                  <>
-                    {/* Audit Log Info */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="font-semibold">תאריך: </span>
-                          {new Date(auditLog.created_at).toLocaleString('he-IL')}
-                        </div>
-                        <div>
-                          <span className="font-semibold">משתמש: </span>
-                          {auditLog.user_name}
-                        </div>
-                        <div>
-                          <span className="font-semibold">סוג פעולה: </span>
-                          {auditLog.action_type}
-                        </div>
-                        <div>
-                          <span className="font-semibold">סוג ישות: </span>
-                          {auditLog.entity_type}
-                        </div>
-                        {auditLog.description && (
-                          <div className="col-span-2">
-                            <span className="font-semibold">תיאור: </span>
-                            {auditLog.description}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Before Update Data */}
-                    {(beforeBuildings.length > 0 || beforeAssets.length > 0) && (
-                      <div className="flex flex-col space-y-4 mb-6">
-                        <h4 className="text-md font-semibold text-slate-700">נתונים לפני עדכון</h4>
-                        
-                        {beforeBuildings.length > 0 && (
-                          <div className="flex flex-col">
-                            <h5 className="text-sm font-medium text-slate-600 mb-2">בניינים ({beforeBuildings.length})</h5>
-                            <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px' }}>
-                              <AgGridReact<BuildingType>
-                                ref={beforeBuildingGridRef}
-                                rowData={beforeBuildings}
-                                columnDefs={buildingColumnDefs}
-                                defaultColDef={{
-                                  resizable: true,
-                                  wrapHeaderText: true,
-                                  autoHeaderHeight: true,
-                                  wrapText: true,
-                                  autoHeight: false,
-                                  sortable: true,
-                                  filter: true,
-                                  headerClass: 'ag-right-aligned-header',
-                                  cellStyle: { textAlign: 'right' },
-                                  minWidth: 100
-                                }}
-                                gridOptions={{
-                                  suppressColumnVirtualisation: false,
-                                  alwaysShowHorizontalScroll: true,
-                                  suppressMovableColumns: true,
-                                  suppressColumnMoveAnimation: true,
-                                  rowBuffer: 5,
-                                  debounceVerticalScrollbar: true,
-                                  enableCellTextSelection: false,
-                                }}
-                                onGridReady={async (params: any) => {
-                                  await beforeBuildingGridPreferences.loadColumnState(params.api);
-                                }}
-                                onFirstDataRendered={async (_params: any) => {}}
-                                onColumnResized={(_params: any) => {
-                                  beforeBuildingGridPreferences.handleColumnResized();
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {beforeAssets.length > 0 && (
-                          <div className="flex flex-col">
-                            <h5 className="text-sm font-medium text-slate-600 mb-2">נכסים ({beforeAssets.length})</h5>
-                            <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px' }}>
-                              <AgGridReact<Asset>
-                                ref={beforeAssetGridRef}
-                                rowData={beforeAssets}
-                                columnDefs={assetColumnDefs}
-                                defaultColDef={{
-                                  resizable: true,
-                                  wrapHeaderText: true,
-                                  autoHeaderHeight: true,
-                                  wrapText: true,
-                                  autoHeight: false,
-                                  sortable: true,
-                                  filter: true,
-                                  headerClass: 'ag-right-aligned-header',
-                                  cellStyle: { textAlign: 'right' },
-                                  minWidth: 100
-                                }}
-                                gridOptions={{
-                                  suppressColumnVirtualisation: false,
-                                  alwaysShowHorizontalScroll: true,
-                                  suppressMovableColumns: true,
-                                  suppressColumnMoveAnimation: true,
-                                  rowBuffer: 5,
-                                  debounceVerticalScrollbar: true,
-                                  enableCellTextSelection: false,
-                                }}
-                                onGridReady={async (params: any) => {
-                                  await beforeAssetGridPreferences.loadColumnState(params.api);
-                                }}
-                                onFirstDataRendered={async (_params: any) => {}}
-                                onColumnResized={(_params: any) => {
-                                  beforeAssetGridPreferences.handleColumnResized();
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* After Update Data */}
-                    {(afterBuildings.length > 0 || afterAssets.length > 0) && (
-                      <div className="flex flex-col space-y-4 mb-6">
-                        <h4 className="text-md font-semibold text-slate-700">נתונים אחרי עדכון</h4>
-                        
-                        {afterBuildings.length > 0 && (
-                          <div className="flex flex-col">
-                            <h5 className="text-sm font-medium text-slate-600 mb-2">בניינים ({afterBuildings.length})</h5>
-                            <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px' }}>
-                              <AgGridReact<BuildingType>
-                                ref={afterBuildingGridRef}
-                                rowData={afterBuildings}
-                                columnDefs={buildingColumnDefs}
-                                defaultColDef={{
-                                  resizable: true,
-                                  wrapHeaderText: true,
-                                  autoHeaderHeight: true,
-                                  wrapText: true,
-                                  autoHeight: false,
-                                  sortable: true,
-                                  filter: true,
-                                  headerClass: 'ag-right-aligned-header',
-                                  cellStyle: { textAlign: 'right' },
-                                  minWidth: 100
-                                }}
-                                gridOptions={{
-                                  suppressColumnVirtualisation: false,
-                                  alwaysShowHorizontalScroll: true,
-                                  suppressMovableColumns: true,
-                                  suppressColumnMoveAnimation: true,
-                                  rowBuffer: 5,
-                                  debounceVerticalScrollbar: true,
-                                  enableCellTextSelection: false,
-                                }}
-                                onGridReady={async (params: any) => {
-                                  await afterBuildingGridPreferences.loadColumnState(params.api);
-                                }}
-                                onFirstDataRendered={async (_params: any) => {}}
-                                onColumnResized={(_params: any) => {
-                                  afterBuildingGridPreferences.handleColumnResized();
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {afterAssets.length > 0 && (
-                          <div className="flex flex-col">
-                            <h5 className="text-sm font-medium text-slate-600 mb-2">נכסים ({afterAssets.length})</h5>
-                            <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px' }}>
-                              <AgGridReact<Asset>
-                                ref={afterAssetGridRef}
-                                rowData={afterAssets}
-                                columnDefs={assetColumnDefs}
-                                defaultColDef={{
-                                  resizable: true,
-                                  wrapHeaderText: true,
-                                  autoHeaderHeight: true,
-                                  wrapText: true,
-                                  autoHeight: false,
-                                  sortable: true,
-                                  filter: true,
-                                  headerClass: 'ag-right-aligned-header',
-                                  cellStyle: { textAlign: 'right' },
-                                  minWidth: 100
-                                }}
-                                gridOptions={{
-                                  suppressColumnVirtualisation: false,
-                                  alwaysShowHorizontalScroll: true,
-                                  suppressMovableColumns: true,
-                                  suppressColumnMoveAnimation: true,
-                                  rowBuffer: 5,
-                                  debounceVerticalScrollbar: true,
-                                  enableCellTextSelection: false,
-                                }}
-                                onGridReady={async (params: any) => {
-                                  await afterAssetGridPreferences.loadColumnState(params.api);
-                                }}
-                                onFirstDataRendered={async (_params: any) => {}}
-                                onColumnResized={(_params: any) => {
-                                  afterAssetGridPreferences.handleColumnResized();
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Related Assets */}
-                    {relatedAssets.length > 0 && (
-                      <div className="flex flex-col">
-                        <h4 className="text-md font-semibold text-slate-700 mb-2">
-                          נכסים מושפעים ({relatedAssets.length})
-                        </h4>
-                        <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
-                          <AgGridReact<Asset>
-                            ref={relatedAssetsGridRef}
-                            rowData={relatedAssets}
-                            columnDefs={assetColumnDefs}
-                            defaultColDef={{
-                              resizable: true,
-                              wrapHeaderText: true,
-                              autoHeaderHeight: true,
-                              wrapText: true,
-                              autoHeight: false,
-                              sortable: true,
-                              filter: true,
-                              headerClass: 'ag-right-aligned-header',
-                              cellStyle: { textAlign: 'right' },
-                              minWidth: 100
-                            }}
-                            getRowId={(params: any) => {
-                              const isLatest = params.data.is_latest ? 'latest' : 'history';
-                              return `${params.data.asset_id}-${params.data.measurement_date || ''}-${isLatest}`;
-                            }}
-                            gridOptions={{
-                              suppressColumnVirtualisation: false,
-                              alwaysShowHorizontalScroll: true,
-                              suppressMovableColumns: true,
-                              suppressColumnMoveAnimation: true,
-                              rowBuffer: 5,
-                              debounceVerticalScrollbar: true,
-                              enableCellTextSelection: false,
-                            }}
-                            onGridReady={async (params: any) => {
-                              await relatedAssetsGridPreferences.loadColumnState(params.api);
-                            }}
-                            onFirstDataRendered={async (_params: any) => {}}
-                            onColumnResized={(_params: any) => {
-                              relatedAssetsGridPreferences.handleColumnResized();
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
 
             {/* PDF Viewer Modal */}
             {selectedDrawingUrl && (

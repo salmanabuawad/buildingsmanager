@@ -32,6 +32,19 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
+  
+  // Listen for custom event to open asset view from audit details
+  useEffect(() => {
+    const handleOpenAssetView = (event: CustomEvent) => {
+      const { assetDbId, assetId, buildingNumber, taxRegion } = event.detail;
+      handleSelectAsset(assetDbId, assetId, buildingNumber, taxRegion);
+    };
+    
+    window.addEventListener('openAssetView', handleOpenAssetView as EventListener);
+    return () => {
+      window.removeEventListener('openAssetView', handleOpenAssetView as EventListener);
+    };
+  }, []);
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 'buildings', type: 'buildings', label: 'מבנים' }
   ]);

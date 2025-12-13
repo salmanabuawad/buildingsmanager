@@ -293,7 +293,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
   // In RTL, items at the beginning of the array appear on the right
   const tableColumns = useMemo(() => {
     const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id');
-    return ['_source', 'asset_id', ...fieldsWithoutAssetId];
+    return ['asset_id', '_source', ...fieldsWithoutAssetId];
   }, [allowedFields]);
 
   return (

@@ -249,14 +249,9 @@ function sanitizeBuildingInput(input: any): any {
   if (input.residence_shared_area != null) {
     sanitized.residence_shared_area = sanitizeNumber(input.residence_shared_area);
   }
-  // Note: Database column is 'shared_business_area', but we use 'business_shared_area' in the interface
-  // Map it correctly for the database
+  // Database column is 'business_shared_area' (matching the interface)
   if (input.business_shared_area != null) {
-    sanitized.shared_business_area = sanitizeNumber(input.business_shared_area);
-  }
-  // Also handle if it's passed as shared_business_area
-  if (input.shared_business_area != null) {
-    sanitized.shared_business_area = sanitizeNumber(input.shared_business_area);
+    sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);
   }
   // Note: Database column is 'total_area_for_control', but we use 'area_for_control' in the interface
   // Map it correctly for the database

@@ -138,66 +138,32 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return map;
   }, [beforeAssets, afterAssets]);
 
-  // Combine all assets into one array with merged before/after records
+  // Combine all assets into one array with source indicators, sorted by asset_id
   const allDetailAssets = useMemo(() => {
     const combined: any[] = [];
     const actionType = auditLog?.action_type || 'manual_update';
     
-    // Create maps of before and after assets by asset_id
-    const beforeMap = new Map<number, Asset>();
-    const afterMap = new Map<number, Asset>();
-    
+    // Add before assets
     beforeAssets.forEach(asset => {
-      if (asset.asset_id != null) {
-        beforeMap.set(asset.asset_id, asset);
-      }
+      combined.push({
+        ...asset,
+        _source: 'before',
+        _changeSource: actionType,
+        _changedFields: changedFieldsMap.get(asset.asset_id || 0) || new Set<string>()
+      });
     });
     
+    // Add after assets
     afterAssets.forEach(asset => {
-      if (asset.asset_id != null) {
-        afterMap.set(asset.asset_id, asset);
-      }
+      combined.push({
+        ...asset,
+        _source: 'after',
+        _changeSource: actionType,
+        _changedFields: changedFieldsMap.get(asset.asset_id || 0) || new Set<string>()
+      });
     });
     
-    // Get all unique asset_ids
-    const allAssetIds = new Set([...beforeMap.keys(), ...afterMap.keys()]);
-    
-    // For each asset_id, create a merged record if both before and after exist
-    allAssetIds.forEach(assetId => {
-      const beforeAsset = beforeMap.get(assetId);
-      const afterAsset = afterMap.get(assetId);
-      
-      if (beforeAsset && afterAsset) {
-        // Merge before and after into one row
-        // Use after asset as base, but mark it as merged
-        combined.push({
-          ...afterAsset, // Use after as base (current state)
-          _source: 'merged', // Indicate this is a merged before/after record
-          _changeSource: actionType,
-          _changedFields: changedFieldsMap.get(assetId) || new Set<string>(),
-          _beforeAsset: beforeAsset, // Store before asset for reference
-          _isMerged: true // Flag to indicate merged row
-        });
-      } else if (beforeAsset) {
-        // Only before exists
-        combined.push({
-          ...beforeAsset,
-          _source: 'before',
-          _changeSource: actionType,
-          _changedFields: changedFieldsMap.get(assetId) || new Set<string>()
-        });
-      } else if (afterAsset) {
-        // Only after exists
-        combined.push({
-          ...afterAsset,
-          _source: 'after',
-          _changeSource: actionType,
-          _changedFields: changedFieldsMap.get(assetId) || new Set<string>()
-        });
-      }
-    });
-    
-    // Add related assets (not merged)
+    // Add related assets
     relatedAssets.forEach(asset => {
       combined.push({
         ...asset,
@@ -207,11 +173,18 @@ export function DetailRowRenderer(params: DetailRowParams) {
       });
     });
     
-    // Sort by asset_id
+    // Sort by asset_id, then by source (before comes before after)
     combined.sort((a, b) => {
       const idA = a.asset_id || 0;
       const idB = b.asset_id || 0;
-      return idA - idB;
+      if (idA !== idB) {
+        return idA - idB;
+      }
+      // If same asset_id, sort by source: before comes before after
+      const sourceOrder: { [key: string]: number } = { 'before': 1, 'after': 2, 'related': 3 };
+      const orderA = sourceOrder[a._source] || 99;
+      const orderB = sourceOrder[b._source] || 99;
+      return orderA - orderB;
     });
     
     return combined;
@@ -234,7 +207,6 @@ export function DetailRowRenderer(params: DetailRowParams) {
           const source = cellParams.value;
           if (source === 'before') return 'לפני';
           if (source === 'after') return 'אחרי';
-          if (source === 'merged') return 'לפני/אחרי'; // Merged before/after
           if (source === 'related') return 'מושפע';
           return source;
         }
@@ -268,8 +240,21 @@ export function DetailRowRenderer(params: DetailRowParams) {
           pinned: 'left',
           cellRenderer: (cellParams: any) => {
             const assetId = cellParams.value;
-            const asset = cellParams.data as Asset;
-            // Make clickable if we have the necessary data and onSelectAsset callback
+            const asset = cellParams.data as any;
+            const source = asset._source;
+            
+            // For "after" rows, check if there's a corresponding "before" row with the same asset_id
+            // If yes, don't show the asset_id (it should appear only in the "before" row to create a span effect)
+            if (source === 'after') {
+              // Check if there's a before asset with the same asset_id
+              const hasBeforeRow = beforeAssets.some(a => a.asset_id === assetId);
+              if (hasBeforeRow) {
+                // Return empty cell to create visual span effect
+                return '';
+              }
+            }
+            
+            // For "before" rows or "after" rows without a matching "before" row, show asset_id
             if (params.onSelectAsset && assetId && asset?.building_number) {
               return (
                 <button
@@ -317,10 +302,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
             const asset = cellParams.data as any;
             const field = col.field;
             const changedFields = asset._changedFields as Set<string> | undefined;
-            const isMerged = asset._isMerged === true;
             
-            // Apply bold and italic if this field changed for merged or before/after assets
-            if (changedFields && changedFields.has(field) && (isMerged || asset._source === 'before' || asset._source === 'after')) {
+            // Apply bold and italic if this field changed for before/after assets
+            if (changedFields && changedFields.has(field) && (asset._source === 'before' || asset._source === 'after')) {
               return {
                 ...baseStyle,
                 fontWeight: 'bold',
@@ -335,7 +319,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     });
     
     return cols;
-  }, [params.assetColumnDefs, params.onSelectAsset]);
+  }, [params.assetColumnDefs, params.onSelectAsset, beforeAssets]);
 
   return (
     <div className="p-4 bg-gray-50 border-t border-gray-200" style={{ width: '100%' }}>

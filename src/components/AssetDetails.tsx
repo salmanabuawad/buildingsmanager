@@ -91,28 +91,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Find the latest measurement (from assets table, is_latest=true)
   const latestMeasurement = useMemo(() => {
-    const latest = allMeasurements.find(m => m.is_latest === true) || null;
-    console.log('[AssetDetails] latestMeasurement computed:', {
-      found: !!latest,
-      allMeasurementsCount: allMeasurements.length,
-      hasIsLatest: allMeasurements.some(m => m.is_latest === true),
-      sample: allMeasurements.slice(0, 2).map(m => ({ asset_id: m.asset_id, is_latest: m.is_latest }))
-    });
-    return latest;
+    return allMeasurements.find(m => m.is_latest === true) || null;
   }, [allMeasurements]);
 
   // Pin the first row (latest measurement) at the top
   const pinnedTopRowData = useMemo(() => {
-    const pinned = latestMeasurement ? [latestMeasurement] : [];
-    console.log('[AssetDetails] pinnedTopRowData computed:', { count: pinned.length });
-    return pinned;
+    return latestMeasurement ? [latestMeasurement] : [];
   }, [latestMeasurement]);
 
   // Get history rows (all except the latest) - memoized for performance
   const historyRows = useMemo(() => {
-    const history = allMeasurements.filter(m => m.is_latest !== true);
-    console.log('[AssetDetails] historyRows computed:', { count: history.length });
-    return history;
+    return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
   // Always use asset.tax_region as the source of truth
@@ -285,7 +274,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       // Only allow editing for latest records
       if (data.is_latest !== true) {
-        console.warn('[AssetDetails] Attempted to edit non-latest record, ignoring change');
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[AssetDetails] Attempted to edit non-latest record, ignoring change');
+        }
         event.api.refreshCells({ rowNodes: [node], columns: [field], force: true });
         return;
       }
@@ -365,7 +356,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         }
       }
 
-      // Debounce expensive database validations (500ms delay)
+      // Debounce expensive database validations (800ms delay for better performance)
       // This prevents validation from running on every keystroke
       const timer = setTimeout(async () => {
         try {
@@ -374,17 +365,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             assetTypes: assetTypes || [],
             building: building
           };
-
-          // Debug logging for tax region validation
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetDetails.onCellValueChanged] Validation parameters:', {
-              field,
-              assetId: updatedAsset.asset_id,
-              buildingNumber: updatedAsset.building_number,
-              validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
-              buildingTaxRegion: building?.tax_region || 'NOT SET'
-            });
-          }
 
           // Use the same validation as the validate button - AssetValidationHandler.validateSingleAsset
           // This ensures consistent validation behavior across all components
@@ -462,77 +442,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleHistoryRowClick = useCallback((event: any) => {
-    console.log('[AssetDetails] handleHistoryRowClick called with event:', event);
-    
     const rowData = event.data as Asset;
     
-    if (!rowData) {
-      console.error('[AssetDetails] No row data in click event');
-      return;
-    }
-    
-    console.log('[AssetDetails] History row clicked:', {
-      asset_id: rowData?.asset_id,
-      action_id: rowData?.action_id,
-      is_latest: rowData?.is_latest,
-      hasActionId: rowData?.action_id != null,
-      eventType: event.type,
-      event: event.event?.type,
-      allKeys: rowData ? Object.keys(rowData).slice(0, 20) : [],
-      fullRowData: rowData
-    });
-    
-    // Only process history rows (not latest)
-    if (rowData?.is_latest === true) {
-      console.log('[AssetDetails] Skipping - this is a latest row, not history');
+    if (!rowData || rowData.is_latest === true) {
       return;
     }
     
     // Check if the row has an action_id (from history records)
-    // Try multiple ways to get action_id (it might be a string or number)
     const actionId = rowData?.action_id ?? (rowData as any)?.action_id;
     const actionIdNum = typeof actionId === 'string' ? parseInt(actionId, 10) : actionId;
     
-    console.log('[AssetDetails] Checking actionId:', {
-      actionId,
-      actionIdNum,
-      type: typeof actionId,
-      isNull: actionId === null,
-      isUndefined: actionId === undefined,
-      isValid: actionIdNum != null && !isNaN(actionIdNum) && actionIdNum > 0
-    });
-    
-    // Check if we have a valid action_id (number > 0)
-    // Also allow action_id = 0 in case it's a valid ID
+    // Check if we have a valid action_id
     if (rowData && actionIdNum != null && !isNaN(actionIdNum)) {
-      console.log('[AssetDetails] Valid actionId found, opening modal:', actionIdNum);
-      // Set state immediately using React's state updater function to ensure it works
       setSelectedActionId(actionIdNum);
       setIsAuditDetailsModalOpen(true);
-      console.log('[AssetDetails] State set - selectedActionId:', actionIdNum, 'isOpen: true');
-      
-      // Force a re-render check
-      setTimeout(() => {
-        console.log('[AssetDetails] State check after timeout:', {
-          selectedActionId: actionIdNum,
-          modalShouldBeOpen: true
-        });
-      }, 100);
-    } else {
-      console.warn('[AssetDetails] No valid action_id found for history row:', {
-        asset_id: rowData?.asset_id,
-        action_id: rowData?.action_id,
-        actionIdType: typeof rowData?.action_id,
-        hasRowData: !!rowData,
-        rowDataSample: rowData ? {
-          asset_id: rowData.asset_id,
-          building_number: rowData.building_number,
-          measurement_date: rowData.measurement_date,
-          is_latest: rowData.is_latest,
-          action_id: (rowData as any).action_id,
-          history_created_at: (rowData as any).history_created_at
-        } : null
-      });
+    } else if (process.env.NODE_ENV === 'development') {
+      console.warn('[AssetDetails] No valid action_id found for history row');
       setToast({ 
         message: 'לא נמצא מזהה פעולה עבור רשומה זו. ייתכן שהרשומה נוצרה לפני הוספת מערכת הביקורת.', 
         type: 'info' 
@@ -762,18 +687,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [selectedRowForEdit, validationTaxRegion, assetTypes, building]);
 
   async function handleSaveChanges() {
-    console.log('[AssetDetails] handleSaveChanges called', {
-      validationErrorsSize: validationErrors.size,
-      hasLatestMeasurement: !!latestMeasurement,
-      latestMeasurementId: latestMeasurement?.id,
-      assetId,
-      hasChanges,
-      dirtyAssetsSize: dirtyAssets.size
-    });
-
     if (validationErrors.size > 0) {
       const errorMsg = 'Please fix all validation errors before saving';
-      console.error('[AssetDetails] Validation errors prevent saving:', Array.from(validationErrors.entries()));
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[AssetDetails] Validation errors prevent saving:', Array.from(validationErrors.entries()));
+      }
       setError(errorMsg);
       setToast({ message: 'תקן שגיאות אימות לפני השמירה', type: 'error' });
       return;
@@ -781,7 +699,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
     if (!latestMeasurement) {
       const errorMsg = 'לא נמצא נכס לשמירה';
-      console.error('[AssetDetails] No latest measurement found');
       setToast({ message: errorMsg, type: 'error' });
       return;
     }
@@ -794,16 +711,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       // Handle new asset (asset_id === 0 or empty)
       if (!latestMeasurement.asset_id || latestMeasurement.asset_id === 0 || !assetId) {
-        console.log('[AssetDetails] Creating new asset', {
-          building_number: currentAssetData.building_number,
-          asset_id: currentAssetData.asset_id,
-          main_asset_type: currentAssetData.main_asset_type
-        });
-
         // Validate required fields for new asset (using merged data)
         if (!currentAssetData.asset_id || String(currentAssetData.asset_id).trim() === '') {
           const errorMsg = 'קוד נכס נדרש';
-          console.error('[AssetDetails] Missing asset_id');
           setError(errorMsg);
           setToast({ message: errorMsg, type: 'error' });
           setIsSaving(false);
@@ -812,7 +722,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
         if (!currentAssetData.main_asset_type || String(currentAssetData.main_asset_type).trim() === '') {
           const errorMsg = 'סוג נכס ראשי נדרש';
-          console.error('[AssetDetails] Missing main_asset_type');
           setError(errorMsg);
           setToast({ message: errorMsg, type: 'error' });
           setIsSaving(false);
@@ -957,7 +866,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           }
 
           const errorMsg = validation.error || (hasInvalidPayerId ? 'תעודת זהות תשלום חייבת להיות מספרית' : hasInvalidAssetId ? 'קוד נכס חייב להיות מספרי' : 'שגיאת אימות');
-          console.error('[AssetDetails] Validation failed for new asset:', errorMsg, errorMap);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[AssetDetails] Validation failed for new asset:', errorMsg, errorMap);
+          }
           
           setValidationErrors(prev => {
             const newMap = new Map(prev);
@@ -1003,9 +914,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           updated_at: new Date().toISOString()
         };
         
-        console.log('[AssetDetails] Creating asset with data:', assetData);
         const newAsset = await api.assets.create(assetData);
-        console.log('[AssetDetails] Asset created successfully:', newAsset);
         
         setToast({ message: t('updatedSuccessfully'), type: 'success' });
         
@@ -1070,13 +979,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           try {
             allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
             
-            console.log('[AssetDetails] Fetched measurements after save:', {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[AssetDetails] Fetched measurements after save:', {
               totalCount: allAssetMeasurements.length,
               latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
               historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
             });
           } catch (historyErr) {
-            console.error('[AssetDetails] Error fetching asset history after save:', historyErr);
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[AssetDetails] Error fetching asset history after save:', historyErr);
+            }
             // Try to get just the latest asset by asset_id
             const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
             if (assetsByAssetId && assetsByAssetId.length > 0) {
@@ -1095,7 +1007,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           setOriginalMeasurements(allAssetMeasurements);
         } catch (fetchErr) {
           const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data after save';
-          console.error('[AssetDetails] Error fetching data after save:', fetchErr);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[AssetDetails] Error fetching data after save:', fetchErr);
+          }
           setError(fetchErrorMessage);
           setToast({ message: fetchErrorMessage, type: 'error' });
         } finally {
@@ -1109,12 +1023,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       if (onDataUpdate) onDataUpdate();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
-      console.error('[AssetDetails] Error saving changes:', err);
-      console.error('[AssetDetails] Error details:', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        name: err instanceof Error ? err.name : undefined
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[AssetDetails] Error saving changes:', err);
+        console.error('[AssetDetails] Error details:', {
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          name: err instanceof Error ? err.name : undefined
+        });
+      }
       setError(errorMessage);
       setToast({ message: errorMessage, type: 'error' });
       // Don't clear error automatically - let user see it
@@ -1124,12 +1040,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }
 
   const handleOpenSaveAsNewMeasurementModal = useCallback(() => {
-    console.log('[AssetDetails] handleOpenSaveAsNewMeasurementModal called', {
-      latestMeasurement: !!latestMeasurement,
-      hasChanges,
-      validationErrorsSize: validationErrors.size
-    });
-    
     if (!latestMeasurement) {
       setToast({ message: 'לא נמצא נכס לשמירה', type: 'error' });
       return;
@@ -1148,7 +1058,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     const year = today.getFullYear();
     setNewMeasurementDate(`${day}/${month}/${year}`);
     setMeasurementDateModalOpen(true);
-    console.log('[AssetDetails] Modal opened');
   }, [latestMeasurement, hasChanges, validationErrors.size]);
 
   async function handleSaveAsNewMeasurement() {
@@ -1250,7 +1159,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         }
       } catch (err) {
         // If getAllByAssetId fails, use the current asset data we have
-        console.warn('[AssetDetails] Could not fetch full asset data, using current state:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[AssetDetails] Could not fetch full asset data, using current state:', err);
+        }
         fullCurrentAssetData = currentAsset;
       }
 
@@ -1273,7 +1184,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         is_new_measurement: true
       };
       
-      console.log('[AssetDetails] Saving as new measurement with is_new_measurement=true');
       const updatedAsset = await api.assets.update(oldAssetId, updateDataWithFlag as any);
 
       setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
@@ -1296,13 +1206,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           try {
             allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
             
-            console.log('[AssetDetails] Fetched measurements after save as new:', {
-              totalCount: allAssetMeasurements.length,
-              latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-              historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-            });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[AssetDetails] Fetched measurements after save as new:', {
+                totalCount: allAssetMeasurements.length,
+                latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+                historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+              });
+            }
           } catch (historyErr) {
-            console.error('[AssetDetails] Error fetching asset history after save as new:', historyErr);
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[AssetDetails] Error fetching asset history after save as new:', historyErr);
+            }
             const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
             if (assetsByAssetId && assetsByAssetId.length > 0) {
               const masterRecord = { ...assetsByAssetId[0], is_latest: true };
@@ -1320,7 +1234,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           setOriginalMeasurements(allAssetMeasurements);
         } catch (fetchErr) {
           const fetchErrorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to fetch asset data after save';
-          console.error('[AssetDetails] Error fetching data after save as new:', fetchErr);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[AssetDetails] Error fetching data after save as new:', fetchErr);
+          }
           setError(fetchErrorMessage);
           setToast({ message: fetchErrorMessage, type: 'error' });
         } finally {
@@ -1333,7 +1249,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       if (onDataUpdate) onDataUpdate();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save as new measurement';
-      console.error('[AssetDetails] Error saving as new measurement:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[AssetDetails] Error saving as new measurement:', err);
+      }
       setError(errorMessage);
       setToast({ message: errorMessage, type: 'error' });
     } finally {
@@ -2297,7 +2215,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     };
     
     // Debounce grid refresh to avoid excessive updates and improve performance
-    const timer = setTimeout(refreshGrid, 150);
+    // Increased debounce time to reduce CPU usage
+    const timer = setTimeout(refreshGrid, 300);
     return () => clearTimeout(timer);
   }, [validationErrors]);
 
@@ -2373,15 +2292,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       if (asset && asset.asset_id) {
         // If we already have asset state, use getAllByAssetId (preferred method)
         try {
-          console.log('[AssetDetails] Using getAllByAssetId with existing asset_id:', asset.asset_id);
           const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
           if (assetsByAssetId && assetsByAssetId.length > 0) {
             // Find the one matching the currentAssetId (which is asset_id), or get the latest
             assetData = assetsByAssetId.find(a => a.asset_id === currentAssetId) || assetsByAssetId[0];
-            console.log('[AssetDetails] Found asset by asset_id:', assetData);
           }
         } catch (assetIdErr) {
-          console.error('[AssetDetails] Error fetching asset by asset_id:', assetIdErr);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[AssetDetails] Error fetching asset by asset_id:', assetIdErr);
+          }
         }
       }
       
@@ -2389,31 +2308,27 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Since asset_id is the primary key, we can query directly
       if (!assetData && currentAssetId) {
         try {
-          console.log('[AssetDetails] Fetching asset by asset_id (primary key) using getAllByAssetId:', currentAssetId);
           const assetsByAssetId = await api.assets.getAllByAssetId(String(currentAssetId), buildingNumber);
           if (assetsByAssetId && assetsByAssetId.length > 0) {
             // Get the latest one (first after sorting by measurement_date)
             assetData = assetsByAssetId[0];
-            console.log('[AssetDetails] Found asset by asset_id:', assetData);
           }
         } catch (err: any) {
-          console.error('[AssetDetails] Error fetching asset by asset_id:', err);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[AssetDetails] Error fetching asset by asset_id:', err);
+          }
         }
       }
       
       // Fallback: try using getAll and filter by asset_id
       if (!assetData && currentAssetId) {
         try {
-          console.log('[AssetDetails] Fallback: Fetching all assets and filtering by asset_id:', currentAssetId);
           const allAssets = await api.assets.getAll(buildingNumber);
           assetData = allAssets.find(a => a.asset_id === currentAssetId) || null;
-          if (assetData) {
-            console.log('[AssetDetails] Found asset in getAll result:', assetData);
-          } else {
-            console.warn('[AssetDetails] Asset not found in getAll result. Total assets:', allAssets.length);
-          }
         } catch (err: any) {
-          console.error('[AssetDetails] Error in fallback getAll:', err);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[AssetDetails] Error in fallback getAll:', err);
+          }
         }
       }
       
@@ -2441,29 +2356,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Fetch all records (latest from assets + history from assets_history) using the view
       let allAssetMeasurements: Asset[] = [];
       try {
-        console.log('[AssetDetails] Fetching asset with history for asset_id:', assetData.asset_id, 'building_number:', assetData.building_number);
         allAssetMeasurements = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
-        
-        console.log('[AssetDetails] Raw measurements from getAssetWithHistory:', {
-          count: allAssetMeasurements.length,
-          hasLatest: allAssetMeasurements.some(m => m.is_latest === true),
-          hasHistory: allAssetMeasurements.some(m => m.is_latest === false),
-          sample: allAssetMeasurements.slice(0, 2).map(m => ({
-            asset_id: m.asset_id,
-            is_latest: m.is_latest,
-            measurement_date: m.measurement_date
-          }))
-        });
         
         // If getAssetWithHistory returns empty (no history and no master), use the assetData we found
         if (allAssetMeasurements.length === 0) {
-          console.warn('[AssetDetails] getAssetWithHistory returned empty, using assetData as latest record');
           allAssetMeasurements = [{ ...assetData, is_latest: true }];
         } else {
           // Ensure is_latest is set correctly
           // If no records have is_latest set, mark the first one (from assets table) as latest
           if (!allAssetMeasurements.some(m => m.is_latest === true)) {
-            console.warn('[AssetDetails] No records with is_latest=true found, marking first record as latest');
             allAssetMeasurements[0] = { ...allAssetMeasurements[0], is_latest: true };
           }
           
@@ -2477,36 +2378,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             ? [latestRecord, ...historyRecords]
             : historyRecords;
         }
-        
-        // Log for debugging
-        console.log('[AssetDetails] Processed measurements:', {
-          totalCount: allAssetMeasurements.length,
-          latestCount: allAssetMeasurements.filter(m => m.is_latest === true).length,
-          historyCount: allAssetMeasurements.filter(m => m.is_latest !== true).length,
-          latestRecord: allAssetMeasurements.find(m => m.is_latest === true) ? { 
-            asset_id: allAssetMeasurements.find(m => m.is_latest === true)!.asset_id, 
-            is_latest: true 
-          } : null
-        });
       } catch (historyErr) {
         console.error('[AssetDetails] Error fetching asset history:', historyErr);
         // If history fetch fails, at least show the master record with is_latest set
         const masterRecord = { ...assetData, is_latest: true };
         allAssetMeasurements = [masterRecord];
-        console.warn('[AssetDetails] Using master record only due to history fetch error:', masterRecord);
       }
       
       // Final safety check: ensure we have at least one record with is_latest set
       if (allAssetMeasurements.length === 0) {
-        console.error('[AssetDetails] No measurements found, using assetData as fallback');
         allAssetMeasurements = [{ ...assetData, is_latest: true }];
       } else if (!allAssetMeasurements.some(m => m.is_latest === true)) {
-        console.warn('[AssetDetails] No latest record found, marking first record as latest');
         allAssetMeasurements[0] = { ...allAssetMeasurements[0], is_latest: true };
       }
       
-      console.log('[AssetDetails] Setting allMeasurements with count:', allAssetMeasurements.length, 
-        'hasLatest:', allAssetMeasurements.some(m => m.is_latest === true));
       setAllMeasurements(allAssetMeasurements);
       // Store original data only if dirtyAssets is empty (initial load or after save)
       // Use shallow copy instead of deep clone for better performance
@@ -2862,27 +2747,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   alwaysShowHorizontalScroll: true,
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
-                  rowBuffer: 10, // Reduce row buffer for better performance
+                  rowBuffer: 5, // Reduce row buffer for better performance
                   debounceVerticalScrollbar: true,
+                  suppressRowClickSelection: false,
+                  enableCellTextSelection: false, // Disable text selection for better performance
                 }}
                 suppressHorizontalScroll={false}
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
                   // Delay text overflow detection to avoid blocking initial render
-                  setTimeout(() => {
-                    detectAndApplyTextOverflow(params.api);
-                  }, 500);
+                  // Use requestAnimationFrame for better performance
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      detectAndApplyTextOverflow(params.api);
+                    }, 1000);
+                  });
                 }}
                 onFirstDataRendered={async (params) => {
                   // Delay text overflow detection to avoid blocking initial render
-                  setTimeout(() => {
-                    detectAndApplyTextOverflow(params.api);
-                    setupTextOverflowObserver(params.api);
-                  }, 500);
+                  // Only run in development for performance
+                  if (process.env.NODE_ENV === 'development') {
+                    setTimeout(() => {
+                      detectAndApplyTextOverflow(params.api);
+                    }, 2000);
+                  }
                 }}
                 onColumnResized={(params) => {
                   gridPreferences.handleColumnResized();
-                  setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                  // Debounce text overflow detection to avoid excessive calls
+                  if (process.env.NODE_ENV === 'development') {
+                    clearTimeout((params.api as any)._textOverflowTimeout);
+                    (params.api as any)._textOverflowTimeout = setTimeout(() => {
+                      detectAndApplyTextOverflow(params.api);
+                    }, 500);
+                  }
                 }}
                 onColumnMoved={(params) => {
                   // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
@@ -2994,8 +2892,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       alwaysShowHorizontalScroll: true,
                       suppressMovableColumns: true,
                       suppressColumnMoveAnimation: true,
-                      rowBuffer: 10, // Reduce row buffer for better performance
+                      rowBuffer: 5, // Reduce row buffer for better performance
                       debounceVerticalScrollbar: true,
+                      suppressRowClickSelection: false,
+                      enableCellTextSelection: false, // Disable text selection for better performance
                     }}
                     suppressHorizontalScroll={false}
                     getRowId={(params) => {
@@ -3026,13 +2926,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       if (actionsCol && actionsCol.hide) {
                         params.api.setColumnVisible('actions', true);
                       }
-                      setTimeout(() => {
-                        detectAndApplyTextOverflow(params.api);
-                        setupTextOverflowObserver(params.api);
-                      }, 200);
+                      // Delay text overflow detection - only in development
+                      if (process.env.NODE_ENV === 'development') {
+                        setTimeout(() => {
+                          detectAndApplyTextOverflow(params.api);
+                        }, 2000);
+                      }
                     }}
                     onColumnResized={(params) => {
-                      setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
+                      // Debounce text overflow detection to avoid excessive calls
+                      // Only run in development for performance
+                      if (process.env.NODE_ENV === 'development') {
+                        clearTimeout((params.api as any)._textOverflowTimeout);
+                        (params.api as any)._textOverflowTimeout = setTimeout(() => {
+                          detectAndApplyTextOverflow(params.api);
+                        }, 500);
+                      }
                     }}
                     onColumnMoved={(params) => {
                       // Prevent structure drawing and asset_id columns from being moved - force them back to pinned right position
@@ -3073,22 +2982,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       }
                     }}
                     onRowClicked={(event: any) => {
-                      console.log('[AssetDetails] Row clicked in history grid:', {
-                        hasData: !!event.data,
-                        is_latest: event.data?.is_latest,
-                        asset_id: event.data?.asset_id,
-                        action_id: event.data?.action_id,
-                        eventType: event.type,
-                        node: event.node?.id
-                      });
-                      
                       // Handle single click for audit details
                       // Only process if it's a history row (not latest)
                       if (event.data && event.data.is_latest !== true) {
-                        console.log('[AssetDetails] Processing history row click');
                         handleHistoryRowClick(event);
-                      } else {
-                        console.log('[AssetDetails] Skipping - not a history row or no data');
                       }
                     }}
                     suppressRowClickSelection={false}

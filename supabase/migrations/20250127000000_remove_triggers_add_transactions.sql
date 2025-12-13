@@ -304,6 +304,16 @@ BEGIN
           AND (at.not_accountable IS NULL OR at.not_accountable = false)
       )
     )
+    -- Exclude residence assets where asset_id mod 1000 equals zero
+    AND NOT (
+      a.asset_id % 1000 = 0
+      AND EXISTS (
+        SELECT 1 
+        FROM asset_types at 
+        WHERE at.name = a.main_asset_type 
+          AND at.business_residence = 'מגורים'
+      )
+    )
   ), 0)
   WHERE building_number = p_building_number;
 END;

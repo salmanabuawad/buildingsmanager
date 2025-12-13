@@ -1473,6 +1473,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
+        // Exclude residence assets where asset_id mod 1000 equals zero
+        if (asset.asset_id % 1000 === 0) {
+          debugInfo.reason = 'asset_id_mod_1000_zero';
+          if (index < 3) console.log('[DistributeResidence] Asset filtered (asset_id mod 1000 = 0):', debugInfo);
+          return false;
+        }
+        
         // Try multiple lookup strategies to handle type mismatches
         const mainTypeStr = String(asset.main_asset_type).trim();
         let assetType = assetTypeMap.get(mainTypeStr);

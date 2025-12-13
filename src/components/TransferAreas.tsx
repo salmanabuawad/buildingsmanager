@@ -796,7 +796,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           // First, try to update the old record with is_new_measurement flag set to true
           // The database trigger will automatically move it to assets_history
           try {
-            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true });
+            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true }, 'transfer_area');
           } catch (updateErr) {
             // If update fails (e.g., asset already moved to history), that's okay
             // We'll just create the new measurement

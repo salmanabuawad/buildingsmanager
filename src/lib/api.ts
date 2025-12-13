@@ -1180,7 +1180,7 @@ export const api = {
       
       return data;
     },
-    update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
+    update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared'): Promise<Asset> => {
       // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
       const isNewMeasurement = input.is_new_measurement;
       
@@ -1212,10 +1212,11 @@ export const api = {
 
       // If is_new_measurement is true, copy old asset to history BEFORE update
       // This replaces the trigger_reset_new_measurement_flag and trigger_copy_asset_to_history
+      const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
       if (isNewMeasurement === true) {
         try {
           await supabase.rpc('copy_asset_to_history_before_update', {
-            p_asset_id: parseInt(id)
+            p_asset_id: assetIdNum
           });
           // Reset the flag after copying to history (replaces trigger_reset_new_measurement_flag behavior)
           // We'll set it to false in the update below
@@ -1300,10 +1301,10 @@ export const api = {
       const userName = await getCurrentUserName();
       try {
         await supabase.rpc('log_audit_for_asset', {
-          p_asset_id: parseInt(id),
+          p_asset_id: assetIdNum,
           p_operation: 'UPDATE',
           p_user_name: userName,
-          p_action_type: 'manual_update',
+          p_action_type: actionType || 'manual_update',
           p_copy_to_history: isNewMeasurement === true, // Copy to history if new measurement
           p_description: isNewMeasurement === true ? 'Asset updated (new measurement)' : 'Asset updated'
         });
@@ -1315,7 +1316,7 @@ export const api = {
       return updatedAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
-      const assetId = typeof id === 'string' ? parseInt(id, 10) : id;
+      const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
       
       // Get building number before deletion (needed for updating total area)
       let buildingNumber: number | null = null;
@@ -1323,7 +1324,7 @@ export const api = {
         const { data: asset } = await supabase
           .from('assets')
           .select('building_number')
-          .eq('asset_id', assetId)
+          .eq('asset_id', assetIdNum)
           .maybeSingle();
         buildingNumber = asset?.building_number || null;
       } catch (err) {
@@ -1334,7 +1335,7 @@ export const api = {
       const userName = await getCurrentUserName();
       try {
         await supabase.rpc('log_audit_for_asset', {
-          p_asset_id: assetId,
+          p_asset_id: assetIdNum,
           p_operation: 'DELETE',
           p_user_name: userName,
           p_action_type: 'manual_update',
@@ -1350,7 +1351,7 @@ export const api = {
       const { error } = await supabase
         .from('assets')
         .delete()
-        .eq('asset_id', assetId);
+        .eq('asset_id', assetIdNum);
 
       if (error) throw error;
 

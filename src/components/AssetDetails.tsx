@@ -2345,8 +2345,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return;
       }
 
-      // Try to fetch by id using getAll with filter (to avoid getOne warning)
-      // If we have asset state with asset_id, use that instead
+      // Try to fetch by asset_id (which is the primary key in the assets table)
+      // The currentAssetId is the asset_id (primary key), not a separate id field
       let assetData: Asset | null = null;
       
       if (asset && asset.asset_id) {
@@ -2355,8 +2355,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           console.log('[AssetDetails] Using getAllByAssetId with existing asset_id:', asset.asset_id);
           const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
           if (assetsByAssetId && assetsByAssetId.length > 0) {
-            // Find the one matching the database id, or get the latest
-            assetData = assetsByAssetId.find(a => (a as any).id === currentAssetId) || assetsByAssetId[0];
+            // Find the one matching the currentAssetId (which is asset_id), or get the latest
+            assetData = assetsByAssetId.find(a => a.asset_id === currentAssetId) || assetsByAssetId[0];
             console.log('[AssetDetails] Found asset by asset_id:', assetData);
           }
         } catch (assetIdErr) {
@@ -2364,17 +2364,35 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         }
       }
       
-      // If not found yet, try using getAll with id filter (more efficient than getOne)
+      // If not found yet, try using getAllByAssetId directly with currentAssetId
+      // Since asset_id is the primary key, we can query directly
       if (!assetData && currentAssetId) {
         try {
-          console.log('[AssetDetails] Fetching asset by database id using getAll:', currentAssetId);
-          const allAssets = await api.assets.getAll(buildingNumber);
-          assetData = allAssets.find(a => (a as any).id === currentAssetId) || null;
-          if (assetData) {
-            console.log('[AssetDetails] Found asset by database id:', assetData);
+          console.log('[AssetDetails] Fetching asset by asset_id (primary key) using getAllByAssetId:', currentAssetId);
+          const assetsByAssetId = await api.assets.getAllByAssetId(String(currentAssetId), buildingNumber);
+          if (assetsByAssetId && assetsByAssetId.length > 0) {
+            // Get the latest one (first after sorting by measurement_date)
+            assetData = assetsByAssetId[0];
+            console.log('[AssetDetails] Found asset by asset_id:', assetData);
           }
         } catch (err: any) {
-          console.error('[AssetDetails] Error fetching asset by database id:', err);
+          console.error('[AssetDetails] Error fetching asset by asset_id:', err);
+        }
+      }
+      
+      // Fallback: try using getAll and filter by asset_id
+      if (!assetData && currentAssetId) {
+        try {
+          console.log('[AssetDetails] Fallback: Fetching all assets and filtering by asset_id:', currentAssetId);
+          const allAssets = await api.assets.getAll(buildingNumber);
+          assetData = allAssets.find(a => a.asset_id === currentAssetId) || null;
+          if (assetData) {
+            console.log('[AssetDetails] Found asset in getAll result:', assetData);
+          } else {
+            console.warn('[AssetDetails] Asset not found in getAll result. Total assets:', allAssets.length);
+          }
+        } catch (err: any) {
+          console.error('[AssetDetails] Error in fallback getAll:', err);
         }
       }
       
@@ -2416,29 +2434,38 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           }))
         });
         
-        // Ensure is_latest is set correctly
-        // If no records have is_latest set, mark the first one (from assets table) as latest
-        if (allAssetMeasurements.length > 0 && !allAssetMeasurements.some(m => m.is_latest === true)) {
-          console.warn('[AssetDetails] No records with is_latest=true found, marking first record as latest');
-          allAssetMeasurements[0] = { ...allAssetMeasurements[0], is_latest: true };
+        // If getAssetWithHistory returns empty (no history and no master), use the assetData we found
+        if (allAssetMeasurements.length === 0) {
+          console.warn('[AssetDetails] getAssetWithHistory returned empty, using assetData as latest record');
+          allAssetMeasurements = [{ ...assetData, is_latest: true }];
+        } else {
+          // Ensure is_latest is set correctly
+          // If no records have is_latest set, mark the first one (from assets table) as latest
+          if (!allAssetMeasurements.some(m => m.is_latest === true)) {
+            console.warn('[AssetDetails] No records with is_latest=true found, marking first record as latest');
+            allAssetMeasurements[0] = { ...allAssetMeasurements[0], is_latest: true };
+          }
+          
+          // Limit history records to last 50 to prevent performance issues with very large history
+          const latestRecord = allAssetMeasurements.find(m => m.is_latest === true);
+          const historyRecords = allAssetMeasurements
+            .filter(m => m.is_latest !== true)
+            .slice(0, 50); // Only keep last 50 history records
+          
+          allAssetMeasurements = latestRecord 
+            ? [latestRecord, ...historyRecords]
+            : historyRecords;
         }
-        
-        // Limit history records to last 50 to prevent performance issues with very large history
-        const latestRecord = allAssetMeasurements.find(m => m.is_latest === true);
-        const historyRecords = allAssetMeasurements
-          .filter(m => m.is_latest !== true)
-          .slice(0, 50); // Only keep last 50 history records
-        
-        allAssetMeasurements = latestRecord 
-          ? [latestRecord, ...historyRecords]
-          : historyRecords;
         
         // Log for debugging
         console.log('[AssetDetails] Processed measurements:', {
           totalCount: allAssetMeasurements.length,
           latestCount: allAssetMeasurements.filter(m => m.is_latest === true).length,
           historyCount: allAssetMeasurements.filter(m => m.is_latest !== true).length,
-          latestRecord: latestRecord ? { asset_id: latestRecord.asset_id, is_latest: latestRecord.is_latest } : null
+          latestRecord: allAssetMeasurements.find(m => m.is_latest === true) ? { 
+            asset_id: allAssetMeasurements.find(m => m.is_latest === true)!.asset_id, 
+            is_latest: true 
+          } : null
         });
       } catch (historyErr) {
         console.error('[AssetDetails] Error fetching asset history:', historyErr);
@@ -2448,7 +2475,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         console.warn('[AssetDetails] Using master record only due to history fetch error:', masterRecord);
       }
       
-      console.log('[AssetDetails] Setting allMeasurements with count:', allAssetMeasurements.length);
+      // Final safety check: ensure we have at least one record with is_latest set
+      if (allAssetMeasurements.length === 0) {
+        console.error('[AssetDetails] No measurements found, using assetData as fallback');
+        allAssetMeasurements = [{ ...assetData, is_latest: true }];
+      } else if (!allAssetMeasurements.some(m => m.is_latest === true)) {
+        console.warn('[AssetDetails] No latest record found, marking first record as latest');
+        allAssetMeasurements[0] = { ...allAssetMeasurements[0], is_latest: true };
+      }
+      
+      console.log('[AssetDetails] Setting allMeasurements with count:', allAssetMeasurements.length, 
+        'hasLatest:', allAssetMeasurements.some(m => m.is_latest === true));
       setAllMeasurements(allAssetMeasurements);
       // Store original data only if dirtyAssets is empty (initial load or after save)
       // Use shallow copy instead of deep clone for better performance

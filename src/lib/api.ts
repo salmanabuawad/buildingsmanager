@@ -736,12 +736,17 @@ export const api = {
         if (masterData) {
           // First record: from assets table (marked as latest)
           allRecords.push({ ...masterData, is_latest: true });
+        } else {
+          // If no master data found, log a warning but don't throw
+          // This can happen if the asset was just created or if there's a query issue
+          console.warn('[getAssetWithHistory] No master data found for asset_id:', assetId, 'building_number:', buildingNumber);
         }
         
         // Other records: from assets_history table
         allRecords.push(...sortedHistory);
 
-        return allRecords;
+        // Ensure we always return at least an empty array (not null/undefined)
+        return allRecords.length > 0 ? allRecords : [];
       } catch (err: any) {
         throw err;
       }

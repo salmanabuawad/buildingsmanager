@@ -184,85 +184,51 @@ export function DetailRowRenderer(params: DetailRowParams) {
 
   return (
     <div className="p-4 bg-gray-50 border-t border-gray-200" style={{ width: '100%' }}>
-      <div className="space-y-4">
-        {/* Audit Log Info */}
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h4 className="text-md font-semibold text-slate-800 mb-3">פרטי ביקורת - פעולה #{actionId}</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-semibold">תאריך: </span>
-              {new Date(auditLog.created_at).toLocaleString('he-IL')}
-            </div>
-            <div>
-              <span className="font-semibold">משתמש: </span>
-              {auditLog.user_name}
-            </div>
-            <div>
-              <span className="font-semibold">סוג פעולה: </span>
-              {auditLog.action_type}
-            </div>
-            <div>
-              <span className="font-semibold">סוג ישות: </span>
-              {auditLog.entity_type}
-            </div>
-            {auditLog.description && (
-              <div className="col-span-2">
-                <span className="font-semibold">תיאור: </span>
-                {auditLog.description}
-              </div>
-            )}
+      {/* Unified Assets Grid */}
+      {allDetailAssets.length > 0 && (
+        <div className="flex flex-col">
+          <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '400px' }}>
+            <AgGridReact<Asset>
+              ref={params.beforeAssetGridRef}
+              rowData={allDetailAssets}
+              columnDefs={unifiedColumnDefs}
+              defaultColDef={{
+                resizable: true,
+                wrapHeaderText: true,
+                autoHeaderHeight: true,
+                wrapText: true,
+                autoHeight: false,
+                sortable: true,
+                filter: true,
+                headerClass: 'ag-right-aligned-header',
+                cellStyle: { textAlign: 'right' },
+                minWidth: 100
+              }}
+              getRowId={(gridParams: any) => {
+                const source = gridParams.data._source || 'unknown';
+                const isLatest = gridParams.data.is_latest ? 'latest' : 'history';
+                return `${source}-${gridParams.data.asset_id}-${gridParams.data.measurement_date || ''}-${isLatest}`;
+              }}
+              gridOptions={{
+                suppressColumnVirtualisation: false,
+                alwaysShowHorizontalScroll: true,
+                suppressMovableColumns: true,
+                suppressColumnMoveAnimation: true,
+                rowBuffer: 5,
+                debounceVerticalScrollbar: true,
+                enableCellTextSelection: false,
+              }}
+              onGridReady={async (gridParams: any) => {
+                await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
+              }}
+              onFirstDataRendered={async (_gridParams: any) => {}}
+              onColumnResized={(_gridParams: any) => {
+                params.beforeAssetGridPreferences.handleColumnResized();
+              }}
+            />
           </div>
         </div>
-
-        {/* Unified Assets Grid */}
-        {allDetailAssets.length > 0 && (
-          <div className="flex flex-col">
-            <h5 className="text-sm font-semibold text-slate-700 mb-2">
-              נכסים מושפעים ({allDetailAssets.length})
-            </h5>
-            <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '400px' }}>
-              <AgGridReact<Asset>
-                ref={params.beforeAssetGridRef}
-                rowData={allDetailAssets}
-                columnDefs={unifiedColumnDefs}
-                defaultColDef={{
-                  resizable: true,
-                  wrapHeaderText: true,
-                  autoHeaderHeight: true,
-                  wrapText: true,
-                  autoHeight: false,
-                  sortable: true,
-                  filter: true,
-                  headerClass: 'ag-right-aligned-header',
-                  cellStyle: { textAlign: 'right' },
-                  minWidth: 100
-                }}
-                getRowId={(gridParams: any) => {
-                  const source = gridParams.data._source || 'unknown';
-                  const isLatest = gridParams.data.is_latest ? 'latest' : 'history';
-                  return `${source}-${gridParams.data.asset_id}-${gridParams.data.measurement_date || ''}-${isLatest}`;
-                }}
-                gridOptions={{
-                  suppressColumnVirtualisation: false,
-                  alwaysShowHorizontalScroll: true,
-                  suppressMovableColumns: true,
-                  suppressColumnMoveAnimation: true,
-                  rowBuffer: 5,
-                  debounceVerticalScrollbar: true,
-                  enableCellTextSelection: false,
-                }}
-                onGridReady={async (gridParams: any) => {
-                  await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
-                }}
-                onFirstDataRendered={async (_gridParams: any) => {}}
-                onColumnResized={(_gridParams: any) => {
-                  params.beforeAssetGridPreferences.handleColumnResized();
-                }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

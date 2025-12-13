@@ -91,20 +91,28 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Find the latest measurement (from assets table, is_latest=true)
   const latestMeasurement = useMemo(() => {
-    return allMeasurements.find(m => m.is_latest === true) || null;
+    const latest = allMeasurements.find(m => m.is_latest === true) || null;
+    console.log('[AssetDetails] latestMeasurement computed:', {
+      found: !!latest,
+      allMeasurementsCount: allMeasurements.length,
+      hasIsLatest: allMeasurements.some(m => m.is_latest === true),
+      sample: allMeasurements.slice(0, 2).map(m => ({ asset_id: m.asset_id, is_latest: m.is_latest }))
+    });
+    return latest;
   }, [allMeasurements]);
 
   // Pin the first row (latest measurement) at the top
   const pinnedTopRowData = useMemo(() => {
-    if (latestMeasurement) {
-      return [latestMeasurement];
-    }
-    return [];
+    const pinned = latestMeasurement ? [latestMeasurement] : [];
+    console.log('[AssetDetails] pinnedTopRowData computed:', { count: pinned.length });
+    return pinned;
   }, [latestMeasurement]);
 
   // Get history rows (all except the latest) - memoized for performance
   const historyRows = useMemo(() => {
-    return allMeasurements.filter(m => m.is_latest !== true);
+    const history = allMeasurements.filter(m => m.is_latest !== true);
+    console.log('[AssetDetails] historyRows computed:', { count: history.length });
+    return history;
   }, [allMeasurements]);
 
   // Always use asset.tax_region as the source of truth
@@ -2394,7 +2402,26 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Fetch all records (latest from assets + history from assets_history) using the view
       let allAssetMeasurements: Asset[] = [];
       try {
+        console.log('[AssetDetails] Fetching asset with history for asset_id:', assetData.asset_id, 'building_number:', assetData.building_number);
         allAssetMeasurements = await api.assets.getAssetWithHistory(assetData.asset_id, assetData.building_number);
+        
+        console.log('[AssetDetails] Raw measurements from getAssetWithHistory:', {
+          count: allAssetMeasurements.length,
+          hasLatest: allAssetMeasurements.some(m => m.is_latest === true),
+          hasHistory: allAssetMeasurements.some(m => m.is_latest === false),
+          sample: allAssetMeasurements.slice(0, 2).map(m => ({
+            asset_id: m.asset_id,
+            is_latest: m.is_latest,
+            measurement_date: m.measurement_date
+          }))
+        });
+        
+        // Ensure is_latest is set correctly
+        // If no records have is_latest set, mark the first one (from assets table) as latest
+        if (allAssetMeasurements.length > 0 && !allAssetMeasurements.some(m => m.is_latest === true)) {
+          console.warn('[AssetDetails] No records with is_latest=true found, marking first record as latest');
+          allAssetMeasurements[0] = { ...allAssetMeasurements[0], is_latest: true };
+        }
         
         // Limit history records to last 50 to prevent performance issues with very large history
         const latestRecord = allAssetMeasurements.find(m => m.is_latest === true);
@@ -2406,22 +2433,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           ? [latestRecord, ...historyRecords]
           : historyRecords;
         
-        // Log for debugging (only in development)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AssetDetails] Fetched measurements:', {
-            totalCount: allAssetMeasurements.length,
-            latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-            historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-          });
-        }
+        // Log for debugging
+        console.log('[AssetDetails] Processed measurements:', {
+          totalCount: allAssetMeasurements.length,
+          latestCount: allAssetMeasurements.filter(m => m.is_latest === true).length,
+          historyCount: allAssetMeasurements.filter(m => m.is_latest !== true).length,
+          latestRecord: latestRecord ? { asset_id: latestRecord.asset_id, is_latest: latestRecord.is_latest } : null
+        });
       } catch (historyErr) {
         console.error('[AssetDetails] Error fetching asset history:', historyErr);
-        // If history fetch fails, at least show the master record
+        // If history fetch fails, at least show the master record with is_latest set
         const masterRecord = { ...assetData, is_latest: true };
         allAssetMeasurements = [masterRecord];
-        console.warn('[AssetDetails] Using master record only due to history fetch error');
+        console.warn('[AssetDetails] Using master record only due to history fetch error:', masterRecord);
       }
       
+      console.log('[AssetDetails] Setting allMeasurements with count:', allAssetMeasurements.length);
       setAllMeasurements(allAssetMeasurements);
       // Store original data only if dirtyAssets is empty (initial load or after save)
       // Use shallow copy instead of deep clone for better performance

@@ -3232,6 +3232,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       assetColumnDefs,
                       beforeAssetGridRef,
                       beforeAssetGridPreferences,
+                      currentTabAssetId: asset?.asset_id,
                       onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
                         // Navigate to asset view - dispatch custom event that App.tsx can listen to
                         window.dispatchEvent(new CustomEvent('openAssetView', {

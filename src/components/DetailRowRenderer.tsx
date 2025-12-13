@@ -17,6 +17,7 @@ interface DetailRowParams extends ICellRendererParams {
   assetColumnDefs: any[];
   beforeAssetGridRef: React.RefObject<AgGridReact<Asset>>;
   beforeAssetGridPreferences: any;
+  currentTabAssetId?: number;
   onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
 }
 
@@ -71,13 +72,14 @@ export function DetailRowRenderer(params: DetailRowParams) {
   // Combine all assets into one array with source indicators
   const allDetailAssets = useMemo(() => {
     const combined: any[] = [];
+    const actionType = auditLog?.action_type || 'manual_update';
     
     // Add before assets
     beforeAssets.forEach(asset => {
       combined.push({
         ...asset,
         _source: 'before',
-        _changeSource: 'before_update'
+        _changeSource: actionType
       });
     });
     
@@ -86,7 +88,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       combined.push({
         ...asset,
         _source: 'after',
-        _changeSource: 'after_update'
+        _changeSource: actionType
       });
     });
     
@@ -95,12 +97,12 @@ export function DetailRowRenderer(params: DetailRowParams) {
       combined.push({
         ...asset,
         _source: 'related',
-        _changeSource: 'affected'
+        _changeSource: actionType
       });
     });
     
     return combined;
-  }, [beforeAssets, afterAssets, relatedAssets]);
+  }, [beforeAssets, afterAssets, relatedAssets, auditLog?.action_type]);
 
   // Create unified column defs with clickable asset_id and source columns
   const unifiedColumnDefs = useMemo(() => {
@@ -126,7 +128,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       {
         field: '_changeSource',
         headerName: 'סוג שינוי',
-        width: 120,
+        width: 150,
         pinned: 'left',
         lockPosition: true,
         sortable: true,
@@ -135,9 +137,10 @@ export function DetailRowRenderer(params: DetailRowParams) {
         cellStyle: { textAlign: 'right' },
         cellRenderer: (cellParams: any) => {
           const changeSource = cellParams.value;
-          if (changeSource === 'before_update') return 'לפני עדכון';
-          if (changeSource === 'after_update') return 'אחרי עדכון';
-          if (changeSource === 'affected') return 'נכס מושפע';
+          if (changeSource === 'manual_update') return 'עדכון ידני';
+          if (changeSource === 'import_file') return 'ייבוא קובץ';
+          if (changeSource === 'transfer_area') return 'העברת שטח';
+          if (changeSource === 'distribute_shared') return 'חלוקת שטח משותף';
           return changeSource;
         }
       }
@@ -152,7 +155,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
           cellRenderer: (cellParams: any) => {
             const assetId = cellParams.value;
             const asset = cellParams.data as Asset;
-            if (params.onSelectAsset && assetId && asset?.building_number) {
+            // Only make clickable if different from current tab's asset_id
+            const isDifferentAsset = params.currentTabAssetId != null && assetId !== params.currentTabAssetId;
+            if (params.onSelectAsset && assetId && asset?.building_number && isDifferentAsset) {
               return (
                 <button
                   onClick={(e) => {

@@ -3501,7 +3501,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '120px', width: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '70px', width: '100%', overflowX: 'auto' }}>
                 <AgGridReact<Asset>
                   ref={gridRef}
                   rowData={pinnedTopRowData}
@@ -3645,7 +3645,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 </div>
 
                 {/* Active Tab Content */}
-                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '20vh', width: '100%', overflowX: 'auto' }}>
+                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '280px', width: '100%', overflowX: 'auto' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRowsWithDetails}

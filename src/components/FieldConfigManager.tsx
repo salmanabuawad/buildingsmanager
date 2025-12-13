@@ -375,6 +375,9 @@ export function FieldConfigManager() {
     return (chars * 8) + (pad * 2);
   }, []);
 
+  // Hard-coded width: 15 chars + 2 padding = 15 * 8 + 2 * 2 = 120 + 4 = 124 pixels
+  const FIXED_COLUMN_WIDTH = 15 * 8 + 2 * 2; // 124 pixels
+
   // Check if a config is dirty
   const isConfigDirty = useCallback((config: FieldConfiguration) => {
     const key = `${config.grid_name}-${config.field_name}`;
@@ -500,7 +503,9 @@ export function FieldConfigManager() {
       filter: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 150,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
     },
     {
       field: 'hebrew_name',
@@ -510,7 +515,9 @@ export function FieldConfigManager() {
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 150,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       valueGetter: (params) => params.data.hebrew_name || '',
       valueSetter: (params) => {
         params.data.hebrew_name = params.newValue || null;
@@ -527,7 +534,9 @@ export function FieldConfigManager() {
       type: 'numericColumn',
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 120,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       valueParser: (params) => {
         const num = parseInt(params.newValue, 10);
         return isNaN(num) ? params.oldValue : Math.max(1, num);
@@ -542,7 +551,9 @@ export function FieldConfigManager() {
       type: 'numericColumn',
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 120,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       valueParser: (params) => {
         const num = parseInt(params.newValue, 10);
         return isNaN(num) ? params.oldValue : Math.max(0, num);
@@ -556,7 +567,9 @@ export function FieldConfigManager() {
       editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 150,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       valueGetter: (params) => {
         const config = params.data as FieldConfiguration;
         const key = `${config.grid_name}-${config.field_name}`;
@@ -575,7 +588,9 @@ export function FieldConfigManager() {
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 100,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       cellEditor: 'agCheckboxCellEditor',
       cellRenderer: 'agCheckboxCellRenderer',
       valueGetter: (params) => params.data.pinned ?? false,
@@ -592,7 +607,9 @@ export function FieldConfigManager() {
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 100,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
         values: [null, 'left', 'right'],
@@ -617,7 +634,9 @@ export function FieldConfigManager() {
       editable: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 80,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       cellEditor: 'agCheckboxCellEditor',
       cellRenderer: 'agCheckboxCellRenderer',
       valueGetter: (params) => params.data.visible !== false,
@@ -635,7 +654,9 @@ export function FieldConfigManager() {
       type: 'numericColumn',
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      minWidth: 80,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
       valueParser: (params) => {
         if (!params.newValue || params.newValue === '') return null;
         const num = parseInt(params.newValue, 10);
@@ -663,7 +684,9 @@ export function FieldConfigManager() {
           backgroundColor: isDirty ? '#fef3c7' : undefined
         };
       },
-      minWidth: 150,
+      width: FIXED_COLUMN_WIDTH,
+      minWidth: FIXED_COLUMN_WIDTH,
+      maxWidth: FIXED_COLUMN_WIDTH,
     },
   ], [dirtyConfigs, isConfigDirty, calculatePreviewWidth]);
 

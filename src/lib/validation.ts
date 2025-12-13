@@ -2674,7 +2674,9 @@ export const buildingValidators = {
       }
 
       // Calculate total asset area (excluding not_accountable assets)
-      const totalAssetArea = assets.reduce((sum, asset) => {
+      // Note: Shared areas (residence_shared_area and business_shared_area) are distributed to assets
+      // but should NOT be included in the size comparison
+      const totalAssetAreaWithShared = assets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
         if (asset.main_asset_type) {
           const assetType = assetTypeMap.get(String(asset.main_asset_type));
@@ -2685,15 +2687,26 @@ export const buildingValidators = {
         return sum + (asset.asset_size || 0);
       }, 0);
 
+      // Subtract shared areas from total asset area for comparison
+      // Shared areas are distributed to assets and increase their sizes,
+      // but they should be excluded from the comparison with total_building_area
+      const residenceSharedArea = building.residence_shared_area || 0;
+      const businessSharedArea = building.business_shared_area || 0;
+      const totalSharedArea = residenceSharedArea + businessSharedArea;
+      const totalAssetArea = totalAssetAreaWithShared - totalSharedArea;
+
       // Compare with building's total_building_area or area_for_control
+      // The comparison: asset areas (without shared areas) should equal total_building_area - shared areas
       const expectedArea = building.area_for_control ?? building.total_building_area;
       
       if (expectedArea != null) {
         const expectedAreaNum = Number(expectedArea);
-        if (!isNaN(expectedAreaNum) && Math.abs(totalAssetArea - expectedAreaNum) > 0.01) {
+        const expectedAreaWithoutShared = expectedAreaNum - totalSharedArea;
+        
+        if (!isNaN(expectedAreaNum) && Math.abs(totalAssetArea - expectedAreaWithoutShared) > 0.01) {
           return {
             valid: false,
-            error: `סכום שטחי הנכסים (${totalAssetArea.toLocaleString('he-IL')}) אינו תואם לשטח הכולל של המבנה (${expectedAreaNum.toLocaleString('he-IL')})`
+            error: `סכום שטחי הנכסים ללא שטחים משותפים (${totalAssetArea.toLocaleString('he-IL')}) אינו תואם לשטח הכולל של המבנה ללא שטחים משותפים (${expectedAreaWithoutShared.toLocaleString('he-IL')})`
           };
         }
       }

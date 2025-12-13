@@ -2478,6 +2478,120 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       filter: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_1',
+      headerName: 'סוג נכס משני 1',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: 'גודל נכס משני 1',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: 'סוג נכס משני 2',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: 'גודל נכס משני 2',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: 'סוג נכס משני 3',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: 'גודל נכס משני 3',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: 'סוג נכס משני 4',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: 'גודל נכס משני 4',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: 'סוג נכס משני 5',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: 'גודל נכס משני 5',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: 'סוג נכס משני 6',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: 'גודל נכס משני 6',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     }
   ], []);
 

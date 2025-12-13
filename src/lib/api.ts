@@ -249,11 +249,23 @@ function sanitizeBuildingInput(input: any): any {
   if (input.residence_shared_area != null) {
     sanitized.residence_shared_area = sanitizeNumber(input.residence_shared_area);
   }
+  // Note: Database column is 'shared_business_area', but we use 'business_shared_area' in the interface
+  // Map it correctly for the database
   if (input.business_shared_area != null) {
-    sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);
+    sanitized.shared_business_area = sanitizeNumber(input.business_shared_area);
   }
+  // Also handle if it's passed as shared_business_area
+  if (input.shared_business_area != null) {
+    sanitized.shared_business_area = sanitizeNumber(input.shared_business_area);
+  }
+  // Note: Database column is 'total_area_for_control', but we use 'area_for_control' in the interface
+  // Map it correctly for the database
   if (input.area_for_control != null) {
-    sanitized.area_for_control = sanitizeNumber(input.area_for_control);
+    sanitized.total_area_for_control = sanitizeNumber(input.area_for_control);
+  }
+  // Also handle if it's passed as total_area_for_control
+  if (input.total_area_for_control != null) {
+    sanitized.total_area_for_control = sanitizeNumber(input.total_area_for_control);
   }
   if (input.total_building_area != null) {
     sanitized.total_building_area = sanitizeNumber(input.total_building_area);
@@ -445,10 +457,13 @@ export const api = {
           error,
           buildingNumber,
           cleanedInput,
+          input,
+          sanitizedInput,
           errorCode: error.code,
           errorMessage: error.message,
           errorDetails: error.details,
-          errorHint: error.hint
+          errorHint: error.hint,
+          fullError: JSON.stringify(error, null, 2)
         });
         
         // Handle foreign key constraint violation for building_address
@@ -456,6 +471,15 @@ export const api = {
           const streetCode = cleanedInput.building_address;
           throw new Error(`סמל רחוב ${streetCode} לא קיים בטבלת הכתובות. יש לבחור כתובת תקינה מהרשימה.`);
         }
+        
+        // Handle 400 Bad Request errors - provide more context
+        if (error.code === 'PGRST116' || error.message?.includes('400') || error.message?.includes('Bad Request')) {
+          const errorMsg = error.message || 'Bad Request';
+          const details = error.details ? ` (${error.details})` : '';
+          const hint = error.hint ? ` - ${error.hint}` : '';
+          throw new Error(`שגיאה בעדכון מבנה: ${errorMsg}${details}${hint}`);
+        }
+        
         throw error;
       }
       

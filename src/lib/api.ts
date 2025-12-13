@@ -396,6 +396,22 @@ export const api = {
       if (error) {
         throw error;
       }
+      
+      // Log audit entry (transaction-based, replaces trigger)
+      const userName = await getCurrentUserName();
+      try {
+        await supabase.rpc('log_audit_for_building', {
+          p_building_number: data.building_number,
+          p_operation: 'INSERT',
+          p_user_name: userName,
+          p_action_type: 'manual_update',
+          p_description: 'Building created'
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for building creation:', auditError);
+        // Don't fail the operation if audit logging fails
+      }
+      
       return data;
     },
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
@@ -412,7 +428,7 @@ export const api = {
       
       const { data, error } = await supabase
         .from('buildings')
-        .update(cleanedInput)
+        .update({ ...cleanedInput, updated_at: new Date().toISOString() })
         .eq('building_number', buildingNumber)
         .select()
         .single();
@@ -425,9 +441,40 @@ export const api = {
         }
         throw error;
       }
+      
+      // Log audit entry (transaction-based, replaces trigger)
+      const userName = await getCurrentUserName();
+      try {
+        await supabase.rpc('log_audit_for_building', {
+          p_building_number: buildingNumber,
+          p_operation: 'UPDATE',
+          p_user_name: userName,
+          p_action_type: 'manual_update',
+          p_description: 'Building updated'
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for building update:', auditError);
+        // Don't fail the operation if audit logging fails
+      }
+      
       return data;
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
+      // Log audit entry BEFORE deletion (transaction-based, replaces trigger)
+      const userName = await getCurrentUserName();
+      try {
+        await supabase.rpc('log_audit_for_building', {
+          p_building_number: buildingNumber,
+          p_operation: 'DELETE',
+          p_user_name: userName,
+          p_action_type: 'manual_update',
+          p_description: 'Building deleted'
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for building deletion:', auditError);
+        // Continue with deletion even if audit logging fails
+      }
+      
       const { error } = await supabase
         .from('buildings')
         .delete()
@@ -933,11 +980,26 @@ export const api = {
           throw new Error(`שגיאה בבדיקת נכס קיים: ${checkError.message}`);
         }
 
-        // If asset exists, delete it (trigger will copy it to history) and create a new entry
+        // If asset exists, delete it (transaction-based: copy to history and log audit) and create a new entry
         if (existingAsset) {
+          const userName = await getCurrentUserName();
+          
+          // Copy to history and log audit before deletion (transaction-based, replaces trigger)
+          try {
+            await supabase.rpc('log_audit_for_asset', {
+              p_asset_id: sanitizedInput.asset_id,
+              p_operation: 'DELETE',
+              p_user_name: userName,
+              p_action_type: 'manual_update',
+              p_copy_to_history: true, // This will copy asset to history before deletion
+              p_description: 'Asset replaced with new measurement'
+            });
+          } catch (auditError) {
+            console.warn('Failed to log audit entry and copy to history before asset replacement:', auditError);
+            // Continue with deletion even if audit/history fails
+          }
           
           // Delete the existing asset from assets table
-          // Database trigger will automatically copy it to history before deletion
           const { error: deleteError } = await supabase
             .from('assets')
             .delete()
@@ -946,7 +1008,6 @@ export const api = {
           if (deleteError) {
             throw new Error(`שגיאה במחיקת נכס קיים: ${deleteError.message}`);
           }
-
 
           // Insert new asset with new measurement data
           const { data: newAsset, error: insertError } = await supabase
@@ -957,6 +1018,21 @@ export const api = {
 
           if (insertError) {
             throw new Error(`שגיאה ביצירת נכס חדש: ${insertError.message}`);
+          }
+          
+          // Log audit entry for new asset creation
+          try {
+            await supabase.rpc('log_audit_for_asset', {
+              p_asset_id: newAsset.asset_id,
+              p_operation: 'INSERT',
+              p_user_name: userName,
+              p_action_type: 'manual_update',
+              p_copy_to_history: false,
+              p_description: 'New asset created (replaced existing)'
+            });
+          } catch (auditError) {
+            console.warn('Failed to log audit entry for new asset creation:', auditError);
+            // Don't fail the operation if audit logging fails
           }
 
           return newAsset;
@@ -1011,6 +1087,23 @@ export const api = {
 
         throw new Error(`${errorMessage}${details}${hint}`);
       }
+      
+      // Log audit entry (transaction-based, replaces trigger)
+      const userName = await getCurrentUserName();
+      try {
+        await supabase.rpc('log_audit_for_asset', {
+          p_asset_id: data.asset_id,
+          p_operation: 'INSERT',
+          p_user_name: userName,
+          p_action_type: 'manual_update',
+          p_copy_to_history: false,
+          p_description: 'Asset created'
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for asset creation:', auditError);
+        // Don't fail the operation if audit logging fails
+      }
+      
       return data;
     },
     update: async (id: string, input: Partial<Asset>): Promise<Asset> => {
@@ -1043,10 +1136,22 @@ export const api = {
         });
       }
 
-      // Perform a regular UPDATE - the trigger will only move to history if is_new_measurement is true
+      // If is_new_measurement is true, copy old asset to history BEFORE update
+      if (isNewMeasurement === true) {
+        try {
+          await supabase.rpc('copy_asset_to_history_before_update', {
+            p_asset_id: parseInt(id)
+          });
+        } catch (historyError) {
+          console.warn('Failed to copy asset to history before update:', historyError);
+          // Continue with update even if history copy fails
+        }
+      }
+      
+      // Perform the UPDATE
       const { data: updatedAsset, error: updateError } = await supabase
         .from('assets')
-        .update(sanitizedInput)
+        .update({ ...sanitizedInput, updated_at: new Date().toISOString() })
         .eq('asset_id', id)
         .select()
         .single();
@@ -1097,39 +1202,51 @@ export const api = {
         throw new Error(fullErrorMessage);
       }
 
+      // Log audit entry AFTER update (transaction-based, replaces trigger)
+      // If is_new_measurement is true, this will copy old asset to history before logging audit
+      const userName = await getCurrentUserName();
+      try {
+        await supabase.rpc('log_audit_for_asset', {
+          p_asset_id: parseInt(id),
+          p_operation: 'UPDATE',
+          p_user_name: userName,
+          p_action_type: 'manual_update',
+          p_copy_to_history: isNewMeasurement === true, // Copy to history if new measurement
+          p_description: isNewMeasurement === true ? 'Asset updated (new measurement)' : 'Asset updated'
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry for asset update:', auditError);
+        // Don't fail the operation if audit logging fails
+      }
+
       return updatedAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
-      // Delete all existing history records for this asset_id first
-      const { error: historyError1 } = await supabase
-        .from('assets_history')
-        .delete()
-        .eq('asset_id', id);
-
-      if (historyError1) {
-        console.warn('Error deleting existing history from assets_history:', historyError1);
-        // Continue with asset deletion even if history deletion fails
+      const assetId = typeof id === 'string' ? parseInt(id, 10) : id;
+      
+      // Log audit and copy to history BEFORE deletion (transaction-based, replaces trigger)
+      const userName = await getCurrentUserName();
+      try {
+        await supabase.rpc('log_audit_for_asset', {
+          p_asset_id: assetId,
+          p_operation: 'DELETE',
+          p_user_name: userName,
+          p_action_type: 'manual_update',
+          p_copy_to_history: true, // This will copy asset to history before deletion
+          p_description: 'Asset deleted'
+        });
+      } catch (auditError) {
+        console.warn('Failed to log audit entry and copy to history before asset deletion:', auditError);
+        // Continue with deletion even if audit/history fails
       }
 
       // Delete from assets table
-      // Note: The trigger will run BEFORE DELETE and create a new history entry
       const { error } = await supabase
         .from('assets')
         .delete()
-        .eq('asset_id', id);
+        .eq('asset_id', assetId);
 
       if (error) throw error;
-
-      // Delete from assets_history again to remove the entry created by the trigger
-      const { error: historyError2 } = await supabase
-        .from('assets_history')
-        .delete()
-        .eq('asset_id', id);
-
-      if (historyError2) {
-        console.warn('Error deleting trigger-created history from assets_history:', historyError2);
-        // Don't throw - asset is already deleted, this is just cleanup
-      }
 
       return { message: 'Asset deleted successfully' };
     },

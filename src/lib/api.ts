@@ -444,43 +444,53 @@ export const api = {
         return api.buildings.getOne(buildingNumber);
       }
       
+      // Note: buildings table doesn't have updated_at column, so don't include it
       const { data, error } = await supabase
         .from('buildings')
-        .update({ ...cleanedInput, updated_at: new Date().toISOString() })
+        .update(cleanedInput)
         .eq('building_number', buildingNumber)
         .select()
         .single();
 
       if (error) {
-        // Log the error details for debugging
-        console.error('[api.buildings.update] Update error:', {
-          error,
+        // Log the error details for debugging - serialize the error object properly
+        const errorInfo = {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
           buildingNumber,
+          cleanedInputKeys: Object.keys(cleanedInput),
           cleanedInput,
-          input,
-          sanitizedInput,
-          errorCode: error.code,
-          errorMessage: error.message,
-          errorDetails: error.details,
-          errorHint: error.hint,
-          fullError: JSON.stringify(error, null, 2)
-        });
+          inputKeys: Object.keys(input || {}),
+          sanitizedInputKeys: Object.keys(sanitizedInput || {})
+        };
+        
+        console.error('[api.buildings.update] Update error:', errorInfo);
+        console.error('[api.buildings.update] Full error object:', error);
+        console.error('[api.buildings.update] Cleaned input being sent:', cleanedInput);
         
         // Handle foreign key constraint violation for building_address
         if (error.code === '23503' && (error.message?.includes('fk_buildings_building_address') || error.details?.includes('address_list'))) {
-          const streetCode = cleanedInput.building_address;
+          const streetCode = cleanedInput.building_address || cleanedInput.total_area_for_control;
           throw new Error(`סמל רחוב ${streetCode} לא קיים בטבלת הכתובות. יש לבחור כתובת תקינה מהרשימה.`);
         }
         
         // Handle 400 Bad Request errors - provide more context
-        if (error.code === 'PGRST116' || error.message?.includes('400') || error.message?.includes('Bad Request')) {
+        if (error.code === 'PGRST116' || error.code === '400' || error.message?.includes('400') || error.message?.includes('Bad Request')) {
           const errorMsg = error.message || 'Bad Request';
           const details = error.details ? ` (${error.details})` : '';
           const hint = error.hint ? ` - ${error.hint}` : '';
-          throw new Error(`שגיאה בעדכון מבנה: ${errorMsg}${details}${hint}`);
+          const fullError = `שגיאה בעדכון מבנה: ${errorMsg}${details}${hint}`;
+          console.error('[api.buildings.update] Bad Request details:', fullError);
+          throw new Error(fullError);
         }
         
-        throw error;
+        // For any other error, throw with more context
+        const errorMessage = error.message || 'Unknown error';
+        const errorDetails = error.details ? ` (${error.details})` : '';
+        const errorHint = error.hint ? ` - ${error.hint}` : '';
+        throw new Error(`שגיאה בעדכון מבנה: ${errorMessage}${errorDetails}${errorHint}`);
       }
       
       // Log audit entry (transaction-based, replaces trigger)

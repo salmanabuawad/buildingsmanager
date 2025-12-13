@@ -251,32 +251,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             
             // 3. Always check audit after_data for distribution operations
             // (distribution updates assets in place, and action_id might not be set on assets)
+            // Include ALL affected assets, not just the current one
             const { data: distributeAudits, error: distributeAuditErr } = await supabase
               .from('audit')
-              .select('action_id, after_data, created_at')
+              .select('action_id, after_data, entity_id, created_at')
               .in('action_id', distributeActionIds);
             
             if (!distributeAuditErr && distributeAudits) {
               distributeAudits.forEach(audit => {
                 try {
-                  const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                  const assets = afterData?.assets || [];
-                  const matchingAsset = assets.find((a: any) => a.asset_id === asset.asset_id);
-                  if (matchingAsset) {
-                    // Check if we already have this asset (avoid duplicates)
-                    const alreadyExists = allDistributeAssets.some(a => 
-                      a.asset_id === matchingAsset.asset_id && 
-                      a.action_id === audit.action_id &&
-                      a.measurement_date === matchingAsset.measurement_date
-                    );
-                    if (!alreadyExists) {
-                      allDistributeAssets.push({
-                        ...matchingAsset,
-                        is_latest: false,
-                        action_id: audit.action_id,
-                        history_created_at: audit.created_at
-                      } as Asset);
-                    }
+                  // Check if current asset is affected by this distribution operation
+                  const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
+                  const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
+                  
+                  if (isCurrentAssetAffected) {
+                    const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                    const assets = afterData?.assets || [];
+                    
+                    // Add ALL affected assets from this distribution operation
+                    assets.forEach((assetData: any) => {
+                      // Check if we already have this asset (avoid duplicates)
+                      const alreadyExists = allDistributeAssets.some(a => 
+                        a.asset_id === assetData.asset_id && 
+                        a.action_id === audit.action_id &&
+                        a.measurement_date === assetData.measurement_date
+                      );
+                      if (!alreadyExists) {
+                        allDistributeAssets.push({
+                          ...assetData,
+                          is_latest: false,
+                          action_id: audit.action_id,
+                          history_created_at: audit.created_at
+                        } as Asset);
+                      }
+                    });
                   }
                 } catch (e) {
                   if (process.env.NODE_ENV === 'development') {
@@ -293,6 +301,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 actionIds: distributeActionIds,
                 currentAssetId: asset.asset_id,
                 count: allDistributeAssets.length,
+                uniqueAssetIds: [...new Set(allDistributeAssets.map(a => a.asset_id))],
                 assets: allDistributeAssets.map(a => ({
                   asset_id: a.asset_id,
                   action_id: a.action_id,
@@ -338,32 +347,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             }
             
             // 3. Always check audit after_data for transfer operations
+            // Include ALL affected assets, not just the current one
             const { data: transferAudits, error: transferAuditErr } = await supabase
               .from('audit')
-              .select('action_id, after_data, created_at')
+              .select('action_id, after_data, entity_id, created_at')
               .in('action_id', transferActionIds);
             
             if (!transferAuditErr && transferAudits) {
               transferAudits.forEach(audit => {
                 try {
-                  const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                  const assets = afterData?.assets || [];
-                  const matchingAsset = assets.find((a: any) => a.asset_id === asset.asset_id);
-                  if (matchingAsset) {
-                    // Check if we already have this asset (avoid duplicates)
-                    const alreadyExists = allTransferAssets.some(a => 
-                      a.asset_id === matchingAsset.asset_id && 
-                      a.action_id === audit.action_id &&
-                      a.measurement_date === matchingAsset.measurement_date
-                    );
-                    if (!alreadyExists) {
-                      allTransferAssets.push({
-                        ...matchingAsset,
-                        is_latest: false,
-                        action_id: audit.action_id,
-                        history_created_at: audit.created_at
-                      } as Asset);
-                    }
+                  // Check if current asset is affected by this transfer operation
+                  const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
+                  const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
+                  
+                  if (isCurrentAssetAffected) {
+                    const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                    const assets = afterData?.assets || [];
+                    
+                    // Add ALL affected assets from this transfer operation
+                    assets.forEach((assetData: any) => {
+                      // Check if we already have this asset (avoid duplicates)
+                      const alreadyExists = allTransferAssets.some(a => 
+                        a.asset_id === assetData.asset_id && 
+                        a.action_id === audit.action_id &&
+                        a.measurement_date === assetData.measurement_date
+                      );
+                      if (!alreadyExists) {
+                        allTransferAssets.push({
+                          ...assetData,
+                          is_latest: false,
+                          action_id: audit.action_id,
+                          history_created_at: audit.created_at
+                        } as Asset);
+                      }
+                    });
                   }
                 } catch (e) {
                   if (process.env.NODE_ENV === 'development') {
@@ -2371,6 +2388,35 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       filter: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id'),
+      cellRenderer: (params: any) => {
+        // For history rows (non-latest), make asset_id clickable if different from current tab
+        if (params.data && !params.data.is_latest && params.data.asset_id && params.data.asset_id !== asset?.asset_id) {
+          const assetId = params.data.asset_id;
+          const rowData = params.data as Asset;
+          return (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Dispatch custom event that App.tsx can listen to
+                window.dispatchEvent(new CustomEvent('openAssetView', {
+                  detail: { 
+                    assetDbId: assetId,
+                    assetId: String(assetId),
+                    buildingNumber: rowData.building_number,
+                    taxRegion: rowData.tax_region ? String(rowData.tax_region) : undefined
+                  }
+                }));
+              }}
+              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors font-semibold"
+              title="לחץ כדי לפתוח את הנכס"
+            >
+              {assetId}
+            </button>
+          );
+        }
+        // For latest rows or same asset, display as normal text
+        return params.value;
+      },
     },
     {
       field: 'measurement_date',
@@ -2847,7 +2893,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
       return colDef;
     });
-  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer]);
+  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, asset]);
 
   useEffect(() => {
     fetchData();

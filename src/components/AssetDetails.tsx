@@ -981,10 +981,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             
             if (process.env.NODE_ENV === 'development') {
               console.log('[AssetDetails] Fetched measurements after save:', {
-              totalCount: allAssetMeasurements.length,
-              latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
-              historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
-            });
+                totalCount: allAssetMeasurements.length,
+                latestCount: allAssetMeasurements.filter(m => m.is_latest).length,
+                historyCount: allAssetMeasurements.filter(m => !m.is_latest).length,
+              });
+            }
           } catch (historyErr) {
             if (process.env.NODE_ENV === 'development') {
               console.error('[AssetDetails] Error fetching asset history after save:', historyErr);

@@ -69,6 +69,74 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return null;
   }
 
+  // Helper function to check if two values are different
+  const valuesAreDifferent = (val1: any, val2: any): boolean => {
+    // Handle null/undefined
+    if (val1 === null || val1 === undefined) val1 = '';
+    if (val2 === null || val2 === undefined) val2 = '';
+    
+    // Convert to strings for comparison (handles numbers, strings, etc.)
+    return String(val1) !== String(val2);
+  };
+
+  // Create a map of changed fields for each asset_id (comparing before vs after)
+  const changedFieldsMap = useMemo(() => {
+    const map = new Map<number, Set<string>>();
+    
+    // Create maps of before and after assets by asset_id
+    const beforeMap = new Map<number, Asset>();
+    const afterMap = new Map<number, Asset>();
+    
+    beforeAssets.forEach(asset => {
+      if (asset.asset_id != null) {
+        beforeMap.set(asset.asset_id, asset);
+      }
+    });
+    
+    afterAssets.forEach(asset => {
+      if (asset.asset_id != null) {
+        afterMap.set(asset.asset_id, asset);
+      }
+    });
+    
+    // Compare before and after for each asset_id
+    const allAssetIds = new Set([...beforeMap.keys(), ...afterMap.keys()]);
+    
+    allAssetIds.forEach(id => {
+      const beforeAsset = beforeMap.get(id);
+      const afterAsset = afterMap.get(id);
+      
+      if (beforeAsset && afterAsset) {
+        const changedFields = new Set<string>();
+        
+        // Compare all fields (excluding metadata fields)
+        const fieldsToCompare = Object.keys(beforeAsset).filter(key => 
+          !key.startsWith('_') && 
+          key !== 'created_at' && 
+          key !== 'updated_at' && 
+          key !== 'history_created_at' &&
+          key !== 'id' &&
+          key !== 'action_id'
+        );
+        
+        fieldsToCompare.forEach(field => {
+          const beforeValue = (beforeAsset as any)[field];
+          const afterValue = (afterAsset as any)[field];
+          
+          if (valuesAreDifferent(beforeValue, afterValue)) {
+            changedFields.add(field);
+          }
+        });
+        
+        if (changedFields.size > 0) {
+          map.set(id, changedFields);
+        }
+      }
+    });
+    
+    return map;
+  }, [beforeAssets, afterAssets]);
+
   // Combine all assets into one array with source indicators, sorted by asset_id
   const allDetailAssets = useMemo(() => {
     const combined: any[] = [];
@@ -79,7 +147,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
       combined.push({
         ...asset,
         _source: 'before',
-        _changeSource: actionType
+        _changeSource: actionType,
+        _changedFields: changedFieldsMap.get(asset.asset_id || 0) || new Set<string>()
       });
     });
     
@@ -88,7 +157,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
       combined.push({
         ...asset,
         _source: 'after',
-        _changeSource: actionType
+        _changeSource: actionType,
+        _changedFields: changedFieldsMap.get(asset.asset_id || 0) || new Set<string>()
       });
     });
     
@@ -97,7 +167,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
       combined.push({
         ...asset,
         _source: 'related',
-        _changeSource: actionType
+        _changeSource: actionType,
+        _changedFields: new Set<string>() // Related assets don't have changes to highlight
       });
     });
     
@@ -109,7 +180,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     });
     
     return combined;
-  }, [beforeAssets, afterAssets, relatedAssets, auditLog?.action_type]);
+  }, [beforeAssets, afterAssets, relatedAssets, auditLog?.action_type, changedFieldsMap]);
 
   // Create unified column defs with clickable asset_id and source columns
   const unifiedColumnDefs = useMemo(() => {
@@ -153,7 +224,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       }
     ];
     
-    // Add asset columns with clickable asset_id
+    // Add asset columns with clickable asset_id and styling for changed values
     params.assetColumnDefs.forEach((col: any) => {
       if (col.field === 'asset_id') {
         cols.push({
@@ -186,7 +257,31 @@ export function DetailRowRenderer(params: DetailRowParams) {
           }
         });
       } else {
-        cols.push(col);
+        // Add cellStyle function to check if field changed
+        const originalCellStyle = col.cellStyle;
+        cols.push({
+          ...col,
+          cellStyle: (cellParams: any) => {
+            const baseStyle = typeof originalCellStyle === 'function' 
+              ? originalCellStyle(cellParams) 
+              : (originalCellStyle || { textAlign: 'right' });
+            
+            const asset = cellParams.data as any;
+            const field = col.field;
+            const changedFields = asset._changedFields as Set<string> | undefined;
+            
+            // Apply bold and italic if this field changed for before/after assets
+            if (changedFields && changedFields.has(field) && (asset._source === 'before' || asset._source === 'after')) {
+              return {
+                ...baseStyle,
+                fontWeight: 'bold',
+                fontStyle: 'italic'
+              };
+            }
+            
+            return baseStyle;
+          }
+        });
       }
     });
     

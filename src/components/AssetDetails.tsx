@@ -2389,8 +2389,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id'),
       cellRenderer: (params: any) => {
-        // For history rows (non-latest), make asset_id clickable if different from current tab
-        if (params.data && !params.data.is_latest && params.data.asset_id && params.data.asset_id !== asset?.asset_id) {
+        // Make asset_id clickable only if it's different from the current tab's asset_id
+        // This applies to both latest and history rows in the lower grid
+        if (params.data && params.data.asset_id && params.data.asset_id !== asset?.asset_id) {
           const assetId = params.data.asset_id;
           const rowData = params.data as Asset;
           return (
@@ -2414,7 +2415,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             </button>
           );
         }
-        // For latest rows or same asset, display as normal text
+        // For the same asset as the current tab, display as normal text (not clickable)
         return params.value;
       },
     },

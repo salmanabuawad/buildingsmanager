@@ -1019,7 +1019,7 @@ export const api = {
       if (!data) throw new Error('Asset not found');
       return data;
     },
-    create: async (input: Omit<Asset, 'id' | 'created_at'>): Promise<Asset> => {
+    create: async (input: Omit<Asset, 'id' | 'created_at'>, skipAudit?: boolean): Promise<Asset> => {
       const sanitizedInput = sanitizeAssetInput(input);
       
       // Check if an asset with the same asset_id already exists
@@ -1163,24 +1163,27 @@ export const api = {
       }
       
       // Log audit entry (transaction-based, replaces trigger)
-      const userName = await getCurrentUserName();
-      try {
-        await supabase.rpc('log_audit_for_asset', {
-          p_asset_id: data.asset_id,
-          p_operation: 'INSERT',
-          p_user_name: userName,
-          p_action_type: 'manual_update',
-          p_copy_to_history: false,
-          p_description: 'Asset created'
-        });
-      } catch (auditError) {
-        console.warn('Failed to log audit entry for asset creation:', auditError);
-        // Don't fail the operation if audit logging fails
+      // Skip audit logging if skipAudit is true (for bulk operations)
+      if (skipAudit !== true) {
+        const userName = await getCurrentUserName();
+        try {
+          await supabase.rpc('log_audit_for_asset', {
+            p_asset_id: data.asset_id,
+            p_operation: 'INSERT',
+            p_user_name: userName,
+            p_action_type: 'manual_update',
+            p_copy_to_history: false,
+            p_description: 'Asset created'
+          });
+        } catch (auditError) {
+          console.warn('Failed to log audit entry for asset creation:', auditError);
+          // Don't fail the operation if audit logging fails
+        }
       }
       
       return data;
     },
-    update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared'): Promise<Asset> => {
+    update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared', skipAudit: boolean = false): Promise<Asset> => {
       // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
       const isNewMeasurement = input.is_new_measurement;
       
@@ -1298,19 +1301,22 @@ export const api = {
 
       // Log audit entry AFTER update (transaction-based, replaces trigger)
       // If is_new_measurement is true, this will copy old asset to history before logging audit
-      const userName = await getCurrentUserName();
-      try {
-        await supabase.rpc('log_audit_for_asset', {
-          p_asset_id: assetIdNum,
-          p_operation: 'UPDATE',
-          p_user_name: userName,
-          p_action_type: actionType || 'manual_update',
-          p_copy_to_history: isNewMeasurement === true, // Copy to history if new measurement
-          p_description: isNewMeasurement === true ? 'Asset updated (new measurement)' : 'Asset updated'
-        });
-      } catch (auditError) {
-        console.warn('Failed to log audit entry for asset update:', auditError);
-        // Don't fail the operation if audit logging fails
+      // Skip audit logging if skipAudit is true (for bulk operations)
+      if (!skipAudit) {
+        const userName = await getCurrentUserName();
+        try {
+          await supabase.rpc('log_audit_for_asset', {
+            p_asset_id: assetIdNum,
+            p_operation: 'UPDATE',
+            p_user_name: userName,
+            p_action_type: actionType || 'manual_update',
+            p_copy_to_history: isNewMeasurement === true, // Copy to history if new measurement
+            p_description: isNewMeasurement === true ? 'Asset updated (new measurement)' : 'Asset updated'
+          });
+        } catch (auditError) {
+          console.warn('Failed to log audit entry for asset update:', auditError);
+          // Don't fail the operation if audit logging fails
+        }
       }
 
       return updatedAsset;

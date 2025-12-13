@@ -795,8 +795,9 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
           // First, try to update the old record with is_new_measurement flag set to true
           // The database trigger will automatically move it to assets_history
+          // Skip audit logging for individual operations - we'll create a bulk audit entry later
           try {
-            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true }, 'transfer_area');
+            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true }, 'transfer_area', true);
           } catch (updateErr) {
             // If update fails (e.g., asset already moved to history), that's okay
             // We'll just create the new measurement
@@ -804,7 +805,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           }
 
           // Then create the new measurement in assets table
-          const createdAsset = await api.assets.create(newAssetData as any);
+          // Skip audit logging for individual operations - we'll create a bulk audit entry later
+          const createdAsset = await api.assets.create(newAssetData as any, true);
 
           // Update asset identifiers (key is asset_id)
           setAssetIdentifiers(prev => {
@@ -823,22 +825,54 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         }
       }
 
-      // Log audit entry for transfer area action
+      // Log audit entry for transfer area action - only affected assets with before/after data
       if (savedCount > 0) {
         try {
-          const assetIds = Array.from(dirtyAssets.keys()).map(id => {
-            const asset = assets.find(a => String(a.asset_id) === id);
-            return asset ? asset.asset_id : parseInt(id);
-          }).filter(id => !isNaN(id)) as number[];
+          // Collect before and after asset data
+          const beforeAssets: Asset[] = [];
+          const afterAssets: Asset[] = [];
+          const affectedAssetIds: number[] = [];
           
-          if (assetIds.length > 0) {
-            await api.auditLog.logBulkAssetAction(
-              assetIds,
-              'transfer_area',
-              { assets: assets },
-              undefined,
-              `Transferred areas for ${savedCount} assets as new measurements`
-            );
+          for (const assetId of Array.from(dirtyAssets.keys())) {
+            const originalAsset = assets.find(a => String(a.asset_id) === assetId);
+            if (originalAsset) {
+              // Before: original asset state
+              beforeAssets.push({ ...originalAsset });
+              affectedAssetIds.push(originalAsset.asset_id);
+              
+              // After: fetch the newly created asset (it should have the same asset_id but new measurement_date)
+              // Since we just created it, we can get it from the API or use the createdAsset data
+              // For now, we'll need to fetch it or reconstruct it from the newAssetData
+              // The new asset will be in the assets list after refresh, but for audit we need it now
+              // We'll store the updated data that was used to create the new asset
+              const updatedData = dirtyAssets.get(assetId);
+              if (updatedData) {
+                const afterAsset = {
+                  ...originalAsset,
+                  ...updatedData,
+                  measurement_date: finalMeasurementDate
+                } as Asset;
+                afterAssets.push(afterAsset);
+              }
+            }
+          }
+          
+          if (affectedAssetIds.length > 0) {
+            const beforeData = {
+              assets: beforeAssets
+            };
+            const afterData = {
+              assets: afterAssets
+            };
+            
+            await api.auditLog.logEntry({
+              action_type: 'transfer_area',
+              entity_type: 'bulk_asset',
+              entity_id: affectedAssetIds.join(','),
+              before_data: beforeData,
+              after_data: afterData,
+              description: `Transferred areas for ${savedCount} assets as new measurements`
+            });
           }
         } catch (auditError) {
           console.warn('Failed to log audit entry for transfer area:', auditError);

@@ -1755,23 +1755,40 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
       
-      // Log audit entry for distribute shared area action
+      // Log audit entry for distribute shared area action - only affected assets
       try {
+        // Get affected assets (only those that received shared area)
+        const affectedAssetIds = residentialAssets.map(a => a.asset_id);
+        const beforeAssets = assets
+          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
+          .map(a => ({ ...a }));
+        const afterAssets = updatedAssets
+          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
+          .map(a => {
+            const assetId = String(a.asset_id);
+            const changes = updatedDirtyAssets.get(assetId) || {};
+            return { ...a, ...changes } as Asset;
+          });
+        
         const beforeData = {
-          building: building,
-          assets: assets.filter(a => !deletedAssets.has(String(a.asset_id)))
+          assets: beforeAssets,
+          shared_area_distributed: building.residence_shared_area,
+          shared_area_type: 'residence'
         };
         const afterData = {
-          building: building,
-          assets: updatedAssets.filter(a => !deletedAssets.has(String(a.asset_id)))
+          assets: afterAssets,
+          shared_area_distributed: building.residence_shared_area,
+          shared_area_type: 'residence'
         };
-        await api.auditLog.logBuildingAction(
-          buildingNumber,
-          'distribute_shared',
-          beforeData,
-          afterData,
-          `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
-        );
+        
+        await api.auditLog.logEntry({
+          action_type: 'distribute_shared',
+          entity_type: 'bulk_asset',
+          entity_id: affectedAssetIds.join(','),
+          before_data: beforeData,
+          after_data: afterData,
+          description: `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
+        });
       } catch (auditError) {
         console.warn('Failed to log audit entry for distribute shared area:', auditError);
         // Don't block the operation if audit logging fails
@@ -2008,23 +2025,42 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setDirtyAssets(updatedDirtyAssets);
       setAssets(updatedAssets);
       
-      // Log audit entry for distribute shared area action
+      // Log audit entry for distribute shared area action - only affected assets
       try {
+        // Get affected assets (only those that received shared area)
+        const affectedAssetIds = businessAssets.map(a => a.asset_id);
+        const beforeAssets = assets
+          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
+          .map(a => ({ ...a }));
+        const afterAssets = updatedAssets
+          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
+          .map(a => {
+            const assetId = String(a.asset_id);
+            const changes = updatedDirtyAssets.get(assetId) || {};
+            return { ...a, ...changes } as Asset;
+          });
+        
         const beforeData = {
-          building: building,
-          assets: assets.filter(a => !deletedAssets.has(String(a.asset_id)))
+          assets: beforeAssets,
+          shared_area_distributed: building.business_shared_area,
+          shared_area_type: 'business',
+          overload_ratio: overloadRatioPercentage
         };
         const afterData = {
-          building: building,
-          assets: updatedAssets.filter(a => !deletedAssets.has(String(a.asset_id)))
+          assets: afterAssets,
+          shared_area_distributed: building.business_shared_area,
+          shared_area_type: 'business',
+          overload_ratio: overloadRatioPercentage
         };
-        await api.auditLog.logBuildingAction(
-          buildingNumber,
-          'distribute_shared',
-          beforeData,
-          afterData,
-          `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
-        );
+        
+        await api.auditLog.logEntry({
+          action_type: 'distribute_shared',
+          entity_type: 'bulk_asset',
+          entity_id: affectedAssetIds.join(','),
+          before_data: beforeData,
+          after_data: afterData,
+          description: `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
+        });
       } catch (auditError) {
         console.warn('Failed to log audit entry for distribute shared area:', auditError);
         // Don't block the operation if audit logging fails

@@ -289,11 +289,11 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return assetId || '';
   };
 
-  // Prepare columns: allowed fields first, then _source and asset_id at the end (right side)
-  // Swap asset_id and _source so asset_id comes before _source
+  // Prepare columns: asset_id and _source first (right side in RTL), then allowed fields
+  // In RTL, items at the beginning of the array appear on the right
   const tableColumns = useMemo(() => {
     const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id');
-    return [...fieldsWithoutAssetId, 'asset_id', '_source'];
+    return ['_source', 'asset_id', ...fieldsWithoutAssetId];
   }, [allowedFields]);
 
   return (

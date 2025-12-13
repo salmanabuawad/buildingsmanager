@@ -11,14 +11,15 @@ import { TransferAreas } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
 import { AssetDataEntry } from './components/AssetDataEntry';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save } from 'lucide-react';
+import { AuditLog } from './components/AuditLog';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -421,6 +422,19 @@ function App() {
     };
 
     // Remove all other field-config tabs, then add new one
+    openTab(newTab);
+  }
+
+  function openAuditLog() {
+    const auditLogTabId = 'audit-log-panel';
+
+    const newTab: Tab = {
+      id: auditLogTabId,
+      type: 'audit-log',
+      label: 'יומן ביקורת'
+    };
+
+    // Remove all other audit-log tabs, then add new one
     openTab(newTab);
   }
 
@@ -892,6 +906,13 @@ function App() {
                   <span className="font-medium text-slate-700">הזנת נתוני נכס</span>
                   <Edit className="h-3.5 w-3.5 text-pink-600" />
                 </button>
+                <button
+                  onClick={openAuditLog}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">יומן ביקורת</span>
+                  <FileText className="h-3.5 w-3.5 text-pink-600" />
+                </button>
               </div>
             )}
           </div>
@@ -1042,6 +1063,9 @@ function App() {
                   }));
                 }}
               />
+            )}
+            {activeTab?.type === 'audit-log' && (
+              <AuditLog />
             )}
           </div>
         </div>

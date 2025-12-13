@@ -176,6 +176,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
     const assetErrors = validationErrors.get(assetId);
     const hasErrors = assetErrors && assetErrors.size > 0;
+    
+    // Make history rows clickable with visual feedback
+    const isHistoryRow = params.data?.is_latest === false;
+    const hasActionId = isHistoryRow && params.data?.action_id;
 
     const asset = params.data as Asset;
     const numericRegex = /^[0-9]+$/;
@@ -205,8 +209,24 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       baseStyle.borderLeft = '3px solid #d1d5db';
     }
 
+    // Make history rows with action_id clickable
+    if (hasActionId) {
+      baseStyle.cursor = 'pointer';
+    }
+
     return baseStyle;
   }, [validationErrors]);
+
+  // Add row class for clickable history rows
+  const getRowClass = useCallback((params: any) => {
+    const isHistoryRow = params.data?.is_latest === false;
+    const hasActionId = isHistoryRow && params.data?.action_id;
+    
+    if (hasActionId) {
+      return 'clickable-history-row';
+    }
+    return '';
+  }, []);
 
   // Helper function to validate discount dates
   const validateDiscountDates = useCallback((asset: Asset): string[] => {
@@ -2762,7 +2782,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             {historyRows.length > 0 && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-slate-800">מדידות קודמות ({historyRows.length})</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-slate-800">מדידות קודמות ({historyRows.length})</h3>
+                    <span className="text-xs text-gray-500">(לחץ על שורה כדי לראות פרטי ביקורת)</span>
+                  </div>
                   <button
                     onClick={() => {
                       if (!historyRows || historyRows.length === 0) {
@@ -2832,6 +2855,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                     }}
                     getRowStyle={getRowStyle}
+                    getRowClass={getRowClass}
                     onGridReady={async (params) => {
                       // Load saved column state first
                       await historyGridPreferences.loadColumnState(params.api);

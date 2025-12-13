@@ -570,6 +570,7 @@ export function FieldConfigManager() {
       width: FIXED_COLUMN_WIDTH,
       minWidth: FIXED_COLUMN_WIDTH,
       maxWidth: FIXED_COLUMN_WIDTH,
+      hide: true, // Hide from grid UI
       valueGetter: (params) => {
         const config = params.data as FieldConfiguration;
         const key = `${config.grid_name}-${config.field_name}`;
@@ -610,6 +611,7 @@ export function FieldConfigManager() {
       width: FIXED_COLUMN_WIDTH,
       minWidth: FIXED_COLUMN_WIDTH,
       maxWidth: FIXED_COLUMN_WIDTH,
+      hide: true, // Hide from grid UI
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
         values: [null, 'left', 'right'],

@@ -76,6 +76,7 @@ export interface Asset {
   discount_type?: string; // סוג הנחה (Discount type)
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
+  action_id?: number; // References the audit entry that caused this record to be created or updated
 }
 
 export interface AssetMeasurement {

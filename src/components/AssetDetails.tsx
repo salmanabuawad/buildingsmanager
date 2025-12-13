@@ -454,19 +454,33 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     const rowData = event.data as Asset;
     console.log('[AssetDetails] History row clicked:', {
       asset_id: rowData?.asset_id,
-      action_id: (rowData as any)?.action_id,
+      action_id: rowData?.action_id,
       is_latest: rowData?.is_latest,
-      rowData: rowData
+      hasActionId: rowData?.action_id != null
     });
     
+    // Only handle single click, not double click
+    // Double click is handled by handleRowDoubleClick for editing
+    if (event.type === 'dblclick') {
+      return;
+    }
+    
     // Check if the row has an action_id (from history records)
-    const actionId = (rowData as any)?.action_id;
-    if (rowData && actionId) {
+    const actionId = rowData?.action_id;
+    if (rowData && actionId != null && actionId !== undefined && typeof actionId === 'number') {
       console.log('[AssetDetails] Opening audit details modal for action_id:', actionId);
-      setSelectedActionId(actionId);
-      setIsAuditDetailsModalOpen(true);
+      // Use setTimeout to ensure state updates happen in the correct order
+      setTimeout(() => {
+        setSelectedActionId(actionId);
+        setIsAuditDetailsModalOpen(true);
+      }, 0);
     } else {
-      console.warn('[AssetDetails] No action_id found for history row:', rowData);
+      console.warn('[AssetDetails] No valid action_id found for history row:', {
+        asset_id: rowData?.asset_id,
+        action_id: rowData?.action_id,
+        actionIdType: typeof rowData?.action_id,
+        hasRowData: !!rowData
+      });
       setToast({ 
         message: 'לא נמצא מזהה פעולה עבור רשומה זו', 
         type: 'info' 

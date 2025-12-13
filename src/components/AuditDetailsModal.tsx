@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { AuditLog, Asset, api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
@@ -32,18 +32,14 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
   const afterGridPreferences = useGridPreferences(afterGridRef, 'audit-details-after', 'default');
   const assetsGridPreferences = useGridPreferences(assetsGridRef, 'audit-details-assets', 'default');
 
-  // Load audit log and related assets when actionId changes
-  useEffect(() => {
-    if (isOpen && actionId) {
-      loadAuditDetails();
-    } else {
-      setAuditLog(null);
-      setRelatedAssets([]);
+  // Load audit log and related assets - memoized to prevent infinite loops
+  const loadAuditDetails = useCallback(async () => {
+    if (!actionId) {
+      console.warn('[AuditDetailsModal] No actionId provided');
+      return;
     }
-  }, [isOpen, actionId]);
-
-  async function loadAuditDetails() {
-    if (!actionId) return;
+    
+    console.log('[AuditDetailsModal] Loading audit details for actionId:', actionId);
     
     try {
       setLoading(true);
@@ -52,6 +48,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       // Load audit log entry
       const audit = await api.auditLog.getOne(actionId);
       setAuditLog(audit);
+      console.log('[AuditDetailsModal] Audit log loaded:', audit);
       
       // Load all assets with the same action_id
       const { data, error: assetsError } = await supabase
@@ -76,13 +73,27 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       ];
       
       setRelatedAssets(allAssets);
+      console.log('[AuditDetailsModal] Related assets loaded:', allAssets.length);
     } catch (err) {
-      console.error('Error loading audit details:', err);
+      console.error('[AuditDetailsModal] Error loading audit details:', err);
       setError(err instanceof Error ? err.message : 'Failed to load audit details');
     } finally {
       setLoading(false);
     }
-  }
+  }, [actionId]);
+
+  // Load audit log and related assets when actionId changes
+  useEffect(() => {
+    console.log('[AuditDetailsModal] useEffect triggered:', { isOpen, actionId });
+    if (isOpen && actionId) {
+      loadAuditDetails();
+    } else {
+      setAuditLog(null);
+      setRelatedAssets([]);
+      setError(null);
+      setLoading(false);
+    }
+  }, [isOpen, actionId, loadAuditDetails]);
 
   // Parse JSON data
   const parseAuditData = (jsonData: any): ParsedAuditData | null => {

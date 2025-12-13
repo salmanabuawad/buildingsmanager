@@ -1020,6 +1020,16 @@ export const api = {
             throw new Error(`שגיאה ביצירת נכס חדש: ${insertError.message}`);
           }
           
+          // Update building total area (transaction-based, replaces trigger)
+          try {
+            await supabase.rpc('update_building_total_area', {
+              p_building_number: newAsset.building_number
+            });
+          } catch (areaError) {
+            console.warn('Failed to update building total area after asset replacement:', areaError);
+            // Don't fail the operation if area update fails
+          }
+
           // Log audit entry for new asset creation
           try {
             await supabase.rpc('log_audit_for_asset', {
@@ -1088,6 +1098,16 @@ export const api = {
         throw new Error(`${errorMessage}${details}${hint}`);
       }
       
+      // Update building total area (transaction-based, replaces trigger)
+      try {
+        await supabase.rpc('update_building_total_area', {
+          p_building_number: data.building_number
+        });
+      } catch (areaError) {
+        console.warn('Failed to update building total area after asset creation:', areaError);
+        // Don't fail the operation if area update fails
+      }
+      
       // Log audit entry (transaction-based, replaces trigger)
       const userName = await getCurrentUserName();
       try {
@@ -1137,15 +1157,24 @@ export const api = {
       }
 
       // If is_new_measurement is true, copy old asset to history BEFORE update
+      // This replaces the trigger_reset_new_measurement_flag and trigger_copy_asset_to_history
       if (isNewMeasurement === true) {
         try {
           await supabase.rpc('copy_asset_to_history_before_update', {
             p_asset_id: parseInt(id)
           });
+          // Reset the flag after copying to history (replaces trigger_reset_new_measurement_flag behavior)
+          // We'll set it to false in the update below
+          (sanitizedInput as any).is_new_measurement = false;
         } catch (historyError) {
           console.warn('Failed to copy asset to history before update:', historyError);
           // Continue with update even if history copy fails
+          // Still reset the flag
+          (sanitizedInput as any).is_new_measurement = false;
         }
+      } else if (isNewMeasurement === false) {
+        // Explicitly set to false if provided
+        (sanitizedInput as any).is_new_measurement = false;
       }
       
       // Perform the UPDATE
@@ -1202,6 +1231,16 @@ export const api = {
         throw new Error(fullErrorMessage);
       }
 
+      // Update building total area (transaction-based, replaces trigger)
+      try {
+        await supabase.rpc('update_building_total_area', {
+          p_building_number: updatedAsset.building_number
+        });
+      } catch (areaError) {
+        console.warn('Failed to update building total area after asset update:', areaError);
+        // Don't fail the operation if area update fails
+      }
+
       // Log audit entry AFTER update (transaction-based, replaces trigger)
       // If is_new_measurement is true, this will copy old asset to history before logging audit
       const userName = await getCurrentUserName();
@@ -1223,6 +1262,19 @@ export const api = {
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
       const assetId = typeof id === 'string' ? parseInt(id, 10) : id;
+      
+      // Get building number before deletion (needed for updating total area)
+      let buildingNumber: number | null = null;
+      try {
+        const { data: asset } = await supabase
+          .from('assets')
+          .select('building_number')
+          .eq('asset_id', assetId)
+          .maybeSingle();
+        buildingNumber = asset?.building_number || null;
+      } catch (err) {
+        console.warn('Failed to get building number before asset deletion:', err);
+      }
       
       // Log audit and copy to history BEFORE deletion (transaction-based, replaces trigger)
       const userName = await getCurrentUserName();
@@ -1247,6 +1299,18 @@ export const api = {
         .eq('asset_id', assetId);
 
       if (error) throw error;
+
+      // Update building total area (transaction-based, replaces trigger)
+      if (buildingNumber) {
+        try {
+          await supabase.rpc('update_building_total_area', {
+            p_building_number: buildingNumber
+          });
+        } catch (areaError) {
+          console.warn('Failed to update building total area after asset deletion:', areaError);
+          // Don't fail the operation if area update fails
+        }
+      }
 
       return { message: 'Asset deleted successfully' };
     },
@@ -1738,6 +1802,16 @@ export const api = {
       .eq('building_number', buildingNumber);
 
     if (error) throw error;
+
+    // Update building total area (transaction-based, replaces trigger)
+    try {
+      await supabase.rpc('update_building_total_area', {
+        p_building_number: buildingNumber
+      });
+    } catch (areaError) {
+      console.warn('Failed to update building total area after bulk asset deletion:', areaError);
+      // Don't fail the operation if area update fails
+    }
 
     // Delete from assets_history again to remove entries created by the trigger
     if (assetIds.length > 0) {

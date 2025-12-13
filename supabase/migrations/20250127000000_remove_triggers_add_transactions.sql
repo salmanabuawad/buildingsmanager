@@ -268,3 +268,42 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION log_audit_for_asset IS 'Log audit entry for asset operation';
+
+-- ============================================================================
+-- Function to update building total area from assets
+-- ============================================================================
+-- Drop the old trigger function (no parameters, returns TRIGGER)
+DROP FUNCTION IF EXISTS update_building_total_area();
+
+-- Create new function with parameter (returns void)
+CREATE OR REPLACE FUNCTION update_building_total_area(p_building_number bigint)
+RETURNS void AS $$
+BEGIN
+  UPDATE buildings
+  SET total_building_area = COALESCE((
+    SELECT SUM(a.asset_size)
+    FROM (
+      SELECT DISTINCT ON (asset_id)
+        asset_id,
+        asset_size,
+        main_asset_type
+      FROM assets
+      WHERE building_number = p_building_number
+      ORDER BY asset_id, updated_at DESC
+    ) a
+    WHERE (
+      a.main_asset_type IS NULL 
+      OR EXISTS (
+        SELECT 1 
+        FROM asset_types at 
+        WHERE at.name = a.main_asset_type 
+          AND at.active = 'כן'
+          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+      )
+    )
+  ), 0)
+  WHERE building_number = p_building_number;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION update_building_total_area IS 'Update building total area based on sum of asset sizes (excluding not_accountable assets)';

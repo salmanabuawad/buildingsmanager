@@ -462,13 +462,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleHistoryRowClick = useCallback((event: any) => {
-    const rowData = event.data as Asset;
-    
-    // Clear any pending timeout from previous clicks
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
-      clickTimeoutRef.current = null;
+    // Prevent default behavior
+    if (event.event) {
+      event.event.preventDefault?.();
     }
+    
+    const rowData = event.data as Asset;
     
     console.log('[AssetDetails] History row clicked:', {
       asset_id: rowData?.asset_id,
@@ -476,7 +475,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       is_latest: rowData?.is_latest,
       hasActionId: rowData?.action_id != null,
       eventType: event.type,
-      allKeys: rowData ? Object.keys(rowData).slice(0, 20) : []
+      event: event.event?.type,
+      allKeys: rowData ? Object.keys(rowData).slice(0, 20) : [],
+      fullRowData: rowData
     });
     
     // Only process history rows (not latest)
@@ -486,21 +487,26 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
     
     // Check if the row has an action_id (from history records)
-    const actionId = rowData?.action_id;
+    // Try multiple ways to get action_id (it might be a string or number)
+    const actionId = rowData?.action_id ?? (rowData as any)?.action_id;
+    const actionIdNum = typeof actionId === 'string' ? parseInt(actionId, 10) : actionId;
+    
     console.log('[AssetDetails] Checking actionId:', {
       actionId,
+      actionIdNum,
       type: typeof actionId,
       isNull: actionId === null,
       isUndefined: actionId === undefined,
-      isNumber: typeof actionId === 'number'
+      isValid: actionIdNum != null && !isNaN(actionIdNum) && actionIdNum > 0
     });
     
-    if (rowData && actionId != null && actionId !== undefined && typeof actionId === 'number') {
-      console.log('[AssetDetails] Valid actionId found, opening modal:', actionId);
+    // Check if we have a valid action_id (number > 0)
+    if (rowData && actionIdNum != null && !isNaN(actionIdNum) && actionIdNum > 0) {
+      console.log('[AssetDetails] Valid actionId found, opening modal:', actionIdNum);
       // Set state immediately
-      setSelectedActionId(actionId);
+      setSelectedActionId(actionIdNum);
       setIsAuditDetailsModalOpen(true);
-      console.log('[AssetDetails] State set - selectedActionId:', actionId, 'isOpen: true');
+      console.log('[AssetDetails] State set - selectedActionId:', actionIdNum, 'isOpen: true');
     } else {
       console.warn('[AssetDetails] No valid action_id found for history row:', {
         asset_id: rowData?.asset_id,
@@ -512,11 +518,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           building_number: rowData.building_number,
           measurement_date: rowData.measurement_date,
           is_latest: rowData.is_latest,
-          action_id: (rowData as any).action_id
+          action_id: (rowData as any).action_id,
+          history_created_at: (rowData as any).history_created_at
         } : null
       });
       setToast({ 
-        message: 'לא נמצא מזהה פעולה עבור רשומה זו', 
+        message: 'לא נמצא מזהה פעולה עבור רשומה זו. ייתכן שהרשומה נוצרה לפני הוספת מערכת הביקורת.', 
         type: 'info' 
       });
     }
@@ -3049,12 +3056,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     onSortChanged={() => {}}
                     onRowDoubleClicked={(event: any) => {
                       // Handle double-click for editing (only for latest records)
-                      handleRowDoubleClick(event);
+                      // Don't process double-click for history rows - they should open audit modal
+                      if (event.data?.is_latest === true) {
+                        handleRowDoubleClick(event);
+                      }
                     }}
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
-                      handleHistoryRowClick(event);
+                      // Only process if it's a history row (not latest)
+                      if (event.data?.is_latest !== true) {
+                        handleHistoryRowClick(event);
+                      }
                     }}
+                    suppressRowClickSelection={false}
                     enableRtl={true}
                     animateRows={true}
                     tooltipShowDelay={200}

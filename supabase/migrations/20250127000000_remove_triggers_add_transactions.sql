@@ -83,6 +83,7 @@ BEGIN
   
   IF v_old_asset IS NOT NULL THEN
     -- Copy to history
+    -- Note: history_created_at is set to now() to mark when this record was moved to history
     INSERT INTO assets_history (
       building_number, payer_id, asset_id, measurement_date,
       main_asset_type, asset_size,
@@ -95,6 +96,7 @@ BEGIN
       structure_drawing_url, created_at, updated_at,
       elevator, single_double_family, condo, townhouses, penthouse,
       tax_region, floor, discount_type, discount_date_from, discount_date_to,
+      history_created_at,
       action_id
     ) VALUES (
       (v_old_asset->>'building_number')::bigint,
@@ -128,6 +130,7 @@ BEGIN
       v_old_asset->>'discount_type',
       v_old_asset->>'discount_date_from',
       v_old_asset->>'discount_date_to',
+      now(), -- history_created_at: timestamp when this record was moved to history
       NULL -- action_id will be set after audit entry is created
     );
   END IF;
@@ -161,7 +164,7 @@ BEGIN
     FROM assets_history ah
     WHERE ah.asset_id = p_asset_id
       AND ah.action_id IS NULL
-    ORDER BY ah.created_at DESC
+    ORDER BY COALESCE(ah.history_created_at, ah.created_at) DESC NULLS LAST
     LIMIT 1;
     
     IF v_old_asset IS NOT NULL THEN
@@ -183,7 +186,7 @@ BEGIN
       FROM assets_history ah
       WHERE ah.asset_id = p_asset_id
         AND ah.action_id IS NULL
-      ORDER BY ah.created_at DESC
+      ORDER BY COALESCE(ah.history_created_at, ah.created_at) DESC NULLS LAST
       LIMIT 1;
       
       IF v_old_asset IS NOT NULL THEN

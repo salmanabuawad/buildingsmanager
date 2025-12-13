@@ -462,12 +462,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleHistoryRowClick = useCallback((event: any) => {
-    // Prevent default behavior
-    if (event.event) {
-      event.event.preventDefault?.();
-    }
+    console.log('[AssetDetails] handleHistoryRowClick called with event:', event);
     
     const rowData = event.data as Asset;
+    
+    if (!rowData) {
+      console.error('[AssetDetails] No row data in click event');
+      return;
+    }
     
     console.log('[AssetDetails] History row clicked:', {
       asset_id: rowData?.asset_id,
@@ -501,12 +503,21 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     });
     
     // Check if we have a valid action_id (number > 0)
-    if (rowData && actionIdNum != null && !isNaN(actionIdNum) && actionIdNum > 0) {
+    // Also allow action_id = 0 in case it's a valid ID
+    if (rowData && actionIdNum != null && !isNaN(actionIdNum)) {
       console.log('[AssetDetails] Valid actionId found, opening modal:', actionIdNum);
-      // Set state immediately
+      // Set state immediately using React's state updater function to ensure it works
       setSelectedActionId(actionIdNum);
       setIsAuditDetailsModalOpen(true);
       console.log('[AssetDetails] State set - selectedActionId:', actionIdNum, 'isOpen: true');
+      
+      // Force a re-render check
+      setTimeout(() => {
+        console.log('[AssetDetails] State check after timeout:', {
+          selectedActionId: actionIdNum,
+          modalShouldBeOpen: true
+        });
+      }, 100);
     } else {
       console.warn('[AssetDetails] No valid action_id found for history row:', {
         asset_id: rowData?.asset_id,
@@ -3062,13 +3073,26 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       }
                     }}
                     onRowClicked={(event: any) => {
+                      console.log('[AssetDetails] Row clicked in history grid:', {
+                        hasData: !!event.data,
+                        is_latest: event.data?.is_latest,
+                        asset_id: event.data?.asset_id,
+                        action_id: event.data?.action_id,
+                        eventType: event.type,
+                        node: event.node?.id
+                      });
+                      
                       // Handle single click for audit details
                       // Only process if it's a history row (not latest)
-                      if (event.data?.is_latest !== true) {
+                      if (event.data && event.data.is_latest !== true) {
+                        console.log('[AssetDetails] Processing history row click');
                         handleHistoryRowClick(event);
+                      } else {
+                        console.log('[AssetDetails] Skipping - not a history row or no data');
                       }
                     }}
                     suppressRowClickSelection={false}
+                    stopEditingWhenCellsLoseFocus={true}
                     enableRtl={true}
                     animateRows={true}
                     tooltipShowDelay={200}

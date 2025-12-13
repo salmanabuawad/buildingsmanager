@@ -778,11 +778,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     const isHistoryRow = params.data?.is_latest === false;
     const hasActionId = isHistoryRow && params.data?.action_id != null;
     
-    if (hasActionId) {
+    // Only make clickable for distribution/transfer tabs, not for regular history tab
+    if (hasActionId && activeHistoryTab !== 'history') {
       return 'clickable-history-row';
     }
     return '';
-  }, []);
+  }, [activeHistoryTab]);
 
   // Helper function to validate discount dates
   const validateDiscountDates = useCallback((asset: Asset): string[] => {
@@ -1116,13 +1117,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         relatedAssets: []
       }));
     }
-  }, [auditDataCache, parseAuditData, extractAssets]);
+  }, [auditDataCache, parseAuditData, extractAssets, activeHistoryTab]);
 
   const handleHistoryRowClick = useCallback((event: any) => {
     const rowData = event.data as Asset;
     
-    // Don't handle clicks on detail rows or latest rows
-    if (!rowData || rowData.is_latest === true || (rowData as any)._isDetailRecord === true) {
+    // Don't handle clicks on detail rows, latest rows, or regular history records
+    // Only handle clicks for distribution/transfer tabs (where we want expansion)
+    if (!rowData || rowData.is_latest === true || (rowData as any)._isDetailRecord === true || activeHistoryTab === 'history') {
       return;
     }
     
@@ -3927,7 +3929,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       if (params.data?._isDetailRow) {
                         return { padding: 0 };
                       }
-                      return getRowStyle(params);
+                      const baseStyle = getRowStyle(params);
+                      // Make regular history records non-clickable (no pointer cursor)
+                      if (activeHistoryTab === 'history' && params.data?.is_latest !== true && !params.data?._isDetailRecord) {
+                        return { ...baseStyle, cursor: 'default' };
+                      }
+                      return baseStyle;
                     }}
                     getRowClass={(params) => {
                       if (params.data?._isDetailRow) {

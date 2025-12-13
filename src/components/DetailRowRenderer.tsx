@@ -214,23 +214,23 @@ export function DetailRowRenderer(params: DetailRowParams) {
     ];
     
     // Define allowed fields: asset_id, asset types, and sizes only
-    // Order: asset_id, then main type + size, then all subtypes (type + size pairs) in increasing order
+    // Order: asset_id, then subtypes in reverse order (6 to 1), then main type + size (reversed for distribution/transfer tabs)
     const allowedFields = [
       'asset_id',
-      'main_asset_type',
-      'asset_size',
-      'sub_asset_type_1',
-      'sub_asset_size_1',
-      'sub_asset_type_2',
-      'sub_asset_size_2',
-      'sub_asset_type_3',
-      'sub_asset_size_3',
-      'sub_asset_type_4',
-      'sub_asset_size_4',
-      'sub_asset_type_5',
-      'sub_asset_size_5',
+      'sub_asset_size_6',
       'sub_asset_type_6',
-      'sub_asset_size_6'
+      'sub_asset_size_5',
+      'sub_asset_type_5',
+      'sub_asset_size_4',
+      'sub_asset_type_4',
+      'sub_asset_size_3',
+      'sub_asset_type_3',
+      'sub_asset_size_2',
+      'sub_asset_type_2',
+      'sub_asset_size_1',
+      'sub_asset_type_1',
+      'asset_size',
+      'main_asset_type'
     ];
     
     // Create a map of column definitions for quick lookup
@@ -261,9 +261,13 @@ export function DetailRowRenderer(params: DetailRowParams) {
             }
             
             // For "before" rows or "after" rows without a matching "before" row, show asset_id
-            // Make clickable only if different from current tab's asset ID
+            // For detail records (from distribution/transfer), make all asset IDs clickable
+            // For other records, make clickable only if different from current tab's asset ID
+            const isDetailRecord = asset._isDetailRecord === true;
             const isDifferentFromTab = params.currentTabAssetId && assetId !== params.currentTabAssetId;
-            if (params.onSelectAsset && assetId && asset?.building_number && isDifferentFromTab) {
+            const shouldBeClickable = isDetailRecord || isDifferentFromTab;
+            
+            if (params.onSelectAsset && assetId && asset?.building_number && shouldBeClickable) {
               return (
                 <button
                   onClick={(e) => {
@@ -377,12 +381,12 @@ export function DetailRowRenderer(params: DetailRowParams) {
                   state: [{ colId: 'asset_id', sort: 'asc' }],
                   defaultState: { sort: null }
                 });
-                // Scroll to the left side (start) for RTL
+                // Scroll to the right side (end) for distribution/transfer tabs (reversed order)
                 setTimeout(() => {
                   const displayedColumns = gridParams.api.getDisplayedColumns();
-                  const firstColumn = displayedColumns[0];
-                  if (firstColumn) {
-                    gridParams.api.ensureColumnVisible(firstColumn, 'middle');
+                  const lastColumn = displayedColumns[displayedColumns.length - 1];
+                  if (lastColumn) {
+                    gridParams.api.ensureColumnVisible(lastColumn, 'middle');
                   }
                 }, 100);
               }}

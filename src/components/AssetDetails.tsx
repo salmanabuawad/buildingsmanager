@@ -628,21 +628,29 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       const actionIdKey = row.action_id != null ? `action_${row.action_id}` : null;
       
       if (actionIdKey && expandedHistoryRows.has(actionIdKey) && row.action_id != null) {
-        // Get all records with this action_id
-        const allRecordsForAction = allHistoryRowsByActionId.get(row.action_id) || [];
-        
-        // Add all records with this action_id as detail rows
-        allRecordsForAction.forEach((detailRow, index) => {
-          rows.push({
-            ...detailRow,
-            _isDetailRow: true,
-            _parentActionId: row.action_id,
-            _actionId: detailRow.action_id,
-            _isDetailRecord: true
+        // For history tab, skip detail records (only show audit detail row)
+        // For distribution and transfer tabs, include detail records
+        if (activeHistoryTab !== 'history') {
+          // Get all records with this action_id
+          const allRecordsForAction = allHistoryRowsByActionId.get(row.action_id) || [];
+          
+          // Add all records with this action_id as detail rows
+          allRecordsForAction.forEach((detailRow, index) => {
+            // Skip the master record itself (already added above)
+            if (detailRow.asset_id === row.asset_id && 
+                detailRow.measurement_date === row.measurement_date &&
+                detailRow.action_id === row.action_id) {
+              return;
+            }
+            rows.push({
+              ...detailRow,
+              _isDetailRecord: true, // Mark as detail record but NOT full-width row
+              _parentActionId: row.action_id
+            });
           });
-        });
+        }
         
-        // Also add the audit detail row
+        // Also add the audit detail row (full-width row showing audit details)
         rows.push({
           _isDetailRow: true,
           _parentActionId: row.action_id,
@@ -653,7 +661,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
     });
     return rows;
-  }, [activeHistoryRows, expandedHistoryRows, allHistoryRowsByActionId]);
+  }, [activeHistoryRows, expandedHistoryRows, allHistoryRowsByActionId, activeHistoryTab]);
 
   // Always use asset.tax_region as the source of truth
   // This ensures consistency between what's shown and what's stored in the asset record

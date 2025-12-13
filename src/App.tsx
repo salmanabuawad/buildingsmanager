@@ -32,19 +32,6 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
-  
-  // Listen for custom event to open asset view from audit details
-  useEffect(() => {
-    const handleOpenAssetView = (event: CustomEvent) => {
-      const { assetDbId, assetId, buildingNumber, taxRegion } = event.detail;
-      handleSelectAsset(assetDbId, assetId, buildingNumber, taxRegion);
-    };
-    
-    window.addEventListener('openAssetView', handleOpenAssetView as EventListener);
-    return () => {
-      window.removeEventListener('openAssetView', handleOpenAssetView as EventListener);
-    };
-  }, []);
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 'buildings', type: 'buildings', label: 'מבנים' }
   ]);
@@ -300,13 +287,18 @@ function App() {
     }
   }
 
-  function handleSelectAsset(assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) {
+  const handleSelectAsset = useCallback((assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
     const assetDetailsTabId = `asset-details-${assetDbId}`;
-    const existingTab = tabs.find(t => t.id === assetDetailsTabId);
+    
+    setTabs(prevTabs => {
+      const existingTab = prevTabs.find(t => t.id === assetDetailsTabId);
 
-    if (existingTab) {
-      setActiveTabId(assetDetailsTabId);
-    } else {
+      if (existingTab) {
+        // Tab already exists, just activate it
+        setActiveTabId(assetDetailsTabId);
+        return prevTabs;
+      }
+      
       const newTab: Tab = {
         id: assetDetailsTabId,
         type: 'asset-details',
@@ -316,10 +308,33 @@ function App() {
         taxRegion, // Pass taxRegion from AssetsList tab - same as AssetsList
         label: `נכס ${assetId}`
       };
-      // Remove all other asset-details tabs, then add new one
-      openTab(newTab);
-    }
-  }
+      
+      // Remove all other asset-details tabs (this closes the current tab if it's an asset-details tab)
+      const filteredTabs = prevTabs.filter(t => t.type !== 'asset-details');
+      
+      // Add the new tab
+      return [...filteredTabs, newTab];
+    });
+    
+    // Activate the new tab
+    setActiveTabId(assetDetailsTabId);
+  }, []);
+
+  // Listen for custom event to open asset view from audit details
+  useEffect(() => {
+    const handleOpenAssetView = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { assetDbId, assetId, buildingNumber, taxRegion } = customEvent.detail;
+      if (assetDbId && assetId && buildingNumber) {
+        handleSelectAsset(assetDbId, assetId, buildingNumber, taxRegion);
+      }
+    };
+    
+    window.addEventListener('openAssetView', handleOpenAssetView);
+    return () => {
+      window.removeEventListener('openAssetView', handleOpenAssetView);
+    };
+  }, [handleSelectAsset]);
 
   function handleOpenNewAsset(buildingNumber: number, taxRegion?: string) {
     const newAssetTabId = `asset-details-new-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;

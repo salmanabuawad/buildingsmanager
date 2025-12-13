@@ -218,22 +218,36 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
         setHistoryWithActionTypes(actionTypeMap);
         
-        // Also fetch asset records from assets_history for distribute_shared and transfer_area action_ids
+        // Also fetch asset records from assets_history AND assets table for distribute_shared and transfer_area action_ids
         const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
         const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
         
-        // Fetch distribution assets from assets_history
+        // Fetch distribution assets from both assets_history and assets table
         if (distributeActionIds.length > 0 && asset?.asset_id) {
           try {
-            const { data: distributeAssets, error: distributeErr } = await supabase
+            // Fetch from assets_history
+            const { data: distributeHistoryAssets, error: distributeHistoryErr } = await supabase
               .from('assets_history')
               .select('*')
               .eq('asset_id', asset.asset_id)
               .in('action_id', distributeActionIds);
             
-            if (!distributeErr && distributeAssets) {
-              setAdditionalDistributionAssets(distributeAssets.map(a => ({ ...a, is_latest: false } as Asset)));
+            // Fetch from assets table (current assets with distribute action_id)
+            const { data: distributeCurrentAssets, error: distributeCurrentErr } = await supabase
+              .from('assets')
+              .select('*')
+              .eq('asset_id', asset.asset_id)
+              .in('action_id', distributeActionIds);
+            
+            const allDistributeAssets: Asset[] = [];
+            if (!distributeHistoryErr && distributeHistoryAssets) {
+              allDistributeAssets.push(...distributeHistoryAssets.map(a => ({ ...a, is_latest: false } as Asset)));
             }
+            if (!distributeCurrentErr && distributeCurrentAssets) {
+              allDistributeAssets.push(...distributeCurrentAssets.map(a => ({ ...a, is_latest: false } as Asset)));
+            }
+            
+            setAdditionalDistributionAssets(allDistributeAssets);
           } catch (err) {
             if (process.env.NODE_ENV === 'development') {
               console.error('[AssetDetails] Error loading distribution assets:', err);
@@ -243,18 +257,32 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           setAdditionalDistributionAssets([]);
         }
         
-        // Fetch transfer assets from assets_history
+        // Fetch transfer assets from both assets_history and assets table
         if (transferActionIds.length > 0 && asset?.asset_id) {
           try {
-            const { data: transferAssets, error: transferErr } = await supabase
+            // Fetch from assets_history
+            const { data: transferHistoryAssets, error: transferHistoryErr } = await supabase
               .from('assets_history')
               .select('*')
               .eq('asset_id', asset.asset_id)
               .in('action_id', transferActionIds);
             
-            if (!transferErr && transferAssets) {
-              setAdditionalTransferAssets(transferAssets.map(a => ({ ...a, is_latest: false } as Asset)));
+            // Fetch from assets table (current assets with transfer action_id)
+            const { data: transferCurrentAssets, error: transferCurrentErr } = await supabase
+              .from('assets')
+              .select('*')
+              .eq('asset_id', asset.asset_id)
+              .in('action_id', transferActionIds);
+            
+            const allTransferAssets: Asset[] = [];
+            if (!transferHistoryErr && transferHistoryAssets) {
+              allTransferAssets.push(...transferHistoryAssets.map(a => ({ ...a, is_latest: false } as Asset)));
             }
+            if (!transferCurrentErr && transferCurrentAssets) {
+              allTransferAssets.push(...transferCurrentAssets.map(a => ({ ...a, is_latest: false } as Asset)));
+            }
+            
+            setAdditionalTransferAssets(allTransferAssets);
           } catch (err) {
             if (process.env.NODE_ENV === 'development') {
               console.error('[AssetDetails] Error loading transfer assets:', err);
@@ -304,8 +332,33 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
       if (actionType === 'distribute_shared') {
         // Add current asset but mark it so it appears in history grid
-        rows.push({ ...latestMeasurement, is_latest: false } as Asset);
+        // Check if not already added to avoid duplicates
+        const alreadyExists = rows.some(r => 
+          r.asset_id === latestMeasurement.asset_id && 
+          r.measurement_date === latestMeasurement.measurement_date &&
+          r.action_id === latestMeasurement.action_id
+        );
+        if (!alreadyExists) {
+          rows.push({ ...latestMeasurement, is_latest: false } as Asset);
+        }
       }
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AssetDetails] distributionHistoryRows:', {
+        count: rows.length,
+        historyRowsCount: historyRows.filter(r => {
+          if (r.action_id != null) {
+            const actionType = historyWithActionTypes.get(r.action_id);
+            return actionType === 'distribute_shared';
+          }
+          return false;
+        }).length,
+        additionalDistributionAssetsCount: additionalDistributionAssets.length,
+        latestMeasurementActionId: latestMeasurement?.action_id,
+        latestMeasurementActionType: latestMeasurement?.action_id ? historyWithActionTypes.get(latestMeasurement.action_id) : null,
+        actionTypesMap: Array.from(historyWithActionTypes.entries())
+      });
     }
     
     return rows;
@@ -3408,7 +3461,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             </div>
 
             {/* History Records Grid - 3 Tabs */}
-            {historyRows.length > 0 && (
+            {(historyRows.length > 0 || distributionHistoryRows.length > 0 || transferHistoryRows.length > 0) && (
               <div className="mt-6">
                 {/* Tab Navigation */}
                 <div className="flex items-center gap-2 mb-2 border-b border-gray-200">

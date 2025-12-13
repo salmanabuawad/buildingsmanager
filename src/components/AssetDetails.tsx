@@ -121,6 +121,25 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
+  // Prepare history rows with detail rows inserted
+  const historyRowsWithDetails = useMemo(() => {
+    const rows: any[] = [];
+    historyRows.forEach((row) => {
+      rows.push(row);
+      const rowId = `${row.asset_id}-${row.measurement_date}-history${row.history_created_at ? `-${row.history_created_at}` : ''}`;
+      if (expandedHistoryRows.has(rowId) && row.action_id != null) {
+        rows.push({
+          _isDetailRow: true,
+          _parentRowId: rowId,
+          _actionId: row.action_id,
+          _assetId: row.asset_id,
+          _measurementDate: row.measurement_date
+        });
+      }
+    });
+    return rows;
+  }, [historyRows, expandedHistoryRows]);
+
   // Always use asset.tax_region as the source of truth
   // This ensures consistency between what's shown and what's stored in the asset record
   // The tab's tax region should match the asset's tax_region (assets are filtered by tax_region)

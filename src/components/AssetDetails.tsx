@@ -13,6 +13,7 @@ import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { supabase } from '../lib/supabase';
 import { ValidationResultModal, SingleAssetValidationResult, ValidationProgress } from './ValidationResultModal';
 import { RowEditModal } from './RowEditModal';
+import { AuditDetailsModal } from './AuditDetailsModal';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
@@ -60,6 +61,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
+  const [isAuditDetailsModalOpen, setIsAuditDetailsModalOpen] = useState(false);
+  const [selectedActionId, setSelectedActionId] = useState<number | null>(null);
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
   const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -426,6 +429,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setIsRowEditModalOpen(true);
     }
   }, [editMode]);
+
+  const handleHistoryRowClick = useCallback((event: any) => {
+    const rowData = event.data as Asset;
+    // Check if the row has an action_id (from history records)
+    if (rowData && (rowData as any).action_id) {
+      setSelectedActionId((rowData as any).action_id);
+      setIsAuditDetailsModalOpen(true);
+    }
+  }, []);
 
   // Handler for saving changes from modal
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
@@ -2881,6 +2893,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     onSortChanged={() => {}}
                     onRowDoubleClicked={handleRowDoubleClick}
+                    onRowClicked={handleHistoryRowClick}
                     enableRtl={true}
                     animateRows={true}
                     tooltipShowDelay={200}
@@ -2900,6 +2913,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               rowData={selectedRowForEdit}
               assetTypes={assetTypes}
               onSave={handleSaveFromModal}
+            />
+
+            {/* Audit Details Modal */}
+            <AuditDetailsModal
+              isOpen={isAuditDetailsModalOpen}
+              onClose={() => {
+                setIsAuditDetailsModalOpen(false);
+                setSelectedActionId(null);
+              }}
+              actionId={selectedActionId}
             />
 
             {/* PDF Viewer Modal */}

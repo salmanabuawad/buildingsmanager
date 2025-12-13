@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { AuditLog, Asset, api } from '../lib/api';
+import { AuditLog, Asset, Building, api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -9,6 +9,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 interface ParsedAuditData {
   asset?: any;
   building?: any;
+  assets?: any[]; // Array of assets (for building audits)
 }
 
 interface AuditDetailsModalProps {
@@ -23,13 +24,18 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const beforeGridRef = useRef<AgGridReact<any>>(null);
-  const afterGridRef = useRef<AgGridReact<any>>(null);
-  const assetsGridRef = useRef<AgGridReact<Asset>>(null);
+  // Separate refs for building and asset grids
+  const beforeBuildingGridRef = useRef<AgGridReact<Building>>(null);
+  const beforeAssetGridRef = useRef<AgGridReact<Asset>>(null);
+  const afterBuildingGridRef = useRef<AgGridReact<Building>>(null);
+  const afterAssetGridRef = useRef<AgGridReact<Asset>>(null);
+  const relatedAssetsGridRef = useRef<AgGridReact<Asset>>(null);
 
-  const beforeGridPreferences = useGridPreferences(beforeGridRef, 'audit-details-before', 'default');
-  const afterGridPreferences = useGridPreferences(afterGridRef, 'audit-details-after', 'default');
-  const assetsGridPreferences = useGridPreferences(assetsGridRef, 'audit-details-assets', 'default');
+  const beforeBuildingGridPreferences = useGridPreferences(beforeBuildingGridRef, 'audit-details-before-building', 'default');
+  const beforeAssetGridPreferences = useGridPreferences(beforeAssetGridRef, 'audit-details-before-asset', 'default');
+  const afterBuildingGridPreferences = useGridPreferences(afterBuildingGridRef, 'audit-details-after-building', 'default');
+  const afterAssetGridPreferences = useGridPreferences(afterAssetGridRef, 'audit-details-after-asset', 'default');
+  const relatedAssetsGridPreferences = useGridPreferences(relatedAssetsGridRef, 'audit-details-related-assets', 'default');
 
   // Load audit log and related assets - memoized to prevent infinite loops
   const loadAuditDetails = useCallback(async () => {
@@ -103,106 +109,264 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       }
       return jsonData as ParsedAuditData;
     } catch (err) {
-      console.error('Error parsing audit data:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error parsing audit data:', err);
+      }
       return null;
     }
   };
 
-  // Flatten nested JSON data for grid display
-  const flattenData = (data: ParsedAuditData | null): any[] => {
+  // Extract building records from parsed data
+  const extractBuildings = (data: ParsedAuditData | null): Building[] => {
     if (!data) return [];
     
-    const rows: any[] = [];
-    
-    if (data.asset) {
-      rows.push({
-        _type: 'asset',
-        ...data.asset
-      });
-    }
+    const buildings: Building[] = [];
     
     if (data.building) {
-      rows.push({
-        _type: 'building',
-        ...data.building
-      });
+      // Handle both single building object and array
+      if (Array.isArray(data.building)) {
+        buildings.push(...data.building);
+      } else {
+        buildings.push(data.building);
+      }
     }
     
-    return rows;
+    return buildings;
   };
 
-  // Get before and after data
-  const beforeData = useMemo(() => {
+  // Extract asset records from parsed data
+  const extractAssets = (data: ParsedAuditData | null): Asset[] => {
+    if (!data) return [];
+    
+    const assets: Asset[] = [];
+    
+    // Handle assets array (for building audits)
+    if (data.assets && Array.isArray(data.assets)) {
+      assets.push(...data.assets);
+    }
+    
+    // Handle single asset (for asset audits)
+    if (data.asset) {
+      if (Array.isArray(data.asset)) {
+        assets.push(...data.asset);
+      } else {
+        assets.push(data.asset);
+      }
+    }
+    
+    return assets;
+  };
+
+  // Get before and after data separated by type
+  const beforeBuildings = useMemo(() => {
     if (!auditLog?.before_data) return [];
     const parsed = parseAuditData(auditLog.before_data);
-    return flattenData(parsed);
+    return extractBuildings(parsed);
   }, [auditLog]);
 
-  const afterData = useMemo(() => {
+  const beforeAssets = useMemo(() => {
+    if (!auditLog?.before_data) return [];
+    const parsed = parseAuditData(auditLog.before_data);
+    return extractAssets(parsed);
+  }, [auditLog]);
+
+  const afterBuildings = useMemo(() => {
     if (!auditLog?.after_data) return [];
     const parsed = parseAuditData(auditLog.after_data);
-    return flattenData(parsed);
+    return extractBuildings(parsed);
   }, [auditLog]);
 
-  // Column definitions for before/after grids
-  const createColumnDefs = (data: any[]): ColDef<any>[] => {
-    const allKeys = new Set<string>();
-    data.forEach(row => {
-      Object.keys(row).forEach(key => {
-        if (key !== '_type') allKeys.add(key);
-      });
-    });
+  const afterAssets = useMemo(() => {
+    if (!auditLog?.after_data) return [];
+    const parsed = parseAuditData(auditLog.after_data);
+    return extractAssets(parsed);
+  }, [auditLog]);
 
-    const columns: ColDef<any>[] = [
-      {
-        field: '_type',
-        headerName: 'סוג',
-        width: 100,
-        pinned: 'left',
-        lockPosition: true,
-        sortable: true,
-        filter: true,
-        headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right' }
-      }
-    ];
+  // Building column definitions
+  const buildingColumnDefs: ColDef<Building>[] = useMemo(() => [
+    {
+      field: 'building_number',
+      headerName: 'מספר בניין',
+      width: 120,
+      pinned: 'left',
+      lockPosition: true,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'tax_region',
+      headerName: 'אזור מס',
+      width: 100,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'total_building_area',
+      headerName: 'סה"כ שטח',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'residence_shared_area',
+      headerName: 'שטח משותף מגורים',
+      width: 150,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'business_shared_area',
+      headerName: 'שטח משותף עסקים',
+      width: 150,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'area_for_control',
+      headerName: 'שטח לבקרה',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'overload_ratio',
+      headerName: 'אחוז העמסה',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'building_address',
+      headerName: 'כתובת',
+      width: 150,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'gosh',
+      headerName: 'גוש',
+      width: 100,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'helka',
+      headerName: 'חלקה',
+      width: 100,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'building_number_in_street',
+      headerName: 'מספר בניין ברחוב',
+      width: 150,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
+  ], []);
 
-    // Limit to 50 columns for performance
-    const limitedKeys = Array.from(allKeys).sort().slice(0, 50);
+  // Asset column definitions
+  const assetColumnDefs: ColDef<Asset>[] = useMemo(() => [
+    {
+      field: 'asset_id',
+      headerName: 'מזהה נכס',
+      width: 120,
+      pinned: 'left',
+      lockPosition: true,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'building_number',
+      headerName: 'מספר בניין',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'payer_id',
+      headerName: 'מזהה משלם',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'measurement_date',
+      headerName: 'תאריך מדידה',
+      width: 150,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'main_asset_type',
+      headerName: 'סוג נכס ראשי',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'asset_size',
+      headerName: 'גודל נכס',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'tax_region',
+      headerName: 'אזור מס',
+      width: 100,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'floor',
+      headerName: 'קומה',
+      width: 100,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    }
+  ], []);
 
-    limitedKeys.forEach(key => {
-      columns.push({
-        field: key,
-        headerName: key,
-        width: 150,
-        sortable: true,
-        filter: true,
-        valueFormatter: (params: any) => {
-          if (params.value === null || params.value === undefined) return '';
-          if (typeof params.value === 'object') return JSON.stringify(params.value);
-          return String(params.value);
-        },
-        headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right' }
-      });
-    });
-
-    return columns;
-  };
-
-  // Memoize column definitions - only recreate when data actually changes
-  const beforeColumnDefs = useMemo(() => {
-    if (beforeData.length === 0) return [];
-    return createColumnDefs(beforeData);
-  }, [beforeData]);
-  
-  const afterColumnDefs = useMemo(() => {
-    if (afterData.length === 0) return [];
-    return createColumnDefs(afterData);
-  }, [afterData]);
-
-  // Assets grid column definitions
-  const assetsColumnDefs: ColDef<Asset>[] = useMemo(() => [
+  // Related assets grid column definitions (for assets with same action_id)
+  const relatedAssetsColumnDefs: ColDef<Asset>[] = useMemo(() => [
     {
       field: 'asset_id',
       headerName: 'מזהה נכס',
@@ -346,95 +510,185 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                 </div>
               </div>
 
-              {/* Before Data Grid */}
-              {beforeData.length > 0 && (
-                <div className="flex flex-col">
+              {/* Before Update Data */}
+              {(beforeBuildings.length > 0 || beforeAssets.length > 0) && (
+                <div className="flex flex-col space-y-4">
                   <h3 className="text-lg font-semibold text-slate-700 mb-2">נתונים לפני עדכון</h3>
-                  <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '300px' }}>
-                    <AgGridReact<any>
-                      ref={beforeGridRef}
-                      rowData={beforeData}
-                      columnDefs={beforeColumnDefs}
-                      defaultColDef={{
-                        resizable: true,
-                        wrapHeaderText: true,
-                        autoHeaderHeight: true,
-                        wrapText: true,
-                        autoHeight: false,
-                        sortable: true,
-                        filter: true,
-                        headerClass: 'ag-right-aligned-header',
-                        cellStyle: { textAlign: 'right' },
-                        minWidth: 100
-                      }}
-                      gridOptions={{
-                        suppressColumnVirtualisation: false, // Enable virtualization for better performance
-                        alwaysShowHorizontalScroll: true,
-                        suppressMovableColumns: true,
-                        suppressColumnMoveAnimation: true,
-                        rowBuffer: 5, // Reduce row buffer for better performance
-                        debounceVerticalScrollbar: true,
-                        enableCellTextSelection: false, // Disable text selection for better performance
-                      }}
-                      onGridReady={async (params: any) => {
-                        await beforeGridPreferences.loadColumnState(params.api);
-                        // Disable text overflow detection for performance
-                      }}
-                      onFirstDataRendered={async (_params: any) => {
-                        // Disable text overflow observer for performance
-                      }}
-                      onColumnResized={(_params: any) => {
-                        beforeGridPreferences.handleColumnResized();
-                        // Disable text overflow detection for performance
-                      }}
-                    />
-                  </div>
+                  
+                  {/* Before Buildings Grid */}
+                  {beforeBuildings.length > 0 && (
+                    <div className="flex flex-col">
+                      <h4 className="text-md font-medium text-slate-600 mb-2">בניינים ({beforeBuildings.length})</h4>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                        <AgGridReact<Building>
+                          ref={beforeBuildingGridRef}
+                          rowData={beforeBuildings}
+                          columnDefs={buildingColumnDefs}
+                          defaultColDef={{
+                            resizable: true,
+                            wrapHeaderText: true,
+                            autoHeaderHeight: true,
+                            wrapText: true,
+                            autoHeight: false,
+                            sortable: true,
+                            filter: true,
+                            headerClass: 'ag-right-aligned-header',
+                            cellStyle: { textAlign: 'right' },
+                            minWidth: 100
+                          }}
+                          gridOptions={{
+                            suppressColumnVirtualisation: false,
+                            alwaysShowHorizontalScroll: true,
+                            suppressMovableColumns: true,
+                            suppressColumnMoveAnimation: true,
+                            rowBuffer: 5,
+                            debounceVerticalScrollbar: true,
+                            enableCellTextSelection: false,
+                          }}
+                          onGridReady={async (params: any) => {
+                            await beforeBuildingGridPreferences.loadColumnState(params.api);
+                          }}
+                          onFirstDataRendered={async (_params: any) => {}}
+                          onColumnResized={(_params: any) => {
+                            beforeBuildingGridPreferences.handleColumnResized();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Before Assets Grid */}
+                  {beforeAssets.length > 0 && (
+                    <div className="flex flex-col">
+                      <h4 className="text-md font-medium text-slate-600 mb-2">נכסים ({beforeAssets.length})</h4>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                        <AgGridReact<Asset>
+                          ref={beforeAssetGridRef}
+                          rowData={beforeAssets}
+                          columnDefs={assetColumnDefs}
+                          defaultColDef={{
+                            resizable: true,
+                            wrapHeaderText: true,
+                            autoHeaderHeight: true,
+                            wrapText: true,
+                            autoHeight: false,
+                            sortable: true,
+                            filter: true,
+                            headerClass: 'ag-right-aligned-header',
+                            cellStyle: { textAlign: 'right' },
+                            minWidth: 100
+                          }}
+                          gridOptions={{
+                            suppressColumnVirtualisation: false,
+                            alwaysShowHorizontalScroll: true,
+                            suppressMovableColumns: true,
+                            suppressColumnMoveAnimation: true,
+                            rowBuffer: 5,
+                            debounceVerticalScrollbar: true,
+                            enableCellTextSelection: false,
+                          }}
+                          onGridReady={async (params: any) => {
+                            await beforeAssetGridPreferences.loadColumnState(params.api);
+                          }}
+                          onFirstDataRendered={async (_params: any) => {}}
+                          onColumnResized={(_params: any) => {
+                            beforeAssetGridPreferences.handleColumnResized();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* After Data Grid */}
-              {afterData.length > 0 && (
-                <div className="flex flex-col">
+              {/* After Update Data */}
+              {(afterBuildings.length > 0 || afterAssets.length > 0) && (
+                <div className="flex flex-col space-y-4">
                   <h3 className="text-lg font-semibold text-slate-700 mb-2">נתונים אחרי עדכון</h3>
-                  <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '300px' }}>
-                    <AgGridReact<any>
-                      ref={afterGridRef}
-                      rowData={afterData}
-                      columnDefs={afterColumnDefs}
-                      defaultColDef={{
-                        resizable: true,
-                        wrapHeaderText: true,
-                        autoHeaderHeight: true,
-                        wrapText: true,
-                        autoHeight: false,
-                        sortable: true,
-                        filter: true,
-                        headerClass: 'ag-right-aligned-header',
-                        cellStyle: { textAlign: 'right' },
-                        minWidth: 100
-                      }}
-                      gridOptions={{
-                        suppressColumnVirtualisation: false, // Enable virtualization for better performance
-                        alwaysShowHorizontalScroll: true,
-                        suppressMovableColumns: true,
-                        suppressColumnMoveAnimation: true,
-                        rowBuffer: 5, // Reduce row buffer for better performance
-                        debounceVerticalScrollbar: true,
-                        enableCellTextSelection: false, // Disable text selection for better performance
-                      }}
-                      onGridReady={async (params: any) => {
-                        await afterGridPreferences.loadColumnState(params.api);
-                        // Disable text overflow detection for performance
-                      }}
-                      onFirstDataRendered={async (_params: any) => {
-                        // Disable text overflow observer for performance
-                      }}
-                      onColumnResized={(_params: any) => {
-                        afterGridPreferences.handleColumnResized();
-                        // Disable text overflow detection for performance
-                      }}
-                    />
-                  </div>
+                  
+                  {/* After Buildings Grid */}
+                  {afterBuildings.length > 0 && (
+                    <div className="flex flex-col">
+                      <h4 className="text-md font-medium text-slate-600 mb-2">בניינים ({afterBuildings.length})</h4>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                        <AgGridReact<Building>
+                          ref={afterBuildingGridRef}
+                          rowData={afterBuildings}
+                          columnDefs={buildingColumnDefs}
+                          defaultColDef={{
+                            resizable: true,
+                            wrapHeaderText: true,
+                            autoHeaderHeight: true,
+                            wrapText: true,
+                            autoHeight: false,
+                            sortable: true,
+                            filter: true,
+                            headerClass: 'ag-right-aligned-header',
+                            cellStyle: { textAlign: 'right' },
+                            minWidth: 100
+                          }}
+                          gridOptions={{
+                            suppressColumnVirtualisation: false,
+                            alwaysShowHorizontalScroll: true,
+                            suppressMovableColumns: true,
+                            suppressColumnMoveAnimation: true,
+                            rowBuffer: 5,
+                            debounceVerticalScrollbar: true,
+                            enableCellTextSelection: false,
+                          }}
+                          onGridReady={async (params: any) => {
+                            await afterBuildingGridPreferences.loadColumnState(params.api);
+                          }}
+                          onFirstDataRendered={async (_params: any) => {}}
+                          onColumnResized={(_params: any) => {
+                            afterBuildingGridPreferences.handleColumnResized();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* After Assets Grid */}
+                  {afterAssets.length > 0 && (
+                    <div className="flex flex-col">
+                      <h4 className="text-md font-medium text-slate-600 mb-2">נכסים ({afterAssets.length})</h4>
+                      <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '250px' }}>
+                        <AgGridReact<Asset>
+                          ref={afterAssetGridRef}
+                          rowData={afterAssets}
+                          columnDefs={assetColumnDefs}
+                          defaultColDef={{
+                            resizable: true,
+                            wrapHeaderText: true,
+                            autoHeaderHeight: true,
+                            wrapText: true,
+                            autoHeight: false,
+                            sortable: true,
+                            filter: true,
+                            headerClass: 'ag-right-aligned-header',
+                            cellStyle: { textAlign: 'right' },
+                            minWidth: 100
+                          }}
+                          gridOptions={{
+                            suppressColumnVirtualisation: false,
+                            alwaysShowHorizontalScroll: true,
+                            suppressMovableColumns: true,
+                            suppressColumnMoveAnimation: true,
+                            rowBuffer: 5,
+                            debounceVerticalScrollbar: true,
+                            enableCellTextSelection: false,
+                          }}
+                          onGridReady={async (params: any) => {
+                            await afterAssetGridPreferences.loadColumnState(params.api);
+                          }}
+                          onFirstDataRendered={async (_params: any) => {}}
+                          onColumnResized={(_params: any) => {
+                            afterAssetGridPreferences.handleColumnResized();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -446,9 +700,9 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                   </h3>
                   <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '300px' }}>
                     <AgGridReact<Asset>
-                      ref={assetsGridRef}
+                      ref={relatedAssetsGridRef}
                       rowData={relatedAssets}
-                      columnDefs={assetsColumnDefs}
+                      columnDefs={relatedAssetsColumnDefs}
                       defaultColDef={{
                         resizable: true,
                         wrapHeaderText: true,
@@ -466,24 +720,20 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
                         return `${params.data.asset_id}-${params.data.measurement_date || ''}-${isLatest}`;
                       }}
                       gridOptions={{
-                        suppressColumnVirtualisation: false, // Enable virtualization for better performance
+                        suppressColumnVirtualisation: false,
                         alwaysShowHorizontalScroll: true,
                         suppressMovableColumns: true,
                         suppressColumnMoveAnimation: true,
-                        rowBuffer: 5, // Reduce row buffer for better performance
+                        rowBuffer: 5,
                         debounceVerticalScrollbar: true,
-                        enableCellTextSelection: false, // Disable text selection for better performance
+                        enableCellTextSelection: false,
                       }}
                       onGridReady={async (params: any) => {
-                        await assetsGridPreferences.loadColumnState(params.api);
-                        // Disable text overflow detection for performance
+                        await relatedAssetsGridPreferences.loadColumnState(params.api);
                       }}
-                      onFirstDataRendered={async (_params: any) => {
-                        // Disable text overflow observer for performance
-                      }}
+                      onFirstDataRendered={async (_params: any) => {}}
                       onColumnResized={(_params: any) => {
-                        assetsGridPreferences.handleColumnResized();
-                        // Disable text overflow detection for performance
+                        relatedAssetsGridPreferences.handleColumnResized();
                       }}
                     />
                   </div>

@@ -1243,17 +1243,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       delete (newAssetData as any).is_latest;
       delete (newAssetData as any).history_created_at;
 
-      // Step 1: Update the old record with is_new_measurement flag set to true
-      // The database trigger (copy_asset_to_history) will automatically copy the OLD record 
-      // (current asset data) to assets_history table before the update
-      // We only update the flag, so OLD contains all the current asset data
-      await api.assets.update(oldAssetId, { is_new_measurement: true });
-
-      // Step 2: Update the same asset with the new measurement data
-      // Since we already copied the old data to history, we can now update with new data
-      // This replaces the current asset data with the new measurement data (same asset_id, new measurement_date)
-      delete (newAssetData as any).is_new_measurement;
-      const updatedAsset = await api.assets.update(oldAssetId, newAssetData as any);
+      // Step 1: Update the asset with is_new_measurement flag set to true
+      // The api.assets.update function will:
+      //   1. Call copy_asset_to_history_before_update to copy old record to history
+      //   2. Update the asset with the new data
+      //   3. Create an audit log entry with p_copy_to_history=true
+      //   4. Link the history record to the audit entry via action_id
+      // We set is_new_measurement=true to trigger the history copy behavior
+      const updateDataWithFlag = {
+        ...newAssetData,
+        is_new_measurement: true
+      };
+      
+      console.log('[AssetDetails] Saving as new measurement with is_new_measurement=true');
+      const updatedAsset = await api.assets.update(oldAssetId, updateDataWithFlag as any);
 
       setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
       setDirtyAssets(new Map());

@@ -214,9 +214,11 @@ export function DetailRowRenderer(params: DetailRowParams) {
     ];
     
     // Define allowed fields: asset_id, asset types, and sizes only
-    // Order: asset_id, then all subtypes (type + size pairs), then main type + size
+    // Order: asset_id, then main type + size, then all subtypes (type + size pairs) in increasing order
     const allowedFields = [
       'asset_id',
+      'main_asset_type',
+      'asset_size',
       'sub_asset_type_1',
       'sub_asset_size_1',
       'sub_asset_type_2',
@@ -228,9 +230,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       'sub_asset_type_5',
       'sub_asset_size_5',
       'sub_asset_type_6',
-      'sub_asset_size_6',
-      'main_asset_type',
-      'asset_size'
+      'sub_asset_size_6'
     ];
     
     // Create a map of column definitions for quick lookup
@@ -377,12 +377,12 @@ export function DetailRowRenderer(params: DetailRowParams) {
                   state: [{ colId: 'asset_id', sort: 'asc' }],
                   defaultState: { sort: null }
                 });
-                // Scroll to the right side (for RTL)
+                // Scroll to the left side (start) for RTL
                 setTimeout(() => {
                   const displayedColumns = gridParams.api.getDisplayedColumns();
-                  const lastColumn = displayedColumns[displayedColumns.length - 1];
-                  if (lastColumn) {
-                    gridParams.api.ensureColumnVisible(lastColumn, 'middle');
+                  const firstColumn = displayedColumns[0];
+                  if (firstColumn) {
+                    gridParams.api.ensureColumnVisible(firstColumn, 'middle');
                   }
                 }, 100);
               }}

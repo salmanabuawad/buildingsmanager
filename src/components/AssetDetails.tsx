@@ -2263,11 +2263,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               </div>
             )}
           </div>
-        ) : (
-          <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title="Read-only">
-            <Upload className="h-5 w-5" />
-          </div>
-        )}
+        ) : null}
         {hasDrawing && asset.structure_drawing_url ? (
           <button
             onClick={(e) => {

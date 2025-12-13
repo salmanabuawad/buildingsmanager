@@ -193,23 +193,23 @@ export function DetailRowRenderer(params: DetailRowParams) {
   }, [params.assetColumnDefs]);
 
   // Define allowed fields: asset_id, asset types, and sizes only
-  // Order: asset_id, then subtypes in reverse order (6 to 1), then main type + size
+  // Order: reversed - main type + size first, then subtypes (1 to 6), then asset_id
   const allowedFields = useMemo(() => [
-    'asset_id',
-    'sub_asset_size_6',
-    'sub_asset_type_6',
-    'sub_asset_size_5',
-    'sub_asset_type_5',
-    'sub_asset_size_4',
-    'sub_asset_type_4',
-    'sub_asset_size_3',
-    'sub_asset_type_3',
-    'sub_asset_size_2',
-    'sub_asset_type_2',
-    'sub_asset_size_1',
-    'sub_asset_type_1',
+    'main_asset_type',
     'asset_size',
-    'main_asset_type'
+    'sub_asset_type_1',
+    'sub_asset_size_1',
+    'sub_asset_type_2',
+    'sub_asset_size_2',
+    'sub_asset_type_3',
+    'sub_asset_size_3',
+    'sub_asset_type_4',
+    'sub_asset_size_4',
+    'sub_asset_type_5',
+    'sub_asset_size_5',
+    'sub_asset_type_6',
+    'sub_asset_size_6',
+    'asset_id'
   ], []);
 
   // Helper function to get Hebrew header name
@@ -289,9 +289,11 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return assetId || '';
   };
 
-  // Prepare columns with _source first, then allowed fields
+  // Prepare columns: allowed fields first, then _source and asset_id at the end (right side)
+  // Swap asset_id and _source so asset_id comes before _source
   const tableColumns = useMemo(() => {
-    return ['_source', ...allowedFields];
+    const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id');
+    return [...fieldsWithoutAssetId, 'asset_id', '_source'];
   }, [allowedFields]);
 
   return (

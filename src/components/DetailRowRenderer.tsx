@@ -69,7 +69,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return null;
   }
 
-  // Combine all assets into one array with source indicators
+  // Combine all assets into one array with source indicators, sorted by asset_id
   const allDetailAssets = useMemo(() => {
     const combined: any[] = [];
     const actionType = auditLog?.action_type || 'manual_update';
@@ -99,6 +99,13 @@ export function DetailRowRenderer(params: DetailRowParams) {
         _source: 'related',
         _changeSource: actionType
       });
+    });
+    
+    // Sort by asset_id
+    combined.sort((a, b) => {
+      const idA = a.asset_id || 0;
+      const idB = b.asset_id || 0;
+      return idA - idB;
     });
     
     return combined;
@@ -192,7 +199,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       {/* Unified Assets Grid */}
       {allDetailAssets.length > 0 && (
         <div className="flex flex-col">
-          <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '400px' }}>
+          <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '200px' }}>
             <AgGridReact<Asset>
               ref={params.beforeAssetGridRef}
               rowData={allDetailAssets}
@@ -225,6 +232,11 @@ export function DetailRowRenderer(params: DetailRowParams) {
               }}
               onGridReady={async (gridParams: any) => {
                 await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
+                // Set default sort by asset_id
+                gridParams.api.applyColumnState({
+                  state: [{ colId: 'asset_id', sort: 'asc' }],
+                  defaultState: { sort: null }
+                });
               }}
               onFirstDataRendered={async (_gridParams: any) => {}}
               onColumnResized={(_gridParams: any) => {

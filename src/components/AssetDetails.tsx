@@ -3646,7 +3646,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 </div>
 
                 {/* Active Tab Content */}
-                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '280px', width: '100%', overflowX: 'auto' }}>
+                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRowsWithDetails}
@@ -3699,7 +3699,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     getRowHeight={(params) => {
                       if (params.data?._isDetailRow) {
-                        return 600; // Fixed height for detail rows
+                        return 250; // Fixed height for detail rows (reduced from 600)
                       }
                       return undefined; // Use default row height
                     }}

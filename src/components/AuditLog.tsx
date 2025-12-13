@@ -41,7 +41,8 @@ export function AuditLog() {
     try {
       setLoading(true);
       setError(null);
-      const logs = await api.auditLog.getAll();
+      // Limit to 1000 most recent entries for performance
+      const logs = await api.auditLog.getAll({ limit: 1000 });
       setAuditLogs(logs || []);
     } catch (err) {
       console.error('Error loading audit logs:', err);
@@ -99,36 +100,71 @@ export function AuditLog() {
   }, [selectedRow, parseAuditData, flattenData]);
 
   // Get master data - show audit log entries with after_data flattened into columns
+  // Only parse JSON when needed (lazy parsing for better performance)
   const masterData = useMemo(() => {
-    return auditLogs.map(log => {
+    // Limit parsing to first 100 rows for column detection to avoid performance issues
+    const sampleSize = Math.min(100, auditLogs.length);
+    const sampleLogs = auditLogs.slice(0, sampleSize);
+    
+    // Collect all possible keys from sample
+    const allPossibleKeys = new Set<string>();
+    sampleLogs.forEach(log => {
       const parsed = parseAuditData(log.after_data);
       const flattened = flattenData(parsed);
-      
-      // Merge audit log metadata with flattened after_data
+      flattened.forEach(row => {
+        Object.keys(row).forEach(key => {
+          if (key !== '_type') {
+            allPossibleKeys.add(key);
+          }
+        });
+      });
+    });
+    
+    // Limit to most common 50 fields to avoid too many columns
+    const commonKeys = Array.from(allPossibleKeys).slice(0, 50);
+    
+    // Now process all logs but only include common fields
+    return auditLogs.map(log => {
       const masterRow: any = {
         ...log,
-        _has_before_data: !!log.before_data
+        _has_before_data: !!log.before_data,
+        _after_data_parsed: false // Flag to indicate if parsed
       };
       
-      // Add flattened after_data fields to master row
-      if (flattened.length > 0) {
-        // Merge all flattened rows into one object (taking first non-null value for each key)
+      // Only parse and flatten if we have common keys to show
+      if (commonKeys.length > 0) {
+        const parsed = parseAuditData(log.after_data);
+        const flattened = flattenData(parsed);
+        
+        // Only add common fields to avoid too many columns
         flattened.forEach(row => {
-          Object.keys(row).forEach(key => {
-            if (key !== '_type' && masterRow[key] === undefined) {
+          commonKeys.forEach(key => {
+            if (row[key] !== undefined && masterRow[key] === undefined) {
               masterRow[key] = row[key];
             }
           });
         });
-        // Add a field to indicate which types are present
-        masterRow._data_types = flattened.map(r => r._type).join(', ');
       }
       
       return masterRow;
     });
   }, [auditLogs, parseAuditData, flattenData]);
 
+  // Extract column keys from masterData once and memoize
+  const masterDataColumnKeys = useMemo(() => {
+    const allAfterDataKeys = new Set<string>();
+    masterData.forEach(row => {
+      Object.keys(row).forEach(key => {
+        if (!['action_id', 'user_name', 'action_type', 'entity_type', 'entity_id', 'description', 'created_at', 'before_data', 'after_data', '_has_before_data', '_after_data_parsed'].includes(key)) {
+          allAfterDataKeys.add(key);
+        }
+      });
+    });
+    return Array.from(allAfterDataKeys).sort().slice(0, 50);
+  }, [auditLogs.length]); // Only recalculate when number of logs changes
+
   // Master grid column definitions (showing audit log metadata + after_data fields)
+  // Memoize based on column keys to avoid recalculation
   const masterColumnDefs: ColDef<any>[] = useMemo(() => {
     // Base columns for audit log metadata
     const baseColumns: ColDef<any>[] = [
@@ -216,19 +252,8 @@ export function AuditLog() {
       }
     ];
 
-    // Get all unique keys from after_data across all rows
-    const allAfterDataKeys = new Set<string>();
-    masterData.forEach(row => {
-      Object.keys(row).forEach(key => {
-        // Skip audit log metadata fields and internal fields
-        if (!['action_id', 'user_name', 'action_type', 'entity_type', 'entity_id', 'description', 'created_at', 'before_data', 'after_data', '_has_before_data', '_parsed_after_data', '_data_types'].includes(key)) {
-          allAfterDataKeys.add(key);
-        }
-      });
-    });
-
-    // Add columns for after_data fields
-    const afterDataColumns: ColDef<any>[] = Array.from(allAfterDataKeys).sort().map(key => ({
+    // Add columns for after_data fields using pre-computed keys
+    const afterDataColumns: ColDef<any>[] = masterDataColumnKeys.map(key => ({
       field: key,
       headerName: key,
       width: 150,
@@ -244,10 +269,13 @@ export function AuditLog() {
     }));
 
     return [...baseColumns, ...afterDataColumns];
-  }, [masterData]);
+  }, [masterDataColumnKeys]); // Only recalculate when column keys change
 
   // Detail grid column definitions (showing before_data fields)
+  // Limit columns to avoid performance issues
   const detailColumnDefs: ColDef<any>[] = useMemo(() => {
+    if (detailData.length === 0) return [];
+    
     // Get all unique keys from detail data
     const allKeys = new Set<string>();
     detailData.forEach(row => {
@@ -270,15 +298,18 @@ export function AuditLog() {
       }
     ];
 
+    // Limit to 50 columns max for performance
+    const limitedKeys = Array.from(allKeys).sort().slice(0, 50);
+
     // Add columns for each unique key
-    Array.from(allKeys).sort().forEach(key => {
+    limitedKeys.forEach(key => {
       columns.push({
         field: key,
         headerName: key,
         width: 150,
         sortable: true,
         filter: true,
-        valueFormatter: (params) => {
+        valueFormatter: (params: any) => {
           if (params.value === null || params.value === undefined) return '';
           if (typeof params.value === 'object') return JSON.stringify(params.value);
           return String(params.value);
@@ -289,7 +320,7 @@ export function AuditLog() {
     });
 
     return columns;
-  }, [detailData]);
+  }, [detailData.length]); // Only recalculate when detail data length changes
 
   const onMasterRowSelected = useCallback((event: any) => {
     if (event.node.isSelected()) {
@@ -363,12 +394,13 @@ export function AuditLog() {
             onRowClicked={onMasterRowSelected}
             getRowId={(params) => String(params.data.action_id)}
             gridOptions={{
-              suppressColumnVirtualisation: false,
+              suppressColumnVirtualisation: true, // Disable column virtualization for better performance with many columns
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
-              rowBuffer: 10,
+              rowBuffer: 20, // Increase buffer for smoother scrolling
               debounceVerticalScrollbar: true,
+              suppressRowVirtualisation: false, // Keep row virtualization enabled
             }}
             suppressHorizontalScroll={false}
             onGridReady={async (params) => {
@@ -415,12 +447,13 @@ export function AuditLog() {
               }}
               getRowId={(params) => `${params.data._type}-${params.rowIndex}`}
               gridOptions={{
-                suppressColumnVirtualisation: false,
+                suppressColumnVirtualisation: true, // Disable column virtualization for better performance
                 alwaysShowHorizontalScroll: true,
                 suppressMovableColumns: true,
                 suppressColumnMoveAnimation: true,
-                rowBuffer: 10,
+                rowBuffer: 20, // Increase buffer for smoother scrolling
                 debounceVerticalScrollbar: true,
+                suppressRowVirtualisation: false, // Keep row virtualization enabled
               }}
               suppressHorizontalScroll={false}
               onGridReady={async (params) => {

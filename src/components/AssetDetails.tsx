@@ -411,11 +411,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Filter history rows by action_type
   const regularHistoryRows = useMemo(() => {
-    return historyRows.filter(row => {
+    const filtered = historyRows.filter(row => {
       if (row.action_id == null) return true; // Records without action_id are regular history
       const actionType = historyWithActionTypes.get(row.action_id);
       return actionType === 'manual_update' || actionType === 'import_file' || actionType === null;
     });
+    
+    // Group by action_id and return only one master record per action_id
+    const grouped = new Map<number | null, Asset>();
+    filtered.forEach(row => {
+      const key = row.action_id ?? null;
+      if (!grouped.has(key)) {
+        grouped.set(key, row);
+      }
+    });
+    
+    return Array.from(grouped.values());
   }, [historyRows, historyWithActionTypes]);
 
   const distributionHistoryRows = useMemo(() => {
@@ -461,9 +472,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       )
     );
     
+    // Group by action_id and return only one master record per action_id
+    const grouped = new Map<number, Asset>();
+    uniqueRows.forEach(row => {
+      if (row.action_id != null) {
+        if (!grouped.has(row.action_id)) {
+          grouped.set(row.action_id, row);
+        }
+      }
+    });
+    
     if (process.env.NODE_ENV === 'development') {
       console.log('[AssetDetails] distributionHistoryRows:', {
-        count: uniqueRows.length,
+        count: grouped.size,
+        uniqueRowsCount: uniqueRows.length,
         historyRowsCount: historyRows.filter(r => {
           if (r.action_id != null) {
             const actionType = historyWithActionTypes.get(r.action_id);
@@ -475,11 +497,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         latestMeasurementActionId: latestMeasurement?.action_id,
         latestMeasurementActionType: latestMeasurement?.action_id ? historyWithActionTypes.get(latestMeasurement.action_id) : null,
         actionTypesMap: Array.from(historyWithActionTypes.entries()),
-        rows: uniqueRows
+        rows: Array.from(grouped.values())
       });
     }
     
-    return uniqueRows;
+    return Array.from(grouped.values());
   }, [historyRows, historyWithActionTypes, latestMeasurement, additionalDistributionAssets]);
 
   const transferHistoryRows = useMemo(() => {
@@ -507,10 +529,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
     }
     
-    return rows;
+    // Group by action_id and return only one master record per action_id
+    const grouped = new Map<number, Asset>();
+    rows.forEach(row => {
+      if (row.action_id != null) {
+        if (!grouped.has(row.action_id)) {
+          grouped.set(row.action_id, row);
+        }
+      }
+    });
+    
+    return Array.from(grouped.values());
   }, [historyRows, historyWithActionTypes, latestMeasurement, additionalTransferAssets]);
 
-  // Get active history rows based on selected tab
+  // Get active history rows based on selected tab (master records only)
   const activeHistoryRows = useMemo(() => {
     switch (activeHistoryTab) {
       case 'distribution':
@@ -522,16 +554,97 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
   }, [activeHistoryTab, regularHistoryRows, distributionHistoryRows, transferHistoryRows]);
 
+  // Store all records grouped by action_id for expansion
+  const allHistoryRowsByActionId = useMemo(() => {
+    const grouped = new Map<number, Asset[]>();
+    
+    // Collect all records from all tabs
+    const allRows: Asset[] = [];
+    
+    // Regular history rows
+    historyRows.forEach(row => {
+      if (row.action_id == null) return;
+      const actionType = historyWithActionTypes.get(row.action_id);
+      if (actionType === 'manual_update' || actionType === 'import_file' || actionType === null) {
+        allRows.push(row);
+      }
+    });
+    
+    // Distribution rows
+    historyRows.forEach(row => {
+      if (row.action_id != null) {
+        const actionType = historyWithActionTypes.get(row.action_id);
+        if (actionType === 'distribute_shared') {
+          allRows.push(row);
+        }
+      }
+    });
+    allRows.push(...additionalDistributionAssets);
+    if (latestMeasurement?.action_id != null) {
+      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
+      if (actionType === 'distribute_shared') {
+        allRows.push({ ...latestMeasurement, is_latest: false } as Asset);
+      }
+    }
+    
+    // Transfer rows
+    historyRows.forEach(row => {
+      if (row.action_id != null) {
+        const actionType = historyWithActionTypes.get(row.action_id);
+        if (actionType === 'transfer_area') {
+          allRows.push(row);
+        }
+      }
+    });
+    allRows.push(...additionalTransferAssets);
+    if (latestMeasurement?.action_id != null) {
+      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
+      if (actionType === 'transfer_area') {
+        allRows.push({ ...latestMeasurement, is_latest: false } as Asset);
+      }
+    }
+    
+    // Group by action_id
+    allRows.forEach(row => {
+      if (row.action_id != null) {
+        if (!grouped.has(row.action_id)) {
+          grouped.set(row.action_id, []);
+        }
+        grouped.get(row.action_id)!.push(row);
+      }
+    });
+    
+    return grouped;
+  }, [historyRows, historyWithActionTypes, additionalDistributionAssets, additionalTransferAssets, latestMeasurement]);
+
   // Prepare history rows with detail rows inserted (for active tab)
+  // When expanded, show all records with the same action_id
   const historyRowsWithDetails = useMemo(() => {
     const rows: any[] = [];
     activeHistoryRows.forEach((row) => {
       rows.push(row);
-      const rowId = `${row.asset_id}-${row.measurement_date}-history${row.history_created_at ? `-${row.history_created_at}` : ''}`;
-      if (expandedHistoryRows.has(rowId) && row.action_id != null) {
+      // Use action_id as the key for expansion
+      const actionIdKey = row.action_id != null ? `action_${row.action_id}` : null;
+      
+      if (actionIdKey && expandedHistoryRows.has(actionIdKey) && row.action_id != null) {
+        // Get all records with this action_id
+        const allRecordsForAction = allHistoryRowsByActionId.get(row.action_id) || [];
+        
+        // Add all records with this action_id as detail rows
+        allRecordsForAction.forEach((detailRow, index) => {
+          rows.push({
+            ...detailRow,
+            _isDetailRow: true,
+            _parentActionId: row.action_id,
+            _actionId: detailRow.action_id,
+            _isDetailRecord: true
+          });
+        });
+        
+        // Also add the audit detail row
         rows.push({
           _isDetailRow: true,
-          _parentRowId: rowId,
+          _parentActionId: row.action_id,
           _actionId: row.action_id,
           _assetId: row.asset_id,
           _measurementDate: row.measurement_date
@@ -539,7 +652,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
     });
     return rows;
-  }, [activeHistoryRows, expandedHistoryRows]);
+  }, [activeHistoryRows, expandedHistoryRows, allHistoryRowsByActionId]);
 
   // Always use asset.tax_region as the source of truth
   // This ensures consistency between what's shown and what's stored in the asset record
@@ -999,7 +1112,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const handleHistoryRowClick = useCallback((event: any) => {
     const rowData = event.data as Asset;
     
-    if (!rowData || rowData.is_latest === true) {
+    // Don't handle clicks on detail rows or latest rows
+    if (!rowData || rowData.is_latest === true || (rowData as any)._isDetailRecord === true) {
       return;
     }
     
@@ -1009,15 +1123,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     // Check if we have a valid action_id
     if (rowData && actionIdNum != null && !isNaN(actionIdNum)) {
-      const rowId = `${rowData.asset_id}-${rowData.measurement_date}-history${rowData.history_created_at ? `-${rowData.history_created_at}` : ''}`;
+      // Use action_id as the key for expansion
+      const actionIdKey = `action_${actionIdNum}`;
       
       // Toggle expanded state
       setExpandedHistoryRows(prev => {
         const newSet = new Set(prev);
-        if (newSet.has(rowId)) {
-          newSet.delete(rowId);
+        if (newSet.has(actionIdKey)) {
+          newSet.delete(actionIdKey);
         } else {
-          newSet.add(rowId);
+          newSet.add(actionIdKey);
           // Load audit data if not already loaded
           if (!auditDataCache.has(actionIdNum)) {
             loadAuditDetails(actionIdNum);
@@ -1025,6 +1140,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         }
         return newSet;
       });
+      
+      // Invalidate grid row height to re-render
+      if (historyGridRef.current?.api) {
+        historyGridRef.current.api.resetRowHeights();
+      }
     } else if (process.env.NODE_ENV === 'development') {
       console.warn('[AssetDetails] No valid action_id found for history row');
       setToast({ 

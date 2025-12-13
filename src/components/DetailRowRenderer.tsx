@@ -162,9 +162,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
           cellRenderer: (cellParams: any) => {
             const assetId = cellParams.value;
             const asset = cellParams.data as Asset;
-            // Only make clickable if different from current tab's asset_id
-            const isDifferentAsset = params.currentTabAssetId != null && assetId !== params.currentTabAssetId;
-            if (params.onSelectAsset && assetId && asset?.building_number && isDifferentAsset) {
+            // Make clickable if we have the necessary data and onSelectAsset callback
+            if (params.onSelectAsset && assetId && asset?.building_number) {
               return (
                 <button
                   onClick={(e) => {
@@ -199,7 +198,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       {/* Unified Assets Grid */}
       {allDetailAssets.length > 0 && (
         <div className="flex flex-col">
-          <div className="ag-theme-alpine rounded border border-blue-100" style={{ height: '200px' }}>
+          <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={params.beforeAssetGridRef}
               rowData={allDetailAssets}
@@ -213,8 +212,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
                 sortable: true,
                 filter: true,
                 headerClass: 'ag-right-aligned-header',
+                headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
                 cellStyle: { textAlign: 'right' },
-                minWidth: 100
+                minWidth: 40
               }}
               getRowId={(gridParams: any) => {
                 const source = gridParams.data._source || 'unknown';
@@ -228,8 +228,10 @@ export function DetailRowRenderer(params: DetailRowParams) {
                 suppressColumnMoveAnimation: true,
                 rowBuffer: 5,
                 debounceVerticalScrollbar: true,
+                suppressRowClickSelection: false,
                 enableCellTextSelection: false,
               }}
+              suppressHorizontalScroll={false}
               onGridReady={async (gridParams: any) => {
                 await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
                 // Set default sort by asset_id

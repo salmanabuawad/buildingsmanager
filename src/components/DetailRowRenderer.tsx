@@ -210,30 +210,33 @@ export function DetailRowRenderer(params: DetailRowParams) {
           if (source === 'related') return 'מושפע';
           return source;
         }
-      },
-      {
-        field: '_changeSource',
-        headerName: 'סוג שינוי',
-        width: 150,
-        pinned: 'left',
-        lockPosition: true,
-        sortable: true,
-        filter: true,
-        headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right' },
-        cellRenderer: (cellParams: any) => {
-          const changeSource = cellParams.value;
-          if (changeSource === 'manual_update') return 'עדכון ידני';
-          if (changeSource === 'import_file') return 'ייבוא קובץ';
-          if (changeSource === 'transfer_area') return 'העברת שטח';
-          if (changeSource === 'distribute_shared') return 'חלוקת שטח משותף';
-          return changeSource;
-        }
       }
     ];
     
+    // Define allowed fields: asset_id, asset types, and sizes only
+    const allowedFields = new Set([
+      'asset_id',
+      'main_asset_type',
+      'asset_size',
+      'sub_asset_type_1',
+      'sub_asset_size_1',
+      'sub_asset_type_2',
+      'sub_asset_size_2',
+      'sub_asset_type_3',
+      'sub_asset_size_3',
+      'sub_asset_type_4',
+      'sub_asset_size_4',
+      'sub_asset_type_5',
+      'sub_asset_size_5',
+      'sub_asset_type_6',
+      'sub_asset_size_6'
+    ]);
+    
     // Add asset columns with clickable asset_id and styling for changed values
-    params.assetColumnDefs.forEach((col: any) => {
+    // Only include allowed fields
+    params.assetColumnDefs
+      .filter((col: any) => allowedFields.has(col.field))
+      .forEach((col: any) => {
       if (col.field === 'asset_id') {
         cols.push({
           ...col,

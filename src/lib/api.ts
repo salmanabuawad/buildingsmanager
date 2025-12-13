@@ -2186,6 +2186,7 @@ export const api = {
       description?: string,
       userName?: string
     ): Promise<{ action_id: number }> => {
+      // This function is deprecated - use bulk_update_assets_with_audit instead
       // Get current user if not provided
       const currentUserName = userName || await getCurrentUserName();
 
@@ -2199,6 +2200,101 @@ export const api = {
         description,
       });
       return { action_id: result.action_id };
+    },
+    bulkUpdateAssets: async (
+      assets: Partial<Asset>[],
+      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
+      beforeData?: any,
+      afterData?: any,
+      description?: string,
+      userName?: string
+    ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
+      const currentUserName = userName || await getCurrentUserName();
+      
+      // Convert assets to array (Supabase will convert to JSONB automatically)
+      const assetsArray = assets.map(asset => {
+        const sanitized = sanitizeAssetInput(asset);
+        return {
+          ...sanitized,
+          asset_id: sanitized.asset_id,
+          building_number: sanitized.building_number,
+          asset_size: sanitized.asset_size || 0,
+          sub_asset_size_1: sanitized.sub_asset_size_1 || 0,
+          sub_asset_size_2: sanitized.sub_asset_size_2 || 0,
+          sub_asset_size_3: sanitized.sub_asset_size_3 || 0,
+          sub_asset_size_4: sanitized.sub_asset_size_4 || 0,
+          sub_asset_size_5: sanitized.sub_asset_size_5 || 0,
+          sub_asset_size_6: sanitized.sub_asset_size_6 || 0,
+        };
+      });
+      
+      const { data, error } = await supabase.rpc('bulk_update_assets_with_audit', {
+        p_assets: assetsArray,
+        p_action_type: actionType,
+        p_user_name: currentUserName,
+        p_before_data: beforeData || null,
+        p_after_data: afterData || null,
+        p_description: description || null
+      });
+      
+      if (error) throw error;
+      
+      return {
+        action_id: data.action_id,
+        affected_asset_ids: data.affected_asset_ids || [],
+        count: data.count || 0
+      };
+    },
+    bulkTransferAreas: async (
+      oldAssets: Asset[],
+      newAssets: Partial<Asset>[],
+      actionType: 'transfer_area' = 'transfer_area',
+      beforeData?: any,
+      afterData?: any,
+      description?: string,
+      userName?: string
+    ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
+      const currentUserName = userName || await getCurrentUserName();
+      
+      // Convert to arrays (Supabase will convert to JSONB automatically)
+      const oldAssetsArray = oldAssets.map(asset => ({
+        asset_id: asset.asset_id,
+        building_number: asset.building_number
+      }));
+      
+      const newAssetsArray = newAssets.map(asset => {
+        const sanitized = sanitizeAssetInput(asset);
+        return {
+          ...sanitized,
+          asset_id: sanitized.asset_id,
+          building_number: sanitized.building_number,
+          asset_size: sanitized.asset_size || 0,
+          sub_asset_size_1: sanitized.sub_asset_size_1 || 0,
+          sub_asset_size_2: sanitized.sub_asset_size_2 || 0,
+          sub_asset_size_3: sanitized.sub_asset_size_3 || 0,
+          sub_asset_size_4: sanitized.sub_asset_size_4 || 0,
+          sub_asset_size_5: sanitized.sub_asset_size_5 || 0,
+          sub_asset_size_6: sanitized.sub_asset_size_6 || 0,
+        };
+      });
+      
+      const { data, error } = await supabase.rpc('bulk_transfer_areas_with_audit', {
+        p_old_assets: oldAssetsArray, // Supabase will convert to JSONB automatically
+        p_new_assets: newAssetsArray, // Supabase will convert to JSONB automatically
+        p_action_type: actionType,
+        p_user_name: currentUserName,
+        p_before_data: beforeData || null,
+        p_after_data: afterData || null,
+        p_description: description || null
+      });
+      
+      if (error) throw error;
+      
+      return {
+        action_id: data.action_id,
+        affected_asset_ids: data.affected_asset_ids || [],
+        count: data.count || 0
+      };
     },
   },
 };

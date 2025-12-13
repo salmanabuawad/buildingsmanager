@@ -643,9 +643,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
     setLoading(true);
     try {
-      let savedCount = 0;
       const errors: string[] = [];
+      const oldAssets: Asset[] = [];
+      const newAssets: Partial<Asset>[] = [];
+      const validatedAssets: { old: Asset; new: Partial<Asset> }[] = [];
 
+      // First, validate all assets and collect old/new data
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
           // Get the full asset data with changes (assetId is asset_id)
@@ -658,24 +661,18 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           const updatedData = { ...originalAsset, ...changes };
 
           // For transfer areas tab: combine asset's tax_region with tab's taxRegion
-          // This allows validation against both the original asset tax region and the transferred tax region
           let combinedTaxRegion = '';
-          // Parse updatedData.tax_region - can be number or string (including comma-separated)
           const assetTaxRegionStr = updatedData.tax_region != null ? String(updatedData.tax_region) : '';
           const assetTaxRegions = assetTaxRegionStr 
             ? assetTaxRegionStr.split(',').map(r => r.trim()).filter(r => r)
             : [];
           const tabTaxRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
           
-          // Combine tax regions - merge both lists and remove duplicates
           const allTaxRegions = new Set<string>();
           assetTaxRegions.forEach(tr => allTaxRegions.add(tr));
           tabTaxRegions.forEach(tr => allTaxRegions.add(tr));
-          
           combinedTaxRegion = Array.from(allTaxRegions).join(',');
 
-          // Create a modified asset object with combined tax region for validation
-          // This ensures validateAssetTypeComplete uses the combined tax regions
           const assetForValidation = { ...updatedData, tax_region: combinedTaxRegion };
 
           // Validate before saving
@@ -687,32 +684,20 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             assetValidators.validateAssetType(updatedData.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeComplete(updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size, assetForValidation, combinedTaxRegion),
             assetValidators.validateOnlyComplexTypesCanHaveSubAssets(updatedData.main_asset_type, [
-              updatedData.sub_asset_type_1,
-              updatedData.sub_asset_type_2,
-              updatedData.sub_asset_type_3,
-              updatedData.sub_asset_type_4,
-              updatedData.sub_asset_type_5,
-              updatedData.sub_asset_type_6
+              updatedData.sub_asset_type_1, updatedData.sub_asset_type_2, updatedData.sub_asset_type_3,
+              updatedData.sub_asset_type_4, updatedData.sub_asset_type_5, updatedData.sub_asset_type_6
             ]),
             assetValidators.validateComplexTypesMustHaveSubAssets(updatedData.main_asset_type, [
-              updatedData.sub_asset_type_1,
-              updatedData.sub_asset_type_2,
-              updatedData.sub_asset_type_3,
-              updatedData.sub_asset_type_4,
-              updatedData.sub_asset_type_5,
-              updatedData.sub_asset_type_6
+              updatedData.sub_asset_type_1, updatedData.sub_asset_type_2, updatedData.sub_asset_type_3,
+              updatedData.sub_asset_type_4, updatedData.sub_asset_type_5, updatedData.sub_asset_type_6
             ])
           ];
 
           if (shouldValidateSubAssets) {
             validations.push(
               assetValidators.validateMinimumSubAssets([
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
+                updatedData.sub_asset_type_1, updatedData.sub_asset_type_2, updatedData.sub_asset_type_3,
+                updatedData.sub_asset_type_4, updatedData.sub_asset_type_5, updatedData.sub_asset_type_6
               ])
             );
           }
@@ -720,44 +705,18 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           validations.push(
             assetValidators.validateSubAssetSizeMatchesMain(
               updatedData.asset_size,
-              [
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
-              ],
-              [
-                updatedData.sub_asset_size_1,
-                updatedData.sub_asset_size_2,
-                updatedData.sub_asset_size_3,
-                updatedData.sub_asset_size_4,
-                updatedData.sub_asset_size_5,
-                updatedData.sub_asset_size_6
-              ],
+              [updatedData.sub_asset_type_1, updatedData.sub_asset_type_2, updatedData.sub_asset_type_3,
+               updatedData.sub_asset_type_4, updatedData.sub_asset_type_5, updatedData.sub_asset_type_6],
+              [updatedData.sub_asset_size_1, updatedData.sub_asset_size_2, updatedData.sub_asset_size_3,
+               updatedData.sub_asset_size_4, updatedData.sub_asset_size_5, updatedData.sub_asset_size_6],
               updatedData.main_asset_type
             ),
             assetValidators.validateSubAssetsFor199Or299(
-              updatedData.building_number,
-              updatedData.main_asset_type,
-              updatedData.asset_size,
-              [
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
-              ],
-              [
-                updatedData.sub_asset_size_1,
-                updatedData.sub_asset_size_2,
-                updatedData.sub_asset_size_3,
-                updatedData.sub_asset_size_4,
-                updatedData.sub_asset_size_5,
-                updatedData.sub_asset_size_6
-              ],
+              updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size,
+              [updatedData.sub_asset_type_1, updatedData.sub_asset_type_2, updatedData.sub_asset_type_3,
+               updatedData.sub_asset_type_4, updatedData.sub_asset_type_5, updatedData.sub_asset_type_6],
+              [updatedData.sub_asset_size_1, updatedData.sub_asset_size_2, updatedData.sub_asset_size_3,
+               updatedData.sub_asset_size_4, updatedData.sub_asset_size_5, updatedData.sub_asset_size_6],
               combinedTaxRegion
             ),
             assetValidators.validateAssetType(updatedData.sub_asset_type_1, 'sub_asset_type_1'),
@@ -781,7 +740,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           }
 
           // Prepare new asset data with updated measurement date
-          const newAssetData = {
+          const newAssetData: Partial<Asset> = {
             ...updatedData,
             measurement_date: finalMeasurementDate
           };
@@ -793,30 +752,10 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           delete (newAssetData as any).history_created_at;
           delete (newAssetData as any).is_new_measurement;
 
-          // First, try to update the old record with is_new_measurement flag set to true
-          // The database trigger will automatically move it to assets_history
-          // Skip audit logging for individual operations - we'll create a bulk audit entry later
-          try {
-            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true }, 'transfer_area', true);
-          } catch (updateErr) {
-            // If update fails (e.g., asset already moved to history), that's okay
-            // We'll just create the new measurement
-            console.warn(`Could not update old asset ${assetId} (might already be in history):`, updateErr);
-          }
-
-          // Then create the new measurement in assets table
-          // Skip audit logging for individual operations - we'll create a bulk audit entry later
-          const createdAsset = await api.assets.create(newAssetData as any, true);
-
-          // Update asset identifiers (key is asset_id)
-          setAssetIdentifiers(prev => {
-            const next = new Map(prev);
-            // Update the mapping: old asset_id -> new asset identifier
-            next.set(String(createdAsset.asset_id), { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
-            return next;
-          });
-
-          savedCount++;
+          // Store for bulk operation
+          oldAssets.push({ ...originalAsset });
+          newAssets.push(newAssetData);
+          validatedAssets.push({ old: originalAsset, new: newAssetData });
         } catch (err) {
           const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           const assetIdentifier = originalAsset?.asset_id || assetId;
@@ -825,71 +764,54 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         }
       }
 
-      // Log audit entry for transfer area action - only affected assets with before/after data
-      if (savedCount > 0) {
+      // If validation passed for all assets, perform bulk transfer with single audit entry
+      if (validatedAssets.length > 0 && errors.length === 0) {
         try {
-          // Collect before and after asset data
-          const beforeAssets: Asset[] = [];
-          const afterAssets: Asset[] = [];
-          const affectedAssetIds: number[] = [];
+          const beforeData = {
+            assets: oldAssets
+          };
+          const afterData = {
+            assets: newAssets
+          };
           
-          for (const assetId of Array.from(dirtyAssets.keys())) {
-            const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-            if (originalAsset) {
-              // Before: original asset state
-              beforeAssets.push({ ...originalAsset });
-              affectedAssetIds.push(originalAsset.asset_id);
-              
-              // After: fetch the newly created asset (it should have the same asset_id but new measurement_date)
-              // Since we just created it, we can get it from the API or use the createdAsset data
-              // For now, we'll need to fetch it or reconstruct it from the newAssetData
-              // The new asset will be in the assets list after refresh, but for audit we need it now
-              // We'll store the updated data that was used to create the new asset
-              const updatedData = dirtyAssets.get(assetId);
-              if (updatedData) {
-                const afterAsset = {
-                  ...originalAsset,
-                  ...updatedData,
-                  measurement_date: finalMeasurementDate
-                } as Asset;
-                afterAssets.push(afterAsset);
-              }
-            }
-          }
+          // Bulk transfer: move old assets to history, create new ones, all with same action_id
+          const result = await api.auditLog.bulkTransferAreas(
+            oldAssets,
+            newAssets,
+            'transfer_area',
+            beforeData,
+            afterData,
+            `Transferred areas for ${validatedAssets.length} assets as new measurements`
+          );
           
-          if (affectedAssetIds.length > 0) {
-            const beforeData = {
-              assets: beforeAssets
-            };
-            const afterData = {
-              assets: afterAssets
-            };
-            
-            await api.auditLog.logEntry({
-              action_type: 'transfer_area',
-              entity_type: 'bulk_asset',
-              entity_id: affectedAssetIds.join(','),
-              before_data: beforeData,
-              after_data: afterData,
-              description: `Transferred areas for ${savedCount} assets as new measurements`
+          // Update asset identifiers
+          for (const { new: newAsset } of validatedAssets) {
+            setAssetIdentifiers(prev => {
+              const next = new Map(prev);
+              next.set(String(newAsset.asset_id), { 
+                asset_id: newAsset.asset_id!, 
+                building_number: newAsset.building_number! 
+              });
+              return next;
             });
           }
-        } catch (auditError) {
-          console.warn('Failed to log audit entry for transfer area:', auditError);
-          // Don't block the operation if audit logging fails
+        } catch (bulkError) {
+          console.error('Failed to bulk transfer areas:', bulkError);
+          errors.push(`שגיאה בביצוע העברת שטחים: ${bulkError instanceof Error ? bulkError.message : 'Unknown error'}`);
         }
       }
 
-      if (errors.length > 0) {
-        const successMsg = savedCount > 0 ? `נשמרו ${savedCount} נכסים כמדידות חדשות. ` : '';
-        setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
-      } else {
-        setSuccess(`✓ נשמרו ${savedCount} נכסים כמדידות חדשות בהצלחה`);
-        setTimeout(() => setSuccess(null), 3000);
-      }
-
+      // Clear dirty assets and validation errors after processing
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
+
+      if (errors.length > 0) {
+        const successMsg = validatedAssets.length > 0 ? `נשמרו ${validatedAssets.length} נכסים כמדידות חדשות. ` : '';
+        setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
+      } else if (validatedAssets.length > 0) {
+        setSuccess(`✓ נשמרו ${validatedAssets.length} נכסים כמדידות חדשות בהצלחה`);
+        setTimeout(() => setSuccess(null), 3000);
+      }
       
       // Wait a bit for the database trigger to complete
       await new Promise(resolve => setTimeout(resolve, 500));

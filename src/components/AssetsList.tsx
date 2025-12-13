@@ -1751,24 +1751,27 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         updatedCount++;
       }
 
-      // Update state
-      setDirtyAssets(updatedDirtyAssets);
-      setAssets(updatedAssets);
-      
-      // Log audit entry for distribute shared area action - only affected assets
+      // Save all assets in bulk with single audit entry and action_id
       try {
         // Get affected assets (only those that received shared area)
         const affectedAssetIds = residentialAssets.map(a => a.asset_id);
         const beforeAssets = assets
           .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
           .map(a => ({ ...a }));
-        const afterAssets = updatedAssets
-          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
-          .map(a => {
-            const assetId = String(a.asset_id);
-            const changes = updatedDirtyAssets.get(assetId) || {};
-            return { ...a, ...changes } as Asset;
-          });
+        
+        // Prepare assets for bulk update (with all changes applied)
+        const assetsToUpdate: Partial<Asset>[] = [];
+        for (const asset of residentialAssets) {
+          const assetId = String(asset.asset_id);
+          const changes = updatedDirtyAssets.get(assetId) || {};
+          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          if (currentAsset) {
+            assetsToUpdate.push({
+              ...currentAsset,
+              ...changes
+            } as Partial<Asset>);
+          }
+        }
         
         const beforeData = {
           assets: beforeAssets,
@@ -1776,22 +1779,28 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           shared_area_type: 'residence'
         };
         const afterData = {
-          assets: afterAssets,
+          assets: assetsToUpdate,
           shared_area_distributed: building.residence_shared_area,
           shared_area_type: 'residence'
         };
         
-        await api.auditLog.logEntry({
-          action_type: 'distribute_shared',
-          entity_type: 'bulk_asset',
-          entity_id: affectedAssetIds.join(','),
-          before_data: beforeData,
-          after_data: afterData,
-          description: `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
-        });
+        // Bulk update all assets with single audit entry and action_id
+        const result = await api.auditLog.bulkUpdateAssets(
+          assetsToUpdate,
+          'distribute_shared',
+          beforeData,
+          afterData,
+          `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
+        );
+        
+        // Update state after successful bulk save
+        setDirtyAssets(updatedDirtyAssets);
+        setAssets(updatedAssets);
       } catch (auditError) {
-        console.warn('Failed to log audit entry for distribute shared area:', auditError);
-        // Don't block the operation if audit logging fails
+        console.warn('Failed to bulk update assets for distribute shared area:', auditError);
+        // Still update local state even if bulk save fails
+        setDirtyAssets(updatedDirtyAssets);
+        setAssets(updatedAssets);
       }
       
       // Show result in modal
@@ -2021,24 +2030,27 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         updatedCount++;
       }
 
-      // Update state
-      setDirtyAssets(updatedDirtyAssets);
-      setAssets(updatedAssets);
-      
-      // Log audit entry for distribute shared area action - only affected assets
+      // Save all assets in bulk with single audit entry and action_id
       try {
         // Get affected assets (only those that received shared area)
         const affectedAssetIds = businessAssets.map(a => a.asset_id);
         const beforeAssets = assets
           .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
           .map(a => ({ ...a }));
-        const afterAssets = updatedAssets
-          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
-          .map(a => {
-            const assetId = String(a.asset_id);
-            const changes = updatedDirtyAssets.get(assetId) || {};
-            return { ...a, ...changes } as Asset;
-          });
+        
+        // Prepare assets for bulk update (with all changes applied)
+        const assetsToUpdate: Partial<Asset>[] = [];
+        for (const asset of businessAssets) {
+          const assetId = String(asset.asset_id);
+          const changes = updatedDirtyAssets.get(assetId) || {};
+          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          if (currentAsset) {
+            assetsToUpdate.push({
+              ...currentAsset,
+              ...changes
+            } as Partial<Asset>);
+          }
+        }
         
         const beforeData = {
           assets: beforeAssets,
@@ -2047,23 +2059,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           overload_ratio: overloadRatioPercentage
         };
         const afterData = {
-          assets: afterAssets,
+          assets: assetsToUpdate,
           shared_area_distributed: building.business_shared_area,
           shared_area_type: 'business',
           overload_ratio: overloadRatioPercentage
         };
         
-        await api.auditLog.logEntry({
-          action_type: 'distribute_shared',
-          entity_type: 'bulk_asset',
-          entity_id: affectedAssetIds.join(','),
-          before_data: beforeData,
-          after_data: afterData,
-          description: `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
-        });
+        // Bulk update all assets with single audit entry and action_id
+        const result = await api.auditLog.bulkUpdateAssets(
+          assetsToUpdate,
+          'distribute_shared',
+          beforeData,
+          afterData,
+          `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
+        );
+        
+        // Update state after successful bulk save
+        setDirtyAssets(updatedDirtyAssets);
+        setAssets(updatedAssets);
       } catch (auditError) {
-        console.warn('Failed to log audit entry for distribute shared area:', auditError);
-        // Don't block the operation if audit logging fails
+        console.warn('Failed to bulk update assets for distribute shared area:', auditError);
+        // Still update local state even if bulk save fails
+        setDirtyAssets(updatedDirtyAssets);
+        setAssets(updatedAssets);
       }
       
       // Note: Building state with updated overload_ratio was already set in the try block above

@@ -71,6 +71,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     afterAssets: Asset[];
     relatedAssets: Asset[];
   }>>(new Map());
+  const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
+  const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>>(new Map());
   
   // Refs for audit detail grid (unified grid for all assets)
   const beforeAssetGridRef = useRef<AgGridReact<Asset>>(null);
@@ -117,10 +119,86 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
-  // Prepare history rows with detail rows inserted
+  // Load action_type for history records with action_id
+  useEffect(() => {
+    const loadActionTypes = async () => {
+      const actionIds = new Set<number>();
+      historyRows.forEach(row => {
+        if (row.action_id != null) {
+          actionIds.add(row.action_id);
+        }
+      });
+
+      if (actionIds.size === 0) {
+        setHistoryWithActionTypes(new Map());
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('audit')
+          .select('action_id, action_type')
+          .in('action_id', Array.from(actionIds));
+
+        if (error) throw error;
+
+        const actionTypeMap = new Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>();
+        (data || []).forEach(audit => {
+          actionTypeMap.set(audit.action_id, audit.action_type);
+        });
+
+        setHistoryWithActionTypes(actionTypeMap);
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[AssetDetails] Error loading action types:', err);
+        }
+      }
+    };
+
+    loadActionTypes();
+  }, [historyRows]);
+
+  // Filter history rows by action_type
+  const regularHistoryRows = useMemo(() => {
+    return historyRows.filter(row => {
+      if (row.action_id == null) return true; // Records without action_id are regular history
+      const actionType = historyWithActionTypes.get(row.action_id);
+      return actionType === 'manual_update' || actionType === 'import_file' || actionType === null;
+    });
+  }, [historyRows, historyWithActionTypes]);
+
+  const distributionHistoryRows = useMemo(() => {
+    return historyRows.filter(row => {
+      if (row.action_id == null) return false;
+      const actionType = historyWithActionTypes.get(row.action_id);
+      return actionType === 'distribute_shared';
+    });
+  }, [historyRows, historyWithActionTypes]);
+
+  const transferHistoryRows = useMemo(() => {
+    return historyRows.filter(row => {
+      if (row.action_id == null) return false;
+      const actionType = historyWithActionTypes.get(row.action_id);
+      return actionType === 'transfer_area';
+    });
+  }, [historyRows, historyWithActionTypes]);
+
+  // Get active history rows based on selected tab
+  const activeHistoryRows = useMemo(() => {
+    switch (activeHistoryTab) {
+      case 'distribution':
+        return distributionHistoryRows;
+      case 'transfer':
+        return transferHistoryRows;
+      default:
+        return regularHistoryRows;
+    }
+  }, [activeHistoryTab, regularHistoryRows, distributionHistoryRows, transferHistoryRows]);
+
+  // Prepare history rows with detail rows inserted (for active tab)
   const historyRowsWithDetails = useMemo(() => {
     const rows: any[] = [];
-    historyRows.forEach((row) => {
+    activeHistoryRows.forEach((row) => {
       rows.push(row);
       const rowId = `${row.asset_id}-${row.measurement_date}-history${row.history_created_at ? `-${row.history_created_at}` : ''}`;
       if (expandedHistoryRows.has(rowId) && row.action_id != null) {
@@ -134,7 +212,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
     });
     return rows;
-  }, [historyRows, expandedHistoryRows]);
+  }, [activeHistoryRows, expandedHistoryRows]);
 
   // Always use asset.tax_region as the source of truth
   // This ensures consistency between what's shown and what's stored in the asset record
@@ -3173,53 +3251,45 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               </div>
             </div>
 
-            {/* History Records Grid */}
+            {/* History Records Grid - 3 Tabs */}
             {historyRows.length > 0 && (
               <div className="mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-slate-800">מדידות קודמות ({historyRows.length})</h3>
-                    <span className="text-xs text-gray-500">(לחץ על שורה כדי לראות פרטי ביקורת)</span>
-                  </div>
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-2 mb-2 border-b border-gray-200">
                   <button
-                    onClick={() => {
-                      if (!historyRows || historyRows.length === 0) {
-                        setToast({ message: 'אין נתונים לייצוא', type: 'error' });
-                        return;
-                      }
-                      try {
-                        const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'תאריך יצירה'];
-                        const rows = historyRows.map(asset => [
-                          asset.building_number || '',
-                          asset.asset_id || '',
-                          asset.payer_id || '',
-                          formatDateToDDMMYYYY(asset.measurement_date) || '',
-                          asset.main_asset_type || '',
-                          asset.asset_size || '',
-                          asset.tax_region || '',
-                          asset.history_created_at ? new Date(asset.history_created_at).toLocaleDateString('he-IL') : ''
-                        ]);
-                        const data = [headers, ...rows];
-                        const worksheet = XLSX.utils.aoa_to_sheet(data);
-                        worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 15 }];
-                        const workbook = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(workbook, worksheet, 'היסטוריית מדידות');
-                        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-                        XLSX.writeFile(workbook, `היסטוריית_מדידות_${assetId || buildingNumber}_${dateStr}.xlsx`);
-                        setToast({ message: `יוצאו ${rows.length} מדידות היסטוריות בהצלחה`, type: 'success' });
-                      } catch (error) {
-                        console.error('Error exporting to Excel:', error);
-                        setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
-                      }
-                    }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors font-bold"
-                    title="ייצא ל-Excel"
+                    onClick={() => setActiveHistoryTab('history')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      activeHistoryTab === 'history'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    <Download className="h-4 w-4" />
-                    <span className="text-sm">ייצא היסטוריה</span>
+                    היסטוריה ({regularHistoryRows.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveHistoryTab('distribution')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      activeHistoryTab === 'distribution'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    היסטוריית חלוקה ({distributionHistoryRows.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveHistoryTab('transfer')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      activeHistoryTab === 'transfer'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    היסטוריית העברה ({transferHistoryRows.length})
                   </button>
                 </div>
-                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '30vh', width: '100%', overflowX: 'auto' }}>
+
+                {/* Active Tab Content */}
+                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '20vh', width: '100%', overflowX: 'auto' }}>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRowsWithDetails}

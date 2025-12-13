@@ -631,18 +631,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         // Get all records with this action_id
         const allRecordsForAction = allHistoryRowsByActionId.get(row.action_id) || [];
         
-        // Add all records with this action_id as detail rows
+        // Add all records with this action_id as detail rows (regular rows, not full-width)
         allRecordsForAction.forEach((detailRow, index) => {
+          // Skip the master record itself (already added above)
+          if (detailRow.asset_id === row.asset_id && 
+              detailRow.measurement_date === row.measurement_date &&
+              detailRow.action_id === row.action_id) {
+            return;
+          }
           rows.push({
             ...detailRow,
-            _isDetailRow: true,
-            _parentActionId: row.action_id,
-            _actionId: detailRow.action_id,
-            _isDetailRecord: true
+            _isDetailRecord: true, // Mark as detail record but NOT full-width row
+            _parentActionId: row.action_id
           });
         });
         
-        // Also add the audit detail row
+        // Also add the audit detail row (full-width row showing audit details)
         rows.push({
           _isDetailRow: true,
           _parentActionId: row.action_id,
@@ -2630,9 +2634,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id'),
       cellRenderer: (params: any) => {
-        // Make asset_id clickable only if it's different from the current tab's asset_id
-        // This applies to both latest and history rows in the lower grid
-        if (params.data && params.data.asset_id && params.data.asset_id !== asset?.asset_id) {
+        // Make asset_id clickable if:
+        // 1. It's a detail record (always clickable), OR
+        // 2. It's different from the current tab's asset_id
+        const isDetailRecord = (params.data as any)?._isDetailRecord === true;
+        const isDifferentAsset = params.data && params.data.asset_id && params.data.asset_id !== asset?.asset_id;
+        
+        if (params.data && params.data.asset_id && (isDetailRecord || isDifferentAsset)) {
           const assetId = params.data.asset_id;
           const rowData = params.data as Asset;
           return (
@@ -2656,7 +2664,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             </button>
           );
         }
-        // For the same asset as the current tab, display as normal text (not clickable)
+        // For the same asset as the current tab (and not a detail record), display as normal text (not clickable)
         return params.value;
       },
     },
@@ -3857,7 +3865,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     ref={historyGridRef}
                     rowData={historyRowsWithDetails}
                     columnDefs={columnDefs}
-                    isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
+                    isFullWidthRow={(params: any) => {
+                      // Only audit detail rows (with _isDetailRow) should be full width
+                      // Detail records (with _isDetailRecord) should be regular rows
+                      return params.rowNode.data?._isDetailRow === true && !params.rowNode.data?._isDetailRecord;
+                    }}
                     fullWidthCellRenderer={DetailRowRenderer}
                     fullWidthCellRendererParams={(params: any) => ({
                       expandedRows: expandedHistoryRows,
@@ -3896,12 +3908,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     suppressHorizontalScroll={false}
                     getRowId={(params) => {
-                      if (params.data?._isDetailRow) {
-                        return `detail-${params.data._parentRowId}`;
+                      // Full-width audit detail row
+                      if (params.data?._isDetailRow && !params.data?._isDetailRecord) {
+                        return `audit-detail-${params.data._parentActionId || params.data._actionId}`;
                       }
+                      // Regular detail record (expanded row showing asset with same action_id)
+                      const isDetailRecord = (params.data as any)?._isDetailRecord === true;
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
-                      return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
+                      const detailMarker = isDetailRecord ? '-detail' : '';
+                      return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}${detailMarker}-${params.data.action_id || ''}`;
                     }}
                     getRowHeight={(params) => {
                       if (params.data?._isDetailRow) {

@@ -3,6 +3,7 @@ import { ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Asset, AuditLog } from '../lib/api';
 import { Loader2 } from 'lucide-react';
+import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 
 interface DetailRowParams extends ICellRendererParams {
   expandedRows: Set<string>;
@@ -257,10 +258,22 @@ export function DetailRowRenderer(params: DetailRowParams) {
           }
         });
       } else {
-        // Add cellStyle function to check if field changed
+        // Add cellStyle function to check if field changed, and valueFormatter for numeric fields
         const originalCellStyle = col.cellStyle;
+        const originalValueFormatter = col.valueFormatter;
+        const isNumericField = col.field && (
+          col.field.includes('size') || 
+          col.field.includes('area') || 
+          col.field === 'overload_ratio' ||
+          col.field === 'floor'
+        );
+        
         cols.push({
           ...col,
+          valueFormatter: isNumericField ? (cellParams: any) => {
+            // Use custom formatter for numeric fields
+            return formatNumberToTwoDecimals(cellParams.value, true);
+          } : originalValueFormatter,
           cellStyle: (cellParams: any) => {
             const baseStyle = typeof originalCellStyle === 'function' 
               ? originalCellStyle(cellParams) 

@@ -17,6 +17,7 @@ import { AuditLog, Building as BuildingType } from '../lib/api';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
@@ -2320,7 +2321,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       sortable: true,
       filter: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
       field: 'residence_shared_area',
@@ -2329,7 +2331,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       sortable: true,
       filter: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
       field: 'business_shared_area',
@@ -2338,7 +2341,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       sortable: true,
       filter: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
       field: 'area_for_control',
@@ -2347,7 +2351,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       sortable: true,
       filter: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
       field: 'overload_ratio',
@@ -2356,7 +2361,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       sortable: true,
       filter: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
       field: 'building_address',
@@ -2452,7 +2458,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       sortable: true,
       filter: true,
       headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
       field: 'tax_region',
@@ -2803,12 +2810,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'asset_size'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'sub_asset_type_1',
@@ -2833,12 +2835,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_1'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'sub_asset_type_2',
@@ -2863,12 +2860,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_2'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'sub_asset_type_3',
@@ -2893,12 +2885,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_3'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'sub_asset_type_4',
@@ -2923,12 +2910,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_4'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'sub_asset_type_5',
@@ -2953,12 +2935,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_5'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'sub_asset_type_6',
@@ -2983,12 +2960,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'sub_asset_size_6'),
-      valueFormatter: (params) => {
-        if (params.value == null || params.value === '') return '';
-        const num = typeof params.value === 'number' ? params.value : parseFloat(params.value);
-        if (isNaN(num) || num === 0) return '';
-        return num.toFixed(2);
-      },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
       field: 'extra_field_1',

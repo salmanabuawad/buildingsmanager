@@ -642,34 +642,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       const actionIdKey = row.action_id != null ? `action_${row.action_id}` : null;
       
       if (actionIdKey && expandedHistoryRows.has(actionIdKey) && row.action_id != null) {
-        // For history tab, skip detail records (only show audit detail row)
-        // For distribution and transfer tabs, include detail records
-        if (activeHistoryTab !== 'history') {
-          // Get all records with this action_id
-          const allRecordsForAction = allHistoryRowsByActionId.get(row.action_id) || [];
-          
-          // Create a unique key for the master record to compare
-          const masterKey = `${row.asset_id}_${row.action_id}_${row.measurement_date || ''}_${row.is_latest ? 'latest' : 'history'}`;
-          
-          // Add all records with this action_id as detail rows (excluding the master)
-          allRecordsForAction.forEach((detailRow, index) => {
-            // Create a unique key for this detail record
-            const detailKey = `${detailRow.asset_id}_${detailRow.action_id}_${detailRow.measurement_date || ''}_${detailRow.is_latest ? 'latest' : 'history'}`;
-            
-            // Skip the master record itself (already added above)
-            if (detailKey === masterKey) {
-              return;
-            }
-            
-            rows.push({
-              ...detailRow,
-              _isDetailRecord: true, // Mark as detail record but NOT full-width row
-              _parentActionId: row.action_id
-            });
-          });
-        }
-        
-        // Also add the audit detail row (full-width row showing audit details)
+        // Only add the audit detail row (full-width row showing inner table)
+        // Do NOT add individual detail record rows - only show the inner table
         rows.push({
           _isDetailRow: true,
           _parentActionId: row.action_id,

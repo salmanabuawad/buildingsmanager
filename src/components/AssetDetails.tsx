@@ -73,6 +73,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }>>(new Map());
   const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
   const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>>(new Map());
+  const [additionalDistributionAssets, setAdditionalDistributionAssets] = useState<Asset[]>([]);
+  const [additionalTransferAssets, setAdditionalTransferAssets] = useState<Asset[]>([]);
   
   // Refs for audit detail grid (unified grid for all assets)
   const beforeAssetGridRef = useRef<AgGridReact<Asset>>(null);
@@ -119,7 +121,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
-  // Load action_type for history records with action_id, and also fetch current assets with action_id for distribute/transfer
+  // Load action_type for history records with action_id, and also fetch distribute/transfer actions for this asset
   useEffect(() => {
     const loadActionTypes = async () => {
       const actionIds = new Set<number>();
@@ -132,6 +134,68 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Also check current asset (latest) for action_id
       if (latestMeasurement?.action_id != null) {
         actionIds.add(latestMeasurement.action_id);
+      }
+
+      // For distribute_shared and transfer_area, also query audit table directly
+      // to find actions that affected this asset_id (even if asset doesn't have action_id set)
+      try {
+        const { data: distributeActions, error: distributeError } = await supabase
+          .from('audit')
+          .select('action_id, action_type, entity_id, before_data, after_data')
+          .eq('action_type', 'distribute_shared')
+          .eq('entity_type', 'bulk_asset');
+
+        if (!distributeError && distributeActions) {
+          distributeActions.forEach(audit => {
+            // Check if this asset_id is in entity_id (comma-separated) or in before_data/after_data
+            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => parseInt(id.trim())) : [];
+            if (entityIds.includes(asset?.asset_id || 0)) {
+              actionIds.add(audit.action_id);
+            } else {
+              // Also check in before_data/after_data JSON
+              try {
+                const beforeAssets = audit.before_data?.assets || [];
+                const afterAssets = audit.after_data?.assets || [];
+                const allAssets = [...beforeAssets, ...afterAssets];
+                if (allAssets.some((a: any) => a.asset_id === asset?.asset_id)) {
+                  actionIds.add(audit.action_id);
+                }
+              } catch (e) {
+                // Ignore JSON parse errors
+              }
+            }
+          });
+        }
+
+        const { data: transferActions, error: transferError } = await supabase
+          .from('audit')
+          .select('action_id, action_type, entity_id, before_data, after_data')
+          .eq('action_type', 'transfer_area')
+          .eq('entity_type', 'bulk_asset');
+
+        if (!transferError && transferActions) {
+          transferActions.forEach(audit => {
+            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => parseInt(id.trim())) : [];
+            if (entityIds.includes(asset?.asset_id || 0)) {
+              actionIds.add(audit.action_id);
+            } else {
+              try {
+                const beforeAssets = audit.before_data?.assets || [];
+                const afterAssets = audit.after_data?.assets || [];
+                const allAssets = [...beforeAssets, ...afterAssets];
+                if (allAssets.some((a: any) => a.asset_id === asset?.asset_id)) {
+                  actionIds.add(audit.action_id);
+                }
+              } catch (e) {
+                // Ignore JSON parse errors
+              }
+            }
+          });
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[AssetDetails] Error loading distribute/transfer actions:', err);
+        }
       }
 
       if (actionIds.size === 0) {
@@ -153,6 +217,52 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         });
 
         setHistoryWithActionTypes(actionTypeMap);
+        
+        // Also fetch asset records from assets_history for distribute_shared and transfer_area action_ids
+        const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
+        const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
+        
+        // Fetch distribution assets from assets_history
+        if (distributeActionIds.length > 0 && asset?.asset_id) {
+          try {
+            const { data: distributeAssets, error: distributeErr } = await supabase
+              .from('assets_history')
+              .select('*')
+              .eq('asset_id', asset.asset_id)
+              .in('action_id', distributeActionIds);
+            
+            if (!distributeErr && distributeAssets) {
+              setAdditionalDistributionAssets(distributeAssets.map(a => ({ ...a, is_latest: false } as Asset)));
+            }
+          } catch (err) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[AssetDetails] Error loading distribution assets:', err);
+            }
+          }
+        } else {
+          setAdditionalDistributionAssets([]);
+        }
+        
+        // Fetch transfer assets from assets_history
+        if (transferActionIds.length > 0 && asset?.asset_id) {
+          try {
+            const { data: transferAssets, error: transferErr } = await supabase
+              .from('assets_history')
+              .select('*')
+              .eq('asset_id', asset.asset_id)
+              .in('action_id', transferActionIds);
+            
+            if (!transferErr && transferAssets) {
+              setAdditionalTransferAssets(transferAssets.map(a => ({ ...a, is_latest: false } as Asset)));
+            }
+          } catch (err) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[AssetDetails] Error loading transfer assets:', err);
+            }
+          }
+        } else {
+          setAdditionalTransferAssets([]);
+        }
       } catch (err) {
         if (process.env.NODE_ENV === 'development') {
           console.error('[AssetDetails] Error loading action types:', err);
@@ -161,7 +271,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     };
 
     loadActionTypes();
-  }, [historyRows, latestMeasurement]);
+  }, [historyRows, latestMeasurement, asset?.asset_id]);
 
   // Filter history rows by action_type
   const regularHistoryRows = useMemo(() => {
@@ -185,6 +295,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
     });
     
+    // Include additional distribution assets from assets_history
+    rows.push(...additionalDistributionAssets);
+    
     // Also include current asset if it has distribute_shared action_type
     // (distribution operations update assets in place, so they're in assets table, not assets_history)
     if (latestMeasurement?.action_id != null) {
@@ -196,7 +309,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
     
     return rows;
-  }, [historyRows, historyWithActionTypes, latestMeasurement]);
+  }, [historyRows, historyWithActionTypes, latestMeasurement, additionalDistributionAssets]);
 
   const transferHistoryRows = useMemo(() => {
     const rows: Asset[] = [];
@@ -211,6 +324,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
     });
     
+    // Include additional transfer assets from assets_history
+    rows.push(...additionalTransferAssets);
+    
     // Also include current asset if it has transfer_area action_type
     if (latestMeasurement?.action_id != null) {
       const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
@@ -221,7 +337,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
     
     return rows;
-  }, [historyRows, historyWithActionTypes, latestMeasurement]);
+  }, [historyRows, historyWithActionTypes, latestMeasurement, additionalTransferAssets]);
 
   // Get active history rows based on selected tab
   const activeHistoryRows = useMemo(() => {

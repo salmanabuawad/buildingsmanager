@@ -3856,7 +3856,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRowsWithDetails}
-                    columnDefs={columnDefs}
+                    columnDefs={columnDefs.filter((col: any) => 
+                      col.field === 'measurement_date' || col.field === 'structure_drawing_url'
+                    )}
                     isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
                     fullWidthCellRenderer={DetailRowRenderer}
                     fullWidthCellRendererParams={(params: any) => ({

@@ -214,10 +214,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
     ];
     
     // Define allowed fields: asset_id, asset types, and sizes only
-    const allowedFields = new Set([
+    // Order: asset_id, then all subtypes (type + size pairs), then main type + size
+    const allowedFields = [
       'asset_id',
-      'main_asset_type',
-      'asset_size',
       'sub_asset_type_1',
       'sub_asset_size_1',
       'sub_asset_type_2',
@@ -229,14 +228,18 @@ export function DetailRowRenderer(params: DetailRowParams) {
       'sub_asset_type_5',
       'sub_asset_size_5',
       'sub_asset_type_6',
-      'sub_asset_size_6'
-    ]);
+      'sub_asset_size_6',
+      'main_asset_type',
+      'asset_size'
+    ];
     
-    // Add asset columns with clickable asset_id and styling for changed values
-    // Only include allowed fields
-    params.assetColumnDefs
-      .filter((col: any) => allowedFields.has(col.field))
-      .forEach((col: any) => {
+    // Create a map of column definitions for quick lookup
+    const colMap = new Map(params.assetColumnDefs.map((col: any) => [col.field, col]));
+    
+    // Add asset columns in the specified order (subtypes first, then main type)
+    allowedFields.forEach((fieldName) => {
+      const col = colMap.get(fieldName);
+      if (!col) return;
       if (col.field === 'asset_id') {
         cols.push({
           ...col,
@@ -258,7 +261,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
             }
             
             // For "before" rows or "after" rows without a matching "before" row, show asset_id
-            if (params.onSelectAsset && assetId && asset?.building_number) {
+            // Make clickable only if different from current tab's asset ID
+            const isDifferentFromTab = params.currentTabAssetId && assetId !== params.currentTabAssetId;
+            if (params.onSelectAsset && assetId && asset?.building_number && isDifferentFromTab) {
               return (
                 <button
                   onClick={(e) => {
@@ -372,6 +377,14 @@ export function DetailRowRenderer(params: DetailRowParams) {
                   state: [{ colId: 'asset_id', sort: 'asc' }],
                   defaultState: { sort: null }
                 });
+                // Scroll to the right side (for RTL)
+                setTimeout(() => {
+                  const displayedColumns = gridParams.api.getDisplayedColumns();
+                  const lastColumn = displayedColumns[displayedColumns.length - 1];
+                  if (lastColumn) {
+                    gridParams.api.ensureColumnVisible(lastColumn, 'middle');
+                  }
+                }, 100);
               }}
               onFirstDataRendered={async (_gridParams: any) => {}}
               onColumnResized={(_gridParams: any) => {

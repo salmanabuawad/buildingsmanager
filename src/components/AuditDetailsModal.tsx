@@ -84,10 +84,12 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
 
   // Load audit log and related assets when actionId changes
   useEffect(() => {
-    console.log('[AuditDetailsModal] useEffect triggered:', { isOpen, actionId });
+    console.log('[AuditDetailsModal] useEffect triggered:', { isOpen, actionId, hasLoadFunction: !!loadAuditDetails });
     if (isOpen && actionId) {
+      console.log('[AuditDetailsModal] Conditions met, calling loadAuditDetails');
       loadAuditDetails();
     } else {
+      console.log('[AuditDetailsModal] Conditions not met, clearing state');
       setAuditLog(null);
       setRelatedAssets([]);
       setError(null);

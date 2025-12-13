@@ -450,36 +450,62 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
   }, [editMode]);
 
+  // Track last click to prevent double-click interference
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleHistoryRowClick = useCallback((event: any) => {
     const rowData = event.data as Asset;
+    
+    // Clear any pending timeout from previous clicks
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    
     console.log('[AssetDetails] History row clicked:', {
       asset_id: rowData?.asset_id,
       action_id: rowData?.action_id,
       is_latest: rowData?.is_latest,
-      hasActionId: rowData?.action_id != null
+      hasActionId: rowData?.action_id != null,
+      eventType: event.type,
+      allKeys: rowData ? Object.keys(rowData).slice(0, 20) : []
     });
     
-    // Only handle single click, not double click
-    // Double click is handled by handleRowDoubleClick for editing
-    if (event.type === 'dblclick') {
+    // Only process history rows (not latest)
+    if (rowData?.is_latest === true) {
+      console.log('[AssetDetails] Skipping - this is a latest row, not history');
       return;
     }
     
     // Check if the row has an action_id (from history records)
     const actionId = rowData?.action_id;
+    console.log('[AssetDetails] Checking actionId:', {
+      actionId,
+      type: typeof actionId,
+      isNull: actionId === null,
+      isUndefined: actionId === undefined,
+      isNumber: typeof actionId === 'number'
+    });
+    
     if (rowData && actionId != null && actionId !== undefined && typeof actionId === 'number') {
-      console.log('[AssetDetails] Opening audit details modal for action_id:', actionId);
-      // Use setTimeout to ensure state updates happen in the correct order
-      setTimeout(() => {
-        setSelectedActionId(actionId);
-        setIsAuditDetailsModalOpen(true);
-      }, 0);
+      console.log('[AssetDetails] Valid actionId found, opening modal:', actionId);
+      // Set state immediately
+      setSelectedActionId(actionId);
+      setIsAuditDetailsModalOpen(true);
+      console.log('[AssetDetails] State set - selectedActionId:', actionId, 'isOpen: true');
     } else {
       console.warn('[AssetDetails] No valid action_id found for history row:', {
         asset_id: rowData?.asset_id,
         action_id: rowData?.action_id,
         actionIdType: typeof rowData?.action_id,
-        hasRowData: !!rowData
+        hasRowData: !!rowData,
+        rowDataSample: rowData ? {
+          asset_id: rowData.asset_id,
+          building_number: rowData.building_number,
+          measurement_date: rowData.measurement_date,
+          is_latest: rowData.is_latest,
+          action_id: (rowData as any).action_id
+        } : null
       });
       setToast({ 
         message: 'לא נמצא מזהה פעולה עבור רשומה זו', 
@@ -2728,15 +2754,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                 }}
                 getRowStyle={getRowStyle}
-                getPinnedRowStyle={(params) => {
-                  // Style for pinned top row (first row)
-                  return {
-                    fontSize: '1.2em',
-                    fontWeight: '600',
-                    fontStyle: 'normal',
-                    backgroundColor: '#f0f9ff'
-                  };
-                }}
                 gridOptions={{
                   suppressColumnVirtualisation: false, // Enable virtualization for better performance
                   alwaysShowHorizontalScroll: true,
@@ -2945,8 +2962,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       }
                     }}
                     onSortChanged={() => {}}
-                    onRowDoubleClicked={handleRowDoubleClick}
-                    onRowClicked={handleHistoryRowClick}
+                    onRowDoubleClicked={(event: any) => {
+                      // Handle double-click for editing (only for latest records)
+                      handleRowDoubleClick(event);
+                      // Also prevent single click from firing after double-click
+                      event.event?.stopPropagation();
+                    }}
+                    onRowDoubleClicked={(event: any) => {
+                      // Handle double-click for editing (only for latest records)
+                      handleRowDoubleClick(event);
+                    }}
+                    onRowClicked={(event: any) => {
+                      // Handle single click for audit details
+                      handleHistoryRowClick(event);
+                    }}
                     enableRtl={true}
                     animateRows={true}
                     tooltipShowDelay={200}

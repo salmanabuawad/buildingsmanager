@@ -2684,13 +2684,46 @@ export const buildingValidators = {
           if (assetType && assetType.not_accountable === true) {
             return sum;
           }
-          // Exclude residence assets where asset_id % 1000 = 0 OR asset_id < 1000 (starts with 000)
-          if (assetType && assetType.business_residence === 'מגורים') {
-            if (asset.asset_id % 1000 === 0 || asset.asset_id < 1000) {
-              return sum;
+        }
+        
+        // Check if asset has ANY residence asset type (main or sub)
+        let isResidenceAsset = false;
+        
+        // Check main asset type
+        if (asset.main_asset_type) {
+          const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
+          if (mainAssetType && mainAssetType.business_residence === 'מגורים') {
+            isResidenceAsset = true;
+          }
+        }
+        
+        // Check sub asset types if main type is not residence
+        if (!isResidenceAsset) {
+          const subAssetTypes = [
+            asset.sub_asset_type_1,
+            asset.sub_asset_type_2,
+            asset.sub_asset_type_3,
+            asset.sub_asset_type_4,
+            asset.sub_asset_type_5,
+            asset.sub_asset_type_6
+          ];
+          
+          for (const subType of subAssetTypes) {
+            if (subType) {
+              const subAssetType = assetTypeMap.get(String(subType));
+              if (subAssetType && subAssetType.business_residence === 'מגורים') {
+                isResidenceAsset = true;
+                break;
+              }
             }
           }
         }
+        
+        // Exclude residence assets where asset_id % 1000 = 0 OR asset_id < 1000 (starts with 000)
+        if (isResidenceAsset && (asset.asset_id % 1000 === 0 || asset.asset_id < 1000)) {
+          return sum;
+        }
+        
         return sum + (asset.asset_size || 0);
       }, 0);
 

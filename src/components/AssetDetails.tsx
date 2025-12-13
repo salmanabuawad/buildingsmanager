@@ -78,9 +78,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const [additionalTransferAssets, setAdditionalTransferAssets] = useState<Asset[]>([]);
   
   // Refs for audit detail grid (unified grid for all assets)
-  const beforeAssetGridRef = useRef<AgGridReact<Asset>>(null);
-  
-  const beforeAssetGridPreferences = useGridPreferences(beforeAssetGridRef, 'audit-details-unified-assets', 'default');
   const gridRef = useRef<AgGridReact<Asset>>(null);
   const historyGridRef = useRef<AgGridReact<Asset>>(null);
   const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -651,14 +648,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           // Get all records with this action_id
           const allRecordsForAction = allHistoryRowsByActionId.get(row.action_id) || [];
           
-          // Add all records with this action_id as detail rows
+          // Create a unique key for the master record to compare
+          const masterKey = `${row.asset_id}_${row.action_id}_${row.measurement_date || ''}_${row.is_latest ? 'latest' : 'history'}`;
+          
+          // Add all records with this action_id as detail rows (excluding the master)
           allRecordsForAction.forEach((detailRow, index) => {
+            // Create a unique key for this detail record
+            const detailKey = `${detailRow.asset_id}_${detailRow.action_id}_${detailRow.measurement_date || ''}_${detailRow.is_latest ? 'latest' : 'history'}`;
+            
             // Skip the master record itself (already added above)
-            if (detailRow.asset_id === row.asset_id && 
-                detailRow.measurement_date === row.measurement_date &&
-                detailRow.action_id === row.action_id) {
+            if (detailKey === masterKey) {
               return;
             }
+            
             rows.push({
               ...detailRow,
               _isDetailRecord: true, // Mark as detail record but NOT full-width row
@@ -3896,8 +3898,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       expandedRows: expandedHistoryRows,
                       auditDataCache,
                       assetColumnDefs,
-                      beforeAssetGridRef,
-                      beforeAssetGridPreferences,
                       currentTabAssetId: asset?.asset_id,
                       onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
                         // Navigate to asset view - dispatch custom event that App.tsx can listen to

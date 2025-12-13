@@ -1,11 +1,9 @@
-import { useMemo } from 'react';
-import { ICellRendererParams } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
+import React, { useMemo } from 'react';
 import { Asset, AuditLog } from '../lib/api';
 import { Loader2 } from 'lucide-react';
 import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 
-interface DetailRowParams extends ICellRendererParams {
+interface DetailRowParams {
   expandedRows: Set<string>;
   auditDataCache: Map<number, {
     auditLog: AuditLog | null;
@@ -16,8 +14,6 @@ interface DetailRowParams extends ICellRendererParams {
     relatedAssets: Asset[];
   }>;
   assetColumnDefs: any[];
-  beforeAssetGridRef: React.RefObject<AgGridReact<Asset>>;
-  beforeAssetGridPreferences: any;
   currentTabAssetId?: number;
   onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
 }
@@ -190,211 +186,169 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return combined;
   }, [beforeAssets, afterAssets, relatedAssets, auditLog?.action_type, changedFieldsMap]);
 
-  // Create unified column defs with clickable asset_id and source columns
-  const unifiedColumnDefs = useMemo(() => {
-    const cols: any[] = [
-      {
-        field: '_source',
-        headerName: 'מקור',
-        width: 100,
-        pinned: 'left',
-        lockPosition: true,
-        sortable: true,
-        filter: true,
-        headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right' },
-        cellRenderer: (cellParams: any) => {
-          const source = cellParams.value;
-          if (source === 'before') return 'לפני';
-          if (source === 'after') return 'אחרי';
-          if (source === 'related') return 'מושפע';
-          return source;
-        }
+  // Get column definitions map for Hebrew names
+  const columnDefsMap = useMemo(() => {
+    const map = new Map(params.assetColumnDefs.map((col: any) => [col.field, col]));
+    return map;
+  }, [params.assetColumnDefs]);
+
+  // Define allowed fields: asset_id, asset types, and sizes only
+  // Order: asset_id, then subtypes in reverse order (6 to 1), then main type + size
+  const allowedFields = useMemo(() => [
+    'asset_id',
+    'sub_asset_size_6',
+    'sub_asset_type_6',
+    'sub_asset_size_5',
+    'sub_asset_type_5',
+    'sub_asset_size_4',
+    'sub_asset_type_4',
+    'sub_asset_size_3',
+    'sub_asset_type_3',
+    'sub_asset_size_2',
+    'sub_asset_type_2',
+    'sub_asset_size_1',
+    'sub_asset_type_1',
+    'asset_size',
+    'main_asset_type'
+  ], []);
+
+  // Helper function to get Hebrew header name
+  const getHeaderName = (fieldName: string): string => {
+    if (fieldName === '_source') return 'מקור';
+    const colDef = columnDefsMap.get(fieldName);
+    return colDef?.headerName || fieldName;
+  };
+
+  // Helper function to format cell value
+  const formatCellValue = (value: any, fieldName: string): string => {
+    if (fieldName === '_source') {
+      if (value === 'before') return 'לפני';
+      if (value === 'after') return 'אחרי';
+      if (value === 'related') return 'מושפע';
+      return value || '';
+    }
+
+    // Check if numeric field
+    const isNumericField = fieldName.includes('size') || 
+      fieldName.includes('area') || 
+      fieldName === 'overload_ratio' ||
+      fieldName === 'floor';
+
+    if (isNumericField) {
+      const formatted = formatNumberToTwoDecimals(value, false);
+      return formatted === '0.00' || formatted === '' ? '' : formatted;
+    }
+
+    return value != null ? String(value) : '';
+  };
+
+  // Helper function to check if field changed
+  const isFieldChanged = (fieldName: string, asset: any): boolean => {
+    const changedFields = asset._changedFields as Set<string> | undefined;
+    return changedFields ? changedFields.has(fieldName) : false;
+  };
+
+  // Helper function to render asset_id cell
+  const renderAssetIdCell = (asset: any): React.ReactNode => {
+    const assetId = asset.asset_id;
+    const source = asset._source;
+    
+    // For "after" rows, check if there's a corresponding "before" row with the same asset_id
+    if (source === 'after') {
+      const hasBeforeRow = beforeAssets.some(a => a.asset_id === assetId);
+      if (hasBeforeRow) {
+        return ''; // Empty cell to create visual span effect
       }
-    ];
+    }
     
-    // Define allowed fields: asset_id, asset types, and sizes only
-    // Order: asset_id, then subtypes in reverse order (6 to 1), then main type + size (reversed for distribution/transfer tabs)
-    const allowedFields = [
-      'asset_id',
-      'sub_asset_size_6',
-      'sub_asset_type_6',
-      'sub_asset_size_5',
-      'sub_asset_type_5',
-      'sub_asset_size_4',
-      'sub_asset_type_4',
-      'sub_asset_size_3',
-      'sub_asset_type_3',
-      'sub_asset_size_2',
-      'sub_asset_type_2',
-      'sub_asset_size_1',
-      'sub_asset_type_1',
-      'asset_size',
-      'main_asset_type'
-    ];
+    // For detail records (from distribution/transfer), make all asset IDs clickable
+    const isDetailRecord = asset._isDetailRecord === true;
+    const isDifferentFromTab = params.currentTabAssetId && assetId !== params.currentTabAssetId;
+    const shouldBeClickable = isDetailRecord || isDifferentFromTab;
     
-    // Create a map of column definitions for quick lookup
-    const colMap = new Map(params.assetColumnDefs.map((col: any) => [col.field, col]));
+    if (params.onSelectAsset && assetId && asset?.building_number && shouldBeClickable) {
+      return (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            params.onSelectAsset!(
+              assetId,
+              String(assetId),
+              asset.building_number,
+              asset.tax_region ? String(asset.tax_region) : undefined
+            );
+          }}
+          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors font-semibold"
+          title="לחץ כדי לפתוח את הנכס"
+        >
+          {assetId}
+        </button>
+      );
+    }
     
-    // Add asset columns in the specified order (subtypes first, then main type)
-    allowedFields.forEach((fieldName) => {
-      const col = colMap.get(fieldName);
-      if (!col) return;
-      if (col.field === 'asset_id') {
-        cols.push({
-          ...col,
-          pinned: 'left',
-          cellRenderer: (cellParams: any) => {
-            const assetId = cellParams.value;
-            const asset = cellParams.data as any;
-            const source = asset._source;
-            
-            // For "after" rows, check if there's a corresponding "before" row with the same asset_id
-            // If yes, don't show the asset_id (it should appear only in the "before" row to create a span effect)
-            if (source === 'after') {
-              // Check if there's a before asset with the same asset_id
-              const hasBeforeRow = beforeAssets.some(a => a.asset_id === assetId);
-              if (hasBeforeRow) {
-                // Return empty cell to create visual span effect
-                return '';
-              }
-            }
-            
-            // For "before" rows or "after" rows without a matching "before" row, show asset_id
-            // For detail records (from distribution/transfer), make all asset IDs clickable
-            // For other records, make clickable only if different from current tab's asset ID
-            const isDetailRecord = asset._isDetailRecord === true;
-            const isDifferentFromTab = params.currentTabAssetId && assetId !== params.currentTabAssetId;
-            const shouldBeClickable = isDetailRecord || isDifferentFromTab;
-            
-            if (params.onSelectAsset && assetId && asset?.building_number && shouldBeClickable) {
-              return (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    params.onSelectAsset!(
-                      assetId,
-                      String(assetId),
-                      asset.building_number,
-                      asset.tax_region ? String(asset.tax_region) : undefined
-                    );
-                  }}
-                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors font-semibold"
-                  title="לחץ כדי לפתוח את הנכס"
-                >
-                  {assetId}
-                </button>
-              );
-            }
-            return assetId;
-          }
-        });
-      } else {
-        // Add cellStyle function to check if field changed, and valueFormatter for numeric fields
-        const originalCellStyle = col.cellStyle;
-        const originalValueFormatter = col.valueFormatter;
-        const isNumericField = col.field && (
-          col.field.includes('size') || 
-          col.field.includes('area') || 
-          col.field === 'overload_ratio' ||
-          col.field === 'floor'
-        );
-        
-        cols.push({
-          ...col,
-          valueFormatter: isNumericField ? (cellParams: any) => {
-            // Use custom formatter for numeric fields, hide 0.00
-            const formatted = formatNumberToTwoDecimals(cellParams.value);
-            // Return empty string if value is 0.00 or empty
-            return formatted === '0.00' || formatted === '' ? '' : formatted;
-          } : originalValueFormatter,
-          cellStyle: (cellParams: any) => {
-            const baseStyle = typeof originalCellStyle === 'function' 
-              ? originalCellStyle(cellParams) 
-              : (originalCellStyle || { textAlign: 'right' });
-            
-            const asset = cellParams.data as any;
-            const field = col.field;
-            const changedFields = asset._changedFields as Set<string> | undefined;
-            
-            // Apply bold and italic if this field changed for before/after assets
-            if (changedFields && changedFields.has(field) && (asset._source === 'before' || asset._source === 'after')) {
-              return {
-                ...baseStyle,
-                fontWeight: 'bold',
-                fontStyle: 'italic'
-              };
-            }
-            
-            return baseStyle;
-          }
-        });
-      }
-    });
-    
-    return cols;
-  }, [params.assetColumnDefs, params.onSelectAsset, beforeAssets]);
+    return assetId || '';
+  };
+
+  // Prepare columns with _source first, then allowed fields
+  const tableColumns = useMemo(() => {
+    return ['_source', ...allowedFields];
+  }, [allowedFields]);
 
   return (
     <div className="p-4 bg-gray-50 border-t border-gray-200" style={{ width: '100%' }}>
-      {/* Unified Assets Grid */}
+      {/* Simple HTML Table */}
       {allDetailAssets.length > 0 && (
         <div className="flex flex-col" dir="rtl">
-          <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px', width: '100%', overflowX: 'auto', direction: 'rtl' }}>
-            <AgGridReact<Asset>
-              ref={params.beforeAssetGridRef}
-              rowData={allDetailAssets}
-              columnDefs={unifiedColumnDefs}
-              defaultColDef={{
-                resizable: true,
-                wrapHeaderText: true,
-                autoHeaderHeight: true,
-                wrapText: true,
-                autoHeight: false,
-                sortable: true,
-                filter: true,
-                headerClass: 'ag-right-aligned-header',
-                headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
-                cellStyle: { textAlign: 'right' },
-                minWidth: 40
-              }}
-              getRowId={(gridParams: any) => {
-                const source = gridParams.data._source || 'unknown';
-                const isLatest = gridParams.data.is_latest ? 'latest' : 'history';
-                return `${source}-${gridParams.data.asset_id}-${gridParams.data.measurement_date || ''}-${isLatest}`;
-              }}
-              gridOptions={{
-                suppressColumnVirtualisation: false,
-                alwaysShowHorizontalScroll: true,
-                suppressMovableColumns: true,
-                suppressColumnMoveAnimation: true,
-                rowBuffer: 5,
-                debounceVerticalScrollbar: true,
-                suppressRowClickSelection: false,
-                enableCellTextSelection: false,
-              }}
-              suppressHorizontalScroll={false}
-              onGridReady={async (gridParams: any) => {
-                await params.beforeAssetGridPreferences.loadColumnState(gridParams.api);
-                // Set default sort by asset_id
-                gridParams.api.applyColumnState({
-                  state: [{ colId: 'asset_id', sort: 'asc' }],
-                  defaultState: { sort: null }
-                });
-                // Scroll to the right side (end) for distribution/transfer tabs (reversed order)
-                setTimeout(() => {
-                  const displayedColumns = gridParams.api.getDisplayedColumns();
-                  const lastColumn = displayedColumns[displayedColumns.length - 1];
-                  if (lastColumn) {
-                    gridParams.api.ensureColumnVisible(lastColumn, 'middle');
-                  }
-                }, 100);
-              }}
-              onFirstDataRendered={async (_gridParams: any) => {}}
-              onColumnResized={(_gridParams: any) => {
-                params.beforeAssetGridPreferences.handleColumnResized();
-              }}
-            />
+          <div className="rounded-xl shadow-lg border border-blue-100 overflow-x-auto" style={{ maxHeight: '200px', direction: 'rtl' }}>
+            <table className="min-w-full divide-y divide-gray-200" style={{ fontSize: '11px' }}>
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  {tableColumns.map((fieldName) => (
+                    <th
+                      key={fieldName}
+                      scope="col"
+                      className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase tracking-wider"
+                      style={{ textAlign: 'right', fontWeight: 'normal' }}
+                    >
+                      {getHeaderName(fieldName)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {allDetailAssets.map((asset, rowIndex) => {
+                  const source = asset._source;
+                  
+                  return (
+                    <tr key={`${source}-${asset.asset_id}-${asset.measurement_date || ''}-${rowIndex}`}>
+                      {tableColumns.map((fieldName) => {
+                        const value = fieldName === '_source' ? source : (asset as any)[fieldName];
+                        const isChanged = isFieldChanged(fieldName, asset);
+                        const shouldHighlight = isChanged && (source === 'before' || source === 'after');
+                        
+                        return (
+                          <td
+                            key={fieldName}
+                            className="px-2 py-1 whitespace-nowrap text-right"
+                            style={{
+                              textAlign: 'right',
+                              fontWeight: shouldHighlight ? 'bold' : 'normal',
+                              fontStyle: shouldHighlight ? 'italic' : 'normal'
+                            }}
+                          >
+                            {fieldName === 'asset_id' ? (
+                              renderAssetIdCell(asset)
+                            ) : (
+                              formatCellValue(value, fieldName)
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

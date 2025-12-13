@@ -119,7 +119,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
-  // Load action_type for history records with action_id
+  // Load action_type for history records with action_id, and also fetch current assets with action_id for distribute/transfer
   useEffect(() => {
     const loadActionTypes = async () => {
       const actionIds = new Set<number>();
@@ -128,6 +128,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           actionIds.add(row.action_id);
         }
       });
+      
+      // Also check current asset (latest) for action_id
+      if (latestMeasurement?.action_id != null) {
+        actionIds.add(latestMeasurement.action_id);
+      }
 
       if (actionIds.size === 0) {
         setHistoryWithActionTypes(new Map());
@@ -156,7 +161,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     };
 
     loadActionTypes();
-  }, [historyRows]);
+  }, [historyRows, latestMeasurement]);
 
   // Filter history rows by action_type
   const regularHistoryRows = useMemo(() => {
@@ -168,20 +173,55 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [historyRows, historyWithActionTypes]);
 
   const distributionHistoryRows = useMemo(() => {
-    return historyRows.filter(row => {
-      if (row.action_id == null) return false;
-      const actionType = historyWithActionTypes.get(row.action_id);
-      return actionType === 'distribute_shared';
+    const rows: Asset[] = [];
+    
+    // Include history rows with distribute_shared action_type
+    historyRows.forEach(row => {
+      if (row.action_id != null) {
+        const actionType = historyWithActionTypes.get(row.action_id);
+        if (actionType === 'distribute_shared') {
+          rows.push(row);
+        }
+      }
     });
-  }, [historyRows, historyWithActionTypes]);
+    
+    // Also include current asset if it has distribute_shared action_type
+    // (distribution operations update assets in place, so they're in assets table, not assets_history)
+    if (latestMeasurement?.action_id != null) {
+      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
+      if (actionType === 'distribute_shared') {
+        // Add current asset but mark it so it appears in history grid
+        rows.push({ ...latestMeasurement, is_latest: false } as Asset);
+      }
+    }
+    
+    return rows;
+  }, [historyRows, historyWithActionTypes, latestMeasurement]);
 
   const transferHistoryRows = useMemo(() => {
-    return historyRows.filter(row => {
-      if (row.action_id == null) return false;
-      const actionType = historyWithActionTypes.get(row.action_id);
-      return actionType === 'transfer_area';
+    const rows: Asset[] = [];
+    
+    // Include history rows with transfer_area action_type
+    historyRows.forEach(row => {
+      if (row.action_id != null) {
+        const actionType = historyWithActionTypes.get(row.action_id);
+        if (actionType === 'transfer_area') {
+          rows.push(row);
+        }
+      }
     });
-  }, [historyRows, historyWithActionTypes]);
+    
+    // Also include current asset if it has transfer_area action_type
+    if (latestMeasurement?.action_id != null) {
+      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
+      if (actionType === 'transfer_area') {
+        // Add current asset but mark it so it appears in history grid
+        rows.push({ ...latestMeasurement, is_latest: false } as Asset);
+      }
+    }
+    
+    return rows;
+  }, [historyRows, historyWithActionTypes, latestMeasurement]);
 
   // Get active history rows based on selected tab
   const activeHistoryRows = useMemo(() => {

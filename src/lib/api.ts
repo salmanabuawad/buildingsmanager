@@ -2679,4 +2679,16 @@ export const api = {
       return data || [];
     },
   },
+  schema: {
+    getTablesFieldsTypes: async (): Promise<Array<{ table_name: string; field_name: string; field_type: string }>> => {
+      const { data, error } = await supabase.rpc('get_tables_fields_types');
+      
+      if (error) {
+        console.error('Error fetching schema:', error);
+        throw new Error(`Failed to fetch database schema: ${error.message}`);
+      }
+      
+      return data || [];
+    },
+  },
 };

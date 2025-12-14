@@ -497,6 +497,39 @@ function App() {
     openTab(newTab);
   }
 
+  async function exportSchemaToCSV() {
+    try {
+      const data = await api.schema.getTablesFieldsTypes();
+      
+      // Create CSV content
+      const headers = ['table_name', 'field_name', 'field_type'];
+      const csvRows = [
+        headers.join(','),
+        ...data.map(row => [
+          `"${row.table_name}"`,
+          `"${row.field_name}"`,
+          `"${row.field_type}"`
+        ].join(','))
+      ];
+      
+      const csvContent = csvRows.join('\n');
+      
+      // Create blob and download
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel UTF-8 support
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tables_fields_types_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting schema:', error);
+      alert('שגיאה בייצוא סכמת מסד הנתונים. אנא נסה שוב.');
+    }
+  }
+
   function openAddressList() {
     const addressListTabId = 'address-list-panel';
 
@@ -956,6 +989,13 @@ function App() {
                 >
                   <span className="font-medium text-slate-700">יומן ביקורת</span>
                   <FileText className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
+                  onClick={exportSchemaToCSV}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">ייצוא סכמת DB</span>
+                  <Database className="h-3.5 w-3.5 text-pink-600" />
                 </button>
               </div>
             )}

@@ -3900,48 +3900,103 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 </div>
 
                 {/* Active Tab Content - Enhanced Styling */}
-                <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
-                  <style>{`
-                    .ag-theme-alpine .ag-header {
-                      background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;
-                      border-bottom: 2px solid #e5e7eb !important;
-                    }
-                    .ag-theme-alpine .ag-row {
-                      border-bottom: 1px solid #e5e7eb !important;
-                      transition: background-color 0.15s ease !important;
-                    }
-                    .ag-theme-alpine .ag-row:hover {
-                      background-color: #f0f9ff !important;
-                    }
-                    .ag-theme-alpine .ag-row.history-row-clickable:hover {
-                      background-color: #dbeafe !important;
-                      box-shadow: inset 0 0 0 1px #3b82f6 !important;
-                    }
-                    .ag-theme-alpine .ag-row.history-row-master {
-                      background-color: #fef3c7 !important;
-                      font-weight: 500;
-                    }
-                    .ag-theme-alpine .ag-row.history-row-master:hover {
-                      background-color: #fde68a !important;
-                    }
-                    .ag-theme-alpine .ag-row.detail-row-expanded {
-                      background-color: #f8fafc !important;
-                      border-top: 2px solid #3b82f6 !important;
-                    }
-                    .ag-theme-alpine .ag-cell {
-                      border-right: 1px solid #f3f4f6 !important;
-                    }
-                  `}</style>
-                  <AgGridReact<Asset>
-                    ref={historyGridRef}
-                    rowData={historyRowsWithDetails}
-                    columnDefs={
-                      activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer'
-                        ? columnDefs.filter((col: any) => 
-                            col.field === 'measurement_date'
-                          )
-                        : columnDefs
-                    }
+                {(activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') ? (
+                  <div className="rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50">
+                    {/* Date Tabs - Horizontal Row */}
+                    {dateTabs.length > 0 && (
+                      <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1 overflow-x-auto" dir="rtl">
+                        {dateTabs.map((dateTab) => {
+                          const isSelected = selectedDateTab?.actionId === dateTab.actionId;
+                          return (
+                            <button
+                              key={dateTab.actionId}
+                              onClick={() => {
+                                setSelectedDateTab({ actionId: dateTab.actionId, measurementDate: dateTab.measurementDate });
+                                // Load audit details if not already loaded
+                                if (!auditDataCache.has(dateTab.actionId)) {
+                                  loadAuditDetails(dateTab.actionId);
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg whitespace-nowrap ${
+                                isSelected
+                                  ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
+                                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                              }`}
+                            >
+                              {dateTab.formattedDate}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Detail Content */}
+                    {selectedDateTab && (
+                      <div className="p-4">
+                        <DetailRowRenderer
+                          {...({
+                            data: {
+                              _isDetailRow: true,
+                              _actionId: selectedDateTab.actionId,
+                              _measurementDate: selectedDateTab.measurementDate
+                            },
+                            expandedRows: expandedHistoryRows,
+                            auditDataCache: auditDataCache,
+                            assetColumnDefs: assetColumnDefs,
+                            currentTabAssetId: asset?.asset_id,
+                            onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
+                              window.dispatchEvent(new CustomEvent('openAssetView', {
+                                detail: { assetDbId, assetId, buildingNumber, taxRegion }
+                              }));
+                            }
+                          } as any)}
+                        />
+                      </div>
+                    )}
+                    
+                    {dateTabs.length === 0 && (
+                      <div className="p-8 text-center text-gray-500 text-sm">
+                        אין רשומות זמינות
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
+                    <style>{`
+                      .ag-theme-alpine .ag-header {
+                        background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;
+                        border-bottom: 2px solid #e5e7eb !important;
+                      }
+                      .ag-theme-alpine .ag-row {
+                        border-bottom: 1px solid #e5e7eb !important;
+                        transition: background-color 0.15s ease !important;
+                      }
+                      .ag-theme-alpine .ag-row:hover {
+                        background-color: #f0f9ff !important;
+                      }
+                      .ag-theme-alpine .ag-row.history-row-clickable:hover {
+                        background-color: #dbeafe !important;
+                        box-shadow: inset 0 0 0 1px #3b82f6 !important;
+                      }
+                      .ag-theme-alpine .ag-row.history-row-master {
+                        background-color: #fef3c7 !important;
+                        font-weight: 500;
+                      }
+                      .ag-theme-alpine .ag-row.history-row-master:hover {
+                        background-color: #fde68a !important;
+                      }
+                      .ag-theme-alpine .ag-row.detail-row-expanded {
+                        background-color: #f8fafc !important;
+                        border-top: 2px solid #3b82f6 !important;
+                      }
+                      .ag-theme-alpine .ag-cell {
+                        border-right: 1px solid #f3f4f6 !important;
+                      }
+                    `}</style>
+                    <AgGridReact<Asset>
+                      ref={historyGridRef}
+                      rowData={historyRowsWithDetails}
+                      columnDefs={columnDefs}
                     isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
                     fullWidthCellRenderer={DetailRowRenderer}
                     fullWidthCellRendererParams={(params: any) => ({
@@ -4160,7 +4215,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     tooltipShowDelay={200}
                     tooltipHideDelay={10000}
                   />
-                </div>
+                  </div>
+                )}
               </div>
             )}
 

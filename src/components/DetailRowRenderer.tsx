@@ -311,9 +311,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
                       style={{ 
                         textAlign: 'right', 
                         fontWeight: 'normal',
-                        width: '56px', // 8 characters * 7px per character (approximate)
-                        minWidth: '56px',
-                        maxWidth: '56px',
+                        width: fieldName === 'asset_id' ? '90px' : '56px', // asset_id wider (10 characters), others 8 characters
+                        minWidth: fieldName === 'asset_id' ? '90px' : '56px',
+                        maxWidth: fieldName === 'asset_id' ? '90px' : '56px',
                         whiteSpace: 'normal',
                         wordBreak: 'break-word',
                         lineHeight: '1.2',
@@ -344,9 +344,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
                               textAlign: 'right',
                               fontWeight: shouldHighlight ? 'bold' : 'normal',
                               fontStyle: shouldHighlight ? 'italic' : 'normal',
-                              width: '56px', // 8 characters * 7px per character (approximate)
-                              minWidth: '56px',
-                              maxWidth: '56px',
+                              width: fieldName === 'asset_id' ? '90px' : '56px', // asset_id wider (10 characters), others 8 characters
+                              minWidth: fieldName === 'asset_id' ? '90px' : '56px',
+                              maxWidth: fieldName === 'asset_id' ? '90px' : '56px',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis'

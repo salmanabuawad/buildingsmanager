@@ -2669,7 +2669,6 @@ export const buildingValidators = {
       // Calculate total asset area (excluding not_accountable assets)
       // Note: Shared areas (residence_shared_area and business_shared_area) are distributed to assets
       // but should NOT be included in the size comparison
-      // Also exclude residence assets where asset_id % 1000 === 0 (like 0, 1000, 2000, 3000, etc.)
       const totalAssetAreaWithShared = assets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
         if (asset.main_asset_type) {
@@ -2709,15 +2708,6 @@ export const buildingValidators = {
                 break;
               }
             }
-          }
-        }
-        
-        // Exclude residence assets where asset_id % 1000 === 0 (like 0, 1000, 2000, 3000, etc.)
-        if (isResidenceAsset) {
-          // Handle both numeric and string asset_ids
-          const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
-          if (!isNaN(assetIdNum) && assetIdNum % 1000 === 0) {
-            return sum;
           }
         }
         

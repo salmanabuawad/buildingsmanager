@@ -1499,9 +1499,23 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           });
         }
         
-        // Validate the asset before saving
-        const shouldValidateSubAssets = currentAssetData.main_asset_type === '199' || currentAssetData.main_asset_type === '299';
-        const validations = [
+        // Skip validation for asset type 990
+        const isAssetType990 = currentAssetData.main_asset_type && 
+          (String(currentAssetData.main_asset_type).trim() === '990' || 
+           parseInt(String(currentAssetData.main_asset_type).trim(), 10) === 990);
+        
+        if (isAssetType990) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AssetDetails] Skipping validation for asset type 990:', {
+              assetId: currentAssetData.asset_id,
+              main_asset_type: currentAssetData.main_asset_type
+            });
+          }
+          // Skip validation - proceed directly to save
+        } else {
+          // Validate the asset before saving
+          const shouldValidateSubAssets = currentAssetData.main_asset_type === '199' || currentAssetData.main_asset_type === '299';
+          const validations = [
           inputValidators.validateDateFormat(currentAssetData.measurement_date),
           assetValidators.validateBuildingNumber(currentAssetData.building_number),
           assetValidators.validateAssetId(currentAssetData.asset_id),
@@ -1641,12 +1655,23 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           setIsSaving(false);
           return;
         }
+        }
 
-        // Set tax_region from tab data or from current asset data
-        const taxRegionValue = validationTaxRegion ? parseInt(validationTaxRegion, 10) : (currentAssetData.tax_region || undefined);
-
-        // Create new asset
-        const assetData: Omit<Asset, 'id' | 'created_at'> = {
+        // Set tax_region from tab data or from current asset data (runs for both 990 and non-990)
+        // Calculate tax_region safely to avoid NaN
+        let taxRegionValue: number | undefined = undefined;
+        if (validationTaxRegion) {
+          const parsed = parseInt(validationTaxRegion, 10);
+          taxRegionValue = isNaN(parsed) ? undefined : parsed;
+        } else if (currentAssetData.tax_region != null) {
+          taxRegionValue = typeof currentAssetData.tax_region === 'number' 
+            ? currentAssetData.tax_region 
+            : (isNaN(parseInt(String(currentAssetData.tax_region), 10)) ? undefined : parseInt(String(currentAssetData.tax_region), 10));
+        }
+        
+        // Use sanitizeAssetInput to properly handle all data type conversions
+        const { sanitizeAssetInput } = await import('../lib/api');
+        const assetData = sanitizeAssetInput({
           building_number: currentAssetData.building_number,
           payer_id: currentAssetData.payer_id || null,
           asset_id: currentAssetData.asset_id,
@@ -1667,12 +1692,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           sub_asset_type_6: currentAssetData.sub_asset_type_6 || undefined,
           sub_asset_size_6: currentAssetData.sub_asset_size_6 || 0,
           penthouse: currentAssetData.penthouse || undefined,
-          floor: currentAssetData.floor ?? undefined,
+          floor: currentAssetData.floor != null && currentAssetData.floor !== '' ? currentAssetData.floor : undefined,
           discount_type: currentAssetData.discount_type || undefined,
           discount_date_from: currentAssetData.discount_date_from || undefined,
-          discount_date_to: currentAssetData.discount_date_to || undefined,
-          updated_at: new Date().toISOString()
-        };
+          discount_date_to: currentAssetData.discount_date_to || undefined
+        });
         
         const newAsset = await api.assets.create(assetData);
         

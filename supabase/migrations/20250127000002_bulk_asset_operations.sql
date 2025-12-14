@@ -4,11 +4,28 @@
 -- This migration creates functions to handle bulk asset updates/creates
 -- with a single audit entry and action_id assignment in a transaction
 
+-- Drop existing function with all possible signatures
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT oid::regprocedure as func_signature
+    FROM pg_proc
+    WHERE proname = 'bulk_update_assets_with_audit'
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+  END LOOP;
+EXCEPTION
+  WHEN OTHERS THEN
+    NULL;
+END $$;
+
 -- Function to bulk update assets with audit logging
 CREATE OR REPLACE FUNCTION bulk_update_assets_with_audit(
   p_assets jsonb, -- Array of asset objects to update/create
   p_action_type audit_action_type, -- Action type for audit
-  p_user_name text DEFAULT 'default',
+  p_user_id text DEFAULT NULL, -- auth_user_id (UUID as text)
   p_before_data jsonb DEFAULT NULL,
   p_after_data jsonb DEFAULT NULL,
   p_description text DEFAULT NULL
@@ -27,7 +44,7 @@ BEGIN
     p_action_type,
     'bulk_asset',
     NULL::text, -- entity_id will be set after we know all affected asset IDs
-    p_user_name,
+    p_user_id,
     p_before_data,
     p_after_data,
     p_description
@@ -173,12 +190,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION bulk_update_assets_with_audit IS 'Bulk update/create assets with a single audit entry and action_id assignment in a transaction';
 
+-- Drop existing function with all possible signatures
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT oid::regprocedure as func_signature
+    FROM pg_proc
+    WHERE proname = 'bulk_transfer_areas_with_audit'
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+  END LOOP;
+EXCEPTION
+  WHEN OTHERS THEN
+    NULL;
+END $$;
+
 -- Function to bulk transfer areas (update old assets to history, create new ones)
 CREATE OR REPLACE FUNCTION bulk_transfer_areas_with_audit(
   p_old_assets jsonb, -- Array of old asset objects (to move to history)
   p_new_assets jsonb, -- Array of new asset objects (to create)
   p_action_type audit_action_type DEFAULT 'transfer_area',
-  p_user_name text DEFAULT 'default',
+  p_user_id text DEFAULT NULL, -- auth_user_id (UUID as text)
   p_before_data jsonb DEFAULT NULL,
   p_after_data jsonb DEFAULT NULL,
   p_description text DEFAULT NULL
@@ -197,7 +231,7 @@ BEGIN
     p_action_type,
     'bulk_asset',
     NULL::text, -- entity_id will be set after processing
-    p_user_name,
+    p_user_id,
     p_before_data,
     p_after_data,
     p_description

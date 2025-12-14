@@ -3753,12 +3753,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                           asset.tax_region || ''
                         ]);
                         const data = [headers, ...rows];
-                        const worksheet = XLSX.utils.aoa_to_sheet(data);
-                        worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
-                        const workbook = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(workbook, worksheet, 'מדידה אחרונה');
                         const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-                        XLSX.writeFile(workbook, `מדידה_אחרונה_${assetId || buildingNumber}_${dateStr}.xlsx`);
+                        const filename = `מדידה_אחרונה_${assetId || buildingNumber}_${dateStr}.xlsx`;
+                        const { exportToExcel } = await import('../lib/excelExport');
+                        exportToExcel({
+                          filename,
+                          sheetName: 'מדידה אחרונה',
+                          data,
+                          columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                        });
                         setToast({ message: `יוצאו ${rows.length} מדידות בהצלחה`, type: 'success' });
                       } catch (error) {
                         console.error('Error exporting to Excel:', error);

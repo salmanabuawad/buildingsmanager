@@ -1004,7 +1004,7 @@ export function BuildingsList({
   }, [buildings, dirtyBuildings, buildingsToDelete, getBuildingKey, isNewBuilding, totalChanges]);
 
   // Export buildings to Excel
-  const handleExportToExcel = useCallback(() => {
+  const handleExportToExcel = useCallback(async () => {
     if (!filteredBuildings || filteredBuildings.length === 0) {
       setError('אין מבנים לייצוא');
       setTimeout(() => setError(null), 3000);
@@ -1065,39 +1065,35 @@ export function BuildingsList({
       // Create data array with headers and rows
       const data = [headers, ...rows];
 
-      // Create worksheet
-      const worksheet = XLSX.utils.aoa_to_sheet(data);
-
-      // Set column widths
-      worksheet['!cols'] = [
-        { wch: 12 }, // מזהה מבנה
-        { wch: 15 }, // אזור מיסים
-        { wch: 12 }, // אחוז העמסה
-        { wch: 18 }, // שטח משותף מגורים
-        { wch: 18 }, // שטח משותף עסקים
-        { wch: 12 }, // ס"כ גודל
-        { wch: 15 }, // שטח לבקרה
-        { wch: 30 }, // כתובת
-        { wch: 10 }, // גוש
-        { wch: 10 }, // חלקה
-        { wch: 18 }, // מספר בניין ברחוב
-        { wch: 10 }, // מעלית
-        { wch: 25 }, // בית פרטי חד/דו משפחתי
-        { wch: 12 }, // בית משותף
-        { wch: 12 }  // טוריים
-      ];
-
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'מבנים');
-
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const filename = `מבנים_${dateStr}.xlsx`;
 
-      // Download the file
-      XLSX.writeFile(workbook, filename);
+      // Use improved export function to reduce antivirus false positives
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename,
+        sheetName: 'מבנים',
+        data,
+        columnWidths: [
+          { wch: 12 }, // מזהה מבנה
+          { wch: 15 }, // אזור מיסים
+          { wch: 12 }, // אחוז העמסה
+          { wch: 18 }, // שטח משותף מגורים
+          { wch: 18 }, // שטח משותף עסקים
+          { wch: 12 }, // ס"כ גודל
+          { wch: 15 }, // שטח לבקרה
+          { wch: 30 }, // כתובת
+          { wch: 10 }, // גוש
+          { wch: 10 }, // חלקה
+          { wch: 18 }, // מספר בניין ברחוב
+          { wch: 10 }, // מעלית
+          { wch: 25 }, // בית פרטי חד/דו משפחתי
+          { wch: 12 }, // בית משותף
+          { wch: 12 }  // טוריים
+        ]
+      });
       
       setSuccess(`יוצאו ${rows.length} מבנים בהצלחה`);
       setTimeout(() => setSuccess(null), 3000);

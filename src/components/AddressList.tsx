@@ -54,7 +54,7 @@ export function AddressListComponent() {
     }
   }
 
-  function handleExportTemplate() {
+  async function handleExportTemplate() {
     // Create template data with headers and example rows
     const templateData = [
       ['סמל_רחוב', 'שם_רחוב'],
@@ -63,23 +63,20 @@ export function AddressListComponent() {
       ['1003', 'רחוב בן גוריון']
     ];
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(templateData);
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 15 }, // סמל_רחוב
-      { wch: 30 }  // שם_רחוב
-    ];
-
-    XLSX.utils.book_append_sheet(wb, ws, 'תבנית כתובות');
-
-    // Generate file and download
-    XLSX.writeFile(wb, 'תבנית_רשימת_כתובות.xlsx');
+    // Use improved export function to reduce antivirus false positives
+    const { exportToExcel } = await import('../lib/excelExport');
+    exportToExcel({
+      filename: 'תבנית_רשימת_כתובות.xlsx',
+      sheetName: 'תבנית כתובות',
+      data: templateData,
+      columnWidths: [
+        { wch: 15 }, // סמל_רחוב
+        { wch: 30 }  // שם_רחוב
+      ]
+    });
   }
 
-  function handleExportToExcel() {
+  async function handleExportToExcel() {
     if (!addresses || addresses.length === 0) {
       showMessage('error', 'אין כתובות לייצוא');
       return;
@@ -106,26 +103,22 @@ export function AddressListComponent() {
       // Create data array with headers and rows
       const data = [headers, ...rows];
 
-      // Create worksheet
-      const worksheet = XLSX.utils.aoa_to_sheet(data);
-
-      // Set column widths
-      worksheet['!cols'] = [
-        { wch: 15 }, // סמל רחוב
-        { wch: 40 }  // שם רחוב
-      ];
-
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'כתובות');
-
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const filename = `כתובות_${dateStr}.xlsx`;
 
-      // Download the file
-      XLSX.writeFile(workbook, filename);
+      // Use improved export function to reduce antivirus false positives
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename,
+        sheetName: 'כתובות',
+        data,
+        columnWidths: [
+          { wch: 15 }, // סמל רחוב
+          { wch: 40 }  // שם רחוב
+        ]
+      });
       
       showMessage('success', `יוצאו ${rows.length} כתובות בהצלחה`);
     } catch (error) {

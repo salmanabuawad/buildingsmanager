@@ -387,13 +387,18 @@ function App() {
       }
     }
 
-    // Combine original tax region with not_accountable tax regions
+    // Combine original tax region with not_accountable tax regions and tax region 990
     let combinedTaxRegion = taxRegion || '';
-    if (notAccountableTaxRegions.length > 0) {
-      const existingRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
-      const allRegions = [...new Set([...existingRegions, ...notAccountableTaxRegions])]; // Remove duplicates
-      combinedTaxRegion = allRegions.join(',');
-    }
+    const existingRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
+    const allRegions = new Set<string>(existingRegions);
+    
+    // Add not_accountable tax regions
+    notAccountableTaxRegions.forEach(tr => allRegions.add(tr));
+    
+    // Always add tax region 990 to transfer areas tab
+    allRegions.add('990');
+    
+    combinedTaxRegion = Array.from(allRegions).join(',');
 
     const transferAreasTabId = `transfer-areas-${buildingNumber}-${combinedTaxRegion || 'all'}-${Date.now()}`;
     const newTab: Tab = {

@@ -2203,48 +2203,44 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Create data array with headers and rows
       const data = [headers, ...rows];
 
-      // Create worksheet
-      const worksheet = XLSX.utils.aoa_to_sheet(data);
-
-      // Set column widths for better readability
-      worksheet['!cols'] = [
-        { wch: 12 }, // מזהה מבנה
-        { wch: 12 }, // מזהה נכס
-        { wch: 12 }, // מזהה משלם
-        { wch: 10 }, // אזור מס
-        { wch: 8 },  // דירת גג
-        { wch: 8 },  // קומה
-        { wch: 12 }, // סוג הנחה
-        { wch: 12 }, // תאריך הנחה מ
-        { wch: 12 }, // תאריך הנחה עד
-        { wch: 12 }, // תאריך מדידה
-        { wch: 12 }, // סוג נכס ראשי
-        { wch: 12 }, // גודל נכס ראשי
-        { wch: 12 }, // סוג נכס משנה 1
-        { wch: 12 }, // גודל נכס משנה 1
-        { wch: 12 }, // סוג נכס משנה 2
-        { wch: 12 }, // גודל נכס משנה 2
-        { wch: 12 }, // סוג נכס משנה 3
-        { wch: 12 }, // גודל נכס משנה 3
-        { wch: 12 }, // סוג נכס משנה 4
-        { wch: 12 }, // גודל נכס משנה 4
-        { wch: 12 }, // סוג נכס משנה 5
-        { wch: 12 }, // גודל נכס משנה 5
-        { wch: 12 }, // סוג נכס משנה 6
-        { wch: 12 }  // גודל נכס משנה 6
-      ];
-
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
-
       // Generate filename with current date and building number
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const filename = `נכסים_מבנה_${buildingNumber}${taxRegion ? `_אזור_${taxRegion}` : ''}_${dateStr}.xlsx`;
 
-      // Download the file
-      XLSX.writeFile(workbook, filename);
+      // Use improved export function to reduce antivirus false positives
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename,
+        sheetName: 'נכסים',
+        data,
+        columnWidths: [
+          { wch: 12 }, // מזהה מבנה
+          { wch: 12 }, // מזהה נכס
+          { wch: 12 }, // מזהה משלם
+          { wch: 10 }, // אזור מס
+          { wch: 8 },  // דירת גג
+          { wch: 8 },  // קומה
+          { wch: 12 }, // סוג הנחה
+          { wch: 12 }, // תאריך הנחה מ
+          { wch: 12 }, // תאריך הנחה עד
+          { wch: 12 }, // תאריך מדידה
+          { wch: 12 }, // סוג נכס ראשי
+          { wch: 12 }, // גודל נכס ראשי
+          { wch: 12 }, // סוג נכס משנה 1
+          { wch: 12 }, // גודל נכס משנה 1
+          { wch: 12 }, // סוג נכס משנה 2
+          { wch: 12 }, // גודל נכס משנה 2
+          { wch: 12 }, // סוג נכס משנה 3
+          { wch: 12 }, // גודל נכס משנה 3
+          { wch: 12 }, // סוג נכס משנה 4
+          { wch: 12 }, // גודל נכס משנה 4
+          { wch: 12 }, // סוג נכס משנה 5
+          { wch: 12 }, // גודל נכס משנה 5
+          { wch: 12 }, // סוג נכס משנה 6
+          { wch: 12 }  // גודל נכס משנה 6
+        ]
+      });
       
       setSuccess(`יוצאו ${rows.length} נכסים בהצלחה`);
       setTimeout(() => setSuccess(null), 3000);

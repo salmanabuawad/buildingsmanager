@@ -73,7 +73,7 @@ export function ValidationRulesManager() {
     setTimeout(() => setMessage(null), 3000);
   }
 
-  function handleExportToExcel() {
+  async function handleExportToExcel() {
     if (!rules || rules.length === 0) {
       showMessage('error', 'אין כללי תקינות לייצוא');
       return;
@@ -115,36 +115,32 @@ export function ValidationRulesManager() {
       // Create data array with headers and rows
       const data = [headers, ...rows];
 
-      // Create worksheet
-      const worksheet = XLSX.utils.aoa_to_sheet(data);
-
-      // Set column widths
-      worksheet['!cols'] = [
-        { wch: 8 },  // enabled
-        { wch: 20 }, // rule_key
-        { wch: 15 }, // entity_type
-        { wch: 20 }, // field_name
-        { wch: 15 }, // rule_type
-        { wch: 12 }, // value_numeric
-        { wch: 20 }, // value_text
-        { wch: 30 }, // error_message
-        { wch: 20 }, // compare_table
-        { wch: 20 }, // compare_field
-        { wch: 20 }, // join_field
-        { wch: 15 }  // comparison_operator
-      ];
-
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'כללי תקינות');
-
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const filename = `כללי_תקינות_${dateStr}.xlsx`;
 
-      // Download the file
-      XLSX.writeFile(workbook, filename);
+      // Use improved export function to reduce antivirus false positives
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename,
+        sheetName: 'כללי תקינות',
+        data,
+        columnWidths: [
+          { wch: 8 },  // enabled
+          { wch: 20 }, // rule_key
+          { wch: 15 }, // entity_type
+          { wch: 20 }, // field_name
+          { wch: 15 }, // rule_type
+          { wch: 12 }, // value_numeric
+          { wch: 20 }, // value_text
+          { wch: 30 }, // error_message
+          { wch: 20 }, // compare_table
+          { wch: 20 }, // compare_field
+          { wch: 20 }, // join_field
+          { wch: 15 }  // comparison_operator
+        ]
+      });
       
       showMessage('success', `יוצאו ${rows.length} כללי תקינות בהצלחה`);
     } catch (error) {

@@ -1567,12 +1567,15 @@ export function AssetDataEntry() {
                       '' // tax_region not in AssetRow interface
                     ]);
                     const data = [headers, ...rows];
-                    const worksheet = XLSX.utils.aoa_to_sheet(data);
-                    worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
-                    const workbook = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(workbook, worksheet, 'הזנת נתונים');
                     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-                    XLSX.writeFile(workbook, `הזנת_נתונים_${dateStr}.xlsx`);
+                    const filename = `הזנת_נתונים_${dateStr}.xlsx`;
+                    const { exportToExcel } = await import('../lib/excelExport');
+                    exportToExcel({
+                      filename,
+                      sheetName: 'הזנת נתונים',
+                      data,
+                      columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                    });
                     showToast(`יוצאו ${rows.length} שורות בהצלחה`, 'success');
                   } catch (error) {
                     console.error('Error exporting to Excel:', error);

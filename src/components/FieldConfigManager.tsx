@@ -123,7 +123,7 @@ export function FieldConfigManager() {
   }
 
   // Export configurations to Excel
-  function handleExportToExcel() {
+  async function handleExportToExcel() {
     try {
       // Filter configurations based on selected grid
       const configsToExport = selectedGridName === 'all' 
@@ -168,34 +168,30 @@ export function FieldConfigManager() {
       // Create data array with headers and rows
       const data = [headers, ...rows];
 
-      // Create worksheet
-      const worksheet = XLSX.utils.aoa_to_sheet(data);
-
-      // Set column widths
-      worksheet['!cols'] = [
-        { wch: 20 }, // שם גריד
-        { wch: 20 }, // שם שדה
-        { wch: 20 }, // שם בעברית
-        { wch: 12 }, // רוחב (תווים)
-        { wch: 12 }, // תפיחה (פיקסלים)
-        { wch: 8 },  // נעוץ
-        { wch: 12 }, // צד נעיצה
-        { wch: 8 },  // נראה
-        { wch: 12 }  // סדר עמודה
-      ];
-
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'הגדרות שדות');
-
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const gridSuffix = selectedGridName !== 'all' ? `_${selectedGridName}` : '';
       const filename = `הגדרות_שדות${gridSuffix}_${dateStr}.xlsx`;
 
-      // Download the file
-      XLSX.writeFile(workbook, filename);
+      // Use improved export function to reduce antivirus false positives
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename,
+        sheetName: 'הגדרות שדות',
+        data,
+        columnWidths: [
+          { wch: 20 }, // שם גריד
+          { wch: 20 }, // שם שדה
+          { wch: 20 }, // שם בעברית
+          { wch: 12 }, // רוחב (תווים)
+          { wch: 12 }, // תפיחה (פיקסלים)
+          { wch: 8 },  // נעוץ
+          { wch: 12 }, // צד נעיצה
+          { wch: 8 },  // נראה
+          { wch: 12 }  // סדר עמודה
+        ]
+      });
       
       setToast({ 
         message: `יוצאו ${rows.length} הגדרות שדות בהצלחה`, 

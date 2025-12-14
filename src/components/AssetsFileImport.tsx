@@ -2941,7 +2941,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
   // Grid options are now defined inline in the AgGridReact component
 
-  function downloadTemplate() {
+  async function downloadTemplate() {
     const headers = [
       'מזהה מבנה',
       'מזהה משלם',
@@ -2969,13 +2969,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     ];
 
     const data = [headers];
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
-    XLSX.writeFile(workbook, 'assets_template.xlsx');
+    const { exportToExcel } = await import('../lib/excelExport');
+    exportToExcel({
+      filename: 'assets_template.xlsx',
+      sheetName: 'נכסים',
+      data
+    });
   }
 
-  function downloadSkeletonTemplate() {
+  async function downloadSkeletonTemplate() {
     const headers = [
       'מזהה מבנה',
       'מזהה נכס',
@@ -2984,10 +2986,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     ];
 
     const data = [headers];
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'נכסים');
-    XLSX.writeFile(workbook, 'assets_skeleton_template.xlsx');
+    const { exportToExcel } = await import('../lib/excelExport');
+    exportToExcel({
+      filename: 'assets_skeleton_template.xlsx',
+      sheetName: 'נכסים',
+      data
+    });
   }
 
   return (
@@ -3236,12 +3240,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         asset.tax_region || ''
                       ]);
                       const data = [headers, ...rows];
-                      const worksheet = XLSX.utils.aoa_to_sheet(data);
-                      worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
-                      const workbook = XLSX.utils.book_new();
-                      XLSX.utils.book_append_sheet(workbook, worksheet, mode === 'regular' ? 'ייבוא מלא' : 'ייבוא שלד');
                       const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-                      XLSX.writeFile(workbook, `${mode === 'regular' ? 'ייבוא_מלא' : 'ייבוא_שלד'}_${dateStr}.xlsx`);
+                      const filename = `${mode === 'regular' ? 'ייבוא_מלא' : 'ייבוא_שלד'}_${dateStr}.xlsx`;
+                      const { exportToExcel } = await import('../lib/excelExport');
+                      exportToExcel({
+                        filename,
+                        sheetName: mode === 'regular' ? 'ייבוא מלא' : 'ייבוא שלד',
+                        data,
+                        columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                      });
                       setSuccess(`יוצאו ${rows.length} נכסים בהצלחה`);
                       setTimeout(() => setSuccess(null), 3000);
                     } catch (error) {

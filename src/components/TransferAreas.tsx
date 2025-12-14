@@ -1345,12 +1345,15 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
                 ];
               });
               const data = [headers, ...rows];
-              const worksheet = XLSX.utils.aoa_to_sheet(data);
-              worksheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
-              const workbook = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(workbook, worksheet, 'העברת שטחים');
               const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-              XLSX.writeFile(workbook, `העברת_שטחים_מבנה_${buildingNumber}_${dateStr}.xlsx`);
+              const filename = `העברת_שטחים_מבנה_${buildingNumber}_${dateStr}.xlsx`;
+              const { exportToExcel } = await import('../lib/excelExport');
+              exportToExcel({
+                filename,
+                sheetName: 'העברת שטחים',
+                data,
+                columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+              });
               setToast({ message: `יוצאו ${rows.length} נכסים בהצלחה`, type: 'success' });
             } catch (error) {
               console.error('Error exporting to Excel:', error);

@@ -709,35 +709,31 @@ export function AssetTypes() {
     // Create data array with headers and example rows
     const data = [headers, ...exampleRows];
 
-    // Create worksheet
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    
-    // Set column widths for better readability
-    worksheet['!cols'] = [
-      { wch: 12 }, // סוג נכס
-      { wch: 25 }, // תיאור
-      { wch: 12 }, // אזור מיסים
-      { wch: 8 },  // מעלית
-      { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
-      { wch: 10 }, // דירת גג
-      { wch: 12 }, // בית משותף
-      { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
-      { wch: 15 }, // עסקים/מגורים
-      { wch: 20 }, // שימוש בשטח משותף
-      { wch: 10 }, // נספר
-      { wch: 10 }, // שטח מ
-      { wch: 10 }  // שטח עד
-    ];
-
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'סוגי נכסים');
-    
-    // Download the file
-    XLSX.writeFile(workbook, 'תבנית_סוגי_נכסים.xlsx');
+    // Use improved export function to reduce antivirus false positives
+    const { exportToExcel } = await import('../lib/excelExport');
+    exportToExcel({
+      filename: 'תבנית_סוגי_נכסים.xlsx',
+      sheetName: 'סוגי נכסים',
+      data,
+      columnWidths: [
+        { wch: 12 }, // סוג נכס
+        { wch: 25 }, // תיאור
+        { wch: 12 }, // אזור מיסים
+        { wch: 8 },  // מעלית
+        { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
+        { wch: 10 }, // דירת גג
+        { wch: 12 }, // בית משותף
+        { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
+        { wch: 15 }, // עסקים/מגורים
+        { wch: 20 }, // שימוש בשטח משותף
+        { wch: 10 }, // נספר
+        { wch: 10 }, // שטח מ
+        { wch: 10 }  // שטח עד
+      ]
+    });
   }
 
-  function exportAssetTypes() {
+  async function exportAssetTypes() {
     if (assetTypes.length === 0) {
       showMessage('error', 'אין נתונים לייצוא');
       return;
@@ -784,37 +780,33 @@ export function AssetTypes() {
     // Create data array with headers and data rows
     const data = [headers, ...rows];
 
-    // Create worksheet
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    
-    // Set column widths for better readability
-    worksheet['!cols'] = [
-      { wch: 12 }, // סוג נכס
-      { wch: 25 }, // תיאור
-      { wch: 12 }, // אזור מיסים
-      { wch: 8 },  // מעלית
-      { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
-      { wch: 10 }, // דירת גג
-      { wch: 12 }, // בית משותף
-      { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
-      { wch: 15 }, // עסקים/מגורים
-      { wch: 20 }, // שימוש בשטח משותף
-      { wch: 10 }, // נספר
-      { wch: 10 }, // שטח מ
-      { wch: 10 }  // שטח עד
-    ];
-
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'סוגי נכסים');
-    
     // Generate filename with current date
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
     const filename = `סוגי_נכסים_${dateStr}.xlsx`;
-    
-    // Download the file
-    XLSX.writeFile(workbook, filename);
+
+    // Use improved export function to reduce antivirus false positives
+    const { exportToExcel } = await import('../lib/excelExport');
+    exportToExcel({
+      filename,
+      sheetName: 'סוגי נכסים',
+      data,
+      columnWidths: [
+        { wch: 12 }, // סוג נכס
+        { wch: 25 }, // תיאור
+        { wch: 12 }, // אזור מיסים
+        { wch: 8 },  // מעלית
+        { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
+        { wch: 10 }, // דירת גג
+        { wch: 12 }, // בית משותף
+        { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
+        { wch: 15 }, // עסקים/מגורים
+        { wch: 20 }, // שימוש בשטח משותף
+        { wch: 10 }, // נספר
+        { wch: 10 }, // שטח מ
+        { wch: 10 }  // שטח עד
+      ]
+    });
     showMessage('success', `יוצאו ${rows.length} רשומות בהצלחה`);
   }
 

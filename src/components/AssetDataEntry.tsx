@@ -1550,7 +1550,7 @@ export function AssetDataEntry() {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!rowData || rowData.length === 0) {
                     showToast('אין נתונים לייצוא', 'error');
                     return;

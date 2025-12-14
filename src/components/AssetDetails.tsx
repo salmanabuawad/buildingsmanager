@@ -3736,7 +3736,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                 <h3 className="text-sm font-semibold text-slate-800">מדידה אחרונה</h3>
                 <div className="flex gap-1">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!pinnedTopRowData || pinnedTopRowData.length === 0) {
                         setToast({ message: 'אין נתונים לייצוא', type: 'error' });
                         return;

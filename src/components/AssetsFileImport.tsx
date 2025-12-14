@@ -3222,7 +3222,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!importedAssets || importedAssets.length === 0) {
                       setError('אין נכסים לייצוא');
                       setTimeout(() => setError(null), 3000);

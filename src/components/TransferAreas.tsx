@@ -1323,7 +1323,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
       <div className="mb-2 flex justify-end gap-2">
         <button
-          onClick={() => {
+          onClick={async () => {
             if (!assets || assets.length === 0) {
               setToast({ message: 'אין נכסים לייצוא', type: 'error' });
               return;

@@ -3572,7 +3572,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           </div>
         </div>
       )}
-      <div className="w-full mx-auto px-2 sm:px-4 py-2 sm:py-4">
+      <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
       <div className="mb-2 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-1.5">
         <div className="flex items-center gap-2">
           <Home className="w-5 h-5 text-white bg-white/20 rounded-lg p-1" strokeWidth={1.5} />
@@ -3615,7 +3615,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   )}
                 </div>
                 {areaDescriptionForTab && (
-                  <p className="text-sm text-white font-semibold bg-blue-700 px-3 py-1 rounded">
+                  <p className="text-xs text-white font-medium bg-blue-700 px-2 py-0.5 rounded">
                     {areaDescriptionForTab}
                   </p>
                 )}
@@ -3653,12 +3653,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
       {allMeasurements.length > 0 && (
         <div className="bg-white rounded-xl shadow-lg border border-blue-100">
-          <div className="p-3">
+          <div className="p-2">
             {/* Latest Measurement Grid */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-slate-800">מדידה אחרונה</h3>
-                <div className="flex gap-2">
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-slate-800">מדידה אחרונה</h3>
+                <div className="flex gap-1">
                   <button
                     onClick={() => {
                       if (!pinnedTopRowData || pinnedTopRowData.length === 0) {
@@ -3689,58 +3689,58 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors font-bold"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors font-medium"
                     title="ייצא ל-Excel"
                   >
-                    <Download className="h-4 w-4" />
-                    <span className="text-sm">ייצא</span>
+                    <Download className="h-3 w-3" />
+                    <span className="text-[10px]">ייצא</span>
                   </button>
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-bold"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <CheckCircle2 className="h-3 w-3" />
                     )}
-                    <span className="text-sm">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
+                    <span className="text-[10px]">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
                   </button>
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-bold"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                    <span className="text-sm">שמור כמדידה חדשה</span>
-                  </button>
-                  <button
-                    onClick={handleSaveChanges}
-                    disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-bold"
-                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
                   >
                     {isSaving ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
-                      <Save className="h-3 w-3" />
+                      <Copy className="h-3 w-3" />
                     )}
-                    <span className="text-xs">{t('save')}</span>
+                    <span className="text-[10px]">שמור כמדידה חדשה</span>
+                  </button>
+                  <button
+                    onClick={handleSaveChanges}
+                    disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
+                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                    ) : (
+                      <Save className="h-2.5 w-2.5" />
+                    )}
+                    <span className="text-[10px]">{t('save')}</span>
                   </button>
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-bold"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
                   >
-                    <X className="h-3 w-3" />
-                    <span className="text-xs">{t('cancel')}</span>
+                    <X className="h-2.5 w-2.5" />
+                    <span className="text-[10px]">{t('cancel')}</span>
                   </button>
                 </div>
               </div>
@@ -3852,9 +3852,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
             {/* History Records Grid - 3 Tabs */}
             {(historyRows.length > 0 || distributionHistoryRows.length > 0 || transferHistoryRows.length > 0) && (
-              <div className="mt-6">
+              <div className="mt-2">
                 {/* Tab Navigation - Enhanced UI */}
-                <div className="flex items-center gap-1 mb-3 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-0.5">
+                <div className="flex items-center gap-0.5 mb-1.5 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-0.5">
                   <button
                     onClick={() => setActiveHistoryTab('history')}
                     className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
@@ -3944,7 +3944,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     
                     {/* Detail Content */}
                     {selectedDateTab && (
-                      <div className="flex-1 overflow-auto p-4">
+                      <div className="flex-1 overflow-auto p-2">
                         <DetailRowRenderer
                           {...({
                             data: {
@@ -3967,7 +3967,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     )}
                     
                     {dateTabs.length === 0 && (
-                      <div className="p-8 text-center text-gray-500 text-sm">
+                      <div className="p-4 text-center text-gray-500 text-xs">
                         אין רשומות זמינות
                       </div>
                     )}
@@ -4032,20 +4032,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       sortable: false,
                       headerClass: 'ag-right-aligned-header',
                       headerStyle: { 
-                        fontSize: '12px', 
+                        fontSize: '10px', 
                         textAlign: 'right', 
                         fontWeight: '600',
                         backgroundColor: '#f9fafb',
                         color: '#374151',
                         borderBottom: '2px solid #e5e7eb',
-                        padding: '8px 12px',
+                        padding: '4px 6px',
                         WebkitFontSmoothing: 'antialiased', 
                         MozOsxFontSmoothing: 'grayscale' 
                       },
                       cellStyle: (params: any) => {
                         const baseStyle = {
-                          padding: '8px 12px',
-                          fontSize: '12px',
+                          padding: '4px 6px',
+                          fontSize: '10px',
                           borderRight: '1px solid #f3f4f6',
                           whiteSpace: 'nowrap', // Ensure dates stay on one line
                           overflow: 'hidden',

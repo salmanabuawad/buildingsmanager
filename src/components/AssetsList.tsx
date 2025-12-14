@@ -145,13 +145,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   async function fetchData(showLoading = true) {
     try {
       if (showLoading) setLoading(true);
-      const [buildingData, assetsData, assetTypesData] = await Promise.all([
+      // Use cached asset types from validation (faster, no API call)
+      const { getAssetTypes } = await import('../lib/validation');
+      const cachedAssetTypes = getAssetTypes();
+      const [buildingData, assetsData] = await Promise.all([
         api.buildings.getOne(buildingNumber),
-        api.assets.getAll(buildingNumber),
-        api.assetTypes.getAll()
+        api.assets.getAll(buildingNumber)
       ]);
       setBuilding(buildingData);
-      setAssetTypes(assetTypesData || []);
+      setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
       
       // Fetch building address if building_address exists
       if (buildingData?.building_address) {
@@ -167,9 +169,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
       
       // Log initial fetch results
+      const assetTypesCount = cachedAssetTypes.length > 0 ? cachedAssetTypes.length : (await api.assetTypes.getAll()).length;
       console.log(`[AssetsList] Fetched data for building ${buildingNumber}:`, {
         assetsCount: (assetsData || []).length,
-        assetTypesCount: (assetTypesData || []).length,
+        assetTypesCount,
         taxRegion,
         buildingExists: !!buildingData
       });

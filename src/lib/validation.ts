@@ -1363,7 +1363,7 @@ export async function validateSubAssetSizeMatchesMain(
   const totalSubAssetSize = subAssetSizes
     .filter((size, idx) => {
       const hasType = subAssetTypes[idx] && subAssetTypes[idx]!.trim() !== '';
-      return hasType && size != null && size !== '';
+      return hasType && size != null;
     })
     .map(size => {
       // Convert to number if it's a string
@@ -1469,35 +1469,30 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
 ): Promise<ValidationResult> {
   // Skip validation if asset type is not_accountable
   if (mainAssetType) {
-    try {
-      const { api } = await import('./api');
-      const assetTypes = await api.assetTypes.getAll();
-      if (assetTypes && assetTypes.length > 0) {
-        const assetTypeNameStr = String(mainAssetType).trim();
-        let assetType = assetTypes.find(at => {
-          const atNameStr = String(at.name).trim();
-          return atNameStr === assetTypeNameStr;
-        });
-        
-        // If not found, try numeric comparison
-        if (!assetType) {
-          const assetTypeNum = parseInt(assetTypeNameStr, 10);
-          if (!isNaN(assetTypeNum)) {
-            assetType = assetTypes.find(at => {
-              const atNameNum = parseInt(String(at.name).trim(), 10);
-              return !isNaN(atNameNum) && atNameNum === assetTypeNum;
-            });
-          }
-        }
-        
-        if (assetType && assetType.not_accountable === true) {
-          // Asset type is not_accountable - skip validation
-          return { valid: true };
+    // Use cached asset types from memory (synchronous, no API call)
+    const assetTypes = getAssetTypes();
+    if (assetTypes && assetTypes.length > 0) {
+      const assetTypeNameStr = String(mainAssetType).trim();
+      let assetType = assetTypes.find(at => {
+        const atNameStr = String(at.name).trim();
+        return atNameStr === assetTypeNameStr;
+      });
+      
+      // If not found, try numeric comparison
+      if (!assetType) {
+        const assetTypeNum = parseInt(assetTypeNameStr, 10);
+        if (!isNaN(assetTypeNum)) {
+          assetType = assetTypes.find(at => {
+            const atNameNum = parseInt(String(at.name).trim(), 10);
+            return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+          });
         }
       }
-    } catch (error) {
-      // If we can't check not_accountable, continue with normal validation
-      console.error('[validateOnlyComplexTypesCanHaveSubAssets] Failed to check not_accountable:', error);
+      
+      if (assetType && assetType.not_accountable === true) {
+        // Asset type is not_accountable - skip validation
+        return { valid: true };
+      }
     }
   }
   
@@ -1535,35 +1530,30 @@ export async function validateComplexTypesMustHaveSubAssets(
 ): Promise<ValidationResult> {
   // Skip validation if asset type is not_accountable
   if (mainAssetType) {
-    try {
-      const { api } = await import('./api');
-      const assetTypes = await api.assetTypes.getAll();
-      if (assetTypes && assetTypes.length > 0) {
-        const assetTypeNameStr = String(mainAssetType).trim();
-        let assetType = assetTypes.find(at => {
-          const atNameStr = String(at.name).trim();
-          return atNameStr === assetTypeNameStr;
-        });
-        
-        // If not found, try numeric comparison
-        if (!assetType) {
-          const assetTypeNum = parseInt(assetTypeNameStr, 10);
-          if (!isNaN(assetTypeNum)) {
-            assetType = assetTypes.find(at => {
-              const atNameNum = parseInt(String(at.name).trim(), 10);
-              return !isNaN(atNameNum) && atNameNum === assetTypeNum;
-            });
-          }
-        }
-        
-        if (assetType && assetType.not_accountable === true) {
-          // Asset type is not_accountable - skip validation
-          return { valid: true };
+    // Use cached asset types from memory (synchronous, no API call)
+    const assetTypes = getAssetTypes();
+    if (assetTypes && assetTypes.length > 0) {
+      const assetTypeNameStr = String(mainAssetType).trim();
+      let assetType = assetTypes.find(at => {
+        const atNameStr = String(at.name).trim();
+        return atNameStr === assetTypeNameStr;
+      });
+      
+      // If not found, try numeric comparison
+      if (!assetType) {
+        const assetTypeNum = parseInt(assetTypeNameStr, 10);
+        if (!isNaN(assetTypeNum)) {
+          assetType = assetTypes.find(at => {
+            const atNameNum = parseInt(String(at.name).trim(), 10);
+            return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+          });
         }
       }
-    } catch (error) {
-      // If we can't check not_accountable, continue with normal validation
-      console.error('[validateComplexTypesMustHaveSubAssets] Failed to check not_accountable:', error);
+      
+      if (assetType && assetType.not_accountable === true) {
+        // Asset type is not_accountable - skip validation
+        return { valid: true };
+      }
     }
   }
 
@@ -1641,7 +1631,7 @@ export async function validateSubAssetsFor199Or299(
     const totalSubAssetSize = subAssetSizes
       .filter((size, idx) => {
         const hasType = subAssetTypes[idx] && subAssetTypes[idx]!.trim() !== '';
-        return hasType && size != null && size !== '';
+        return hasType && size != null;
       })
       .map(size => {
         // Convert to number if it's a string
@@ -1721,6 +1711,7 @@ export async function validateSubAssetsFor199Or299(
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
       for (const subAssetType of validSubAssets) {
+        if (!subAssetType) continue;
         const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
         
         // If asset type doesn't exist in asset_types table, it's invalid
@@ -1753,6 +1744,7 @@ export async function validateSubAssetsFor199Or299(
 
       // Check each sub-asset type against the cache results
       for (const subAssetType of validSubAssets) {
+        if (!subAssetType) continue;
         if (!foundAssetTypes.has(subAssetType)) {
           // Get valid tax regions for better error message (use cached result)
           const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
@@ -1772,6 +1764,7 @@ export async function validateSubAssetsFor199Or299(
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
       for (const subAssetType of validSubAssets) {
+        if (!subAssetType) continue;
         const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
         
         // If asset type doesn't exist in asset_types table, it's invalid
@@ -1802,6 +1795,7 @@ export async function validateSubAssetsFor199Or299(
       const foundAssetTypes = new Set(matchingAssetTypes.map(at => at.name));
 
       for (const subAssetType of validSubAssets) {
+        if (!subAssetType) continue;
         if (!foundAssetTypes.has(subAssetType)) {
           // Get valid tax regions for better error message (use cached result)
           const validTaxRegionsForSubType = getCachedValidTaxRegions(subAssetType);
@@ -2251,10 +2245,9 @@ export const assetValidators = {
   validateSubAssetSizeMatchesMain: async (
     mainAssetSize: number | undefined,
     subAssetTypes: (string | undefined)[],
-    subAssetSizes: (number | undefined)[],
-    mainAssetType?: string | undefined
+    subAssetSizes: (number | undefined)[]
   ): Promise<ValidationResult> => {
-    return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes, mainAssetType);
+    return await validateSubAssetSizeMatchesMain(mainAssetSize, subAssetTypes, subAssetSizes);
   },
 
   validateSubAssetOrder: async (
@@ -2506,8 +2499,8 @@ export const buildingValidators = {
           const components = trimmedValue.split(',').map(v => v.trim()).map(v => parseInt(v)).filter(v => !isNaN(v));
           
           if (components.length > 1) {
-            // Get all asset types to check business_residence for each tax region
-            const assetTypes = await api.assetTypes.getAll();
+            // Use cached asset types from memory (synchronous, no API call)
+            const assetTypes = getAssetTypes();
             
             // Map tax regions to their business_residence types
             const taxRegionToBusinessType = new Map<number, string>();
@@ -2561,8 +2554,8 @@ export const buildingValidators = {
         return { valid: true };
       }
 
-      // Get all asset types
-      const assetTypes = await api.assetTypes.getAll();
+      // Use cached asset types from memory (synchronous, no API call)
+      const assetTypes = getAssetTypes();
       
       // Map to find asset types by name
       const assetTypeMap = new Map<string, AssetType>();
@@ -2666,8 +2659,8 @@ export const buildingValidators = {
         return { valid: true };
       }
 
-      // Get asset types to check for not_accountable
-      const assetTypes = await api.assetTypes.getAll();
+      // Use cached asset types from memory (synchronous, no API call)
+      const assetTypes = getAssetTypes();
       const assetTypeMap = new Map<string, any>();
       for (const at of assetTypes) {
         assetTypeMap.set(String(at.name), at);

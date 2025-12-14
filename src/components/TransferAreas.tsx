@@ -124,13 +124,12 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   async function fetchData() {
     try {
       setLoading(true);
-      const [buildingData, assetTypesData] = await Promise.all([
-        api.buildings.getOne(buildingNumber),
-        api.assetTypes.getAll()
-      ]);
-
+      // Use cached asset types from validation (faster, no API call)
+      const { getAssetTypes } = await import('../lib/validation');
+      const cachedAssetTypes = getAssetTypes();
+      const buildingData = await api.buildings.getOne(buildingNumber);
       setBuilding(buildingData);
-      setAssetTypes(assetTypesData || []);
+      setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
 
       // Fetch assets by ID first (for initial load), then by asset_id and building_number (after save)
       const fetchedAssets: Asset[] = [];
@@ -251,15 +250,16 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       }
 
       setAssets(fetchedAssets);
-      setAssetTypes(assetTypesData || []);
+      const finalAssetTypes = cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll();
+      setAssetTypes(finalAssetTypes || []);
       
       // Wait for assetTypes state to be set before calculating initial total area
       // Calculate initial total area (sum of asset_size, excluding assets with not_accountable = true)
       // Use the helper function to check if asset type is not_accountable
       const totalArea = fetchedAssets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
-        if (asset.main_asset_type && assetTypesData) {
-          const assetType = assetTypesData.find(at => at.name === asset.main_asset_type);
+        if (asset.main_asset_type && finalAssetTypes) {
+          const assetType = finalAssetTypes.find(at => at.name === asset.main_asset_type);
           if (assetType?.not_accountable === true) {
             return sum;
           }

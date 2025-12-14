@@ -3338,13 +3338,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         setAllMeasurements([newAsset]);
         setOriginalMeasurements([newAsset]);
         
-        // Load building and asset types
-        const [buildingData, assetTypesData] = await Promise.all([
-          api.buildings.getOne(buildingNumber),
-          api.assetTypes.getAll()
-        ]);
+        // Load building and asset types (use cached asset types from validation)
+        const { getAssetTypes } = await import('../lib/validation');
+        const cachedAssetTypes = getAssetTypes();
+        const buildingData = await api.buildings.getOne(buildingNumber);
         setBuilding(buildingData);
-        setAssetTypes(assetTypesData || []);
+        setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
         
         setLoading(false);
         return;
@@ -3396,7 +3395,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return;
       }
 
-      const assetTypesData = await api.assetTypes.getAll();
+      // Use cached asset types from validation (faster, no API call)
+      const { getAssetTypes } = await import('../lib/validation');
+      const cachedAssetTypes = getAssetTypes();
+      const assetTypesData = cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll();
 
       if (!assetData) {
         setError('הנכס לא נמצא');

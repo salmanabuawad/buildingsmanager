@@ -414,12 +414,18 @@ export class AssetValidationHandler {
     if (asset.main_asset_type) {
       let assetTypes = cachedData?.assetTypes;
       if (!assetTypes || assetTypes.length === 0) {
-        // Fetch asset types if not cached
+        // Use cached asset types from validation (synchronous, no API call)
         try {
-          const { api } = await import('./api');
-          assetTypes = await api.assetTypes.getAll();
+          const { getAssetTypes } = await import('./validation');
+          assetTypes = getAssetTypes();
         } catch (error) {
-          console.error('[AssetValidationHandler] Failed to fetch asset types:', error);
+          // Fallback to API if cache not available
+          try {
+            const { api } = await import('./api');
+            assetTypes = await api.assetTypes.getAll();
+          } catch (apiError) {
+            console.error('[AssetValidationHandler] Failed to fetch asset types:', apiError);
+          }
         }
       }
       

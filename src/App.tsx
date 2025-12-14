@@ -55,24 +55,10 @@ function App() {
     invalid: number;
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
-  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
-
-  // Load asset types on mount
-  useEffect(() => {
-    async function loadAssetTypes() {
-      try {
-        const types = await api.assetTypes.getAll();
-        setAssetTypes(types || []);
-      } catch (error) {
-        // Error loading asset types - silently fail
-      }
-    }
-    loadAssetTypes();
-  }, []);
-
   // Helper function to get area_description_for_tab from tax region number(s)
+  // Uses cached asset types from ValidationContext (no API call needed)
   const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
-    if (!taxRegion || !assetTypes || assetTypes.length === 0) {
+    if (!taxRegion) {
       return String(taxRegion || '');
     }
     
@@ -81,18 +67,52 @@ function App() {
       return String(taxRegion);
     }
     
-    // Find first asset type with matching tax_region that has area_description_for_tab
-    const matchingAssetType = assetTypes.find(at =>
-      at.tax_region === taxRegionNum && at.area_description_for_tab
-    );
+    // Use cached asset types from validation (synchronous, no API call)
+    try {
+      const { getAssetTypes } = require('./lib/validation');
+      const assetTypes = getAssetTypes();
+      if (assetTypes && assetTypes.length > 0) {
+        // Find first asset type with matching tax_region that has area_description_for_tab
+        const matchingAssetType = assetTypes.find((at: AssetType) =>
+          at.tax_region === taxRegionNum && at.area_description_for_tab
+        );
+        
+        if (matchingAssetType?.area_description_for_tab) {
+          return matchingAssetType.area_description_for_tab;
+        }
+      }
+    } catch (err) {
+      // If validation module not available, fall back to tax region number
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[App] Could not get asset types from cache:', err);
+      }
+    }
     
-    return matchingAssetType?.area_description_for_tab || String(taxRegionNum);
-  }, [assetTypes]);
+    return String(taxRegionNum);
+  }, []);
 
   // Helper function to get area descriptions for multiple tax regions
+  // Uses cached asset types from ValidationContext (no API call needed)
   const getAreaDescriptionsForTaxRegions = useCallback((taxRegionsString: string | undefined): string => {
-    if (!taxRegionsString || !assetTypes || assetTypes.length === 0) {
-      return taxRegionsString || '';
+    if (!taxRegionsString) {
+      return '';
+    }
+    
+    // Use cached asset types from validation (synchronous, no API call)
+    let assetTypes: AssetType[] = [];
+    try {
+      const { getAssetTypes } = require('./lib/validation');
+      assetTypes = getAssetTypes();
+    } catch (err) {
+      // If validation module not available, return original string
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[App] Could not get asset types from cache:', err);
+      }
+      return taxRegionsString;
+    }
+    
+    if (assetTypes.length === 0) {
+      return taxRegionsString;
     }
     
     const regions = taxRegionsString.split(',').map(r => r.trim()).filter(r => r);
@@ -102,7 +122,7 @@ function App() {
         return region;
       }
       
-      const matchingAssetType = assetTypes.find(at =>
+      const matchingAssetType = assetTypes.find((at: AssetType) =>
         at.tax_region === regionNum && at.area_description_for_tab
       );
       
@@ -110,7 +130,7 @@ function App() {
     });
     
     return descriptions.join(', ');
-  }, [assetTypes]);
+  }, []);
 
   // Helper function to open a new tab, closing any existing tab of the same type
   // Exception: 'buildings' tab is always kept and multiple 'assets' tabs can exist (for different buildings/tax regions)
@@ -135,7 +155,8 @@ function App() {
       
       // Ensure buildings tab exists
       const hasBuildings = filteredTabs.some(t => t.id === 'buildings');
-      const tabsToReturn = hasBuildings ? [...filteredTabs, newTab] : [{ id: 'buildings', type: 'buildings', label: 'מבנים' }, ...filteredTabs, newTab];
+      const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
+      const tabsToReturn = hasBuildings ? [...filteredTabs, newTab] : [buildingsTab, ...filteredTabs, newTab];
       return tabsToReturn;
     });
     setActiveTabId(newTab.id);
@@ -350,11 +371,21 @@ function App() {
   }
 
   function handleOpenTransferAreas(selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) {
-    // Get tax regions with not_accountable = true
-    const notAccountableTaxRegions = assetTypes
-      .filter(at => at.not_accountable === true && at.tax_region != null)
-      .map(at => String(at.tax_region))
-      .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+    // Get tax regions with not_accountable = true (use cached asset types)
+    let notAccountableTaxRegions: string[] = [];
+    try {
+      const { getAssetTypes } = require('./lib/validation');
+      const cachedAssetTypes = getAssetTypes();
+      notAccountableTaxRegions = cachedAssetTypes
+        .filter((at: AssetType) => at.not_accountable === true && at.tax_region != null)
+        .map((at: AssetType) => String(at.tax_region))
+        .filter((value: string, index: number, self: string[]) => self.indexOf(value) === index); // Remove duplicates
+    } catch (err) {
+      // If validation module not available, skip not_accountable tax regions
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[App] Could not get asset types from cache:', err);
+      }
+    }
 
     // Combine original tax region with not_accountable tax regions
     let combinedTaxRegion = taxRegion || '';
@@ -638,8 +669,7 @@ function App() {
               asset.sub_asset_size_4,
               asset.sub_asset_size_5,
               asset.sub_asset_size_6
-            ],
-            asset.main_asset_type
+            ]
           ),
           assetValidators.validateSubAssetsFor199Or299(
             asset.building_number,
@@ -919,13 +949,6 @@ function App() {
                 >
                   <span className="font-medium text-slate-700">רשימת כתובות</span>
                   <MapPin className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                <button
-                  onClick={openFileImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">ייבוא מבנים</span>
-                  <Upload className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
                   onClick={openAssetDataEntry}

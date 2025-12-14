@@ -110,8 +110,10 @@ export function AssetDataEntry() {
   };
   const fetchAssetTypes = async () => {
     try {
-      const data = await api.assetTypes.getAll();
-      setAssetTypes(data);
+      // Use cached asset types from validation (faster, no API call)
+      const { getAssetTypes } = await import('../lib/validation');
+      const cachedAssetTypes = getAssetTypes();
+      setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
     } catch (err) {
       console.error('Error fetching asset types:', err);
     }

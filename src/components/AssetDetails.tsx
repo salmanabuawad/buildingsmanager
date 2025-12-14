@@ -3573,43 +3573,43 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         </div>
       )}
       <div className="w-full mx-auto px-2 sm:px-4 py-2 sm:py-4">
-      <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-3">
-        <div className="flex items-center gap-3">
-          <Home className="w-8 h-8 text-white bg-white/20 rounded-lg p-1.5" strokeWidth={1.5} />
+      <div className="mb-2 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-1.5">
+        <div className="flex items-center gap-2">
+          <Home className="w-5 h-5 text-white bg-white/20 rounded-lg p-1" strokeWidth={1.5} />
           <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">
+            <h1 className="text-base sm:text-lg font-semibold text-white">
               {t('assetId')}: {asset.asset_id}
             </h1>
             {building && (
-              <div className="flex items-center gap-3 mt-1 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs sm:text-sm text-teal-50">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] sm:text-xs text-teal-50">
                     מבנה {building.building_number}
                   </p>
                   {buildingAddress && (
-                    <p className="text-xs sm:text-sm text-teal-50">
+                    <p className="text-[10px] sm:text-xs text-teal-50">
                       - {buildingAddress}
                       {building?.building_number_in_street && (
                         <span className="mr-1"> {building.building_number_in_street}</span>
                       )}
                     </p>
                   )}
-                  <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                  <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     גוש: {building?.gosh || '-'}
                   </p>
-                  <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                  <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     חלקה: {building?.helka || '-'}
                   </p>
-                  <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                  <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     קומה: {asset?.floor != null ? asset.floor : '-'}
                   </p>
                   {asset?.discount_type && (
-                    <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                       סוג הנחה: {asset.discount_type}
                     </p>
                   )}
                   {(asset?.discount_date_from || asset?.discount_date_to) && (
-                    <p className="text-xs sm:text-sm text-teal-50 font-semibold bg-white/20 px-2 py-1 rounded">
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                       תאריך הנחה: {asset?.discount_date_from || ''} - {asset?.discount_date_to || ''}
                     </p>
                   )}

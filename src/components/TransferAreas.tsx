@@ -818,13 +818,30 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       // Save all assets in bulk with single audit entry and action_id (same as distribute)
       if (originalAssets.length > 0) {
         try {
-          // Prepare before and after data (same pattern as distribute)
+          // Prepare before and after data with complete asset details in JSON format
+          // Before: original asset state with all fields
           const beforeData = {
-            assets: originalAssets.map(a => ({ ...a }))
+            assets: originalAssets.map(a => {
+              // Create a complete copy with all asset fields for audit
+              const completeAsset = { ...a };
+              // Ensure all fields are included, even if undefined
+              return completeAsset;
+            })
           };
           
+          // After: new asset state with all fields (including measurement_date update)
           const afterData = {
-            assets: newAssetsData.map(a => ({ ...a }))
+            assets: newAssetsData.map((newAsset, index) => {
+              // Merge with original asset to ensure all fields are present
+              const originalAsset = originalAssets[index];
+              // Create complete asset object with all fields for audit
+              const completeAsset = {
+                ...originalAsset,
+                ...newAsset,
+                measurement_date: finalMeasurementDate
+              };
+              return completeAsset;
+            })
           };
           
           const affectedAssetIds = originalAssets.map(a => a.asset_id);

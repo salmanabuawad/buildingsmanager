@@ -1776,13 +1776,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
         }
         
+        // Prepare before and after data with complete asset details in JSON format
         const beforeData = {
-          assets: beforeAssets,
+          assets: beforeAssets.map(a => {
+            // Create a complete copy with all asset fields for audit
+            return { ...a };
+          }),
           shared_area_distributed: building.residence_shared_area,
           shared_area_type: 'residence'
         };
         const afterData = {
-          assets: assetsToUpdate,
+          assets: assetsToUpdate.map((updatedAsset, index) => {
+            // Merge with original asset to ensure all fields are present in audit
+            const originalAsset = beforeAssets[index];
+            // Create complete asset object with all fields for audit
+            return {
+              ...originalAsset,
+              ...updatedAsset
+            };
+          }),
           shared_area_distributed: building.residence_shared_area,
           shared_area_type: 'residence'
         };
@@ -2067,14 +2079,26 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
         }
         
+        // Prepare before and after data with complete asset details in JSON format
         const beforeData = {
-          assets: beforeAssets,
+          assets: beforeAssets.map(a => {
+            // Create a complete copy with all asset fields for audit
+            return { ...a };
+          }),
           shared_area_distributed: building.business_shared_area,
           shared_area_type: 'business',
           overload_ratio: overloadRatioPercentage
         };
         const afterData = {
-          assets: assetsToUpdate,
+          assets: assetsToUpdate.map((updatedAsset, index) => {
+            // Merge with original asset to ensure all fields are present in audit
+            const originalAsset = beforeAssets[index];
+            // Create complete asset object with all fields for audit
+            return {
+              ...originalAsset,
+              ...updatedAsset
+            };
+          }),
           shared_area_distributed: building.business_shared_area,
           shared_area_type: 'business',
           overload_ratio: overloadRatioPercentage

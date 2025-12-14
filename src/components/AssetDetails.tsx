@@ -406,7 +406,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     };
 
     loadActionTypes();
-  }, [historyRows, latestMeasurement, asset?.asset_id]);
+  }, [historyRows, latestMeasurement, asset?.asset_id, activeHistoryTab]);
+  
+  // Refresh data and clear state when switching to distribution/transfer tabs
+  useEffect(() => {
+    if (activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') {
+      // Clear selected date tab when switching tabs
+      setSelectedDateTab(null);
+      // Clear audit cache for distribution/transfer to force refresh
+      setAuditDataCache(new Map());
+      // Trigger reload of action types to refresh distribution/transfer data
+      // This will be handled by the loadActionTypes useEffect above
+    }
+  }, [activeHistoryTab]);
 
   // Filter history rows by action_type
   const regularHistoryRows = useMemo(() => {
@@ -3901,10 +3913,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
                 {/* Active Tab Content - Enhanced Styling */}
                 {(activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') ? (
-                  <div className="rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50">
+                  <div className="rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '200px', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
                     {/* Date Tabs - Horizontal Row */}
                     {dateTabs.length > 0 && (
-                      <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1 overflow-x-auto" dir="rtl">
+                      <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1 overflow-x-auto flex-shrink-0" dir="rtl">
                         {dateTabs.map((dateTab) => {
                           const isSelected = selectedDateTab?.actionId === dateTab.actionId;
                           return (
@@ -3932,7 +3944,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     
                     {/* Detail Content */}
                     {selectedDateTab && (
-                      <div className="p-4">
+                      <div className="flex-1 overflow-auto p-4">
                         <DetailRowRenderer
                           {...({
                             data: {

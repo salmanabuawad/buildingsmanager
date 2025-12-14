@@ -162,8 +162,14 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
                           {t('viewDetails') || 'View Details'}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-slate-900 font-medium">
-                        {asset.asset_id}
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => onSelectAsset(asset.asset_id, String(asset.asset_id), asset.building_number)}
+                          className="text-blue-600 hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
+                          title="לחץ כדי לפתוח את הנכס"
+                        >
+                          {asset.asset_id}
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         {asset.payer_id}

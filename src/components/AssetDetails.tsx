@@ -2710,7 +2710,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }
                   }));
                 }}
-                className="text-slate-800 hover:text-slate-900 hover:underline cursor-pointer transition-colors font-semibold"
+                className="text-blue-600 hover:text-blue-800 underline decoration-blue-600 hover:decoration-blue-800 cursor-pointer transition-colors font-semibold"
                 title="לחץ כדי לפתוח את הנכס"
               >
                 {assetId}

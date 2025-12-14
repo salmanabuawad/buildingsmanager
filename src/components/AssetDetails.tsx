@@ -1128,14 +1128,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Load audit log entry
       const audit = await api.auditLog.getOne(actionId);
       
-        // Parse before and after data (only assets, no buildings)
-        const beforeParsed = parseAuditData(audit.before_data);
-        const afterParsed = parseAuditData(audit.after_data);
-        
-        const beforeAssets = extractAssets(beforeParsed);
-        const afterAssets = extractAssets(afterParsed);
-      
-      // Load related assets
+      // Load related assets from database (assets and assets_history with this action_id)
       const { data, error: assetsError } = await supabase
         .from('assets')
         .select('*')
@@ -1150,10 +1143,26 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       
       if (historyError) throw historyError;
       
-      const allAssets = [
-        ...(data || []).map((a: any) => ({ ...a, is_latest: true })),
-        ...(historyData || []).map((a: any) => ({ ...a, is_latest: false }))
-      ];
+      const currentAssets = (data || []).map((a: any) => ({ ...a, is_latest: true }));
+      const historyAssets = (historyData || []).map((a: any) => ({ ...a, is_latest: false }));
+      const allAssets = [...currentAssets, ...historyAssets];
+      
+      // Parse before and after data from audit JSON (same for transfer and distribute)
+      // Both transfer_area and distribute_shared store complete asset details in before_data/after_data JSON
+      const beforeParsed = parseAuditData(audit.before_data);
+      const afterParsed = parseAuditData(audit.after_data);
+      
+      let beforeAssets = extractAssets(beforeParsed);
+      let afterAssets = extractAssets(afterParsed);
+      
+      // If JSON extraction failed or returned empty, fall back to database records
+      // This ensures we always have data to display
+      if (beforeAssets.length === 0 && historyAssets.length > 0) {
+        beforeAssets = historyAssets;
+      }
+      if (afterAssets.length === 0 && currentAssets.length > 0) {
+        afterAssets = currentAssets;
+      }
       
       // Update cache with loaded data (no buildings)
       setAuditDataCache(prev => new Map(prev).set(actionId, {

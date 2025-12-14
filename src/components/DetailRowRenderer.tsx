@@ -159,15 +159,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
       });
     });
     
-    // Add related assets
-    relatedAssets.forEach(asset => {
-      combined.push({
-        ...asset,
-        _source: 'related',
-        _changeSource: actionType,
-        _changedFields: new Set<string>() // Related assets don't have changes to highlight
-      });
-    });
+    // Do NOT add related assets - only show before and after
     
     // Sort by asset_id, then by source (before comes before after)
     combined.sort((a, b) => {
@@ -177,14 +169,14 @@ export function DetailRowRenderer(params: DetailRowParams) {
         return idA - idB;
       }
       // If same asset_id, sort by source: before comes before after
-      const sourceOrder: { [key: string]: number } = { 'before': 1, 'after': 2, 'related': 3 };
+      const sourceOrder: { [key: string]: number } = { 'before': 1, 'after': 2 };
       const orderA = sourceOrder[a._source] || 99;
       const orderB = sourceOrder[b._source] || 99;
       return orderA - orderB;
     });
     
     return combined;
-  }, [beforeAssets, afterAssets, relatedAssets, auditLog?.action_type, changedFieldsMap]);
+  }, [beforeAssets, afterAssets, auditLog?.action_type, changedFieldsMap]);
 
   // Get column definitions map for Hebrew names
   const columnDefsMap = useMemo(() => {

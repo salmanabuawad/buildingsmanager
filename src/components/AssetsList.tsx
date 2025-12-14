@@ -1776,35 +1776,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
         }
         
-        // Prepare before and after data with complete asset details in JSON format
-        const beforeData = {
-          assets: beforeAssets.map(a => {
-            // Create a complete copy with all asset fields for audit
-            return { ...a };
-          }),
-          shared_area_distributed: building.residence_shared_area,
-          shared_area_type: 'residence'
-        };
-        const afterData = {
-          assets: assetsToUpdate.map((updatedAsset, index) => {
-            // Merge with original asset to ensure all fields are present in audit
-            const originalAsset = beforeAssets[index];
-            // Create complete asset object with all fields for audit
-            return {
-              ...originalAsset,
-              ...updatedAsset
-            };
-          }),
-          shared_area_distributed: building.residence_shared_area,
-          shared_area_type: 'residence'
-        };
-        
-        // Bulk update all assets with single audit entry and action_id
+        // Database transaction will automatically collect before/after asset data
+        // Pass NULL to let the database function collect before/after data from the database
         const result = await api.auditLog.bulkUpdateAssets(
           assetsToUpdate,
           'distribute_shared',
-          beforeData,
-          afterData,
+          NULL, // Database will collect before asset data automatically
+          NULL, // Database will collect after asset data automatically
           `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
         );
         
@@ -2079,37 +2057,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
         }
         
-        // Prepare before and after data with complete asset details in JSON format
-        const beforeData = {
-          assets: beforeAssets.map(a => {
-            // Create a complete copy with all asset fields for audit
-            return { ...a };
-          }),
-          shared_area_distributed: building.business_shared_area,
-          shared_area_type: 'business',
-          overload_ratio: overloadRatioPercentage
-        };
-        const afterData = {
-          assets: assetsToUpdate.map((updatedAsset, index) => {
-            // Merge with original asset to ensure all fields are present in audit
-            const originalAsset = beforeAssets[index];
-            // Create complete asset object with all fields for audit
-            return {
-              ...originalAsset,
-              ...updatedAsset
-            };
-          }),
-          shared_area_distributed: building.business_shared_area,
-          shared_area_type: 'business',
-          overload_ratio: overloadRatioPercentage
-        };
-        
-        // Bulk update all assets with single audit entry and action_id
+        // Database transaction will automatically collect before/after asset data
+        // Pass NULL to let the database function collect before/after data from the database
         const result = await api.auditLog.bulkUpdateAssets(
           assetsToUpdate,
           'distribute_shared',
-          beforeData,
-          afterData,
+          NULL, // Database will collect before asset data automatically
+          NULL, // Database will collect after asset data automatically
           `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
         );
         

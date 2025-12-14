@@ -647,7 +647,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       const errors: string[] = [];
       const originalAssets: Asset[] = [];
       const newAssetsData: Partial<Asset>[] = [];
-      const updatedAssetsForAudit: Asset[] = []; // Store complete updated assets for audit (with all changes)
       
       // First pass: validate all assets and prepare data
       for (const [assetId, changes] of dirtyAssets.entries()) {
@@ -784,15 +783,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             continue;
           }
 
-          // Store original asset for before data (deep copy)
-          originalAssets.push(JSON.parse(JSON.stringify(originalAsset)));
-          
-          // Store complete updated asset for audit (with all changes and new measurement_date)
-          const updatedAssetForAudit: Asset = {
-            ...updatedData,
-            measurement_date: finalMeasurementDate
-          } as Asset;
-          updatedAssetsForAudit.push(updatedAssetForAudit);
+          // Store original asset for before data (for p_old_assets parameter)
+          originalAssets.push({ ...originalAsset });
           
           // Prepare new asset data with updated measurement date (for database insertion)
           const newAssetData: Partial<Asset> = {
@@ -826,26 +818,20 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       // Save all assets in bulk with single audit entry and action_id (same as distribute)
       if (originalAssets.length > 0) {
         try {
-          // Prepare before and after data with complete asset details in JSON format (same as distribute)
-          // Before: original asset state with all fields (deep copy)
-          const beforeData = {
-            assets: originalAssets.map(a => JSON.parse(JSON.stringify(a)))
-          };
-          
-          // After: updated asset state with all changes and new measurement_date (deep copy)
-          const afterData = {
-            assets: updatedAssetsForAudit.map(a => JSON.parse(JSON.stringify(a)))
-          };
-          
+          // Prepare before and after data - database transaction will collect automatically
+          // Pass NULL to let the database function collect before/after data from the database
+          // Database will collect before data from assets table before moving to history
+          // Database will collect after data from assets table after creating new measurements
           const affectedAssetIds = originalAssets.map(a => a.asset_id);
           
           // Use bulkTransferAreas which handles creating new measurements and audit logging
+          // Database transaction will automatically collect before/after asset data
           const result = await api.auditLog.bulkTransferAreas(
             originalAssets,
             newAssetsData,
             'transfer_area',
-            beforeData,
-            afterData,
+            NULL, // Database will collect before asset data automatically
+            NULL, // Database will collect after asset data automatically
             `Transferred areas for ${originalAssets.length} assets as new measurements`
           );
           

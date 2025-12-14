@@ -324,7 +324,7 @@ export function ValidationResultModal({
                                             onClose(); // Close the validation modal when opening asset view
                                           }
                                         }}
-                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                                        className="text-slate-800 hover:text-slate-900 hover:underline cursor-pointer transition-colors"
                                         title="לחץ כדי לפתוח את הנכס"
                                       >
                                         נכס {error.assetId} (מבנה {error.buildingNumber})

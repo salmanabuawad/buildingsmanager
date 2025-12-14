@@ -276,7 +276,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
               asset.tax_region ? String(asset.tax_region) : undefined
             );
           }}
-          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors font-semibold"
+          className="text-slate-800 hover:text-slate-900 hover:underline cursor-pointer transition-colors font-semibold"
           title="לחץ כדי לפתוח את הנכס"
         >
           {assetId}

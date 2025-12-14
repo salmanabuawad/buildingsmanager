@@ -1806,6 +1806,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         setAssets(updatedAssets);
       }
       
+      // Update building flag to indicate distribution is done
+      try {
+        await api.buildings.update(building.building_number, {
+          residence_shared_area_distributed: true
+        });
+        // Refresh building data
+        const updatedBuilding = await api.buildings.getOne(building.building_number);
+        setBuilding(updatedBuilding);
+      } catch (flagError) {
+        console.warn('Failed to update residence distribution flag:', flagError);
+      }
+      
       // Show result in modal
       setDistributionResult(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
       setDistributionModalOpen(true);
@@ -2085,6 +2097,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Still update local state even if bulk save fails
         setDirtyAssets(updatedDirtyAssets);
         setAssets(updatedAssets);
+      }
+      
+      // Update building flag to indicate distribution is done
+      try {
+        await api.buildings.update(building.building_number, {
+          business_shared_area_distributed: true
+        });
+        // Refresh building data
+        const updatedBuilding = await api.buildings.getOne(building.building_number);
+        setBuilding(updatedBuilding);
+      } catch (flagError) {
+        console.warn('Failed to update business distribution flag:', flagError);
       }
       
       // Note: Building state with updated overload_ratio was already set in the try block above
@@ -3174,6 +3198,53 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           </div>
         </div>
       )}
+      {/* Blinking warning message when distribution is needed */}
+      {building && (() => {
+        const needsResidenceDistribution = isResidentTaxRegion && 
+          building.residence_shared_area != null && 
+          building.residence_shared_area > 0 && 
+          !building.residence_shared_area_distributed;
+        
+        const needsBusinessDistribution = taxRegion && 
+          !isMultiTaxRegion && 
+          !isResidentTaxRegion && 
+          building.business_shared_area != null && 
+          building.business_shared_area > 0 && 
+          !building.business_shared_area_distributed;
+        
+        if (!needsResidenceDistribution && !needsBusinessDistribution) {
+          return null;
+        }
+        
+        return (
+          <div className="fixed top-4 right-4 z-50 max-w-md space-y-2">
+            {needsResidenceDistribution && (
+              <div className="animate-pulse" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+                <div className="bg-amber-500 border-l-4 border-amber-700 rounded-lg p-4 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-amber-900 animate-bounce" />
+                    <p className="text-amber-900 font-bold text-lg">
+                      ⚠️ יש צורך לפזר שטח משותף מגורים!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {needsBusinessDistribution && (
+              <div className="animate-pulse" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+                <div className="bg-amber-500 border-l-4 border-amber-700 rounded-lg p-4 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-amber-900 animate-bounce" />
+                    <p className="text-amber-900 font-bold text-lg">
+                      ⚠️ יש צורך לפזר שטח משותף עסקים!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <div className="w-full py-3" style={{ maxWidth: '100vw', width: '100%', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
         <div className="mb-3 bg-gradient-to-r from-teal-600 to-blue-600 rounded-lg shadow-lg p-2">
           <div className="flex items-center justify-between">

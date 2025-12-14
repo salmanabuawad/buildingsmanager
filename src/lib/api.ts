@@ -117,6 +117,8 @@ export interface Building {
   single_double_family?: string;
   condo?: string;
   townhouses?: string;
+  residence_shared_area_distributed?: boolean;
+  business_shared_area_distributed?: boolean;
   building_address?: number; // Street code from address_list table
   overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
   gosh?: number; // גוש (Block number)
@@ -429,6 +431,13 @@ function sanitizeBuildingInput(input: any): any {
   } else if ('building_number_in_street' in input && (input.building_number_in_street === null || input.building_number_in_street === '')) {
     sanitized.building_number_in_street = null;
   }
+  // Handle boolean distribution flags
+  if ('residence_shared_area_distributed' in input) {
+    sanitized.residence_shared_area_distributed = input.residence_shared_area_distributed === true || input.residence_shared_area_distributed === 'true';
+  }
+  if ('business_shared_area_distributed' in input) {
+    sanitized.business_shared_area_distributed = input.business_shared_area_distributed === true || input.business_shared_area_distributed === 'true';
+  }
   
   return sanitized;
 }
@@ -545,6 +554,20 @@ export const api = {
       const cleanedInput = Object.fromEntries(
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
+      
+      // Reset distribution flags when shared areas change
+      if (beforeData) {
+        // If residence_shared_area is being changed, reset the distribution flag
+        if ('residence_shared_area' in cleanedInput && 
+            cleanedInput.residence_shared_area !== beforeData.residence_shared_area) {
+          cleanedInput.residence_shared_area_distributed = false;
+        }
+        // If business_shared_area is being changed, reset the distribution flag
+        if ('business_shared_area' in cleanedInput && 
+            cleanedInput.business_shared_area !== beforeData.business_shared_area) {
+          cleanedInput.business_shared_area_distributed = false;
+        }
+      }
       
       // Remove read-only fields that shouldn't be updated directly
       delete (cleanedInput as any).action_id;

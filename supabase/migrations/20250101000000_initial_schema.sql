@@ -230,6 +230,8 @@ CREATE TABLE IF NOT EXISTS buildings (
   helka bigint,
   building_number_in_street bigint,
   overload_ratio numeric(5,2),
+  residence_shared_area_distributed boolean DEFAULT false,
+  business_shared_area_distributed boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 
@@ -289,6 +291,8 @@ COMMENT ON COLUMN buildings.building_address IS 'Street code from address_list t
 COMMENT ON COLUMN buildings.overload_ratio IS 'אחוז העמסה - Overload ratio percentage';
 COMMENT ON COLUMN buildings.residence_shared_area IS 'Residence shared/common area in the building (שטח משותף מגורים)';
 COMMENT ON COLUMN buildings.business_shared_area IS 'Shared business/commercial area in the building (שטח משותף עסקים)';
+COMMENT ON COLUMN buildings.residence_shared_area_distributed IS 'Flag indicating if residence shared area has been distributed to assets';
+COMMENT ON COLUMN buildings.business_shared_area_distributed IS 'Flag indicating if business shared area has been distributed to assets';
 
 -- ============================================================================
 -- 5. ASSETS TABLE

@@ -678,7 +678,7 @@ export function AssetTypes() {
   }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes]);
 
 
-  function downloadTemplate() {
+  async function downloadTemplate() {
     // Headers - can be in any order, import will map by exact field name match
     // Supports both Hebrew and English field names
     const headers = [

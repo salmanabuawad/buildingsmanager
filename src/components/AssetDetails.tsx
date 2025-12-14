@@ -3109,6 +3109,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, asset]);
 
   useEffect(() => {
+    // Reset state when assetId changes to ensure fresh data is loaded
+    if (assetId) {
+      setAsset(null);
+      setAllMeasurements([]);
+      setOriginalMeasurements([]);
+      setExpandedHistoryRows(new Set());
+      setAuditDataCache(new Map());
+      setHistoryWithActionTypes(new Map());
+      setAdditionalDistributionAssets([]);
+      setAdditionalTransferAssets([]);
+    }
     fetchData();
   }, [assetId, buildingNumber, taxRegion]);
 
@@ -3284,24 +3295,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // The currentAssetId is the asset_id (primary key), not a separate id field
       let assetData: Asset | null = null;
       
-      if (asset && asset.asset_id) {
-        // If we already have asset state, use getAllByAssetId (preferred method)
-        try {
-          const assetsByAssetId = await api.assets.getAllByAssetId(String(asset.asset_id), asset.building_number);
-          if (assetsByAssetId && assetsByAssetId.length > 0) {
-            // Find the one matching the currentAssetId (which is asset_id), or get the latest
-            assetData = assetsByAssetId.find(a => a.asset_id === currentAssetId) || assetsByAssetId[0];
-          }
-        } catch (assetIdErr) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('[AssetDetails] Error fetching asset by asset_id:', assetIdErr);
-          }
-        }
-      }
-      
-      // If not found yet, try using getAllByAssetId directly with currentAssetId
-      // Since asset_id is the primary key, we can query directly
-      if (!assetData && currentAssetId) {
+      // Always use currentAssetId (from prop or override) instead of asset state
+      // This ensures we fetch the correct asset when assetId prop changes
+      if (currentAssetId && buildingNumber) {
         try {
           const assetsByAssetId = await api.assets.getAllByAssetId(String(currentAssetId), buildingNumber);
           if (assetsByAssetId && assetsByAssetId.length > 0) {
@@ -3942,7 +3938,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       resizable: true,
                       wrapHeaderText: true,
                       autoHeaderHeight: true,
-                      wrapText: true,
+                      wrapText: false, // Prevent text wrapping, especially for dates
                       autoHeight: false,
                       sortable: false,
                       headerClass: 'ag-right-aligned-header',
@@ -3957,10 +3953,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         WebkitFontSmoothing: 'antialiased', 
                         MozOsxFontSmoothing: 'grayscale' 
                       },
-                      cellStyle: {
-                        padding: '8px 12px',
-                        fontSize: '12px',
-                        borderRight: '1px solid #f3f4f6'
+                      cellStyle: (params: any) => {
+                        const baseStyle = {
+                          padding: '8px 12px',
+                          fontSize: '12px',
+                          borderRight: '1px solid #f3f4f6',
+                          whiteSpace: 'nowrap', // Ensure dates stay on one line
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        };
+                        // For date fields, ensure they stay on one line
+                        if (params.colDef?.field === 'measurement_date') {
+                          return { ...baseStyle, whiteSpace: 'nowrap' };
+                        }
+                        return baseStyle;
                       },
                       minWidth: 40
                     }}

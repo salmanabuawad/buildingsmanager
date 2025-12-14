@@ -1,30 +1,12 @@
 -- ============================================================================
--- Update Bulk Operations to Collect Before/After Data in Transaction
+-- TEMP SQL: Fix Bulk Operations to Handle NULL/JSON null Properly
 -- ============================================================================
--- This migration updates bulk_update_assets_with_audit and bulk_transfer_areas_with_audit
--- to automatically collect before/after asset data within the transaction,
--- rather than relying on frontend-provided data
+-- Run this file to update the functions to properly handle NULL values
+-- from the frontend (which may come as JSON null instead of SQL NULL)
 
 -- ============================================================================
--- Update bulk_update_assets_with_audit to collect before/after data in transaction
+-- Fix bulk_update_assets_with_audit
 -- ============================================================================
--- Drop existing function with all possible signatures
-DO $$
-DECLARE
-  r record;
-BEGIN
-  FOR r IN
-    SELECT oid::regprocedure as func_signature
-    FROM pg_proc
-    WHERE proname = 'bulk_update_assets_with_audit'
-  LOOP
-    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
-  END LOOP;
-EXCEPTION
-  WHEN OTHERS THEN
-    NULL;
-END $$;
-
 CREATE OR REPLACE FUNCTION bulk_update_assets_with_audit(
   p_assets jsonb, -- Array of asset objects to update/create
   p_action_type audit_action_type, -- Action type for audit
@@ -48,9 +30,8 @@ DECLARE
   v_asset_data jsonb; -- For collecting asset data from database
 BEGIN
   -- Collect BEFORE data from database (if not provided)
-  -- Database transaction will automatically collect asset data from the database
-  -- Check for both SQL NULL and JSON null (from JavaScript)
-  IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN
+  -- Check for both SQL NULL and JSON null (from JavaScript/TypeScript)
+  IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR (p_before_data::text = 'null') THEN
     FOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)
     LOOP
       v_asset_id := (v_asset->>'asset_id')::bigint;
@@ -75,15 +56,24 @@ BEGIN
   END IF;
   
   -- Create audit entry with collected before data (after data will be updated later)
-  SELECT log_audit_entry(
-    p_action_type,
-    'bulk_asset',
-    NULL::text, -- entity_id will be set after we know all affected asset IDs
-    p_user_id,
-    v_before_data_collected,
-    NULL::jsonb, -- after_data will be set after updates
-    p_description
-  ) INTO v_audit_id;
+  BEGIN
+    SELECT log_audit_entry(
+      p_action_type,
+      'bulk_asset',
+      NULL::text, -- entity_id will be set after we know all affected asset IDs
+      p_user_id,
+      v_before_data_collected,
+      NULL::jsonb, -- after_data will be set after updates
+      p_description
+    ) INTO v_audit_id;
+    
+    -- Verify audit entry was created
+    IF v_audit_id IS NULL THEN
+      RAISE EXCEPTION 'Failed to create audit entry: log_audit_entry returned NULL';
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Failed to create audit entry: %', SQLERRM;
+  END;
   
   -- Process each asset in the array
   FOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)
@@ -208,9 +198,8 @@ BEGIN
   END LOOP;
   
   -- Collect AFTER data from database (if not provided)
-  -- Database transaction will automatically collect asset data from the database after updates
-  -- Check for both SQL NULL and JSON null (from JavaScript)
-  IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb THEN
+  -- Check for both SQL NULL and JSON null (from JavaScript/TypeScript)
+  IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR (p_after_data::text = 'null') THEN
     FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
     LOOP
       -- Get updated asset state from database after update
@@ -250,28 +239,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION bulk_update_assets_with_audit IS 'Bulk update/create assets with automatic before/after data collection in transaction';
-
 -- ============================================================================
--- Update bulk_transfer_areas_with_audit to collect before/after data in transaction
+-- Fix bulk_transfer_areas_with_audit
 -- ============================================================================
--- Drop existing function with all possible signatures
-DO $$
-DECLARE
-  r record;
-BEGIN
-  FOR r IN
-    SELECT oid::regprocedure as func_signature
-    FROM pg_proc
-    WHERE proname = 'bulk_transfer_areas_with_audit'
-  LOOP
-    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
-  END LOOP;
-EXCEPTION
-  WHEN OTHERS THEN
-    NULL;
-END $$;
-
 CREATE OR REPLACE FUNCTION bulk_transfer_areas_with_audit(
   p_old_assets jsonb, -- Array of old asset objects (to move to history) - only needs asset_id and building_number
   p_new_assets jsonb, -- Array of new asset objects (to create)
@@ -296,9 +266,8 @@ DECLARE
   v_asset_data jsonb; -- For collecting asset data from database
 BEGIN
   -- Collect BEFORE data from database (if not provided)
-  -- Database transaction will automatically collect asset data from the database before moving to history
-  -- Check for both SQL NULL and JSON null (from JavaScript)
-  IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN
+  -- Check for both SQL NULL and JSON null (from JavaScript/TypeScript)
+  IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR (p_before_data::text = 'null') THEN
     FOR v_asset IN SELECT * FROM jsonb_array_elements(p_old_assets)
     LOOP
       v_asset_id := (v_asset->>'asset_id')::bigint;
@@ -323,15 +292,24 @@ BEGIN
   END IF;
   
   -- Create audit entry with collected before data (after data will be updated later)
-  SELECT log_audit_entry(
-    p_action_type,
-    'bulk_asset',
-    NULL::text, -- entity_id will be set after processing
-    p_user_id,
-    v_before_data_collected,
-    NULL::jsonb, -- after_data will be set after creating new assets
-    p_description
-  ) INTO v_audit_id;
+  BEGIN
+    SELECT log_audit_entry(
+      p_action_type,
+      'bulk_asset',
+      NULL::text, -- entity_id will be set after processing
+      p_user_id,
+      v_before_data_collected,
+      NULL::jsonb, -- after_data will be set after creating new assets
+      p_description
+    ) INTO v_audit_id;
+    
+    -- Verify audit entry was created
+    IF v_audit_id IS NULL THEN
+      RAISE EXCEPTION 'Failed to create audit entry: log_audit_entry returned NULL';
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Failed to create audit entry: %', SQLERRM;
+  END;
   
   -- First, move old assets to history and mark with action_id
   FOR v_asset IN SELECT * FROM jsonb_array_elements(p_old_assets)
@@ -448,9 +426,8 @@ BEGIN
   END LOOP;
   
   -- Collect AFTER data from database (if not provided)
-  -- Database transaction will automatically collect asset data from the database after creating new assets
-  -- Check for both SQL NULL and JSON null (from JavaScript)
-  IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb THEN
+  -- Check for both SQL NULL and JSON null (from JavaScript/TypeScript)
+  IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR (p_after_data::text = 'null') THEN
     FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
     LOOP
       -- Get new asset state from database (after creation)
@@ -492,5 +469,3 @@ BEGIN
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-COMMENT ON FUNCTION bulk_transfer_areas_with_audit IS 'Bulk transfer areas: move old assets to history and create new ones with automatic before/after data collection in transaction';

@@ -830,8 +830,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             originalAssets,
             newAssetsData,
             'transfer_area',
-            NULL, // Database will collect before asset data automatically
-            NULL, // Database will collect after asset data automatically
+            null, // Database will collect before asset data automatically (lowercase null, not NULL)
+            null, // Database will collect after asset data automatically (lowercase null, not NULL)
             `Transferred areas for ${originalAssets.length} assets as new measurements`
           );
           

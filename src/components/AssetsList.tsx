@@ -1777,12 +1777,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
         
         // Database transaction will automatically collect before/after asset data
-        // Pass NULL to let the database function collect before/after data from the database
+        // Pass null to let the database function collect before/after data from the database
         const result = await api.auditLog.bulkUpdateAssets(
           assetsToUpdate,
           'distribute_shared',
-          NULL, // Database will collect before asset data automatically
-          NULL, // Database will collect after asset data automatically
+          null, // Database will collect before asset data automatically (lowercase null, not NULL)
+          null, // Database will collect after asset data automatically (lowercase null, not NULL)
           `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
         );
         
@@ -2062,8 +2062,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const result = await api.auditLog.bulkUpdateAssets(
           assetsToUpdate,
           'distribute_shared',
-          NULL, // Database will collect before asset data automatically
-          NULL, // Database will collect after asset data automatically
+          null, // Database will collect before asset data automatically (lowercase null, not NULL)
+          null, // Database will collect after asset data automatically (lowercase null, not NULL)
           `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
         );
         

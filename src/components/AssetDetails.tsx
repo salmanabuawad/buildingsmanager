@@ -3913,7 +3913,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     columnDefs={
                       activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer'
                         ? columnDefs.filter((col: any) => 
-                            col.field === 'measurement_date' || col.field === 'structure_drawing_url'
+                            col.field === 'measurement_date'
                           )
                         : columnDefs
                     }

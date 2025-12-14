@@ -72,11 +72,12 @@ function App() {
       const { getAssetTypes } = require('./lib/validation');
       const assetTypes = getAssetTypes();
       if (assetTypes && assetTypes.length > 0) {
-        // Find first asset type with matching tax_region that has area_description_for_tab
+        // Find first asset type with matching tax_region
         const matchingAssetType = assetTypes.find((at: AssetType) =>
-          at.tax_region === taxRegionNum && at.area_description_for_tab
+          at.tax_region === taxRegionNum
         );
         
+        // If found and has area_description_for_tab, use it
         if (matchingAssetType?.area_description_for_tab) {
           return matchingAssetType.area_description_for_tab;
         }
@@ -88,6 +89,7 @@ function App() {
       }
     }
     
+    // Fallback to tax region number if no area_description_for_tab found
     return String(taxRegionNum);
   }, []);
 

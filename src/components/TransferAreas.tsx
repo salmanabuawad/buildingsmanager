@@ -647,6 +647,9 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       let savedCount = 0;
       const errors: string[] = [];
 
+      // Store created assets for audit logging (keyed by original asset_id)
+      const createdAssetsMap = new Map<string, Asset>();
+      
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
           // Get the full asset data with changes (assetId is asset_id)
@@ -809,6 +812,9 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           // Skip audit logging for individual operations - we'll create a bulk audit entry later
           const createdAsset = await api.assets.create(newAssetData as any, true);
 
+          // Store created asset for audit logging
+          createdAssetsMap.set(assetId, createdAsset);
+
           // Update asset identifiers (key is asset_id)
           setAssetIdentifiers(prev => {
             const next = new Map(prev);
@@ -841,19 +847,22 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               beforeAssets.push({ ...originalAsset });
               affectedAssetIds.push(originalAsset.asset_id);
               
-              // After: fetch the newly created asset (it should have the same asset_id but new measurement_date)
-              // Since we just created it, we can get it from the API or use the createdAsset data
-              // For now, we'll need to fetch it or reconstruct it from the newAssetData
-              // The new asset will be in the assets list after refresh, but for audit we need it now
-              // We'll store the updated data that was used to create the new asset
-              const updatedData = dirtyAssets.get(assetId);
-              if (updatedData) {
-                const afterAsset = {
-                  ...originalAsset,
-                  ...updatedData,
-                  measurement_date: finalMeasurementDate
-                } as Asset;
-                afterAssets.push(afterAsset);
+              // After: use the actual created asset from the database
+              // The created asset was stored in createdAssetsMap during the save loop
+              const createdAsset = createdAssetsMap.get(assetId);
+              if (createdAsset) {
+                afterAssets.push({ ...createdAsset });
+              } else {
+                // Fallback: reconstruct from updatedData if createdAsset not available
+                const updatedData = dirtyAssets.get(assetId);
+                if (updatedData) {
+                  const afterAsset = {
+                    ...originalAsset,
+                    ...updatedData,
+                    measurement_date: finalMeasurementDate
+                  } as Asset;
+                  afterAssets.push(afterAsset);
+                }
               }
             }
           }

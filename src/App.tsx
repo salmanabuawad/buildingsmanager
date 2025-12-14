@@ -950,12 +950,12 @@ function App() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="bg-white/95 backdrop-blur-sm border-b border-purple-200 shadow-lg">
-          <div className="px-2 sm:px-4 py-2">
+          <div className="px-2 sm:px-4 py-1">
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-all cursor-pointer group rounded-t-lg ${
+                  className={`flex items-center gap-2 px-3 py-1 border-b-2 transition-all cursor-pointer group rounded-t-lg ${
                     activeTabId === tab.id
                       ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-sm'
                       : 'border-transparent hover:bg-purple-50/50 hover:border-purple-200'
@@ -988,7 +988,7 @@ function App() {
                     ) : (
                       <Building className="h-4 w-4 text-purple-700" />
                     )}
-                    <span className={`font-normal whitespace-nowrap text-sm ${
+                    <span className={`font-normal whitespace-nowrap text-xs ${
                       activeTabId === tab.id ? 'text-purple-900' : 'text-slate-600'
                     }`}>
                       {tab.label}

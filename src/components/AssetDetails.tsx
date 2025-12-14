@@ -3913,7 +3913,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
                 {/* Active Tab Content - Enhanced Styling */}
                 {(activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') ? (
-                  <div className="rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '200px', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  <div className="rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
                     {/* Date Tabs - Horizontal Row */}
                     {dateTabs.length > 0 && (
                       <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1 overflow-x-auto flex-shrink-0" dir="rtl">
@@ -3973,7 +3973,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     )}
                   </div>
                 ) : (
-                  <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
+                  <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflowX: 'auto' }}>
                     <style>{`
                       .ag-theme-alpine .ag-header {
                         background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;

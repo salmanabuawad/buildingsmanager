@@ -2629,31 +2629,38 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id'),
       cellRenderer: (params: any) => {
-        // Make asset_id clickable only if it's different from the current tab's asset_id
-        // This applies to both latest and history rows in the lower grid
-        if (params.data && params.data.asset_id && params.data.asset_id !== asset?.asset_id) {
+        // Make asset_id clickable if it's different from the current tab's asset_id
+        // OR if it's in a history grid and we want to open the asset view (regardless of action_id)
+        if (params.data && params.data.asset_id) {
           const assetId = params.data.asset_id;
           const rowData = params.data as Asset;
-          return (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // Dispatch custom event that App.tsx can listen to
-                window.dispatchEvent(new CustomEvent('openAssetView', {
-                  detail: { 
-                    assetDbId: assetId,
-                    assetId: String(assetId),
-                    buildingNumber: rowData.building_number,
-                    taxRegion: rowData.tax_region ? String(rowData.tax_region) : undefined
-                  }
-                }));
-              }}
-              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors font-semibold"
-              title="לחץ כדי לפתוח את הנכס"
-            >
-              {assetId}
-            </button>
-          );
+          const isDifferentAsset = assetId !== asset?.asset_id;
+          
+          // Always make clickable if different from current asset, or if in history grid
+          if (isDifferentAsset || params.data.is_latest === false) {
+            return (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  // Dispatch custom event that App.tsx can listen to
+                  // This opens the asset view directly, just like in asset search grid
+                  window.dispatchEvent(new CustomEvent('openAssetView', {
+                    detail: { 
+                      assetDbId: assetId,
+                      assetId: String(assetId),
+                      buildingNumber: rowData.building_number,
+                      taxRegion: rowData.tax_region ? String(rowData.tax_region) : undefined
+                    }
+                  }));
+                }}
+                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors font-semibold"
+                title="לחץ כדי לפתוח את הנכס"
+              >
+                {assetId}
+              </button>
+            );
+          }
         }
         // For the same asset as the current tab, display as normal text (not clickable)
         return params.value;
@@ -4092,6 +4099,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
                       // Only process if it's a history row (not latest) and clickable
+                      // Skip if the click was on an asset_id button (which should open asset view)
+                      if (event.event?.target && (event.event.target as HTMLElement).closest('button')) {
+                        return; // Let the button's onClick handle it
+                      }
+                      
                       if (event.data && event.data.is_latest !== true) {
                         // Check if row is clickable (not regular history tab or has action_id)
                         const isClickable = activeHistoryTab !== 'history' || event.data?._isDetailRecord || event.data?.action_id != null;

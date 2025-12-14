@@ -261,12 +261,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
       }
     }
     
-    // For detail records (from distribution/transfer), make all asset IDs clickable
-    const isDetailRecord = asset._isDetailRecord === true;
-    const isDifferentFromTab = params.currentTabAssetId && assetId !== params.currentTabAssetId;
-    const shouldBeClickable = isDetailRecord || isDifferentFromTab;
-    
-    if (params.onSelectAsset && assetId && asset?.building_number && shouldBeClickable) {
+    // Make all asset IDs in the inner grid clickable
+    if (params.onSelectAsset && assetId && asset?.building_number) {
       return (
         <button
           onClick={(e) => {

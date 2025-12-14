@@ -261,8 +261,10 @@ export function DetailRowRenderer(params: DetailRowParams) {
       }
     }
     
-    // Make all asset IDs in the inner grid clickable
-    if (params.onSelectAsset && assetId && asset?.building_number) {
+    // Make asset IDs clickable ONLY if different from current tab's asset ID (main asset ID should not be clickable)
+    const isDifferentAsset = params.currentTabAssetId && assetId !== params.currentTabAssetId;
+    
+    if (params.onSelectAsset && assetId && asset?.building_number && isDifferentAsset) {
       return (
         <button
           onClick={(e) => {

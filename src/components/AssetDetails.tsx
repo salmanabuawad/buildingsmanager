@@ -73,6 +73,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     relatedAssets: Asset[];
   }>>(new Map());
   const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
+  const [selectedDateTab, setSelectedDateTab] = useState<{ actionId: number; measurementDate: string } | null>(null);
   const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>>(new Map());
   const [additionalDistributionAssets, setAdditionalDistributionAssets] = useState<Asset[]>([]);
   const [additionalTransferAssets, setAdditionalTransferAssets] = useState<Asset[]>([]);
@@ -568,6 +569,28 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return regularHistoryRows;
     }
   }, [activeHistoryTab, regularHistoryRows, distributionHistoryRows, transferHistoryRows]);
+
+  // Extract date tabs for distribution and transfer (one per action_id)
+  const dateTabs = useMemo(() => {
+    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
+      return [];
+    }
+    
+    const rows = activeHistoryTab === 'distribution' ? distributionHistoryRows : transferHistoryRows;
+    return rows
+      .filter(row => row.action_id != null && row.measurement_date)
+      .map(row => ({
+        actionId: row.action_id!,
+        measurementDate: row.measurement_date || '',
+        formattedDate: formatDateToDDMMYYYY(row.measurement_date) || row.measurement_date || ''
+      }))
+      .sort((a, b) => {
+        // Sort by date descending (newest first)
+        const dateA = a.measurementDate.split('/').reverse().join('-');
+        const dateB = b.measurementDate.split('/').reverse().join('-');
+        return dateB.localeCompare(dateA);
+      });
+  }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows]);
 
   // Store all records grouped by action_id for expansion
   const allHistoryRowsByActionId = useMemo(() => {
@@ -2629,15 +2652,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'asset_id'),
       cellRenderer: (params: any) => {
-        // Make asset_id clickable if it's different from the current tab's asset_id
-        // OR if it's in a history grid and we want to open the asset view (regardless of action_id)
+        // Make asset_id clickable ONLY if it's different from the current tab's asset_id
         if (params.data && params.data.asset_id) {
           const assetId = params.data.asset_id;
           const rowData = params.data as Asset;
           const isDifferentAsset = assetId !== asset?.asset_id;
           
-          // Always make clickable if different from current asset, or if in history grid
-          if (isDifferentAsset || params.data.is_latest === false) {
+          // Only make clickable if different from current asset (main asset ID should not be clickable)
+          if (isDifferentAsset) {
             return (
               <button
                 onClick={(e) => {
@@ -2662,7 +2684,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             );
           }
         }
-        // For the same asset as the current tab, display as normal text (not clickable)
+        // For the same asset as the current tab (main asset ID), display as normal text (not clickable)
         return params.value;
       },
     },
@@ -3820,18 +3842,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             {(historyRows.length > 0 || distributionHistoryRows.length > 0 || transferHistoryRows.length > 0) && (
               <div className="mt-6">
                 {/* Tab Navigation - Enhanced UI */}
-                <div className="flex items-center gap-1 mb-4 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1">
+                <div className="flex items-center gap-1 mb-3 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-0.5">
                   <button
                     onClick={() => setActiveHistoryTab('history')}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
                       activeHistoryTab === 'history'
                         ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
                         : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
-                    <History className="h-4 w-4" />
+                    <History className="h-3 w-3" />
                     <span>היסטוריה</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                       activeHistoryTab === 'history'
                         ? 'bg-blue-100 text-blue-700'
                         : 'bg-gray-200 text-gray-600'
@@ -3841,15 +3863,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   </button>
                   <button
                     onClick={() => setActiveHistoryTab('distribution')}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
                       activeHistoryTab === 'distribution'
                         ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
                         : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
-                    <Share2 className="h-4 w-4" />
+                    <Share2 className="h-3 w-3" />
                     <span>היסטוריית חלוקה</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                       activeHistoryTab === 'distribution'
                         ? 'bg-blue-100 text-blue-700'
                         : 'bg-gray-200 text-gray-600'
@@ -3859,15 +3881,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   </button>
                   <button
                     onClick={() => setActiveHistoryTab('transfer')}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
                       activeHistoryTab === 'transfer'
                         ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
                         : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
-                    <ArrowRightLeft className="h-4 w-4" />
+                    <ArrowRightLeft className="h-3 w-3" />
                     <span>היסטוריית העברה</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                       activeHistoryTab === 'transfer'
                         ? 'bg-blue-100 text-blue-700'
                         : 'bg-gray-200 text-gray-600'

@@ -294,6 +294,21 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return ['asset_id', '_source', ...fieldsWithoutAssetId];
   }, [allowedFields]);
 
+  // Group rows by asset_id to apply same background color to before/after pairs
+  // Create a map of unique asset_ids and their group index for alternating colors
+  const assetIdGroups = useMemo(() => {
+    const uniqueAssetIds = Array.from(new Set(
+      allDetailAssets
+        .map(a => a.asset_id)
+        .filter((id): id is number => id != null)
+    ));
+    const groupMap = new Map<number, number>();
+    uniqueAssetIds.forEach((assetId, index) => {
+      groupMap.set(assetId, index);
+    });
+    return groupMap;
+  }, [allDetailAssets]);
+
   return (
     <div className="p-4 bg-gray-50 border-t border-gray-200" style={{ width: '100%' }}>
       {/* Simple HTML Table */}
@@ -328,9 +343,17 @@ export function DetailRowRenderer(params: DetailRowParams) {
               <tbody className="bg-white divide-y divide-gray-200">
                 {allDetailAssets.map((asset, rowIndex) => {
                   const source = asset._source;
+                  const assetId = asset.asset_id || 0;
+                  const groupIndex = assetIdGroups.get(assetId) || 0;
+                  // Alternate between white and light gray for each asset_id group
+                  // This ensures before and after rows for the same asset_id have the same background
+                  const bgColor = groupIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                   
                   return (
-                    <tr key={`${source}-${asset.asset_id}-${asset.measurement_date || ''}-${rowIndex}`}>
+                    <tr 
+                      key={`${source}-${asset.asset_id}-${asset.measurement_date || ''}-${rowIndex}`}
+                      className={bgColor}
+                    >
                       {tableColumns.map((fieldName) => {
                         const value = fieldName === '_source' ? source : (asset as any)[fieldName];
                         const isChanged = isFieldChanged(fieldName, asset);

@@ -99,7 +99,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
             <button
               type="submit"
               disabled={loading || !fromNumber || !toNumber}
-              className="flex items-center gap-2 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               <Search className="h-5 w-5" />
               {loading ? (t('loading') || 'Loading...') : (t('search') || 'Search')}
@@ -107,7 +107,7 @@ export function AssetSearchByRange({ onSelectAsset }: AssetSearchProps) {
             <button
               type="button"
               onClick={handleReset}
-              className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+              className="px-6 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
             >
               {t('reset') || 'Reset'}
             </button>

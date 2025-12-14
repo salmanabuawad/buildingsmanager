@@ -136,7 +136,7 @@ export function ValidationResultModal({
       dir="rtl"
     >
       <div 
-        className={`bg-white rounded-lg shadow-xl p-4 sm:p-6 transition-all duration-300 ${
+        className={`bg-white rounded-xl shadow-2xl p-4 sm:p-6 transition-all duration-300 border border-gray-100 ${
           isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
         } ${
           actualContext === 'single' ? 'max-w-2xl' : 

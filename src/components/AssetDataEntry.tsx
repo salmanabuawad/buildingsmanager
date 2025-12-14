@@ -1498,7 +1498,7 @@ export function AssetDataEntry() {
               <button
                 type="button"
                 onClick={addEmptyRow}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors font-medium shadow-sm"
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t('addRow')}
@@ -1541,7 +1541,7 @@ export function AssetDataEntry() {
                   showToast('השינויים בוטלו', 'info');
                 }}
                 disabled={loading}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
               >
                 <X className="h-3.5 w-3.5" />
                 {t('cancel')}
@@ -1577,7 +1577,7 @@ export function AssetDataEntry() {
                     showToast('שגיאה בייצוא לקובץ Excel', 'error');
                   }
                 }}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-all shadow-md hover:shadow-lg font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
                 title="ייצא ל-Excel"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -1586,7 +1586,7 @@ export function AssetDataEntry() {
               <button
                 onClick={handleSaveAll}
                 disabled={loading}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
               >
                 {loading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

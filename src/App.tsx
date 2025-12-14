@@ -764,7 +764,7 @@ function App() {
           <div>
             <button
               onClick={() => setBuildingsMenuOpen(!buildingsMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-purple-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-purple-300 group"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-purple-50 active:bg-purple-100 rounded-md transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md hover:border-purple-300 group"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm text-slate-700 group-hover:text-purple-900">מבנים</span>
@@ -785,21 +785,21 @@ function App() {
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                 >
                   <span className="font-medium text-slate-700 text-xs">רשימת מבנים</span>
                   <Building className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
                   onClick={() => setShowCreateBuildingModal(true)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                 >
                   <span className="font-medium text-slate-700">צור מבנה חדש</span>
                   <Plus className="h-3.5 w-3.5 text-purple-600" />
                 </button>
                 <button
                   onClick={openFileImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                 >
                   <span className="font-medium text-slate-700">ייבוא File</span>
                   <Upload className="h-3.5 w-3.5 text-purple-600" />
@@ -810,7 +810,7 @@ function App() {
           <div>
             <button
               onClick={() => setAssetsMenuOpen(!assetsMenuOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-indigo-50 rounded-lg transition-all shadow-sm border border-purple-100 hover:shadow-md hover:border-indigo-300 group"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-right bg-white hover:bg-indigo-50 active:bg-indigo-100 rounded-md transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md hover:border-indigo-300 group"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm text-slate-700 group-hover:text-indigo-900">נכסים</span>
@@ -826,21 +826,21 @@ function App() {
               <div className="mr-2 mt-2 space-y-1.5">
                 <button
                   onClick={openAssetSearch}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                 >
                   <span className="font-medium text-slate-700">חיפוש נכס</span>
                   <Search className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <button
                   onClick={openAssetsFileImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                 >
                   <span className="font-medium text-slate-700">ייבוא מלא</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <button
                   onClick={openAssetsSkeletonImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                 >
                   <span className="font-medium text-slate-700">ייבוא שלד</span>
                   <Upload className="h-3.5 w-3.5 text-indigo-600" />
@@ -955,10 +955,10 @@ function App() {
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`flex items-center gap-2 px-3 py-1 border-b-2 transition-all cursor-pointer group rounded-t-lg ${
+                  className={`flex items-center gap-2 px-3 py-1 border-b-2 transition-all duration-200 cursor-pointer group rounded-t-lg ${
                     activeTabId === tab.id
-                      ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-sm'
-                      : 'border-transparent hover:bg-purple-50/50 hover:border-purple-200'
+                      ? 'border-purple-600 bg-gradient-to-r from-purple-50 to-indigo-50 shadow-sm font-medium'
+                      : 'border-transparent hover:bg-purple-50/50 hover:border-purple-200 hover:shadow-sm'
                   }`}
                 >
                   <div
@@ -1000,7 +1000,7 @@ function App() {
                         e.stopPropagation();
                         handleCloseTab(tab.id);
                       }}
-                      className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                      className="p-0.5 hover:bg-red-100 active:bg-red-200 rounded transition-all duration-200 hover:scale-110"
                     >
                       <X className="h-2.5 w-2.5 text-slate-600 hover:text-red-600" />
                     </button>

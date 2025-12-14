@@ -3554,14 +3554,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     setMeasurementDateModalClosing(false);
                   }, 300);
                 }}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors font-medium"
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 ביטול
               </button>
               <button
                 type="button"
                 onClick={handleConfirmMeasurementDate}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 אישור
               </button>

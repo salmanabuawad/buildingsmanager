@@ -720,7 +720,7 @@ export function FieldConfigManager() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               title="ייצא ל-Excel"
             >
               <Download className="h-4 w-4" />
@@ -729,7 +729,7 @@ export function FieldConfigManager() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title="ייבא מ-Excel"
             >
               <Upload className="h-4 w-4" />
@@ -744,7 +744,7 @@ export function FieldConfigManager() {
             />
             <button
               onClick={loadConfigurations}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
             >
               <RefreshCw className="h-4 w-4" />
               רענן
@@ -776,7 +776,7 @@ export function FieldConfigManager() {
             <button
               onClick={handleCancelAll}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
             >
               <X className="h-4 w-4" />
               ביטול ({totalChanges})
@@ -784,7 +784,7 @@ export function FieldConfigManager() {
             <button
               onClick={handleSaveAll}
               disabled={saving || totalChanges === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
             >
               {saving ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />

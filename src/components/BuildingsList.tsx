@@ -2340,7 +2340,7 @@ export function BuildingsList({
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
               placeholder={t('searchByBuildingNumber')}
-              className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right text-sm shadow-sm hover:shadow-md transition-shadow"
+              className="w-full px-4 py-2.5 pr-10 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-right text-sm shadow-sm hover:shadow-md hover:border-slate-400 transition-all duration-200"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
@@ -2351,7 +2351,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={addEmptyBuildingRow}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
             >
               <Plus className="h-4 w-4" />
               הוסף מבנה
@@ -2359,7 +2359,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={handleValidateAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
             >
               <CheckCircle2 className="h-4 w-4" />
               אמת הכל
@@ -2367,7 +2367,7 @@ export function BuildingsList({
             <button
               type="button"
               onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
             >
               <Download className="h-4 w-4" />
               ייצא ל-Excel
@@ -2378,7 +2378,7 @@ export function BuildingsList({
               type="button"
               onClick={handleCancelAll}
               disabled={loading || totalChanges === 0}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               <X className="h-4 w-4" />
               {t('cancel')}
@@ -2387,7 +2387,7 @@ export function BuildingsList({
               type="button"
               onClick={handleSaveAll}
               disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -2399,7 +2399,7 @@ export function BuildingsList({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 w-full">
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">
           <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 400px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               ref={gridRef}
@@ -2770,7 +2770,7 @@ export function BuildingsList({
             <div className="flex justify-end">
               <button
                 onClick={() => setTaxRegionValidationModal(prev => ({ ...prev, isOpen: false }))}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 הבנתי
               </button>

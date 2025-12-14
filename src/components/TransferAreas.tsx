@@ -1320,7 +1320,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
             }
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
           title="ייצא ל-Excel"
         >
           <Download className="h-4 w-4" />
@@ -1329,7 +1329,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         <button
           onClick={handleCancelAll}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
         >
           <X className="h-4 w-4" />
           ביטול
@@ -1337,7 +1337,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
           disabled={loading || !hasChanges || validationErrors.size > 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
           title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
@@ -1349,7 +1349,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100">
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100">
         <div className="p-3">
           <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
             <AgGridReact<Asset>
@@ -1520,7 +1520,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
               <button
                 onClick={handleSaveAsNewMeasurements}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

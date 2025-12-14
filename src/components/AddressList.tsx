@@ -703,7 +703,7 @@ export function AddressListComponent() {
             />
             <button
               onClick={handleExportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
               title="ייצא נתונים ל-Excel"
             >
               <Download className="h-5 w-5" />
@@ -711,7 +711,7 @@ export function AddressListComponent() {
             </button>
             <button
               onClick={handleExportTemplate}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
               title="הורד תבנית לקובץ Excel"
             >
               <Download className="h-5 w-5" />
@@ -720,7 +720,7 @@ export function AddressListComponent() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none"
             >
               <Upload className="h-5 w-5" />
               <span className="hidden sm:inline">{isImporting ? t('loading') : 'ייבא קובץ'}</span>
@@ -733,7 +733,7 @@ export function AddressListComponent() {
           <button
             onClick={handleCancelAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
           >
             <X className="h-4 w-4" />
             {t('cancel')}
@@ -741,7 +741,7 @@ export function AddressListComponent() {
           <button
             onClick={handleSaveAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -752,7 +752,7 @@ export function AddressListComponent() {
           </button>
         </div>
 
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
+        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
           <AgGridReact<AddressList>
             ref={gridRef}
             rowData={addresses}

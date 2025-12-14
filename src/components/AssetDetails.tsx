@@ -3443,10 +3443,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50/50 to-white">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-teal-600 animate-spin mx-auto" />
-          <p className="mt-4 text-slate-700 font-medium">{t('loadingDetails')}</p>
+          <div className="relative">
+            <Loader2 className="h-16 w-16 text-teal-600 animate-spin mx-auto" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-8 w-8 bg-teal-100 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+          <p className="mt-6 text-slate-700 font-medium text-base animate-pulse">{t('loadingDetails')}</p>
+          <p className="mt-2 text-xs text-slate-500">אנא המתן...</p>
         </div>
       </div>
     );
@@ -3454,9 +3460,21 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   if (error || !asset) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <p className="text-red-800">{t('error')}: {error || 'Asset not found'}</p>
+      <div className="flex items-center justify-center min-h-screen p-8 bg-gradient-to-br from-slate-50/50 to-white">
+        <div className="bg-white border-2 border-red-200 rounded-xl shadow-xl p-8 max-w-md text-center">
+          <div className="mb-4 flex justify-center">
+            <div className="rounded-full bg-red-100 p-4">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-red-900 mb-2">שגיאה בטעינת הנתונים</h3>
+          <p className="text-red-700 text-sm">{t('error')}: {error || 'Asset not found'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium"
+          >
+            רענן דף
+          </button>
         </div>
       </div>
     );
@@ -3497,12 +3515,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
         >
           <div 
-            className={`bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transition-all duration-300 ${
+            className={`bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transition-all duration-300 border border-gray-100 ${
               measurementDateModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
             }`}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-800">שמור כמדידה חדשה</h3>
+              <h3 className="text-lg font-bold text-slate-900 bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">שמור כמדידה חדשה</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -3543,7 +3561,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   setNewMeasurementDate(value);
                 }}
                 placeholder="DD/MM/YYYY"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-right transition-all duration-200 hover:border-slate-400"
                 maxLength={10}
               />
               <p className="mt-1 text-xs text-slate-500">
@@ -3569,7 +3587,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               <button
                 onClick={handleSaveAsNewMeasurement}
                 disabled={isSaving}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-bold"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
               >
                 {isSaving ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -3583,7 +3601,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         </div>
       )}
       <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
-      <div className="mb-2 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-1.5">
+      <div className="mb-2 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-600 rounded-lg shadow-lg p-1.5 border border-blue-400/20">
         <div className="flex items-center gap-2">
           <Home className="w-5 h-5 text-white bg-white/20 rounded-lg p-1" strokeWidth={1.5} />
           <div className="flex-1">
@@ -3662,7 +3680,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       </div>
 
       {allMeasurements.length > 0 && (
-        <div className="bg-white rounded-xl shadow-lg border border-blue-100">
+        <div className="bg-white rounded-xl shadow-lg border border-blue-100 hover:shadow-xl transition-shadow duration-200">
           <div className="p-2">
             {/* Latest Measurement Grid */}
             <div className="mb-2">
@@ -3699,7 +3717,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors font-medium"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                     title="ייצא ל-Excel"
                   >
                     <Download className="h-3 w-3" />
@@ -3708,7 +3726,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
@@ -3721,7 +3739,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
@@ -3734,7 +3752,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <button
                     onClick={handleSaveChanges}
                     disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
                   >
                     {isSaving ? (
@@ -3747,7 +3765,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded transition-colors font-medium"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-500 hover:bg-gray-600 active:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                   >
                     <X className="h-2.5 w-2.5" />
                     <span className="text-[10px]">{t('cancel')}</span>

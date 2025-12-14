@@ -1113,7 +1113,7 @@ export function AssetTypes() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-blue-100 p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-900">{t('assetTypes')}</h2>
@@ -1130,7 +1130,7 @@ export function AssetTypes() {
               <button
                 type="button"
                 onClick={downloadTemplate}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
                 title="הורד תבנית"
               >
                 <Download className="h-5 w-5" />
@@ -1140,7 +1140,7 @@ export function AssetTypes() {
                 type="button"
                 onClick={exportAssetTypes}
                 disabled={assetTypes.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
                 title="ייצא את כל סוגי הנכסים"
               >
                 <FileText className="h-5 w-5" />
@@ -1150,7 +1150,7 @@ export function AssetTypes() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none font-medium"
               >
                 <Upload className="h-5 w-5" />
                 <span className="hidden sm:inline">{isImporting ? t('loading') : t('importCSV')}</span>
@@ -1158,7 +1158,7 @@ export function AssetTypes() {
               <button
                 type="button"
                 onClick={startAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 <Plus className="h-5 w-5" />
                 {t('addAssetType')}
@@ -1174,7 +1174,7 @@ export function AssetTypes() {
               type="button"
               onClick={handleCancelAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               <X className="h-4 w-4" />
               {t('cancel')}
@@ -1183,7 +1183,7 @@ export function AssetTypes() {
               type="button"
               onClick={handleSaveAll}
               disabled={isSaving || (dirtyAssetTypes.size === 0 && deletedAssetTypes.size === 0)}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               {isSaving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1211,7 +1211,7 @@ export function AssetTypes() {
                   onChange={(e) => {
                     setFormData({ ...formData, name: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="199"
                 />
               </div>
@@ -1223,7 +1223,7 @@ export function AssetTypes() {
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="תיאור"
                 />
               </div>
@@ -1236,7 +1236,7 @@ export function AssetTypes() {
                   step="1"
                   value={formData.tax_region}
                   onChange={(e) => setFormData({ ...formData, tax_region: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="10"
                 />
               </div>
@@ -1302,7 +1302,7 @@ export function AssetTypes() {
                 <select
                   value={formData.business_residence || ''}
                   onChange={(e) => setFormData({ ...formData, business_residence: e.target.value || '' })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                 >
                   <option value="">-- בחר --</option>
                   <option value="עסקים">עסקים</option>
@@ -1340,7 +1340,7 @@ export function AssetTypes() {
                   step="0.01"
                   value={formData.min_size}
                   onChange={(e) => setFormData({ ...formData, min_size: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="0"
                 />
               </div>
@@ -1353,7 +1353,7 @@ export function AssetTypes() {
                   step="0.01"
                   value={formData.max_size}
                   onChange={(e) => setFormData({ ...formData, max_size: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 hover:border-slate-400 transition-all duration-200"
                   placeholder="0"
                 />
               </div>
@@ -1362,7 +1362,7 @@ export function AssetTypes() {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1373,7 +1373,7 @@ export function AssetTypes() {
               </button>
               <button
                 onClick={resetForm}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               >
                 {t('cancel')}
               </button>
@@ -1388,7 +1388,7 @@ export function AssetTypes() {
             <p className="text-lg">{t('noAssetTypes')}</p>
           </div>
         ) : (
-          <div className="rounded-xl overflow-hidden shadow-lg border border-blue-100 bg-white">
+          <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100 bg-white">
             <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', direction: 'rtl' }}>
               <AgGridReact
                 ref={gridRef}

@@ -3270,7 +3270,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                       addEmptyRow();
                     }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
                 >
                   <Plus className="h-4 w-4" />
                   הוסף נכס
@@ -3280,7 +3280,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
               title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -3290,7 +3290,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               type="button"
               onClick={handleExportToExcel}
               disabled={loading || assets.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title="ייצא את כל הנכסים לקובץ Excel"
             >
               <FileSpreadsheet className="h-4 w-4" />
@@ -3303,7 +3303,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               type="button"
               onClick={handleDistributeSharedArea}
               disabled={loading || assets.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title={`פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
             >
               <Download className="h-4 w-4" />
@@ -3358,7 +3358,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                       }
                     }}
                     disabled={!canTransferAreas}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 active:bg-violet-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
                     title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                   >
                     <ArrowRightLeft className="h-4 w-4" />
@@ -3369,7 +3369,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   type="button"
                   onClick={handleCancelAll}
                   disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
                 >
                   <X className="h-4 w-4" />
                   ביטול
@@ -3378,7 +3378,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                   type="button"
                   onClick={handleSaveAll}
                   disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -3391,7 +3391,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             );
           })()}
         </div>
-        <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
+        <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={assets}
@@ -3537,7 +3537,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <div className="flex justify-center">
               <button
                 onClick={() => setDistributionModalOpen(false)}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"
               >
                 אישור
               </button>

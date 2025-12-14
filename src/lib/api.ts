@@ -20,6 +20,92 @@ async function getCurrentUserName(): Promise<string> {
   }
 }
 
+/**
+ * Get current user information (name, email, id)
+ */
+async function getCurrentUserInfo(): Promise<{ user_name: string; user_email?: string; user_id?: string }> {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      return { user_name: 'default' };
+    }
+    return {
+      user_name: user.email || user.id || 'default',
+      user_email: user.email || undefined,
+      user_id: user.id || undefined
+    };
+  } catch (error) {
+    console.warn('Error getting current user info:', error);
+    return { user_name: 'default' };
+  }
+}
+
+/**
+ * Log a change entry asynchronously (fire and forget)
+ * This function doesn't wait for the logging to complete
+ */
+function logChangeAsync(
+  tableName: string,
+  operation: 'INSERT' | 'UPDATE' | 'DELETE',
+  recordId: string,
+  beforeData?: any,
+  afterData?: any,
+  changedFields?: string[]
+): void {
+  // Call asynchronously without blocking
+  (async () => {
+    try {
+      const userInfo = await getCurrentUserInfo();
+      
+      // Call the RPC function asynchronously (don't await)
+      const { error } = await supabase.rpc('log_change_entry', {
+        p_table_name: tableName,
+        p_operation: operation,
+        p_record_id: recordId,
+        p_user_name: userInfo.user_name,
+        p_user_email: userInfo.user_email || null,
+        p_user_id: userInfo.user_id || null,
+        p_before_data: beforeData ? JSON.parse(JSON.stringify(beforeData)) : null,
+        p_after_data: afterData ? JSON.parse(JSON.stringify(afterData)) : null,
+        p_changed_fields: changedFields || null
+      });
+      
+      if (error && process.env.NODE_ENV === 'development') {
+        console.warn('[logChangeAsync] Failed to log change:', error);
+      }
+    } catch (error) {
+      // Silently fail - logging should not break the main operation
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[logChangeAsync] Error preparing change log:', error);
+      }
+    }
+  })();
+}
+
+/**
+ * Calculate changed fields between two objects
+ */
+function calculateChangedFields(before: any, after: any): string[] {
+  if (!before || !after) return [];
+  
+  const changed: string[] = [];
+  const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  
+  for (const key of allKeys) {
+    const beforeVal = before[key];
+    const afterVal = after[key];
+    
+    // Handle null/undefined comparison
+    if (beforeVal !== afterVal && 
+        !(beforeVal == null && afterVal == null) &&
+        JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+      changed.push(key);
+    }
+  }
+  
+  return changed;
+}
+
 export interface Building {
   building_number: number;
   tax_region?: string;
@@ -165,6 +251,23 @@ export interface AuditLog {
   before_data?: any; // JSONB
   after_data?: any; // JSONB
   description?: string;
+  created_at: string;
+}
+
+export interface ChangeLog {
+  log_id: number;
+  table_name: string;
+  operation: 'INSERT' | 'UPDATE' | 'DELETE';
+  record_id?: string;
+  user_name: string;
+  user_email?: string;
+  user_id?: string;
+  before_data?: any; // JSONB
+  after_data?: any; // JSONB
+  changed_fields?: string[]; // Array of field names that changed (for UPDATE)
+  ip_address?: string;
+  user_agent?: string;
+  session_id?: string;
   created_at: string;
 }
 
@@ -420,9 +523,29 @@ export const api = {
         // Don't fail the operation if audit logging fails
       }
       
+      // Log change entry asynchronously
+      logChangeAsync(
+        'buildings',
+        'INSERT',
+        String(data.building_number),
+        undefined,
+        data
+      );
+      
       return data;
     },
     update: async (buildingNumber: number, input: Partial<Building>): Promise<Building> => {
+      // Get the current building data before update (for change log)
+      let beforeData: Building | null = null;
+      try {
+        beforeData = await api.buildings.getOne(buildingNumber);
+      } catch (err) {
+        // If building doesn't exist, that's fine - we'll still try to update
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[api.buildings.update] Could not fetch before data:', err);
+        }
+      }
+      
       const sanitizedInput = sanitizeBuildingInput(input);
       // Remove undefined values to prevent Supabase errors
       const cleanedInput = Object.fromEntries(
@@ -504,9 +627,41 @@ export const api = {
         // Don't fail the operation if audit logging fails
       }
       
+      // Log change entry asynchronously
+      if (beforeData) {
+        const changedFields = calculateChangedFields(beforeData, data);
+        logChangeAsync(
+          'buildings',
+          'UPDATE',
+          String(buildingNumber),
+          beforeData,
+          data,
+          changedFields
+        );
+      } else {
+        logChangeAsync(
+          'buildings',
+          'UPDATE',
+          String(buildingNumber),
+          undefined,
+          data
+        );
+      }
+      
       return data;
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
+      // Get building data before deletion (for change log)
+      let beforeData: Building | null = null;
+      try {
+        beforeData = await api.buildings.getOne(buildingNumber);
+      } catch (err) {
+        // If building doesn't exist, that's fine
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[api.buildings.delete] Could not fetch before data:', err);
+        }
+      }
+
       // Log audit entry BEFORE deletion (transaction-based, replaces trigger)
       const userName = await getCurrentUserName();
       try {
@@ -528,6 +683,18 @@ export const api = {
         .eq('building_number', buildingNumber);
 
       if (error) throw error;
+
+      // Log change entry asynchronously
+      if (beforeData) {
+        logChangeAsync(
+          'buildings',
+          'DELETE',
+          String(buildingNumber),
+          beforeData,
+          undefined
+        );
+      }
+
       return { message: 'Building deleted successfully' };
     },
   },
@@ -1184,8 +1351,27 @@ export const api = {
       return data;
     },
     update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared', skipAudit: boolean = false): Promise<Asset> => {
+      // Get asset ID as number
+      const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
+      
       // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
       const isNewMeasurement = input.is_new_measurement;
+      
+      // Get the current asset data before update (for change log)
+      let beforeData: Asset | null = null;
+      try {
+        const { data: assetData } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('asset_id', assetIdNum)
+          .maybeSingle();
+        beforeData = assetData || null;
+      } catch (err) {
+        // If asset doesn't exist, that's fine - we'll still try to update
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[api.assets.update] Could not fetch before data:', err);
+        }
+      }
       
       // Sanitize the input data first (no need to fetch existing asset - we can update directly)
       const sanitizedInput = sanitizeAssetInput(input);
@@ -1215,7 +1401,6 @@ export const api = {
 
       // If is_new_measurement is true, copy old asset to history BEFORE update
       // This replaces the trigger_reset_new_measurement_flag and trigger_copy_asset_to_history
-      const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
       if (isNewMeasurement === true) {
         try {
           await supabase.rpc('copy_asset_to_history_before_update', {
@@ -1319,22 +1504,45 @@ export const api = {
         }
       }
 
+      // Log change entry asynchronously
+      if (beforeData) {
+        const changedFields = calculateChangedFields(beforeData, updatedAsset);
+        logChangeAsync(
+          'assets',
+          'UPDATE',
+          String(assetIdNum),
+          beforeData,
+          updatedAsset,
+          changedFields
+        );
+      } else {
+        logChangeAsync(
+          'assets',
+          'UPDATE',
+          String(assetIdNum),
+          undefined,
+          updatedAsset
+        );
+      }
+
       return updatedAsset;
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
       const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
       
-      // Get building number before deletion (needed for updating total area)
+      // Get asset data before deletion (for change log and building number)
+      let beforeData: Asset | null = null;
       let buildingNumber: number | null = null;
       try {
         const { data: asset } = await supabase
           .from('assets')
-          .select('building_number')
+          .select('*')
           .eq('asset_id', assetIdNum)
           .maybeSingle();
+        beforeData = asset || null;
         buildingNumber = asset?.building_number || null;
       } catch (err) {
-        console.warn('Failed to get building number before asset deletion:', err);
+        console.warn('Failed to get asset data before deletion:', err);
       }
       
       // Log audit and copy to history BEFORE deletion (transaction-based, replaces trigger)
@@ -1371,6 +1579,17 @@ export const api = {
           console.warn('Failed to update building total area after asset deletion:', areaError);
           // Don't fail the operation if area update fails
         }
+      }
+
+      // Log change entry asynchronously
+      if (beforeData) {
+        logChangeAsync(
+          'assets',
+          'DELETE',
+          String(assetIdNum),
+          beforeData,
+          undefined
+        );
       }
 
       return { message: 'Asset deleted successfully' };
@@ -1591,9 +1810,29 @@ export const api = {
         console.warn('[api.assetTypes.create] Failed to refresh cache:', err);
       }
       
+      // Log change entry asynchronously
+      logChangeAsync(
+        'asset_types',
+        'INSERT',
+        String(data.id),
+        undefined,
+        data
+      );
+      
       return data;
     },
     update: async (id: number, input: Partial<AssetType>): Promise<AssetType> => {
+      // Get the current asset type data before update (for change log)
+      let beforeData: AssetType | null = null;
+      try {
+        beforeData = await api.assetTypes.getOne(id);
+      } catch (err) {
+        // If asset type doesn't exist, that's fine - we'll still try to update
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[api.assetTypes.update] Could not fetch before data:', err);
+        }
+      }
+      
       // Clean input: convert empty strings to null/undefined for numeric fields
       const cleanedInput: any = { ...input };
       
@@ -1658,10 +1897,42 @@ export const api = {
       } catch (err) {
         console.warn('[api.assetTypes.update] Failed to refresh cache:', err);
       }
-      
+
+      // Log change entry asynchronously
+      if (beforeData && data) {
+        const changedFields = calculateChangedFields(beforeData, data);
+        logChangeAsync(
+          'asset_types',
+          'UPDATE',
+          String(id),
+          beforeData,
+          data,
+          changedFields
+        );
+      } else if (data) {
+        logChangeAsync(
+          'asset_types',
+          'UPDATE',
+          String(id),
+          undefined,
+          data
+        );
+      }
+
       return data;
     },
     delete: async (id: number): Promise<{ message: string }> => {
+      // Get asset type data before deletion (for change log)
+      let beforeData: AssetType | null = null;
+      try {
+        beforeData = await api.assetTypes.getOne(id);
+      } catch (err) {
+        // If asset type doesn't exist, that's fine
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[api.assetTypes.delete] Could not fetch before data:', err);
+        }
+      }
+      
       // Try id first, then asset_type as fallback
       let { error } = await supabase
         .from('asset_types')
@@ -1685,6 +1956,17 @@ export const api = {
         await refreshAssetTypesCache();
       } catch (err) {
         console.warn('[api.assetTypes.delete] Failed to refresh cache:', err);
+      }
+      
+      // Log change entry asynchronously
+      if (beforeData) {
+        logChangeAsync(
+          'asset_types',
+          'DELETE',
+          String(id),
+          beforeData,
+          undefined
+        );
       }
       
       return { message: 'Asset type deleted successfully' };
@@ -2295,6 +2577,106 @@ export const api = {
         affected_asset_ids: data.affected_asset_ids || [],
         count: data.count || 0
       };
+    },
+  },
+  changeLog: {
+    getAll: async (filters?: {
+      table_name?: string;
+      record_id?: string;
+      user_name?: string;
+      operation?: 'INSERT' | 'UPDATE' | 'DELETE';
+      start_date?: string;
+      end_date?: string;
+      limit?: number;
+      offset?: number;
+    }): Promise<ChangeLog[]> => {
+      let query = supabase
+        .from('change_log')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (filters) {
+        if (filters.table_name) {
+          query = query.eq('table_name', filters.table_name);
+        }
+        if (filters.record_id) {
+          query = query.eq('record_id', filters.record_id);
+        }
+        if (filters.user_name) {
+          query = query.eq('user_name', filters.user_name);
+        }
+        if (filters.operation) {
+          query = query.eq('operation', filters.operation);
+        }
+        if (filters.start_date) {
+          query = query.gte('created_at', filters.start_date);
+        }
+        if (filters.end_date) {
+          query = query.lte('created_at', filters.end_date);
+        }
+        if (filters.limit) {
+          query = query.limit(filters.limit);
+        }
+        if (filters.offset) {
+          query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    getOne: async (logId: number): Promise<ChangeLog> => {
+      const { data, error } = await supabase
+        .from('change_log')
+        .select('*')
+        .eq('log_id', logId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    getByTable: async (tableName: string, recordId?: string, limit: number = 100): Promise<ChangeLog[]> => {
+      let query = supabase
+        .from('change_log')
+        .select('*')
+        .eq('table_name', tableName)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (recordId) {
+        query = query.eq('record_id', recordId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    getByUser: async (userName: string, tableName?: string, limit: number = 100): Promise<ChangeLog[]> => {
+      let query = supabase
+        .from('change_log')
+        .select('*')
+        .eq('user_name', userName)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (tableName) {
+        query = query.eq('table_name', tableName);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    getRecordHistory: async (tableName: string, recordId: string, limit: number = 50): Promise<ChangeLog[]> => {
+      const { data, error } = await supabase.rpc('get_record_change_history', {
+        p_table_name: tableName,
+        p_record_id: recordId,
+        p_limit: limit
+      });
+      
+      if (error) throw error;
+      return data || [];
     },
   },
 };

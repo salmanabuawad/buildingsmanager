@@ -121,8 +121,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [allMeasurements]);
 
   // Load action_type for history records with action_id, and also fetch distribute/transfer actions for this asset
+  // Memoize the current asset_id to prevent unnecessary re-runs
+  const currentAssetIdRef = useRef<number | undefined>(asset?.asset_id);
+  useEffect(() => {
+    currentAssetIdRef.current = asset?.asset_id;
+  }, [asset?.asset_id]);
+
   useEffect(() => {
     const loadActionTypes = async () => {
+      // Early return if no asset_id
+      if (!currentAssetIdRef.current) {
+        setHistoryWithActionTypes(new Map());
+        setAdditionalDistributionAssets([]);
+        setAdditionalTransferAssets([]);
+        return;
+      }
+
       const actionIds = new Set<number>();
       historyRows.forEach(row => {
         if (row.action_id != null) {
@@ -135,28 +149,32 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         actionIds.add(latestMeasurement.action_id);
       }
 
-      // For distribute_shared and transfer_area, also query audit table directly
-      // to find actions that affected this asset_id (even if asset doesn't have action_id set)
+      // For distribute_shared and transfer_area, query audit table ONLY for actions affecting this specific asset
+      // Use entity_id LIKE to find actions where this asset_id is mentioned (much more efficient than fetching all)
       try {
+        const assetIdStr = String(currentAssetIdRef.current);
+        
+        // Query for distribute_shared actions affecting this asset
         const { data: distributeActions, error: distributeError } = await supabase
           .from('audit')
           .select('action_id, action_type, entity_id, before_data, after_data')
           .eq('action_type', 'distribute_shared')
-          .eq('entity_type', 'bulk_asset');
+          .eq('entity_type', 'bulk_asset')
+          .or(`entity_id.ilike.%${assetIdStr}%,entity_id.eq.${assetIdStr}`);
 
         if (!distributeError && distributeActions) {
           distributeActions.forEach(audit => {
-            // Check if this asset_id is in entity_id (comma-separated) or in before_data/after_data
-            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => parseInt(id.trim())) : [];
-            if (entityIds.includes(asset?.asset_id || 0)) {
+            // Verify this asset is actually affected (entity_id contains it or in JSON)
+            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
+            if (entityIds.includes(assetIdStr)) {
               actionIds.add(audit.action_id);
             } else {
-              // Also check in before_data/after_data JSON
+              // Only parse JSON if entity_id doesn't match (fallback check)
               try {
                 const beforeAssets = audit.before_data?.assets || [];
                 const afterAssets = audit.after_data?.assets || [];
                 const allAssets = [...beforeAssets, ...afterAssets];
-                if (allAssets.some((a: any) => a.asset_id === asset?.asset_id)) {
+                if (allAssets.some((a: any) => String(a.asset_id) === assetIdStr)) {
                   actionIds.add(audit.action_id);
                 }
               } catch (e) {
@@ -166,23 +184,25 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           });
         }
 
+        // Query for transfer_area actions affecting this asset
         const { data: transferActions, error: transferError } = await supabase
           .from('audit')
           .select('action_id, action_type, entity_id, before_data, after_data')
           .eq('action_type', 'transfer_area')
-          .eq('entity_type', 'bulk_asset');
+          .eq('entity_type', 'bulk_asset')
+          .or(`entity_id.ilike.%${assetIdStr}%,entity_id.eq.${assetIdStr}`);
 
         if (!transferError && transferActions) {
           transferActions.forEach(audit => {
-            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => parseInt(id.trim())) : [];
-            if (entityIds.includes(asset?.asset_id || 0)) {
+            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
+            if (entityIds.includes(assetIdStr)) {
               actionIds.add(audit.action_id);
             } else {
               try {
                 const beforeAssets = audit.before_data?.assets || [];
                 const afterAssets = audit.after_data?.assets || [];
                 const allAssets = [...beforeAssets, ...afterAssets];
-                if (allAssets.some((a: any) => a.asset_id === asset?.asset_id)) {
+                if (allAssets.some((a: any) => String(a.asset_id) === assetIdStr)) {
                   actionIds.add(audit.action_id);
                 }
               } catch (e) {
@@ -345,48 +365,54 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               allTransferAssets.push(...transferCurrentAssets.map(a => ({ ...a, is_latest: false } as Asset)));
             }
             
-            // 3. Always check audit after_data for transfer operations
-            // Include ALL affected assets, not just the current one
-            const { data: transferAudits, error: transferAuditErr } = await supabase
-              .from('audit')
-              .select('action_id, after_data, entity_id, created_at')
-              .in('action_id', transferActionIds);
+            // 3. Check audit after_data for transfer operations (only if we have action_ids)
+            // Only fetch audits we don't already have data for
+            const missingTransferActionIds = transferActionIds.filter(id => 
+              !allTransferAssets.some(a => a.action_id === id)
+            );
             
-            if (!transferAuditErr && transferAudits) {
-              transferAudits.forEach(audit => {
-                try {
-                  // Check if current asset is affected by this transfer operation
-                  const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
-                  const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
-                  
-                  if (isCurrentAssetAffected) {
-                    const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                    const assets = afterData?.assets || [];
+            if (missingTransferActionIds.length > 0) {
+              const { data: transferAudits, error: transferAuditErr } = await supabase
+                .from('audit')
+                .select('action_id, after_data, entity_id, created_at')
+                .in('action_id', missingTransferActionIds);
+              
+              if (!transferAuditErr && transferAudits) {
+                transferAudits.forEach(audit => {
+                  try {
+                    // Check if current asset is affected by this transfer operation
+                    const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
+                    const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
                     
-                    // Add ALL affected assets from this transfer operation
-                    assets.forEach((assetData: any) => {
-                      // Check if we already have this asset (avoid duplicates)
-                      const alreadyExists = allTransferAssets.some(a => 
-                        a.asset_id === assetData.asset_id && 
-                        a.action_id === audit.action_id &&
-                        a.measurement_date === assetData.measurement_date
-                      );
-                      if (!alreadyExists) {
-                        allTransferAssets.push({
-                          ...assetData,
-                          is_latest: false,
-                          action_id: audit.action_id,
-                          history_created_at: audit.created_at
-                        } as Asset);
-                      }
-                    });
+                    if (isCurrentAssetAffected) {
+                      const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                      const assets = afterData?.assets || [];
+                      
+                      // Add ALL affected assets from this transfer operation
+                      assets.forEach((assetData: any) => {
+                        // Check if we already have this asset (avoid duplicates)
+                        const alreadyExists = allTransferAssets.some(a => 
+                          a.asset_id === assetData.asset_id && 
+                          a.action_id === audit.action_id &&
+                          a.measurement_date === assetData.measurement_date
+                        );
+                        if (!alreadyExists) {
+                          allTransferAssets.push({
+                            ...assetData,
+                            is_latest: false,
+                            action_id: audit.action_id,
+                            history_created_at: audit.created_at
+                          } as Asset);
+                        }
+                      });
+                    }
+                  } catch (e) {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.error('[AssetDetails] Error parsing audit after_data:', e);
+                    }
                   }
-                } catch (e) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('[AssetDetails] Error parsing audit after_data:', e);
-                  }
-                }
-              });
+                });
+              }
             }
             
             setAdditionalTransferAssets(allTransferAssets);
@@ -406,7 +432,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     };
 
     loadActionTypes();
-  }, [historyRows, latestMeasurement, asset?.asset_id, activeHistoryTab]);
+  }, [
+    // Use JSON.stringify to create stable dependency - only re-run if action_ids actually change
+    JSON.stringify(historyRows.map(r => r.action_id).filter(id => id != null).sort()),
+    latestMeasurement?.action_id,
+    asset?.asset_id,
+    activeHistoryTab
+  ]);
   
   // Refresh data and clear state when switching to distribution/transfer tabs
   useEffect(() => {
@@ -1691,18 +1723,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setValidationErrors(new Map());
       setError(null); // Clear any previous errors on success
       
-      // Refresh data from server
+      // Refresh data from server - only fetch what changed (asset history)
       // Use asset_id instead of id, since id might have changed if asset was recreated
       if (asset && asset.asset_id) {
         try {
           setLoading(true);
-          const assetTypesData = await api.assetTypes.getAll();
-          setAssetTypes(assetTypesData || []);
           
-          const buildingData = await api.buildings.getOne(asset.building_number);
-          setBuilding(buildingData);
-          
-          // Fetch all records using asset_id (which doesn't change)
+          // Only fetch asset history (assetTypes and building likely unchanged)
           let allAssetMeasurements: Asset[] = [];
           try {
             allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);
@@ -1920,17 +1947,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setValidationErrors(new Map());
       setError(null);
       
-      // Refresh data from server
+      // Refresh data from server - only fetch what changed (asset history)
       if (asset && asset.asset_id) {
         try {
           setLoading(true);
-          const assetTypesData = await api.assetTypes.getAll();
-          setAssetTypes(assetTypesData || []);
           
-          const buildingData = await api.buildings.getOne(asset.building_number);
-          setBuilding(buildingData);
-          
-          // Fetch all records using asset_id
+          // Only fetch asset history (assetTypes and building likely unchanged)
           let allAssetMeasurements: Asset[] = [];
           try {
             allAssetMeasurements = await api.assets.getAssetWithHistory(asset.asset_id, asset.building_number);

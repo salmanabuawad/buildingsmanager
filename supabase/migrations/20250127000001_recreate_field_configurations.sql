@@ -90,7 +90,7 @@ INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, h
 ('assets-list', 'single_double_family', 4, 2, 'בית פרטי', true, 2),
 ('assets-list', 'condo', 4, 2, 'בית משותף', true, 3),
 ('assets-list', 'townhouses', 4, 2, 'צמודי קרקע', true, 4),
-('assets-list', 'penthouse', 4, 2, 'נטהאוז', true, 5);
+('assets-list', 'penthouse', 4, 2, 'דירת גג', true, 5);
 
 -- Building number, Asset ID, Payer ID: width 10, padding 2
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, visible, column_order) VALUES
@@ -181,7 +181,7 @@ INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, h
 ('asset-types', 'single_double_family', 4, 2, 'בית פרטי', true, 8),
 ('asset-types', 'condo', 4, 2, 'בית משותף', true, 9),
 ('asset-types', 'townhouses', 4, 2, 'צמודי קרקע', true, 10),
-('asset-types', 'penthouse', 4, 2, 'נטהאוז', true, 11),
+('asset-types', 'penthouse', 4, 2, 'דירת גג', true, 11),
 ('asset-types', 'active', 4, 2, 'פעיל', true, 12);
 
 -- ============================================================================
@@ -218,7 +218,7 @@ INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, h
 ('asset-details-main', 'single_double_family', 4, 2, 'בית פרטי', true, 2),
 ('asset-details-main', 'condo', 4, 2, 'בית משותף', true, 3),
 ('asset-details-main', 'townhouses', 4, 2, 'צמודי קרקע', true, 4),
-('asset-details-main', 'penthouse', 4, 2, 'נטהאוז', true, 5),
+('asset-details-main', 'penthouse', 4, 2, 'דירת גג', true, 5),
 ('asset-details-main', 'building_number', 10, 2, 'מזהה מבנה', true, 10),
 ('asset-details-main', 'asset_id', 10, 2, 'מזהה נכס', true, 11),
 ('asset-details-main', 'payer_id', 10, 2, 'מספר משלם', true, 12),
@@ -254,7 +254,7 @@ INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, h
 ('asset-details-history', 'single_double_family', 4, 2, 'בית פרטי', true, 2),
 ('asset-details-history', 'condo', 4, 2, 'בית משותף', true, 3),
 ('asset-details-history', 'townhouses', 4, 2, 'צמודי קרקע', true, 4),
-('asset-details-history', 'penthouse', 4, 2, 'נטהאוז', true, 5),
+('asset-details-history', 'penthouse', 4, 2, 'דירת גג', true, 5),
 ('asset-details-history', 'building_number', 10, 2, 'מזהה מבנה', true, 10),
 ('asset-details-history', 'asset_id', 10, 2, 'מזהה נכס', true, 11),
 ('asset-details-history', 'payer_id', 10, 2, 'מספר משלם', true, 12),

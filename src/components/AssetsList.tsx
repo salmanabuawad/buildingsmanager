@@ -2129,7 +2129,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
 
   // Export assets to Excel
-  const handleExportToExcel = useCallback(() => {
+  const handleExportToExcel = useCallback(async () => {
     if (!assets || assets.length === 0) {
       setError('אין נכסים לייצוא');
       setTimeout(() => setError(null), 3000);

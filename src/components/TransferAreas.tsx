@@ -945,7 +945,6 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       
       return sum + (assetWithChanges.asset_size || 0);
     }, 0);
-  }, [assets, dirtyAssets, assetTypes]);
   }, [assets, dirtyAssets, isAssetTypeNotAccountable, assetTypes]);
 
   // Check if total area has changed (validation will prevent saving if changed)

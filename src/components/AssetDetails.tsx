@@ -636,6 +636,37 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       });
   }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows]);
 
+  // Auto-expand if there's only one date/entry
+  useEffect(() => {
+    // Only auto-expand for distribution and transfer tabs
+    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
+      return;
+    }
+    
+    // If there's only one date tab, auto-expand it
+    if (dateTabs.length === 1) {
+      const singleActionId = dateTabs[0].actionId;
+      const actionIdKey = `action_${singleActionId}`;
+      
+      // Check if it's not already expanded
+      setExpandedHistoryRows(prev => {
+        if (!prev.has(actionIdKey)) {
+          // Add to expanded set
+          const newSet = new Set(prev);
+          newSet.add(actionIdKey);
+          
+          // Load audit data if not already loaded
+          if (!auditDataCache.has(singleActionId)) {
+            loadAuditDetails(singleActionId);
+          }
+          
+          return newSet;
+        }
+        return prev;
+      });
+    }
+  }, [dateTabs, activeHistoryTab, auditDataCache, loadAuditDetails]);
+
   // Store all records grouped by action_id for expansion
   const allHistoryRowsByActionId = useMemo(() => {
     const grouped = new Map<number, Asset[]>();

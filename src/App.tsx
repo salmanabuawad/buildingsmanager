@@ -757,8 +757,8 @@ function App() {
             <X className="h-6 w-6 text-purple-700" />
           </button>
         )}
-        <div className="p-4 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
-          <h2 className="text-lg font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
+        <div className="p-2 border-b border-purple-100 bg-gradient-to-br from-purple-100 via-indigo-50 to-white">
+          <h2 className="text-xs font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent">תפריט ראשי</h2>
         </div>
         <nav className="flex-1 p-3 space-y-2">
           <div>

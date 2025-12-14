@@ -3153,6 +3153,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setHistoryWithActionTypes(new Map());
       setAdditionalDistributionAssets([]);
       setAdditionalTransferAssets([]);
+      setSelectedDateTab(null);
+      setActiveHistoryTab('history');
+      setDirtyAssets(new Map());
+      setValidationErrors(new Map());
+      validationErrorsRef.current = new Map();
+      setSelectedDrawingUrl(null);
+      setSelectedFileName(null);
+      setToast(null);
+      setIsRowEditModalOpen(false);
+      setSelectedRowForEdit(null);
     }
     fetchData();
   }, [assetId, buildingNumber, taxRegion]);

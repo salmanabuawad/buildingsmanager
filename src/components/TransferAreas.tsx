@@ -644,12 +644,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
     setLoading(true);
     try {
-      let savedCount = 0;
       const errors: string[] = [];
-
-      // Store created assets for audit logging (keyed by original asset_id)
-      const createdAssetsMap = new Map<string, Asset>();
+      const originalAssets: Asset[] = [];
+      const newAssetsData: Partial<Asset>[] = [];
       
+      // First pass: validate all assets and prepare data
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
           // Get the full asset data with changes (assetId is asset_id)
@@ -784,8 +783,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
             continue;
           }
 
+          // Store original asset for before data
+          originalAssets.push({ ...originalAsset });
+          
           // Prepare new asset data with updated measurement date
-          const newAssetData = {
+          const newAssetData: Partial<Asset> = {
             ...updatedData,
             measurement_date: finalMeasurementDate
           };
@@ -796,34 +798,8 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           delete (newAssetData as any).is_latest;
           delete (newAssetData as any).history_created_at;
           delete (newAssetData as any).is_new_measurement;
-
-          // First, try to update the old record with is_new_measurement flag set to true
-          // The database trigger will automatically move it to assets_history
-          // Skip audit logging for individual operations - we'll create a bulk audit entry later
-          try {
-            await api.assets.update(originalAsset.asset_id, { is_new_measurement: true }, 'transfer_area', true);
-          } catch (updateErr) {
-            // If update fails (e.g., asset already moved to history), that's okay
-            // We'll just create the new measurement
-            console.warn(`Could not update old asset ${assetId} (might already be in history):`, updateErr);
-          }
-
-          // Then create the new measurement in assets table
-          // Skip audit logging for individual operations - we'll create a bulk audit entry later
-          const createdAsset = await api.assets.create(newAssetData as any, true);
-
-          // Store created asset for audit logging
-          createdAssetsMap.set(assetId, createdAsset);
-
-          // Update asset identifiers (key is asset_id)
-          setAssetIdentifiers(prev => {
-            const next = new Map(prev);
-            // Update the mapping: old asset_id -> new asset identifier
-            next.set(String(createdAsset.asset_id), { asset_id: createdAsset.asset_id, building_number: createdAsset.building_number });
-            return next;
-          });
-
-          savedCount++;
+          
+          newAssetsData.push(newAssetData);
         } catch (err) {
           const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           const assetIdentifier = originalAsset?.asset_id || assetId;
@@ -832,69 +808,74 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         }
       }
 
-      // Log audit entry for transfer area action - only affected assets with before/after data
-      if (savedCount > 0) {
+      // If validation errors, stop here
+      if (errors.length > 0 && originalAssets.length === 0) {
+        setError(errors.slice(0, 5).join('\n') + (errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''));
+        setLoading(false);
+        return;
+      }
+
+      // Save all assets in bulk with single audit entry and action_id (same as distribute)
+      if (originalAssets.length > 0) {
         try {
-          // Collect before and after asset data
-          const beforeAssets: Asset[] = [];
-          const afterAssets: Asset[] = [];
-          const affectedAssetIds: number[] = [];
+          // Prepare before and after data (same pattern as distribute)
+          const beforeData = {
+            assets: originalAssets.map(a => ({ ...a }))
+          };
           
-          for (const assetId of Array.from(dirtyAssets.keys())) {
-            const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-            if (originalAsset) {
-              // Before: original asset state
-              beforeAssets.push({ ...originalAsset });
-              affectedAssetIds.push(originalAsset.asset_id);
-              
-              // After: use the actual created asset from the database
-              // The created asset was stored in createdAssetsMap during the save loop
-              const createdAsset = createdAssetsMap.get(assetId);
-              if (createdAsset) {
-                afterAssets.push({ ...createdAsset });
-              } else {
-                // Fallback: reconstruct from updatedData if createdAsset not available
-                const updatedData = dirtyAssets.get(assetId);
-                if (updatedData) {
-                  const afterAsset = {
-                    ...originalAsset,
-                    ...updatedData,
-                    measurement_date: finalMeasurementDate
-                  } as Asset;
-                  afterAssets.push(afterAsset);
-                }
-              }
-            }
-          }
+          const afterData = {
+            assets: newAssetsData.map(a => ({ ...a }))
+          };
           
-          if (affectedAssetIds.length > 0) {
-            const beforeData = {
-              assets: beforeAssets
-            };
-            const afterData = {
-              assets: afterAssets
-            };
-            
-            await api.auditLog.logEntry({
-              action_type: 'transfer_area',
-              entity_type: 'bulk_asset',
-              entity_id: affectedAssetIds.join(','),
-              before_data: beforeData,
-              after_data: afterData,
-              description: `Transferred areas for ${savedCount} assets as new measurements`
+          const affectedAssetIds = originalAssets.map(a => a.asset_id);
+          
+          // Use bulkTransferAreas which handles creating new measurements and audit logging
+          const result = await api.auditLog.bulkTransferAreas(
+            originalAssets,
+            newAssetsData,
+            'transfer_area',
+            beforeData,
+            afterData,
+            `Transferred areas for ${originalAssets.length} assets as new measurements`
+          );
+          
+          // Update asset identifiers for all affected assets
+          const newIdentifiers = new Map<string, { asset_id: number; building_number: number }>();
+          for (const originalAsset of originalAssets) {
+            // The asset_id remains the same, just the measurement_date changes
+            newIdentifiers.set(String(originalAsset.asset_id), {
+              asset_id: originalAsset.asset_id,
+              building_number: originalAsset.building_number
             });
           }
+          setAssetIdentifiers(prev => {
+            const next = new Map(prev);
+            for (const [key, value] of newIdentifiers.entries()) {
+              next.set(key, value);
+            }
+            return next;
+          });
+          
+          // Clear dirty assets and validation errors after successful save
+          setDirtyAssets(new Map());
+          setValidationErrors(new Map());
         } catch (auditError) {
-          console.warn('Failed to log audit entry for transfer area:', auditError);
-          // Don't block the operation if audit logging fails
+          console.warn('Failed to bulk transfer areas:', auditError);
+          errors.push(`שגיאה בשמירה: ${auditError instanceof Error ? auditError.message : 'Unknown error'}`);
         }
+      }
+      
+      // Wait a bit for the database operations to complete, then reload data
+      if (originalAssets.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await fetchData();
       }
 
       if (errors.length > 0) {
-        const successMsg = savedCount > 0 ? `נשמרו ${savedCount} נכסים כמדידות חדשות. ` : '';
+        const successMsg = originalAssets.length > 0 ? `נשמרו ${originalAssets.length} נכסים כמדידות חדשות. ` : '';
         setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
-      } else {
-        setSuccess(`✓ נשמרו ${savedCount} נכסים כמדידות חדשות בהצלחה`);
+      } else if (originalAssets.length > 0) {
+        setSuccess(`✓ נשמרו ${originalAssets.length} נכסים כמדידות חדשות בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
       }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, Share2, ArrowRightLeft } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
@@ -3816,42 +3816,97 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             {/* History Records Grid - 3 Tabs */}
             {(historyRows.length > 0 || distributionHistoryRows.length > 0 || transferHistoryRows.length > 0) && (
               <div className="mt-6">
-                {/* Tab Navigation */}
-                <div className="flex items-center gap-2 mb-2 border-b border-gray-200">
+                {/* Tab Navigation - Enhanced UI */}
+                <div className="flex items-center gap-1 mb-4 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1">
                   <button
                     onClick={() => setActiveHistoryTab('history')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                       activeHistoryTab === 'history'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
-                    היסטוריה ({regularHistoryRows.length})
+                    <History className="h-4 w-4" />
+                    <span>היסטוריה</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      activeHistoryTab === 'history'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {regularHistoryRows.length}
+                    </span>
                   </button>
                   <button
                     onClick={() => setActiveHistoryTab('distribution')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                       activeHistoryTab === 'distribution'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
-                    היסטוריית חלוקה ({distributionHistoryRows.length})
+                    <Share2 className="h-4 w-4" />
+                    <span>היסטוריית חלוקה</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      activeHistoryTab === 'distribution'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {distributionHistoryRows.length}
+                    </span>
                   </button>
                   <button
                     onClick={() => setActiveHistoryTab('transfer')}
-                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                       activeHistoryTab === 'transfer'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
-                    היסטוריית העברה ({transferHistoryRows.length})
+                    <ArrowRightLeft className="h-4 w-4" />
+                    <span>היסטוריית העברה</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      activeHistoryTab === 'transfer'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {transferHistoryRows.length}
+                    </span>
                   </button>
                 </div>
 
-                {/* Active Tab Content */}
-                <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
+                {/* Active Tab Content - Enhanced Styling */}
+                <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '200px', width: '100%', overflowX: 'auto' }}>
+                  <style>{`
+                    .ag-theme-alpine .ag-header {
+                      background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;
+                      border-bottom: 2px solid #e5e7eb !important;
+                    }
+                    .ag-theme-alpine .ag-row {
+                      border-bottom: 1px solid #e5e7eb !important;
+                      transition: background-color 0.15s ease !important;
+                    }
+                    .ag-theme-alpine .ag-row:hover {
+                      background-color: #f0f9ff !important;
+                    }
+                    .ag-theme-alpine .ag-row.history-row-clickable:hover {
+                      background-color: #dbeafe !important;
+                      box-shadow: inset 0 0 0 1px #3b82f6 !important;
+                    }
+                    .ag-theme-alpine .ag-row.history-row-master {
+                      background-color: #fef3c7 !important;
+                      font-weight: 500;
+                    }
+                    .ag-theme-alpine .ag-row.history-row-master:hover {
+                      background-color: #fde68a !important;
+                    }
+                    .ag-theme-alpine .ag-row.detail-row-expanded {
+                      background-color: #f8fafc !important;
+                      border-top: 2px solid #3b82f6 !important;
+                    }
+                    .ag-theme-alpine .ag-cell {
+                      border-right: 1px solid #f3f4f6 !important;
+                    }
+                  `}</style>
                   <AgGridReact<Asset>
                     ref={historyGridRef}
                     rowData={historyRowsWithDetails}
@@ -3884,7 +3939,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       autoHeight: false,
                       sortable: false,
                       headerClass: 'ag-right-aligned-header',
-                      headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+                      headerStyle: { 
+                        fontSize: '12px', 
+                        textAlign: 'right', 
+                        fontWeight: '600',
+                        backgroundColor: '#f9fafb',
+                        color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
+                        padding: '8px 12px',
+                        WebkitFontSmoothing: 'antialiased', 
+                        MozOsxFontSmoothing: 'grayscale' 
+                      },
+                      cellStyle: {
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        borderRight: '1px solid #f3f4f6'
+                      },
                       minWidth: 40
                     }}
                     gridOptions={{
@@ -3914,20 +3984,34 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     getRowStyle={(params) => {
                       if (params.data?._isDetailRow) {
-                        return { padding: 0 };
+                        return { padding: 0, backgroundColor: '#f8fafc' };
                       }
                       const baseStyle = getRowStyle(params);
-                      // Make regular history records non-clickable (no pointer cursor)
-                      if (activeHistoryTab === 'history' && params.data?.is_latest !== true && !params.data?._isDetailRecord) {
-                        return { ...baseStyle, cursor: 'default' };
-                      }
-                      return baseStyle;
+                      const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord;
+                      
+                      return {
+                        ...baseStyle,
+                        cursor: isClickable ? 'pointer' : 'default',
+                        transition: 'background-color 0.2s ease',
+                        borderBottom: '1px solid #e5e7eb'
+                      };
                     }}
                     getRowClass={(params) => {
                       if (params.data?._isDetailRow) {
-                        return '';
+                        return 'detail-row-expanded';
                       }
-                      return getRowClass(params);
+                      const classes = getRowClass(params);
+                      const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord;
+                      return `${classes} ${isClickable ? 'hover:bg-blue-50' : ''}`;
+                    }}
+                    rowClassRules={{
+                      'history-row-clickable': (params: any) => {
+                        if (params.data?._isDetailRow) return false;
+                        return activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord;
+                      },
+                      'history-row-master': (params: any) => {
+                        return !params.data?._isDetailRow && params.data?.action_id != null;
+                      }
                     }}
                     onGridReady={async (params) => {
                       // Load saved column state first
@@ -4007,9 +4091,26 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }}
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
-                      // Only process if it's a history row (not latest)
+                      // Only process if it's a history row (not latest) and clickable
                       if (event.data && event.data.is_latest !== true) {
-                        handleHistoryRowClick(event);
+                        // Check if row is clickable (not regular history tab or has action_id)
+                        const isClickable = activeHistoryTab !== 'history' || event.data?._isDetailRecord || event.data?.action_id != null;
+                        if (isClickable) {
+                          handleHistoryRowClick(event);
+                        }
+                      }
+                    }}
+                    onRowMouseEnter={(params: any) => {
+                      if (!params.data?._isDetailRow && params.node) {
+                        const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord || params.data?.action_id != null;
+                        if (isClickable) {
+                          params.node.setRowHighlight(true);
+                        }
+                      }
+                    }}
+                    onRowMouseLeave={(params: any) => {
+                      if (params.node) {
+                        params.node.setRowHighlight(false);
                       }
                     }}
                     suppressRowClickSelection={false}

@@ -17,10 +17,12 @@ DROP TRIGGER IF EXISTS trigger_update_building_total_area ON assets;
 -- ============================================================================
 -- Helper function: Log audit and return audit_id
 -- ============================================================================
+-- Function will be updated in migration 20250129000000 to use user_id FK
+-- Placeholder function for now (will be replaced)
 CREATE OR REPLACE FUNCTION log_audit_for_building(
   p_building_number bigint,
   p_operation text, -- 'INSERT', 'UPDATE', 'DELETE'
-  p_user_name text DEFAULT 'default',
+  p_user_id text DEFAULT NULL, -- auth_user_id (UUID as text)
   p_action_type audit_action_type DEFAULT 'manual_update',
   p_description text DEFAULT NULL
 )
@@ -47,7 +49,7 @@ BEGIN
     p_action_type,
     'building',
     p_building_number::text,
-    p_user_name,
+    p_user_id,
     v_before_data,
     v_after_data,
     p_description
@@ -142,10 +144,12 @@ COMMENT ON FUNCTION copy_asset_to_history_before_update IS 'Copy asset to histor
 -- ============================================================================
 -- Helper function: Log audit for asset (called AFTER operation)
 -- ============================================================================
+-- Function will be updated in migration 20250129000000 to use user_id FK
+-- Placeholder function for now (will be replaced)
 CREATE OR REPLACE FUNCTION log_audit_for_asset(
   p_asset_id bigint,
   p_operation text, -- 'INSERT', 'UPDATE', 'DELETE'
-  p_user_name text DEFAULT 'default',
+  p_user_id text DEFAULT NULL, -- auth_user_id (UUID as text)
   p_action_type audit_action_type DEFAULT 'manual_update',
   p_copy_to_history boolean DEFAULT false,
   p_description text DEFAULT NULL
@@ -235,7 +239,7 @@ BEGIN
     p_action_type,
     'asset',
     p_asset_id::text,
-    p_user_name,
+    p_user_id,
     v_before_data,
     v_after_data,
     p_description

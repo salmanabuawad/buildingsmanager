@@ -21,9 +21,9 @@ END $$;
 DROP TABLE IF EXISTS audit CASCADE;
 
 -- Create audit table
+-- Note: user_id will be added in migration 20250129000000 after users table is created
 CREATE TABLE audit (
   action_id bigserial PRIMARY KEY,
-  user_name text NOT NULL DEFAULT 'default',
   action_type audit_action_type NOT NULL,
   entity_type text NOT NULL CHECK (entity_type IN ('building', 'asset', 'bulk_building', 'bulk_asset')),
   entity_id text, -- Can be building_number, asset_id, or comma-separated IDs for bulk operations
@@ -34,7 +34,7 @@ CREATE TABLE audit (
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_audit_user_name ON audit(user_name);
+-- Index for user_id will be created in migration 20250129000000 after FK is added
 CREATE INDEX IF NOT EXISTS idx_audit_action_type ON audit(action_type);
 CREATE INDEX IF NOT EXISTS idx_audit_entity_type ON audit(entity_type);
 CREATE INDEX IF NOT EXISTS idx_audit_entity_id ON audit(entity_id);
@@ -60,7 +60,7 @@ CREATE POLICY "Allow authenticated users to insert audit"
 
 COMMENT ON TABLE audit IS 'Audit table tracking all changes to buildings and assets';
 COMMENT ON COLUMN audit.action_id IS 'Primary key - sequential action ID';
-COMMENT ON COLUMN audit.user_name IS 'User who performed the action (default: "default")';
+-- user_id FK comment will be added in migration 20250129000000
 COMMENT ON COLUMN audit.action_type IS 'Type of action: manual_update, import_file, transfer_area, distribute_shared';
 COMMENT ON COLUMN audit.entity_type IS 'Type of entity: building, asset, bulk_building, bulk_asset';
 COMMENT ON COLUMN audit.entity_id IS 'ID of the entity (building_number, asset_id, or comma-separated IDs for bulk)';
@@ -76,11 +76,12 @@ DROP FUNCTION IF EXISTS log_audit_entry(text, text, text, text, jsonb, jsonb, te
 DROP FUNCTION IF EXISTS log_audit_entry(audit_action_type, text, text);
 DROP FUNCTION IF EXISTS log_audit_entry(text, text, text);
 
+-- Function will be updated in migration 20250129000000 to use user_id FK
+-- Placeholder function for now (will be replaced)
 CREATE OR REPLACE FUNCTION log_audit_entry(
   p_action_type audit_action_type,
   p_entity_type text,
   p_entity_id text,
-  p_user_name text DEFAULT 'default',
   p_before_data jsonb DEFAULT NULL,
   p_after_data jsonb DEFAULT NULL,
   p_description text DEFAULT NULL
@@ -90,7 +91,6 @@ DECLARE
   v_audit_id bigint;
 BEGIN
   INSERT INTO audit (
-    user_name,
     action_type,
     entity_type,
     entity_id,
@@ -98,7 +98,6 @@ BEGIN
     after_data,
     description
   ) VALUES (
-    p_user_name,
     p_action_type,
     p_entity_type,
     p_entity_id,

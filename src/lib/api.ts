@@ -58,13 +58,12 @@ function logChangeAsync(
       const userInfo = await getCurrentUserInfo();
       
       // Call the RPC function asynchronously (don't await)
+      // Function now uses user_id FK - pass auth_user_id (p_user_id)
       const { error } = await supabase.rpc('log_change_entry', {
         p_table_name: tableName,
         p_operation: operation,
         p_record_id: recordId,
-        p_user_name: userInfo.user_name,
-        p_user_email: userInfo.user_email || null,
-        p_user_id: userInfo.user_id || null,
+        p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
         p_before_data: beforeData ? JSON.parse(JSON.stringify(beforeData)) : null,
         p_after_data: afterData ? JSON.parse(JSON.stringify(afterData)) : null,
         p_changed_fields: changedFields || null
@@ -504,12 +503,12 @@ export const api = {
       }
       
       // Log audit entry (transaction-based, replaces trigger)
-      const userName = await getCurrentUserName();
+      const userInfo = await getCurrentUserInfo();
       try {
         await supabase.rpc('log_audit_for_building', {
           p_building_number: data.building_number,
           p_operation: 'INSERT',
-          p_user_name: userName,
+          p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
           p_action_type: 'manual_update',
           p_description: 'Building created'
         });
@@ -608,12 +607,12 @@ export const api = {
       }
       
       // Log audit entry (transaction-based, replaces trigger)
-      const userName = await getCurrentUserName();
+      const userInfo = await getCurrentUserInfo();
       try {
         await supabase.rpc('log_audit_for_building', {
           p_building_number: buildingNumber,
           p_operation: 'UPDATE',
-          p_user_name: userName,
+          p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
           p_action_type: 'manual_update',
           p_description: 'Building updated'
         });
@@ -658,12 +657,12 @@ export const api = {
       }
 
       // Log audit entry BEFORE deletion (transaction-based, replaces trigger)
-      const userName = await getCurrentUserName();
+      const userInfo = await getCurrentUserInfo();
       try {
         await supabase.rpc('log_audit_for_building', {
           p_building_number: buildingNumber,
           p_operation: 'DELETE',
-          p_user_name: userName,
+          p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
           p_action_type: 'manual_update',
           p_description: 'Building deleted'
         });
@@ -1198,14 +1197,14 @@ export const api = {
 
         // If asset exists, delete it (transaction-based: copy to history and log audit) and create a new entry
         if (existingAsset) {
-          const userName = await getCurrentUserName();
+          const userInfo = await getCurrentUserInfo();
           
           // Copy to history and log audit before deletion (transaction-based, replaces trigger)
           try {
             await supabase.rpc('log_audit_for_asset', {
               p_asset_id: sanitizedInput.asset_id,
               p_operation: 'DELETE',
-              p_user_name: userName,
+              p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
               p_action_type: 'manual_update',
               p_copy_to_history: true, // This will copy asset to history before deletion
               p_description: 'Asset replaced with new measurement'
@@ -1251,7 +1250,7 @@ export const api = {
             await supabase.rpc('log_audit_for_asset', {
               p_asset_id: newAsset.asset_id,
               p_operation: 'INSERT',
-              p_user_name: userName,
+              p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
               p_action_type: 'manual_update',
               p_copy_to_history: false,
               p_description: 'New asset created (replaced existing)'
@@ -1327,12 +1326,12 @@ export const api = {
       // Log audit entry (transaction-based, replaces trigger)
       // Skip audit logging if skipAudit is true (for bulk operations)
       if (skipAudit !== true) {
-        const userName = await getCurrentUserName();
+        const userInfo = await getCurrentUserInfo();
         try {
           await supabase.rpc('log_audit_for_asset', {
             p_asset_id: data.asset_id,
             p_operation: 'INSERT',
-            p_user_name: userName,
+            p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
             p_action_type: 'manual_update',
             p_copy_to_history: false,
             p_description: 'Asset created'
@@ -1483,12 +1482,12 @@ export const api = {
       // If is_new_measurement is true, this will copy old asset to history before logging audit
       // Skip audit logging if skipAudit is true (for bulk operations)
       if (!skipAudit) {
-        const userName = await getCurrentUserName();
+        const userInfo = await getCurrentUserInfo();
         try {
           await supabase.rpc('log_audit_for_asset', {
             p_asset_id: assetIdNum,
             p_operation: 'UPDATE',
-            p_user_name: userName,
+            p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
             p_action_type: actionType || 'manual_update',
             p_copy_to_history: isNewMeasurement === true, // Copy to history if new measurement
             p_description: isNewMeasurement === true ? 'Asset updated (new measurement)' : 'Asset updated'
@@ -1541,12 +1540,12 @@ export const api = {
       }
       
       // Log audit and copy to history BEFORE deletion (transaction-based, replaces trigger)
-      const userName = await getCurrentUserName();
+      const userInfo = await getCurrentUserInfo();
       try {
         await supabase.rpc('log_audit_for_asset', {
           p_asset_id: assetIdNum,
           p_operation: 'DELETE',
-          p_user_name: userName,
+          p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
           p_action_type: 'manual_update',
           p_copy_to_history: true, // This will copy asset to history before deletion
           p_description: 'Asset deleted'
@@ -2344,7 +2343,6 @@ export const api = {
       return data;
     },
     logEntry: async (input: {
-      user_name?: string;
       action_type: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared';
       entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
       entity_id?: string;
@@ -2352,15 +2350,15 @@ export const api = {
       after_data?: any;
       description?: string;
     }): Promise<{ action_id: number }> => {
-      // Get current user if not provided
-      const userName = input.user_name || await getCurrentUserName();
+      // Get current user from auth context
+      const userInfo = await getCurrentUserInfo();
       
       const { data, error } = await supabase
         .rpc('log_audit_entry', {
           p_action_type: input.action_type,
           p_entity_type: input.entity_type,
           p_entity_id: input.entity_id || null,
-          p_user_name: userName,
+          p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
           p_before_data: input.before_data || null,
           p_after_data: input.after_data || null,
           p_description: input.description || null,
@@ -2391,7 +2389,6 @@ export const api = {
       const currentUserName = userName || await getCurrentUserName();
 
       const result = await api.auditLog.logEntry({
-        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'building',
         entity_id: buildingNumber.toString(),
@@ -2423,7 +2420,6 @@ export const api = {
       const currentUserName = userName || await getCurrentUserName();
 
       const result = await api.auditLog.logEntry({
-        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'asset',
         entity_id: assetId.toString(),
@@ -2445,7 +2441,6 @@ export const api = {
       const currentUserName = userName || await getCurrentUserName();
 
       const result = await api.auditLog.logEntry({
-        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'bulk_building',
         entity_id: buildingNumbers.join(','),
@@ -2468,7 +2463,6 @@ export const api = {
       const currentUserName = userName || await getCurrentUserName();
 
       const result = await api.auditLog.logEntry({
-        user_name: currentUserName,
         action_type: actionType,
         entity_type: 'bulk_asset',
         entity_id: assetIds.join(','),
@@ -2486,7 +2480,7 @@ export const api = {
       description?: string,
       userName?: string
     ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
-      const currentUserName = userName || await getCurrentUserName();
+      const userInfo = await getCurrentUserInfo();
       
       // Convert assets to array (Supabase will convert to JSONB automatically)
       const assetsArray = assets.map(asset => {
@@ -2508,7 +2502,7 @@ export const api = {
       const { data, error } = await supabase.rpc('bulk_update_assets_with_audit', {
         p_assets: assetsArray,
         p_action_type: actionType,
-        p_user_name: currentUserName,
+        p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
         p_before_data: beforeData || null,
         p_after_data: afterData || null,
         p_description: description || null
@@ -2531,7 +2525,7 @@ export const api = {
       description?: string,
       userName?: string
     ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
-      const currentUserName = userName || await getCurrentUserName();
+      const userInfo = await getCurrentUserInfo();
       
       // Convert to arrays (Supabase will convert to JSONB automatically)
       const oldAssetsArray = oldAssets.map(asset => ({
@@ -2559,7 +2553,7 @@ export const api = {
         p_old_assets: oldAssetsArray, // Supabase will convert to JSONB automatically
         p_new_assets: newAssetsArray, // Supabase will convert to JSONB automatically
         p_action_type: actionType,
-        p_user_name: currentUserName,
+        p_user_id: userInfo.user_id || null, -- auth_user_id (UUID as text)
         p_before_data: beforeData || null,
         p_after_data: afterData || null,
         p_description: description || null

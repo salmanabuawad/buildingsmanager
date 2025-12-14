@@ -1425,6 +1425,33 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         .insert(finalUniqueAssets)
         .select();
 
+      // Update building total area for all affected buildings after skeleton import
+      if (!insertError && insertedAssets && insertedAssets.length > 0) {
+        const affectedBuildingNumbers = new Set<number>();
+        insertedAssets.forEach((savedAsset: any) => {
+          if (savedAsset.building_number != null) {
+            const buildingNum = typeof savedAsset.building_number === 'string' 
+              ? parseInt(savedAsset.building_number, 10) 
+              : savedAsset.building_number;
+            if (!isNaN(buildingNum)) {
+              affectedBuildingNumbers.add(buildingNum);
+            }
+          }
+        });
+        
+        // Update total area for each affected building
+        for (const buildingNum of affectedBuildingNumbers) {
+          try {
+            await supabase.rpc('update_building_total_area', {
+              p_building_number: buildingNum
+            });
+          } catch (areaError) {
+            console.warn(`Failed to update building total area for building ${buildingNum} after skeleton import:`, areaError);
+            // Don't fail the operation if area update fails
+          }
+        }
+      }
+
       if (insertError) {
         console.error('Supabase insert error:', insertError);
         // Check if it's a conflict (409) or duplicate key error
@@ -2114,6 +2141,31 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   successCount = newInserted.length;
                   // Store newInserted as insertedAssetsResult for removal tracking
                   insertedAssetsResult = newInserted;
+                  
+                  // Update building total area for all affected buildings
+                  const affectedBuildingNumbers = new Set<number>();
+                  newInserted.forEach((savedAsset: any) => {
+                    if (savedAsset.building_number != null) {
+                      const buildingNum = typeof savedAsset.building_number === 'string' 
+                        ? parseInt(savedAsset.building_number, 10) 
+                        : savedAsset.building_number;
+                      if (!isNaN(buildingNum)) {
+                        affectedBuildingNumbers.add(buildingNum);
+                      }
+                    }
+                  });
+                  
+                  // Update total area for each affected building
+                  for (const buildingNum of affectedBuildingNumbers) {
+                    try {
+                      await supabase.rpc('update_building_total_area', {
+                        p_building_number: buildingNum
+                      });
+                    } catch (areaError) {
+                      console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
+                      // Don't fail the operation if area update fails
+                    }
+                  }
                 } else if (newError) {
                   errors.push(`שגיאה בשמירת נכסים: ${newError.message}`);
                 }
@@ -2155,6 +2207,33 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       } else {
         // Bulk insert succeeded
         successCount = insertedAssetsResult?.length || assetsToInsert.length;
+      }
+
+      // Update building total area for all affected buildings after import
+      if (insertedAssetsResult && insertedAssetsResult.length > 0) {
+        const affectedBuildingNumbers = new Set<number>();
+        insertedAssetsResult.forEach((savedAsset: any) => {
+          if (savedAsset.building_number != null) {
+            const buildingNum = typeof savedAsset.building_number === 'string' 
+              ? parseInt(savedAsset.building_number, 10) 
+              : savedAsset.building_number;
+            if (!isNaN(buildingNum)) {
+              affectedBuildingNumbers.add(buildingNum);
+            }
+          }
+        });
+        
+        // Update total area for each affected building
+        for (const buildingNum of affectedBuildingNumbers) {
+          try {
+            await supabase.rpc('update_building_total_area', {
+              p_building_number: buildingNum
+            });
+          } catch (areaError) {
+            console.warn(`Failed to update building total area for building ${buildingNum} after import:`, areaError);
+            // Don't fail the operation if area update fails
+          }
+        }
       }
 
       const failedCount = errors.length;

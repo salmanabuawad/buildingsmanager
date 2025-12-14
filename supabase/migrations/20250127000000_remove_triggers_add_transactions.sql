@@ -19,6 +19,24 @@ DROP TRIGGER IF EXISTS trigger_update_building_total_area ON assets;
 -- ============================================================================
 -- Function will be updated in migration 20250129000000 to use user_id FK
 -- Placeholder function for now (will be replaced)
+-- Drop existing function with all possible signatures
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN 
+    SELECT oid::regprocedure as func_signature
+    FROM pg_proc
+    WHERE proname = 'log_audit_for_building'
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+  END LOOP;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Ignore errors
+    NULL;
+END $$;
+
 CREATE OR REPLACE FUNCTION log_audit_for_building(
   p_building_number bigint,
   p_operation text, -- 'INSERT', 'UPDATE', 'DELETE'
@@ -146,6 +164,24 @@ COMMENT ON FUNCTION copy_asset_to_history_before_update IS 'Copy asset to histor
 -- ============================================================================
 -- Function will be updated in migration 20250129000000 to use user_id FK
 -- Placeholder function for now (will be replaced)
+-- Drop existing function with all possible signatures
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN 
+    SELECT oid::regprocedure as func_signature
+    FROM pg_proc
+    WHERE proname = 'log_audit_for_asset'
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+  END LOOP;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Ignore errors
+    NULL;
+END $$;
+
 CREATE OR REPLACE FUNCTION log_audit_for_asset(
   p_asset_id bigint,
   p_operation text, -- 'INSERT', 'UPDATE', 'DELETE'

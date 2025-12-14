@@ -1240,19 +1240,28 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     loadAuditDetailsRef.current = loadAuditDetails;
   }, [loadAuditDetails]);
 
-  // Auto-expand if there's only one date/entry
+  // Auto-select and auto-expand if there's only one date/entry
   useEffect(() => {
-    // Only auto-expand for distribution and transfer tabs
+    // Only auto-select/expand for distribution and transfer tabs
     if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
       return;
     }
     
-    // If there's only one date tab, auto-expand it
+    // If there's only one date tab, auto-select it and auto-expand it
     if (dateTabs.length === 1) {
-      const singleActionId = dateTabs[0].actionId;
+      const singleDateTab = dateTabs[0];
+      const singleActionId = singleDateTab.actionId;
       const actionIdKey = `action_${singleActionId}`;
       
-      // Check if it's not already expanded
+      // Auto-select the date tab if not already selected
+      if (!selectedDateTab || selectedDateTab.actionId !== singleActionId) {
+        setSelectedDateTab({ 
+          actionId: singleActionId, 
+          measurementDate: singleDateTab.measurementDate 
+        });
+      }
+      
+      // Auto-expand the inner grid
       setExpandedHistoryRows(prev => {
         if (!prev.has(actionIdKey)) {
           // Add to expanded set
@@ -1268,8 +1277,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         }
         return prev;
       });
+    } else if (dateTabs.length > 1) {
+      // If there are multiple date tabs, clear selection (user should choose)
+      if (selectedDateTab) {
+        setSelectedDateTab(null);
+      }
     }
-  }, [dateTabs, activeHistoryTab, auditDataCache]);
+  }, [dateTabs, activeHistoryTab, auditDataCache, selectedDateTab]);
 
   // Handler for saving changes from modal
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
@@ -4007,7 +4021,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }`}
                   >
                     <Share2 className="h-3 w-3" />
-                    <span>היסטוריית חלוקה</span>
+                    <span>היסטוריית פיזור שטחים</span>
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                       activeHistoryTab === 'distribution'
                         ? 'bg-blue-100 text-blue-700'
@@ -4025,7 +4039,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }`}
                   >
                     <ArrowRightLeft className="h-3 w-3" />
-                    <span>היסטוריית העברה</span>
+                    <span>היסטוריית העברת שטחים</span>
                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                       activeHistoryTab === 'transfer'
                         ? 'bg-blue-100 text-blue-700'

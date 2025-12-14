@@ -255,6 +255,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
       
       // Wait for assetTypes state to be set before calculating initial total area
       // Calculate initial total area (sum of asset_size, excluding assets with not_accountable = true)
+      // Also exclude residence assets where asset_id starts with 000 (asset_id < 1000 or asset_id % 1000 = 0)
       // Use the helper function to check if asset type is not_accountable
       const totalArea = fetchedAssets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
@@ -262,6 +263,15 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
           const assetType = finalAssetTypes.find(at => at.name === asset.main_asset_type);
           if (assetType?.not_accountable === true) {
             return sum;
+          }
+          
+          // Exclude residence assets where asset_id starts with 000 (asset_id < 1000 or asset_id % 1000 = 0)
+          if (assetType?.business_residence === 'מגורים') {
+            const assetIdStr = String(asset.asset_id);
+            const assetIdStartsWith000 = assetIdStr.padStart(4, '0').startsWith('000') || asset.asset_id < 1000;
+            if (asset.asset_id % 1000 === 0 || assetIdStartsWith000) {
+              return sum;
+            }
           }
         }
         return sum + (asset.asset_size || 0);
@@ -446,11 +456,25 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     });
 
     // Calculate current total area (excluding assets with not_accountable = true)
+    // Also exclude residence assets where asset_id starts with 000 (asset_id < 1000 or asset_id % 1000 = 0)
     const newTotalArea = updatedAssets.reduce((sum, a) => {
       // Skip assets where main_asset_type has not_accountable = true
       if (a.main_asset_type && isAssetTypeNotAccountable(a.main_asset_type)) {
         return sum;
       }
+      
+      // Exclude residence assets where asset_id starts with 000 (asset_id < 1000 or asset_id % 1000 = 0)
+      if (a.main_asset_type && assetTypes) {
+        const assetType = assetTypes.find(at => at.name === a.main_asset_type);
+        if (assetType?.business_residence === 'מגורים') {
+          const assetIdStr = String(a.asset_id);
+          const assetIdStartsWith000 = assetIdStr.padStart(4, '0').startsWith('000') || a.asset_id < 1000;
+          if (a.asset_id % 1000 === 0 || assetIdStartsWith000) {
+            return sum;
+          }
+        }
+      }
+      
       return sum + (a.asset_size || 0);
     }, 0);
 
@@ -920,6 +944,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
   const hasChanges = dirtyAssets.size > 0;
 
   // Calculate current total area (sum of asset_size, excluding assets with not_accountable = true, with dirty changes applied)
+  // Also exclude residence assets where asset_id starts with 000 (asset_id < 1000 or asset_id % 1000 = 0)
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
       const assetId = String(asset.asset_id);
@@ -933,9 +958,21 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         return sum;
       }
       
+      // Exclude residence assets where asset_id starts with 000 (asset_id < 1000 or asset_id % 1000 = 0)
+      if (mainAssetType && assetTypes) {
+        const assetType = assetTypes.find(at => at.name === mainAssetType);
+        if (assetType?.business_residence === 'מגורים') {
+          const assetIdStr = String(assetWithChanges.asset_id);
+          const assetIdStartsWith000 = assetIdStr.padStart(4, '0').startsWith('000') || assetWithChanges.asset_id < 1000;
+          if (assetWithChanges.asset_id % 1000 === 0 || assetIdStartsWith000) {
+            return sum;
+          }
+        }
+      }
+      
       return sum + (assetWithChanges.asset_size || 0);
     }, 0);
-  }, [assets, dirtyAssets, isAssetTypeNotAccountable]);
+  }, [assets, dirtyAssets, isAssetTypeNotAccountable, assetTypes]);
 
   // Check if total area has changed (validation will prevent saving if changed)
   const totalAreaChanged = initialTotalArea !== null && Math.abs(currentTotalArea - initialTotalArea) > 0.01;

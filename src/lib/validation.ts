@@ -2712,9 +2712,15 @@ export const buildingValidators = {
           }
         }
         
-        // Exclude residence assets where asset_id % 1000 = 0 OR asset_id < 1000 (starts with 000)
-        if (isResidenceAsset && (asset.asset_id % 1000 === 0 || asset.asset_id < 1000)) {
-          return sum;
+        // Exclude residence assets where asset_id starts with "000" (asset_id < 1000)
+        // This excludes asset_ids 0-999 which when displayed as 4-digit strings start with "000"
+        // Also exclude assets where asset_id % 1000 = 0 (like 1000, 2000, 3000, etc.)
+        if (isResidenceAsset) {
+          // Check if asset_id is less than 1000 (starts with "000" when displayed as 4-digit string)
+          // OR if asset_id mod 1000 equals zero (like 1000, 2000, 3000, etc.)
+          if (asset.asset_id < 1000 || asset.asset_id % 1000 === 0) {
+            return sum;
+          }
         }
         
         return sum + (asset.asset_size || 0);

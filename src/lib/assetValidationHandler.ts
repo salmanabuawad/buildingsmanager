@@ -410,6 +410,23 @@ export class AssetValidationHandler {
       });
     }
     
+    // Skip validation for asset type 990
+    if (asset.main_asset_type && (String(asset.main_asset_type).trim() === '990' || parseInt(String(asset.main_asset_type).trim(), 10) === 990)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetValidationHandler] Skipping validation for asset type 990:', {
+          assetId: asset.asset_id,
+          main_asset_type: asset.main_asset_type
+        });
+      }
+      return {
+        assetId: asset.asset_id,
+        assetIdentifier,
+        valid: true,
+        errors: [],
+        passed: ['נכס מסוג 990 - דילוג על אימות']
+      };
+    }
+    
     // Check if asset type is not_accountable - skip all validation if true
     if (asset.main_asset_type) {
       let assetTypes = cachedData?.assetTypes;

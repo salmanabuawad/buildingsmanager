@@ -643,6 +643,17 @@ function App() {
       for (let i = 0; i < allAssets.length; i++) {
         const asset = allAssets[i];
         
+        // Skip validation for asset type 990
+        if (asset.main_asset_type && (String(asset.main_asset_type).trim() === '990' || parseInt(String(asset.main_asset_type).trim(), 10) === 990)) {
+          // Update progress but skip validation
+          setBatchValidationProgress({
+            current: i + 1,
+            total: allAssets.length,
+            currentAssetId: String(asset.asset_id)
+          });
+          continue;
+        }
+        
         // Update progress
         setBatchValidationProgress({
           current: i + 1,

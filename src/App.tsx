@@ -388,6 +388,7 @@ function App() {
     }
 
     // Combine original tax region with not_accountable tax regions and tax region 990
+    // Tax region 990 is always included as a multi-tax area in transfer areas tab
     let combinedTaxRegion = taxRegion || '';
     const existingRegions = taxRegion ? taxRegion.split(',').map(r => r.trim()).filter(r => r) : [];
     const allRegions = new Set<string>(existingRegions);
@@ -395,10 +396,10 @@ function App() {
     // Add not_accountable tax regions
     notAccountableTaxRegions.forEach(tr => allRegions.add(tr));
     
-    // Always add tax region 990 to transfer areas tab
+    // Always add tax region 990 as a multi-tax area when opening transfer areas tab
     allRegions.add('990');
     
-    combinedTaxRegion = Array.from(allRegions).join(',');
+    combinedTaxRegion = Array.from(allRegions).sort().join(',');
 
     const transferAreasTabId = `transfer-areas-${buildingNumber}-${combinedTaxRegion || 'all'}-${Date.now()}`;
     const newTab: Tab = {

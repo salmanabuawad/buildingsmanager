@@ -223,8 +223,8 @@ CREATE TABLE IF NOT EXISTS buildings (
   condo text,
   townhouses text,
   residence_shared_area numeric(10,2) DEFAULT 0,
-  shared_business_area numeric(10,2),
-  total_area_for_control numeric,
+  business_shared_area numeric(10,2),
+  area_for_control numeric,
   building_address integer,
   gosh bigint,
   helka bigint,
@@ -288,7 +288,7 @@ COMMENT ON COLUMN buildings.building_number_in_street IS 'מספר בניין - 
 COMMENT ON COLUMN buildings.building_address IS 'Street code from address_list table (foreign key to address_list.street_code)';
 COMMENT ON COLUMN buildings.overload_ratio IS 'אחוז העמסה - Overload ratio percentage';
 COMMENT ON COLUMN buildings.residence_shared_area IS 'Residence shared/common area in the building (שטח משותף מגורים)';
-COMMENT ON COLUMN buildings.shared_business_area IS 'Shared business/commercial area in the building (שטח משותף עסקים)';
+COMMENT ON COLUMN buildings.business_shared_area IS 'Shared business/commercial area in the building (שטח משותף עסקים)';
 
 -- ============================================================================
 -- 5. ASSETS TABLE

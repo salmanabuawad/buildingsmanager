@@ -357,14 +357,9 @@ function sanitizeBuildingInput(input: any): any {
   if (input.business_shared_area != null) {
     sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);
   }
-  // Note: Database column is 'total_area_for_control', but we use 'area_for_control' in the interface
-  // Map it correctly for the database
+  // Database column is 'area_for_control' (matching the interface)
   if (input.area_for_control != null) {
-    sanitized.total_area_for_control = sanitizeNumber(input.area_for_control);
-  }
-  // Also handle if it's passed as total_area_for_control
-  if (input.total_area_for_control != null) {
-    sanitized.total_area_for_control = sanitizeNumber(input.total_area_for_control);
+    sanitized.area_for_control = sanitizeNumber(input.area_for_control);
   }
   if (input.total_building_area != null) {
     sanitized.total_building_area = sanitizeNumber(input.total_building_area);
@@ -591,7 +586,7 @@ export const api = {
         
         // Handle foreign key constraint violation for building_address
         if (error.code === '23503' && (error.message?.includes('fk_buildings_building_address') || error.details?.includes('address_list'))) {
-          const streetCode = cleanedInput.building_address || cleanedInput.total_area_for_control;
+          const streetCode = cleanedInput.building_address;
           throw new Error(`סמל רחוב ${streetCode} לא קיים בטבלת הכתובות. יש לבחור כתובת תקינה מהרשימה.`);
         }
         

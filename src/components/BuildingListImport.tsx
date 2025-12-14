@@ -55,7 +55,7 @@ export function BuildingListImport() {
         'building_number': ['מזהה מבנה', 'מזהה_מבנה', 'building_number'],
         'tax_region': ['אזור מס', 'אזור_מס', 'tax_region'],
         'residence_shared_area': ['שטח משותף מגורים', 'שטח_משותף_מגורים', 'residence_shared_area', 'shared_area'],
-        'business_shared_area': ['שטח משותף עסקים', 'שטח_משותף_עסקים', 'business_shared_area', 'shared_business_area'],
+        'business_shared_area': ['שטח משותף עסקים', 'שטח_משותף_עסקים', 'business_shared_area'],
         'building_address': ['סמל רחוב', 'סמל_רחוב', 'building_address']
       };
 

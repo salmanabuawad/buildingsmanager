@@ -600,7 +600,7 @@ export function ValidationRulesManager() {
                     value={formData.compare_field ?? ''}
                     onChange={(e) => setFormData({ ...formData, compare_field: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg"
-                    placeholder="total_area_for_control"
+                    placeholder="area_for_control"
                   />
                 </div>
                 <div>

@@ -309,8 +309,17 @@ export function DetailRowRenderer(params: DetailRowParams) {
                     <th
                       key={fieldName}
                       scope="col"
-                      className="px-2 py-2 text-right text-xs font-medium text-gray-700 uppercase tracking-wider"
-                      style={{ textAlign: 'right', fontWeight: 'normal' }}
+                      className="px-1 py-1 text-right text-xs font-medium text-gray-700 uppercase tracking-wider"
+                      style={{ 
+                        textAlign: 'right', 
+                        fontWeight: 'normal',
+                        maxWidth: '60px',
+                        minWidth: '50px',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word',
+                        lineHeight: '1.2',
+                        height: 'auto'
+                      }}
                     >
                       {getHeaderName(fieldName)}
                     </th>
@@ -331,11 +340,16 @@ export function DetailRowRenderer(params: DetailRowParams) {
                         return (
                           <td
                             key={fieldName}
-                            className="px-2 py-1 whitespace-nowrap text-right"
+                            className="px-1 py-1 text-right"
                             style={{
                               textAlign: 'right',
                               fontWeight: shouldHighlight ? 'bold' : 'normal',
-                              fontStyle: shouldHighlight ? 'italic' : 'normal'
+                              fontStyle: shouldHighlight ? 'italic' : 'normal',
+                              maxWidth: '60px',
+                              minWidth: '50px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
                             }}
                           >
                             {fieldName === 'asset_id' ? (

@@ -634,27 +634,21 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Prepare history rows with detail rows inserted (for active tab)
   // When expanded, show all records with the same action_id
+  // For distribution/transfer tabs, we'll use inline expansion in the date cell renderer
+  // So we don't need to add detail rows for these tabs
   const historyRowsWithDetails = useMemo(() => {
+    if (activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') {
+      // For these tabs, return rows as-is (no detail rows)
+      return activeHistoryRows;
+    }
+    
+    // For history tab, keep the full-width detail row approach if needed
     const rows: any[] = [];
     activeHistoryRows.forEach((row) => {
       rows.push(row);
-      // Use action_id as the key for expansion
-      const actionIdKey = row.action_id != null ? `action_${row.action_id}` : null;
-      
-      if (actionIdKey && expandedHistoryRows.has(actionIdKey) && row.action_id != null) {
-        // Only add the audit detail row (full-width row showing inner table)
-        // Do NOT add individual detail record rows - only show the inner table
-        rows.push({
-          _isDetailRow: true,
-          _parentActionId: row.action_id,
-          _actionId: row.action_id,
-          _assetId: row.asset_id,
-          _measurementDate: row.measurement_date
-        });
-      }
     });
     return rows;
-  }, [activeHistoryRows, expandedHistoryRows, allHistoryRowsByActionId, activeHistoryTab]);
+  }, [activeHistoryRows, activeHistoryTab]);
 
   // Always use asset.tax_region as the source of truth
   // This ensures consistency between what's shown and what's stored in the asset record
@@ -3857,31 +3851,101 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     rowData={historyRowsWithDetails}
                     columnDefs={
                       activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer'
-                        ? columnDefs.filter((col: any) => 
-                            col.field === 'measurement_date' || col.field === 'structure_drawing_url'
-                          )
-                        : columnDefs
+                        ? columnDefs.map((col: any) => {
+                            // Modify measurement_date column to include expand/collapse button and inline grid
+                            if (col.field === 'measurement_date') {
+                              return {
+                                ...col,
+                                cellRenderer: (params: any) => {
+                                  const rowData = params.data as Asset;
+                                  const actionId = rowData?.action_id;
+                                  const isExpanded = actionId != null && expandedHistoryRows.has(`action_${actionId}`);
+                                  const auditData = actionId != null ? auditDataCache.get(actionId) : undefined;
+                                  
+                                  return (
+                                    <div className="flex flex-col gap-2" dir="rtl" style={{ minWidth: '200px' }}>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (actionId != null) {
+                                              const actionIdKey = `action_${actionId}`;
+                                              setExpandedHistoryRows(prev => {
+                                                const newSet = new Set(prev);
+                                                if (newSet.has(actionIdKey)) {
+                                                  newSet.delete(actionIdKey);
+                                                } else {
+                                                  newSet.add(actionIdKey);
+                                                  if (!auditDataCache.has(actionId)) {
+                                                    loadAuditDetails(actionId);
+                                                  }
+                                                }
+                                                return newSet;
+                                              });
+                                              setTimeout(() => {
+                                                historyGridRef.current?.api.resetRowHeights();
+                                              }, 0);
+                                            }
+                                          }}
+                                          className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                                          title={isExpanded ? 'צמצם' : 'הרחב'}
+                                        >
+                                          {isExpanded ? '▼' : '▶'}
+                                        </button>
+                                        <span>{formatDateToDDMMYYYY(rowData.measurement_date)}</span>
+                                      </div>
+                                      {isExpanded && auditData && !auditData.loading && auditData.auditLog && (
+                                        <div style={{ width: '100%', maxWidth: '800px' }}>
+                                          <DetailRowRenderer
+                                            {...params}
+                                            data={{ _isDetailRow: true, _actionId: actionId }}
+                                            expandedRows={expandedHistoryRows}
+                                            auditDataCache={auditDataCache}
+                                            assetColumnDefs={assetColumnDefs}
+                                            currentTabAssetId={asset?.asset_id}
+                                            onSelectAsset={(assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
+                                              window.dispatchEvent(new CustomEvent('openAssetView', {
+                                                detail: { assetDbId, assetId, buildingNumber, taxRegion }
+                                              }));
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                      {isExpanded && auditData?.loading && (
+                                        <div className="flex items-center justify-center py-2">
+                                          <Loader2 className="h-4 w-4 text-teal-600 animate-spin" />
+                                          <span className="mr-2 text-slate-700 text-xs">טוען...</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                },
+                                autoHeight: true,
+                                wrapText: true
+                              };
+                            }
+                            return col;
+                          })
+                        : columnDefs.map((col: any) => {
+                            // For history tab, add expand/collapse to measurement_date
+                            if (col.field === 'measurement_date' && activeHistoryTab === 'history') {
+                              return {
+                                ...col,
+                                cellRenderer: (params: any) => {
+                                  const rowData = params.data as Asset;
+                                  return formatDateToDDMMYYYY(rowData.measurement_date);
+                                }
+                              };
+                            }
+                            return col;
+                          })
                     }
-                    isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
-                    fullWidthCellRenderer={DetailRowRenderer}
-                    fullWidthCellRendererParams={(params: any) => ({
-                      expandedRows: expandedHistoryRows,
-                      auditDataCache,
-                      assetColumnDefs,
-                      currentTabAssetId: asset?.asset_id,
-                      onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
-                        // Navigate to asset view - dispatch custom event that App.tsx can listen to
-                        window.dispatchEvent(new CustomEvent('openAssetView', {
-                          detail: { assetDbId, assetId, buildingNumber, taxRegion }
-                        }));
-                      }
-                    })}
                     defaultColDef={{
                       resizable: true,
                       wrapHeaderText: true,
                       autoHeaderHeight: true,
                       wrapText: true,
-                      autoHeight: false,
+                      autoHeight: (activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') ? true : false,
                       sortable: false,
                       headerClass: 'ag-right-aligned-header',
                       headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
@@ -3907,8 +3971,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                     }}
                     getRowHeight={(params) => {
-                      if (params.data?._isDetailRow) {
-                        return 250; // Fixed height for detail rows (reduced from 600)
+                      // For distribution/transfer tabs with inline expansion, use auto height
+                      if (activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') {
+                        const rowData = params.data as Asset;
+                        const actionId = rowData?.action_id;
+                        if (actionId != null && expandedHistoryRows.has(`action_${actionId}`)) {
+                          return undefined; // Auto height based on cell content
+                        }
                       }
                       return undefined; // Use default row height
                     }}

@@ -72,6 +72,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     afterAssets: Asset[];
     relatedAssets: Asset[];
   }>>(new Map());
+  const loadAuditDetailsRef = useRef<((actionId: number) => Promise<void>) | null>(null);
   const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
   const [selectedDateTab, setSelectedDateTab] = useState<{ actionId: number; measurementDate: string } | null>(null);
   const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>>(new Map());
@@ -635,37 +636,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return dateB.localeCompare(dateA);
       });
   }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows]);
-
-  // Auto-expand if there's only one date/entry
-  useEffect(() => {
-    // Only auto-expand for distribution and transfer tabs
-    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
-      return;
-    }
-    
-    // If there's only one date tab, auto-expand it
-    if (dateTabs.length === 1) {
-      const singleActionId = dateTabs[0].actionId;
-      const actionIdKey = `action_${singleActionId}`;
-      
-      // Check if it's not already expanded
-      setExpandedHistoryRows(prev => {
-        if (!prev.has(actionIdKey)) {
-          // Add to expanded set
-          const newSet = new Set(prev);
-          newSet.add(actionIdKey);
-          
-          // Load audit data if not already loaded
-          if (!auditDataCache.has(singleActionId)) {
-            loadAuditDetails(singleActionId);
-          }
-          
-          return newSet;
-        }
-        return prev;
-      });
-    }
-  }, [dateTabs, activeHistoryTab, auditDataCache, loadAuditDetails]);
 
   // Store all records grouped by action_id for expansion
   const allHistoryRowsByActionId = useMemo(() => {
@@ -1264,6 +1234,42 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       });
     }
   }, [auditDataCache, loadAuditDetails]);
+
+  // Update ref when loadAuditDetails changes
+  useEffect(() => {
+    loadAuditDetailsRef.current = loadAuditDetails;
+  }, [loadAuditDetails]);
+
+  // Auto-expand if there's only one date/entry
+  useEffect(() => {
+    // Only auto-expand for distribution and transfer tabs
+    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
+      return;
+    }
+    
+    // If there's only one date tab, auto-expand it
+    if (dateTabs.length === 1) {
+      const singleActionId = dateTabs[0].actionId;
+      const actionIdKey = `action_${singleActionId}`;
+      
+      // Check if it's not already expanded
+      setExpandedHistoryRows(prev => {
+        if (!prev.has(actionIdKey)) {
+          // Add to expanded set
+          const newSet = new Set(prev);
+          newSet.add(actionIdKey);
+          
+          // Load audit data if not already loaded
+          if (!auditDataCache.has(singleActionId) && loadAuditDetailsRef.current) {
+            loadAuditDetailsRef.current(singleActionId);
+          }
+          
+          return newSet;
+        }
+        return prev;
+      });
+    }
+  }, [dateTabs, activeHistoryTab, auditDataCache]);
 
   // Handler for saving changes from modal
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {

@@ -1218,23 +1218,18 @@ export const api = {
           throw new Error(`שגיאה בבדיקת נכס קיים: ${checkError.message}`);
         }
 
-        // If asset exists, delete it (transaction-based: copy to history and log audit) and create a new entry
+        // If asset exists, delete it (transaction-based: copy to history) and create a new entry
+        // Only copy to history, do NOT create audit entry (audit entries are only for transfer/distribute)
         if (existingAsset) {
-          const userInfo = await getCurrentUserInfo();
-          
-          // Copy to history and log audit before deletion (transaction-based, replaces trigger)
+          // Copy to history before deletion (transaction-based, replaces trigger)
+          // Do NOT create audit entry - audit entries are only created by bulk operations
           try {
-            await supabase.rpc('log_audit_for_asset', {
-              p_asset_id: sanitizedInput.asset_id,
-              p_operation: 'DELETE',
-              p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-              p_action_type: 'manual_update',
-              p_copy_to_history: true, // This will copy asset to history before deletion
-              p_description: 'Asset replaced with new measurement'
+            await supabase.rpc('copy_asset_to_history_before_update', {
+              p_asset_id: sanitizedInput.asset_id
             });
-          } catch (auditError) {
-            console.warn('Failed to log audit entry and copy to history before asset replacement:', auditError);
-            // Continue with deletion even if audit/history fails
+          } catch (historyError) {
+            console.warn('Failed to copy asset to history before asset replacement:', historyError);
+            // Continue with deletion even if history copy fails
           }
           
           // Delete the existing asset from assets table
@@ -1268,20 +1263,8 @@ export const api = {
             // Don't fail the operation if area update fails
           }
 
-          // Log audit entry for new asset creation
-          try {
-            await supabase.rpc('log_audit_for_asset', {
-              p_asset_id: newAsset.asset_id,
-              p_operation: 'INSERT',
-              p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-              p_action_type: 'manual_update',
-              p_copy_to_history: false,
-              p_description: 'New asset created (replaced existing)'
-            });
-          } catch (auditError) {
-            console.warn('Failed to log audit entry for new asset creation:', auditError);
-            // Don't fail the operation if audit logging fails
-          }
+          // Do NOT create audit entry - audit entries are only created by bulk operations
+          // Regular asset creation/replacement should not create audit entries
 
           return newAsset;
         }
@@ -1346,23 +1329,14 @@ export const api = {
         // Don't fail the operation if area update fails
       }
       
-      // Log audit entry (transaction-based, replaces trigger)
+      // Log audit entry ONLY for transfer_area or distribute_shared actions
+      // Regular asset creation should NOT create audit entries
       // Skip audit logging if skipAudit is true (for bulk operations)
       if (skipAudit !== true) {
-        const userInfo = await getCurrentUserInfo();
-        try {
-          await supabase.rpc('log_audit_for_asset', {
-            p_asset_id: data.asset_id,
-            p_operation: 'INSERT',
-            p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-            p_action_type: 'manual_update',
-            p_copy_to_history: false,
-            p_description: 'Asset created'
-          });
-        } catch (auditError) {
-          console.warn('Failed to log audit entry for asset creation:', auditError);
-          // Don't fail the operation if audit logging fails
-        }
+        // Only create audit entry if this is part of a transfer or distribute operation
+        // Regular manual updates should not create audit entries
+        // Audit entries are only created by bulk operations (bulkTransferAreas, bulkUpdateAssets)
+        // Individual asset operations are handled by those bulk functions
       }
       
       return data;
@@ -1501,17 +1475,18 @@ export const api = {
         // Don't fail the operation if area update fails
       }
 
-      // Log audit entry AFTER update (transaction-based, replaces trigger)
-      // If is_new_measurement is true, this will copy old asset to history before logging audit
+      // Log audit entry ONLY for transfer_area or distribute_shared actions
+      // Regular asset updates should NOT create audit entries
       // Skip audit logging if skipAudit is true (for bulk operations)
-      if (!skipAudit) {
+      // Only create audit entry if actionType is explicitly transfer_area or distribute_shared
+      if (!skipAudit && (actionType === 'transfer_area' || actionType === 'distribute_shared')) {
         const userInfo = await getCurrentUserInfo();
         try {
           await supabase.rpc('log_audit_for_asset', {
             p_asset_id: assetIdNum,
             p_operation: 'UPDATE',
             p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-            p_action_type: actionType || 'manual_update',
+            p_action_type: actionType,
             p_copy_to_history: isNewMeasurement === true, // Copy to history if new measurement
             p_description: isNewMeasurement === true ? 'Asset updated (new measurement)' : 'Asset updated'
           });
@@ -1562,20 +1537,16 @@ export const api = {
         console.warn('Failed to get asset data before deletion:', err);
       }
       
-      // Log audit and copy to history BEFORE deletion (transaction-based, replaces trigger)
-      const userInfo = await getCurrentUserInfo();
+      // Copy to history BEFORE deletion (transaction-based, replaces trigger)
+      // Do NOT create audit entry - audit entries are only created by bulk operations
+      // Regular asset deletion should not create audit entries
       try {
-        await supabase.rpc('log_audit_for_asset', {
-          p_asset_id: assetIdNum,
-          p_operation: 'DELETE',
-          p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-          p_action_type: 'manual_update',
-          p_copy_to_history: true, // This will copy asset to history before deletion
-          p_description: 'Asset deleted'
+        await supabase.rpc('copy_asset_to_history_before_update', {
+          p_asset_id: assetIdNum
         });
-      } catch (auditError) {
-        console.warn('Failed to log audit entry and copy to history before asset deletion:', auditError);
-        // Continue with deletion even if audit/history fails
+      } catch (historyError) {
+        console.warn('Failed to copy asset to history before deletion:', historyError);
+        // Continue with deletion even if history copy fails
       }
 
       // Delete from assets table

@@ -441,16 +441,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     activeHistoryTab
   ]);
   
-  // Refresh data and clear state when switching to distribution/transfer tabs
+  // Clear state when switching between history, distribution, and transfer tabs
   useEffect(() => {
-    if (activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') {
-      // Clear selected date tab when switching tabs
-      setSelectedDateTab(null);
-      // Clear audit cache for distribution/transfer to force refresh
-      setAuditDataCache(new Map());
-      // Trigger reload of action types to refresh distribution/transfer data
-      // This will be handled by the loadActionTypes useEffect above
-    }
+    // Clear expanded rows and selected date tab when switching between any tabs
+    setExpandedHistoryRows(new Set());
+    setSelectedDateTab(null);
+    
+    // Clear audit cache when switching tabs to force refresh
+    setAuditDataCache(new Map());
+    
+    // Reset grid row heights to clear any expanded detail rows
+    // Use requestAnimationFrame to ensure this happens after render
+    requestAnimationFrame(() => {
+      if (historyGridRef.current?.api) {
+        historyGridRef.current.api.resetRowHeights();
+      }
+    });
   }, [activeHistoryTab]);
 
   // Filter history rows by action_type
@@ -1247,30 +1253,44 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       return;
     }
     
+    // Skip if dateTabs is empty (data not loaded yet)
+    if (dateTabs.length === 0) {
+      return;
+    }
+    
     // If there's only one date tab, auto-select it and auto-expand it
     if (dateTabs.length === 1) {
       const singleDateTab = dateTabs[0];
       const singleActionId = singleDateTab.actionId;
       const actionIdKey = `action_${singleActionId}`;
       
-      // Auto-select the date tab if not already selected
-      if (!selectedDateTab || selectedDateTab.actionId !== singleActionId) {
-        setSelectedDateTab({ 
-          actionId: singleActionId, 
-          measurementDate: singleDateTab.measurementDate 
-        });
-      }
+      // Auto-select the date tab (use functional update to avoid dependency on selectedDateTab)
+      setSelectedDateTab(prev => {
+        // Only update if different to avoid unnecessary re-renders
+        if (!prev || prev.actionId !== singleActionId) {
+          return { 
+            actionId: singleActionId, 
+            measurementDate: singleDateTab.measurementDate 
+          };
+        }
+        return prev;
+      });
       
-      // Auto-expand the inner grid
+      // Auto-expand the inner grid (use functional update)
       setExpandedHistoryRows(prev => {
+        // Only update if not already expanded
         if (!prev.has(actionIdKey)) {
-          // Add to expanded set
           const newSet = new Set(prev);
           newSet.add(actionIdKey);
           
-          // Load audit data if not already loaded
-          if (!auditDataCache.has(singleActionId) && loadAuditDetailsRef.current) {
-            loadAuditDetailsRef.current(singleActionId);
+          // Load audit data asynchronously to avoid blocking
+          if (loadAuditDetailsRef.current) {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+              if (loadAuditDetailsRef.current) {
+                loadAuditDetailsRef.current(singleActionId).catch(console.error);
+              }
+            });
           }
           
           return newSet;
@@ -1279,11 +1299,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       });
     } else if (dateTabs.length > 1) {
       // If there are multiple date tabs, clear selection (user should choose)
-      if (selectedDateTab) {
-        setSelectedDateTab(null);
-      }
+      // Only clear if something is selected to avoid unnecessary updates
+      setSelectedDateTab(prev => prev ? null : prev);
     }
-  }, [dateTabs, activeHistoryTab, auditDataCache, selectedDateTab]);
+  }, [dateTabs, activeHistoryTab]); // Only depend on dateTabs and activeHistoryTab
 
   // Handler for saving changes from modal
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
@@ -3913,7 +3932,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   suppressColumnMoveAnimation: true,
                   rowBuffer: 5, // Reduce row buffer for better performance
                   debounceVerticalScrollbar: true,
-                  suppressRowClickSelection: false,
+                  rowSelection: { enableClickSelection: true },
                   enableCellTextSelection: false, // Disable text selection for better performance
                 }}
                 suppressHorizontalScroll={false}
@@ -4058,6 +4077,31 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1 overflow-x-auto flex-shrink-0" dir="rtl">
                         {dateTabs.map((dateTab) => {
                           const isSelected = selectedDateTab?.actionId === dateTab.actionId;
+                          // Get overload_ratio from audit data for distribution tab (business assets)
+                          let overloadRatio: number | null = null;
+                          if (activeHistoryTab === 'distribution') {
+                            const auditData = auditDataCache.get(dateTab.actionId);
+                            if (auditData?.auditLog?.after_data) {
+                              try {
+                                // Parse after_data if it's a string, otherwise use as-is
+                                const afterData = typeof auditData.auditLog.after_data === 'string' 
+                                  ? JSON.parse(auditData.auditLog.after_data) 
+                                  : auditData.auditLog.after_data;
+                                
+                                // Get overload_ratio from building data
+                                if (afterData?.building?.overload_ratio != null) {
+                                  overloadRatio = typeof afterData.building.overload_ratio === 'number' 
+                                    ? afterData.building.overload_ratio 
+                                    : parseFloat(afterData.building.overload_ratio);
+                                }
+                              } catch (err) {
+                                // Silently handle parsing errors
+                                if (process.env.NODE_ENV === 'development') {
+                                  console.warn('Error parsing overload_ratio from audit data:', err);
+                                }
+                              }
+                            }
+                          }
                           return (
                             <button
                               key={dateTab.actionId}
@@ -4075,6 +4119,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                               }`}
                             >
                               {dateTab.formattedDate}
+                              {activeHistoryTab === 'distribution' && overloadRatio != null && !isNaN(overloadRatio) && (
+                                <span className="text-[10px] text-gray-500 font-normal">
+                                  ({overloadRatio.toFixed(2)}%)
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -4205,7 +4254,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       suppressColumnMoveAnimation: true,
                       rowBuffer: 5, // Reduce row buffer for better performance
                       debounceVerticalScrollbar: true,
-                      suppressRowClickSelection: false,
+                      rowSelection: { enableClickSelection: true },
                       enableCellTextSelection: false, // Disable text selection for better performance
                     }}
                     suppressHorizontalScroll={false}
@@ -4346,7 +4395,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         }
                       }
                     }}
-                    onRowMouseEnter={(params: any) => {
+                    onCellMouseOver={(params: any) => {
                       if (!params.data?._isDetailRow && params.node) {
                         const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord || params.data?.action_id != null;
                         if (isClickable) {
@@ -4354,7 +4403,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         }
                       }
                     }}
-                    onRowMouseLeave={(params: any) => {
+                    onCellMouseOut={(params: any) => {
                       if (params.node) {
                         params.node.setRowHighlight(false);
                       }

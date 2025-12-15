@@ -3392,7 +3392,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}
-              disabled={loading || assets.length === 0 || building.business_shared_area_distributed === true}
+              disabled={loading || assets.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
               title={`פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`}
             >

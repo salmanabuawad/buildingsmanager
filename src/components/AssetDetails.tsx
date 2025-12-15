@@ -16,7 +16,7 @@ import { RowEditModal } from './RowEditModal';
 import { AuditLog, Building as BuildingType } from '../lib/api';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
-import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM } from '../lib/dateUtils';
 import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
@@ -643,15 +643,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       .map(row => {
         const actionId = row.action_id!;
         const createdAt = auditCreatedAtMap.get(actionId);
+        const formattedDateTime = createdAt ? formatDateTimeToDDMMYYYYHHMM(createdAt) : '';
         const formattedDate = createdAt ? formatDateToDDMMYYYY(createdAt) : '';
         
         return {
           actionId: actionId,
           measurementDate: createdAt || '', // Keep measurementDate for backward compatibility, but use created_at
-          formattedDate: formattedDate || ''
+          formattedDate: formattedDate || '',
+          formattedDateTime: formattedDateTime || ''
         };
       })
-      .filter(tab => tab.formattedDate !== '') // Only include tabs with valid dates
+      .filter(tab => tab.formattedDateTime !== '') // Only include tabs with valid dates
       .sort((a, b) => {
         // Sort by action_id descending (highest first)
         return b.actionId - a.actionId;
@@ -4224,12 +4226,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                           const isSelected = selectedDateTab?.actionId === dateTab.actionId;
                           // Get overload_ratio from audit data for distribution tab (business assets)
                           let overloadRatio: number | null = null;
-                          let createdAt: string | null = null;
                           const auditData = auditDataCache.get(dateTab.actionId);
-                          
-                          if (auditData?.auditLog?.created_at) {
-                            createdAt = formatDateToDDMMYYYY(auditData.auditLog.created_at);
-                          }
                           
                           if (activeHistoryTab === 'distribution') {
                             if (auditData?.auditLog?.after_data) {
@@ -4269,15 +4266,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                               }`}
                             >
-                              {dateTab.formattedDate}
+                              {dateTab.formattedDateTime}
                               {activeHistoryTab === 'distribution' && overloadRatio != null && !isNaN(overloadRatio) && (
                                 <span className="text-[10px] text-gray-500 font-normal">
                                   ({overloadRatio.toFixed(2)}%)
-                                </span>
-                              )}
-                              {createdAt && (
-                                <span className="text-[10px] text-gray-500 font-normal">
-                                  [{createdAt}]
                                 </span>
                               )}
                               <span className="text-[10px] text-gray-500 font-normal">

@@ -188,7 +188,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
   }, [params.assetColumnDefs]);
 
   // Define allowed fields: asset_id, asset types, and sizes only
-  // Order: reversed - main type + size first, then subtypes (1 to 6), then asset_id
+  // Order: reversed - main type + size first, then subtypes (1 to 6), then overload_ratio, action_id, and asset_id
   const allowedFields = useMemo(() => [
     'main_asset_type',
     'asset_size',
@@ -204,12 +204,15 @@ export function DetailRowRenderer(params: DetailRowParams) {
     'sub_asset_size_5',
     'sub_asset_type_6',
     'sub_asset_size_6',
+    'overload_ratio',
+    'action_id',
     'asset_id'
   ], []);
 
   // Helper function to get Hebrew header name
   const getHeaderName = (fieldName: string): string => {
     if (fieldName === '_source') return 'מקור';
+    if (fieldName === 'action_id') return 'מזהה פעולה';
     const colDef = columnDefsMap.get(fieldName);
     return colDef?.headerName || fieldName;
   };

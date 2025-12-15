@@ -77,6 +77,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
   const [selectedDateTab, setSelectedDateTab] = useState<{ actionId: number; measurementDate: string } | null>(null);
   const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>>(new Map());
+  const [auditCreatedAtMap, setAuditCreatedAtMap] = useState<Map<number, string>>(new Map());
   const [additionalDistributionAssets, setAdditionalDistributionAssets] = useState<Asset[]>([]);
   const [additionalTransferAssets, setAdditionalTransferAssets] = useState<Asset[]>([]);
   
@@ -134,6 +135,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Early return if no asset_id
       if (!currentAssetIdRef.current) {
         setHistoryWithActionTypes(new Map());
+        setAuditCreatedAtMap(new Map());
         setAdditionalDistributionAssets([]);
         setAdditionalTransferAssets([]);
         return;
@@ -221,23 +223,29 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
       if (actionIds.size === 0) {
         setHistoryWithActionTypes(new Map());
+        setAuditCreatedAtMap(new Map());
         return;
       }
 
       try {
         const { data, error } = await supabase
           .from('audit')
-          .select('action_id, action_type')
+          .select('action_id, action_type, created_at')
           .in('action_id', Array.from(actionIds));
 
         if (error) throw error;
 
         const actionTypeMap = new Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>();
+        const createdAtMap = new Map<number, string>();
         (data || []).forEach(audit => {
           actionTypeMap.set(audit.action_id, audit.action_type);
+          if (audit.created_at) {
+            createdAtMap.set(audit.action_id, audit.created_at);
+          }
         });
 
         setHistoryWithActionTypes(actionTypeMap);
+        setAuditCreatedAtMap(createdAtMap);
         
         // Also fetch asset records from assets_history, assets table, and audit after_data for distribute_shared and transfer_area
         const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
@@ -450,6 +458,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     // Clear audit cache when switching tabs to force refresh
     setAuditDataCache(new Map());
+    setAuditCreatedAtMap(new Map());
     
     // Reset grid row heights to clear any expanded detail rows
     // Use requestAnimationFrame to ensure this happens after render
@@ -630,17 +639,24 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     const rows = activeHistoryTab === 'distribution' ? distributionHistoryRows : transferHistoryRows;
     return rows
-      .filter(row => row.action_id != null && row.measurement_date)
-      .map(row => ({
-        actionId: row.action_id!,
-        measurementDate: row.measurement_date || '',
-        formattedDate: formatDateToDDMMYYYY(row.measurement_date) || row.measurement_date || ''
-      }))
+      .filter(row => row.action_id != null)
+      .map(row => {
+        const actionId = row.action_id!;
+        const createdAt = auditCreatedAtMap.get(actionId);
+        const formattedDate = createdAt ? formatDateToDDMMYYYY(createdAt) : '';
+        
+        return {
+          actionId: actionId,
+          measurementDate: createdAt || '', // Keep measurementDate for backward compatibility, but use created_at
+          formattedDate: formattedDate || ''
+        };
+      })
+      .filter(tab => tab.formattedDate !== '') // Only include tabs with valid dates
       .sort((a, b) => {
         // Sort by action_id descending (highest first)
         return b.actionId - a.actionId;
       });
-  }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows]);
+  }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows, auditCreatedAtMap]);
 
   // Store all records grouped by action_id for expansion
   const allHistoryRowsByActionId = useMemo(() => {

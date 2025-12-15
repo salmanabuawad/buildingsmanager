@@ -63,7 +63,9 @@ export function DetailRowRenderer(params: DetailRowParams) {
 
   const { auditLog, beforeAssets, afterAssets, relatedAssets } = auditData;
 
-  if (!auditLog) {
+  // If auditLog is missing but we have assets, still show them (data might be loading in stages)
+  // Only return null if we truly have no data at all
+  if (!auditLog && (!beforeAssets || beforeAssets.length === 0) && (!afterAssets || afterAssets.length === 0)) {
     return null;
   }
 

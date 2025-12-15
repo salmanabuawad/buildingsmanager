@@ -4241,7 +4241,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     
                     {/* Detail Content */}
                     {selectedDateTab && (
-                      <div className="flex-1 overflow-auto p-2">
+                      <div className="flex-1 overflow-auto p-2" key={`detail-${selectedDateTab.actionId}`}>
                         <DetailRowRenderer
                           {...({
                             data: {
@@ -4253,6 +4253,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                             auditDataCache: auditDataCache,
                             assetColumnDefs: assetColumnDefs,
                             currentTabAssetId: asset?.asset_id,
+                            refreshKey: detailRowRefreshKey, // Force re-render when data loads
                             onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
                               window.dispatchEvent(new CustomEvent('openAssetView', {
                                 detail: { assetDbId, assetId, buildingNumber, taxRegion }
@@ -4370,7 +4371,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     suppressHorizontalScroll={false}
                     getRowId={(params) => {
                       if (params.data?._isDetailRow) {
-                        return `detail-${params.data._parentRowId}`;
+                        // Use _parentActionId (which matches what we set in historyRowsWithDetails)
+                        // This ensures AG Grid recognizes the same row and doesn't unmount/remount it
+                        return `detail-${params.data._parentActionId || params.data._actionId}`;
                       }
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';

@@ -39,7 +39,7 @@ function App() {
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
-  const [adminMenuOpen, setAdminMenuOpen] = useState(true);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [showBatchValidationModal, setShowBatchValidationModal] = useState(false);
   const [batchValidationModalClosing, setBatchValidationModalClosing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);

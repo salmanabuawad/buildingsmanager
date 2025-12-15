@@ -637,10 +637,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         formattedDate: formatDateToDDMMYYYY(row.measurement_date) || row.measurement_date || ''
       }))
       .sort((a, b) => {
-        // Sort by date descending (newest first)
-        const dateA = a.measurementDate.split('/').reverse().join('-');
-        const dateB = b.measurementDate.split('/').reverse().join('-');
-        return dateB.localeCompare(dateA);
+        // Sort by action_id descending (highest first)
+        return b.actionId - a.actionId;
       });
   }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows]);
 

@@ -72,6 +72,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     afterAssets: Asset[];
     relatedAssets: Asset[];
   }>>(new Map());
+  const [detailRowRefreshKey, setDetailRowRefreshKey] = useState(0); // Force re-render of detail rows when data loads
   const loadAuditDetailsRef = useRef<((actionId: number) => Promise<void>) | null>(null);
   const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
   const [selectedDateTab, setSelectedDateTab] = useState<{ actionId: number; measurementDate: string } | null>(null);
@@ -1181,14 +1182,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         relatedAssets: allAssets
       }));
       
-      // Immediately refresh grid after data loads to show inner grid data
-      // Use requestAnimationFrame to ensure state update has propagated
+      // Increment refresh key to force DetailRowRenderer to re-render with new data
+      setDetailRowRefreshKey(prev => prev + 1);
+      
+      // Refresh grid to ensure the detail row is visible and updated
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (historyGridRef.current?.api) {
-            historyGridRef.current.api.refreshCells({ force: true });
-            historyGridRef.current.api.resetRowHeights();
-            historyGridRef.current.api.redrawRows();
+            const api = historyGridRef.current.api;
+            api.refreshCells({ force: true });
+            api.resetRowHeights();
+            api.redrawRows();
           }
         }, 100);
       });
@@ -4274,6 +4278,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       auditDataCache,
                       assetColumnDefs,
                       currentTabAssetId: asset?.asset_id,
+                      refreshKey: detailRowRefreshKey, // Force re-render when this changes
                       onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
                         // Navigate to asset view - dispatch custom event that App.tsx can listen to
                         window.dispatchEvent(new CustomEvent('openAssetView', {

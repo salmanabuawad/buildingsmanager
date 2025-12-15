@@ -15,6 +15,7 @@ interface DetailRowParams {
   }>;
   assetColumnDefs: any[];
   currentTabAssetId?: number;
+  refreshKey?: number; // Key that changes when data loads to force re-render
   onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
 }
 

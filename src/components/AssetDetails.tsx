@@ -4208,8 +4208,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                           const isSelected = selectedDateTab?.actionId === dateTab.actionId;
                           // Get overload_ratio from audit data for distribution tab (business assets)
                           let overloadRatio: number | null = null;
+                          let createdAt: string | null = null;
+                          const auditData = auditDataCache.get(dateTab.actionId);
+                          
+                          if (auditData?.auditLog?.created_at) {
+                            createdAt = formatDateToDDMMYYYY(auditData.auditLog.created_at);
+                          }
+                          
                           if (activeHistoryTab === 'distribution') {
-                            const auditData = auditDataCache.get(dateTab.actionId);
                             if (auditData?.auditLog?.after_data) {
                               try {
                                 // Parse after_data if it's a string, otherwise use as-is
@@ -4251,6 +4257,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                               {activeHistoryTab === 'distribution' && overloadRatio != null && !isNaN(overloadRatio) && (
                                 <span className="text-[10px] text-gray-500 font-normal">
                                   ({overloadRatio.toFixed(2)}%)
+                                </span>
+                              )}
+                              {createdAt && (
+                                <span className="text-[10px] text-gray-500 font-normal">
+                                  [{createdAt}]
                                 </span>
                               )}
                               <span className="text-[10px] text-gray-500 font-normal">

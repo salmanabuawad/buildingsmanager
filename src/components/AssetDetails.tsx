@@ -1214,17 +1214,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       const actionIdKey = `action_${actionIdNum}`;
       
       // Toggle expanded state
-      let isExpanding = false;
       setExpandedHistoryRows(prev => {
         const newSet = new Set(prev);
         if (newSet.has(actionIdKey)) {
           // Collapsing
           newSet.delete(actionIdKey);
-          isExpanding = false;
         } else {
           // Expanding
           newSet.add(actionIdKey);
-          isExpanding = true;
           // Load audit data if not already loaded
           if (!auditDataCache.has(actionIdNum)) {
             loadAuditDetails(actionIdNum);
@@ -1233,24 +1230,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return newSet;
       });
       
-      // Refresh grid after state update to ensure inner grid is shown on first selection
-      // Use requestAnimationFrame to ensure state update has been processed
-      if (isExpanding) {
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            if (historyGridRef.current?.api) {
-              // Force a complete refresh to recognize the new full-width row
-              historyGridRef.current.api.refreshCells({ force: true });
-              historyGridRef.current.api.resetRowHeights();
-            }
-          }, 50);
-        });
-      } else {
-        // If collapsing, just reset row heights
-        if (historyGridRef.current?.api) {
-          historyGridRef.current.api.resetRowHeights();
-        }
-      }
+      // Note: Grid refresh is now handled by useEffect watching expandedHistoryRows
+      // This ensures reliable refresh even if state update is delayed
     } else if (process.env.NODE_ENV === 'development') {
       console.warn('[AssetDetails] No valid action_id found for history row');
       setToast({ 
@@ -1264,6 +1245,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   useEffect(() => {
     loadAuditDetailsRef.current = loadAuditDetails;
   }, [loadAuditDetails]);
+
+  // Refresh grid when expandedHistoryRows changes to ensure inner grids are shown
+  useEffect(() => {
+    // Use a small delay to ensure state has propagated and row data has updated
+    const timeoutId = setTimeout(() => {
+      if (historyGridRef.current?.api && expandedHistoryRows.size > 0) {
+        // Force a complete refresh to recognize new full-width rows
+        historyGridRef.current.api.refreshCells({ force: true });
+        historyGridRef.current.api.resetRowHeights();
+        // Also try redrawing rows to ensure full-width rows are recognized
+        historyGridRef.current.api.redrawRows();
+      }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [expandedHistoryRows]);
 
   // Auto-select and auto-expand if there's only one date/entry
   useEffect(() => {

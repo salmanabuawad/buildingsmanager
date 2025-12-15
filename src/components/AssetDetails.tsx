@@ -1407,9 +1407,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return prev;
       });
     } else if (dateTabs.length > 1) {
-      // If there are multiple date tabs, clear selection (user should choose)
-      // Only clear if something is selected to avoid unnecessary updates
-      setSelectedDateTab(prev => prev ? null : prev);
+      // If there are multiple date tabs, preserve selection if it's still valid
+      // Only clear if the selected tab no longer exists in dateTabs
+      // This prevents the detail row from disappearing when additionalTransferAssets loads
+      setSelectedDateTab(prev => {
+        if (!prev) return prev;
+        // Check if the currently selected tab still exists in dateTabs
+        const stillExists = dateTabs.some(tab => tab.actionId === prev.actionId);
+        if (stillExists) {
+          // Keep the selection - don't clear it, even if dateTabs array was recreated
+          return prev;
+        }
+        // Clear only if the selected tab no longer exists
+        return null;
+      });
     }
   }, [dateTabs, activeHistoryTab]); // Only depend on dateTabs and activeHistoryTab
 

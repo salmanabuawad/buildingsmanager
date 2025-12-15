@@ -1180,6 +1180,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         afterAssets,
         relatedAssets: allAssets
       }));
+      
+      // Immediately refresh grid after data loads to show inner grid data
+      // Use requestAnimationFrame to ensure state update has propagated
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (historyGridRef.current?.api) {
+            historyGridRef.current.api.refreshCells({ force: true });
+            historyGridRef.current.api.resetRowHeights();
+            historyGridRef.current.api.redrawRows();
+          }
+        }, 100);
+      });
     } catch (err) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[AssetDetails] Error loading audit details:', err);
@@ -1262,12 +1274,20 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return () => clearTimeout(timeoutId);
   }, [expandedHistoryRows]);
 
+  // Convert auditDataCache Map to a serializable key for reliable change detection
+  const auditDataCacheKey = useMemo(() => {
+    return Array.from(auditDataCache.entries())
+      .map(([id, data]) => `${id}:${data.loading ? 'loading' : data.auditLog ? 'loaded' : data.error ? 'error' : 'empty'}`)
+      .sort()
+      .join('|');
+  }, [auditDataCache]);
+
   // Refresh grid when audit data finishes loading to show inner grid data
   useEffect(() => {
     if (expandedHistoryRows.size === 0) return;
     
     // Check if audit data for any expanded row has finished loading
-    let shouldRefresh = false;
+    let hasLoadedData = false;
     for (const actionIdKey of expandedHistoryRows) {
       // Extract action ID from key (format: "action_123")
       const actionId = parseInt(actionIdKey.replace('action_', ''), 10);
@@ -1275,14 +1295,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const auditData = auditDataCache.get(actionId);
         // If data exists and has finished loading (not loading, has data or error)
         if (auditData && !auditData.loading && (auditData.auditLog !== null || auditData.error !== null)) {
-          shouldRefresh = true;
+          hasLoadedData = true;
           break;
         }
       }
     }
     
-    if (shouldRefresh) {
-      // Use a small delay to ensure state has propagated
+    if (hasLoadedData) {
+      // Use a delay to ensure state has propagated and DOM is ready
       const timeoutId = setTimeout(() => {
         if (historyGridRef.current?.api) {
           // Force a complete refresh to show the loaded audit data
@@ -1290,11 +1310,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           historyGridRef.current.api.resetRowHeights();
           historyGridRef.current.api.redrawRows();
         }
-      }, 50);
+      }, 150);
 
       return () => clearTimeout(timeoutId);
     }
-  }, [auditDataCache, expandedHistoryRows]);
+  }, [auditDataCacheKey, expandedHistoryRows, auditDataCache]);
 
   // Auto-select and auto-expand if there's only one date/entry
   useEffect(() => {

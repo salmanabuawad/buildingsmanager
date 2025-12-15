@@ -1214,12 +1214,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       const actionIdKey = `action_${actionIdNum}`;
       
       // Toggle expanded state
+      let isExpanding = false;
       setExpandedHistoryRows(prev => {
         const newSet = new Set(prev);
         if (newSet.has(actionIdKey)) {
+          // Collapsing
           newSet.delete(actionIdKey);
+          isExpanding = false;
         } else {
+          // Expanding
           newSet.add(actionIdKey);
+          isExpanding = true;
           // Load audit data if not already loaded
           if (!auditDataCache.has(actionIdNum)) {
             loadAuditDetails(actionIdNum);
@@ -1228,9 +1233,23 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return newSet;
       });
       
-      // Invalidate grid row height to re-render
-      if (historyGridRef.current?.api) {
-        historyGridRef.current.api.resetRowHeights();
+      // Refresh grid after state update to ensure inner grid is shown on first selection
+      // Use requestAnimationFrame to ensure state update has been processed
+      if (isExpanding) {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (historyGridRef.current?.api) {
+              // Force a complete refresh to recognize the new full-width row
+              historyGridRef.current.api.refreshCells({ force: true });
+              historyGridRef.current.api.resetRowHeights();
+            }
+          }, 50);
+        });
+      } else {
+        // If collapsing, just reset row heights
+        if (historyGridRef.current?.api) {
+          historyGridRef.current.api.resetRowHeights();
+        }
       }
     } else if (process.env.NODE_ENV === 'development') {
       console.warn('[AssetDetails] No valid action_id found for history row');

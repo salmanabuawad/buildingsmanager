@@ -89,6 +89,17 @@ input[type="number"] {
   padding: 0 !important;
 }
 
+/* Ensure header text is always visible */
+.ag-theme-alpine .ag-header-cell-label,
+.ag-theme-alpine .ag-header-cell-text,
+.ag-theme-alpine .ag-header-cell-label span,
+.ag-theme-alpine .ag-header-cell-label .ag-header-cell-text {
+  color: white !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  -webkit-text-fill-color: white !important;
+}
+
 .ag-theme-alpine .ag-header-cell {
   padding: 0 !important;
   text-align: right !important;

@@ -4022,7 +4022,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '70px', width: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '70px', width: '100%', overflowX: 'auto' }}>
+                <style>{`
+                  .asset-details-pinned-grid .ag-header-cell-label,
+                  .asset-details-pinned-grid .ag-header-cell-text,
+                  .asset-details-pinned-grid .ag-header-cell-label span,
+                  .asset-details-pinned-grid .ag-header-cell-label .ag-header-cell-text {
+                    color: white !important;
+                    opacity: 1 !important;
+                    visibility: visible !important;
+                    -webkit-text-fill-color: white !important;
+                  }
+                `}</style>
                 <AgGridReact<Asset>
                   ref={gridRef}
                   rowData={pinnedTopRowData}
@@ -4287,6 +4298,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       .ag-theme-alpine .ag-header {
                         background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;
                         border-bottom: 2px solid #e5e7eb !important;
+                      }
+                      .ag-theme-alpine .ag-header-cell-label,
+                      .ag-theme-alpine .ag-header-cell-text,
+                      .ag-theme-alpine .ag-header-cell-label span,
+                      .ag-theme-alpine .ag-header-cell-label .ag-header-cell-text {
+                        color: #374151 !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        -webkit-text-fill-color: #374151 !important;
                       }
                       .ag-theme-alpine .ag-row {
                         border-bottom: 1px solid #e5e7eb !important;

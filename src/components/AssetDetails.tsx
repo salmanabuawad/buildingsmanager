@@ -1186,13 +1186,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       setDetailRowRefreshKey(prev => prev + 1);
       
       // Refresh grid to ensure the detail row is visible and updated
+      // Use requestAnimationFrame to ensure state has updated
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (historyGridRef.current?.api) {
             const api = historyGridRef.current.api;
+            // Refresh all cells - the refreshKey in DetailRowRenderer will ensure it re-renders with new data
+            // Don't call redrawRows() as it causes full-width rows to unmount/remount
             api.refreshCells({ force: true });
             api.resetRowHeights();
-            api.redrawRows();
           }
         }, 100);
       });
@@ -1267,11 +1269,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     // Use a small delay to ensure state has propagated and row data has updated
     const timeoutId = setTimeout(() => {
       if (historyGridRef.current?.api && expandedHistoryRows.size > 0) {
-        // Force a complete refresh to recognize new full-width rows
+        // Refresh cells to recognize new full-width rows
         historyGridRef.current.api.refreshCells({ force: true });
         historyGridRef.current.api.resetRowHeights();
-        // Also try redrawing rows to ensure full-width rows are recognized
-        historyGridRef.current.api.redrawRows();
+        // Don't call redrawRows() as it causes full-width rows to unmount/remount
       }
     }, 100);
 
@@ -1309,10 +1310,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       // Use a delay to ensure state has propagated and DOM is ready
       const timeoutId = setTimeout(() => {
         if (historyGridRef.current?.api) {
-          // Force a complete refresh to show the loaded audit data
+          // Refresh cells to show the loaded audit data
+          // The refreshKey in DetailRowRenderer will ensure it re-renders with new data
+          // Don't call redrawRows() as it causes full-width rows to unmount/remount
           historyGridRef.current.api.refreshCells({ force: true });
           historyGridRef.current.api.resetRowHeights();
-          historyGridRef.current.api.redrawRows();
         }
       }, 150);
 

@@ -177,7 +177,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     });
     
     return combined;
-  }, [beforeAssets, afterAssets, auditLog?.action_type, changedFieldsMap]);
+  }, [beforeAssets, afterAssets, auditLog?.action_type, changedFieldsMap, params.refreshKey]);
 
   // Get column definitions map for Hebrew names
   const columnDefsMap = useMemo(() => {

@@ -330,7 +330,10 @@ CREATE TABLE IF NOT EXISTS assets (
   discount_type text,
   discount_date_from text,
   discount_date_to text,
-  is_new_measurement boolean DEFAULT false
+  is_new_measurement boolean DEFAULT false,
+  action_id bigint,
+  distribution_area numeric,
+  exported_to_automation boolean DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_assets_building_number ON assets(building_number);
@@ -418,7 +421,10 @@ CREATE TABLE IF NOT EXISTS assets_history (
   discount_type text,
   discount_date_from text,
   discount_date_to text,
-  history_created_at timestamptz DEFAULT now()
+  history_created_at timestamptz DEFAULT now(),
+  action_id bigint,
+  distribution_area numeric,
+  exported_to_automation boolean DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_assets_history_asset_id ON assets_history(asset_id);
@@ -698,15 +704,21 @@ $$ LANGUAGE plpgsql STABLE;
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS field_configurations (
-  field_name text PRIMARY KEY,
+  grid_name text NOT NULL,
+  field_name text NOT NULL,
   width_chars integer NOT NULL DEFAULT 10,
   padding integer NOT NULL DEFAULT 8,
   hebrew_name text,
-  pinned text,
+  pinned boolean DEFAULT false,
+  pin_side text,
+  visible boolean DEFAULT true,
+  column_order integer,
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (grid_name, field_name)
 );
 
+CREATE INDEX IF NOT EXISTS idx_field_configurations_grid_name ON field_configurations(grid_name);
 CREATE INDEX IF NOT EXISTS idx_field_configurations_field_name ON field_configurations(field_name);
 
 CREATE OR REPLACE FUNCTION update_field_configurations_updated_at()
@@ -777,6 +789,218 @@ CREATE POLICY "Allow all access to asset type fields" ON asset_type_fields
 DROP TRIGGER IF EXISTS update_asset_type_fields_updated_at ON asset_type_fields;
 CREATE TRIGGER update_asset_type_fields_updated_at BEFORE UPDATE ON asset_type_fields
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- 8. USERS TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS users (
+  user_id bigserial PRIMARY KEY,
+  auth_user_id text UNIQUE, -- Reference to Supabase auth.users.id (UUID as text)
+  user_name text NOT NULL,
+  user_email text,
+  active boolean DEFAULT true NOT NULL,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  updated_at timestamptz DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_auth_user_id ON users(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_users_user_email ON users(user_email);
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to users" ON users;
+DROP POLICY IF EXISTS "Allow authenticated users to insert users" ON users;
+DROP POLICY IF EXISTS "Allow authenticated users to update own user" ON users;
+
+CREATE POLICY "Allow public read access to users"
+  ON users FOR SELECT
+  TO public
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to insert users"
+  ON users FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to update own user"
+  ON users FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+COMMENT ON TABLE users IS 'Application users table, can be synced with Supabase auth.users';
+COMMENT ON COLUMN users.user_id IS 'Primary key - internal user ID';
+COMMENT ON COLUMN users.auth_user_id IS 'Reference to Supabase auth.users.id (UUID)';
+COMMENT ON COLUMN users.user_name IS 'Display name of the user';
+COMMENT ON COLUMN users.user_email IS 'User email address';
+COMMENT ON COLUMN users.active IS 'Whether the user account is active';
+
+-- Create default user if it doesn't exist
+INSERT INTO users (user_name, auth_user_id, user_email, active)
+VALUES ('default', NULL, NULL, true)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- 9. AUDIT TABLE
+-- ============================================================================
+
+-- Create enum for action types
+DO $$ BEGIN
+  CREATE TYPE audit_action_type AS ENUM (
+    'manual_update',
+    'import_file',
+    'transfer_area',
+    'distribute_shared'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS audit (
+  action_id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL,
+  action_type audit_action_type NOT NULL,
+  entity_type text NOT NULL CHECK (entity_type IN ('building', 'asset', 'bulk_building', 'bulk_asset')),
+  entity_id text, -- Can be building_number, asset_id, or comma-separated IDs for bulk operations
+  before_data jsonb, -- JSON containing all related building/asset data before the action
+  after_data jsonb, -- JSON containing all related building/asset data after the action
+  description text, -- Optional description of the action
+  created_at timestamptz DEFAULT now()
+);
+
+-- Add foreign key constraint to users table
+ALTER TABLE audit
+ADD CONSTRAINT IF NOT EXISTS fk_audit_user_id
+FOREIGN KEY (user_id) REFERENCES users(user_id)
+ON DELETE RESTRICT;
+
+CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action_type ON audit(action_type);
+CREATE INDEX IF NOT EXISTS idx_audit_entity_type ON audit(entity_type);
+CREATE INDEX IF NOT EXISTS idx_audit_entity_id ON audit(entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_entity_type_id ON audit(entity_type, entity_id);
+
+ALTER TABLE audit ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to audit" ON audit;
+DROP POLICY IF EXISTS "Allow authenticated users to insert audit" ON audit;
+
+CREATE POLICY "Allow public read access to audit"
+  ON audit FOR SELECT
+  TO public
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to insert audit"
+  ON audit FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+COMMENT ON TABLE audit IS 'Audit table tracking all changes to buildings and assets';
+COMMENT ON COLUMN audit.action_id IS 'Primary key - sequential action ID';
+COMMENT ON COLUMN audit.user_id IS 'Foreign key to users table';
+COMMENT ON COLUMN audit.action_type IS 'Type of action: manual_update, import_file, transfer_area, distribute_shared';
+COMMENT ON COLUMN audit.entity_type IS 'Type of entity: building, asset, bulk_building, bulk_asset';
+COMMENT ON COLUMN audit.entity_id IS 'ID of the entity (building_number, asset_id, or comma-separated IDs for bulk)';
+COMMENT ON COLUMN audit.before_data IS 'JSON containing all related building/asset data before the action';
+COMMENT ON COLUMN audit.after_data IS 'JSON containing all related building/asset data after the action';
+
+-- Add action_id foreign keys to existing tables
+ALTER TABLE assets
+ADD CONSTRAINT IF NOT EXISTS assets_action_id_fkey 
+FOREIGN KEY (action_id) REFERENCES audit(action_id);
+
+CREATE INDEX IF NOT EXISTS idx_assets_action_id ON assets(action_id);
+
+COMMENT ON COLUMN assets.action_id IS 'References the audit entry that caused this asset record to be created or updated';
+
+ALTER TABLE buildings
+ADD CONSTRAINT IF NOT EXISTS buildings_action_id_fkey 
+FOREIGN KEY (action_id) REFERENCES audit(action_id);
+
+CREATE INDEX IF NOT EXISTS idx_buildings_action_id ON buildings(action_id);
+
+COMMENT ON COLUMN buildings.action_id IS 'References the audit entry that caused this building record to be created or updated';
+
+ALTER TABLE assets_history
+ADD CONSTRAINT IF NOT EXISTS assets_history_action_id_fkey 
+FOREIGN KEY (action_id) REFERENCES audit(action_id);
+
+CREATE INDEX IF NOT EXISTS idx_assets_history_action_id ON assets_history(action_id);
+
+COMMENT ON COLUMN assets_history.action_id IS 'References the audit entry that caused this history record to be created';
+COMMENT ON COLUMN assets.distribution_area IS 'Area distributed to this asset from shared area distribution';
+COMMENT ON COLUMN assets.exported_to_automation IS 'Flag indicating if this asset has been exported to automation system (default: false)';
+COMMENT ON COLUMN assets_history.distribution_area IS 'Area distributed to this asset from shared area distribution (historical record)';
+COMMENT ON COLUMN assets_history.exported_to_automation IS 'Flag indicating if this asset has been exported to automation system (historical record)';
+
+-- ============================================================================
+-- 10. CHANGE LOG TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS change_log (
+  log_id bigserial PRIMARY KEY,
+  table_name text NOT NULL,
+  operation text NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+  record_id text, -- Primary key value of the affected record (as text for flexibility)
+  user_id bigint NOT NULL,
+  before_data jsonb, -- Record data before the change (for UPDATE/DELETE)
+  after_data jsonb, -- Record data after the change (for INSERT/UPDATE)
+  changed_fields text[], -- Array of field names that changed (for UPDATE)
+  ip_address inet, -- Client IP address if available
+  user_agent text, -- User agent string if available
+  session_id text, -- Session identifier
+  created_at timestamptz DEFAULT now() NOT NULL
+);
+
+-- Add foreign key constraint to users table
+ALTER TABLE change_log
+ADD CONSTRAINT IF NOT EXISTS fk_change_log_user_id
+FOREIGN KEY (user_id) REFERENCES users(user_id)
+ON DELETE RESTRICT;
+
+CREATE INDEX IF NOT EXISTS idx_change_log_user_id ON change_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_change_log_table_name ON change_log(table_name);
+CREATE INDEX IF NOT EXISTS idx_change_log_operation ON change_log(operation);
+CREATE INDEX IF NOT EXISTS idx_change_log_table_operation ON change_log(table_name, operation);
+CREATE INDEX IF NOT EXISTS idx_change_log_record_id ON change_log(table_name, record_id);
+CREATE INDEX IF NOT EXISTS idx_change_log_created_at ON change_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_change_log_table_record ON change_log(table_name, record_id, created_at DESC);
+
+-- GIN index for JSONB queries
+CREATE INDEX IF NOT EXISTS idx_change_log_before_data_gin ON change_log USING GIN (before_data);
+CREATE INDEX IF NOT EXISTS idx_change_log_after_data_gin ON change_log USING GIN (after_data);
+
+ALTER TABLE change_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to change_log" ON change_log;
+DROP POLICY IF EXISTS "Allow authenticated users to insert change_log" ON change_log;
+
+CREATE POLICY "Allow public read access to change_log"
+  ON change_log FOR SELECT
+  TO public
+  USING (true);
+
+CREATE POLICY "Allow authenticated users to insert change_log"
+  ON change_log FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+COMMENT ON TABLE change_log IS 'Comprehensive change log tracking all database operations with user information';
+COMMENT ON COLUMN change_log.log_id IS 'Primary key - sequential log ID';
+COMMENT ON COLUMN change_log.table_name IS 'Name of the table that was modified';
+COMMENT ON COLUMN change_log.operation IS 'Type of operation: INSERT, UPDATE, or DELETE';
+COMMENT ON COLUMN change_log.record_id IS 'Primary key value of the affected record (as text)';
+COMMENT ON COLUMN change_log.user_id IS 'Foreign key to users table';
+COMMENT ON COLUMN change_log.before_data IS 'Record data before the change (JSONB)';
+COMMENT ON COLUMN change_log.after_data IS 'Record data after the change (JSONB)';
+COMMENT ON COLUMN change_log.changed_fields IS 'Array of field names that changed (for UPDATE operations)';
+COMMENT ON COLUMN change_log.ip_address IS 'Client IP address if available';
+COMMENT ON COLUMN change_log.user_agent IS 'User agent string if available';
+COMMENT ON COLUMN change_log.session_id IS 'Session identifier';
+COMMENT ON COLUMN change_log.created_at IS 'Timestamp when the change occurred';
 
 -- ============================================================================
 -- ENABLE REALTIME (if using Supabase)

@@ -1320,6 +1320,39 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
   }, [auditDataCacheKey, expandedHistoryRows, auditDataCache]);
 
+  // Pre-load all audit data when switching to distribution or transfer tabs
+  useEffect(() => {
+    // Only pre-load for distribution and transfer tabs
+    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
+      return;
+    }
+    
+    // Skip if dateTabs is empty (data not loaded yet)
+    if (dateTabs.length === 0) {
+      return;
+    }
+    
+    // Get all action IDs from dateTabs that haven't been loaded yet
+    const actionIdsToLoad = dateTabs
+      .map(tab => tab.actionId)
+      .filter(actionId => !auditDataCache.has(actionId));
+    
+    // Load audit data for all action IDs
+    if (actionIdsToLoad.length > 0 && loadAuditDetailsRef.current) {
+      // Load all in parallel
+      Promise.all(
+        actionIdsToLoad.map(actionId => 
+          loadAuditDetailsRef.current!(actionId).catch(err => {
+            console.error(`[AssetDetails] Error pre-loading audit data for action ${actionId}:`, err);
+          })
+        )
+      ).then(() => {
+        // Increment refresh key after all data loads to trigger re-render
+        setDetailRowRefreshKey(prev => prev + 1);
+      });
+    }
+  }, [activeHistoryTab, dateTabs, auditDataCache]);
+
   // Auto-select and auto-expand if there's only one date/entry
   useEffect(() => {
     // Only auto-select/expand for distribution and transfer tabs

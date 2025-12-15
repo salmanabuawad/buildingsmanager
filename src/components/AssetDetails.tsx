@@ -1262,6 +1262,40 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return () => clearTimeout(timeoutId);
   }, [expandedHistoryRows]);
 
+  // Refresh grid when audit data finishes loading to show inner grid data
+  useEffect(() => {
+    if (expandedHistoryRows.size === 0) return;
+    
+    // Check if audit data for any expanded row has finished loading
+    let shouldRefresh = false;
+    for (const actionIdKey of expandedHistoryRows) {
+      // Extract action ID from key (format: "action_123")
+      const actionId = parseInt(actionIdKey.replace('action_', ''), 10);
+      if (!isNaN(actionId)) {
+        const auditData = auditDataCache.get(actionId);
+        // If data exists and has finished loading (not loading, has data or error)
+        if (auditData && !auditData.loading && (auditData.auditLog !== null || auditData.error !== null)) {
+          shouldRefresh = true;
+          break;
+        }
+      }
+    }
+    
+    if (shouldRefresh) {
+      // Use a small delay to ensure state has propagated
+      const timeoutId = setTimeout(() => {
+        if (historyGridRef.current?.api) {
+          // Force a complete refresh to show the loaded audit data
+          historyGridRef.current.api.refreshCells({ force: true });
+          historyGridRef.current.api.resetRowHeights();
+          historyGridRef.current.api.redrawRows();
+        }
+      }, 50);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [auditDataCache, expandedHistoryRows]);
+
   // Auto-select and auto-expand if there's only one date/entry
   useEffect(() => {
     // Only auto-select/expand for distribution and transfer tabs

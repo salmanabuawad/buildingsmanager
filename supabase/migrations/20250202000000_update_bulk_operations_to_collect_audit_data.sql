@@ -46,11 +46,25 @@ DECLARE
   v_before_data_collected jsonb;
   v_after_data_collected jsonb;
   v_asset_data jsonb; -- For collecting asset data from database
+  v_building_data jsonb; -- For collecting building data from database
+  v_first_building_number bigint; -- Track first building number to collect building data
 BEGIN
+  -- Get first building number from assets (all assets in distribution belong to same building)
+  SELECT (elem->>'building_number')::bigint INTO v_first_building_number
+  FROM jsonb_array_elements(p_assets) AS elem
+  LIMIT 1;
+  
   -- Collect BEFORE data from database (if not provided)
-  -- Database transaction will automatically collect asset data from the database
+  -- Database transaction will automatically collect asset data and building data from the database
   -- Check for both SQL NULL and JSON null (from JavaScript)
   IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN
+    -- Collect building data before update
+    IF v_first_building_number IS NOT NULL THEN
+      SELECT to_jsonb(b.*) INTO v_building_data
+      FROM buildings b
+      WHERE b.building_number = v_first_building_number;
+    END IF;
+    
     FOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)
     LOOP
       v_asset_id := (v_asset->>'asset_id')::bigint;
@@ -69,7 +83,11 @@ BEGIN
     SELECT jsonb_agg(elem) INTO v_before_data_collected
     FROM unnest(v_before_assets) AS elem;
     
-    v_before_data_collected := jsonb_build_object('assets', COALESCE(v_before_data_collected, '[]'::jsonb));
+    -- Build before_data with both assets and building
+    v_before_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_before_data_collected, '[]'::jsonb),
+      'building', COALESCE(v_building_data, 'null'::jsonb)
+    );
   ELSE
     v_before_data_collected := p_before_data;
   END IF;
@@ -208,9 +226,16 @@ BEGIN
   END LOOP;
   
   -- Collect AFTER data from database (if not provided)
-  -- Database transaction will automatically collect asset data from the database after updates
+  -- Database transaction will automatically collect asset data and building data from the database after updates
   -- Check for both SQL NULL and JSON null (from JavaScript)
   IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb THEN
+    -- Collect building data after update
+    IF v_first_building_number IS NOT NULL THEN
+      SELECT to_jsonb(b.*) INTO v_building_data
+      FROM buildings b
+      WHERE b.building_number = v_first_building_number;
+    END IF;
+    
     FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
     LOOP
       -- Get updated asset state from database after update
@@ -227,7 +252,11 @@ BEGIN
     SELECT jsonb_agg(elem) INTO v_after_data_collected
     FROM unnest(v_after_assets) AS elem;
     
-    v_after_data_collected := jsonb_build_object('assets', COALESCE(v_after_data_collected, '[]'::jsonb));
+    -- Build after_data with both assets and building
+    v_after_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_after_data_collected, '[]'::jsonb),
+      'building', COALESCE(v_building_data, 'null'::jsonb)
+    );
   ELSE
     v_after_data_collected := p_after_data;
   END IF;

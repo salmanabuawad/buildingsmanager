@@ -41,6 +41,94 @@ async function getCurrentUserInfo(): Promise<{ user_name: string; user_email?: s
 }
 
 /**
+ * Helper function to determine if an asset is business or residence
+ * Returns 'business', 'residence', or null if cannot determine
+ */
+async function getAssetBusinessResidenceType(asset: Partial<Asset>): Promise<'business' | 'residence' | null> {
+  if (!asset.main_asset_type) {
+    return null;
+  }
+  
+  try {
+    // Get asset types to check business_residence
+    const { data: assetTypes, error } = await supabase
+      .from('asset_types')
+      .select('name, business_residence')
+      .eq('name', asset.main_asset_type)
+      .maybeSingle();
+    
+    if (error || !assetTypes) {
+      return null;
+    }
+    
+    if (assetTypes.business_residence === 'עסקים') {
+      return 'business';
+    } else if (assetTypes.business_residence === 'מגורים') {
+      return 'residence';
+    }
+    
+    return null;
+  } catch (err) {
+    console.warn('Error determining asset business/residence type:', err);
+    return null;
+  }
+}
+
+/**
+ * Reset distribution flags for a building based on asset changes
+ */
+async function resetDistributionFlagsIfNeeded(
+  buildingNumber: number,
+  assetType: 'business' | 'residence' | null,
+  changeType: 'create' | 'update' | 'delete',
+  assetSizeChanged?: boolean
+): Promise<void> {
+  if (!buildingNumber) return;
+  
+  try {
+    // Get current building data
+    const { data: building, error: buildingError } = await supabase
+      .from('buildings')
+      .select('business_shared_area_distributed, residence_shared_area_distributed')
+      .eq('building_number', buildingNumber)
+      .maybeSingle();
+    
+    if (buildingError || !building) {
+      return;
+    }
+    
+    const updates: Partial<Building> = {};
+    
+    // For residence: reset on create or delete
+    if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete')) {
+      if (building.residence_shared_area_distributed) {
+        updates.residence_shared_area_distributed = false;
+      }
+    }
+    
+    // For business: reset on create, delete, or asset_size change
+    if (assetType === 'business') {
+      if (changeType === 'create' || changeType === 'delete' || assetSizeChanged) {
+        if (building.business_shared_area_distributed) {
+          updates.business_shared_area_distributed = false;
+        }
+      }
+    }
+    
+    // Update building if flags need to be reset
+    if (Object.keys(updates).length > 0) {
+      await supabase
+        .from('buildings')
+        .update(updates)
+        .eq('building_number', buildingNumber);
+    }
+  } catch (err) {
+    console.warn('Error resetting distribution flags:', err);
+    // Don't throw - this is a side effect that shouldn't fail the main operation
+  }
+}
+
+/**
  * Log a change entry asynchronously (fire and forget)
  * This function doesn't wait for the logging to complete
  */
@@ -1263,6 +1351,25 @@ export const api = {
             // Don't fail the operation if area update fails
           }
 
+          // Reset distribution flags if needed (replacement = delete + create)
+          // Check both old and new asset types to determine which flags to reset
+          if (newAsset.building_number) {
+            const oldAssetType = await getAssetBusinessResidenceType(existingAsset);
+            const newAssetType = await getAssetBusinessResidenceType(newAsset);
+            
+            // If types differ or it's a business asset, reset business flag
+            if (oldAssetType === 'business' || newAssetType === 'business' || oldAssetType !== newAssetType) {
+              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'business', 'delete');
+              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'business', 'create');
+            }
+            
+            // If types differ or it's a residence asset, reset residence flag
+            if (oldAssetType === 'residence' || newAssetType === 'residence' || oldAssetType !== newAssetType) {
+              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'residence', 'delete');
+              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'residence', 'create');
+            }
+          }
+
           // Do NOT create audit entry - audit entries are only created by bulk operations
           // Regular asset creation/replacement should not create audit entries
 
@@ -1475,6 +1582,15 @@ export const api = {
         // Don't fail the operation if area update fails
       }
 
+      // Reset distribution flags if needed (for business: asset_size change)
+      if (!skipAudit && updatedAsset.building_number && beforeData) {
+        const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
+        if (assetSizeChanged) {
+          const assetType = await getAssetBusinessResidenceType(updatedAsset);
+          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
+        }
+      }
+
       // Log audit entry ONLY for transfer_area or distribute_shared actions
       // Regular asset updates should NOT create audit entries
       // Skip audit logging if skipAudit is true (for bulk operations)
@@ -1567,6 +1683,12 @@ export const api = {
           console.warn('Failed to update building total area after asset deletion:', areaError);
           // Don't fail the operation if area update fails
         }
+      }
+      
+      // Reset distribution flags if needed (for residence: deleting asset)
+      if (buildingNumber && beforeData) {
+        const assetType = await getAssetBusinessResidenceType(beforeData);
+        await resetDistributionFlagsIfNeeded(buildingNumber, assetType, 'delete');
       }
 
       // Log change entry asynchronously

@@ -14,7 +14,7 @@ import { AssetDataEntry } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText } from 'lucide-react';
 import { api, AssetType } from './lib/api';
-import { assetValidators, validateEntity } from './lib/validation';
+import { assetValidators, validateEntity, getAssetTypes } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 
 interface Tab {
@@ -69,7 +69,6 @@ function App() {
     
     // Use cached asset types from validation (synchronous, no API call)
     try {
-      const { getAssetTypes } = require('./lib/validation');
       const assetTypes = getAssetTypes();
       if (assetTypes && assetTypes.length > 0) {
         // Find first asset type with matching tax_region
@@ -103,7 +102,6 @@ function App() {
     // Use cached asset types from validation (synchronous, no API call)
     let assetTypes: AssetType[] = [];
     try {
-      const { getAssetTypes } = require('./lib/validation');
       assetTypes = getAssetTypes();
     } catch (err) {
       // If validation module not available, return original string
@@ -376,7 +374,6 @@ function App() {
     // Get tax regions with not_accountable = true (use cached asset types)
     let notAccountableTaxRegions: string[] = [];
     try {
-      const { getAssetTypes } = require('./lib/validation');
       const cachedAssetTypes = getAssetTypes();
       notAccountableTaxRegions = cachedAssetTypes
         .filter((at: AssetType) => at.not_accountable === true && at.tax_region != null)

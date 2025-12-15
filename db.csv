@@ -1,0 +1,1808 @@
+﻿table_name,field_name,field_type
+"address_list","street_code","integer(32,0)"
+"address_list","street_description","text"
+"address_list","created_at","timestamp with time zone"
+"address_list","updated_at","timestamp with time zone"
+"asset_type_fields","id","uuid"
+"asset_type_fields","field_name","text"
+"asset_type_fields","is_asset_level","boolean"
+"asset_type_fields","is_building_level","boolean"
+"asset_type_fields","is_asset_type_validation","boolean"
+"asset_type_fields","created_at","timestamp with time zone"
+"asset_type_fields","updated_at","timestamp with time zone"
+"asset_types","id","integer(32,0)"
+"asset_types","name","text"
+"asset_types","description","text"
+"asset_types","tax_region","integer(32,0)"
+"asset_types","elevator","text"
+"asset_types","single_double_family","text"
+"asset_types","penthouse","text"
+"asset_types","condo","text"
+"asset_types","townhouses","text"
+"asset_types","business_residence","text"
+"asset_types","shared_area_usage","text"
+"asset_types","min_size","numeric"
+"asset_types","max_size","numeric"
+"asset_types","active","text"
+"asset_types","created_at","timestamp with time zone"
+"asset_types","updated_at","timestamp with time zone"
+"asset_types","area_description_for_tab","text"
+"asset_types","not_accountable","boolean"
+"assets","building_number","bigint(64,0)"
+"assets","payer_id","text"
+"assets","asset_id","bigint(64,0)"
+"assets","measurement_date","text"
+"assets","main_asset_type","text"
+"assets","asset_size","numeric"
+"assets","sub_asset_type_1","text"
+"assets","sub_asset_size_1","numeric"
+"assets","sub_asset_type_2","text"
+"assets","sub_asset_size_2","numeric"
+"assets","sub_asset_type_3","text"
+"assets","sub_asset_size_3","numeric"
+"assets","sub_asset_type_4","text"
+"assets","sub_asset_size_4","numeric"
+"assets","sub_asset_type_5","text"
+"assets","sub_asset_size_5","numeric"
+"assets","sub_asset_type_6","text"
+"assets","sub_asset_size_6","numeric"
+"assets","structure_drawing_url","text"
+"assets","created_at","timestamp with time zone"
+"assets","updated_at","timestamp with time zone"
+"assets","elevator","text"
+"assets","single_double_family","text"
+"assets","condo","text"
+"assets","townhouses","text"
+"assets","penthouse","text"
+"assets","tax_region","integer(32,0)"
+"assets","floor","smallint(16,0)"
+"assets","discount_type","text"
+"assets","discount_date_from","text"
+"assets","discount_date_to","text"
+"assets","is_new_measurement","boolean"
+"assets","action_id","bigint(64,0)"
+"assets","distribution_area","numeric"
+"assets","exported_to_automation","boolean"
+"assets_history","id","bigint(64,0)"
+"assets_history","building_number","bigint(64,0)"
+"assets_history","payer_id","text"
+"assets_history","asset_id","bigint(64,0)"
+"assets_history","measurement_date","text"
+"assets_history","main_asset_type","text"
+"assets_history","asset_size","numeric"
+"assets_history","sub_asset_type_1","text"
+"assets_history","sub_asset_size_1","numeric"
+"assets_history","sub_asset_type_2","text"
+"assets_history","sub_asset_size_2","numeric"
+"assets_history","sub_asset_type_3","text"
+"assets_history","sub_asset_size_3","numeric"
+"assets_history","sub_asset_type_4","text"
+"assets_history","sub_asset_size_4","numeric"
+"assets_history","sub_asset_type_5","text"
+"assets_history","sub_asset_size_5","numeric"
+"assets_history","sub_asset_type_6","text"
+"assets_history","sub_asset_size_6","numeric"
+"assets_history","structure_drawing_url","text"
+"assets_history","created_at","timestamp with time zone"
+"assets_history","updated_at","timestamp with time zone"
+"assets_history","elevator","text"
+"assets_history","single_double_family","text"
+"assets_history","condo","text"
+"assets_history","townhouses","text"
+"assets_history","penthouse","text"
+"assets_history","history_created_at","timestamp with time zone"
+"assets_history","tax_region","integer(32,0)"
+"assets_history","floor","smallint(16,0)"
+"assets_history","discount_type","text"
+"assets_history","discount_date_from","text"
+"assets_history","discount_date_to","text"
+"assets_history","action_id","bigint(64,0)"
+"assets_history","distribution_area","numeric"
+"assets_history","exported_to_automation","boolean"
+"audit","action_id","bigint(64,0)"
+"audit","user_id","bigint(64,0)"
+"audit","action_type","USER-DEFINED"
+"audit","entity_type","text"
+"audit","entity_id","text"
+"audit","before_data","jsonb"
+"audit","after_data","jsonb"
+"audit","description","text"
+"audit","created_at","timestamp with time zone"
+"buildings","building_number","bigint(64,0)"
+"buildings","total_building_area","numeric(10,2)"
+"buildings","tax_region","text"
+"buildings","elevator","text"
+"buildings","single_double_family","text"
+"buildings","condo","text"
+"buildings","townhouses","text"
+"buildings","residence_shared_area","numeric(10,2)"
+"buildings","business_shared_area","numeric(10,2)"
+"buildings","area_for_control","numeric"
+"buildings","building_address","integer(32,0)"
+"buildings","gosh","bigint(64,0)"
+"buildings","helka","bigint(64,0)"
+"buildings","building_number_in_street","bigint(64,0)"
+"buildings","overload_ratio","numeric(5,2)"
+"buildings","created_at","timestamp with time zone"
+"buildings","action_id","bigint(64,0)"
+"buildings","residence_shared_area_distributed","boolean"
+"buildings","business_shared_area_distributed","boolean"
+"change_log","log_id","bigint(64,0)"
+"change_log","table_name","text"
+"change_log","operation","text"
+"change_log","record_id","text"
+"change_log","user_id","bigint(64,0)"
+"change_log","before_data","jsonb"
+"change_log","after_data","jsonb"
+"change_log","changed_fields","ARRAY"
+"change_log","ip_address","inet"
+"change_log","user_agent","text"
+"change_log","session_id","text"
+"change_log","created_at","timestamp with time zone"
+"field_configurations","grid_name","text"
+"field_configurations","field_name","text"
+"field_configurations","width_chars","integer(32,0)"
+"field_configurations","padding","integer(32,0)"
+"field_configurations","hebrew_name","text"
+"field_configurations","pinned","boolean"
+"field_configurations","pin_side","text"
+"field_configurations","visible","boolean"
+"field_configurations","column_order","integer(32,0)"
+"field_configurations","created_at","timestamp with time zone"
+"field_configurations","updated_at","timestamp with time zone"
+"users","user_id","bigint(64,0)"
+"users","auth_user_id","text"
+"users","user_name","text"
+"users","user_email","text"
+"users","active","boolean"
+"users","created_at","timestamp with time zone"
+"users","updated_at","timestamp with time zone"
+"validation_rules","id","uuid"
+"validation_rules","rule_key","text"
+"validation_rules","rule_type","text"
+"validation_rules","field_name","text"
+"validation_rules","entity_type","text"
+"validation_rules","value_numeric","integer(32,0)"
+"validation_rules","value_text","text"
+"validation_rules","enabled","boolean"
+"validation_rules","error_message","text"
+"validation_rules","description","text"
+"validation_rules","created_at","timestamp with time zone"
+"validation_rules","updated_at","timestamp with time zone"
+"validation_rules","compare_table","text"
+"validation_rules","compare_field","text"
+"validation_rules","join_field","text"
+"validation_rules","comparison_operator","text"
+"FUNCTION","public.audit_asset_changes()","CREATE OR REPLACE FUNCTION public.audit_asset_changes()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_before_data jsonb;
+  v_after_data jsonb;
+  v_action_type audit_action_type;
+  v_audit_id bigint;
+  v_user_name text;
+  v_building_number bigint;
+BEGIN
+  -- Get building number (from OLD for DELETE/UPDATE, from NEW for INSERT)
+  v_building_number := COALESCE(OLD.building_number, NEW.building_number);
+  
+  -- Determine action type based on operation
+  -- Always create ONE audit record with both asset and building data in the same JSON
+  IF TG_OP = 'INSERT' THEN
+    v_action_type := 'manual_update';
+    -- Before: building state (no asset yet) - consistent structure
+    v_before_data := jsonb_build_object(
+      'asset', NULL,
+      'building', (get_building_audit_data(v_building_number)->'building')
+    );
+    -- After: both asset and building state - consistent structure
+    v_after_data := get_asset_audit_data(NEW.asset_id);
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_action_type := 'manual_update';
+    -- Before: both asset and building state before update - consistent structure
+    -- Note: Since this is AFTER trigger, building might have been updated by other triggers
+    -- but we capture the current state which should reflect pre-update building state
+    v_before_data := jsonb_build_object(
+      'asset', to_jsonb(OLD.*),
+      'building', (get_building_audit_data(v_building_number)->'building')
+    );
+    -- After: both asset and building state after update - consistent structure
+    v_after_data := get_asset_audit_data(NEW.asset_id);
+  ELSIF TG_OP = 'DELETE' THEN
+    v_action_type := 'manual_update';
+    -- Before: both asset and building state before deletion - consistent structure
+    v_before_data := get_asset_audit_data(OLD.asset_id);
+    -- After: building state (no asset anymore) - consistent structure
+    v_after_data := jsonb_build_object(
+      'asset', NULL,
+      'building', (get_building_audit_data(v_building_number)->'building')
+    );
+  END IF;
+  
+  -- Get current user from session or use default
+  BEGIN
+    -- Try to get user from Supabase auth context
+    v_user_name := coalesce(
+      current_setting('request.jwt.claims', true)::json->>'email',
+      current_setting('request.jwt.claims', true)::json->>'sub',
+      'default'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_user_name := 'default';
+  END;
+
+  -- Log the audit entry and get the audit_id
+  SELECT log_audit_entry(
+    v_action_type,
+    'asset',
+    COALESCE(NEW.asset_id::text, OLD.asset_id::text),
+    v_user_name,
+    v_before_data,
+    v_after_data,
+    'Automatic audit log: ' || TG_OP || ' operation on asset'
+  ) INTO v_audit_id;
+  
+  -- Update the asset's action_id
+  IF TG_OP != 'DELETE' THEN
+    NEW.action_id := v_audit_id;
+  END IF;
+  
+  -- Store audit_id in session variable for history trigger to use
+  PERFORM set_config('app.current_audit_id', v_audit_id::text, false);
+  
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
+END;
+$function$
+"
+"FUNCTION","public.audit_building_changes()","CREATE OR REPLACE FUNCTION public.audit_building_changes()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_before_data jsonb;
+  v_after_data jsonb;
+  v_action_type audit_action_type;
+  v_audit_id bigint;
+  v_user_name text;
+BEGIN
+  -- Determine action type based on operation
+  IF TG_OP = 'INSERT' THEN
+    v_action_type := 'manual_update';
+    v_before_data := NULL;
+    v_after_data := get_building_audit_data(NEW.building_number);
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_action_type := 'manual_update';
+    v_before_data := get_building_audit_data(OLD.building_number);
+    v_after_data := get_building_audit_data(NEW.building_number);
+  ELSIF TG_OP = 'DELETE' THEN
+    v_action_type := 'manual_update';
+    v_before_data := get_building_audit_data(OLD.building_number);
+    v_after_data := NULL;
+  END IF;
+  
+  -- Get current user from session or use default
+  BEGIN
+    -- Try to get user from Supabase auth context
+    v_user_name := coalesce(
+      current_setting('request.jwt.claims', true)::json->>'email',
+      current_setting('request.jwt.claims', true)::json->>'sub',
+      'default'
+    );
+  EXCEPTION WHEN OTHERS THEN
+    v_user_name := 'default';
+  END;
+
+  -- Log the audit entry and update the building's action_id
+  SELECT log_audit_entry(
+    v_action_type,
+    'building',
+    COALESCE(NEW.building_number::text, OLD.building_number::text),
+    v_user_name,
+    v_before_data,
+    v_after_data,
+    'Automatic audit log: ' || TG_OP || ' operation on building'
+  ) INTO v_audit_id;
+  
+  -- Update the building's action_id
+  IF TG_OP != 'DELETE' THEN
+    NEW.action_id := v_audit_id;
+  END IF;
+  
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
+END;
+$function$
+"
+"FUNCTION","public.bulk_transfer_areas_with_audit(p_old_assets jsonb, p_new_assets jsonb, p_action_type audit_action_type DEFAULT 'transfer_area'::audit_action_type, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.bulk_transfer_areas_with_audit(p_old_assets jsonb, p_new_assets jsonb, p_action_type audit_action_type DEFAULT 'transfer_area'::audit_action_type, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_audit_id bigint;
+  v_asset jsonb;
+  v_asset_id bigint;
+  v_building_number bigint;
+  v_affected_asset_ids bigint[] := ARRAY[]::bigint[];
+  v_result jsonb;
+  v_before_assets jsonb[] := ARRAY[]::jsonb[];
+  v_after_assets jsonb[] := ARRAY[]::jsonb[];
+  v_before_data_collected jsonb;
+  v_after_data_collected jsonb;
+  v_asset_data jsonb; -- For collecting asset data from database
+BEGIN
+  -- Collect BEFORE data from database (if not provided)
+  -- Database transaction will automatically collect asset data from the database before moving to history
+  -- Check for both SQL NULL and JSON null (from JavaScript)
+  IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN
+    FOR v_asset IN SELECT * FROM jsonb_array_elements(p_old_assets)
+    LOOP
+      v_asset_id := (v_asset->>'asset_id')::bigint;
+      
+      -- Get current asset state from database before moving to history
+      SELECT to_jsonb(a.*) INTO v_asset_data
+      FROM assets a
+      WHERE a.asset_id = v_asset_id;
+      
+      IF v_asset_data IS NOT NULL THEN
+        v_before_assets := array_append(v_before_assets, v_asset_data);
+      END IF;
+    END LOOP;
+    
+    -- Convert jsonb array to jsonb array for assets
+    SELECT jsonb_agg(elem) INTO v_before_data_collected
+    FROM unnest(v_before_assets) AS elem;
+    
+    v_before_data_collected := jsonb_build_object('assets', COALESCE(v_before_data_collected, '[]'::jsonb));
+  ELSE
+    v_before_data_collected := p_before_data;
+  END IF;
+  
+  -- Create audit entry with collected before data (after data will be updated later)
+  SELECT log_audit_entry(
+    p_action_type,
+    'bulk_asset',
+    NULL::text, -- entity_id will be set after processing
+    p_user_id,
+    v_before_data_collected,
+    NULL::jsonb, -- after_data will be set after creating new assets
+    p_description
+  ) INTO v_audit_id;
+  
+  -- First, move old assets to history and mark with action_id
+  FOR v_asset IN SELECT * FROM jsonb_array_elements(p_old_assets)
+  LOOP
+    v_asset_id := (v_asset->>'asset_id')::bigint;
+    v_building_number := (v_asset->>'building_number')::bigint;
+    
+    -- Copy to history
+    INSERT INTO assets_history (
+      building_number, payer_id, asset_id, measurement_date,
+      main_asset_type, asset_size,
+      sub_asset_type_1, sub_asset_size_1,
+      sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3,
+      sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5,
+      sub_asset_type_6, sub_asset_size_6,
+      structure_drawing_url, elevator, single_double_family,
+      condo, townhouses, penthouse, tax_region,
+      floor, discount_type, discount_date_from, discount_date_to,
+      created_at, history_created_at, action_id
+    )
+    SELECT
+      building_number, payer_id, asset_id, measurement_date,
+      main_asset_type, asset_size,
+      sub_asset_type_1, sub_asset_size_1,
+      sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3,
+      sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5,
+      sub_asset_type_6, sub_asset_size_6,
+      structure_drawing_url, elevator, single_double_family,
+      condo, townhouses, penthouse, tax_region,
+      floor, discount_type, discount_date_from, discount_date_to,
+      created_at, now(), v_audit_id
+    FROM assets
+    WHERE asset_id = v_asset_id;
+    
+    -- Delete from assets table
+    DELETE FROM assets WHERE asset_id = v_asset_id;
+    
+    -- Add to affected asset IDs
+    v_affected_asset_ids := array_append(v_affected_asset_ids, v_asset_id);
+    
+    -- Update building total area
+    IF v_building_number IS NOT NULL THEN
+      PERFORM update_building_total_area(v_building_number);
+    END IF;
+  END LOOP;
+  
+  -- Then, create new assets
+  FOR v_asset IN SELECT * FROM jsonb_array_elements(p_new_assets)
+  LOOP
+    v_asset_id := (v_asset->>'asset_id')::bigint;
+    v_building_number := (v_asset->>'building_number')::bigint;
+    
+    INSERT INTO assets (
+      building_number, payer_id, asset_id, measurement_date,
+      main_asset_type, asset_size,
+      sub_asset_type_1, sub_asset_size_1,
+      sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3,
+      sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5,
+      sub_asset_type_6, sub_asset_size_6,
+      structure_drawing_url, elevator, single_double_family,
+      condo, townhouses, penthouse, tax_region,
+      floor, discount_type, discount_date_from, discount_date_to,
+      action_id, created_at, updated_at
+    ) VALUES (
+      (v_asset->>'building_number')::bigint,
+      NULLIF(v_asset->>'payer_id', ''),
+      v_asset_id,
+      COALESCE(v_asset->>'measurement_date', '01/01/1900'),
+      NULLIF(v_asset->>'main_asset_type', ''),
+      COALESCE((v_asset->>'asset_size')::numeric, 0),
+      NULLIF(v_asset->>'sub_asset_type_1', ''),
+      COALESCE((v_asset->>'sub_asset_size_1')::numeric, 0),
+      NULLIF(v_asset->>'sub_asset_type_2', ''),
+      COALESCE((v_asset->>'sub_asset_size_2')::numeric, 0),
+      NULLIF(v_asset->>'sub_asset_type_3', ''),
+      COALESCE((v_asset->>'sub_asset_size_3')::numeric, 0),
+      NULLIF(v_asset->>'sub_asset_type_4', ''),
+      COALESCE((v_asset->>'sub_asset_size_4')::numeric, 0),
+      NULLIF(v_asset->>'sub_asset_type_5', ''),
+      COALESCE((v_asset->>'sub_asset_size_5')::numeric, 0),
+      NULLIF(v_asset->>'sub_asset_type_6', ''),
+      COALESCE((v_asset->>'sub_asset_size_6')::numeric, 0),
+      NULLIF(v_asset->>'structure_drawing_url', ''),
+      NULLIF(v_asset->>'elevator', ''),
+      NULLIF(v_asset->>'single_double_family', ''),
+      NULLIF(v_asset->>'condo', ''),
+      NULLIF(v_asset->>'townhouses', ''),
+      NULLIF(v_asset->>'penthouse', ''),
+      (v_asset->>'tax_region')::integer,
+      (v_asset->>'floor')::smallint,
+      NULLIF(v_asset->>'discount_type', ''),
+      NULLIF(v_asset->>'discount_date_from', ''),
+      NULLIF(v_asset->>'discount_date_to', ''),
+      v_audit_id,
+      now(),
+      now()
+    );
+    
+    -- Add to affected asset IDs if not already added
+    IF NOT (v_asset_id = ANY(v_affected_asset_ids)) THEN
+      v_affected_asset_ids := array_append(v_affected_asset_ids, v_asset_id);
+    END IF;
+    
+    -- Update building total area
+    IF v_building_number IS NOT NULL THEN
+      PERFORM update_building_total_area(v_building_number);
+    END IF;
+  END LOOP;
+  
+  -- Collect AFTER data from database (if not provided)
+  -- Database transaction will automatically collect asset data from the database after creating new assets
+  -- Check for both SQL NULL and JSON null (from JavaScript)
+  IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb THEN
+    FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
+    LOOP
+      -- Get new asset state from database (after creation)
+      SELECT to_jsonb(a.*) INTO v_asset_data
+      FROM assets a
+      WHERE a.asset_id = v_asset_id
+        AND a.action_id = v_audit_id
+      ORDER BY a.updated_at DESC
+      LIMIT 1;
+      
+      IF v_asset_data IS NOT NULL THEN
+        v_after_assets := array_append(v_after_assets, v_asset_data);
+      END IF;
+    END LOOP;
+    
+    -- Convert jsonb array to jsonb array for assets
+    SELECT jsonb_agg(elem) INTO v_after_data_collected
+    FROM unnest(v_after_assets) AS elem;
+    
+    v_after_data_collected := jsonb_build_object('assets', COALESCE(v_after_data_collected, '[]'::jsonb));
+  ELSE
+    v_after_data_collected := p_after_data;
+  END IF;
+  
+  -- Update audit entry with collected after data and entity_id
+  UPDATE audit
+  SET 
+    after_data = v_after_data_collected,
+    entity_id = array_to_string(v_affected_asset_ids, ',')
+  WHERE action_id = v_audit_id;
+  
+  -- Return result
+  v_result := jsonb_build_object(
+    'action_id', v_audit_id,
+    'affected_asset_ids', v_affected_asset_ids,
+    'count', array_length(v_affected_asset_ids, 1)
+  );
+  
+  RETURN v_result;
+END;
+$function$
+"
+"FUNCTION","public.bulk_update_assets_with_audit(p_assets jsonb, p_action_type audit_action_type, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.bulk_update_assets_with_audit(p_assets jsonb, p_action_type audit_action_type, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_audit_id bigint;
+  v_asset jsonb;
+  v_asset_id bigint;
+  v_building_number bigint;
+  v_affected_asset_ids bigint[] := ARRAY[]::bigint[];
+  v_result jsonb;
+  v_before_assets jsonb[] := ARRAY[]::jsonb[];
+  v_after_assets jsonb[] := ARRAY[]::jsonb[];
+  v_before_data_collected jsonb;
+  v_after_data_collected jsonb;
+  v_asset_data jsonb; -- For collecting asset data from database
+  v_building_data jsonb; -- For collecting building data from database
+  v_first_building_number bigint; -- Track first building number to collect building data
+BEGIN
+  -- Get first building number from assets (all assets in distribution belong to same building)
+  SELECT (elem->>'building_number')::bigint INTO v_first_building_number
+  FROM jsonb_array_elements(p_assets) AS elem
+  LIMIT 1;
+  
+  -- Collect BEFORE data from database (if not provided)
+  -- Database transaction will automatically collect asset data and building data from the database
+  -- Check for both SQL NULL and JSON null (from JavaScript)
+  IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN
+    -- Collect building data before update
+    IF v_first_building_number IS NOT NULL THEN
+      SELECT to_jsonb(b.*) INTO v_building_data
+      FROM buildings b
+      WHERE b.building_number = v_first_building_number;
+    END IF;
+    
+    FOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)
+    LOOP
+      v_asset_id := (v_asset->>'asset_id')::bigint;
+      
+      -- Get current asset state from database before update
+      SELECT to_jsonb(a.*) INTO v_asset_data
+      FROM assets a
+      WHERE a.asset_id = v_asset_id;
+      
+      IF v_asset_data IS NOT NULL THEN
+        v_before_assets := array_append(v_before_assets, v_asset_data);
+      END IF;
+    END LOOP;
+    
+    -- Convert jsonb array to jsonb array for assets
+    SELECT jsonb_agg(elem) INTO v_before_data_collected
+    FROM unnest(v_before_assets) AS elem;
+    
+    -- Build before_data with both assets and building
+    v_before_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_before_data_collected, '[]'::jsonb),
+      'building', COALESCE(v_building_data, 'null'::jsonb)
+    );
+  ELSE
+    v_before_data_collected := p_before_data;
+  END IF;
+  
+  -- Create audit entry with collected before data (after data will be updated later)
+  SELECT log_audit_entry(
+    p_action_type,
+    'bulk_asset',
+    NULL::text, -- entity_id will be set after we know all affected asset IDs
+    p_user_id,
+    v_before_data_collected,
+    NULL::jsonb, -- after_data will be set after updates
+    p_description
+  ) INTO v_audit_id;
+  
+  -- Process each asset in the array
+  FOR v_asset IN SELECT * FROM jsonb_array_elements(p_assets)
+  LOOP
+    v_asset_id := (v_asset->>'asset_id')::bigint;
+    v_building_number := (v_asset->>'building_number')::bigint;
+    
+    -- Check if asset exists (for update vs insert)
+    IF EXISTS (SELECT 1 FROM assets WHERE asset_id = v_asset_id) THEN
+      -- UPDATE existing asset
+      UPDATE assets
+      SET
+        building_number = COALESCE((v_asset->>'building_number')::bigint, building_number),
+        payer_id = COALESCE(v_asset->>'payer_id', payer_id),
+        measurement_date = COALESCE(v_asset->>'measurement_date', measurement_date),
+        main_asset_type = COALESCE(v_asset->>'main_asset_type', main_asset_type),
+        asset_size = COALESCE((v_asset->>'asset_size')::numeric, asset_size),
+        sub_asset_type_1 = COALESCE(v_asset->>'sub_asset_type_1', sub_asset_type_1),
+        sub_asset_size_1 = COALESCE((v_asset->>'sub_asset_size_1')::numeric, sub_asset_size_1),
+        sub_asset_type_2 = COALESCE(v_asset->>'sub_asset_type_2', sub_asset_type_2),
+        sub_asset_size_2 = COALESCE((v_asset->>'sub_asset_size_2')::numeric, sub_asset_size_2),
+        sub_asset_type_3 = COALESCE(v_asset->>'sub_asset_type_3', sub_asset_type_3),
+        sub_asset_size_3 = COALESCE((v_asset->>'sub_asset_size_3')::numeric, sub_asset_size_3),
+        sub_asset_type_4 = COALESCE(v_asset->>'sub_asset_type_4', sub_asset_type_4),
+        sub_asset_size_4 = COALESCE((v_asset->>'sub_asset_size_4')::numeric, sub_asset_size_4),
+        sub_asset_type_5 = COALESCE(v_asset->>'sub_asset_type_5', sub_asset_type_5),
+        sub_asset_size_5 = COALESCE((v_asset->>'sub_asset_size_5')::numeric, sub_asset_size_5),
+        sub_asset_type_6 = COALESCE(v_asset->>'sub_asset_type_6', sub_asset_type_6),
+        sub_asset_size_6 = COALESCE((v_asset->>'sub_asset_size_6')::numeric, sub_asset_size_6),
+        structure_drawing_url = COALESCE(v_asset->>'structure_drawing_url', structure_drawing_url),
+        elevator = COALESCE(v_asset->>'elevator', elevator),
+        single_double_family = COALESCE(v_asset->>'single_double_family', single_double_family),
+        condo = COALESCE(v_asset->>'condo', condo),
+        townhouses = COALESCE(v_asset->>'townhouses', townhouses),
+        penthouse = COALESCE(v_asset->>'penthouse', penthouse),
+        tax_region = COALESCE((v_asset->>'tax_region')::integer, tax_region),
+        floor = COALESCE((v_asset->>'floor')::smallint, floor),
+        discount_type = COALESCE(v_asset->>'discount_type', discount_type),
+        discount_date_from = COALESCE(v_asset->>'discount_date_from', discount_date_from),
+        discount_date_to = COALESCE(v_asset->>'discount_date_to', discount_date_to),
+        action_id = v_audit_id,
+        updated_at = now()
+      WHERE asset_id = v_asset_id;
+    ELSE
+      -- INSERT new asset
+      INSERT INTO assets (
+        building_number,
+        payer_id,
+        asset_id,
+        measurement_date,
+        main_asset_type,
+        asset_size,
+        sub_asset_type_1,
+        sub_asset_size_1,
+        sub_asset_type_2,
+        sub_asset_size_2,
+        sub_asset_type_3,
+        sub_asset_size_3,
+        sub_asset_type_4,
+        sub_asset_size_4,
+        sub_asset_type_5,
+        sub_asset_size_5,
+        sub_asset_type_6,
+        sub_asset_size_6,
+        structure_drawing_url,
+        elevator,
+        single_double_family,
+        condo,
+        townhouses,
+        penthouse,
+        tax_region,
+        floor,
+        discount_type,
+        discount_date_from,
+        discount_date_to,
+        action_id,
+        created_at,
+        updated_at
+      ) VALUES (
+        (v_asset->>'building_number')::bigint,
+        NULLIF(v_asset->>'payer_id', ''),
+        v_asset_id,
+        COALESCE(v_asset->>'measurement_date', '01/01/1900'),
+        NULLIF(v_asset->>'main_asset_type', ''),
+        COALESCE((v_asset->>'asset_size')::numeric, 0),
+        NULLIF(v_asset->>'sub_asset_type_1', ''),
+        COALESCE((v_asset->>'sub_asset_size_1')::numeric, 0),
+        NULLIF(v_asset->>'sub_asset_type_2', ''),
+        COALESCE((v_asset->>'sub_asset_size_2')::numeric, 0),
+        NULLIF(v_asset->>'sub_asset_type_3', ''),
+        COALESCE((v_asset->>'sub_asset_size_3')::numeric, 0),
+        NULLIF(v_asset->>'sub_asset_type_4', ''),
+        COALESCE((v_asset->>'sub_asset_size_4')::numeric, 0),
+        NULLIF(v_asset->>'sub_asset_type_5', ''),
+        COALESCE((v_asset->>'sub_asset_size_5')::numeric, 0),
+        NULLIF(v_asset->>'sub_asset_type_6', ''),
+        COALESCE((v_asset->>'sub_asset_size_6')::numeric, 0),
+        NULLIF(v_asset->>'structure_drawing_url', ''),
+        NULLIF(v_asset->>'elevator', ''),
+        NULLIF(v_asset->>'single_double_family', ''),
+        NULLIF(v_asset->>'condo', ''),
+        NULLIF(v_asset->>'townhouses', ''),
+        NULLIF(v_asset->>'penthouse', ''),
+        (v_asset->>'tax_region')::integer,
+        (v_asset->>'floor')::smallint,
+        NULLIF(v_asset->>'discount_type', ''),
+        NULLIF(v_asset->>'discount_date_from', ''),
+        NULLIF(v_asset->>'discount_date_to', ''),
+        v_audit_id,
+        now(),
+        now()
+      );
+    END IF;
+    
+    -- Add to affected asset IDs array
+    v_affected_asset_ids := array_append(v_affected_asset_ids, v_asset_id);
+    
+    -- Update building total area for this building
+    IF v_building_number IS NOT NULL THEN
+      PERFORM update_building_total_area(v_building_number);
+    END IF;
+  END LOOP;
+  
+  -- Collect AFTER data from database (if not provided)
+  -- Database transaction will automatically collect asset data and building data from the database after updates
+  -- Check for both SQL NULL and JSON null (from JavaScript)
+  IF p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb THEN
+    -- Collect building data after update
+    IF v_first_building_number IS NOT NULL THEN
+      SELECT to_jsonb(b.*) INTO v_building_data
+      FROM buildings b
+      WHERE b.building_number = v_first_building_number;
+    END IF;
+    
+    FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
+    LOOP
+      -- Get updated asset state from database after update
+      SELECT to_jsonb(a.*) INTO v_asset_data
+      FROM assets a
+      WHERE a.asset_id = v_asset_id;
+      
+      IF v_asset_data IS NOT NULL THEN
+        v_after_assets := array_append(v_after_assets, v_asset_data);
+      END IF;
+    END LOOP;
+    
+    -- Convert jsonb array to jsonb array for assets
+    SELECT jsonb_agg(elem) INTO v_after_data_collected
+    FROM unnest(v_after_assets) AS elem;
+    
+    -- Build after_data with both assets and building
+    v_after_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_after_data_collected, '[]'::jsonb),
+      'building', COALESCE(v_building_data, 'null'::jsonb)
+    );
+  ELSE
+    v_after_data_collected := p_after_data;
+  END IF;
+  
+  -- Update audit entry with collected after data and entity_id
+  UPDATE audit
+  SET 
+    after_data = v_after_data_collected,
+    entity_id = array_to_string(v_affected_asset_ids, ',')
+  WHERE action_id = v_audit_id;
+  
+  -- Return result with audit_id and affected asset IDs
+  v_result := jsonb_build_object(
+    'action_id', v_audit_id,
+    'affected_asset_ids', v_affected_asset_ids,
+    'count', array_length(v_affected_asset_ids, 1)
+  );
+  
+  RETURN v_result;
+END;
+$function$
+"
+"FUNCTION","public.copy_asset_to_history()","CREATE OR REPLACE FUNCTION public.copy_asset_to_history()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_action_id bigint;
+  v_is_new_measurement boolean;
+BEGIN
+  -- Try to get the audit_id from session variable (set by audit trigger)
+  -- If not available, try to get the most recent audit log entry for this asset
+  BEGIN
+    v_action_id := current_setting('app.current_audit_id', true)::bigint;
+  EXCEPTION WHEN OTHERS THEN
+    -- If session variable not set, get the most recent audit log entry for this asset
+    SELECT action_id INTO v_action_id
+    FROM audit
+    WHERE entity_type = 'asset'
+      AND entity_id = COALESCE(NEW.asset_id::text, OLD.asset_id::text)
+    ORDER BY created_at DESC
+    LIMIT 1;
+  END;
+
+  IF TG_OP = 'UPDATE' THEN
+    -- Check if this was a new measurement update using session variable
+    BEGIN
+      v_is_new_measurement := current_setting('app.is_new_measurement', true)::boolean;
+    EXCEPTION WHEN OTHERS THEN
+      v_is_new_measurement := false;
+    END;
+    
+    -- Only create history record if this was a new measurement
+    IF v_is_new_measurement AND v_action_id IS NOT NULL THEN
+        -- Create history record for the OLD asset data
+        INSERT INTO assets_history (
+          building_number, payer_id, asset_id, measurement_date,
+          main_asset_type, asset_size,
+          sub_asset_type_1, sub_asset_size_1,
+          sub_asset_type_2, sub_asset_size_2,
+          sub_asset_type_3, sub_asset_size_3,
+          sub_asset_type_4, sub_asset_size_4,
+          sub_asset_type_5, sub_asset_size_5,
+          sub_asset_type_6, sub_asset_size_6,
+          structure_drawing_url, created_at, updated_at,
+          elevator, single_double_family, condo, townhouses, penthouse,
+          tax_region, floor, discount_type, discount_date_from, discount_date_to,
+          action_id
+        ) VALUES (
+          OLD.building_number, OLD.payer_id, OLD.asset_id, OLD.measurement_date,
+          OLD.main_asset_type, OLD.asset_size,
+          OLD.sub_asset_type_1, OLD.sub_asset_size_1,
+          OLD.sub_asset_type_2, OLD.sub_asset_size_2,
+          OLD.sub_asset_type_3, OLD.sub_asset_size_3,
+          OLD.sub_asset_type_4, OLD.sub_asset_size_4,
+          OLD.sub_asset_type_5, OLD.sub_asset_size_5,
+          OLD.sub_asset_type_6, OLD.sub_asset_size_6,
+          OLD.structure_drawing_url, OLD.created_at, OLD.updated_at,
+          OLD.elevator, OLD.single_double_family, OLD.condo, OLD.townhouses, OLD.penthouse,
+          OLD.tax_region, OLD.floor, OLD.discount_type, OLD.discount_date_from, OLD.discount_date_to,
+          v_action_id
+        );
+    END IF;
+    RETURN NEW;
+  END IF;
+  
+  IF TG_OP = 'DELETE' THEN
+    -- When an asset is deleted, copy it to history
+    INSERT INTO assets_history (
+      building_number, payer_id, asset_id, measurement_date,
+      main_asset_type, asset_size,
+      sub_asset_type_1, sub_asset_size_1,
+      sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3,
+      sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5,
+      sub_asset_type_6, sub_asset_size_6,
+      structure_drawing_url, created_at, updated_at,
+      elevator, single_double_family, condo, townhouses, penthouse,
+      tax_region, floor, discount_type, discount_date_from, discount_date_to,
+      action_id
+    ) VALUES (
+      OLD.building_number, OLD.payer_id, OLD.asset_id, OLD.measurement_date,
+      OLD.main_asset_type, OLD.asset_size,
+      OLD.sub_asset_type_1, OLD.sub_asset_size_1,
+      OLD.sub_asset_type_2, OLD.sub_asset_size_2,
+      OLD.sub_asset_type_3, OLD.sub_asset_size_3,
+      OLD.sub_asset_type_4, OLD.sub_asset_size_4,
+      OLD.sub_asset_type_5, OLD.sub_asset_size_5,
+      OLD.sub_asset_type_6, OLD.sub_asset_size_6,
+      OLD.structure_drawing_url, OLD.created_at, OLD.updated_at,
+      OLD.elevator, OLD.single_double_family, OLD.condo, OLD.townhouses, OLD.penthouse,
+      OLD.tax_region, OLD.floor, OLD.discount_type, OLD.discount_date_from, OLD.discount_date_to,
+      v_action_id
+    );
+    RETURN OLD;
+  END IF;
+  
+  RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.copy_asset_to_history_before_update(p_asset_id bigint)","CREATE OR REPLACE FUNCTION public.copy_asset_to_history_before_update(p_asset_id bigint)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_old_asset jsonb;
+BEGIN
+  -- Get old asset data
+  SELECT to_jsonb(a.*) INTO v_old_asset
+  FROM assets a
+  WHERE a.asset_id = p_asset_id;
+  
+  IF v_old_asset IS NOT NULL THEN
+    -- Copy to history
+    -- Note: history_created_at is set to now() to mark when this record was moved to history
+    INSERT INTO assets_history (
+      building_number, payer_id, asset_id, measurement_date,
+      main_asset_type, asset_size,
+      sub_asset_type_1, sub_asset_size_1,
+      sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3,
+      sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5,
+      sub_asset_type_6, sub_asset_size_6,
+      structure_drawing_url, created_at, updated_at,
+      elevator, single_double_family, condo, townhouses, penthouse,
+      tax_region, floor, discount_type, discount_date_from, discount_date_to,
+      history_created_at,
+      action_id
+    ) VALUES (
+      (v_old_asset->>'building_number')::bigint,
+      v_old_asset->>'payer_id',
+      (v_old_asset->>'asset_id')::bigint,
+      v_old_asset->>'measurement_date',
+      v_old_asset->>'main_asset_type',
+      (v_old_asset->>'asset_size')::numeric,
+      v_old_asset->>'sub_asset_type_1',
+      (v_old_asset->>'sub_asset_size_1')::numeric,
+      v_old_asset->>'sub_asset_type_2',
+      (v_old_asset->>'sub_asset_size_2')::numeric,
+      v_old_asset->>'sub_asset_type_3',
+      (v_old_asset->>'sub_asset_size_3')::numeric,
+      v_old_asset->>'sub_asset_type_4',
+      (v_old_asset->>'sub_asset_size_4')::numeric,
+      v_old_asset->>'sub_asset_type_5',
+      (v_old_asset->>'sub_asset_size_5')::numeric,
+      v_old_asset->>'sub_asset_type_6',
+      (v_old_asset->>'sub_asset_size_6')::numeric,
+      v_old_asset->>'structure_drawing_url',
+      COALESCE((v_old_asset->>'created_at')::timestamptz, now()),
+      COALESCE((v_old_asset->>'updated_at')::timestamptz, now()),
+      v_old_asset->>'elevator',
+      v_old_asset->>'single_double_family',
+      v_old_asset->>'condo',
+      v_old_asset->>'townhouses',
+      v_old_asset->>'penthouse',
+      (v_old_asset->>'tax_region')::integer,
+      (v_old_asset->>'floor')::smallint,
+      v_old_asset->>'discount_type',
+      v_old_asset->>'discount_date_from',
+      v_old_asset->>'discount_date_to',
+      now(), -- history_created_at: timestamp when this record was moved to history
+      NULL -- action_id will be set after audit entry is created
+    );
+  END IF;
+END;
+$function$
+"
+"FUNCTION","public.get_asset_audit_data(p_asset_id bigint)","CREATE OR REPLACE FUNCTION public.get_asset_audit_data(p_asset_id bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_asset jsonb;
+  v_building jsonb;
+  v_result jsonb;
+BEGIN
+  -- Get asset data
+  SELECT to_jsonb(a.*) INTO v_asset
+  FROM assets a
+  WHERE a.asset_id = p_asset_id;
+  
+  -- Get building data if asset exists
+  IF v_asset IS NOT NULL THEN
+    SELECT to_jsonb(b.*) INTO v_building
+    FROM buildings b
+    WHERE b.building_number = (v_asset->>'building_number')::bigint;
+  END IF;
+  
+  -- Combine into result
+  v_result := jsonb_build_object(
+    'asset', v_asset,
+    'building', v_building
+  );
+  
+  RETURN v_result;
+END;
+$function$
+"
+"FUNCTION","public.get_assets_with_history(p_building_number bigint)","CREATE OR REPLACE FUNCTION public.get_assets_with_history(p_building_number bigint)
+ RETURNS json
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  master_data json;
+  details_data json;
+BEGIN
+  -- Get master records from assets table
+  SELECT COALESCE(json_agg(row_to_json(a) ORDER BY a.asset_id), '[]'::json)
+  INTO master_data
+  FROM (
+    SELECT *
+    FROM assets
+    WHERE building_number = p_building_number
+    ORDER BY asset_id
+  ) a;
+  
+  -- Get detail records from assets_history table
+  SELECT COALESCE(json_agg(row_to_json(h) ORDER BY h.asset_id, h.history_created_at DESC), '[]'::json)
+  INTO details_data
+  FROM (
+    SELECT *
+    FROM assets_history
+    WHERE building_number = p_building_number
+    ORDER BY asset_id, history_created_at DESC
+  ) h;
+  
+  -- Return combined result
+  RETURN json_build_object(
+    'master', COALESCE(master_data, '[]'::json),
+    'details', COALESCE(details_data, '[]'::json)
+  );
+END;
+$function$
+"
+"FUNCTION","public.get_building_audit_data(p_building_number bigint)","CREATE OR REPLACE FUNCTION public.get_building_audit_data(p_building_number bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_building jsonb;
+  v_assets jsonb;
+  v_result jsonb;
+BEGIN
+  -- Get building data
+  SELECT to_jsonb(b.*) INTO v_building
+  FROM buildings b
+  WHERE b.building_number = p_building_number;
+  
+  -- Get all assets for this building
+  SELECT COALESCE(jsonb_agg(to_jsonb(a.*)), '[]'::jsonb) INTO v_assets
+  FROM assets a
+  WHERE a.building_number = p_building_number;
+  
+  -- Combine into result
+  v_result := jsonb_build_object(
+    'building', v_building,
+    'assets', v_assets
+  );
+  
+  RETURN v_result;
+END;
+$function$
+"
+"FUNCTION","public.get_change_log(p_table_name text DEFAULT NULL::text, p_record_id text DEFAULT NULL::text, p_user_id bigint DEFAULT NULL::bigint, p_operation text DEFAULT NULL::text, p_limit integer DEFAULT 100)","CREATE OR REPLACE FUNCTION public.get_change_log(p_table_name text DEFAULT NULL::text, p_record_id text DEFAULT NULL::text, p_user_id bigint DEFAULT NULL::bigint, p_operation text DEFAULT NULL::text, p_limit integer DEFAULT 100)
+ RETURNS TABLE(log_id bigint, table_name text, operation text, record_id text, user_id bigint, user_name text, user_email text, auth_user_id text, before_data jsonb, after_data jsonb, changed_fields text[], created_at timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    cl.log_id,
+    cl.table_name,
+    cl.operation,
+    cl.record_id,
+    cl.user_id,
+    u.user_name,
+    u.user_email,
+    u.auth_user_id,
+    cl.before_data,
+    cl.after_data,
+    cl.changed_fields,
+    cl.created_at
+  FROM change_log cl
+  LEFT JOIN users u ON cl.user_id = u.user_id
+  WHERE 
+    (p_table_name IS NULL OR cl.table_name = p_table_name)
+    AND (p_record_id IS NULL OR cl.record_id = p_record_id)
+    AND (p_user_id IS NULL OR cl.user_id = p_user_id)
+    AND (p_operation IS NULL OR cl.operation = p_operation)
+  ORDER BY cl.created_at DESC
+  LIMIT p_limit;
+END;
+$function$
+"
+"FUNCTION","public.get_or_create_user_from_auth()","CREATE OR REPLACE FUNCTION public.get_or_create_user_from_auth()
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_auth_user_id text;
+  v_user_email text;
+  v_user_name text;
+  v_user_id bigint;
+BEGIN
+  -- Get current auth user from Supabase auth context
+  v_auth_user_id := current_setting('request.jwt.claims', true)::json->>'sub';
+  
+  -- If no auth user, return NULL (will use default user)
+  IF v_auth_user_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+  
+  -- Try to get user email and name from auth metadata
+  v_user_email := current_setting('request.jwt.claims', true)::json->>'email';
+  v_user_name := COALESCE(
+    current_setting('request.jwt.claims', true)::json->>'email',
+    current_setting('request.jwt.claims', true)::json->>'sub',
+    'default'
+  );
+  
+  -- Try to find existing user by auth_user_id
+  SELECT user_id INTO v_user_id
+  FROM users
+  WHERE auth_user_id = v_auth_user_id;
+  
+  -- If user exists, return it
+  IF v_user_id IS NOT NULL THEN
+    RETURN v_user_id;
+  END IF;
+  
+  -- Create new user
+  INSERT INTO users (auth_user_id, user_name, user_email)
+  VALUES (v_auth_user_id, v_user_name, v_user_email)
+  RETURNING user_id INTO v_user_id;
+  
+  RETURN v_user_id;
+END;
+$function$
+"
+"FUNCTION","public.get_record_change_history(p_table_name text, p_record_id text, p_limit integer DEFAULT 50)","CREATE OR REPLACE FUNCTION public.get_record_change_history(p_table_name text, p_record_id text, p_limit integer DEFAULT 50)
+ RETURNS TABLE(log_id bigint, operation text, user_id bigint, user_name text, user_email text, before_data jsonb, after_data jsonb, changed_fields text[], created_at timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    cl.log_id,
+    cl.operation,
+    cl.user_id,
+    u.user_name,
+    u.user_email,
+    cl.before_data,
+    cl.after_data,
+    cl.changed_fields,
+    cl.created_at
+  FROM change_log cl
+  LEFT JOIN users u ON cl.user_id = u.user_id
+  WHERE cl.table_name = p_table_name
+    AND cl.record_id = p_record_id
+  ORDER BY cl.created_at DESC
+  LIMIT p_limit;
+END;
+$function$
+"
+"FUNCTION","public.get_tables_fields_types()","CREATE OR REPLACE FUNCTION public.get_tables_fields_types()
+ RETURNS TABLE(table_name text, field_name text, field_type text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    -- Return tables/columns (existing functionality)
+    RETURN QUERY
+    SELECT 
+        c.table_name::text,
+        c.column_name::text as field_name,
+        CASE 
+            WHEN c.character_maximum_length IS NOT NULL 
+            THEN c.data_type || '(' || c.character_maximum_length || ')'
+            WHEN c.numeric_precision IS NOT NULL AND c.numeric_scale IS NOT NULL
+            THEN c.data_type || '(' || c.numeric_precision || ',' || c.numeric_scale || ')'
+            WHEN c.numeric_precision IS NOT NULL
+            THEN c.data_type || '(' || c.numeric_precision || ')'
+            ELSE c.data_type
+        END::text as field_type
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+    ORDER BY c.table_name, c.ordinal_position;
+    
+    -- Return functions (as rows with table_name='FUNCTION')
+    RETURN QUERY
+    SELECT 
+        'FUNCTION'::text as table_name,
+        (n.nspname || '.' || p.proname || '(' || 
+         COALESCE(pg_get_function_arguments(p.oid), '') || ')')::text as field_name,
+        pg_get_functiondef(p.oid)::text as field_type  -- Full function definition
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public'
+      AND p.prokind IN ('f', 'p') -- 'f' = function, 'p' = procedure
+    ORDER BY p.proname;
+    
+    -- Return triggers (as rows with table_name='TRIGGER')
+    RETURN QUERY
+    SELECT 
+        'TRIGGER'::text as table_name,
+        (n.nspname || '.' || quote_ident(c.relname) || '.' || t.tgname)::text as field_name,
+        ('CREATE TRIGGER ' || quote_ident(t.tgname) || 
+         CASE 
+           WHEN t.tgtype & 2 = 2 THEN ' BEFORE'
+           WHEN t.tgtype & 64 = 64 THEN ' INSTEAD OF'
+           ELSE ' AFTER'
+         END ||
+         ' ON ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||
+         ' FOR EACH ' || CASE WHEN t.tgtype & 4 = 4 THEN 'ROW' ELSE 'STATEMENT' END ||
+         ' EXECUTE FUNCTION ' || quote_ident(COALESCE(pn.nspname, 'public')) || '.' || quote_ident(p.proname) || '()')::text as field_type
+    FROM pg_trigger t
+    JOIN pg_class c ON t.tgrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    LEFT JOIN pg_proc p ON t.tgfoid = p.oid
+    LEFT JOIN pg_namespace pn ON p.pronamespace = pn.oid
+    WHERE n.nspname = 'public'
+      AND NOT t.tgisinternal  -- Exclude internal triggers
+    ORDER BY c.relname, t.tgname;
+END;
+$function$
+"
+"FUNCTION","public.get_user_changes(p_user_name text, p_table_name text DEFAULT NULL::text, p_limit integer DEFAULT 100)","CREATE OR REPLACE FUNCTION public.get_user_changes(p_user_name text, p_table_name text DEFAULT NULL::text, p_limit integer DEFAULT 100)
+ RETURNS TABLE(log_id bigint, table_name text, operation text, record_id text, user_id bigint, before_data jsonb, after_data jsonb, changed_fields text[], created_at timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    cl.log_id,
+    cl.table_name,
+    cl.operation,
+    cl.record_id,
+    cl.user_id,
+    cl.before_data,
+    cl.after_data,
+    cl.changed_fields,
+    cl.created_at
+  FROM change_log cl
+  INNER JOIN users u ON cl.user_id = u.user_id
+  WHERE u.user_name = p_user_name
+    AND (p_table_name IS NULL OR cl.table_name = p_table_name)
+  ORDER BY cl.created_at DESC
+  LIMIT p_limit;
+END;
+$function$
+"
+"FUNCTION","public.log_audit_entry(p_action_type audit_action_type, p_entity_type text, p_entity_id text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.log_audit_entry(p_action_type audit_action_type, p_entity_type text, p_entity_id text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_audit_id bigint;
+  v_user_id_fk bigint;
+  v_default_user_id bigint;
+BEGIN
+  -- Get or create user
+  IF p_user_id IS NOT NULL THEN
+    SELECT user_id INTO v_user_id_fk
+    FROM users
+    WHERE auth_user_id = p_user_id;
+    
+    IF v_user_id_fk IS NULL THEN
+      INSERT INTO users (auth_user_id, user_name, user_email)
+      VALUES (p_user_id, p_user_id, NULL)
+      ON CONFLICT (auth_user_id) DO UPDATE
+      SET updated_at = now()
+      RETURNING user_id INTO v_user_id_fk;
+    END IF;
+  ELSE
+    v_user_id_fk := get_or_create_user_from_auth();
+  END IF;
+  
+  -- If still no user, use default
+  IF v_user_id_fk IS NULL THEN
+    SELECT user_id INTO v_default_user_id
+    FROM users
+    WHERE user_name = 'default' AND auth_user_id IS NULL
+    LIMIT 1;
+    v_user_id_fk := v_default_user_id;
+  END IF;
+  
+  INSERT INTO audit (
+    user_id,
+    action_type,
+    entity_type,
+    entity_id,
+    before_data,
+    after_data,
+    description
+  ) VALUES (
+    v_user_id_fk,
+    p_action_type,
+    p_entity_type,
+    p_entity_id,
+    p_before_data,
+    p_after_data,
+    p_description
+  )
+  RETURNING action_id INTO v_audit_id;
+  
+  RETURN v_audit_id;
+END;
+$function$
+"
+"FUNCTION","public.log_audit_for_asset(p_asset_id bigint, p_operation text, p_user_id text DEFAULT NULL::text, p_action_type audit_action_type DEFAULT 'manual_update'::audit_action_type, p_copy_to_history boolean DEFAULT false, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.log_audit_for_asset(p_asset_id bigint, p_operation text, p_user_id text DEFAULT NULL::text, p_action_type audit_action_type DEFAULT 'manual_update'::audit_action_type, p_copy_to_history boolean DEFAULT false, p_description text DEFAULT NULL::text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_before_data jsonb;
+  v_after_data jsonb;
+  v_audit_id bigint;
+  v_old_asset jsonb;
+  v_building_number bigint;
+BEGIN
+  IF p_operation = 'DELETE' THEN
+    -- Get old asset before deletion (should have been copied to history already)
+    SELECT to_jsonb(ah.*) INTO v_old_asset
+    FROM assets_history ah
+    WHERE ah.asset_id = p_asset_id
+      AND ah.action_id IS NULL
+    ORDER BY COALESCE(ah.history_created_at, ah.created_at) DESC NULLS LAST
+    LIMIT 1;
+    
+    IF v_old_asset IS NOT NULL THEN
+      v_building_number := (v_old_asset->>'building_number')::bigint;
+      v_before_data := jsonb_build_object(
+        'asset', v_old_asset,
+        'building', get_building_audit_data(v_building_number)
+      );
+    END IF;
+    
+    v_after_data := jsonb_build_object(
+      'asset', NULL,
+      'building', get_building_audit_data(v_building_number)
+    );
+  ELSIF p_operation = 'UPDATE' THEN
+    -- For UPDATE, get before data from history if it was copied
+    IF p_copy_to_history THEN
+      SELECT to_jsonb(ah.*) INTO v_old_asset
+      FROM assets_history ah
+      WHERE ah.asset_id = p_asset_id
+        AND ah.action_id IS NULL
+      ORDER BY COALESCE(ah.history_created_at, ah.created_at) DESC NULLS LAST
+      LIMIT 1;
+      
+      IF v_old_asset IS NOT NULL THEN
+        v_building_number := (v_old_asset->>'building_number')::bigint;
+        v_before_data := jsonb_build_object(
+          'asset', v_old_asset,
+          'building', get_building_audit_data(v_building_number)
+        );
+      END IF;
+    ELSE
+      -- For regular UPDATE, before_data is not available
+      -- Get building number from current asset
+      SELECT building_number INTO v_building_number
+      FROM assets
+      WHERE asset_id = p_asset_id;
+      
+      IF v_building_number IS NOT NULL THEN
+        v_before_data := jsonb_build_object(
+          'asset', NULL,
+          'building', get_building_audit_data(v_building_number)
+        );
+      END IF;
+    END IF;
+    
+    -- Get after data
+    v_after_data := get_asset_audit_data(p_asset_id);
+  ELSIF p_operation = 'INSERT' THEN
+    -- Get after data
+    v_after_data := get_asset_audit_data(p_asset_id);
+    
+    -- Get building state for before_data (asset didn't exist before)
+    SELECT building_number INTO v_building_number
+    FROM assets
+    WHERE asset_id = p_asset_id;
+    
+    IF v_building_number IS NOT NULL THEN
+      v_before_data := jsonb_build_object(
+        'asset', NULL,
+        'building', get_building_audit_data(v_building_number)
+      );
+    END IF;
+  END IF;
+  
+  -- Log audit entry
+  SELECT log_audit_entry(
+    p_action_type,
+    'asset',
+    p_asset_id::text,
+    p_user_id,
+    v_before_data,
+    v_after_data,
+    p_description
+  ) INTO v_audit_id;
+  
+  -- Update asset's action_id if not DELETE
+  IF p_operation != 'DELETE' THEN
+    UPDATE assets
+    SET action_id = v_audit_id
+    WHERE asset_id = p_asset_id;
+  END IF;
+  
+  -- Update history entry's action_id if one exists (for DELETE or UPDATE with copy_to_history)
+  IF p_operation = 'DELETE' OR (p_operation = 'UPDATE' AND p_copy_to_history) THEN
+    -- Update the most recent history entry without action_id
+    -- Use a subquery in WHERE clause to identify the row
+    UPDATE assets_history
+    SET action_id = v_audit_id
+    WHERE asset_id = p_asset_id
+      AND action_id IS NULL
+      AND (building_number, measurement_date, COALESCE(history_created_at, created_at)) = (
+        SELECT building_number, measurement_date, COALESCE(history_created_at, created_at)
+        FROM assets_history
+        WHERE asset_id = p_asset_id
+          AND action_id IS NULL
+        ORDER BY COALESCE(history_created_at, created_at) DESC NULLS LAST
+        LIMIT 1
+      );
+  END IF;
+  
+  RETURN v_audit_id;
+END;
+$function$
+"
+"FUNCTION","public.log_audit_for_building(p_building_number bigint, p_operation text, p_user_id text DEFAULT NULL::text, p_action_type audit_action_type DEFAULT 'manual_update'::audit_action_type, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.log_audit_for_building(p_building_number bigint, p_operation text, p_user_id text DEFAULT NULL::text, p_action_type audit_action_type DEFAULT 'manual_update'::audit_action_type, p_description text DEFAULT NULL::text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_before_data jsonb;
+  v_after_data jsonb;
+  v_audit_id bigint;
+BEGIN
+  IF p_operation = 'INSERT' THEN
+    v_after_data := get_building_audit_data(p_building_number);
+    v_before_data := NULL;
+  ELSIF p_operation = 'UPDATE' THEN
+    -- Note: This should be called AFTER the update, so v_before_data won't be accurate
+    -- The calling code should pass before_data if needed
+    v_after_data := get_building_audit_data(p_building_number);
+    v_before_data := NULL; -- Will need to be passed in separately if needed
+  ELSIF p_operation = 'DELETE' THEN
+    v_before_data := NULL; -- Should be passed in before deletion
+    v_after_data := NULL;
+  END IF;
+  
+  SELECT log_audit_entry(
+    p_action_type,
+    'building',
+    p_building_number::text,
+    p_user_id,
+    v_before_data,
+    v_after_data,
+    p_description
+  ) INTO v_audit_id;
+  
+  -- Update building's action_id if not DELETE
+  IF p_operation != 'DELETE' THEN
+    UPDATE buildings
+    SET action_id = v_audit_id
+    WHERE building_number = p_building_number;
+  END IF;
+  
+  RETURN v_audit_id;
+END;
+$function$
+"
+"FUNCTION","public.log_bulk_change_entries(p_entries jsonb)","CREATE OR REPLACE FUNCTION public.log_bulk_change_entries(p_entries jsonb)
+ RETURNS bigint[]
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_log_ids bigint[];
+  v_entry jsonb;
+  v_log_id bigint;
+  v_user_id_fk bigint;
+  v_default_user_id bigint;
+BEGIN
+  v_log_ids := ARRAY[]::bigint[];
+  
+  -- Get default user_id
+  SELECT user_id INTO v_default_user_id
+  FROM users
+  WHERE user_name = 'default' AND auth_user_id IS NULL
+  LIMIT 1;
+  
+  -- Process each entry in the array
+  FOR v_entry IN SELECT * FROM jsonb_array_elements(p_entries)
+  LOOP
+    -- Get or create user for this entry
+    IF v_entry->>'user_id' IS NOT NULL THEN
+      SELECT user_id INTO v_user_id_fk
+      FROM users
+      WHERE auth_user_id = v_entry->>'user_id';
+      
+      IF v_user_id_fk IS NULL THEN
+        INSERT INTO users (auth_user_id, user_name, user_email)
+        VALUES (
+          v_entry->>'user_id',
+          COALESCE(v_entry->>'user_name', v_entry->>'user_email', 'default'),
+          NULLIF(v_entry->>'user_email', '')
+        )
+        ON CONFLICT (auth_user_id) DO UPDATE
+        SET user_name = COALESCE(EXCLUDED.user_name, users.user_name),
+            user_email = COALESCE(EXCLUDED.user_email, users.user_email),
+            updated_at = now()
+        RETURNING user_id INTO v_user_id_fk;
+      END IF;
+    ELSIF v_entry->>'user_email' IS NOT NULL THEN
+      SELECT user_id INTO v_user_id_fk
+      FROM users
+      WHERE user_email = v_entry->>'user_email'
+      LIMIT 1;
+      
+      IF v_user_id_fk IS NULL THEN
+        INSERT INTO users (user_name, user_email)
+        VALUES (
+          COALESCE(v_entry->>'user_name', v_entry->>'user_email'),
+          v_entry->>'user_email'
+        )
+        RETURNING user_id INTO v_user_id_fk;
+      END IF;
+    ELSE
+      v_user_id_fk := get_or_create_user_from_auth();
+      IF v_user_id_fk IS NULL THEN
+        v_user_id_fk := v_default_user_id;
+      END IF;
+    END IF;
+    
+    -- Insert change log entry
+    INSERT INTO change_log (
+      table_name,
+      operation,
+      record_id,
+      user_id_fk,
+      user_name,
+      user_email,
+      before_data,
+      after_data,
+      changed_fields
+    ) VALUES (
+      v_entry->>'table_name',
+      v_entry->>'operation',
+      v_entry->>'record_id',
+      v_user_id_fk,
+      COALESCE(v_entry->>'user_name', 'default'),
+      NULLIF(v_entry->>'user_email', ''),
+      CASE WHEN v_entry->'before_data' IS NOT NULL THEN v_entry->'before_data' ELSE NULL END,
+      CASE WHEN v_entry->'after_data' IS NOT NULL THEN v_entry->'after_data' ELSE NULL END,
+      CASE WHEN v_entry->'changed_fields' IS NOT NULL THEN ARRAY(SELECT jsonb_array_elements_text(v_entry->'changed_fields')) ELSE NULL END
+    )
+    RETURNING log_id INTO v_log_id;
+    
+    v_log_ids := array_append(v_log_ids, v_log_id);
+  END LOOP;
+  
+  RETURN v_log_ids;
+END;
+$function$
+"
+"FUNCTION","public.log_change_entry(p_table_name text, p_operation text, p_record_id text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_changed_fields text[] DEFAULT NULL::text[])","CREATE OR REPLACE FUNCTION public.log_change_entry(p_table_name text, p_operation text, p_record_id text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_changed_fields text[] DEFAULT NULL::text[])
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_log_id bigint;
+  v_user_id_fk bigint;
+  v_default_user_id bigint;
+BEGIN
+  -- Get or create user
+  IF p_user_id IS NOT NULL THEN
+    SELECT user_id INTO v_user_id_fk
+    FROM users
+    WHERE auth_user_id = p_user_id;
+    
+    IF v_user_id_fk IS NULL THEN
+      INSERT INTO users (auth_user_id, user_name, user_email)
+      VALUES (p_user_id, p_user_id, NULL)
+      ON CONFLICT (auth_user_id) DO UPDATE
+      SET updated_at = now()
+      RETURNING user_id INTO v_user_id_fk;
+    END IF;
+  ELSE
+    v_user_id_fk := get_or_create_user_from_auth();
+  END IF;
+  
+  -- If still no user, use default
+  IF v_user_id_fk IS NULL THEN
+    SELECT user_id INTO v_default_user_id
+    FROM users
+    WHERE user_name = 'default' AND auth_user_id IS NULL
+    LIMIT 1;
+    v_user_id_fk := v_default_user_id;
+  END IF;
+  
+  INSERT INTO change_log (
+    table_name,
+    operation,
+    record_id,
+    user_id,
+    before_data,
+    after_data,
+    changed_fields
+  ) VALUES (
+    p_table_name,
+    p_operation,
+    p_record_id,
+    v_user_id_fk,
+    p_before_data,
+    p_after_data,
+    p_changed_fields
+  )
+  RETURNING log_id INTO v_log_id;
+  
+  RETURN v_log_id;
+END;
+$function$
+"
+"FUNCTION","public.parse_measurement_date(date_str text)","CREATE OR REPLACE FUNCTION public.parse_measurement_date(date_str text)
+ RETURNS date
+ LANGUAGE plpgsql
+ IMMUTABLE
+AS $function$
+BEGIN
+  IF date_str ~ '^\d{2}/\d{2}/\d{4}$' THEN
+    RETURN TO_DATE(date_str, 'DD/MM/YYYY');
+  ELSE
+    RETURN '1900-01-01'::date;
+  END IF;
+END;
+$function$
+"
+"FUNCTION","public.reset_new_measurement_flag()","CREATE OR REPLACE FUNCTION public.reset_new_measurement_flag()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF TG_OP = 'UPDATE' AND COALESCE(NEW.is_new_measurement, false) = true THEN
+    -- Set session variable to indicate this is a new measurement
+    PERFORM set_config('app.is_new_measurement', 'true', false);
+    NEW.is_new_measurement = false;
+  ELSE
+    -- Clear the session variable
+    PERFORM set_config('app.is_new_measurement', 'false', false);
+  END IF;
+  RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.search_assets_by_range(from_id bigint, to_id bigint)","CREATE OR REPLACE FUNCTION public.search_assets_by_range(from_id bigint, to_id bigint)
+ RETURNS TABLE(building_number bigint, asset_id bigint, payer_id text, main_asset_type text, asset_size numeric, sub_asset_type_1 text, sub_asset_size_1 numeric, sub_asset_type_2 text, sub_asset_size_2 numeric, sub_asset_type_3 text, sub_asset_size_3 numeric, sub_asset_type_4 text, sub_asset_size_4 numeric, sub_asset_type_5 text, sub_asset_size_5 numeric, sub_asset_type_6 text, sub_asset_size_6 numeric, measurement_date text, created_at timestamp with time zone, updated_at timestamp with time zone)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    a.building_number,
+    a.asset_id,
+    a.payer_id,
+    a.main_asset_type,
+    a.asset_size,
+    a.sub_asset_type_1,
+    a.sub_asset_size_1,
+    a.sub_asset_type_2,
+    a.sub_asset_size_2,
+    a.sub_asset_type_3,
+    a.sub_asset_size_3,
+    a.sub_asset_type_4,
+    a.sub_asset_size_4,
+    a.sub_asset_type_5,
+    a.sub_asset_size_5,
+    a.sub_asset_type_6,
+    a.sub_asset_size_6,
+    a.measurement_date,
+    a.created_at,
+    a.updated_at
+  FROM assets a
+  WHERE 
+    a.asset_id >= from_id AND
+    a.asset_id <= to_id
+  ORDER BY a.asset_id;
+END;
+$function$
+"
+"FUNCTION","public.soft_delete_building(p_building_number bigint)","CREATE OR REPLACE FUNCTION public.soft_delete_building(p_building_number bigint)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+-- Mark all assets as deleted
+UPDATE assets
+SET deleted_at = now()
+WHERE building_number = p_building_number
+AND deleted_at IS NULL;
+
+-- Mark building as deleted
+UPDATE buildings
+SET deleted_at = now()
+WHERE building_number = p_building_number
+AND deleted_at IS NULL;
+END;
+$function$
+"
+"FUNCTION","public.update_asset_types_updated_at()","CREATE OR REPLACE FUNCTION public.update_asset_types_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.update_building_total_area(p_building_number bigint)","CREATE OR REPLACE FUNCTION public.update_building_total_area(p_building_number bigint)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  UPDATE buildings
+  SET total_building_area = COALESCE((
+    SELECT SUM(a.asset_size)
+    FROM (
+      SELECT DISTINCT ON (asset_id)
+        asset_id,
+        asset_size,
+        main_asset_type
+      FROM assets
+      WHERE building_number = p_building_number
+      ORDER BY asset_id, updated_at DESC
+    ) a
+    WHERE (
+      a.main_asset_type IS NULL 
+      OR EXISTS (
+        SELECT 1 
+        FROM asset_types at 
+        WHERE at.name = a.main_asset_type 
+          AND at.active = 'כן'
+          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+      )
+    )
+  ), 0)
+  WHERE building_number = p_building_number;
+END;
+$function$
+"
+"FUNCTION","public.update_field_configurations_updated_at()","CREATE OR REPLACE FUNCTION public.update_field_configurations_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.update_unit_types_updated_at()","CREATE OR REPLACE FUNCTION public.update_unit_types_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+NEW.updated_at = now();
+RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.update_updated_at_column()","CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.update_user_preferences_updated_at()","CREATE OR REPLACE FUNCTION public.update_user_preferences_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$function$
+"
+"FUNCTION","public.update_validation_rules_updated_at()","CREATE OR REPLACE FUNCTION public.update_validation_rules_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+NEW.updated_at = now();
+RETURN NEW;
+END;
+$function$
+"
+"TRIGGER","public.asset_type_fields.update_asset_type_fields_updated_at","CREATE TRIGGER update_asset_type_fields_updated_at BEFORE ON public.asset_type_fields FOR EACH STATEMENT EXECUTE FUNCTION public.update_updated_at_column()"
+"TRIGGER","public.asset_types.update_asset_types_updated_at","CREATE TRIGGER update_asset_types_updated_at BEFORE ON public.asset_types FOR EACH STATEMENT EXECUTE FUNCTION public.update_updated_at_column()"
+"TRIGGER","public.field_configurations.trigger_update_field_configurations_updated_at","CREATE TRIGGER trigger_update_field_configurations_updated_at BEFORE ON public.field_configurations FOR EACH STATEMENT EXECUTE FUNCTION public.update_field_configurations_updated_at()"
+"TRIGGER","public.validation_rules.validation_rules_updated_at","CREATE TRIGGER validation_rules_updated_at BEFORE ON public.validation_rules FOR EACH STATEMENT EXECUTE FUNCTION public.update_validation_rules_updated_at()"

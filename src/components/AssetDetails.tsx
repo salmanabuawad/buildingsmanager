@@ -4255,6 +4255,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                                   ({overloadRatio.toFixed(2)}%)
                                 </span>
                               )}
+                              <span className="text-[10px] text-gray-500 font-normal">
+                                [ID: {dateTab.actionId}]
+                              </span>
                             </button>
                           );
                         })}

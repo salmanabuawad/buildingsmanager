@@ -1930,7 +1930,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return;
       }
 
-      // Sum all business accountable assets' main size
+      // Sum all business accountable assets' main size (reducing existing business_distribution_area)
       let totalMainSize = 0;
       for (const asset of businessAssets) {
         const assetId = String(asset.asset_id);
@@ -1938,7 +1938,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const currentAssetSize = existingChanges.asset_size !== undefined
           ? existingChanges.asset_size
           : (asset.asset_size || 0);
-        totalMainSize += currentAssetSize;
+        // Get current business_distribution_area (check existing changes first, then current asset)
+        const currentDistributionArea = existingChanges.business_distribution_area !== undefined
+          ? existingChanges.business_distribution_area
+          : (asset.business_distribution_area || 0);
+        // Subtract existing business_distribution_area from asset size before calculation
+        const baseAssetSize = currentAssetSize - currentDistributionArea;
+        totalMainSize += baseAssetSize;
       }
 
       if (totalMainSize <= 0) {
@@ -1995,26 +2001,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Get current distribution_area (check existing changes first, then current asset)
-        const currentDistributionArea = existingChanges.distribution_area !== undefined
-          ? existingChanges.distribution_area
-          : (currentAsset?.distribution_area || 0);
+        // Get current business_distribution_area (check existing changes first, then current asset)
+        const currentDistributionArea = existingChanges.business_distribution_area !== undefined
+          ? existingChanges.business_distribution_area
+          : (currentAsset?.business_distribution_area || 0);
 
-        // Calculate what the new total distribution_area should be
-        const newDistributionArea = overloadRatio * currentAssetSize;
+        // Calculate base asset size (reducing existing business_distribution_area)
+        const baseAssetSize = currentAssetSize - currentDistributionArea;
 
-        // If distribution_area is not zero, calculate delta; otherwise use full new distribution
+        // Calculate what the new total business_distribution_area should be based on base asset size
+        const newDistributionArea = overloadRatio * baseAssetSize;
+
+        // If business_distribution_area is not zero, calculate delta; otherwise use full new distribution
         let areaToAdd: number;
         if (currentDistributionArea && currentDistributionArea !== 0) {
-          // Calculate delta: new_distribution_area - current_distribution_area
+          // Calculate delta: new_business_distribution_area - current_business_distribution_area
           areaToAdd = newDistributionArea - currentDistributionArea;
         } else {
           // First time distribution, use full amount
           areaToAdd = newDistributionArea;
         }
 
-        // Update distribution_area by adding the delta to the current value
-        changes.distribution_area = (currentDistributionArea || 0) + areaToAdd;
+        // Update business_distribution_area by adding the delta to the current value
+        changes.business_distribution_area = (currentDistributionArea || 0) + areaToAdd;
 
         if (String(currentMainType) === '299') {
           // Case: main type is 299

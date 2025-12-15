@@ -252,7 +252,7 @@ export interface Asset {
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
   action_id?: number; // References the audit entry that caused this record to be created or updated
-  distribution_area?: number; // Area distributed to this asset from shared area distribution
+  business_distribution_area?: number; // Area distributed to this asset from business shared area distribution
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
 }
 
@@ -407,7 +407,7 @@ export function sanitizeAssetInput(input: any): any {
     discount_type: input.discount_type != null ? sanitizeText(input.discount_type) : undefined,
     discount_date_from: input.discount_date_from != null ? sanitizeDate(input.discount_date_from) : undefined,
     discount_date_to: input.discount_date_to != null ? sanitizeDate(input.discount_date_to) : undefined,
-    distribution_area: input.distribution_area != null ? sanitizeNumber(input.distribution_area) : undefined,
+    business_distribution_area: input.business_distribution_area != null ? sanitizeNumber(input.business_distribution_area) : undefined,
     exported_to_automation: input.exported_to_automation != null ? (input.exported_to_automation === true || input.exported_to_automation === 'true') : undefined,
   };
   
@@ -2616,6 +2616,7 @@ export const api = {
           sub_asset_size_4: sanitized.sub_asset_size_4 || 0,
           sub_asset_size_5: sanitized.sub_asset_size_5 || 0,
           sub_asset_size_6: sanitized.sub_asset_size_6 || 0,
+          business_distribution_area: sanitized.business_distribution_area != null ? sanitized.business_distribution_area : undefined,
         };
       });
       

@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS assets (
   discount_date_to text,
   is_new_measurement boolean DEFAULT false,
   action_id bigint,
-  distribution_area numeric,
+  business_distribution_area numeric,
   exported_to_automation boolean DEFAULT false
 );
 
@@ -423,7 +423,7 @@ CREATE TABLE IF NOT EXISTS assets_history (
   discount_date_to text,
   history_created_at timestamptz DEFAULT now(),
   action_id bigint,
-  distribution_area numeric,
+  business_distribution_area numeric,
   exported_to_automation boolean DEFAULT false
 );
 
@@ -931,9 +931,9 @@ FOREIGN KEY (action_id) REFERENCES audit(action_id);
 CREATE INDEX IF NOT EXISTS idx_assets_history_action_id ON assets_history(action_id);
 
 COMMENT ON COLUMN assets_history.action_id IS 'References the audit entry that caused this history record to be created';
-COMMENT ON COLUMN assets.distribution_area IS 'Area distributed to this asset from shared area distribution';
+COMMENT ON COLUMN assets.business_distribution_area IS 'Area distributed to this asset from business shared area distribution';
 COMMENT ON COLUMN assets.exported_to_automation IS 'Flag indicating if this asset has been exported to automation system (default: false)';
-COMMENT ON COLUMN assets_history.distribution_area IS 'Area distributed to this asset from shared area distribution (historical record)';
+COMMENT ON COLUMN assets_history.business_distribution_area IS 'Area distributed to this asset from business shared area distribution (historical record)';
 COMMENT ON COLUMN assets_history.exported_to_automation IS 'Flag indicating if this asset has been exported to automation system (historical record)';
 
 -- ============================================================================

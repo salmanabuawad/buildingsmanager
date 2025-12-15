@@ -4268,13 +4268,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                             >
                               {dateTab.formattedDateTime}
                               {activeHistoryTab === 'distribution' && overloadRatio != null && !isNaN(overloadRatio) && (
-                                <span className="text-[10px] text-gray-500 font-normal">
+                                <span className="text-xs text-gray-500 font-bold">
                                   ({overloadRatio.toFixed(2)}%)
                                 </span>
                               )}
-                              <span className="text-[10px] text-gray-500 font-normal">
-                                [ID: {dateTab.actionId}]
-                              </span>
                             </button>
                           );
                         })}

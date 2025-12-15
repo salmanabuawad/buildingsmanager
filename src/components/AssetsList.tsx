@@ -1995,30 +1995,50 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
+        // Get current distribution_area (check existing changes first, then current asset)
+        const currentDistributionArea = existingChanges.distribution_area !== undefined
+          ? existingChanges.distribution_area
+          : (currentAsset?.distribution_area || 0);
+
+        // Calculate what the new total distribution_area should be
+        const newDistributionArea = overloadRatio * currentAssetSize;
+
+        // If distribution_area is not zero, calculate delta; otherwise use full new distribution
+        let areaToAdd: number;
+        if (currentDistributionArea && currentDistributionArea !== 0) {
+          // Calculate delta: new_distribution_area - current_distribution_area
+          areaToAdd = newDistributionArea - currentDistributionArea;
+        } else {
+          // First time distribution, use full amount
+          areaToAdd = newDistributionArea;
+        }
+
+        // Update distribution_area by adding the delta to the current value
+        changes.distribution_area = (currentDistributionArea || 0) + areaToAdd;
+
         if (String(currentMainType) === '299') {
           // Case: main type is 299
-          // Update sub_asset_size_1 = (overload_ratio * main asset size) + sub_asset_size_1
+          // Update sub_asset_size_1 = current + areaToAdd (delta if re-distributing, or full if first time)
           const currentSubSize1 = existingChanges.sub_asset_size_1 !== undefined
             ? existingChanges.sub_asset_size_1
             : (currentAsset?.sub_asset_size_1 || 0);
           
-          const additionalArea = overloadRatio * currentAssetSize;
-          changes.sub_asset_size_1 = (currentSubSize1 || 0) + additionalArea;
+          changes.sub_asset_size_1 = (currentSubSize1 || 0) + areaToAdd;
 
           // Update main size = sum of all subtypes
           let totalSubAssetSize = changes.sub_asset_size_1 || 0;
           for (let i = 2; i <= 6; i++) {
             const sizeKey = `sub_asset_size_${i}` as keyof Asset;
             const currentSubSize = existingChanges[sizeKey] !== undefined
-              ? existingChanges[sizeKey]
+              ? (existingChanges[sizeKey] as number | undefined)
               : (currentAsset?.[sizeKey] as number | undefined);
-            totalSubAssetSize += (currentSubSize || 0);
+            totalSubAssetSize += (typeof currentSubSize === 'number' ? currentSubSize : 0);
           }
           changes.asset_size = totalSubAssetSize;
         } else {
           // Case: main type is NOT 299
-          // Update main size = main size * (1 + overload_ratio)
-          changes.asset_size = currentAssetSize * (1 + overloadRatio);
+          // Update main size = current size + areaToAdd (delta if re-distributing, or full if first time)
+          changes.asset_size = currentAssetSize + areaToAdd;
         }
 
         updatedDirtyAssets.set(assetId, changes);

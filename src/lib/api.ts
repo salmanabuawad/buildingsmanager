@@ -2020,30 +2020,47 @@ export const api = {
         
         if (nonAccountableForDistributionChanged) {
           try {
-            // Find all buildings that have assets with this asset type (only main_asset_type)
-            const { data: affectedAssets, error: assetsError } = await supabase
-              .from('assets')
-              .select('building_number')
-              .eq('main_asset_type', beforeData.name)
-              .not('building_number', 'is', null);
+            // Check if this asset type is a business type
+            const isBusinessType = data.business_residence === 'עסקים';
             
-            if (!assetsError && affectedAssets && affectedAssets.length > 0) {
-              // Get unique building numbers
-              const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
+            // Only reset flags if this is a business asset type
+            if (isBusinessType) {
+              // Find all buildings that have assets with this asset type (only main_asset_type)
+              const { data: affectedAssets, error: assetsError } = await supabase
+                .from('assets')
+                .select('building_number')
+                .eq('main_asset_type', beforeData.name)
+                .not('building_number', 'is', null);
               
-              // Reset business_shared_area_distributed flag for all affected buildings
-              // Always reset to false when non_accountable_for_distribution changes, regardless of current value
-              // This ensures the distribution alert appears and distribution can be recalculated
-              const { error: updateError } = await supabase
-                .from('buildings')
-                .update({ business_shared_area_distributed: false })
-                .in('building_number', buildingNumbers);
-              
-              if (updateError) {
-                console.warn('[api.assetTypes.update] Failed to reset distribution flags:', updateError);
-              } else if (buildingNumbers.length > 0) {
-                console.log(`[api.assetTypes.update] Reset business distribution flags for ${buildingNumbers.length} building(s) due to non_accountable_for_distribution change`);
+              if (assetsError) {
+                console.warn('[api.assetTypes.update] Error finding affected assets:', assetsError);
+              } else if (affectedAssets && affectedAssets.length > 0) {
+                // Get unique building numbers
+                const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
+                
+                console.log(`[api.assetTypes.update] Found ${affectedAssets.length} assets with type ${beforeData.name} in ${buildingNumbers.length} building(s)`);
+                
+                // Reset business_shared_area_distributed flag for all affected buildings
+                // Always reset to false when non_accountable_for_distribution changes, regardless of current value
+                // This ensures the distribution alert appears and distribution can be recalculated
+                const { data: updatedBuildings, error: updateError } = await supabase
+                  .from('buildings')
+                  .update({ business_shared_area_distributed: false })
+                  .in('building_number', buildingNumbers)
+                  .select('building_number');
+                
+                if (updateError) {
+                  console.warn('[api.assetTypes.update] Failed to reset distribution flags:', updateError);
+                } else if (updatedBuildings && updatedBuildings.length > 0) {
+                  console.log(`[api.assetTypes.update] Reset business distribution flags for ${updatedBuildings.length} building(s):`, updatedBuildings.map(b => b.building_number));
+                } else if (buildingNumbers.length > 0) {
+                  console.warn(`[api.assetTypes.update] No buildings were updated. Expected ${buildingNumbers.length} buildings.`);
+                }
+              } else {
+                console.log(`[api.assetTypes.update] No assets found with type ${beforeData.name}, no flags to reset`);
               }
+            } else {
+              console.log(`[api.assetTypes.update] Asset type ${beforeData.name} is not a business type, skipping flag reset`);
             }
           } catch (err) {
             console.warn('[api.assetTypes.update] Error resetting distribution flags:', err);

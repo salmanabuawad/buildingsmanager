@@ -88,6 +88,7 @@ export function AssetDataEntry() {
     return true; // All fields are editable by default in AssetDataEntry
   }, [isAssetRowNotAccountable]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
+  const [deletedRows, setDeletedRows] = useState<Set<string>>(new Set()); // Track rows marked for deletion
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -316,12 +317,30 @@ export function AssetDataEntry() {
     setError(null);
     setSuccess(null);
     try {
-      const newRows = rowData.filter(row => row._isNew);
-      const dirtyRows = rowData.filter(row => row._isDirty && !row._isNew && row._dbId);
-      if (newRows.length === 0 && dirtyRows.length === 0) {
+      const newRows = rowData.filter(row => row._isNew && !deletedRows.has(row.id));
+      const dirtyRows = rowData.filter(row => row._isDirty && !row._isNew && row._dbId && !deletedRows.has(row.id));
+      const rowsToDelete = rowData.filter(row => deletedRows.has(row.id) && row._dbId && !row._isNew);
+      
+      if (newRows.length === 0 && dirtyRows.length === 0 && rowsToDelete.length === 0) {
         showToast('אין שינויים לשמור. כל הנתונים מעודכנים.', 'info');
         setLoading(false);
         return;
+      }
+      
+      let deletedCount = 0;
+      const deletionErrors: string[] = [];
+      
+      // Process deletions first
+      for (const row of rowsToDelete) {
+        try {
+          if (row._dbId) {
+            await api.assets.delete(row._dbId);
+            deletedCount++;
+          }
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'שגיאה במחיקה';
+          deletionErrors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${errorMsg}`);
+        }
       }
       const rowsWithErrors = rowData.filter(row =>
         (row._isNew || row._isDirty) &&
@@ -663,22 +682,35 @@ export function AssetDataEntry() {
       if (gridRef.current) {
         gridRef.current.api.refreshCells({ force: true });
       }
-      if (errors.length > 0) {
-        const errorDetails = errors.join('\n');
-        if (savedCount > 0) {
+      
+      // Combine all errors
+      const allErrors = [...errors, ...deletionErrors];
+      
+      if (allErrors.length > 0) {
+        const errorDetails = allErrors.join('\n');
+        if (savedCount > 0 || deletedCount > 0) {
           const savedList = savedAssets.join('\n');
-          showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
-          showToast(`${errors.length} נכשלו:\n${errorDetails}`, 'error');
+          const deleteMsg = deletedCount > 0 ? `\nנמחקו ${deletedCount} נכסים` : '';
+          showToast(`פעולה הסתיימה בהצלחה:\n${savedList}${deleteMsg}`, 'success');
+          showToast(`${allErrors.length} נכשלו:\n${errorDetails}`, 'error');
         } else {
-          showToast(`כל השמירות נכשלו:\n${errorDetails}`, 'error');
+          showToast(`כל הפעולות נכשלו:\n${errorDetails}`, 'error');
         }
       } else {
         const savedList = savedAssets.join('\n');
-        showToast(`פעולה הסתיימה בהצלחה:\n${savedList}`, 'success');
+        const deleteMsg = deletedCount > 0 ? `\nנמחקו ${deletedCount} נכסים` : '';
+        showToast(`פעולה הסתיימה בהצלחה:\n${savedList}${deleteMsg}`, 'success');
       }
-      // Update rowData: remove unsaved new rows and update originalRowData after successful save
-      const updatedRowData = rowData.filter(row => !row._isNew || !row.building_number || !row.asset_id);
+      
+      // Update rowData: remove unsaved new rows, deleted rows, and update originalRowData after successful save
+      const updatedRowData = rowData.filter(row => 
+        (!row._isNew || !row.building_number || !row.asset_id) && 
+        !deletedRows.has(row.id)
+      );
       setRowData(updatedRowData);
+      
+      // Clear deleted rows after successful save
+      setDeletedRows(new Set());
       
       // Update originalRowData after successful save (store clean state)
       const cleanRowData = updatedRowData.map(r => ({
@@ -895,9 +927,10 @@ export function AssetDataEntry() {
       setLoading(false);
     }
   }, [rowData, showToast]);
-  const handleDeleteRow = useCallback(async (rowId: string) => {
+  const handleDeleteRow = useCallback((rowId: string) => {
     const row = rowData.find(r => r.id === rowId);
     if (!row) return;
+    
     // If this is a new row (not saved to DB), just remove it from the grid
     if (row._isNew) {
       setRowData(prev => {
@@ -906,30 +939,26 @@ export function AssetDataEntry() {
       });
       return;
     }
-    // For existing DB rows, ask for confirmation
-    const confirmed = window.confirm(
-      `האם אתה בטוח שברצונך למחוק נכס ${row.asset_id} במבנה ${row.building_number}?\nפעולה זו תמחק את הנכס מהמסד נתונים ולא ניתן לבטלה.`
-    );
-    if (!confirmed) return;
-    try {
-      setLoading(true);
-      // Delete from database using _dbId
-      if (row._dbId) {
-        await api.assets.delete(row._dbId);
-        showToast('הנכס נמחק בהצלחה', 'success');
-        // Remove from grid
-        setRowData(prev => {
-          const filtered = prev.filter(r => r.id !== rowId);
-          return filtered.length > 0 ? filtered : [createEmptyRow()];
-        });
+    
+    // For existing DB rows, mark for deletion (don't delete immediately)
+    // Deletion will happen when user clicks Save
+    setDeletedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        // If already marked, unmark it (toggle)
+        next.delete(rowId);
+      } else {
+        // Mark for deletion
+        next.add(rowId);
       }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'שגיאה במחיקת נכס';
-      showToast(`שגיאה במחיקה: ${errorMsg}`, 'error');
-    } finally {
-      setLoading(false);
+      return next;
+    });
+    
+    // Visual feedback - row will be styled as deleted
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
     }
-  }, [rowData, showToast]);
+  }, [rowData]);
   const getCellStyle = (params: any, fieldName: string, isRequired: boolean = false) => {
     const row = params.data as AssetRow;
     const isDirty = row._dirtyFields?.has(fieldName);
@@ -1608,6 +1637,17 @@ export function AssetDataEntry() {
             ref={gridRef}
             rowData={filteredRowData}
             columnDefs={columnDefs}
+            getRowStyle={(params) => {
+              // Style deleted rows with strikethrough and gray background
+              if (params.data && deletedRows.has(params.data.id)) {
+                return { 
+                  backgroundColor: '#fee2e2', 
+                  textDecoration: 'line-through',
+                  opacity: 0.7 
+                };
+              }
+              return null;
+            }}
             defaultColDef={{
               resizable: true,
               wrapHeaderText: true,

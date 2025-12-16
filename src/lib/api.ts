@@ -822,22 +822,10 @@ export const api = {
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
       
-      // Reset distribution flags when shared areas change
-      // Set the relevant flag (business or residence) based on which shared area changed
-      if (beforeData) {
-        // If residence_shared_area is being changed, set need_residence_distribution to true
-        if ('residence_shared_area' in cleanedInput && 
-            cleanedInput.residence_shared_area !== beforeData.residence_shared_area) {
-          cleanedInput.need_residence_distribution = true;
-          console.log(`[api.buildings.update] Setting need_residence_distribution=true for building ${buildingNumber} (residence_shared_area changed from ${beforeData.residence_shared_area} to ${cleanedInput.residence_shared_area})`);
-        }
-        // If business_shared_area is being changed, set need_business_distribution to true
-        if ('business_shared_area' in cleanedInput && 
-            cleanedInput.business_shared_area !== beforeData.business_shared_area) {
-          cleanedInput.need_business_distribution = true;
-          console.log(`[api.buildings.update] Setting need_business_distribution=true for building ${buildingNumber} (business_shared_area changed from ${beforeData.business_shared_area} to ${cleanedInput.business_shared_area})`);
-        }
-      }
+      // NOTE: Distribution flags for shared areas should be set by transactional functions
+      // when assets are saved/updated, not when building shared areas are updated directly
+      // Flags are part of asset save transactions and cannot be set separately
+      // If shared areas change, flags will be set when assets are next saved via transactional functions
       
       // Remove read-only fields that shouldn't be updated directly
       delete (cleanedInput as any).action_id;
@@ -1669,22 +1657,9 @@ export const api = {
                   // - If changing FROM a type with non_accountable_for_distribution = true, use the NEW type's business_residence
                   const typeToUse = newIsNonAccountableForDistribution ? newTypeData : (newTypeData || oldTypeData);
                   
-                  if (typeToUse) {
-                    const isBusiness = typeToUse.business_residence === 'עסקים';
-                    const isResidence = typeToUse.business_residence === 'מגורים';
-                    
-                    if (isBusiness) {
-                      await api.buildings.markBusinessDistributionNeeded(newAsset.building_number);
-                      console.log(`[api.assets.create] ✓ Set need_business_distribution flag for building ${newAsset.building_number} (changing ${oldIsNonAccountableForDistribution && !newIsNonAccountableForDistribution ? 'FROM' : 'TO'} type with non_accountable_for_distribution=true, business)`);
-                    } else if (isResidence) {
-                      await api.buildings.markResidenceDistributionNeeded(newAsset.building_number);
-                      console.log(`[api.assets.create] ✓ Set need_residence_distribution flag for building ${newAsset.building_number} (changing ${oldIsNonAccountableForDistribution && !newIsNonAccountableForDistribution ? 'FROM' : 'TO'} type with non_accountable_for_distribution=true, residence)`);
-                    } else {
-                      await api.buildings.markBusinessDistributionNeeded(newAsset.building_number);
-                      await api.buildings.markResidenceDistributionNeeded(newAsset.building_number);
-                      console.log(`[api.assets.create] ✓ Set both distribution flags for building ${newAsset.building_number} (changing ${oldIsNonAccountableForDistribution && !newIsNonAccountableForDistribution ? 'FROM' : 'TO'} type with non_accountable_for_distribution=true, unknown)`);
-                    }
-                  }
+                  // NOTE: Distribution flags are set by save_asset_transactional function, not here
+                  // Flags are part of the save transaction and cannot be set separately
+                  console.log(`[api.assets.create] Distribution flags will be set by save_asset_transactional for building ${newAsset.building_number}`);
                 }
               } catch (err) {
                 console.error('[api.assets.create] Failed to check non_accountable_for_distribution (NOT non_accountable_for_total_area) during replacement:', err);
@@ -2234,25 +2209,10 @@ export const api = {
             const isBusiness = data.business_residence === 'עסקים';
             const isResidence = data.business_residence === 'מגורים';
             
-            for (const buildingNumber of buildingNumbers) {
-              try {
-                // Set flag based on business_residence type
-                if (isBusiness) {
-                  await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-                  console.log(`[api.assetTypes.create] Set need_business_distribution flag for building ${buildingNumber} (business type)`);
-                } else if (isResidence) {
-                  await api.buildings.markResidenceDistributionNeeded(buildingNumber);
-                  console.log(`[api.assetTypes.create] Set need_residence_distribution flag for building ${buildingNumber} (residence type)`);
-                } else {
-                  // Unknown type: set both flags to be safe
-                  await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-                  await api.buildings.markResidenceDistributionNeeded(buildingNumber);
-                  console.log(`[api.assetTypes.create] Set both flags for building ${buildingNumber} (unknown type)`);
-                }
-              } catch (err) {
-                console.error(`[api.assetTypes.create] Failed to mark building ${buildingNumber}:`, err);
-              }
-            }
+            // NOTE: Distribution flags should be set when assets using this type are saved/updated
+            // via transactional save functions, not when asset types are created/updated
+            // Flags are part of asset save transactions and cannot be set separately
+            console.log(`[api.assetTypes.create] Distribution flags will be set by transactional save functions when assets using this type are saved`);
           } else {
             console.log('[api.assetTypes.create] No affected buildings found for asset type:', data.name);
           }
@@ -2387,25 +2347,10 @@ export const api = {
                   const isBusiness = beforeData.business_residence === 'עסקים';
                   const isResidence = beforeData.business_residence === 'מגורים';
                   
-                  for (const buildingNumber of buildingNumbers) {
-                    try {
-                      // Set flag based on business_residence type
-                      if (isBusiness) {
-                        await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-                        console.log(`[api.assetTypes.update] Set need_business_distribution flag for building ${buildingNumber} (business type)`);
-                      } else if (isResidence) {
-                        await api.buildings.markResidenceDistributionNeeded(buildingNumber);
-                        console.log(`[api.assetTypes.update] Set need_residence_distribution flag for building ${buildingNumber} (residence type)`);
-                      } else {
-                        // Unknown type: set both flags to be safe
-                        await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-                        await api.buildings.markResidenceDistributionNeeded(buildingNumber);
-                        console.log(`[api.assetTypes.update] Set both flags for building ${buildingNumber} (unknown type)`);
-                      }
-                    } catch (err) {
-                      console.error(`[api.assetTypes.update] Failed to mark building ${buildingNumber}:`, err);
-                    }
-                  }
+                  // NOTE: Distribution flags should be set when assets using this type are saved/updated
+                  // via transactional save functions, not when asset types are created/updated
+                  // Flags are part of asset save transactions and cannot be set separately
+                  console.log(`[api.assetTypes.update] Distribution flags will be set by transactional save functions when assets using this type are saved`);
                 } else {
                   console.log('[api.assetTypes.update] No affected buildings found for asset type:', beforeData.name);
                 }

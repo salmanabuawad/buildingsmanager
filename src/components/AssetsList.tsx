@@ -1606,10 +1606,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         
         // NOTE: Distribution flag removal is handled by save_assets_bulk_transactional
         // as part of the transaction. Flag is only removed after successful save.
-        // Refresh building data to get updated flag status
+        // Refresh building data to get updated flag status (only if building number matches)
         try {
           const updatedBuilding = await api.buildings.getOne(building.building_number);
-          setBuilding(updatedBuilding);
+          // Only update if we're still viewing the same building to prevent reload loops
+          if (updatedBuilding.building_number === buildingNumber) {
+            setBuilding(updatedBuilding);
+          }
         } catch (refreshError) {
           console.warn('Failed to refresh building data after distribution:', refreshError);
         }
@@ -1787,14 +1790,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         });
         // Update local building state with the returned data from the server
         // This ensures the building state includes the updated overload_ratio
-        if (setBuilding) {
+        // Only update if we're still viewing the same building
+        if (updatedBuilding.building_number === buildingNumber) {
           setBuilding(updatedBuilding);
         }
         console.log('Overload ratio updated successfully:', overloadRatioPercentage);
       } catch (err) {
         console.error('Failed to save overload ratio to building:', err);
         // Update local state anyway so UI shows the calculated value
-        if (setBuilding) {
+        // Only update if we're still viewing the same building
+        if (building.building_number === buildingNumber) {
           setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
         }
         // Log warning but don't show error to user - distribution still succeeded
@@ -1955,10 +1960,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         
         // NOTE: Distribution flag removal is handled by save_assets_bulk_transactional
         // as part of the transaction. Flag is only removed after successful save.
-        // Refresh building data to get updated flag status
+        // Refresh building data to get updated flag status (only if building number matches)
         try {
           const updatedBuilding = await api.buildings.getOne(building.building_number);
-          setBuilding(updatedBuilding);
+          // Only update if we're still viewing the same building to prevent reload loops
+          if (updatedBuilding.building_number === buildingNumber) {
+            setBuilding(updatedBuilding);
+          }
         } catch (refreshError) {
           console.warn('Failed to refresh building data after distribution:', refreshError);
         }

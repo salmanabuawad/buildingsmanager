@@ -1443,6 +1443,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
       let residentialFoundCount = 0;
+      let nonAccountableForDistributionCount = 0;
       
       const residentialAssets = assets.filter((asset, index) => {
         const debugInfo: any = {
@@ -1514,6 +1515,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
+        // Exclude assets with non_accountable_for_distribution = true
+        if (assetType.non_accountable_for_distribution === true) {
+          nonAccountableForDistributionCount++;
+          debugInfo.reason = 'non_accountable_for_distribution';
+          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
+          return false;
+        }
+        
         debugInfo.assetTypeName = assetType.name;
         debugInfo.assetTypeId = assetType.id;
         debugInfo.assetTypeKeys = Object.keys(assetType);
@@ -1537,6 +1546,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         notAccountableCount,
         noMainTypeCount,
         assetTypeNotFoundCount,
+        nonAccountableForDistributionCount,
         finalResidentialAssets: residentialAssets.length
       });
 
@@ -1547,8 +1557,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
+        if (nonAccountableForDistributionCount > 0) reasons.push(`${nonAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount;
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + nonAccountableForDistributionCount;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';
@@ -2173,7 +2184,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         'סוג נכס משנה 5',
         'גודל נכס משנה 5',
         'סוג נכס משנה 6',
-        'גודל נכס משנה 6'
+        'גודל נכס משנה 6',
+        'שטח פיזור עסקים'  // business_distribution_area
       ];
 
       // Convert assets to rows
@@ -2201,7 +2213,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         asset.sub_asset_type_5 || '',
         asset.sub_asset_size_5 || '',
         asset.sub_asset_type_6 || '',
-        asset.sub_asset_size_6 || ''
+        asset.sub_asset_size_6 || '',
+        asset.business_distribution_area || ''
       ]);
 
       // Create data array with headers and rows

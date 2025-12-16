@@ -55,7 +55,7 @@ export async function refreshAssetTypesCache(): Promise<void> {
     // Explicitly select all fields including business_residence
     const { data, error } = await supabase
       .from('asset_types')
-      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, non_accountable_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
+      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
       .order('name');
 
     if (error) {
@@ -1053,7 +1053,7 @@ export async function validateAssetTypeComplete(
     // If the main asset type has not_accountable = true, skip all remaining validations
     // This check happens AFTER we've verified the asset type exists and is valid for the tax region
     if (!isSubAsset && assetTypes.length > 0) {
-      const hasNotAccountable = assetTypes.some(at => at.non_accountable_total_area === true);
+      const hasNotAccountable = assetTypes.some(at => at.non_accountable_for_total_area === true);
       if (hasNotAccountable) {
         // Asset type exists, is valid for tax region, and is not_accountable
         // Skip all remaining validations (size, building attributes, etc.)
@@ -1489,7 +1489,7 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
         }
       }
       
-      if (assetType && assetType.non_accountable_total_area === true) {
+      if (assetType && assetType.non_accountable_for_total_area === true) {
         // Asset type is not_accountable - skip validation
         return { valid: true };
       }
@@ -1550,7 +1550,7 @@ export async function validateComplexTypesMustHaveSubAssets(
         }
       }
       
-      if (assetType && assetType.non_accountable_total_area === true) {
+      if (assetType && assetType.non_accountable_for_total_area === true) {
         // Asset type is not_accountable - skip validation
         return { valid: true };
       }

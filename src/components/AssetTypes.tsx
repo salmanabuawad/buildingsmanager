@@ -44,7 +44,8 @@ export function AssetTypes() {
     townhouses: '',
     business_residence: '',
     shared_area_usage: '',
-    non_accountable_total_area: false,
+    non_accountable_for_total_area: false,
+    non_accountable_for_distribution: false,
     min_size: '',
     max_size: '',
   });
@@ -76,7 +77,7 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', business_residence: '', shared_area_usage: '', non_accountable_total_area: false, min_size: '', max_size: '' });
+    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', business_residence: '', shared_area_usage: '', non_accountable_for_total_area: false, non_accountable_for_distribution: false, min_size: '', max_size: '' });
     setIsAdding(false);
   }
 
@@ -110,7 +111,8 @@ export function AssetTypes() {
         townhouses: formData.townhouses || undefined,
         business_residence: formData.business_residence || undefined,
         shared_area_usage: formData.shared_area_usage || undefined,
-        non_accountable_total_area: formData.non_accountable_total_area || undefined,
+        non_accountable_for_total_area: formData.non_accountable_for_total_area || undefined,
+        non_accountable_for_distribution: formData.non_accountable_for_distribution || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
       };
@@ -536,14 +538,38 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
-      field: 'non_accountable_total_area',
+      field: 'non_accountable_for_total_area',
       headerName: 'לא נספר',
       editable: true,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'non_accountable_total_area');
-        const isDirty = isFieldDirty(assetType.id, 'non_accountable_total_area');
+        const currentValue = getCurrentValue(assetType, 'non_accountable_for_total_area');
+        const isDirty = isFieldDirty(assetType.id, 'non_accountable_for_total_area');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === true}
+              onChange={(e) => {
+                params.setValue(e.target.checked);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'non_accountable_for_distribution',
+      headerName: 'לא נספר בפיזור',
+      editable: true,
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'non_accountable_for_distribution');
+        const isDirty = isFieldDirty(assetType.id, 'non_accountable_for_distribution');
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -693,7 +719,8 @@ export function AssetTypes() {
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
       'עסקים/מגורים',            // business_residence
       'שימוש בשטח משותף',         // shared_area_usage
-      'לא נספר',                  // not_accountable
+      'לא נספר',                  // non_accountable_for_total_area
+      'לא נספר בפיזור',           // non_accountable_for_distribution
       'שטח מ',                   // min_size
       'שטח עד'                   // max_size
     ];
@@ -701,9 +728,9 @@ export function AssetTypes() {
     // Example rows
     // Note: 'לא נספר' column - 'כן' means NOT accountable, 'לא' means IS accountable
     const exampleRows = [
-      ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', '', 'לא', '20', '150'],
-      ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', '', 'לא', '30', '200'],
-      ['101', 'חנות', '10', 'אזור דרום', '', '', '', '', '', 'עסקים', '', 'כן', '10', '100']
+      ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', '', 'לא', 'לא', '20', '150'],
+      ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', '', 'לא', 'לא', '30', '200'],
+      ['101', 'חנות', '10', 'אזור דרום', '', '', '', '', '', 'עסקים', '', 'כן', 'לא', '10', '100']
     ];
 
     // Create data array with headers and example rows
@@ -726,7 +753,8 @@ export function AssetTypes() {
         { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
         { wch: 15 }, // עסקים/מגורים
         { wch: 20 }, // שימוש בשטח משותף
-        { wch: 10 }, // נספר
+        { wch: 10 }, // לא נספר
+        { wch: 15 }, // לא נספר בפיזור
         { wch: 10 }, // שטח מ
         { wch: 10 }  // שטח עד
       ]
@@ -772,7 +800,8 @@ export function AssetTypes() {
         assetType.townhouses || '',
         assetType.business_residence || '',
         assetType.shared_area_usage || '',
-        assetType.non_accountable_total_area ? 'כן' : 'לא',
+        assetType.non_accountable_for_total_area ? 'כן' : 'לא',
+        assetType.non_accountable_for_distribution ? 'כן' : 'לא',
         assetType.min_size?.toString() || '',
         assetType.max_size?.toString() || ''
       ]);
@@ -802,7 +831,8 @@ export function AssetTypes() {
         { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
         { wch: 15 }, // עסקים/מגורים
         { wch: 20 }, // שימוש בשטח משותף
-        { wch: 10 }, // נספר
+        { wch: 10 }, // לא נספר
+        { wch: 15 }, // לא נספר בפיזור
         { wch: 10 }, // שטח מ
         { wch: 10 }  // שטח עד
       ]
@@ -912,9 +942,13 @@ export function AssetTypes() {
         'sharedareausage': 'shared_area_usage',
         'שימוש בשטח משותף': 'shared_area_usage',
         'שטח משותף': 'shared_area_usage',
-        // non_accountable_total_area field
-        'non_accountable_total_area': 'non_accountable_total_area',
-        'לא נספר': 'non_accountable_total_area',
+        // non_accountable_for_total_area field
+        'non_accountable_for_total_area': 'non_accountable_for_total_area',
+        'non_accountable_total_area': 'non_accountable_for_total_area',
+        'לא נספר': 'non_accountable_for_total_area',
+        // non_accountable_for_distribution field
+        'non_accountable_for_distribution': 'non_accountable_for_distribution',
+        'לא נספר בפיזור': 'non_accountable_for_distribution',
         // min_size field
         'min_size': 'min_size',
         'minsize': 'min_size',
@@ -1004,7 +1038,8 @@ export function AssetTypes() {
           const townhouses = getValue('townhouses');
           const business_residence = getValue('business_residence');
           const shared_area_usage = getValue('shared_area_usage');
-          const non_accountable_total_area = getValue('non_accountable_total_area');
+          const non_accountable_for_total_area = getValue('non_accountable_for_total_area');
+          const non_accountable_for_distribution = getValue('non_accountable_for_distribution');
           const min_size = getValue('min_size');
           const max_size = getValue('max_size');
 
@@ -1033,7 +1068,8 @@ export function AssetTypes() {
             townhouses: townhouses || undefined,
             business_residence: validBusinessResidence,
             shared_area_usage: shared_area_usage || undefined,
-            non_accountable_total_area: non_accountable_total_area && (non_accountable_total_area.toLowerCase() === 'כן' || non_accountable_total_area.toLowerCase() === 'yes' || non_accountable_total_area === '1' || non_accountable_total_area === 'true') ? true : (non_accountable_total_area && (non_accountable_total_area.toLowerCase() === 'לא' || non_accountable_total_area.toLowerCase() === 'no' || non_accountable_total_area === '0' || non_accountable_total_area === 'false') ? false : undefined),
+            non_accountable_for_total_area: non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'כן' || non_accountable_for_total_area.toLowerCase() === 'yes' || non_accountable_for_total_area === '1' || non_accountable_for_total_area === 'true') ? true : (non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'לא' || non_accountable_for_total_area.toLowerCase() === 'no' || non_accountable_for_total_area === '0' || non_accountable_for_total_area === 'false') ? false : undefined),
+            non_accountable_for_distribution: non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'כן' || non_accountable_for_distribution.toLowerCase() === 'yes' || non_accountable_for_distribution === '1' || non_accountable_for_distribution === 'true') ? true : (non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'לא' || non_accountable_for_distribution.toLowerCase() === 'no' || non_accountable_for_distribution === '0' || non_accountable_for_distribution === 'false') ? false : undefined),
             min_size: min_size ? parseFloat(min_size) : undefined,
             max_size: max_size ? parseFloat(max_size) : undefined,
           };
@@ -1316,11 +1352,22 @@ export function AssetTypes() {
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
-                    checked={formData.non_accountable_total_area}
-                    onChange={(e) => setFormData({ ...formData, non_accountable_total_area: e.target.checked })}
+                    checked={formData.non_accountable_for_total_area}
+                    onChange={(e) => setFormData({ ...formData, non_accountable_for_total_area: e.target.checked })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   לא נספר
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                  <input
+                    type="checkbox"
+                    checked={formData.non_accountable_for_distribution}
+                    onChange={(e) => setFormData({ ...formData, non_accountable_for_distribution: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  לא נספר בפיזור
                 </label>
               </div>
               <div>

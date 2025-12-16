@@ -1995,7 +1995,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
 
       const assetsToUpdate: any[] = [];
-      for (const [assetId, changes] of dirtyAssets.entries()) {
+      for (const [dbId, changes] of dirtyAssets.entries()) {
+        // Find the asset by database id to get its full data
+        const asset = allMeasurements.find(a => a.id === dbId);
+        if (!asset) {
+          console.error(`[AssetDetails] Could not find asset with database id ${dbId}`);
+          continue;
+        }
+
         if ('measurement_date' in changes) {
           if (!changes.measurement_date || changes.measurement_date === '01/01/1900') {
             const today = new Date();
@@ -2005,7 +2012,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             changes.measurement_date = `${day}/${month}/${year}`;
           }
         }
-        assetsToUpdate.push({ asset_id: assetId, ...changes });
+
+        // Send full asset data merged with changes to ensure all required fields are present
+        assetsToUpdate.push({
+          ...asset,
+          ...changes
+        });
       }
 
       const result = await api.assets.saveBulkTransactional(assetsToUpdate, 'manual_update');
@@ -2177,7 +2189,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     try {
       // Get the current measurement with all changes applied
       const currentAsset = latestMeasurement;
-      const changes = dirtyAssets.get(String(currentAsset.asset_id)) || {};
+      // Use currentAsset.id (database ID) to get dirty changes, not asset_id
+      const changes = dirtyAssets.get(currentAsset.id) || {};
       
       // Merge current asset with changes
       const newAssetData = {

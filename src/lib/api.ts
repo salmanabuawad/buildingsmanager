@@ -1653,12 +1653,15 @@ export const api = {
       return data;
     },
     update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared', skipAudit: boolean = false): Promise<Asset> => {
+      console.log('[api.assets.update] ⚡ UPDATE CALLED:', { id, idType: typeof id, actionType, skipAudit, hasInput: !!input });
+
       // Get asset ID as number
       const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
-      
+      console.log('[api.assets.update] Parsed assetIdNum:', assetIdNum, 'isNaN:', isNaN(assetIdNum));
+
       // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
       const isNewMeasurement = input.is_new_measurement;
-      
+
       // Get the current asset data before update (for change log)
       let beforeData: Asset | null = null;
       try {
@@ -1668,11 +1671,10 @@ export const api = {
           .eq('asset_id', assetIdNum)
           .maybeSingle();
         beforeData = assetData || null;
+        console.log('[api.assets.update] beforeData fetch result:', { hasBeforeData: !!beforeData, assetId: assetIdNum });
       } catch (err) {
         // If asset doesn't exist, that's fine - we'll still try to update
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[api.assets.update] Could not fetch before data:', err);
-        }
+        console.error('[api.assets.update] ERROR fetching before data:', err);
       }
       
       // Sanitize the input data first (no need to fetch existing asset - we can update directly)

@@ -3246,9 +3246,116 @@ export const api = {
         p_after_data: afterData || null,
         p_description: description || null
       });
-      
+
       if (error) throw error;
-      
+
+      // After successful transfer, check if any main_asset_type changed to/from non_accountable_for_distribution
+      // If so, set the appropriate distribution flags for those buildings
+      console.log('[api.auditLog.bulkTransferAreas] Checking if distribution flags need to be set for bulk transfer...');
+
+      try {
+        // Fetch all asset types to check non_accountable_for_distribution flag
+        const { data: allAssetTypes } = await supabase
+          .from('asset_types')
+          .select('name, business_residence, non_accountable_for_distribution');
+
+        if (allAssetTypes && allAssetTypes.length > 0) {
+          // Track which buildings need which flags set
+          const buildingsNeedingBusinessFlag = new Set<number>();
+          const buildingsNeedingResidenceFlag = new Set<number>();
+          const buildingsNeedingBothFlags = new Set<number>();
+
+          // For each asset, check if main_asset_type changed to/from non_accountable type
+          for (let i = 0; i < oldAssets.length; i++) {
+            const oldAsset = oldAssets[i];
+            const newAsset = newAssets[i];
+
+            if (!newAsset.building_number) continue;
+
+            const oldMainType = String(oldAsset.main_asset_type || '').trim();
+            const newMainType = String(newAsset.main_asset_type || '').trim();
+            const mainAssetTypeChanged = oldMainType !== newMainType && newMainType !== '';
+
+            if (!mainAssetTypeChanged) continue;
+
+            // Find asset type data
+            const findAssetType = (typeName: string) => {
+              const typeNameStr = String(typeName || '').trim();
+              if (!typeNameStr) return null;
+
+              // Try string comparison first
+              let found = allAssetTypes.find(at => {
+                const atName = String(at.name || '').trim();
+                return atName === typeNameStr;
+              });
+
+              // Try numeric comparison if string lookup failed
+              if (!found) {
+                const typeNameNum = parseInt(typeNameStr, 10);
+                if (!isNaN(typeNameNum)) {
+                  found = allAssetTypes.find(at => {
+                    const atName = String(at.name || '').trim();
+                    const atNameNum = parseInt(atName, 10);
+                    return !isNaN(atNameNum) && atNameNum === typeNameNum;
+                  });
+                }
+              }
+              return found || null;
+            };
+
+            const oldTypeData = findAssetType(oldMainType);
+            const newTypeData = findAssetType(newMainType);
+
+            const oldIsNonAccountable = oldTypeData?.non_accountable_for_distribution === true;
+            const newIsNonAccountable = newTypeData?.non_accountable_for_distribution === true;
+
+            // Only set flags if changing to/from non_accountable type
+            if (oldIsNonAccountable || newIsNonAccountable) {
+              console.log(`[api.auditLog.bulkTransferAreas] Asset ${newAsset.asset_id} type changed from ${oldMainType} to ${newMainType} - setting distribution flags`);
+
+              // Use the new type's business_residence to determine which flag
+              const typeToUse = newTypeData || oldTypeData;
+              if (typeToUse) {
+                const isBusiness = typeToUse.business_residence === 'עסקים';
+                const isResidence = typeToUse.business_residence === 'מגורים';
+
+                if (isBusiness) {
+                  buildingsNeedingBusinessFlag.add(newAsset.building_number!);
+                } else if (isResidence) {
+                  buildingsNeedingResidenceFlag.add(newAsset.building_number!);
+                } else {
+                  // Unknown type: set both flags
+                  buildingsNeedingBothFlags.add(newAsset.building_number!);
+                }
+              } else {
+                // No type data: set both flags to be safe
+                buildingsNeedingBothFlags.add(newAsset.building_number!);
+              }
+            }
+          }
+
+          // Set flags for all affected buildings
+          for (const buildingNum of buildingsNeedingBusinessFlag) {
+            await api.buildings.markBusinessDistributionNeeded(buildingNum);
+            console.log(`[api.auditLog.bulkTransferAreas] ✓ Set need_business_distribution flag for building ${buildingNum}`);
+          }
+
+          for (const buildingNum of buildingsNeedingResidenceFlag) {
+            await api.buildings.markResidenceDistributionNeeded(buildingNum);
+            console.log(`[api.auditLog.bulkTransferAreas] ✓ Set need_residence_distribution flag for building ${buildingNum}`);
+          }
+
+          for (const buildingNum of buildingsNeedingBothFlags) {
+            await api.buildings.markBusinessDistributionNeeded(buildingNum);
+            await api.buildings.markResidenceDistributionNeeded(buildingNum);
+            console.log(`[api.auditLog.bulkTransferAreas] ✓ Set both distribution flags for building ${buildingNum}`);
+          }
+        }
+      } catch (flagError) {
+        console.error('[api.auditLog.bulkTransferAreas] ❌ ERROR: Failed to set distribution flags:', flagError);
+        // Don't throw - this is a side effect that shouldn't fail the main operation
+      }
+
       return {
         action_id: data.action_id,
         affected_asset_ids: data.affected_asset_ids || [],

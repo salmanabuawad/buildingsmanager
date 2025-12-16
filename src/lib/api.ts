@@ -2870,15 +2870,52 @@ export const api = {
     return api.buildings.delete(buildingNumber);
   },
   deleteAssetsByBuilding: async (buildingNumber: number): Promise<{ message: string }> => {
-    // Get all asset_ids for this building first
+    // Get all assets for this building first (including main_asset_type to determine flags)
     const { data: assets, error: fetchError } = await supabase
       .from('assets')
-      .select('asset_id')
+      .select('asset_id, main_asset_type')
       .eq('building_number', buildingNumber);
 
     if (fetchError) throw fetchError;
 
     const assetIds = assets?.map(a => a.asset_id) || [];
+
+    // Determine which distribution flags need to be set based on asset types being deleted
+    let needsBusinessDistribution = false;
+    let needsResidenceDistribution = false;
+
+    if (assets && assets.length > 0) {
+      // Get unique asset types
+      const assetTypes = [...new Set(assets.map(a => a.main_asset_type).filter(Boolean))];
+      
+      if (assetTypes.length > 0) {
+        // Fetch asset type data to check business_residence
+        const { data: assetTypeData } = await supabase
+          .from('asset_types')
+          .select('name, business_residence')
+          .in('name', assetTypes);
+
+        if (assetTypeData) {
+          // Check which flags need to be set
+          for (const assetType of assetTypeData) {
+            if (assetType.business_residence === 'עסקים') {
+              needsBusinessDistribution = true;
+            } else if (assetType.business_residence === 'מגורים') {
+              needsResidenceDistribution = true;
+            } else {
+              // Unknown type - set both flags to be safe
+              needsBusinessDistribution = true;
+              needsResidenceDistribution = true;
+              break; // If we find an unknown type, set both and stop checking
+            }
+          }
+        } else {
+          // If we can't determine types, set both flags to be safe
+          needsBusinessDistribution = true;
+          needsResidenceDistribution = true;
+        }
+      }
+    }
 
     // Delete all existing history records for all assets in this building
     if (assetIds.length > 0) {
@@ -2912,12 +2949,19 @@ export const api = {
       // Don't fail the operation if area update fails
     }
 
-    // Reset both distribution flags when assets are deleted
-    // Deleting assets requires re-distribution
+    // Reset only the relevant distribution flags based on asset types that were deleted
     try {
-      await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-      await api.buildings.markResidenceDistributionNeeded(buildingNumber);
-      console.log(`[api.deleteAssetsByBuilding] Reset both distribution flags for building ${buildingNumber} after asset deletion`);
+      if (needsBusinessDistribution) {
+        await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+        console.log(`[api.deleteAssetsByBuilding] Set need_business_distribution=true for building ${buildingNumber}`);
+      }
+      if (needsResidenceDistribution) {
+        await api.buildings.markResidenceDistributionNeeded(buildingNumber);
+        console.log(`[api.deleteAssetsByBuilding] Set need_residence_distribution=true for building ${buildingNumber}`);
+      }
+      if (!needsBusinessDistribution && !needsResidenceDistribution) {
+        console.log(`[api.deleteAssetsByBuilding] No distribution flags needed for building ${buildingNumber} (no assets with business/residence types)`);
+      }
     } catch (flagError) {
       console.warn('Failed to reset distribution flags after bulk asset deletion:', flagError);
       // Don't fail the operation if flag reset fails

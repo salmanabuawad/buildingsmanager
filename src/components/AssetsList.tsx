@@ -1555,14 +1555,26 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
           
           // Ensure building_number is present and valid
-          // Try multiple sources: cleanMerged, asset, or fallback to component prop
+          // Try multiple sources: cleanMerged, asset, changes, building object, or fallback to component prop
           // All assets in this list belong to the same building, so use component's buildingNumber as fallback
-          let buildingNumberValue = cleanMerged.building_number ?? asset.building_number;
+          let buildingNumberValue = cleanMerged.building_number ?? asset.building_number ?? changes.building_number;
+          if (!buildingNumberValue && building) {
+            // Fallback to building object's building_number
+            buildingNumberValue = building.building_number;
+          }
           if (!buildingNumberValue) {
             // Fallback to component's buildingNumber prop (all assets in this list belong to the same building)
             buildingNumberValue = buildingNumber; // Use the prop from the component scope
           }
           if (!buildingNumberValue) {
+            console.error('[prepareAssetForSave] Missing building_number for asset:', {
+              asset_id: asset.asset_id,
+              asset: asset,
+              changes: changes,
+              cleanMerged: cleanMerged,
+              building: building,
+              component_buildingNumber: buildingNumber
+            });
             throw new Error(`Asset ${asset.asset_id} is missing building_number`);
           }
           
@@ -1966,14 +1978,26 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
           
           // Ensure building_number is present and valid
-          // Try multiple sources: cleanMerged, asset, or fallback to component prop
+          // Try multiple sources: cleanMerged, asset, changes, building object, or fallback to component prop
           // All assets in this list belong to the same building, so use component's buildingNumber as fallback
-          let buildingNumberValue = cleanMerged.building_number ?? asset.building_number;
+          let buildingNumberValue = cleanMerged.building_number ?? asset.building_number ?? changes.building_number;
+          if (!buildingNumberValue && building) {
+            // Fallback to building object's building_number
+            buildingNumberValue = building.building_number;
+          }
           if (!buildingNumberValue) {
             // Fallback to component's buildingNumber prop (all assets in this list belong to the same building)
             buildingNumberValue = buildingNumber; // Use the prop from the component scope
           }
           if (!buildingNumberValue) {
+            console.error('[prepareAssetForSave] Missing building_number for asset:', {
+              asset_id: asset.asset_id,
+              asset: asset,
+              changes: changes,
+              cleanMerged: cleanMerged,
+              building: building,
+              component_buildingNumber: buildingNumber
+            });
             throw new Error(`Asset ${asset.asset_id} is missing building_number`);
           }
           

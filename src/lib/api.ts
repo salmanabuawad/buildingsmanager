@@ -656,9 +656,17 @@ async function validateAndSaveBulkAssets(
   const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
 
+  // STEP 0: Sanitize all assets - remove fields that don't exist in database (like 'id')
+  const sanitizedAssetsData = assetsData.map(asset => {
+    // Remove AG Grid internal fields and any 'id' field
+    const { id, _isNew, _isDirty, _validationErrors, ...cleanAsset } = asset as any;
+    // Sanitize the asset data
+    return sanitizeAssetInput(cleanAsset);
+  });
+
   // STEP 1: Validate ALL assets
   const validationResults = await Promise.all(
-    assetsData.map(asset => AssetValidationHandler.validateSingleAsset(asset))
+    sanitizedAssetsData.map(asset => AssetValidationHandler.validateSingleAsset(asset))
   );
 
   // Check if ALL assets are valid
@@ -670,7 +678,7 @@ async function validateAndSaveBulkAssets(
   // STEP 2: Call transactional bulk save function (rejects if any validation failed)
   try {
     const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
-      p_assets_data: assetsData,
+      p_assets_data: sanitizedAssetsData,
       p_validation_passed: allValid,
       p_validation_errors: validationErrors.length > 0 ? validationErrors.join('; ') : null,
       p_action_type: actionType,

@@ -50,6 +50,7 @@ DECLARE
   v_distribution_type TEXT; -- 'residence' or 'business'
   v_asset_type_name TEXT;
   v_business_residence TEXT;
+  v_business_dist_area NUMERIC;
 BEGIN
   -- ========================================================================
   -- STEP 1: ENFORCE VALIDATION
@@ -262,61 +263,70 @@ BEGIN
   -- Only after successful save, and only the relevant flag
   -- ========================================================================
   IF p_action_type = 'distribute_shared' AND v_building_num_for_flag IS NOT NULL THEN
-    -- Determine distribution type by checking which fields are updated
-    -- Business distribution updates business_distribution_area
-    -- Residence distribution converts assets to type 199 (shared area type)
-    IF array_length(p_assets_data, 1) > 0 THEN
-      -- Check if business_distribution_area is being updated (non-zero or non-null)
-      -- If yes, it's business distribution; otherwise, it's residence distribution
-      v_distribution_type := NULL;
-      
+    -- Determine distribution type by checking description first (most reliable)
+    -- Then check asset data fields as fallback
+    v_distribution_type := NULL;
+    
+    -- STEP 7a: Check description (most reliable method)
+    IF p_description IS NOT NULL THEN
+      IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
+        v_distribution_type := 'residence';
+      ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
+        v_distribution_type := 'business';
+      END IF;
+    END IF;
+    
+    -- STEP 7b: If description didn't help, check asset data
+    IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
+      -- Check if business_distribution_area is being updated (business distribution)
       FOREACH v_asset_data IN ARRAY p_assets_data
       LOOP
         -- Check if business_distribution_area is set and non-zero
-        IF (v_asset_data->>'business_distribution_area') IS NOT NULL 
-           AND (v_asset_data->>'business_distribution_area')::NUMERIC > 0 THEN
-          v_distribution_type := 'business';
-          EXIT; -- Found business distribution, no need to check more
-        END IF;
-      END LOOP;
-      
-      -- If not business, check if main_asset_type is 199 (residence distribution converts to 199)
-      IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
-        v_asset_type_name := (p_assets_data[1]->>'main_asset_type');
-        IF v_asset_type_name = '199' THEN
-          v_distribution_type := 'residence';
-        ELSE
-          -- Check description for hints (fallback)
-          IF p_description IS NOT NULL THEN
-            IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
-              v_distribution_type := 'residence';
-            ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
+        BEGIN
+          IF (v_asset_data->>'business_distribution_area') IS NOT NULL THEN
+            v_business_dist_area := (v_asset_data->>'business_distribution_area')::NUMERIC;
+            IF v_business_dist_area IS NOT NULL AND v_business_dist_area > 0 THEN
               v_distribution_type := 'business';
+              EXIT; -- Found business distribution, no need to check more
             END IF;
           END IF;
+        EXCEPTION WHEN OTHERS THEN
+          -- Ignore conversion errors, continue checking
+          NULL;
+        END;
+      END LOOP;
+      
+      -- If still not determined, check if main_asset_type is 199 (residence distribution)
+      IF v_distribution_type IS NULL THEN
+        v_asset_type_name := (p_assets_data[1]->>'main_asset_type');
+        -- Check both string and numeric comparison
+        IF v_asset_type_name = '199' OR v_asset_type_name::BIGINT = 199 THEN
+          v_distribution_type := 'residence';
         END IF;
       END IF;
+    END IF;
+    
+    -- STEP 7c: Remove the relevant flag only
+    IF v_distribution_type = 'residence' THEN
+      -- Residence distribution → remove residence flag
+      UPDATE buildings
+      SET need_residence_distribution = false
+      WHERE building_number = v_building_num_for_flag;
       
-      -- Remove the relevant flag only
-      IF v_distribution_type = 'residence' THEN
-        -- Residence distribution → remove residence flag
-        UPDATE buildings
-        SET need_residence_distribution = false
-        WHERE building_number = v_building_num_for_flag;
-        
-        RAISE NOTICE 'Removed need_residence_distribution flag for building % (residence distribution completed)', v_building_num_for_flag;
-        
-      ELSIF v_distribution_type = 'business' THEN
-        -- Business distribution → remove business flag
-        UPDATE buildings
-        SET need_business_distribution = false
-        WHERE building_number = v_building_num_for_flag;
-        
-        RAISE NOTICE 'Removed need_business_distribution flag for building % (business distribution completed)', v_building_num_for_flag;
-      ELSE
-        -- Could not determine type - log warning but don't fail
-        RAISE WARNING 'Could not determine distribution type for building %. Flags not removed.', v_building_num_for_flag;
-      END IF;
+      RAISE NOTICE 'Removed need_residence_distribution flag for building % (residence distribution completed)', v_building_num_for_flag;
+      
+    ELSIF v_distribution_type = 'business' THEN
+      -- Business distribution → remove business flag
+      UPDATE buildings
+      SET need_business_distribution = false
+      WHERE building_number = v_building_num_for_flag;
+      
+      RAISE NOTICE 'Removed need_business_distribution flag for building % (business distribution completed)', v_building_num_for_flag;
+    ELSE
+      -- Could not determine type - log warning but don't fail
+      RAISE WARNING 'Could not determine distribution type for building %. Description: %, Flags not removed.', 
+        v_building_num_for_flag, 
+        COALESCE(p_description, 'NULL');
     END IF;
   END IF;
 

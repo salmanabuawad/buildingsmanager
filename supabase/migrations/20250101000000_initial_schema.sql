@@ -871,10 +871,17 @@ CREATE TABLE IF NOT EXISTS audit (
 );
 
 -- Add foreign key constraint to users table
-ALTER TABLE audit
-ADD CONSTRAINT IF NOT EXISTS fk_audit_user_id
-FOREIGN KEY (user_id) REFERENCES users(user_id)
-ON DELETE RESTRICT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_user_id'
+  ) THEN
+    ALTER TABLE audit
+    ADD CONSTRAINT fk_audit_user_id
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    ON DELETE RESTRICT;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_action_type ON audit(action_type);
@@ -908,25 +915,46 @@ COMMENT ON COLUMN audit.before_data IS 'JSON containing all related building/ass
 COMMENT ON COLUMN audit.after_data IS 'JSON containing all related building/asset data after the action';
 
 -- Add action_id foreign keys to existing tables
-ALTER TABLE assets
-ADD CONSTRAINT IF NOT EXISTS assets_action_id_fkey 
-FOREIGN KEY (action_id) REFERENCES audit(action_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'assets_action_id_fkey'
+  ) THEN
+    ALTER TABLE assets
+    ADD CONSTRAINT assets_action_id_fkey 
+    FOREIGN KEY (action_id) REFERENCES audit(action_id);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_assets_action_id ON assets(action_id);
 
 COMMENT ON COLUMN assets.action_id IS 'References the audit entry that caused this asset record to be created or updated';
 
-ALTER TABLE buildings
-ADD CONSTRAINT IF NOT EXISTS buildings_action_id_fkey 
-FOREIGN KEY (action_id) REFERENCES audit(action_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'buildings_action_id_fkey'
+  ) THEN
+    ALTER TABLE buildings
+    ADD CONSTRAINT buildings_action_id_fkey 
+    FOREIGN KEY (action_id) REFERENCES audit(action_id);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_buildings_action_id ON buildings(action_id);
 
 COMMENT ON COLUMN buildings.action_id IS 'References the audit entry that caused this building record to be created or updated';
 
-ALTER TABLE assets_history
-ADD CONSTRAINT IF NOT EXISTS assets_history_action_id_fkey 
-FOREIGN KEY (action_id) REFERENCES audit(action_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'assets_history_action_id_fkey'
+  ) THEN
+    ALTER TABLE assets_history
+    ADD CONSTRAINT assets_history_action_id_fkey 
+    FOREIGN KEY (action_id) REFERENCES audit(action_id);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_assets_history_action_id ON assets_history(action_id);
 
@@ -956,10 +984,17 @@ CREATE TABLE IF NOT EXISTS change_log (
 );
 
 -- Add foreign key constraint to users table
-ALTER TABLE change_log
-ADD CONSTRAINT IF NOT EXISTS fk_change_log_user_id
-FOREIGN KEY (user_id) REFERENCES users(user_id)
-ON DELETE RESTRICT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_change_log_user_id'
+  ) THEN
+    ALTER TABLE change_log
+    ADD CONSTRAINT fk_change_log_user_id
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    ON DELETE RESTRICT;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_change_log_user_id ON change_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_change_log_table_name ON change_log(table_name);

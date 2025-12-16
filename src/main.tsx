@@ -9,7 +9,12 @@ import { PreferencesProvider } from './contexts/PreferencesContext';
 
 // Suppress external script errors (from browser extensions, dev tools, etc.)
 window.addEventListener('error', (event) => {
-  if (event.filename && (event.filename.includes('chmln.js') || event.filename.includes('messo.min.js'))) {
+  const filename = event.filename || event.message || '';
+  const errorString = String(event.error || event.message || '');
+  
+  if (filename.includes('chmln.js') || filename.includes('messo.min.js') ||
+      errorString.includes('chmln') || errorString.includes('messo') ||
+      (event.error && event.error.stack && event.error.stack.includes('chmln'))) {
     event.preventDefault();
     event.stopPropagation();
     return true;
@@ -18,12 +23,26 @@ window.addEventListener('error', (event) => {
 
 // Also suppress unhandled promise rejections from external scripts
 window.addEventListener('unhandledrejection', (event) => {
-  if (event.reason && typeof event.reason === 'string' && 
-      (event.reason.includes('chmln') || event.reason.includes('messo'))) {
+  const reason = event.reason;
+  const reasonString = reason && typeof reason === 'object' 
+    ? (reason.message || reason.stack || JSON.stringify(reason))
+    : String(reason || '');
+  
+  if (reasonString.includes('chmln') || reasonString.includes('messo')) {
     event.preventDefault();
     event.stopPropagation();
   }
 });
+
+// Suppress console errors from external scripts
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  const errorString = args.map(arg => String(arg)).join(' ');
+  if (errorString.includes('chmln') || errorString.includes('messo')) {
+    return; // Suppress the error
+  }
+  originalConsoleError.apply(console, args);
+};
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 

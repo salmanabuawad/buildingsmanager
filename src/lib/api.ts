@@ -1763,57 +1763,72 @@ export const api = {
               .select('name, business_residence, non_accountable_for_distribution');
             
             if (allAssetTypes && allAssetTypes.length > 0) {
-              // Find the type that has non_accountable_for_distribution = true (could be old or new)
-              let typeWithNonAccountable = allAssetTypes.find(at => {
+              // Find both old and new types
+              const oldTypeData = allAssetTypes.find(at => {
                 const atName = String(at.name || '').trim();
-                const oldMatch = atName === oldMainType || 
-                                (parseInt(atName, 10) === parseInt(oldMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(oldMainType, 10)));
-                const newMatch = atName === newMainType || 
-                                (parseInt(atName, 10) === parseInt(newMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(newMainType, 10)));
-                return (oldMatch || newMatch) && at.non_accountable_for_distribution === true;
+                return atName === oldMainType || 
+                       (parseInt(atName, 10) === parseInt(oldMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(oldMainType, 10)));
               });
               
-              // If not found, try to find the new type (in case it's the one with non_accountable_for_distribution)
-              if (!typeWithNonAccountable) {
-                typeWithNonAccountable = allAssetTypes.find(at => {
-                  const atName = String(at.name || '').trim();
-                  return atName === newMainType || 
-                         (parseInt(atName, 10) === parseInt(newMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(newMainType, 10)));
-                });
+              const newTypeData = allAssetTypes.find(at => {
+                const atName = String(at.name || '').trim();
+                return atName === newMainType || 
+                       (parseInt(atName, 10) === parseInt(newMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(newMainType, 10)));
+              });
+              
+              const oldIsNonAccountable = oldTypeData?.non_accountable_for_distribution === true;
+              const newIsNonAccountable = newTypeData?.non_accountable_for_distribution === true;
+              
+              // Determine which type to use for business_residence:
+              // - If changing TO a non-accountable type, use that type's business_residence
+              // - If changing FROM a non-accountable type, use the NEW type's business_residence
+              let typeToUseForBusinessResidence = null;
+              
+              if (newIsNonAccountable) {
+                // Changing TO a non-accountable type - use that type's business_residence
+                typeToUseForBusinessResidence = newTypeData;
+                console.log(`[api.assets.update] Changing TO non-accountable type ${newMainType}, using its business_residence`);
+              } else if (oldIsNonAccountable) {
+                // Changing FROM a non-accountable type - use the NEW type's business_residence
+                typeToUseForBusinessResidence = newTypeData;
+                console.log(`[api.assets.update] Changing FROM non-accountable type ${oldMainType} TO ${newMainType}, using new type's business_residence`);
               }
               
-              if (typeWithNonAccountable) {
-                const isBusiness = typeWithNonAccountable.business_residence === 'עסקים';
-                const isResidence = typeWithNonAccountable.business_residence === 'מגורים';
+              if (typeToUseForBusinessResidence) {
+                const isBusiness = typeToUseForBusinessResidence.business_residence === 'עסקים';
+                const isResidence = typeToUseForBusinessResidence.business_residence === 'מגורים';
                 
-                console.log(`[api.assets.update] Found asset type with non_accountable_for_distribution:`, {
-                  name: typeWithNonAccountable.name,
-                  business_residence: typeWithNonAccountable.business_residence,
+                console.log(`[api.assets.update] Found asset type to use for business_residence:`, {
+                  name: typeToUseForBusinessResidence.name,
+                  business_residence: typeToUseForBusinessResidence.business_residence,
                   isBusiness,
                   isResidence,
-                  buildingNumber: updatedAsset.building_number
+                  buildingNumber: updatedAsset.building_number,
+                  oldIsNonAccountable,
+                  newIsNonAccountable
                 });
                 
                 if (isBusiness) {
                   console.log(`[api.assets.update] Calling markBusinessDistributionNeeded for building ${updatedAsset.building_number}...`);
-                  const result = await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
+                  await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
                   console.log(`[api.assets.update] ✓ Successfully set need_business_distribution flag for building ${updatedAsset.building_number} (business type)`);
                 } else if (isResidence) {
                   console.log(`[api.assets.update] Calling markResidenceDistributionNeeded for building ${updatedAsset.building_number}...`);
-                  const result = await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
+                  await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
                   console.log(`[api.assets.update] ✓ Successfully set need_residence_distribution flag for building ${updatedAsset.building_number} (residence type)`);
                 } else {
                   // Unknown type: set both flags to be safe
-                  console.log(`[api.assets.update] Calling both mark functions for building ${updatedAsset.building_number} (unknown type)...`);
+                  console.log(`[api.assets.update] Calling both mark functions for building ${updatedAsset.building_number} (unknown business_residence: "${typeToUseForBusinessResidence.business_residence}")...`);
                   await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
                   await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
                   console.log(`[api.assets.update] ✓ Successfully set both distribution flags for building ${updatedAsset.building_number} (unknown business_residence)`);
                 }
               } else {
-                // Type not found: set both flags to be safe
+                // Should not happen, but set both flags to be safe
+                console.warn(`[api.assets.update] Could not determine which type to use for business_residence, setting both flags`);
                 await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
                 await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] Set both distribution flags for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type (type not found in database)`);
+                console.log(`[api.assets.update] ✓ Successfully set both distribution flags for building ${updatedAsset.building_number} (fallback)`);
               }
             } else {
               // No asset types found: set both flags to be safe

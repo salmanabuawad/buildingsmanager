@@ -1616,17 +1616,8 @@ export const api = {
             const oldAssetType = await getAssetBusinessResidenceType(existingAsset);
             const newAssetType = await getAssetBusinessResidenceType(newAsset);
             
-            // If types differ or it's a business asset, reset business flag
-            if (oldAssetType === 'business' || newAssetType === 'business' || oldAssetType !== newAssetType) {
-              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'business', 'delete');
-              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'business', 'create');
-            }
-            
-            // If types differ or it's a residence asset, reset residence flag
-            if (oldAssetType === 'residence' || newAssetType === 'residence' || oldAssetType !== newAssetType) {
-              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'residence', 'delete');
-              await resetDistributionFlagsIfNeeded(newAsset.building_number, 'residence', 'create');
-            }
+            // NOTE: Distribution flags are set by save_asset_transactional function, not here
+            // Flags are part of the save transaction and cannot be set separately
             
             // Also check if asset type has non_accountable_for_distribution = true (NOT non_accountable_for_total_area)
             // This should reset distribution flags when changing TO or FROM a type with non_accountable_for_distribution = true
@@ -1767,17 +1758,10 @@ export const api = {
         // Don't fail the operation if area update fails
       }
       
-      // Reset distribution flags when a new asset is added
-      // Adding assets requires re-distribution
-      if (data.building_number && data.main_asset_type) {
-        try {
-          const assetType = await getAssetBusinessResidenceType(data);
-          await resetDistributionFlagsIfNeeded(data.building_number, assetType, 'create', false, false);
-          console.log(`[api.assets.create] Reset distribution flags for building ${data.building_number} after new asset creation`);
-        } catch (flagError) {
-          console.warn('Failed to reset distribution flags after new asset creation:', flagError);
-          // Don't fail the operation if flag reset fails
-        }
+      // NOTE: Distribution flags are set by save_asset_transactional function, not here
+      // Flags are part of the save transaction and cannot be set separately
+      if (data.building_number) {
+        console.log(`[api.assets.create] Distribution flags are handled by save_asset_transactional function for building ${data.building_number}`);
       }
       
       // Log audit entry ONLY for transfer_area or distribute_shared actions
@@ -1928,187 +1912,10 @@ export const api = {
         // Don't fail the operation if area update fails
       }
 
-      // Reset distribution flags if needed (for business: asset_size change)
-      // Also reset if main_asset_type changed to/from a type with non_accountable_for_distribution = true
-      // Note: Distribution flags are business logic and should be updated regardless of audit logging (skipAudit)
-      console.log('[api.assets.update] Distribution flag check gate:', {
-        hasBuilding: !!updatedAsset.building_number,
-        buildingNumber: updatedAsset.building_number,
-        hasBeforeData: !!beforeData,
-        willCheckFlags: !!(updatedAsset.building_number && beforeData)
-      });
-
-      if (updatedAsset.building_number && beforeData) {
-        const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
-        const oldMainType = String(beforeData.main_asset_type || '').trim();
-        const newMainType = String(updatedAsset.main_asset_type || '').trim();
-        const mainAssetTypeChanged = oldMainType !== newMainType && newMainType !== '';
-        
-        console.log('[api.assets.update] Checking distribution flags:', {
-          buildingNumber: updatedAsset.building_number,
-          oldMainType,
-          newMainType,
-          mainAssetTypeChanged,
-          assetSizeChanged
-        });
-        
-        // Check if main_asset_type changed FROM or TO a type with non_accountable_for_distribution = true
-        // NOTE: We check non_accountable_for_distribution (NOT non_accountable_for_total_area) for distribution flags
-        // Only flag for redistribution when changing FROM or TO a type with this indicator
-        let mainAssetTypeChangedToNonAccountableForDistribution = false;
-        let typeToUseForBusinessResidence: any = null;
-        
-        try {
-          // Fetch all asset types with business_residence to check - handle both string and numeric comparisons
-          const { data: allAssetTypes, error: assetTypesError } = await supabase
-            .from('asset_types')
-            .select('name, business_residence, non_accountable_for_distribution');
-          
-          if (assetTypesError) {
-            console.error('[api.assets.update] Error fetching asset types:', assetTypesError);
-          }
-          
-          if (allAssetTypes && allAssetTypes.length > 0) {
-            // Helper function to find asset type by name (handles both string and numeric matching)
-            const findAssetType = (typeName: string) => {
-              if (!typeName) return null;
-              const typeNameStr = String(typeName).trim();
-              let found = allAssetTypes.find(at => {
-                const atName = String(at.name || '').trim();
-                return atName === typeNameStr;
-              });
-              
-              // Try numeric comparison if string lookup failed
-              if (!found) {
-                const typeNameNum = parseInt(typeNameStr, 10);
-                if (!isNaN(typeNameNum)) {
-                  found = allAssetTypes.find(at => {
-                    const atName = String(at.name || '').trim();
-                    const atNameNum = parseInt(atName, 10);
-                    return !isNaN(atNameNum) && atNameNum === typeNameNum;
-                  });
-                }
-              }
-              return found || null;
-            };
-            
-            // Find old and new types
-            const oldTypeData = findAssetType(oldMainType);
-            const newTypeData = findAssetType(newMainType);
-            
-            if (!newTypeData && newMainType) {
-              console.warn(`[api.assets.update] ⚠ Could not find asset type "${newMainType}" in database. Available types:`, allAssetTypes.slice(0, 5).map(at => at.name));
-            }
-            
-            const oldIsNonAccountableForDistribution = oldTypeData?.non_accountable_for_distribution === true;
-            const newIsNonAccountableForDistribution = newTypeData?.non_accountable_for_distribution === true;
-            
-            console.log('[api.assets.update] Asset type check results (checking non_accountable_for_distribution, NOT non_accountable_for_total_area):', {
-              oldType: oldMainType,
-              oldTypeData: oldTypeData ? { name: oldTypeData.name, business_residence: oldTypeData.business_residence, non_accountable_for_distribution: oldTypeData.non_accountable_for_distribution } : null,
-              oldIsNonAccountableForDistribution,
-              newType: newMainType,
-              newTypeData: newTypeData ? { name: newTypeData.name, business_residence: newTypeData.business_residence, non_accountable_for_distribution: newTypeData.non_accountable_for_distribution } : null,
-              newIsNonAccountableForDistribution,
-              buildingNumber: updatedAsset.building_number,
-              mainAssetTypeChanged
-            });
-            
-            // Check if main_asset_type changed FROM or TO a type with non_accountable_for_distribution = true
-            // Only flag for redistribution when changing FROM or TO a type with this indicator
-            if (mainAssetTypeChanged) {
-              if (oldIsNonAccountableForDistribution || newIsNonAccountableForDistribution) {
-                mainAssetTypeChangedToNonAccountableForDistribution = true;
-                
-                // Determine which type's business_residence to use:
-                // - If changing TO a type with non_accountable_for_distribution = true, use the new type
-                // - If changing FROM a type with non_accountable_for_distribution = true, use the new type (the one we're changing to)
-                typeToUseForBusinessResidence = newTypeData || oldTypeData;
-                
-                if (oldIsNonAccountableForDistribution && newIsNonAccountableForDistribution) {
-                  console.log(`[api.assets.update] Type changed FROM type with non_accountable_for_distribution=true (${oldMainType}) TO type with non_accountable_for_distribution=true (${newMainType}) - will set distribution flags`);
-                } else if (oldIsNonAccountableForDistribution) {
-                  console.log(`[api.assets.update] Type changed FROM type with non_accountable_for_distribution=true (${oldMainType}) TO ${newMainType} - will set distribution flags`);
-                } else {
-                  console.log(`[api.assets.update] Type changed FROM ${oldMainType} TO type with non_accountable_for_distribution=true (${newMainType}) - will set distribution flags`);
-                }
-              } else {
-                console.log('[api.assets.update] ✗ Type changed but neither old nor new type has non_accountable_for_distribution=true, no need to reset distribution flags');
-              }
-            } else {
-              console.log('[api.assets.update] ✗ Asset type did not change, no need to reset distribution flags');
-            }
-          } else {
-            console.warn('[api.assets.update] No asset types found in database');
-          }
-        } catch (err) {
-          console.error('[api.assets.update] Could not check asset types for non_accountable_for_distribution:', err);
-        }
-        
-        // Reset distribution flags if main_asset_type changed FROM or TO a type with non_accountable_for_distribution = true
-        // NOTE: We check non_accountable_for_distribution (NOT non_accountable_for_total_area) for distribution flags
-        // Note: Distribution flags should be updated regardless of skipAudit (audit logging is separate from business logic)
-        console.log('[api.assets.update] Final check before setting distribution flags:', {
-          mainAssetTypeChangedToNonAccountableForDistribution,
-          assetSizeChanged,
-          mainAssetTypeChanged,
-          buildingNumber: updatedAsset.building_number
-        });
-        
-        if (mainAssetTypeChangedToNonAccountableForDistribution) {
-          console.log('[api.assets.update] ✓ Setting distribution flags because main_asset_type changed FROM or TO a type with non_accountable_for_distribution=true');
-
-          if (!updatedAsset.building_number) {
-            console.warn('[api.assets.update] ⚠ Cannot set distribution flags: building_number is null/undefined');
-          } else {
-            try {
-              // Call database function to set distribution flags
-              const { data, error } = await supabase.rpc('set_distribution_flags_for_asset_type_change', {
-                p_building_number: updatedAsset.building_number,
-                p_old_main_asset_type: oldMainType || null,
-                p_new_main_asset_type: newMainType || null
-              });
-
-              if (error) {
-                console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags for building ${updatedAsset.building_number}:`, error);
-              } else if (data && data.length > 0) {
-                const result = data[0];
-                if (result.business_flag_set && result.residence_flag_set) {
-                  console.log(`[api.assets.update] ✓ Set both distribution flags for building ${updatedAsset.building_number}`);
-                } else if (result.business_flag_set) {
-                  console.log(`[api.assets.update] ✓ Set need_business_distribution flag for building ${updatedAsset.building_number}`);
-                } else if (result.residence_flag_set) {
-                  console.log(`[api.assets.update] ✓ Set need_residence_distribution flag for building ${updatedAsset.building_number}`);
-                } else {
-                  console.log(`[api.assets.update] ℹ No distribution flags needed for building ${updatedAsset.building_number}`);
-                }
-              }
-            } catch (flagError) {
-              console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags for building ${updatedAsset.building_number}:`, flagError);
-              // Don't throw - this is a side effect that shouldn't fail the main operation
-            }
-          }
-        }
-        
-        // Also check if asset_size changed - this is independent of the non_accountable_for_distribution check
-        // Asset size changes always require redistribution
-        if (assetSizeChanged) {
-          console.log('[api.assets.update] Asset size changed, resetting distribution flags');
-          const assetType = await getAssetBusinessResidenceType(updatedAsset);
-          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged, false);
-        } else if (mainAssetTypeChanged && !mainAssetTypeChangedToNonAccountableForDistribution) {
-          // If type changed but NOT to/from non_accountable_for_distribution, still need to check if flags should be reset
-          // This handles normal type changes
-          const assetType = await getAssetBusinessResidenceType(updatedAsset);
-          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', false, mainAssetTypeChanged);
-        }
-      } else {
-        console.log('[api.assets.update] ⚠ Skipping distribution flag check:', {
-          reason: !updatedAsset.building_number ? 'No building_number' : 'No beforeData',
-          buildingNumber: updatedAsset.building_number,
-          hasBeforeData: !!beforeData
-        });
-      }
+      // NOTE: Distribution flags are NOT set here - they are only set within transactional save functions
+      // (save_asset_transactional, save_assets_bulk_transactional, delete_asset_transactional)
+      // This ensures flags are always part of the save transaction and cannot be set separately
+      console.log('[api.assets.update] Distribution flags are handled by transactional save functions, not set directly from API');
 
       // Log audit entry ONLY for transfer_area or distribute_shared actions
       // Regular asset updates should NOT create audit entries
@@ -2880,42 +2687,10 @@ export const api = {
 
     const assetIds = assets?.map(a => a.asset_id) || [];
 
-    // Determine which distribution flags need to be set based on asset types being deleted
-    let needsBusinessDistribution = false;
-    let needsResidenceDistribution = false;
-
-    if (assets && assets.length > 0) {
-      // Get unique asset types
-      const assetTypes = [...new Set(assets.map(a => a.main_asset_type).filter(Boolean))];
-      
-      if (assetTypes.length > 0) {
-        // Fetch asset type data to check business_residence
-        const { data: assetTypeData } = await supabase
-          .from('asset_types')
-          .select('name, business_residence')
-          .in('name', assetTypes);
-
-        if (assetTypeData) {
-          // Check which flags need to be set
-          for (const assetType of assetTypeData) {
-            if (assetType.business_residence === 'עסקים') {
-              needsBusinessDistribution = true;
-            } else if (assetType.business_residence === 'מגורים') {
-              needsResidenceDistribution = true;
-            } else {
-              // Unknown type - set both flags to be safe
-              needsBusinessDistribution = true;
-              needsResidenceDistribution = true;
-              break; // If we find an unknown type, set both and stop checking
-            }
-          }
-        } else {
-          // If we can't determine types, set both flags to be safe
-          needsBusinessDistribution = true;
-          needsResidenceDistribution = true;
-        }
-      }
-    }
+    // NOTE: For bulk deletion, we should use delete_asset_transactional for each asset
+    // to ensure flags are set as part of the transaction. This function should be
+    // refactored to use transactional delete, or a bulk transactional delete function
+    // should be created that handles flags as part of the transaction.
 
     // Delete all existing history records for all assets in this building
     if (assetIds.length > 0) {
@@ -2949,23 +2724,11 @@ export const api = {
       // Don't fail the operation if area update fails
     }
 
-    // Reset only the relevant distribution flags based on asset types that were deleted
-    try {
-      if (needsBusinessDistribution) {
-        await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-        console.log(`[api.deleteAssetsByBuilding] Set need_business_distribution=true for building ${buildingNumber}`);
-      }
-      if (needsResidenceDistribution) {
-        await api.buildings.markResidenceDistributionNeeded(buildingNumber);
-        console.log(`[api.deleteAssetsByBuilding] Set need_residence_distribution=true for building ${buildingNumber}`);
-      }
-      if (!needsBusinessDistribution && !needsResidenceDistribution) {
-        console.log(`[api.deleteAssetsByBuilding] No distribution flags needed for building ${buildingNumber} (no assets with business/residence types)`);
-      }
-    } catch (flagError) {
-      console.warn('Failed to reset distribution flags after bulk asset deletion:', flagError);
-      // Don't fail the operation if flag reset fails
-    }
+    // NOTE: Distribution flags are NOT set here - they are set by delete_asset_transactional
+    // when individual assets are deleted. For bulk deletion, flags should be set by
+    // using the transactional delete function for each asset, or by a bulk transactional delete function.
+    // This ensures flags are always part of the delete transaction and cannot be set separately.
+    console.log('[api.deleteAssetsByBuilding] Distribution flags should be set by transactional delete functions, not directly from API');
 
     // Delete from assets_history again to remove entries created by the trigger
     if (assetIds.length > 0) {

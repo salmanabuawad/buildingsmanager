@@ -657,11 +657,54 @@ async function validateAndSaveBulkAssets(
   const userInfo = await getCurrentUserInfo();
 
   // STEP 0: Sanitize all assets - remove fields that don't exist in database (like 'id')
+  // Also ensure all required fields are present with default values
   const sanitizedAssetsData = assetsData.map(asset => {
     // Remove AG Grid internal fields and any 'id' field
-    const { id, _isNew, _isDirty, _validationErrors, ...cleanAsset } = asset as any;
+    const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanAsset } = asset as any;
+    
     // Sanitize the asset data
-    return sanitizeAssetInput(cleanAsset);
+    const sanitized = sanitizeAssetInput(cleanAsset);
+    
+    // Ensure required fields are present (validation expects these)
+    // If main_asset_type exists but asset_size is 0 or missing, calculate from sub-asset sizes
+    if (sanitized.main_asset_type && (!sanitized.asset_size || sanitized.asset_size === 0)) {
+      const subSizes = [
+        sanitized.sub_asset_size_1 || 0,
+        sanitized.sub_asset_size_2 || 0,
+        sanitized.sub_asset_size_3 || 0,
+        sanitized.sub_asset_size_4 || 0,
+        sanitized.sub_asset_size_5 || 0,
+        sanitized.sub_asset_size_6 || 0,
+      ];
+      const calculatedSize = subSizes.reduce((sum, size) => sum + (size || 0), 0);
+      if (calculatedSize > 0) {
+        sanitized.asset_size = calculatedSize;
+      }
+    }
+    
+    // Ensure required fields are present (validation expects these)
+    // building_number and asset_id are required - preserve from original if sanitization removed them
+    if (!sanitized.building_number && cleanAsset.building_number != null) {
+      sanitized.building_number = sanitizeInteger(cleanAsset.building_number);
+    }
+    if (!sanitized.asset_id && cleanAsset.asset_id != null) {
+      sanitized.asset_id = sanitizeInteger(cleanAsset.asset_id);
+    }
+    
+    // Ensure sub-asset sizes are numbers (not undefined)
+    sanitized.sub_asset_size_1 = sanitized.sub_asset_size_1 ?? 0;
+    sanitized.sub_asset_size_2 = sanitized.sub_asset_size_2 ?? 0;
+    sanitized.sub_asset_size_3 = sanitized.sub_asset_size_3 ?? 0;
+    sanitized.sub_asset_size_4 = sanitized.sub_asset_size_4 ?? 0;
+    sanitized.sub_asset_size_5 = sanitized.sub_asset_size_5 ?? 0;
+    sanitized.sub_asset_size_6 = sanitized.sub_asset_size_6 ?? 0;
+    
+    // Ensure measurement_date has a default
+    if (!sanitized.measurement_date) {
+      sanitized.measurement_date = '01/01/1900';
+    }
+    
+    return sanitized;
   });
 
   // STEP 1: Validate ALL assets

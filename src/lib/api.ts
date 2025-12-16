@@ -2020,8 +2020,8 @@ export const api = {
         
         if (nonAccountableForDistributionChanged) {
           try {
-            // Check if this asset type is a business type
-            const isBusinessType = data.business_residence === 'עסקים';
+            // Check if this asset type is a business type (use beforeData to ensure we have the field)
+            const isBusinessType = (beforeData.business_residence === 'עסקים') || (data.business_residence === 'עסקים');
             
             // Only reset flags if this is a business asset type
             if (isBusinessType) {
@@ -2040,14 +2040,14 @@ export const api = {
                 
                 console.log(`[api.assetTypes.update] Found ${affectedAssets.length} assets with type ${beforeData.name} in ${buildingNumbers.length} building(s)`);
                 
-                // Reset business_shared_area_distributed flag for all affected buildings
-                // Always reset to false when non_accountable_for_distribution changes, regardless of current value
+                // Always reset business_shared_area_distributed flag to false when non_accountable_for_distribution changes
                 // This ensures the distribution alert appears and distribution can be recalculated
+                // Use the same direct update pattern as when assets are deleted, but always reset regardless of current value
                 const { data: updatedBuildings, error: updateError } = await supabase
                   .from('buildings')
                   .update({ business_shared_area_distributed: false })
                   .in('building_number', buildingNumbers)
-                  .select('building_number');
+                  .select('building_number, business_shared_area_distributed');
                 
                 if (updateError) {
                   console.warn('[api.assetTypes.update] Failed to reset distribution flags:', updateError);

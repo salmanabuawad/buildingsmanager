@@ -1658,11 +1658,64 @@ export const api = {
       }
 
       // Reset distribution flags if needed (for business: asset_size change)
+      // Also reset if main_asset_type changed to/from a type with non_accountable_for_distribution = true
       if (!skipAudit && updatedAsset.building_number && beforeData) {
         const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
-        if (assetSizeChanged) {
+        const mainAssetTypeChanged = beforeData.main_asset_type !== updatedAsset.main_asset_type;
+        
+        // Check if main_asset_type changed to/from a type with non_accountable_for_distribution = true
+        let mainAssetTypeChangedToNonAccountable = false;
+        if (mainAssetTypeChanged) {
+          try {
+            const { data: assetTypes } = await supabase
+              .from('asset_types')
+              .select('name, non_accountable_for_distribution')
+              .in('name', [
+                String(beforeData.main_asset_type || '').trim(),
+                String(updatedAsset.main_asset_type || '').trim()
+              ].filter(n => n));
+            
+            if (assetTypes && assetTypes.length > 0) {
+              const oldTypeData = assetTypes.find(at => String(at.name).trim() === String(beforeData.main_asset_type || '').trim());
+              const newTypeData = assetTypes.find(at => String(at.name).trim() === String(updatedAsset.main_asset_type || '').trim());
+              
+              const oldIsNonAccountable = oldTypeData?.non_accountable_for_distribution === true;
+              const newIsNonAccountable = newTypeData?.non_accountable_for_distribution === true;
+              
+              // If changing from or to a type with non_accountable_for_distribution = true, reset flags
+              if (oldIsNonAccountable || newIsNonAccountable) {
+                mainAssetTypeChangedToNonAccountable = true;
+                console.log('[api.assets.update] main_asset_type changed to/from non_accountable_for_distribution type:', {
+                  oldType: beforeData.main_asset_type,
+                  oldIsNonAccountable,
+                  newType: updatedAsset.main_asset_type,
+                  newIsNonAccountable,
+                  buildingNumber: updatedAsset.building_number
+                });
+              }
+            }
+          } catch (err) {
+            console.warn('[api.assets.update] Could not check asset types for non_accountable_for_distribution:', err);
+          }
+        }
+        
+        // Reset flags if asset size changed OR if main_asset_type changed to/from non_accountable_for_distribution type
+        if (assetSizeChanged || mainAssetTypeChangedToNonAccountable) {
           const assetType = await getAssetBusinessResidenceType(updatedAsset);
-          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
+          
+          // If main_asset_type changed to/from non_accountable_for_distribution, reset both flags
+          if (mainAssetTypeChangedToNonAccountable) {
+            try {
+              await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
+              await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
+              console.log(`[api.assets.update] Reset both distribution flags for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type`);
+            } catch (err) {
+              console.warn(`[api.assets.update] Failed to reset distribution flags:`, err);
+            }
+          } else {
+            // Normal case: only reset based on asset type and size change
+            await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
+          }
         }
       }
 
@@ -2104,7 +2157,10 @@ export const api = {
                   const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
                   for (const buildingNumber of buildingNumbers) {
                     try {
+                      // Reset both business and residence distribution flags
+                      // because non_accountable_for_distribution affects both distribution types
                       await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+                      await api.buildings.markResidenceDistributionNeeded(buildingNumber);
                     } catch (err) {
                       console.warn(`[api.assetTypes.update] Failed to mark building ${buildingNumber}:`, err);
                     }

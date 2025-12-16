@@ -2012,6 +2012,7 @@ BEGIN
     WHERE at.id = p_id;
     
     -- If non_accountable_for_distribution changed, reset flags for affected buildings
+    -- This affects both business and residence distribution, so reset both flags
     IF v_old_non_accountable_for_distribution IS DISTINCT FROM v_new_non_accountable_for_distribution THEN
       -- Find all buildings with assets of this type
       SELECT ARRAY_AGG(DISTINCT building_number) INTO v_affected_buildings
@@ -2019,10 +2020,12 @@ BEGIN
       WHERE main_asset_type = v_asset_type_name
         AND building_number IS NOT NULL;
       
-      -- Reset business_shared_area_distributed flag for all affected buildings
+      -- Reset both business_shared_area_distributed and residence_shared_area_distributed flags
+      -- because non_accountable_for_distribution affects both distribution types
       IF v_affected_buildings IS NOT NULL AND array_length(v_affected_buildings, 1) > 0 THEN
         UPDATE buildings
-        SET business_shared_area_distributed = false
+        SET business_shared_area_distributed = false,
+            residence_shared_area_distributed = false
         WHERE building_number = ANY(v_affected_buildings);
       END IF;
     END IF;

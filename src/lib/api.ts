@@ -50,20 +50,42 @@ async function getAssetBusinessResidenceType(asset: Partial<Asset>): Promise<'bu
   }
   
   try {
-    // Get asset types to check business_residence
-    const { data: assetTypes, error } = await supabase
+    const mainAssetTypeStr = String(asset.main_asset_type).trim();
+    
+    // First try string lookup
+    const { data: assetTypeData, error } = await supabase
       .from('asset_types')
       .select('name, business_residence')
-      .eq('name', asset.main_asset_type)
+      .eq('name', mainAssetTypeStr)
       .maybeSingle();
     
-    if (error || !assetTypes) {
+    let foundAssetType = assetTypeData;
+    
+    // If not found, try numeric lookup
+    if (!foundAssetType) {
+      const mainAssetTypeNum = parseInt(mainAssetTypeStr, 10);
+      if (!isNaN(mainAssetTypeNum)) {
+        const { data: allAssetTypes } = await supabase
+          .from('asset_types')
+          .select('name, business_residence');
+        
+        if (allAssetTypes) {
+          foundAssetType = allAssetTypes.find(at => {
+            const atNameStr = String(at.name || '').trim();
+            const atNameNum = parseInt(atNameStr, 10);
+            return !isNaN(atNameNum) && atNameNum === mainAssetTypeNum;
+          });
+        }
+      }
+    }
+    
+    if (error || !foundAssetType) {
       return null;
     }
     
-    if (assetTypes.business_residence === 'עסקים') {
+    if (foundAssetType.business_residence === 'עסקים') {
       return 'business';
-    } else if (assetTypes.business_residence === 'מגורים') {
+    } else if (foundAssetType.business_residence === 'מגורים') {
       return 'residence';
     }
     
@@ -104,6 +126,7 @@ async function resetDistributionFlagsIfNeeded(
     // (true = needs distribution, false = already distributed)
     if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete' || assetTypeChanged)) {
       updates.need_residence_distribution = true;
+      console.log(`[resetDistributionFlagsIfNeeded] Setting need_residence_distribution=true for building ${buildingNumber} (residence asset, ${changeType})`);
     }
 
     // For business: set need_business_distribution to true on create, delete, asset_size change, or type change
@@ -111,7 +134,13 @@ async function resetDistributionFlagsIfNeeded(
     if (assetType === 'business') {
       if (changeType === 'create' || changeType === 'delete' || assetSizeChanged || assetTypeChanged) {
         updates.need_business_distribution = true;
+        console.log(`[resetDistributionFlagsIfNeeded] Setting need_business_distribution=true for building ${buildingNumber} (business asset, ${changeType}${assetSizeChanged ? ', size changed' : ''}${assetTypeChanged ? ', type changed' : ''})`);
       }
+    }
+
+    // If asset type is null/unknown, don't set any flags (log a warning)
+    if (!assetType && (changeType === 'create' || changeType === 'delete' || assetSizeChanged || assetTypeChanged)) {
+      console.warn(`[resetDistributionFlagsIfNeeded] Could not determine asset type for building ${buildingNumber}, skipping flag update`);
     }
 
     // Update building if flags need to be reset (use direct supabase call to avoid circular reference)
@@ -654,16 +683,19 @@ export const api = {
       );
       
       // Reset distribution flags when shared areas change
+      // Set the relevant flag (business or residence) based on which shared area changed
       if (beforeData) {
         // If residence_shared_area is being changed, set need_residence_distribution to true
         if ('residence_shared_area' in cleanedInput && 
             cleanedInput.residence_shared_area !== beforeData.residence_shared_area) {
           cleanedInput.need_residence_distribution = true;
+          console.log(`[api.buildings.update] Setting need_residence_distribution=true for building ${buildingNumber} (residence_shared_area changed from ${beforeData.residence_shared_area} to ${cleanedInput.residence_shared_area})`);
         }
         // If business_shared_area is being changed, set need_business_distribution to true
         if ('business_shared_area' in cleanedInput && 
             cleanedInput.business_shared_area !== beforeData.business_shared_area) {
           cleanedInput.need_business_distribution = true;
+          console.log(`[api.buildings.update] Setting need_business_distribution=true for building ${buildingNumber} (business_shared_area changed from ${beforeData.business_shared_area} to ${cleanedInput.business_shared_area})`);
         }
       }
       

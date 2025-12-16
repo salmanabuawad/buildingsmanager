@@ -1659,25 +1659,35 @@ export const api = {
 
       // Reset distribution flags if needed (for business: asset_size change)
       // Also reset if main_asset_type changed to/from a type with non_accountable_for_distribution = true
-      if (!skipAudit && updatedAsset.building_number && beforeData) {
+      // Note: We check this even if skipAudit is true, because distribution flags need to be reset regardless
+      if (updatedAsset.building_number && beforeData) {
         const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
-        const mainAssetTypeChanged = beforeData.main_asset_type !== updatedAsset.main_asset_type;
+        const oldMainType = String(beforeData.main_asset_type || '').trim();
+        const newMainType = String(updatedAsset.main_asset_type || '').trim();
+        const mainAssetTypeChanged = oldMainType !== newMainType && oldMainType !== '' && newMainType !== '';
         
         // Check if main_asset_type changed to/from a type with non_accountable_for_distribution = true
         let mainAssetTypeChangedToNonAccountable = false;
         if (mainAssetTypeChanged) {
           try {
-            const { data: assetTypes } = await supabase
+            // Fetch all asset types to check - handle both string and numeric comparisons
+            const { data: allAssetTypes } = await supabase
               .from('asset_types')
-              .select('name, non_accountable_for_distribution')
-              .in('name', [
-                String(beforeData.main_asset_type || '').trim(),
-                String(updatedAsset.main_asset_type || '').trim()
-              ].filter(n => n));
+              .select('name, non_accountable_for_distribution');
             
-            if (assetTypes && assetTypes.length > 0) {
-              const oldTypeData = assetTypes.find(at => String(at.name).trim() === String(beforeData.main_asset_type || '').trim());
-              const newTypeData = assetTypes.find(at => String(at.name).trim() === String(updatedAsset.main_asset_type || '').trim());
+            if (allAssetTypes && allAssetTypes.length > 0) {
+              // Find old and new types - handle both string and numeric matching
+              const oldTypeData = allAssetTypes.find(at => {
+                const atName = String(at.name || '').trim();
+                return atName === oldMainType || 
+                       (parseInt(atName, 10) === parseInt(oldMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(oldMainType, 10)));
+              });
+              
+              const newTypeData = allAssetTypes.find(at => {
+                const atName = String(at.name || '').trim();
+                return atName === newMainType || 
+                       (parseInt(atName, 10) === parseInt(newMainType, 10) && !isNaN(parseInt(atName, 10)) && !isNaN(parseInt(newMainType, 10)));
+              });
               
               const oldIsNonAccountable = oldTypeData?.non_accountable_for_distribution === true;
               const newIsNonAccountable = newTypeData?.non_accountable_for_distribution === true;
@@ -1686,11 +1696,13 @@ export const api = {
               if (oldIsNonAccountable || newIsNonAccountable) {
                 mainAssetTypeChangedToNonAccountable = true;
                 console.log('[api.assets.update] main_asset_type changed to/from non_accountable_for_distribution type:', {
-                  oldType: beforeData.main_asset_type,
+                  oldType: oldMainType,
                   oldIsNonAccountable,
-                  newType: updatedAsset.main_asset_type,
+                  newType: newMainType,
                   newIsNonAccountable,
-                  buildingNumber: updatedAsset.building_number
+                  buildingNumber: updatedAsset.building_number,
+                  oldTypeFound: !!oldTypeData,
+                  newTypeFound: !!newTypeData
                 });
               }
             }
@@ -1701,8 +1713,6 @@ export const api = {
         
         // Reset flags if asset size changed OR if main_asset_type changed to/from non_accountable_for_distribution type
         if (assetSizeChanged || mainAssetTypeChangedToNonAccountable) {
-          const assetType = await getAssetBusinessResidenceType(updatedAsset);
-          
           // If main_asset_type changed to/from non_accountable_for_distribution, reset both flags
           if (mainAssetTypeChangedToNonAccountable) {
             try {
@@ -1712,8 +1722,9 @@ export const api = {
             } catch (err) {
               console.warn(`[api.assets.update] Failed to reset distribution flags:`, err);
             }
-          } else {
-            // Normal case: only reset based on asset type and size change
+          } else if (!skipAudit) {
+            // Normal case: only reset based on asset type and size change (but skip if skipAudit is true)
+            const assetType = await getAssetBusinessResidenceType(updatedAsset);
             await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
           }
         }

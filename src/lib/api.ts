@@ -603,18 +603,18 @@ async function validateAndSaveAsset(
   actionType: string = 'manual_update',
   description?: string
 ): Promise<{ success: boolean; asset_id: number; error?: string }> {
-  const { validateAsset } = await import('./validation');
+  const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
 
   // STEP 1: Run validation
-  const validationResult = await validateAsset(assetData, 'assets');
+  const validationResult = await AssetValidationHandler.validateSingleAsset(assetData);
 
   // STEP 2: Call transactional save function (rejects if validation failed)
   try {
     const { data, error } = await supabase.rpc('save_asset_transactional', {
       p_asset_data: assetData,
       p_validation_passed: validationResult.valid,
-      p_validation_errors: validationResult.error || null,
+      p_validation_errors: validationResult.valid ? null : (validationResult.errors?.join('; ') || 'Validation failed'),
       p_action_type: actionType,
       p_user_id: userInfo.user_id || null,
       p_description: description || null
@@ -653,19 +653,19 @@ async function validateAndSaveBulkAssets(
   afterData?: any,
   description?: string
 ): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> {
-  const { validateAsset } = await import('./validation');
+  const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
 
   // STEP 1: Validate ALL assets
   const validationResults = await Promise.all(
-    assetsData.map(asset => validateAsset(asset, 'assets'))
+    assetsData.map(asset => AssetValidationHandler.validateSingleAsset(asset))
   );
 
   // Check if ALL assets are valid
   const allValid = validationResults.every(result => result.valid);
   const validationErrors = validationResults
     .filter(result => !result.valid)
-    .map((result, index) => `Asset ${index + 1}: ${result.error}`);
+    .map((result, index) => `Asset ${index + 1}: ${result.errors?.join(', ') || 'Validation failed'}`);
 
   // STEP 2: Call transactional bulk save function (rejects if any validation failed)
   try {

@@ -1547,6 +1547,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Helper function to prepare asset data with all required fields
         const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
           const merged = { ...asset, ...changes };
+          // Preserve 'id' temporarily for validation (it's needed to determine if this is an update)
+          // It will be removed in api.ts before sending to database
+          const tempId = (merged as any).id;
+          
           // Remove any fields that don't exist in the database (like 'id' from AG Grid)
           const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
           
@@ -1581,7 +1585,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
           
           // Ensure all required fields are present
-          return {
+          const prepared = {
             ...cleanMerged,
             building_number: buildingNumber,
             asset_id: assetId,
@@ -1596,6 +1600,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             sub_asset_size_5: cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
             sub_asset_size_6: cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
           } as Partial<Asset>;
+          
+          // Add 'id' back for validation (will be removed in api.ts before sending to DB)
+          if (tempId != null) {
+            (prepared as any).id = tempId;
+          }
+          
+          return prepared;
         };
         
         // First, add all assets that received distribution
@@ -1603,8 +1614,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           const assetId = String(asset.asset_id);
           const changes = updatedDirtyAssets.get(assetId) || {};
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          // Get original asset from assets array to preserve 'id' field for validation
+          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           if (currentAsset) {
-            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
+            // Merge original asset's 'id' into currentAsset if it exists
+            const assetWithId = originalAsset && (originalAsset as any).id 
+              ? { ...currentAsset, id: (originalAsset as any).id }
+              : currentAsset;
+            assetsToUpdate.push(prepareAssetForSave(assetWithId, changes));
             allAffectedAssetIds.add(asset.asset_id);
           }
         }
@@ -1935,6 +1952,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Helper function to prepare asset data with all required fields
         const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
           const merged = { ...asset, ...changes };
+          // Preserve 'id' temporarily for validation (it's needed to determine if this is an update)
+          // It will be removed in api.ts before sending to database
+          const tempId = (merged as any).id;
+          
           // Remove any fields that don't exist in the database (like 'id' from AG Grid)
           const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
           
@@ -1969,7 +1990,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
           
           // Ensure all required fields are present
-          return {
+          const prepared = {
             ...cleanMerged,
             building_number: buildingNumber,
             asset_id: assetId,
@@ -1984,6 +2005,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             sub_asset_size_5: cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
             sub_asset_size_6: cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
           } as Partial<Asset>;
+          
+          // Add 'id' back for validation (will be removed in api.ts before sending to DB)
+          if (tempId != null) {
+            (prepared as any).id = tempId;
+          }
+          
+          return prepared;
         };
         
         // First, add all assets that received distribution
@@ -1991,8 +2019,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           const assetId = String(asset.asset_id);
           const changes = updatedDirtyAssets.get(assetId) || {};
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          // Get original asset from assets array to preserve 'id' field for validation
+          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           if (currentAsset) {
-            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
+            // Merge original asset's 'id' into currentAsset if it exists
+            const assetWithId = originalAsset && (originalAsset as any).id 
+              ? { ...currentAsset, id: (originalAsset as any).id }
+              : currentAsset;
+            assetsToUpdate.push(prepareAssetForSave(assetWithId, changes));
             allAffectedAssetIds.add(asset.asset_id);
           }
         }
@@ -2006,8 +2040,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           if (isNaN(assetIdNum) || allAffectedAssetIds.has(assetIdNum)) continue;
           
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          // Get original asset from assets array to preserve 'id' field for validation
+          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           if (currentAsset && Object.keys(changes).length > 0) {
-            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
+            // Merge original asset's 'id' into currentAsset if it exists
+            const assetWithId = originalAsset && (originalAsset as any).id 
+              ? { ...currentAsset, id: (originalAsset as any).id }
+              : currentAsset;
+            assetsToUpdate.push(prepareAssetForSave(assetWithId, changes));
             allAffectedAssetIds.add(assetIdNum);
           }
         }

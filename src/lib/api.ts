@@ -660,12 +660,48 @@ async function validateAndSaveBulkAssets(
   // Also ensure all required fields are present with default values
   const sanitizedAssetsData = assetsData.map(asset => {
     // Remove AG Grid internal fields and any 'id' field
-    const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanAsset } = asset as any;
+    // BUT preserve 'id' temporarily for validation (it will be removed before sending to DB)
+    const { _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanAsset } = asset as any;
+    const tempId = cleanAsset.id; // Preserve for validation
+    
+    // Remove 'id' from cleanAsset for sanitization
+    delete cleanAsset.id;
     
     // Sanitize the asset data
     const sanitized = sanitizeAssetInput(cleanAsset);
     
     // Ensure required fields are present (validation expects these)
+    // building_number and asset_id are required - preserve from original if sanitization removed them
+    // Check both sanitized result AND original cleanAsset
+    if (!sanitized.building_number) {
+      if (cleanAsset.building_number != null) {
+        sanitized.building_number = sanitizeInteger(cleanAsset.building_number);
+      } else if (asset.building_number != null) {
+        // Fallback to original asset data
+        sanitized.building_number = sanitizeInteger(asset.building_number);
+      }
+    }
+    
+    if (!sanitized.asset_id) {
+      if (cleanAsset.asset_id != null) {
+        sanitized.asset_id = sanitizeInteger(cleanAsset.asset_id);
+      } else if (asset.asset_id != null) {
+        // Fallback to original asset data
+        sanitized.asset_id = sanitizeInteger(asset.asset_id);
+      }
+    }
+    
+    // Ensure building_number is present (critical for validation)
+    if (!sanitized.building_number) {
+      console.error('[validateAndSaveBulkAssets] Missing building_number for asset:', {
+        asset_id: sanitized.asset_id,
+        original_asset: asset,
+        clean_asset: cleanAsset,
+        sanitized: sanitized
+      });
+      throw new Error(`Asset ${sanitized.asset_id || 'unknown'} is missing building_number`);
+    }
+    
     // If main_asset_type exists but asset_size is 0 or missing, calculate from sub-asset sizes
     if (sanitized.main_asset_type && (!sanitized.asset_size || sanitized.asset_size === 0)) {
       const subSizes = [
@@ -682,15 +718,6 @@ async function validateAndSaveBulkAssets(
       }
     }
     
-    // Ensure required fields are present (validation expects these)
-    // building_number and asset_id are required - preserve from original if sanitization removed them
-    if (!sanitized.building_number && cleanAsset.building_number != null) {
-      sanitized.building_number = sanitizeInteger(cleanAsset.building_number);
-    }
-    if (!sanitized.asset_id && cleanAsset.asset_id != null) {
-      sanitized.asset_id = sanitizeInteger(cleanAsset.asset_id);
-    }
-    
     // Ensure sub-asset sizes are numbers (not undefined)
     sanitized.sub_asset_size_1 = sanitized.sub_asset_size_1 ?? 0;
     sanitized.sub_asset_size_2 = sanitized.sub_asset_size_2 ?? 0;
@@ -702,6 +729,11 @@ async function validateAndSaveBulkAssets(
     // Ensure measurement_date has a default
     if (!sanitized.measurement_date) {
       sanitized.measurement_date = '01/01/1900';
+    }
+    
+    // Add 'id' back temporarily for validation (will be removed before sending to DB)
+    if (tempId != null) {
+      sanitized.id = tempId;
     }
     
     return sanitized;
@@ -718,10 +750,16 @@ async function validateAndSaveBulkAssets(
     .filter(result => !result.valid)
     .map((result, index) => `Asset ${index + 1}: ${result.errors?.join(', ') || 'Validation failed'}`);
 
-  // STEP 2: Call transactional bulk save function (rejects if any validation failed)
+  // STEP 2: Remove 'id' field before sending to database (it was only kept for validation)
+  const assetsForDatabase = sanitizedAssetsData.map(asset => {
+    const { id, ...assetWithoutId } = asset as any;
+    return assetWithoutId;
+  });
+  
+  // STEP 3: Call transactional bulk save function (rejects if any validation failed)
   try {
     const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
-      p_assets_data: sanitizedAssetsData,
+      p_assets_data: assetsForDatabase,
       p_validation_passed: allValid,
       p_validation_errors: validationErrors.length > 0 ? validationErrors.join('; ') : null,
       p_action_type: actionType,

@@ -68,7 +68,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     return matchingAssetType?.area_description_for_tab || String(taxRegion);
   }, [assetTypes]);
 
-  // Helper function to check if an asset type is not_accountable
+  // Helper function to check if an asset type is non_accountable_for_total_area
   const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
       return false;
@@ -76,7 +76,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
     
     // Find asset type by name
     const assetType = assetTypes.find(at => at.name === assetTypeName);
-    return assetType?.not_accountable === true;
+    return assetType?.non_accountable_for_total_area === true;
   }, [assetTypes]);
 
   // Helper function to check if an asset is not_accountable
@@ -260,7 +260,7 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
         // Skip assets where main_asset_type has not_accountable = true
         if (asset.main_asset_type && finalAssetTypes) {
           const assetType = finalAssetTypes.find(at => at.name === asset.main_asset_type);
-          if (assetType?.not_accountable === true) {
+          if (assetType?.non_accountable_for_total_area === true) {
             return sum;
           }
         }

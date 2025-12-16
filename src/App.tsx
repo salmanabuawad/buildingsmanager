@@ -376,7 +376,7 @@ function App() {
     try {
       const cachedAssetTypes = getAssetTypes();
       notAccountableTaxRegions = cachedAssetTypes
-        .filter((at: AssetType) => at.not_accountable === true && at.tax_region != null)
+        .filter((at: AssetType) => at.non_accountable_total_area === true && at.tax_region != null)
         .map((at: AssetType) => String(at.tax_region))
         .filter((value: string, index: number, self: string[]) => self.indexOf(value) === index); // Remove duplicates
     } catch (err) {

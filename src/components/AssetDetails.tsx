@@ -762,7 +762,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     return null;
   }, [asset?.tax_region, taxRegion]);
 
-  // Helper function to check if an asset type is not_accountable
+  // Helper function to check if an asset type is non_accountable_for_total_area
   const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
       return false;
@@ -770,7 +770,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     // Find asset type by name
     const assetType = assetTypes.find(at => at.name === assetTypeName);
-    return assetType?.not_accountable === true;
+    return assetType?.non_accountable_for_total_area === true;
   }, [assetTypes]);
 
   // Helper function to check if an asset is not_accountable

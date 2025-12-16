@@ -55,7 +55,7 @@ export async function refreshAssetTypesCache(): Promise<void> {
     // Explicitly select all fields including business_residence
     const { data, error } = await supabase
       .from('asset_types')
-      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, not_accountable, area_description_for_tab, created_at, updated_at')
+      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, non_accountable_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
       .order('name');
 
     if (error) {
@@ -1053,7 +1053,7 @@ export async function validateAssetTypeComplete(
     // If the main asset type has not_accountable = true, skip all remaining validations
     // This check happens AFTER we've verified the asset type exists and is valid for the tax region
     if (!isSubAsset && assetTypes.length > 0) {
-      const hasNotAccountable = assetTypes.some(at => at.not_accountable === true);
+      const hasNotAccountable = assetTypes.some(at => at.non_accountable_total_area === true);
       if (hasNotAccountable) {
         // Asset type exists, is valid for tax region, and is not_accountable
         // Skip all remaining validations (size, building attributes, etc.)
@@ -1489,7 +1489,7 @@ export async function validateOnlyComplexTypesCanHaveSubAssets(
         }
       }
       
-      if (assetType && assetType.not_accountable === true) {
+      if (assetType && assetType.non_accountable_total_area === true) {
         // Asset type is not_accountable - skip validation
         return { valid: true };
       }
@@ -1550,7 +1550,7 @@ export async function validateComplexTypesMustHaveSubAssets(
         }
       }
       
-      if (assetType && assetType.not_accountable === true) {
+      if (assetType && assetType.non_accountable_total_area === true) {
         // Asset type is not_accountable - skip validation
         return { valid: true };
       }
@@ -2573,7 +2573,7 @@ export const buildingValidators = {
         // Skip assets where main_asset_type has not_accountable = true
         if (asset.main_asset_type) {
           const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
-          if (mainAssetType && mainAssetType.not_accountable === true) {
+          if (mainAssetType && mainAssetType.non_accountable_for_total_area === true) {
             // Skip this asset entirely - don't process main or sub asset types
             continue;
           }
@@ -2666,14 +2666,14 @@ export const buildingValidators = {
         assetTypeMap.set(String(at.name), at);
       }
 
-      // Calculate total asset area (excluding not_accountable assets)
+      // Calculate total asset area (excluding non_accountable_for_total_area assets)
       // Note: Shared areas (residence_shared_area and business_shared_area) are distributed to assets
       // but should NOT be included in the size comparison
       const totalAssetAreaWithShared = assets.reduce((sum, asset) => {
-        // Skip assets where main_asset_type has not_accountable = true
+        // Skip assets where main_asset_type has non_accountable_for_total_area = true
         if (asset.main_asset_type) {
           const assetType = assetTypeMap.get(String(asset.main_asset_type));
-          if (assetType && assetType.not_accountable === true) {
+          if (assetType && assetType.non_accountable_for_total_area === true) {
             return sum;
           }
         }

@@ -55,7 +55,7 @@ export function AssetDataEntry() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
 
-  // Helper function to check if an asset type is not_accountable
+  // Helper function to check if an asset type is non_accountable_total_area
   const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
       return false;
@@ -63,7 +63,7 @@ export function AssetDataEntry() {
     
     // Find asset type by name
     const assetType = assetTypes.find(at => at.name === assetTypeName);
-    return assetType?.not_accountable === true;
+    return assetType?.non_accountable_total_area === true;
   }, [assetTypes]);
 
   // Helper function to check if an asset row is not_accountable

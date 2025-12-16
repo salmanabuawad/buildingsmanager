@@ -67,7 +67,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     return result;
   }, [taxRegion, buildingNumber]);
 
-  // Helper function to check if an asset type is not_accountable
+  // Helper function to check if an asset type is non_accountable_for_total_area
   const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
       return false;
@@ -76,10 +76,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     // Find asset type by name - ensure both are strings for comparison
     const assetTypeNameStr = String(assetTypeName).trim();
     const assetType = assetTypes.find(at => String(at.name).trim() === assetTypeNameStr);
-    return assetType?.not_accountable === true;
+    return assetType?.non_accountable_for_total_area === true;
   }, [assetTypes]);
 
-  // Helper function to check if an asset is not_accountable
+  // Helper function to check if an asset is non_accountable_for_total_area
   const isAssetNotAccountable = useCallback((asset: Asset): boolean => {
     if (!asset || !asset.main_asset_type) {
       return false;
@@ -1437,12 +1437,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }))
       });
 
-      // Filter assets: only accountable assets (excluding type 990)
+      // Filter assets: only accountable assets
       let deletedCount = 0;
       let notAccountableCount = 0;
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
-      let excludedType990Count = 0;
       let residentialFoundCount = 0;
       
       const residentialAssets = assets.filter((asset, index) => {
@@ -1522,14 +1521,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         debugInfo.assetTypeBusinessResidenceValue = assetType.business_residence;
         debugInfo.assetTypeBusinessResidenceType = typeof assetType.business_residence;
         
-        // Exclude asset type 990 from receiving shared area
-        if (assetType.name === '990' || String(assetType.name).trim() === '990') {
-          excludedType990Count++;
-          debugInfo.reason = 'excluded_type_990';
-          if (index < 3) console.log('[DistributeResidence] Asset excluded (type 990):', debugInfo);
-          return false;
-        }
-        
         // Skip business_residence check - accept all assets that passed previous filters
         
         residentialFoundCount++;
@@ -1546,7 +1537,6 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         notAccountableCount,
         noMainTypeCount,
         assetTypeNotFoundCount,
-        excludedType990Count,
         finalResidentialAssets: residentialAssets.length
       });
 
@@ -1557,9 +1547,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
-        if (excludedType990Count > 0) reasons.push(`${excludedType990Count} נכסים מסוג 990 (לא מקבלים שטח משותף)`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + excludedType990Count;
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';
@@ -1854,6 +1843,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
       let notBusinessCount = 0;
+      let nonAccountableForDistributionCount = 0;
       
       const businessAssets = assets.filter(asset => {
         // Skip deleted assets
@@ -1899,6 +1889,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
+        // Exclude assets with non_accountable_for_distribution = true
+        if (assetType.non_accountable_for_distribution === true) {
+          nonAccountableForDistributionCount++;
+          return false;
+        }
+        
         return true;
       });
 
@@ -1910,8 +1906,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
         if (notBusinessCount > 0) reasons.push(`${notBusinessCount} נכסים שאינם מסוג עסקים`);
+        if (nonAccountableForDistributionCount > 0) reasons.push(`${nonAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount;
+        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount + nonAccountableForDistributionCount;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי עסקים במבנה לפזר בהם שטח משותף';

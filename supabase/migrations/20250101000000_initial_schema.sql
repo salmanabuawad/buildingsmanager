@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS asset_types (
   min_size NUMERIC,
   max_size NUMERIC,
   active TEXT DEFAULT 'כן',
-  not_accountable BOOLEAN DEFAULT false,
+  non_accountable_for_total_area BOOLEAN DEFAULT false,
   area_description_for_tab TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -139,7 +139,7 @@ CREATE TRIGGER update_asset_types_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 COMMENT ON COLUMN asset_types.active IS 'Indicates if the asset type is active. Values: "כן" (yes) or NULL (no)';
-COMMENT ON COLUMN asset_types.not_accountable IS 'Indicates if the asset type is NOT accountable (should NOT be counted). Values: true (לא נספר) or false (נספר)';
+COMMENT ON COLUMN asset_types.non_accountable_for_total_area IS 'Indicates if the asset type should be excluded from total area calculations. Values: true (לא נספר) or false (נספר)';
 
 -- ============================================================================
 -- 3. VALIDATION RULES TABLE
@@ -569,7 +569,7 @@ BEGIN
         FROM asset_types at 
         WHERE at.name = a.main_asset_type 
           AND at.active = 'כן'
-          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+          AND (at.non_accountable_for_total_area IS NULL OR at.non_accountable_for_total_area = false)
       )
     )
   ), 0)
@@ -688,7 +688,7 @@ BEGIN
         FROM asset_types at 
         WHERE at.name = lm.main_asset_type 
           AND at.active = 'כן'
-          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+          AND (at.non_accountable_for_total_area IS NULL OR at.non_accountable_for_total_area = false)
       )
     )
   )

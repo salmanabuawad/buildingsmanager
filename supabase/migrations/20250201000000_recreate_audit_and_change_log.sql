@@ -713,7 +713,7 @@ BEGIN
         FROM asset_types at 
         WHERE at.name = a.main_asset_type 
           AND at.active = 'כן'
-          AND (at.not_accountable IS NULL OR at.not_accountable = false)
+          AND (at.non_accountable_for_total_area IS NULL OR at.non_accountable_for_total_area = false)
       )
     )
   ), 0)
@@ -721,7 +721,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION update_building_total_area IS 'Update building total area based on sum of asset sizes (excluding not_accountable assets)';
+COMMENT ON FUNCTION update_building_total_area IS 'Update building total area based on sum of asset sizes (excluding non_accountable_for_total_area assets)';
 
 -- ============================================================================
 -- Step 11: Recreate change_log query functions

@@ -286,7 +286,8 @@ export interface AssetType {
   business_residence?: string;
   shared_area_usage?: string;
   active?: string;
-  not_accountable?: boolean; // לא נספר
+  non_accountable_for_total_area?: boolean; // לא נספר
+  non_accountable_for_distribution?: boolean; // לא נספר בפיזור
   min_size?: number;
   max_size?: number;
   created_at: string;
@@ -1791,7 +1792,7 @@ export const api = {
       // Explicitly select all fields including business_residence to ensure it's included
       const { data, error } = await supabase
         .from('asset_types')
-        .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, not_accountable, area_description_for_tab, created_at, updated_at')
+        .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
         .order('name');
 
       if (error) throw error;
@@ -2010,6 +2011,44 @@ export const api = {
         await refreshAssetTypesCache();
       } catch (err) {
         console.warn('[api.assetTypes.update] Failed to refresh cache:', err);
+      }
+
+      // If non_accountable_for_distribution changed, reset business distribution flags for affected buildings
+      if (beforeData && data && beforeData.name) {
+        const nonAccountableForDistributionChanged = 
+          beforeData.non_accountable_for_distribution !== data.non_accountable_for_distribution;
+        
+        if (nonAccountableForDistributionChanged) {
+          try {
+            // Find all buildings that have assets with this asset type
+            const { data: affectedAssets, error: assetsError } = await supabase
+              .from('assets')
+              .select('building_number')
+              .eq('main_asset_type', beforeData.name)
+              .not('building_number', 'is', null);
+            
+            if (!assetsError && affectedAssets && affectedAssets.length > 0) {
+              // Get unique building numbers
+              const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
+              
+              // Reset business_shared_area_distributed flag for all affected buildings
+              const { error: updateError } = await supabase
+                .from('buildings')
+                .update({ business_shared_area_distributed: false })
+                .in('building_number', buildingNumbers)
+                .eq('business_shared_area_distributed', true); // Only update if currently true
+              
+              if (updateError) {
+                console.warn('[api.assetTypes.update] Failed to reset distribution flags:', updateError);
+              } else if (buildingNumbers.length > 0) {
+                console.log(`[api.assetTypes.update] Reset business distribution flags for ${buildingNumbers.length} building(s) due to non_accountable_for_distribution change`);
+              }
+            }
+          } catch (err) {
+            console.warn('[api.assetTypes.update] Error resetting distribution flags:', err);
+            // Don't throw - this is a side effect that shouldn't fail the main operation
+          }
+        }
       }
 
       // Log change entry asynchronously

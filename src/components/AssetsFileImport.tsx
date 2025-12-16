@@ -56,7 +56,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [originalImportedAssets, setOriginalImportedAssets] = useState<ImportAssetRow[]>([]); // Store original state for rollback
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
 
-  // Helper function to check if an asset type is not_accountable
+  // Helper function to check if an asset type is non_accountable_for_total_area
   const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
       return false;
@@ -64,7 +64,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     
     // Find asset type by name
     const assetType = assetTypes.find(at => at.name === assetTypeName);
-    return assetType?.not_accountable === true;
+    return assetType?.non_accountable_for_total_area === true;
   }, [assetTypes]);
 
   // Helper function to check if an asset row is not_accountable

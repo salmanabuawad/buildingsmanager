@@ -427,7 +427,7 @@ export class AssetValidationHandler {
       };
     }
     
-    // Check if asset type is not_accountable - skip all validation if true
+    // Check if asset type is non_accountable_for_total_area - skip all validation if true
     if (asset.main_asset_type) {
       let assetTypes = cachedData?.assetTypes;
       if (!assetTypes || assetTypes.length === 0) {
@@ -465,14 +465,14 @@ export class AssetValidationHandler {
           }
         }
         
-        if (assetType && assetType.not_accountable === true) {
-          // Asset type is not_accountable - skip all validation
+        if (assetType && assetType.non_accountable_for_total_area === true) {
+          // Asset type is non_accountable_for_total_area - skip all validation
           if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetValidationHandler] Skipping validation for not_accountable asset:', {
+            console.log('[AssetValidationHandler] Skipping validation for non_accountable_for_total_area asset:', {
               assetId: asset.asset_id,
               main_asset_type: asset.main_asset_type,
               assetTypeName: assetType.name,
-              not_accountable: assetType.not_accountable
+              non_accountable_for_total_area: assetType.non_accountable_for_total_area
             });
           }
           return {

@@ -1,6 +1,29 @@
 /*
   # Add Transactional Save Functions with Validation Enforcement
 
+  ============================================================================
+  🚨 CRITICAL SYSTEM ARCHITECTURE - DO NOT MODIFY 🚨
+  ============================================================================
+
+  WARNING: This migration defines CRITICAL data integrity functions.
+
+  DO NOT:
+  - Remove validation checks
+  - Remove post-save action calls
+  - Make validation optional
+  - Add COMMIT/ROLLBACK statements
+  - Skip any steps in the transaction
+  - Modify exception handling to suppress errors
+
+  These functions guarantee:
+  1. Validation enforcement (invalid data CANNOT be saved)
+  2. Transaction integrity (all-or-nothing saves)
+  3. Automatic rollback on ANY failure
+  4. No partial saves ever
+
+  See: CRITICAL_ARCHITECTURE_DO_NOT_MODIFY.md
+  ============================================================================
+
   ## Overview
   This migration creates new database functions that enforce validation BEFORE save
   and execute all post-save actions within a SINGLE transaction to ensure data integrity.

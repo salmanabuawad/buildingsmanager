@@ -3,6 +3,36 @@ import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 
 /**
+ * ============================================================================
+ * 🚨 CRITICAL: TRANSACTIONAL SAVE ARCHITECTURE - DO NOT MODIFY 🚨
+ * ============================================================================
+ *
+ * This file implements validation-first, transactional-save architecture.
+ *
+ * MANDATORY RULES:
+ * 1. ALL asset saves MUST use transactional functions:
+ *    - api.assets.saveTransactional() for single saves
+ *    - api.assets.saveBulkTransactional() for bulk saves
+ *
+ * 2. NEVER use direct database operations:
+ *    ❌ supabase.from('assets').insert()
+ *    ❌ supabase.from('assets').update()
+ *
+ * 3. Validation is MANDATORY and enforced at database level
+ *
+ * 4. All post-save actions happen in ONE transaction:
+ *    - Asset save
+ *    - Building total area update
+ *    - Distribution flags update
+ *    - Audit log creation
+ *
+ * 5. ALWAYS check result.success before proceeding
+ *
+ * See: CRITICAL_ARCHITECTURE_DO_NOT_MODIFY.md for complete documentation
+ * ============================================================================
+ */
+
+/**
  * Get the current user name from Supabase auth
  * Returns 'default' if no user is logged in
  */

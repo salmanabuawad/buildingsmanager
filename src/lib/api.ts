@@ -2046,32 +2046,106 @@ export const api = {
         Object.entries(cleanedInput).filter(([_, v]) => v !== undefined)
       );
       
-      // Try id first, then asset_type as fallback
-      let { data, error } = await supabase
-        .from('asset_types')
-        .update(finalInput)
-        .eq('id', id)
-        .select()
-        .single();
+      // Use database function to update asset type and reset distribution flags in a transaction
+      // This ensures atomicity - either both operations succeed or both fail
+      let data: AssetType;
+      
+      try {
+        const { data: result, error: rpcError } = await supabase.rpc('update_asset_type_with_distribution_reset', {
+          p_id: id,
+          p_updates: finalInput
+        });
+        
+        if (rpcError) {
+          // Fallback to regular update if function doesn't exist
+          if (rpcError.code === '42883' || rpcError.code === 'PGRST202' || rpcError.message?.includes('function') || rpcError.message?.includes('does not exist')) {
+            console.warn('[api.assetTypes.update] Database function not found, falling back to regular update');
+            
+            // Try id first, then asset_type as fallback
+            let { data: updateData, error } = await supabase
+              .from('asset_types')
+              .update(finalInput)
+              .eq('id', id)
+              .select()
+              .single();
 
-      // If id column doesn't exist, try asset_type
-      if (error && error.code === '42703') {
-        const result = await supabase
+            // If id column doesn't exist, try asset_type
+            if (error && error.code === '42703') {
+              const result = await supabase
+                .from('asset_types')
+                .update(finalInput)
+                .eq('asset_type', id)
+                .select()
+                .single();
+              updateData = result.data;
+              error = result.error;
+              
+              // Map asset_type to id
+              if (updateData && updateData.asset_type !== undefined) {
+                updateData = { ...updateData, id: updateData.asset_type };
+              }
+            }
+
+            if (error) throw error;
+            data = updateData;
+            
+            // Manually reset flags if needed (fallback behavior)
+            if (beforeData && beforeData.name && 'non_accountable_for_distribution' in input) {
+              const oldValue = beforeData.non_accountable_for_distribution === true;
+              const newValue = input.non_accountable_for_distribution === true;
+              if (oldValue !== newValue) {
+                const { data: affectedAssets } = await supabase
+                  .from('assets')
+                  .select('building_number')
+                  .eq('main_asset_type', beforeData.name)
+                  .not('building_number', 'is', null);
+                
+                if (affectedAssets && affectedAssets.length > 0) {
+                  const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
+                  for (const buildingNumber of buildingNumbers) {
+                    try {
+                      await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+                    } catch (err) {
+                      console.warn(`[api.assetTypes.update] Failed to mark building ${buildingNumber}:`, err);
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            throw rpcError;
+          }
+        } else {
+          // Function succeeded - extract the updated data
+          const afterData = result?.after_data;
+          if (afterData) {
+            // Map asset_type to id if needed
+            if (afterData.asset_type !== undefined && afterData.id === undefined) {
+              afterData.id = afterData.asset_type;
+            }
+            data = afterData as AssetType;
+            
+            // Log if distribution flags were reset
+            if (result?.distribution_flags_reset && result?.affected_buildings) {
+              console.log(`[api.assetTypes.update] Updated asset type and reset distribution flags for ${result.affected_buildings.length} building(s) in transaction`);
+            }
+          } else {
+            throw new Error('Database function returned no data');
+          }
+        }
+      } catch (err) {
+        // If RPC fails completely, fall back to regular update
+        console.warn('[api.assetTypes.update] RPC failed, using fallback:', err);
+        const { data: fallbackData, error: fallbackError } = await supabase
           .from('asset_types')
           .update(finalInput)
-          .eq('asset_type', id)
+          .eq('id', id)
           .select()
           .single();
-        data = result.data;
-        error = result.error;
         
-        // Map asset_type to id
-        if (data && data.asset_type !== undefined) {
-          data = { ...data, id: data.asset_type };
-        }
+        if (fallbackError) throw fallbackError;
+        data = fallbackData;
       }
-
-      if (error) throw error;
       
       // Refresh in-memory cache after update
       try {
@@ -2079,50 +2153,6 @@ export const api = {
         await refreshAssetTypesCache();
       } catch (err) {
         console.warn('[api.assetTypes.update] Failed to refresh cache:', err);
-      }
-
-      // If non_accountable_for_distribution changed, reset business distribution flags for affected buildings
-      if (beforeData && data && beforeData.name) {
-        const nonAccountableForDistributionChanged = 
-          beforeData.non_accountable_for_distribution !== data.non_accountable_for_distribution;
-        
-        if (nonAccountableForDistributionChanged) {
-          try {
-            console.log(`[api.assetTypes.update] non_accountable_for_distribution changed for asset type ${beforeData.name}. Before: ${beforeData.non_accountable_for_distribution}, After: ${data.non_accountable_for_distribution}`);
-            
-            // Find all buildings that have assets with this asset type (only main_asset_type)
-            const { data: affectedAssets, error: assetsError } = await supabase
-              .from('assets')
-              .select('building_number')
-              .eq('main_asset_type', beforeData.name)
-              .not('building_number', 'is', null);
-            
-            if (assetsError) {
-              console.error('[api.assetTypes.update] Error finding affected assets:', assetsError);
-            } else if (affectedAssets && affectedAssets.length > 0) {
-              // Get unique building numbers
-              const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
-              
-              console.log(`[api.assetTypes.update] Found ${affectedAssets.length} assets with type ${beforeData.name} in ${buildingNumbers.length} building(s):`, buildingNumbers);
-              
-              // Mark all affected buildings as needing business distribution
-              // Use the new API function for consistency
-              for (const buildingNumber of buildingNumbers) {
-                try {
-                  await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-                } catch (err) {
-                  console.warn(`[api.assetTypes.update] Failed to mark building ${buildingNumber} as needing distribution:`, err);
-                  // Continue with other buildings even if one fails
-                }
-              }
-            } else {
-              console.log(`[api.assetTypes.update] No assets found with type ${beforeData.name}, no flags to reset`);
-            }
-          } catch (err) {
-            console.error('[api.assetTypes.update] Error resetting distribution flags:', err);
-            // Don't throw - this is a side effect that shouldn't fail the main operation
-          }
-        }
       }
 
       // Log change entry asynchronously

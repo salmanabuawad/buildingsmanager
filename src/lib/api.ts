@@ -81,10 +81,11 @@ async function resetDistributionFlagsIfNeeded(
   buildingNumber: number,
   assetType: 'business' | 'residence' | null,
   changeType: 'create' | 'update' | 'delete',
-  assetSizeChanged?: boolean
+  assetSizeChanged?: boolean,
+  assetTypeChanged?: boolean
 ): Promise<void> {
   if (!buildingNumber) return;
-  
+
   try {
     // Get current building data to check if flags need to be reset
     const { data: building, error: buildingError } = await supabase
@@ -92,27 +93,27 @@ async function resetDistributionFlagsIfNeeded(
       .select('need_business_distribution, need_residence_distribution')
       .eq('building_number', buildingNumber)
       .maybeSingle();
-    
+
     if (buildingError || !building) {
       return;
     }
-    
+
     const updates: Partial<Building> = {};
-    
-    // For residence: set need_residence_distribution to true on create or delete
+
+    // For residence: set need_residence_distribution to true on create, delete, or type change
     // (true = needs distribution, false = already distributed)
-    if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete')) {
+    if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete' || assetTypeChanged)) {
       updates.need_residence_distribution = true;
     }
-    
-    // For business: set need_business_distribution to true on create, delete, or asset_size change
+
+    // For business: set need_business_distribution to true on create, delete, asset_size change, or type change
     // (true = needs distribution, false = already distributed)
     if (assetType === 'business') {
-      if (changeType === 'create' || changeType === 'delete' || assetSizeChanged) {
+      if (changeType === 'create' || changeType === 'delete' || assetSizeChanged || assetTypeChanged) {
         updates.need_business_distribution = true;
       }
     }
-    
+
     // Update building if flags need to be reset (use direct supabase call to avoid circular reference)
     if (Object.keys(updates).length > 0) {
       await supabase
@@ -1808,7 +1809,7 @@ export const api = {
         const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
         const oldMainType = String(beforeData.main_asset_type || '').trim();
         const newMainType = String(updatedAsset.main_asset_type || '').trim();
-        const mainAssetTypeChanged = oldMainType !== newMainType && oldMainType !== '' && newMainType !== '';
+        const mainAssetTypeChanged = oldMainType !== newMainType && newMainType !== '';
         
         console.log('[api.assets.update] Checking distribution flags:', {
           buildingNumber: updatedAsset.building_number,
@@ -1974,7 +1975,7 @@ export const api = {
           // Normal case: reset based on asset type and size change
           // Note: Distribution flags should be updated regardless of skipAudit
           const assetType = await getAssetBusinessResidenceType(updatedAsset);
-          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
+          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged, mainAssetTypeChanged);
         }
       }
 

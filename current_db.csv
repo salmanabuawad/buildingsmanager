@@ -27,7 +27,6 @@
 "asset_types","created_at","timestamp with time zone"
 "asset_types","updated_at","timestamp with time zone"
 "asset_types","area_description_for_tab","text"
-"asset_types","not_accountable","boolean"
 "asset_types","non_accountable_for_total_area","boolean"
 "asset_types","non_accountable_for_distribution","boolean"
 "assets","building_number","bigint(64,0)"

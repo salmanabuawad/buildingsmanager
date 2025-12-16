@@ -1789,6 +1789,13 @@ export const api = {
       // Reset distribution flags if needed (for business: asset_size change)
       // Also reset if main_asset_type changed to/from a type with non_accountable_for_distribution = true
       // Note: Distribution flags are business logic and should be updated regardless of audit logging (skipAudit)
+      console.log('[api.assets.update] Distribution flag check gate:', {
+        hasBuilding: !!updatedAsset.building_number,
+        buildingNumber: updatedAsset.building_number,
+        hasBeforeData: !!beforeData,
+        willCheckFlags: !!(updatedAsset.building_number && beforeData)
+      });
+
       if (updatedAsset.building_number && beforeData) {
         const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
         const oldMainType = String(beforeData.main_asset_type || '').trim();
@@ -1969,6 +1976,12 @@ export const api = {
           const assetType = await getAssetBusinessResidenceType(updatedAsset);
           await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', false, mainAssetTypeChanged);
         }
+      } else {
+        console.log('[api.assets.update] ⚠ Skipping distribution flag check:', {
+          reason: !updatedAsset.building_number ? 'No building_number' : 'No beforeData',
+          buildingNumber: updatedAsset.building_number,
+          hasBeforeData: !!beforeData
+        });
       }
 
       // Log audit entry ONLY for transfer_area or distribute_shared actions

@@ -594,6 +594,12 @@ export const api = {
       const cleanedInput = Object.fromEntries(
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
+      
+      // New buildings should start with distribution flags set to false (needs distribution)
+      // Even though the schema default is true, we explicitly set to false for new buildings
+      cleanedInput.residence_shared_area_distributed = false;
+      cleanedInput.business_shared_area_distributed = false;
+      
       const { data, error } = await supabase
         .from('buildings')
         .insert(cleanedInput)

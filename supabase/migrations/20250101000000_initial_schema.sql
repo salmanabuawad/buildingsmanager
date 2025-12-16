@@ -228,8 +228,8 @@ CREATE TABLE IF NOT EXISTS buildings (
   helka bigint,
   building_number_in_street bigint,
   overload_ratio numeric(5,2),
-  residence_shared_area_distributed boolean DEFAULT false,
-  business_shared_area_distributed boolean DEFAULT false,
+  residence_shared_area_distributed boolean DEFAULT true,
+  business_shared_area_distributed boolean DEFAULT true,
   action_id bigint,
   created_at timestamptz DEFAULT now()
 );

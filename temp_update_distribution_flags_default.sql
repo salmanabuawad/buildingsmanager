@@ -15,6 +15,9 @@ UPDATE buildings
 SET business_shared_area_distributed = true
 WHERE business_shared_area_distributed IS NULL;
 
+-- Note: We keep existing false values as false (they need distribution)
+-- Only NULL values are set to true (assuming they were distributed before)
+
 -- Verify the changes
 SELECT 
   column_name,
@@ -34,4 +37,3 @@ SELECT
 FROM buildings
 ORDER BY building_number
 LIMIT 10;
-

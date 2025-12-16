@@ -3226,17 +3226,19 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       )}
       {/* Blinking warning message when distribution is needed */}
       {building && (() => {
+        // Check if distribution is needed: flag must be explicitly false (not true or null)
+        // With default = true, we only show alert when flag is explicitly set to false
         const needsResidenceDistribution = isResidentTaxRegion && 
           building.residence_shared_area != null && 
           building.residence_shared_area > 0 && 
-          !building.residence_shared_area_distributed;
+          building.residence_shared_area_distributed === false;
         
         const needsBusinessDistribution = taxRegion && 
           !isMultiTaxRegion && 
           !isResidentTaxRegion && 
           building.business_shared_area != null && 
           building.business_shared_area > 0 && 
-          !building.business_shared_area_distributed;
+          building.business_shared_area_distributed === false;
         
         if (!needsResidenceDistribution && !needsBusinessDistribution) {
           return null;
@@ -3402,7 +3404,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleDistributeSharedArea}
-              disabled={loading || assets.length === 0 || building.residence_shared_area_distributed === true}
+              disabled={loading || assets.length === 0 || building.residence_shared_area_distributed !== false}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title={`פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
             >
@@ -3415,7 +3417,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}
-              disabled={loading || assets.length === 0 || building.business_shared_area_distributed === true}
+              disabled={loading || assets.length === 0 || building.business_shared_area_distributed !== false}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
               title={`פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`}
             >

@@ -1789,21 +1789,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Update state after successful bulk save
         setDirtyAssets(updatedDirtyAssets);
         setAssets(updatedAssets);
+        
+        // NOTE: Distribution flag removal is handled by save_assets_bulk_transactional
+        // as part of the transaction. Flag is only removed after successful save.
+        // Refresh building data to get updated flag status
+        try {
+          const updatedBuilding = await api.buildings.getOne(building.building_number);
+          setBuilding(updatedBuilding);
+        } catch (refreshError) {
+          console.warn('Failed to refresh building data after distribution:', refreshError);
+        }
       } catch (auditError) {
         console.warn('Failed to bulk update assets for distribute shared area:', auditError);
         // Still update local state even if bulk save fails
         setDirtyAssets(updatedDirtyAssets);
         setAssets(updatedAssets);
-      }
-      
-      // Update building flag to indicate distribution is done
-      try {
-        await api.buildings.markResidenceDistributionDone(building.building_number);
-        // Refresh building data
-        const updatedBuilding = await api.buildings.getOne(building.building_number);
-        setBuilding(updatedBuilding);
-      } catch (flagError) {
-        console.warn('Failed to update residence distribution flag:', flagError);
+        // NOTE: Flag is NOT removed if save fails (transaction rollback)
       }
       
       // Show result in modal
@@ -2105,21 +2106,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Update state after successful bulk save
         setDirtyAssets(updatedDirtyAssets);
         setAssets(updatedAssets);
+        
+        // NOTE: Distribution flag removal is handled by save_assets_bulk_transactional
+        // as part of the transaction. Flag is only removed after successful save.
+        // Refresh building data to get updated flag status
+        try {
+          const updatedBuilding = await api.buildings.getOne(building.building_number);
+          setBuilding(updatedBuilding);
+        } catch (refreshError) {
+          console.warn('Failed to refresh building data after distribution:', refreshError);
+        }
       } catch (auditError) {
         console.warn('Failed to bulk update assets for distribute shared area:', auditError);
         // Still update local state even if bulk save fails
         setDirtyAssets(updatedDirtyAssets);
         setAssets(updatedAssets);
-      }
-      
-      // Mark distribution as done using the API
-      try {
-        await api.buildings.markBusinessDistributionDone(building.building_number);
-        // Refresh building data
-        const updatedBuilding = await api.buildings.getOne(building.building_number);
-        setBuilding(updatedBuilding);
-      } catch (flagError) {
-        console.warn('Failed to mark business distribution as done:', flagError);
+        // NOTE: Flag is NOT removed if save fails (transaction rollback)
       }
       
       // Note: Building state with updated overload_ratio was already set in the try block above

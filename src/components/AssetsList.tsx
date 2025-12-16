@@ -890,11 +890,40 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           const updatedData = { ...asset, ...changes };
           const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
 
+          // Ensure building_number is always present
+          // Try multiple sources: updatedData, asset, changes, building object, or component prop
+          let buildingNumberValue = updatedData.building_number ?? asset.building_number ?? changes.building_number;
+          if (!buildingNumberValue && building) {
+            buildingNumberValue = building.building_number;
+          }
+          if (!buildingNumberValue) {
+            buildingNumberValue = buildingNumber; // Use the prop from the component scope
+          }
+          if (!buildingNumberValue) {
+            console.error('[handleSaveAll] Missing building_number for asset:', {
+              asset_id: assetId,
+              asset: asset,
+              changes: changes,
+              updatedData: updatedData,
+              building: building,
+              component_buildingNumber: buildingNumber
+            });
+            errors.push(`נכס ${asset.asset_id || assetId}: חסר מספר מבנה`);
+            continue;
+          }
+
           if (isNewAsset) {
             const { id, _isMasterRow, created_at, ...assetData } = updatedData;
+            // Ensure building_number is set
+            assetData.building_number = buildingNumberValue;
             assetsToSave.push(assetData);
           } else {
-            assetsToSave.push({ asset_id: assetId, ...changes });
+            // For updates, ensure building_number is included
+            assetsToSave.push({ 
+              asset_id: assetId, 
+              building_number: buildingNumberValue,
+              ...changes 
+            });
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));

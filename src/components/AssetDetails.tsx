@@ -1961,24 +1961,30 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           discount_date_from: currentAssetData.discount_date_from || undefined,
           discount_date_to: currentAssetData.discount_date_to || undefined
         });
-        
-        const newAsset = await api.assets.create(assetData);
-        
-        setToast({ message: t('updatedSuccessfully'), type: 'success' });
-        
-        // Notify parent to update the tab with the new asset ID
-        if (onAssetCreated && newAsset) {
-          onAssetCreated(newAsset.asset_id, String(newAsset.asset_id));
+
+        const result = await api.assets.saveBulkTransactional([assetData], 'manual_update');
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save asset');
         }
-        
+
+        const newAssetId = result.affected_asset_ids?.[0];
+
+        setToast({ message: t('updatedSuccessfully'), type: 'success' });
+
+        // Notify parent to update the tab with the new asset ID
+        if (onAssetCreated && newAssetId) {
+          onAssetCreated(newAssetId, String(newAssetId));
+        }
+
         // Clear dirty assets and validation errors
         setDirtyAssets(new Map());
         setValidationErrors(new Map());
         setError(null);
-        
+
         // Refresh data to load the newly created asset with the new asset ID
         if (onDataUpdate) onDataUpdate();
-        await fetchData(newAsset.asset_id);
+        await fetchData(newAssetId);
         return;
       }
 
@@ -1988,11 +1994,9 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         return;
       }
 
+      const assetsToUpdate: any[] = [];
       for (const [assetId, changes] of dirtyAssets.entries()) {
-        // Normal update - the trigger will handle moving to history if measurement_date changes
-        // If measurement_date is being changed, validate it first
         if ('measurement_date' in changes) {
-          // If date is blank or 01/01/1900, use current date
           if (!changes.measurement_date || changes.measurement_date === '01/01/1900') {
             const today = new Date();
             const day = String(today.getDate()).padStart(2, '0');
@@ -2001,15 +2005,19 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             changes.measurement_date = `${day}/${month}/${year}`;
           }
         }
-        
-        // Just update - the database trigger will automatically move to history if measurement_date changes
-        await api.assets.update(assetId, changes);
+        assetsToUpdate.push({ asset_id: assetId, ...changes });
+      }
+
+      const result = await api.assets.saveBulkTransactional(assetsToUpdate, 'manual_update');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save assets');
       }
 
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
-      setError(null); // Clear any previous errors on success
+      setError(null);
       
       // Refresh data from server - only fetch what changed (asset history)
       // Use asset_id instead of id, since id might have changed if asset was recreated
@@ -2216,19 +2224,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       delete (newAssetData as any).is_latest;
       delete (newAssetData as any).history_created_at;
 
-      // Step 1: Update the asset with is_new_measurement flag set to true
-      // The api.assets.update function will:
-      //   1. Call copy_asset_to_history_before_update to copy old record to history
-      //   2. Update the asset with the new data
-      //   3. Create an audit log entry with p_copy_to_history=true
-      //   4. Link the history record to the audit entry via action_id
-      // We set is_new_measurement=true to trigger the history copy behavior
       const updateDataWithFlag = {
+        asset_id: oldAssetId,
         ...newAssetData,
         is_new_measurement: true
       };
-      
-      const updatedAsset = await api.assets.update(oldAssetId, updateDataWithFlag as any);
+
+      const result = await api.assets.saveBulkTransactional([updateDataWithFlag], 'manual_update');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save new measurement');
+      }
 
       setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
       setDirtyAssets(new Map());
@@ -2348,8 +2354,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
-      // Step 5: Update asset
-      await api.assets.update(assetId, { structure_drawing_url: publicUrl });
+      const result = await api.assets.saveBulkTransactional([{ asset_id: assetId, structure_drawing_url: publicUrl }], 'manual_update');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update structure drawing URL');
+      }
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 

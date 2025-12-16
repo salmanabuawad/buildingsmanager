@@ -1754,16 +1754,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         updatedCount++;
       }
 
-      // Save all assets in bulk with single audit entry and action_id
+      // Save ALL assets with unsaved changes in bulk with single audit entry and action_id
+      // This includes both assets that received distribution AND any other assets with unsaved changes
       try {
-        // Get affected assets (only those that received shared area)
-        const affectedAssetIds = residentialAssets.map(a => a.asset_id);
-        const beforeAssets = assets
-          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
-          .map(a => ({ ...a }));
-        
         // Prepare assets for bulk update (with all changes applied)
+        // Include ALL assets with unsaved changes, not just those that received distribution
         const assetsToUpdate: Partial<Asset>[] = [];
+        const allAffectedAssetIds = new Set<number>();
+        
+        // First, add all assets that received distribution
         for (const asset of residentialAssets) {
           const assetId = String(asset.asset_id);
           const changes = updatedDirtyAssets.get(assetId) || {};
@@ -1773,6 +1772,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               ...currentAsset,
               ...changes
             } as Partial<Asset>);
+            allAffectedAssetIds.add(asset.asset_id);
+          }
+        }
+        
+        // Then, add any other assets with unsaved changes that weren't part of distribution
+        for (const [assetId, changes] of updatedDirtyAssets.entries()) {
+          // Skip if already included or marked for deletion
+          if (deletedAssets.has(assetId)) continue;
+          
+          const assetIdNum = parseInt(assetId, 10);
+          if (isNaN(assetIdNum) || allAffectedAssetIds.has(assetIdNum)) continue;
+          
+          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          if (currentAsset && Object.keys(changes).length > 0) {
+            assetsToUpdate.push({
+              ...currentAsset,
+              ...changes
+            } as Partial<Asset>);
+            allAffectedAssetIds.add(assetIdNum);
           }
         }
         
@@ -1783,7 +1801,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           'distribute_shared',
           null, // Database will collect before asset data automatically (lowercase null, not NULL)
           null, // Database will collect after asset data automatically (lowercase null, not NULL)
-          `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets`
+          `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets${assetsToUpdate.length > updatedCount ? ` and saved ${assetsToUpdate.length - updatedCount} other assets with unsaved changes` : ''}`
         );
         
         // Update state after successful bulk save
@@ -2071,16 +2089,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         updatedCount++;
       }
 
-      // Save all assets in bulk with single audit entry and action_id
+      // Save ALL assets with unsaved changes in bulk with single audit entry and action_id
+      // This includes both assets that received distribution AND any other assets with unsaved changes
       try {
-        // Get affected assets (only those that received shared area)
-        const affectedAssetIds = businessAssets.map(a => a.asset_id);
-        const beforeAssets = assets
-          .filter(a => !deletedAssets.has(String(a.asset_id)) && affectedAssetIds.includes(a.asset_id))
-          .map(a => ({ ...a }));
-        
         // Prepare assets for bulk update (with all changes applied)
+        // Include ALL assets with unsaved changes, not just those that received distribution
         const assetsToUpdate: Partial<Asset>[] = [];
+        const allAffectedAssetIds = new Set<number>();
+        
+        // First, add all assets that received distribution
         for (const asset of businessAssets) {
           const assetId = String(asset.asset_id);
           const changes = updatedDirtyAssets.get(assetId) || {};
@@ -2090,6 +2107,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               ...currentAsset,
               ...changes
             } as Partial<Asset>);
+            allAffectedAssetIds.add(asset.asset_id);
+          }
+        }
+        
+        // Then, add any other assets with unsaved changes that weren't part of distribution
+        for (const [assetId, changes] of updatedDirtyAssets.entries()) {
+          // Skip if already included or marked for deletion
+          if (deletedAssets.has(assetId)) continue;
+          
+          const assetIdNum = parseInt(assetId, 10);
+          if (isNaN(assetIdNum) || allAffectedAssetIds.has(assetIdNum)) continue;
+          
+          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+          if (currentAsset && Object.keys(changes).length > 0) {
+            assetsToUpdate.push({
+              ...currentAsset,
+              ...changes
+            } as Partial<Asset>);
+            allAffectedAssetIds.add(assetIdNum);
           }
         }
         
@@ -2100,7 +2136,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           'distribute_shared',
           null, // Database will collect before asset data automatically (lowercase null, not NULL)
           null, // Database will collect after asset data automatically (lowercase null, not NULL)
-          `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%`
+          `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%${assetsToUpdate.length > updatedCount ? `. Also saved ${assetsToUpdate.length - updatedCount} other assets with unsaved changes` : ''}`
         );
         
         // Update state after successful bulk save

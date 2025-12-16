@@ -157,7 +157,6 @@ CREATE TABLE IF NOT EXISTS validation_rules (
   value_text text,
   enabled boolean DEFAULT true,
   error_message text,
-  error_message_he text,
   description text,
   compare_table text,
   compare_field text,
@@ -215,9 +214,6 @@ CREATE TRIGGER validation_rules_updated_at
 
 CREATE TABLE IF NOT EXISTS buildings (
   building_number bigint PRIMARY KEY,
-  storage_area numeric(10,2) DEFAULT 0,
-  pergola_area numeric(10,2) DEFAULT 0,
-  balcony_area numeric(10,2) DEFAULT 0,
   total_building_area numeric(10,2) DEFAULT 0,
   tax_region text,
   elevator text,

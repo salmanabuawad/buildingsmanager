@@ -77,7 +77,22 @@ export function AssetTypes() {
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', tax_region: '', elevator: '', single_double_family: '', penthouse: '', condo: '', townhouses: '', business_residence: '', shared_area_usage: '', non_accountable_for_total_area: false, non_accountable_for_distribution: false, min_size: '', max_size: '' });
+    setFormData({ 
+      name: '', 
+      description: '', 
+      tax_region: '', 
+      elevator: '', 
+      single_double_family: '', 
+      penthouse: '', 
+      condo: '', 
+      townhouses: '', 
+      business_residence: '', 
+      shared_area_usage: '', 
+      non_accountable_for_total_area: false, 
+      non_accountable_for_distribution: false, 
+      min_size: '', 
+      max_size: '' 
+    });
     setIsAdding(false);
   }
 
@@ -539,8 +554,9 @@ export function AssetTypes() {
     },
     {
       field: 'non_accountable_for_total_area',
-      headerName: 'לא נספר',
+      headerName: 'לא נספר בחישוב שטח מבנה',
       editable: true,
+      tooltipValueGetter: () => 'נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -565,6 +581,7 @@ export function AssetTypes() {
       field: 'non_accountable_for_distribution',
       headerName: 'לא נספר בפיזור',
       editable: true,
+      tooltipValueGetter: () => 'נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -1349,18 +1366,18 @@ export function AssetTypes() {
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל">
                   <input
                     type="checkbox"
                     checked={formData.non_accountable_for_total_area}
                     onChange={(e) => setFormData({ ...formData, non_accountable_for_total_area: e.target.checked })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
-                  לא נספר
+                  לא נספר בחישוב שטח מבנה
                 </label>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים">
                   <input
                     type="checkbox"
                     checked={formData.non_accountable_for_distribution}

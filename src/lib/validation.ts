@@ -42,7 +42,13 @@ export function setValidationData(data: { buildings: any[]; assetTypes: any[]; a
     inMemoryAllAssets = data.assets;
   }
   dataLoaded = true;
+  
+  // Log statistics about loaded asset types
+  const withNonAccountableForTotalArea = data.assetTypes.filter((at: any) => at.non_accountable_for_total_area === true);
+  const withNonAccountableForDistribution = data.assetTypes.filter((at: any) => at.non_accountable_for_distribution === true);
+  
   console.log(`[validation] Loaded ${data.buildings.length} buildings, ${data.assetTypes.length} asset types, and ${inMemoryAllAssets.length} assets into memory`);
+  console.log(`[validation] Asset types statistics: ${withNonAccountableForTotalArea.length} with non_accountable_for_total_area, ${withNonAccountableForDistribution.length} with non_accountable_for_distribution`);
 }
 
 /**
@@ -73,7 +79,9 @@ export async function refreshAssetTypesCache(): Promise<void> {
 
     inMemoryAssetTypes = mappedData;
     const withBusinessResidence = mappedData.filter((at: any) => at.business_residence != null);
-    console.log(`[validation] Refreshed ${mappedData.length} asset types in memory. ${withBusinessResidence.length} have business_residence set.`);
+    const withNonAccountableForTotalArea = mappedData.filter((at: any) => at.non_accountable_for_total_area === true);
+    const withNonAccountableForDistribution = mappedData.filter((at: any) => at.non_accountable_for_distribution === true);
+    console.log(`[validation] Refreshed ${mappedData.length} asset types in memory. ${withBusinessResidence.length} have business_residence set. ${withNonAccountableForTotalArea.length} have non_accountable_for_total_area set. ${withNonAccountableForDistribution.length} have non_accountable_for_distribution set.`);
   } catch (err) {
     console.error('[validation] Failed to refresh asset types cache:', err);
   }

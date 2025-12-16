@@ -1875,19 +1875,17 @@ export const api = {
         return item;
       });
       
-      // Debug: Log sample data to verify business_residence is included
+      // Debug: Log statistics about asset types
       if (mappedData.length > 0) {
-        const sampleWithBusinessResidence = mappedData.filter((at: any) => at.business_residence != null);
-        if (sampleWithBusinessResidence.length > 0) {
-          console.log('[api.assetTypes.getAll] Sample asset types with business_residence:', 
-            sampleWithBusinessResidence.slice(0, 3).map((at: any) => ({
-              name: at.name,
-              business_residence: at.business_residence
-            }))
-          );
-        } else {
-          console.warn('[api.assetTypes.getAll] No asset types found with business_residence set. Total:', mappedData.length);
-        }
+        const withBusinessResidence = mappedData.filter((at: any) => at.business_residence != null);
+        const withNonAccountableForTotalArea = mappedData.filter((at: any) => at.non_accountable_for_total_area === true);
+        const withNonAccountableForDistribution = mappedData.filter((at: any) => at.non_accountable_for_distribution === true);
+        
+        console.log(`[api.assetTypes.getAll] Loaded ${mappedData.length} asset types. Statistics:`, {
+          withBusinessResidence: withBusinessResidence.length,
+          withNonAccountableForTotalArea: withNonAccountableForTotalArea.length,
+          withNonAccountableForDistribution: withNonAccountableForDistribution.length
+        });
       }
       
       return mappedData;

@@ -878,268 +878,50 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
       }
 
+      const assetsToSave: any[] = [];
+
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
-          // Skip if marked for deletion
           if (deletedAssets.has(assetId)) continue;
 
-          // Get the full asset data
           const asset = assets.find(a => String(a.asset_id) === String(assetId));
           if (!asset) continue;
 
           const updatedData = { ...asset, ...changes };
           const isNewAsset = String(assetId).startsWith('temp-') || newAssets.has(String(assetId));
-          const currentAssetId = isNewAsset ? undefined : (typeof assetId === 'number' ? assetId : (typeof asset.asset_id === 'number' ? asset.asset_id : undefined));
 
-          // Skip validation for non-accountable assets
-          if (isAssetNotAccountable(updatedData)) {
-            // For non-accountable assets, still save but skip validation
-            if (isNewAsset) {
-              try {
-                const createdAsset = await api.assets.create(updatedData as any);
-                savedCount++;
-              } catch (err) {
-                errors.push(`נכס ${updatedData.asset_id}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
-              }
-            } else {
-              try {
-                await api.assets.update(currentAssetId!, updatedData);
-                savedCount++;
-                successfullySaved.add(assetId);
-              } catch (err) {
-                errors.push(`נכס ${updatedData.asset_id}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
-              }
-            }
-            continue;
-          }
-
-          // For new assets, validate all required fields
           if (isNewAsset) {
-            // Skip validation if asset is not_accountable
-            if (isAssetNotAccountable(updatedData)) {
-              // Still save the asset, just skip validation
-              try {
-                await api.assets.create(updatedData);
-                savedCount++;
-                successfullySaved.add(assetId);
-              } catch (err) {
-                errors.push(`נכס ${updatedData.asset_id}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
-              }
-              continue;
-            }
-
-            // Validate required fields
-            if (!updatedData.asset_id) {
-              errors.push(`נכס חדש: קוד נכס נדרש`);
-              continue;
-            }
-            if (!updatedData.main_asset_type) {
-              errors.push(`נכס ${updatedData.asset_id}: סוג נכס ראשי נדרש`);
-              continue;
-            }
-
-            // Validate payer_id (optional, but if provided, must be valid)
-            if (updatedData.payer_id) {
-              const payerValidation = await assetValidators.validatePayerId(updatedData.payer_id);
-              if (!payerValidation.valid) {
-                errors.push(`נכס ${updatedData.asset_id}: ${payerValidation.error}`);
-                continue;
-              }
-            }
-
-            // Validate asset_id
-            const assetIdValidation = await assetValidators.validateAssetId(updatedData.asset_id);
-            if (!assetIdValidation.valid) {
-              errors.push(`נכס ${updatedData.asset_id}: ${assetIdValidation.error}`);
-              continue;
-            }
-
-            // Validate asset_id not in other building (for new assets, currentAssetId is undefined)
-            const assetIdBuildingValidation = await assetValidators.validateAssetIdNotInOtherBuilding(updatedData.asset_id, updatedData.building_number, undefined);
-            if (!assetIdBuildingValidation.valid) {
-              errors.push(`נכס ${updatedData.asset_id}: ${assetIdBuildingValidation.error}`);
-              continue;
-            }
-
-            // Validate asset types
-            const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
-            for (const field of assetTypeFields) {
-              if (updatedData[field as keyof Asset]) {
-                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field, validationTaxRegion);
-                if (!validation.valid) {
-                  errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
-                  continue;
-                }
-              }
-            }
-
-            // Prepare cached data for validation (all data is already in memory)
-            const cachedData = {
-              assetTypes: assetTypes || [],
-              building: building
-            };
-
-            // Validate main asset type complete - use validationTaxRegion from tab
-            if (updatedData.main_asset_type) {
-              const mainAssetValidation = await assetValidators.validateMainAssetTypeComplete(
-                updatedData.building_number,
-                updatedData.main_asset_type,
-                updatedData.asset_size,
-                updatedData,
-                validationTaxRegion, // Pass validationTaxRegion from tab - this overrides building tax_region
-                cachedData
-              );
-              if (!mainAssetValidation.valid) {
-                errors.push(`נכס ${updatedData.asset_id}: ${mainAssetValidation.error}`);
-                continue;
-              }
-            }
-
-            // Validate sub asset types complete - use validationTaxRegion from tab
-            const subAssetFields = [
-              { type: updatedData.sub_asset_type_1, size: updatedData.sub_asset_size_1 },
-              { type: updatedData.sub_asset_type_2, size: updatedData.sub_asset_size_2 },
-              { type: updatedData.sub_asset_type_3, size: updatedData.sub_asset_size_3 },
-              { type: updatedData.sub_asset_type_4, size: updatedData.sub_asset_size_4 },
-              { type: updatedData.sub_asset_type_5, size: updatedData.sub_asset_size_5 },
-              { type: updatedData.sub_asset_type_6, size: updatedData.sub_asset_size_6 }
-            ];
-            let hasSubAssetError = false;
-            for (let i = 0; i < subAssetFields.length; i++) {
-              if (subAssetFields[i].type) {
-                const subAssetValidation = await assetValidators.validateSubAssetTypeComplete(
-                  updatedData.building_number,
-                  subAssetFields[i].type,
-                  subAssetFields[i].size,
-                  validationTaxRegion, // Pass validationTaxRegion from tab - this overrides building tax_region
-                  cachedData,
-                  updatedData // Pass main asset data for penthouse and building-level validations
-                );
-                if (!subAssetValidation.valid) {
-                  errors.push(`נכס ${updatedData.asset_id}: נכס משנה ${i + 1}: ${subAssetValidation.error}`);
-                  hasSubAssetError = true;
-                }
-              }
-            }
-            if (hasSubAssetError) {
-              continue;
-            }
-
-            // Validate 199/299 rules
-            // Use validationTaxRegion from the current tab - this overrides building tax_region
-            const validation = await assetValidators.validateSubAssetsFor199Or299(
-              updatedData.building_number,
-              updatedData.main_asset_type,
-              updatedData.asset_size,
-              [
-                updatedData.sub_asset_type_1,
-                updatedData.sub_asset_type_2,
-                updatedData.sub_asset_type_3,
-                updatedData.sub_asset_type_4,
-                updatedData.sub_asset_type_5,
-                updatedData.sub_asset_type_6
-              ],
-              [
-                updatedData.sub_asset_size_1,
-                updatedData.sub_asset_size_2,
-                updatedData.sub_asset_size_3,
-                updatedData.sub_asset_size_4,
-                updatedData.sub_asset_size_5,
-                updatedData.sub_asset_size_6
-              ],
-              validationTaxRegion, // Pass validationTaxRegion from tab - this overrides building tax_region
-              cachedData
-            );
-            if (!validation.valid) {
-              errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
-              continue;
-            }
-
-            // Create new asset
             const { id, _isMasterRow, created_at, ...assetData } = updatedData;
-            await api.assets.create(assetData);
-            savedCount++;
-            successfullySaved.add(String(assetId));
+            assetsToSave.push(assetData);
           } else {
-            // Validate based on what fields changed for existing assets
-            if (changes.hasOwnProperty('payer_id')) {
-              const validation = await assetValidators.validatePayerId(changes.payer_id as string);
-              if (!validation.valid) {
-                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
-                continue;
-              }
-            }
-
-            if (changes.hasOwnProperty('asset_id')) {
-              const validation = await assetValidators.validateAssetId(changes.asset_id as string);
-              if (!validation.valid) {
-                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
-                continue;
-              }
-              
-              // Also validate that the new asset_id is not in another building
-              const buildingValidation = await assetValidators.validateAssetIdNotInOtherBuilding(changes.asset_id as string, updatedData.building_number, currentAssetId);
-              if (!buildingValidation.valid) {
-                errors.push(`נכס ${asset.asset_id}: ${buildingValidation.error}`);
-                continue;
-              }
-            }
-
-            // Validate asset types if any asset type field changed
-            const assetTypeFields = ['main_asset_type', 'sub_asset_type_1', 'sub_asset_type_2', 'sub_asset_type_3', 'sub_asset_type_4', 'sub_asset_type_5', 'sub_asset_type_6'];
-            for (const field of assetTypeFields) {
-              if (changes.hasOwnProperty(field)) {
-                const validation = await assetValidators.validateAssetType(updatedData[field as keyof Asset] as string, field, validationTaxRegion);
-                if (!validation.valid) {
-                  errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
-                  continue;
-                }
-              }
-            }
-
-            // Validate 199/299 rules if relevant fields changed
-            // Use validationTaxRegion from the current tab - this overrides building tax_region
-            if (changes.hasOwnProperty('main_asset_type') || changes.hasOwnProperty('asset_size') ||
-                assetTypeFields.some(f => changes.hasOwnProperty(f))) {
-              const validation = await assetValidators.validateSubAssetsFor199Or299(
-                updatedData.building_number,
-                updatedData.main_asset_type,
-                updatedData.asset_size,
-                [
-                  updatedData.sub_asset_type_1,
-                  updatedData.sub_asset_type_2,
-                  updatedData.sub_asset_type_3,
-                  updatedData.sub_asset_type_4,
-                  updatedData.sub_asset_type_5,
-                  updatedData.sub_asset_type_6
-                ],
-                [
-                  updatedData.sub_asset_size_1,
-                  updatedData.sub_asset_size_2,
-                  updatedData.sub_asset_size_3,
-                  updatedData.sub_asset_size_4,
-                  updatedData.sub_asset_size_5,
-                  updatedData.sub_asset_size_6
-                ],
-                validationTaxRegion // Pass validationTaxRegion from tab - this overrides building tax_region
-              );
-              if (!validation.valid) {
-                errors.push(`נכס ${asset.asset_id}: ${validation.error}`);
-                continue;
-              }
-            }
-
-            // Update existing asset
-            await api.assets.update(assetId, changes);
-            savedCount++;
-            successfullySaved.add(String(assetId));
+            assetsToSave.push({ asset_id: assetId, ...changes });
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));
           const assetIdent = asset?.asset_id || assetId;
-          errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
+          errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה בהכנת נתונים'}`);
         }
       }
+
+      if (assetsToSave.length > 0) {
+        const result = await api.assets.saveBulkTransactional(assetsToSave, 'manual_update');
+
+        if (result.success) {
+          savedCount = result.count || 0;
+          for (const assetId of dirtyAssets.keys()) {
+            if (!deletedAssets.has(assetId)) {
+              successfullySaved.add(assetId);
+            }
+          }
+        } else {
+          if (result.validationErrors && result.validationErrors.length > 0) {
+            errors.push(...result.validationErrors);
+          } else if (result.error) {
+            errors.push(result.error);
+          }
+        }
+      }
+
 
       // Only clear successfully processed assets from state
       // Keep failed assets in state so they remain visible on screen
@@ -2385,8 +2167,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
-      // Step 5: Update asset
-      await api.assets.update(assetId, { structure_drawing_url: publicUrl });
+      const result = await api.assets.saveBulkTransactional([{ asset_id: assetId, structure_drawing_url: publicUrl }], 'manual_update');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update structure drawing URL');
+      }
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 

@@ -389,293 +389,94 @@ export function AssetDataEntry() {
       let savedCount = 0;
       const errors: string[] = [];
       const savedAssets: string[] = [];
-      for (const row of filteredRowsToSave) {
-        try {
-          const validation = await validateAll([
-            assetValidators.validateBuildingNumber(row.building_number),
-            assetValidators.validateAssetId(row.asset_id),
-            assetValidators.validatePayerId(row.payer_id),
-            assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size, row),
-            assetValidators.validateOnlyComplexTypesCanHaveSubAssets(row.main_asset_type, [
-              row.sub_asset_type_1,
-              row.sub_asset_type_2,
-              row.sub_asset_type_3,
-              row.sub_asset_type_4,
-              row.sub_asset_type_5,
-              row.sub_asset_type_6
-            ]),
-            assetValidators.validateComplexTypesMustHaveSubAssets(row.main_asset_type, [
-              row.sub_asset_type_1,
-              row.sub_asset_type_2,
-              row.sub_asset_type_3,
-              row.sub_asset_type_4,
-              row.sub_asset_type_5,
-              row.sub_asset_type_6
-            ]),
-            assetValidators.validateMinimumSubAssets([
-              row.sub_asset_type_1,
-              row.sub_asset_type_2,
-              row.sub_asset_type_3,
-              row.sub_asset_type_4,
-              row.sub_asset_type_5,
-              row.sub_asset_type_6
-            ]),
-            assetValidators.validateSubAssetSizeMatchesMain(
-              row.asset_size,
-              [
-                row.sub_asset_type_1,
-                row.sub_asset_type_2,
-                row.sub_asset_type_3,
-                row.sub_asset_type_4,
-                row.sub_asset_type_5,
-                row.sub_asset_type_6
-              ],
-              [
-                row.sub_asset_size_1,
-                row.sub_asset_size_2,
-                row.sub_asset_size_3,
-                row.sub_asset_size_4,
-                row.sub_asset_size_5,
-                row.sub_asset_size_6
-              ],
-              row.main_asset_type
-            ),
-            assetValidators.validateSubAssetsFor199Or299(
-              row.building_number,
-              row.main_asset_type,
-              row.asset_size,
-              [
-                row.sub_asset_type_1,
-                row.sub_asset_type_2,
-                row.sub_asset_type_3,
-                row.sub_asset_type_4,
-                row.sub_asset_type_5,
-                row.sub_asset_type_6
-              ],
-              [
-                row.sub_asset_size_1,
-                row.sub_asset_size_2,
-                row.sub_asset_size_3,
-                row.sub_asset_size_4,
-                row.sub_asset_size_5,
-                row.sub_asset_size_6
-              ]
-            ),
-            assetValidators.validateAssetType(row.sub_asset_type_1, 'sub_asset_type_1'),
-            assetValidators.validateAssetType(row.sub_asset_type_2, 'sub_asset_type_2'),
-            assetValidators.validateAssetType(row.sub_asset_type_3, 'sub_asset_type_3'),
-            assetValidators.validateAssetType(row.sub_asset_type_4, 'sub_asset_type_4'),
-            assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
-            assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
-          ]);
-          if (!validation.valid) {
-            const detailedError = validation.error || 'Unknown validation error';
-            if (!row._validationErrors) {
-              row._validationErrors = new Map<string, string>();
-            }
-            row._validationErrors.set('_row', detailedError);
-            errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${detailedError}`);
-            continue;
-          }
-          // If measurement_date is blank or 01/01/1900, use current date
-          let measurementDate = row.measurement_date || '01/01/1900';
-          if (measurementDate === '01/01/1900') {
-            const today = new Date();
-            const day = String(today.getDate()).padStart(2, '0');
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const year = today.getFullYear();
-            measurementDate = `${day}/${month}/${year}`;
-          }
 
-          const assetData: Omit<Asset, 'id' | 'created_at'> = {
-            building_number: row.building_number!,
-            payer_id: row.payer_id || null,
-            asset_id: row.asset_id,
-            measurement_date: measurementDate,
-            main_asset_type: row.main_asset_type || undefined,
-            asset_size: row.asset_size || 0,
-            sub_asset_type_1: row.sub_asset_type_1 || undefined,
-            sub_asset_size_1: row.sub_asset_size_1 || 0,
-            sub_asset_type_2: row.sub_asset_type_2 || undefined,
-            sub_asset_size_2: row.sub_asset_size_2 || 0,
-            sub_asset_type_3: row.sub_asset_type_3 || undefined,
-            sub_asset_size_3: row.sub_asset_size_3 || 0,
-            sub_asset_type_4: row.sub_asset_type_4 || undefined,
-            sub_asset_size_4: row.sub_asset_size_4 || 0,
-            sub_asset_type_5: row.sub_asset_type_5 || undefined,
-            sub_asset_size_5: row.sub_asset_size_5 || 0,
-            sub_asset_type_6: row.sub_asset_type_6 || undefined,
-            sub_asset_size_6: row.sub_asset_size_6 || 0,
-            penthouse: row.penthouse || undefined,
-            floor: row.floor || undefined,
-            discount_type: row.discount_type || undefined,
-            discount_date_from: row.discount_date_from || undefined,
-            discount_date_to: row.discount_date_to || undefined
-          };
-          const newAsset = await api.assets.create(assetData);
-          row._dbId = newAsset.id;
-          row._isNew = false;
-          row._isDirty = false;
-          row._dirtyFields = new Set<string>();
-          savedCount++;
-          savedAssets.push(`נכס ${row.asset_id} במבנה ${row.building_number} - ${row.main_asset_type || 'ללא סוג'}`);
-        } catch (err) {
-          console.error('Error saving asset:', row.asset_id, err);
-          let errorMsg = 'Unknown error';
-          if (err instanceof Error) {
-            errorMsg = err.message;
-            if (err.stack) {
-              console.error('Stack trace:', err.stack);
-            }
-          } else if (typeof err === 'object' && err !== null) {
-            console.error('Error object:', err);
-            const errObj = err as any;
-            if (errObj.code === '23505') {
-              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר המבנה.';
-            } else {
-              errorMsg = JSON.stringify(err, null, 2);
-            }
-          } else {
-            errorMsg = String(err);
-          }
-          errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${errorMsg}`);
+      const assetsToSave: any[] = [];
+
+      for (const row of filteredRowsToSave) {
+        let measurementDate = row.measurement_date || '01/01/1900';
+        if (measurementDate === '01/01/1900') {
+          const today = new Date();
+          const day = String(today.getDate()).padStart(2, '0');
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const year = today.getFullYear();
+          measurementDate = `${day}/${month}/${year}`;
         }
+
+        assetsToSave.push({
+          building_number: row.building_number!,
+          payer_id: row.payer_id || null,
+          asset_id: row.asset_id,
+          measurement_date: measurementDate,
+          main_asset_type: row.main_asset_type || undefined,
+          asset_size: row.asset_size || 0,
+          sub_asset_type_1: row.sub_asset_type_1 || undefined,
+          sub_asset_size_1: row.sub_asset_size_1 || 0,
+          sub_asset_type_2: row.sub_asset_type_2 || undefined,
+          sub_asset_size_2: row.sub_asset_size_2 || 0,
+          sub_asset_type_3: row.sub_asset_type_3 || undefined,
+          sub_asset_size_3: row.sub_asset_size_3 || 0,
+          sub_asset_type_4: row.sub_asset_type_4 || undefined,
+          sub_asset_size_4: row.sub_asset_size_4 || 0,
+          sub_asset_type_5: row.sub_asset_type_5 || undefined,
+          sub_asset_size_5: row.sub_asset_size_5 || 0,
+          sub_asset_type_6: row.sub_asset_type_6 || undefined,
+          sub_asset_size_6: row.sub_asset_size_6 || 0,
+          penthouse: row.penthouse || undefined,
+          floor: row.floor || undefined,
+          discount_type: row.discount_type || undefined,
+          discount_date_from: row.discount_date_from || undefined,
+          discount_date_to: row.discount_date_to || undefined
+        });
       }
       for (const row of dirtyRows) {
-        try {
-          const validation = await validateAll([
-            assetValidators.validateBuildingNumber(row.building_number),
-            assetValidators.validateAssetId(row.asset_id),
-            assetValidators.validatePayerId(row.payer_id),
-            assetValidators.validateAssetType(row.main_asset_type, 'main_asset_type'),
-            assetValidators.validateMainAssetTypeComplete(row.building_number, row.main_asset_type, row.asset_size, row),
-            assetValidators.validateOnlyComplexTypesCanHaveSubAssets(row.main_asset_type, [
-              row.sub_asset_type_1,
-              row.sub_asset_type_2,
-              row.sub_asset_type_3,
-              row.sub_asset_type_4,
-              row.sub_asset_type_5,
-              row.sub_asset_type_6
-            ]),
-            assetValidators.validateComplexTypesMustHaveSubAssets(row.main_asset_type, [
-              row.sub_asset_type_1,
-              row.sub_asset_type_2,
-              row.sub_asset_type_3,
-              row.sub_asset_type_4,
-              row.sub_asset_type_5,
-              row.sub_asset_type_6
-            ]),
-            assetValidators.validateMinimumSubAssets([
-              row.sub_asset_type_1,
-              row.sub_asset_type_2,
-              row.sub_asset_type_3,
-              row.sub_asset_type_4,
-              row.sub_asset_type_5,
-              row.sub_asset_type_6
-            ]),
-            assetValidators.validateSubAssetSizeMatchesMain(
-              row.asset_size,
-              [
-                row.sub_asset_type_1,
-                row.sub_asset_type_2,
-                row.sub_asset_type_3,
-                row.sub_asset_type_4,
-                row.sub_asset_type_5,
-                row.sub_asset_type_6
-              ],
-              [
-                row.sub_asset_size_1,
-                row.sub_asset_size_2,
-                row.sub_asset_size_3,
-                row.sub_asset_size_4,
-                row.sub_asset_size_5,
-                row.sub_asset_size_6
-              ],
-              row.main_asset_type
-            ),
-            assetValidators.validateSubAssetsFor199Or299(
-              row.building_number,
-              row.main_asset_type,
-              row.asset_size,
-              [
-                row.sub_asset_type_1,
-                row.sub_asset_type_2,
-                row.sub_asset_type_3,
-                row.sub_asset_type_4,
-                row.sub_asset_type_5,
-                row.sub_asset_type_6
-              ],
-              [
-                row.sub_asset_size_1,
-                row.sub_asset_size_2,
-                row.sub_asset_size_3,
-                row.sub_asset_size_4,
-                row.sub_asset_size_5,
-                row.sub_asset_size_6
-              ]
-            ),
-            assetValidators.validateAssetType(row.sub_asset_type_1, 'sub_asset_type_1'),
-            assetValidators.validateAssetType(row.sub_asset_type_2, 'sub_asset_type_2'),
-            assetValidators.validateAssetType(row.sub_asset_type_3, 'sub_asset_type_3'),
-            assetValidators.validateAssetType(row.sub_asset_type_4, 'sub_asset_type_4'),
-            assetValidators.validateAssetType(row.sub_asset_type_5, 'sub_asset_type_5'),
-            assetValidators.validateAssetType(row.sub_asset_type_6, 'sub_asset_type_6'),
-          ]);
-          if (!validation.valid) {
-            const detailedError = validation.error || 'Unknown validation error';
-            if (!row._validationErrors) {
-              row._validationErrors = new Map<string, string>();
-            }
-            row._validationErrors.set('_row', detailedError);
-            errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${detailedError}`);
-            continue;
+        assetsToSave.push({
+          asset_id: row._dbId,
+          building_number: row.building_number!,
+          payer_id: row.payer_id || null,
+          main_asset_type: row.main_asset_type || null,
+          asset_size: row.asset_size || 0,
+          sub_asset_type_1: row.sub_asset_type_1 || null,
+          sub_asset_size_1: row.sub_asset_size_1 || 0,
+          sub_asset_type_2: row.sub_asset_type_2 || null,
+          sub_asset_size_2: row.sub_asset_size_2 || 0,
+          sub_asset_type_3: row.sub_asset_type_3 || null,
+          sub_asset_size_3: row.sub_asset_size_3 || 0,
+          sub_asset_type_4: row.sub_asset_type_4 || null,
+          sub_asset_size_4: row.sub_asset_size_4 || 0,
+          sub_asset_type_5: row.sub_asset_type_5 || null,
+          sub_asset_size_5: row.sub_asset_size_5 || 0,
+          sub_asset_type_6: row.sub_asset_type_6 || null,
+          sub_asset_size_6: row.sub_asset_size_6 || 0,
+          penthouse: row.penthouse || undefined,
+          floor: row.floor || undefined,
+          discount_type: row.discount_type || undefined,
+          discount_date_from: row.discount_date_from || undefined,
+          discount_date_to: row.discount_date_to || undefined
+        });
+      }
+
+      if (assetsToSave.length > 0) {
+        const result = await api.assets.saveBulkTransactional(assetsToSave, 'manual_update');
+
+        if (result.success) {
+          savedCount = result.count || 0;
+          for (const row of filteredRowsToSave) {
+            row._isNew = false;
+            row._isDirty = false;
+            row._dirtyFields = new Set<string>();
+            savedAssets.push(`נכס ${row.asset_id} במבנה ${row.building_number} - ${row.main_asset_type || 'ללא סוג'}`);
           }
-          const updateData: Partial<Asset> = {
-            building_number: row.building_number!,
-            payer_id: row.payer_id || null,
-            asset_id: row.asset_id,
-            main_asset_type: row.main_asset_type || null,
-            asset_size: row.asset_size || 0,
-            sub_asset_type_1: row.sub_asset_type_1 || null,
-            sub_asset_size_1: row.sub_asset_size_1 || 0,
-            sub_asset_type_2: row.sub_asset_type_2 || null,
-            sub_asset_size_2: row.sub_asset_size_2 || 0,
-            sub_asset_type_3: row.sub_asset_type_3 || null,
-            sub_asset_size_3: row.sub_asset_size_3 || 0,
-            sub_asset_type_4: row.sub_asset_type_4 || null,
-            sub_asset_size_4: row.sub_asset_size_4 || 0,
-            sub_asset_type_5: row.sub_asset_type_5 || null,
-            sub_asset_size_5: row.sub_asset_size_5 || 0,
-            sub_asset_type_6: row.sub_asset_type_6 || null,
-            sub_asset_size_6: row.sub_asset_size_6 || 0,
-            penthouse: row.penthouse || undefined,
-            floor: row.floor || undefined,
-            discount_type: row.discount_type || undefined,
-            discount_date_from: row.discount_date_from || undefined,
-            discount_date_to: row.discount_date_to || undefined
-          };
-          await api.assets.update(row._dbId!, updateData, 'manual_update', false);
-          row._isDirty = false;
-          row._dirtyFields = new Set<string>();
-          savedCount++;
-          savedAssets.push(`נכס ${row.asset_id} במבנה ${row.building_number} - עודכן`);
-        } catch (err) {
-          console.error('Error updating asset:', row.asset_id, err);
-          let errorMsg = 'Unknown error';
-          if (err instanceof Error) {
-            errorMsg = err.message;
-          } else if (typeof err === 'object' && err !== null) {
-            const errObj = err as any;
-            if (errObj.code === '23505') {
-              errorMsg = 'נכס עם מספר זיהוי זה כבר קיים במערכת. אנא בדוק את מספר הנכס ומספר המבנה.';
-            } else {
-              errorMsg = JSON.stringify(err, null, 2);
-            }
-          } else {
-            errorMsg = String(err);
+          for (const row of dirtyRows) {
+            row._isDirty = false;
+            row._dirtyFields = new Set<string>();
+            savedAssets.push(`נכס ${row.asset_id} במבנה ${row.building_number} - עודכן`);
           }
-          errors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${errorMsg}`);
+        } else {
+          if (result.validationErrors && result.validationErrors.length > 0) {
+            errors.push(...result.validationErrors);
+          } else if (result.error) {
+            errors.push(result.error);
+          }
         }
       }
       setRowData(prev => [...prev]);
@@ -888,35 +689,42 @@ export function AssetDataEntry() {
         discount_date_from: row.discount_date_from || undefined,
         discount_date_to: row.discount_date_to || undefined
       };
-      const newAsset = await api.assets.create(newMeasurementData);
-      // Add the new measurement to the grid
+
+      const result = await api.assets.saveBulkTransactional([newMeasurementData], 'manual_update');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save new measurement');
+      }
+
+      const newAssetId = result.affected_asset_ids?.[0];
+
       const newRow: AssetRow = {
         id: `temp-${Date.now()}`,
-        building_number: newAsset.building_number,
-        payer_id: newAsset.payer_id || '',
-        asset_id: newAsset.asset_id,
-        measurement_date: newAsset.measurement_date,
-        main_asset_type: newAsset.main_asset_type || '',
-        asset_size: newAsset.asset_size || 0,
-        sub_asset_type_1: newAsset.sub_asset_type_1 || '',
-        sub_asset_size_1: newAsset.sub_asset_size_1 || 0,
-        sub_asset_type_2: newAsset.sub_asset_type_2 || '',
-        sub_asset_size_2: newAsset.sub_asset_size_2 || 0,
-        sub_asset_type_3: newAsset.sub_asset_type_3 || '',
-        sub_asset_size_3: newAsset.sub_asset_size_3 || 0,
-        sub_asset_type_4: newAsset.sub_asset_type_4 || '',
-        sub_asset_size_4: newAsset.sub_asset_size_4 || 0,
-        sub_asset_type_5: newAsset.sub_asset_type_5 || '',
-        sub_asset_size_5: newAsset.sub_asset_size_5 || 0,
-        sub_asset_type_6: newAsset.sub_asset_type_6 || '',
-        sub_asset_size_6: newAsset.sub_asset_size_6 || 0,
-        penthouse: newAsset.penthouse || undefined,
-        floor: newAsset.floor || undefined,
-        discount_type: newAsset.discount_type || undefined,
-        discount_date_from: newAsset.discount_date_from || undefined,
-        discount_date_to: newAsset.discount_date_to || undefined,
+        building_number: newMeasurementData.building_number,
+        payer_id: newMeasurementData.payer_id || '',
+        asset_id: newMeasurementData.asset_id,
+        measurement_date: newMeasurementData.measurement_date,
+        main_asset_type: newMeasurementData.main_asset_type || '',
+        asset_size: newMeasurementData.asset_size || 0,
+        sub_asset_type_1: newMeasurementData.sub_asset_type_1 || '',
+        sub_asset_size_1: newMeasurementData.sub_asset_size_1 || 0,
+        sub_asset_type_2: newMeasurementData.sub_asset_type_2 || '',
+        sub_asset_size_2: newMeasurementData.sub_asset_size_2 || 0,
+        sub_asset_type_3: newMeasurementData.sub_asset_type_3 || '',
+        sub_asset_size_3: newMeasurementData.sub_asset_size_3 || 0,
+        sub_asset_type_4: newMeasurementData.sub_asset_type_4 || '',
+        sub_asset_size_4: newMeasurementData.sub_asset_size_4 || 0,
+        sub_asset_type_5: newMeasurementData.sub_asset_type_5 || '',
+        sub_asset_size_5: newMeasurementData.sub_asset_size_5 || 0,
+        sub_asset_type_6: newMeasurementData.sub_asset_type_6 || '',
+        sub_asset_size_6: newMeasurementData.sub_asset_size_6 || 0,
+        penthouse: newMeasurementData.penthouse || undefined,
+        floor: newMeasurementData.floor || undefined,
+        discount_type: newMeasurementData.discount_type || undefined,
+        discount_date_from: newMeasurementData.discount_date_from || undefined,
+        discount_date_to: newMeasurementData.discount_date_to || undefined,
         _isNew: false,
-        _dbId: newAsset.id
+        _dbId: newAssetId
       };
       setRowData(prev => [...prev, newRow]);
       showToast('מדידה חדשה נוספה בהצלחה', 'success');

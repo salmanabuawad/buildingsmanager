@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 
 export type EditMode = 'modal' | 'inline';
 
@@ -42,15 +42,14 @@ function savePreferences(preferences: Preferences) {
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState<Preferences>(loadPreferences);
+  const isInitialMount = useRef(true);
 
-  // Load preferences on mount
+  // Save preferences whenever they change (skip initial mount)
   useEffect(() => {
-    const loaded = loadPreferences();
-    setPreferences(loaded);
-  }, []);
-
-  // Save preferences whenever they change
-  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     savePreferences(preferences);
   }, [preferences]);
 

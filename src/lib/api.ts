@@ -89,7 +89,7 @@ async function resetDistributionFlagsIfNeeded(
     // Get current building data to check if flags need to be reset
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('business_shared_area_distributed, residence_shared_area_distributed')
+      .select('need_business_distribution, need_residence_distribution')
       .eq('building_number', buildingNumber)
       .maybeSingle();
     
@@ -99,19 +99,17 @@ async function resetDistributionFlagsIfNeeded(
     
     const updates: Partial<Building> = {};
     
-    // For residence: reset on create or delete
+    // For residence: set need_residence_distribution to true on create or delete
+    // (true = needs distribution, false = already distributed)
     if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete')) {
-      if (building.residence_shared_area_distributed === true) {
-        updates.residence_shared_area_distributed = false;
-      }
+      updates.need_residence_distribution = true;
     }
     
-    // For business: reset on create, delete, or asset_size change
+    // For business: set need_business_distribution to true on create, delete, or asset_size change
+    // (true = needs distribution, false = already distributed)
     if (assetType === 'business') {
       if (changeType === 'create' || changeType === 'delete' || assetSizeChanged) {
-        if (building.business_shared_area_distributed === true) {
-          updates.business_shared_area_distributed = false;
-        }
+        updates.need_business_distribution = true;
       }
     }
     
@@ -205,8 +203,8 @@ export interface Building {
   single_double_family?: string;
   condo?: string;
   townhouses?: string;
-  residence_shared_area_distributed?: boolean;
-  business_shared_area_distributed?: boolean;
+  need_residence_distribution?: boolean;
+  need_business_distribution?: boolean;
   building_address?: number; // Street code from address_list table
   overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
   gosh?: number; // גוש (Block number)
@@ -525,11 +523,11 @@ function sanitizeBuildingInput(input: any): any {
     sanitized.building_number_in_street = null;
   }
   // Handle boolean distribution flags
-  if ('residence_shared_area_distributed' in input) {
-    sanitized.residence_shared_area_distributed = input.residence_shared_area_distributed === true || input.residence_shared_area_distributed === 'true';
+  if ('need_residence_distribution' in input) {
+    sanitized.need_residence_distribution = input.need_residence_distribution === true || input.need_residence_distribution === 'true';
   }
-  if ('business_shared_area_distributed' in input) {
-    sanitized.business_shared_area_distributed = input.business_shared_area_distributed === true || input.business_shared_area_distributed === 'true';
+  if ('need_business_distribution' in input) {
+    sanitized.need_business_distribution = input.need_business_distribution === true || input.need_business_distribution === 'true';
   }
   
   return sanitized;
@@ -595,10 +593,10 @@ export const api = {
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
       
-      // New buildings should start with distribution flags set to false (needs distribution)
-      // Even though the schema default is true, we explicitly set to false for new buildings
-      cleanedInput.residence_shared_area_distributed = false;
-      cleanedInput.business_shared_area_distributed = false;
+      // New buildings should start with distribution flags set to true (needs distribution)
+      // Schema default is already true, but we explicitly set it for clarity
+      cleanedInput.need_residence_distribution = true;
+      cleanedInput.need_business_distribution = true;
       
       const { data, error } = await supabase
         .from('buildings')
@@ -656,15 +654,15 @@ export const api = {
       
       // Reset distribution flags when shared areas change
       if (beforeData) {
-        // If residence_shared_area is being changed, reset the distribution flag
+        // If residence_shared_area is being changed, set need_residence_distribution to true
         if ('residence_shared_area' in cleanedInput && 
             cleanedInput.residence_shared_area !== beforeData.residence_shared_area) {
-          cleanedInput.residence_shared_area_distributed = false;
+          cleanedInput.need_residence_distribution = true;
         }
-        // If business_shared_area is being changed, reset the distribution flag
+        // If business_shared_area is being changed, set need_business_distribution to true
         if ('business_shared_area' in cleanedInput && 
             cleanedInput.business_shared_area !== beforeData.business_shared_area) {
-          cleanedInput.business_shared_area_distributed = false;
+          cleanedInput.need_business_distribution = true;
         }
       }
       
@@ -817,7 +815,7 @@ export const api = {
     markBusinessDistributionNeeded: async (buildingNumber: number): Promise<void> => {
       const { error } = await supabase
         .from('buildings')
-        .update({ business_shared_area_distributed: false })
+        .update({ need_business_distribution: true })
         .eq('building_number', buildingNumber);
       
       if (error) {
@@ -829,7 +827,7 @@ export const api = {
     markBusinessDistributionDone: async (buildingNumber: number): Promise<void> => {
       const { error } = await supabase
         .from('buildings')
-        .update({ business_shared_area_distributed: true })
+        .update({ need_business_distribution: false })
         .eq('building_number', buildingNumber);
       
       if (error) {
@@ -841,7 +839,7 @@ export const api = {
     markResidenceDistributionNeeded: async (buildingNumber: number): Promise<void> => {
       const { error } = await supabase
         .from('buildings')
-        .update({ residence_shared_area_distributed: false })
+        .update({ need_residence_distribution: true })
         .eq('building_number', buildingNumber);
       
       if (error) {
@@ -853,7 +851,7 @@ export const api = {
     markResidenceDistributionDone: async (buildingNumber: number): Promise<void> => {
       const { error } = await supabase
         .from('buildings')
-        .update({ residence_shared_area_distributed: true })
+        .update({ need_residence_distribution: false })
         .eq('building_number', buildingNumber);
       
       if (error) {
@@ -865,7 +863,7 @@ export const api = {
     getDistributionStatus: async (buildingNumber: number): Promise<{ business: boolean | null; residence: boolean | null }> => {
       const { data, error } = await supabase
         .from('buildings')
-        .select('business_shared_area_distributed, residence_shared_area_distributed')
+        .select('need_business_distribution, need_residence_distribution')
         .eq('building_number', buildingNumber)
         .maybeSingle();
       
@@ -879,8 +877,8 @@ export const api = {
       }
       
       return {
-        business: data.business_shared_area_distributed,
-        residence: data.residence_shared_area_distributed
+        business: data.need_business_distribution,
+        residence: data.need_residence_distribution
       };
     },
   },
@@ -2484,6 +2482,17 @@ export const api = {
     } catch (areaError) {
       console.warn('Failed to update building total area after bulk asset deletion:', areaError);
       // Don't fail the operation if area update fails
+    }
+
+    // Reset both distribution flags when assets are deleted
+    // Deleting assets requires re-distribution
+    try {
+      await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+      await api.buildings.markResidenceDistributionNeeded(buildingNumber);
+      console.log(`[api.deleteAssetsByBuilding] Reset both distribution flags for building ${buildingNumber} after asset deletion`);
+    } catch (flagError) {
+      console.warn('Failed to reset distribution flags after bulk asset deletion:', flagError);
+      // Don't fail the operation if flag reset fails
     }
 
     // Delete from assets_history again to remove entries created by the trigger

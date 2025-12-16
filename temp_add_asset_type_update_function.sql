@@ -67,12 +67,13 @@ BEGIN
       WHERE main_asset_type = v_asset_type_name
         AND building_number IS NOT NULL;
       
-      -- Reset both business_shared_area_distributed and residence_shared_area_distributed flags
+      -- Set both need_business_distribution and need_residence_distribution flags to true
       -- because non_accountable_for_distribution affects both distribution types
+      -- (true = needs distribution, false = already distributed)
       IF v_affected_buildings IS NOT NULL AND array_length(v_affected_buildings, 1) > 0 THEN
         UPDATE buildings
-        SET business_shared_area_distributed = false,
-            residence_shared_area_distributed = false
+        SET need_business_distribution = true,
+            need_residence_distribution = true
         WHERE building_number = ANY(v_affected_buildings);
       END IF;
     END IF;

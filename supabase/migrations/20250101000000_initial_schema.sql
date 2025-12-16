@@ -228,8 +228,8 @@ CREATE TABLE IF NOT EXISTS buildings (
   helka bigint,
   building_number_in_street bigint,
   overload_ratio numeric(5,2),
-  residence_shared_area_distributed boolean DEFAULT true,
-  business_shared_area_distributed boolean DEFAULT true,
+  need_residence_distribution boolean DEFAULT true,
+  need_business_distribution boolean DEFAULT true,
   action_id bigint,
   created_at timestamptz DEFAULT now()
 );
@@ -290,8 +290,8 @@ COMMENT ON COLUMN buildings.building_address IS 'Street code from address_list t
 COMMENT ON COLUMN buildings.overload_ratio IS 'אחוז העמסה - Overload ratio percentage';
 COMMENT ON COLUMN buildings.residence_shared_area IS 'Residence shared/common area in the building (שטח משותף מגורים)';
 COMMENT ON COLUMN buildings.business_shared_area IS 'Shared business/commercial area in the building (שטח משותף עסקים)';
-COMMENT ON COLUMN buildings.residence_shared_area_distributed IS 'Flag indicating if residence shared area has been distributed to assets';
-COMMENT ON COLUMN buildings.business_shared_area_distributed IS 'Flag indicating if business shared area has been distributed to assets';
+COMMENT ON COLUMN buildings.need_residence_distribution IS 'Flag indicating if residence shared area needs to be distributed to assets (true = needs distribution, false = already distributed)';
+COMMENT ON COLUMN buildings.need_business_distribution IS 'Flag indicating if business shared area needs to be distributed to assets (true = needs distribution, false = already distributed)';
 
 -- ============================================================================
 -- 5. ASSETS TABLE
@@ -2020,12 +2020,13 @@ BEGIN
       WHERE main_asset_type = v_asset_type_name
         AND building_number IS NOT NULL;
       
-      -- Reset both business_shared_area_distributed and residence_shared_area_distributed flags
+      -- Set both need_business_distribution and need_residence_distribution flags to true
       -- because non_accountable_for_distribution affects both distribution types
+      -- (true = needs distribution, false = already distributed)
       IF v_affected_buildings IS NOT NULL AND array_length(v_affected_buildings, 1) > 0 THEN
         UPDATE buildings
-        SET business_shared_area_distributed = false,
-            residence_shared_area_distributed = false
+        SET need_business_distribution = true,
+            need_residence_distribution = true
         WHERE building_number = ANY(v_affected_buildings);
       END IF;
     END IF;

@@ -656,13 +656,67 @@ async function validateAndSaveBulkAssets(
   const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
 
-  // STEP 0: Prepare assets for validation and save - same format as single save
-  // Remove only AG Grid internal fields and preserve 'id' temporarily for validation
-  const preparedAssetsData = assetsData.map(asset => {
+  // STEP 0: Load existing asset data and merge with changes for validation
+  // This ensures validation runs on complete data, not just partial changes
+  const assetIds = assetsData
+    .map(a => a.asset_id)
+    .filter(id => id != null)
+    .map(id => Number(id))
+    .filter(id => !isNaN(id));
+  
+  // Load existing assets from database if we have asset_ids
+  let existingAssetsMap = new Map<number, any>();
+  if (assetIds.length > 0) {
+    const { data: existingAssets, error: fetchError } = await supabase
+      .from('assets')
+      .select('*')
+      .in('asset_id', assetIds);
+    
+    if (!fetchError && existingAssets) {
+      existingAssets.forEach(asset => {
+        existingAssetsMap.set(Number(asset.asset_id), asset);
+      });
+    }
+  }
+  
+  // STEP 0b: Prepare assets for validation - merge existing data with changes
+  // Remove only AG Grid internal fields and ensure basic type conversions for validation
+  const preparedAssetsData = assetsData.map((asset: any) => {
     // Remove AG Grid internal fields (same as single save - no extra sanitization)
     const { _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanAsset } = asset as any;
+    
+    // Merge with existing asset data if it exists (for validation - needs complete data)
+    const assetId = cleanAsset.asset_id != null ? Number(cleanAsset.asset_id) : null;
+    const existingAsset = assetId != null && !isNaN(assetId) ? existingAssetsMap.get(assetId) : null;
+    
+    // Merge: existing data first, then overlay changes (changes take precedence)
+    const mergedAsset = existingAsset ? { ...existingAsset, ...cleanAsset } : cleanAsset;
+    
+    // Ensure numeric fields are numbers (not strings) for validation
+    // This is minimal type conversion - same as what database expects
+    if (mergedAsset.asset_size != null) {
+      const size = Number(mergedAsset.asset_size);
+      mergedAsset.asset_size = isNaN(size) ? undefined : size;
+    }
+    if (mergedAsset.building_number != null) {
+      const num = Number(mergedAsset.building_number);
+      mergedAsset.building_number = isNaN(num) ? undefined : num;
+    }
+    if (mergedAsset.asset_id != null) {
+      const id = Number(mergedAsset.asset_id);
+      mergedAsset.asset_id = isNaN(id) ? undefined : id;
+    }
+    // Convert sub-asset sizes to numbers
+    for (let i = 1; i <= 6; i++) {
+      const sizeKey = `sub_asset_size_${i}` as keyof typeof mergedAsset;
+      if (mergedAsset[sizeKey] != null) {
+        const size = Number(mergedAsset[sizeKey]);
+        (mergedAsset as any)[sizeKey] = isNaN(size) ? undefined : size;
+      }
+    }
+    
     // Preserve 'id' temporarily for validation (will be removed before sending to DB)
-    return cleanAsset;
+    return mergedAsset;
   });
 
   // STEP 1: Validate ALL assets (same as single save)

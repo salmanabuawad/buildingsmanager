@@ -281,9 +281,10 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             // 3. Always check audit after_data for distribution operations
             // (distribution updates assets in place, and action_id might not be set on assets)
             // Include ALL affected assets, not just the current one
+            // Also include assets with non_accountable_for_distribution = true from before_data
             const { data: distributeAudits, error: distributeAuditErr } = await supabase
               .from('audit')
-              .select('action_id, after_data, entity_id, created_at')
+              .select('action_id, before_data, after_data, entity_id, created_at')
               .in('action_id', distributeActionIds);
             
             if (!distributeAuditErr && distributeAudits) {
@@ -294,11 +295,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
                   
                   if (isCurrentAssetAffected) {
+                    // Add ALL assets from after_data (assets that received distributed area)
                     const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                    const assets = afterData?.assets || [];
+                    const afterAssets = afterData?.assets || [];
                     
-                    // Add ALL affected assets from this distribution operation
-                    assets.forEach((assetData: any) => {
+                    afterAssets.forEach((assetData: any) => {
                       // Check if we already have this asset (avoid duplicates)
                       const alreadyExists = allDistributeAssets.some(a => 
                         a.asset_id === assetData.asset_id && 
@@ -314,10 +315,57 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                         } as Asset);
                       }
                     });
+                    
+                    // Also add assets with non_accountable_for_distribution = true from before_data
+                    // These assets don't receive distributed area but should still appear in distribution history
+                    const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
+                    const beforeAssets = beforeData?.assets || [];
+                    
+                    // Create a map of asset types with non_accountable_for_distribution = true
+                    const nonAccountableForDistributionTypes = new Set<string>();
+                    assetTypes.forEach(at => {
+                      if (at.non_accountable_for_distribution === true && at.name) {
+                        nonAccountableForDistributionTypes.add(String(at.name).trim());
+                        // Also add numeric version if name is numeric
+                        const nameNum = parseInt(String(at.name).trim(), 10);
+                        if (!isNaN(nameNum)) {
+                          nonAccountableForDistributionTypes.add(String(nameNum));
+                        }
+                      }
+                    });
+                    
+                    beforeAssets.forEach((assetData: any) => {
+                      if (!assetData.main_asset_type) return;
+                      
+                      const mainTypeStr = String(assetData.main_asset_type).trim();
+                      const mainTypeNum = parseInt(mainTypeStr, 10);
+                      
+                      // Check if this asset type has non_accountable_for_distribution = true
+                      const isNonAccountableForDistribution = 
+                        nonAccountableForDistributionTypes.has(mainTypeStr) ||
+                        (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
+                      
+                      if (isNonAccountableForDistribution) {
+                        // Check if we already have this asset (avoid duplicates)
+                        const alreadyExists = allDistributeAssets.some(a => 
+                          a.asset_id === assetData.asset_id && 
+                          a.action_id === audit.action_id &&
+                          a.measurement_date === assetData.measurement_date
+                        );
+                        if (!alreadyExists) {
+                          allDistributeAssets.push({
+                            ...assetData,
+                            is_latest: false,
+                            action_id: audit.action_id,
+                            history_created_at: audit.created_at
+                          } as Asset);
+                        }
+                      }
+                    });
                   }
                 } catch (e) {
                   if (process.env.NODE_ENV === 'development') {
-                    console.error('[AssetDetails] Error parsing audit after_data:', e);
+                    console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
                   }
                 }
               });
@@ -447,7 +495,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     JSON.stringify(historyRows.map(r => r.action_id).filter(id => id != null).sort()),
     latestMeasurement?.action_id,
     asset?.asset_id,
-    activeHistoryTab
+    activeHistoryTab,
+    assetTypes // Include assetTypes to check for non_accountable_for_distribution assets
   ]);
   
   // Clear state when switching between history, distribution, and transfer tabs

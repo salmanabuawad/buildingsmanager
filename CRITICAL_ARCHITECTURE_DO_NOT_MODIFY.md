@@ -152,14 +152,16 @@ if (!result.success) {
 
 ### ✅ MANDATORY RULE: Use Designated Save Functions
 
-**The following database functions are the ONLY approved way to save assets:**
+**The following database functions are the ONLY approved way to save/delete assets:**
 
 - `save_asset_transactional` - Single asset save
 - `save_assets_bulk_transactional` - Bulk asset save
+- `delete_asset_transactional` - Single asset delete
 
 **These functions are called by:**
 - `api.assets.saveTransactional()`
 - `api.assets.saveBulkTransactional()`
+- `api.assets.delete()` (uses transactional delete)
 - `api.auditLog.bulkUpdateAssets()` (internally uses transactional save)
 
 ### ❌ FORBIDDEN PATTERNS
@@ -170,6 +172,9 @@ await supabase.from('assets').insert({ ... });
 
 // ❌ NEVER DO THIS - Direct table update
 await supabase.from('assets').update({ ... }).eq('asset_id', 123);
+
+// ❌ NEVER DO THIS - Direct table delete
+await supabase.from('assets').delete().eq('asset_id', 123);
 
 // ❌ NEVER DO THIS - Raw SQL insert
 await supabase.rpc('execute_sql', {
@@ -209,6 +214,9 @@ const result = await api.auditLog.bulkUpdateAssets(
   afterData,
   'Description'
 );
+
+// ✅ ALWAYS DO THIS - Use api.assets.delete (uses transactional delete)
+const result = await api.assets.delete(assetId);
 ```
 
 ---
@@ -290,11 +298,14 @@ try {
 
 **The following migration files and functions are CRITICAL and must NOT be modified:**
 
-**Migration:** `supabase/migrations/add_transactional_save_functions.sql`
+**Migrations:**
+- `supabase/migrations/add_transactional_save_functions.sql`
+- `supabase/migrations/add_transactional_delete_function.sql`
 
 **Functions:**
 - `save_asset_transactional`
 - `save_assets_bulk_transactional`
+- `delete_asset_transactional`
 - `update_building_total_area`
 - `set_distribution_flags_for_asset_type_change`
 - `log_audit_for_asset`

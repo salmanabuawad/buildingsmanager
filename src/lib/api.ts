@@ -2156,77 +2156,21 @@ export const api = {
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
       const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
-      
-      // Get asset data before deletion (for change log and building number)
-      let beforeData: Asset | null = null;
-      let buildingNumber: number | null = null;
-      try {
-        const { data: asset } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('asset_id', assetIdNum)
-          .maybeSingle();
-        beforeData = asset || null;
-        buildingNumber = asset?.building_number || null;
-      } catch (err) {
-        console.warn('Failed to get asset data before deletion:', err);
-      }
-      
-      // Copy to history BEFORE deletion (transaction-based, replaces trigger)
-      // Do NOT create audit entry - audit entries are only created by bulk operations
-      // Regular asset deletion should not create audit entries
-      try {
-        await supabase.rpc('copy_asset_to_history_before_update', {
-          p_asset_id: assetIdNum
-        });
-      } catch (historyError) {
-        console.warn('Failed to copy asset to history before deletion:', historyError);
-        // Continue with deletion even if history copy fails
+
+      const userInfo = await getCurrentUserInfo();
+
+      const { data, error } = await supabase.rpc('delete_asset_transactional', {
+        p_asset_id: assetIdNum,
+        p_user_id: userInfo.user_id || null,
+        p_description: 'Asset deleted'
+      });
+
+      if (error) {
+        console.error('[api.assets.delete] Transaction failed:', error);
+        throw error;
       }
 
-      // Delete from assets table
-      const { error } = await supabase
-        .from('assets')
-        .delete()
-        .eq('asset_id', assetIdNum);
-
-      if (error) throw error;
-
-      // Update building total area (transaction-based, replaces trigger)
-      if (buildingNumber) {
-        try {
-          await supabase.rpc('update_building_total_area', {
-            p_building_number: buildingNumber
-          });
-        } catch (areaError) {
-          console.warn('Failed to update building total area after asset deletion:', areaError);
-          // Don't fail the operation if area update fails
-        }
-      }
-      
-      // Reset distribution flags when asset is deleted
-      // Deleting assets requires re-distribution
-      if (buildingNumber && beforeData) {
-        try {
-          const assetType = await getAssetBusinessResidenceType(beforeData);
-          await resetDistributionFlagsIfNeeded(buildingNumber, assetType, 'delete', false, false);
-          console.log(`[api.assets.delete] Reset distribution flags for building ${buildingNumber} after asset deletion`);
-        } catch (flagError) {
-          console.warn('Failed to reset distribution flags after asset deletion:', flagError);
-          // Don't fail the operation if flag reset fails
-        }
-      }
-
-      // Log change entry asynchronously
-      if (beforeData) {
-        logChangeAsync(
-          'assets',
-          'DELETE',
-          String(assetIdNum),
-          beforeData,
-          undefined
-        );
-      }
+      console.log('[api.assets.delete] Asset deleted successfully in transaction:', data);
 
       return { message: 'Asset deleted successfully' };
     },

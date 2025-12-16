@@ -21,6 +21,10 @@ if (!result.success) {
   }
   return;
 }
+
+// Asset delete (transactional with distribution flag handling)
+const result = await api.assets.delete(assetId);
+// Distribution flags automatically set
 ```
 
 ### ❌ NEVER DO THIS (Forbidden Patterns)
@@ -29,10 +33,15 @@ if (!result.success) {
 // ❌ Direct database operations
 await supabase.from('assets').insert(assetData);
 await supabase.from('assets').update(assetData);
+await supabase.from('assets').delete().eq('asset_id', assetId);
 
 // ❌ Separate non-transactional operations
 await supabase.from('assets').insert(assetData);
 await supabase.rpc('update_building_total_area', { ... }); // Too late!
+
+// ❌ Delete without updating distribution flags
+await supabase.from('assets').delete().eq('asset_id', assetId);
+// Distribution flags NOT set!
 
 // ❌ Skipping validation
 await api.assets.create(assetData); // No validation enforcement!
@@ -46,12 +55,20 @@ const result = await api.assets.saveTransactional(assetData);
 
 ## What These Functions Do
 
-**Single Transaction Includes:**
+**Single Save Transaction Includes:**
 1. ✅ Validation check (rejects if failed)
 2. ✅ Asset save (INSERT or UPDATE)
 3. ✅ Building total area update
 4. ✅ Distribution flags update
 5. ✅ Audit log creation
+
+**Single Delete Transaction Includes:**
+1. ✅ Asset data retrieval (for audit)
+2. ✅ Copy to history
+3. ✅ Asset deletion
+4. ✅ Building total area update
+5. ✅ Distribution flags set to true (business/residence as applicable)
+6. ✅ Audit log creation
 
 **If ANY step fails → EVERYTHING rolls back**
 
@@ -67,6 +84,8 @@ const result = await api.assets.saveTransactional(assetData);
 - `supabase/migrations/20251216103948_add_transactional_save_functions.sql`
   - `save_asset_transactional()` function
   - `save_assets_bulk_transactional()` function
+- `supabase/migrations/add_transactional_delete_function.sql`
+  - `delete_asset_transactional()` function
 
 ### Documentation
 - `CRITICAL_ARCHITECTURE_DO_NOT_MODIFY.md` - **READ THIS FIRST**

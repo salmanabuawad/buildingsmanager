@@ -1548,14 +1548,46 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
           const merged = { ...asset, ...changes };
           // Remove any fields that don't exist in the database (like 'id' from AG Grid)
-          const { id, _isNew, _isDirty, _validationErrors, ...cleanMerged } = merged as any;
+          const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
+          
+          // Ensure building_number is present and valid
+          const buildingNumber = cleanMerged.building_number ?? asset.building_number;
+          if (!buildingNumber) {
+            throw new Error(`Asset ${asset.asset_id} is missing building_number`);
+          }
+          
+          // Ensure asset_id is present
+          const assetId = cleanMerged.asset_id ?? asset.asset_id;
+          if (!assetId) {
+            throw new Error(`Asset is missing asset_id`);
+          }
+          
+          // Get main_asset_type (preserve it if it exists)
+          const mainAssetType = cleanMerged.main_asset_type ?? asset.main_asset_type;
+          
+          // If main_asset_type exists, ensure asset_size is > 0
+          let assetSize = cleanMerged.asset_size ?? asset.asset_size ?? 0;
+          if (mainAssetType && String(mainAssetType).trim() !== '' && assetSize === 0) {
+            // If main type exists but size is 0, calculate from sub-asset sizes
+            const subSizes = [
+              cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
+              cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
+              cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
+              cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
+              cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
+              cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
+            ];
+            assetSize = subSizes.reduce((sum, size) => sum + (size || 0), 0);
+          }
+          
           // Ensure all required fields are present
           return {
             ...cleanMerged,
-            building_number: cleanMerged.building_number ?? asset.building_number,
-            asset_id: cleanMerged.asset_id ?? asset.asset_id,
-            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date,
-            asset_size: cleanMerged.asset_size ?? asset.asset_size ?? 0,
+            building_number: buildingNumber,
+            asset_id: assetId,
+            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date ?? '01/01/1900',
+            main_asset_type: mainAssetType,
+            asset_size: assetSize,
             // Ensure sub-asset sizes are numbers, not undefined
             sub_asset_size_1: cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
             sub_asset_size_2: cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
@@ -1904,14 +1936,46 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
           const merged = { ...asset, ...changes };
           // Remove any fields that don't exist in the database (like 'id' from AG Grid)
-          const { id, _isNew, _isDirty, _validationErrors, ...cleanMerged } = merged as any;
+          const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
+          
+          // Ensure building_number is present and valid
+          const buildingNumber = cleanMerged.building_number ?? asset.building_number;
+          if (!buildingNumber) {
+            throw new Error(`Asset ${asset.asset_id} is missing building_number`);
+          }
+          
+          // Ensure asset_id is present
+          const assetId = cleanMerged.asset_id ?? asset.asset_id;
+          if (!assetId) {
+            throw new Error(`Asset is missing asset_id`);
+          }
+          
+          // Get main_asset_type (preserve it if it exists)
+          const mainAssetType = cleanMerged.main_asset_type ?? asset.main_asset_type;
+          
+          // If main_asset_type exists, ensure asset_size is > 0
+          let assetSize = cleanMerged.asset_size ?? asset.asset_size ?? 0;
+          if (mainAssetType && String(mainAssetType).trim() !== '' && assetSize === 0) {
+            // If main type exists but size is 0, calculate from sub-asset sizes
+            const subSizes = [
+              cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
+              cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
+              cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
+              cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
+              cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
+              cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
+            ];
+            assetSize = subSizes.reduce((sum, size) => sum + (size || 0), 0);
+          }
+          
           // Ensure all required fields are present
           return {
             ...cleanMerged,
-            building_number: cleanMerged.building_number ?? asset.building_number,
-            asset_id: cleanMerged.asset_id ?? asset.asset_id,
-            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date,
-            asset_size: cleanMerged.asset_size ?? asset.asset_size ?? 0,
+            building_number: buildingNumber,
+            asset_id: assetId,
+            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date ?? '01/01/1900',
+            main_asset_type: mainAssetType,
+            asset_size: assetSize,
             // Ensure sub-asset sizes are numbers, not undefined
             sub_asset_size_1: cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
             sub_asset_size_2: cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,

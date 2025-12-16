@@ -126,8 +126,8 @@
 "buildings","overload_ratio","numeric(5,2)"
 "buildings","created_at","timestamp with time zone"
 "buildings","action_id","bigint(64,0)"
-"buildings","residence_shared_area_distributed","boolean"
-"buildings","business_shared_area_distributed","boolean"
+"buildings","need_residence_distribution","boolean"
+"buildings","need_business_distribution","boolean"
 "change_log","log_id","bigint(64,0)"
 "change_log","table_name","text"
 "change_log","operation","text"
@@ -961,6 +961,139 @@ BEGIN
 END;
 $function$
 "
+"FUNCTION","public.delete_asset_transactional(p_asset_id bigint, p_user_id text DEFAULT NULL::text, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.delete_asset_transactional(p_asset_id bigint, p_user_id text DEFAULT NULL::text, p_description text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_building_number INTEGER;
+  v_asset_type TEXT;
+  v_business_residence TEXT;
+  v_before_data JSONB;
+  v_action_id BIGINT;
+BEGIN
+  -- ========================================================================
+  -- STEP 1: GET ASSET DATA (for audit and distribution flag logic)
+  -- ========================================================================
+  SELECT
+    building_number,
+    main_asset_type,
+    row_to_json(assets.*)::JSONB
+  INTO
+    v_building_number,
+    v_asset_type,
+    v_before_data
+  FROM assets
+  WHERE asset_id = p_asset_id;
+
+  IF v_building_number IS NULL THEN
+    RAISE EXCEPTION 'Asset not found: %', p_asset_id;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 2: COPY ASSET TO HISTORY (for audit trail)
+  -- ========================================================================
+  BEGIN
+    PERFORM copy_asset_to_history_before_update(p_asset_id);
+  EXCEPTION WHEN OTHERS THEN
+    -- Log warning but continue (history copy is not critical)
+    RAISE WARNING 'Failed to copy asset to history before deletion: %', SQLERRM;
+  END;
+
+  -- ========================================================================
+  -- STEP 3: DELETE ASSET
+  -- ========================================================================
+  DELETE FROM assets WHERE asset_id = p_asset_id;
+
+  -- ========================================================================
+  -- STEP 4: UPDATE BUILDING TOTAL AREA
+  -- ========================================================================
+  PERFORM update_building_total_area(v_building_number);
+
+  -- ========================================================================
+  -- STEP 5: SET DISTRIBUTION FLAGS
+  -- Asset deletion always requires redistribution
+  -- Only set the relevant flag (business OR residence, not both)
+  -- ========================================================================
+
+  -- Get asset type's business/residence classification
+  SELECT business_residence
+  INTO v_business_residence
+  FROM asset_types
+  WHERE name = v_asset_type;
+
+  -- Set distribution flags based on asset type (using Hebrew values)
+  IF v_business_residence = 'עסקים' THEN
+    -- Business asset deleted → need business redistribution only
+    UPDATE buildings
+    SET need_business_distribution = true
+    WHERE building_number = v_building_number;
+
+    RAISE NOTICE 'Set need_business_distribution=true for building % (business asset deleted)', v_building_number;
+
+  ELSIF v_business_residence = 'מגורים' THEN
+    -- Residence asset deleted → need residence redistribution only
+    UPDATE buildings
+    SET need_residence_distribution = true
+    WHERE building_number = v_building_number;
+
+    RAISE NOTICE 'Set need_residence_distribution=true for building % (residence asset deleted)', v_building_number;
+
+  ELSE
+    -- Unknown type → set both flags (safe default)
+    -- This should only happen if business_residence is NULL or an unexpected value
+    UPDATE buildings
+    SET
+      need_business_distribution = true,
+      need_residence_distribution = true
+    WHERE building_number = v_building_number;
+
+    RAISE NOTICE 'Set both distribution flags=true for building % (unknown asset type: %, business_residence: %)', v_building_number, v_asset_type, v_business_residence;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 6: CREATE AUDIT LOG ENTRY
+  -- ========================================================================
+  BEGIN
+    -- Create audit action record
+    INSERT INTO audit_log (
+      operation,
+      user_id,
+      action_type,
+      description,
+      before_data
+    )
+    VALUES (
+      'DELETE',
+      p_user_id,
+      'delete_asset',
+      COALESCE(p_description, 'Asset deleted'),
+      v_before_data
+    )
+    RETURNING action_id INTO v_action_id;
+
+  EXCEPTION WHEN OTHERS THEN
+    -- Log warning but don't fail the transaction
+    RAISE WARNING 'Failed to create audit log for asset deletion: %', SQLERRM;
+  END;
+
+  -- ========================================================================
+  -- RETURN SUCCESS
+  -- ========================================================================
+  RETURN jsonb_build_object(
+    'success', true,
+    'asset_id', p_asset_id,
+    'building_number', v_building_number,
+    'action_id', v_action_id
+  );
+
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Any error causes complete rollback
+    RAISE EXCEPTION 'Asset deletion failed: %', SQLERRM;
+END;
+$function$
+"
 "FUNCTION","public.get_asset_audit_data(p_asset_id bigint)","CREATE OR REPLACE FUNCTION public.get_asset_audit_data(p_asset_id bigint)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1658,6 +1791,610 @@ BEGIN
 END;
 $function$
 "
+"FUNCTION","public.save_asset_transactional(p_asset_data jsonb, p_validation_passed boolean, p_validation_errors text DEFAULT NULL::text, p_action_type text DEFAULT 'manual_update'::text, p_user_id text DEFAULT NULL::text, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.save_asset_transactional(p_asset_data jsonb, p_validation_passed boolean, p_validation_errors text DEFAULT NULL::text, p_action_type text DEFAULT 'manual_update'::text, p_user_id text DEFAULT NULL::text, p_description text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_asset_id BIGINT;
+  v_building_number BIGINT;
+  v_existing_asset RECORD;
+  v_old_main_asset_type BIGINT;
+  v_new_main_asset_type BIGINT;
+  v_old_asset_size NUMERIC;
+  v_new_asset_size NUMERIC;
+  v_audit_id BIGINT;
+  v_result JSONB;
+  v_business_residence TEXT;
+  v_asset_type_changed BOOLEAN := FALSE;
+  v_asset_size_changed BOOLEAN := FALSE;
+BEGIN
+  -- ========================================================================
+  -- STEP 1: ENFORCE VALIDATION
+  -- ========================================================================
+  IF p_validation_passed IS NULL THEN
+    RAISE EXCEPTION 'Validation status is required. Operations cannot proceed without validation.'
+      USING HINT = 'Ensure validation is performed before calling this function';
+  END IF;
+
+  IF p_validation_passed = FALSE THEN
+    RAISE EXCEPTION 'Validation failed: %', COALESCE(p_validation_errors, 'Unknown validation errors')
+      USING HINT = 'Fix validation errors before attempting to save';
+  END IF;
+
+  -- ========================================================================
+  -- STEP 2: EXTRACT DATA AND CHECK EXISTING ASSET
+  -- ========================================================================
+  v_asset_id := (p_asset_data->>'asset_id')::BIGINT;
+  v_building_number := (p_asset_data->>'building_number')::BIGINT;
+  v_new_main_asset_type := (p_asset_data->>'main_asset_type')::BIGINT;
+  v_new_asset_size := COALESCE((p_asset_data->>'asset_size')::NUMERIC, 0);
+
+  IF v_asset_id IS NULL OR v_building_number IS NULL THEN
+    RAISE EXCEPTION 'Asset ID and Building Number are required'
+      USING HINT = 'Ensure asset_id and building_number are provided in p_asset_data';
+  END IF;
+
+  -- Check if asset exists
+  SELECT * INTO v_existing_asset
+  FROM assets
+  WHERE asset_id = v_asset_id;
+
+  IF FOUND THEN
+    v_old_main_asset_type := v_existing_asset.main_asset_type;
+    v_old_asset_size := v_existing_asset.asset_size;
+    v_asset_type_changed := (v_old_main_asset_type IS DISTINCT FROM v_new_main_asset_type);
+    v_asset_size_changed := (v_old_asset_size IS DISTINCT FROM v_new_asset_size);
+  END IF;
+
+  -- ========================================================================
+  -- STEP 3: SAVE ASSET (INSERT OR UPDATE)
+  -- ========================================================================
+  IF v_existing_asset IS NULL THEN
+    -- INSERT new asset
+    INSERT INTO assets (
+      asset_id,
+      building_number,
+      main_asset_type,
+      sub_asset_type_1,
+      sub_asset_type_2,
+      sub_asset_type_3,
+      sub_asset_type_4,
+      sub_asset_type_5,
+      sub_asset_type_6,
+      asset_size,
+      sub_asset_size_1,
+      sub_asset_size_2,
+      sub_asset_size_3,
+      sub_asset_size_4,
+      sub_asset_size_5,
+      sub_asset_size_6,
+      is_new_measurement,
+      business_distribution_area,
+      residence_distribution_area
+    )
+    VALUES (
+      v_asset_id,
+      v_building_number,
+      v_new_main_asset_type,
+      (p_asset_data->>'sub_asset_type_1')::BIGINT,
+      (p_asset_data->>'sub_asset_type_2')::BIGINT,
+      (p_asset_data->>'sub_asset_type_3')::BIGINT,
+      (p_asset_data->>'sub_asset_type_4')::BIGINT,
+      (p_asset_data->>'sub_asset_type_5')::BIGINT,
+      (p_asset_data->>'sub_asset_type_6')::BIGINT,
+      v_new_asset_size,
+      COALESCE((p_asset_data->>'sub_asset_size_1')::NUMERIC, 0),
+      COALESCE((p_asset_data->>'sub_asset_size_2')::NUMERIC, 0),
+      COALESCE((p_asset_data->>'sub_asset_size_3')::NUMERIC, 0),
+      COALESCE((p_asset_data->>'sub_asset_size_4')::NUMERIC, 0),
+      COALESCE((p_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
+      COALESCE((p_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
+      COALESCE((p_asset_data->>'is_new_measurement')::BOOLEAN, false),
+      (p_asset_data->>'business_distribution_area')::NUMERIC,
+      (p_asset_data->>'residence_distribution_area')::NUMERIC
+    );
+  ELSE
+    -- Copy to history before update
+    INSERT INTO assets_history (
+      asset_id, building_number, main_asset_type, sub_asset_type_1, sub_asset_type_2,
+      sub_asset_type_3, sub_asset_type_4, sub_asset_type_5, sub_asset_type_6,
+      asset_size, sub_asset_size_1, sub_asset_size_2, sub_asset_size_3,
+      sub_asset_size_4, sub_asset_size_5, sub_asset_size_6,
+      is_new_measurement, business_distribution_area, residence_distribution_area
+    )
+    SELECT 
+      asset_id, building_number, main_asset_type, sub_asset_type_1, sub_asset_type_2,
+      sub_asset_type_3, sub_asset_type_4, sub_asset_type_5, sub_asset_type_6,
+      asset_size, sub_asset_size_1, sub_asset_size_2, sub_asset_size_3,
+      sub_asset_size_4, sub_asset_size_5, sub_asset_size_6,
+      is_new_measurement, business_distribution_area, residence_distribution_area
+    FROM assets
+    WHERE asset_id = v_asset_id;
+
+    -- UPDATE existing asset
+    UPDATE assets
+    SET
+      main_asset_type = v_new_main_asset_type,
+      sub_asset_type_1 = (p_asset_data->>'sub_asset_type_1')::BIGINT,
+      sub_asset_type_2 = (p_asset_data->>'sub_asset_type_2')::BIGINT,
+      sub_asset_type_3 = (p_asset_data->>'sub_asset_type_3')::BIGINT,
+      sub_asset_type_4 = (p_asset_data->>'sub_asset_type_4')::BIGINT,
+      sub_asset_type_5 = (p_asset_data->>'sub_asset_type_5')::BIGINT,
+      sub_asset_type_6 = (p_asset_data->>'sub_asset_type_6')::BIGINT,
+      asset_size = v_new_asset_size,
+      sub_asset_size_1 = COALESCE((p_asset_data->>'sub_asset_size_1')::NUMERIC, 0),
+      sub_asset_size_2 = COALESCE((p_asset_data->>'sub_asset_size_2')::NUMERIC, 0),
+      sub_asset_size_3 = COALESCE((p_asset_data->>'sub_asset_size_3')::NUMERIC, 0),
+      sub_asset_size_4 = COALESCE((p_asset_data->>'sub_asset_size_4')::NUMERIC, 0),
+      sub_asset_size_5 = COALESCE((p_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
+      sub_asset_size_6 = COALESCE((p_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
+      is_new_measurement = COALESCE((p_asset_data->>'is_new_measurement')::BOOLEAN, false),
+      business_distribution_area = (p_asset_data->>'business_distribution_area')::NUMERIC,
+      residence_distribution_area = (p_asset_data->>'residence_distribution_area')::NUMERIC,
+      updated_at = now()
+    WHERE asset_id = v_asset_id;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 4: UPDATE BUILDING TOTAL AREA
+  -- ========================================================================
+  PERFORM update_building_total_area(v_building_number);
+
+  -- ========================================================================
+  -- STEP 5: UPDATE DISTRIBUTION FLAGS (if type changed OR asset_size changed)
+  -- Only set the relevant flag (business OR residence, not both)
+  -- ========================================================================
+  
+  -- Get business_residence for the asset type
+  IF v_new_main_asset_type IS NOT NULL THEN
+    SELECT business_residence INTO v_business_residence
+    FROM asset_types
+    WHERE name = v_new_main_asset_type;
+  END IF;
+  
+  -- Set flags if type changed (using existing function)
+  IF v_asset_type_changed AND v_old_main_asset_type IS NOT NULL THEN
+    PERFORM set_distribution_flags_for_asset_type_change(
+      v_building_number,
+      v_old_main_asset_type,
+      v_new_main_asset_type
+    );
+  END IF;
+  
+  -- Also set flags if asset_size changed (for business/residence assets)
+  IF v_asset_size_changed AND v_business_residence IS NOT NULL THEN
+    IF v_business_residence = 'עסקים' THEN
+      -- Business asset size changed → set business distribution flag only
+      UPDATE buildings
+      SET need_business_distribution = true
+      WHERE building_number = v_building_number;
+      
+      RAISE NOTICE 'Set need_business_distribution=true for building % (business asset size changed)', v_building_number;
+      
+    ELSIF v_business_residence = 'מגורים' THEN
+      -- Residence asset size changed → set residence distribution flag only
+      UPDATE buildings
+      SET need_residence_distribution = true
+      WHERE building_number = v_building_number;
+      
+      RAISE NOTICE 'Set need_residence_distribution=true for building % (residence asset size changed)', v_building_number;
+    END IF;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 6: CREATE AUDIT LOG
+  -- ========================================================================
+  v_audit_id := log_audit_for_asset(
+    v_asset_id,
+    CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
+    p_action_type::audit_action_type,
+    p_user_id,
+    p_description
+  );
+
+  -- ========================================================================
+  -- STEP 7: RETURN RESULT
+  -- ========================================================================
+  v_result := jsonb_build_object(
+    'success', true,
+    'asset_id', v_asset_id,
+    'building_number', v_building_number,
+    'operation', CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
+    'audit_id', v_audit_id,
+    'message', 'Asset saved successfully with all post-save actions completed'
+  );
+
+  RETURN v_result;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Any error will cause automatic rollback of the entire transaction
+    RAISE EXCEPTION 'Transaction failed and rolled back: %', SQLERRM
+      USING HINT = 'All changes have been rolled back. No partial data was saved.';
+END;
+$function$
+"
+"FUNCTION","public.save_assets_bulk_transactional(p_assets_data jsonb[], p_validation_passed boolean, p_validation_errors text DEFAULT NULL::text, p_action_type text DEFAULT 'manual_update'::text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)","CREATE OR REPLACE FUNCTION public.save_assets_bulk_transactional(p_assets_data jsonb[], p_validation_passed boolean, p_validation_errors text DEFAULT NULL::text, p_action_type text DEFAULT 'manual_update'::text, p_user_id text DEFAULT NULL::text, p_before_data jsonb DEFAULT NULL::jsonb, p_after_data jsonb DEFAULT NULL::jsonb, p_description text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_asset_data JSONB;
+  v_asset_id BIGINT;
+  v_building_number BIGINT;
+  v_existing_asset RECORD;
+  v_old_main_asset_type BIGINT;
+  v_new_main_asset_type BIGINT;
+  v_affected_asset_ids BIGINT[] := ARRAY[]::BIGINT[];
+  v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];
+  v_action_id BIGINT;
+  v_count INTEGER := 0;
+  v_result JSONB;
+  v_user_id_fk BIGINT;
+  v_default_user_id BIGINT := 1;
+  v_building_num_for_flag BIGINT;
+  v_distribution_type TEXT; -- 'residence' or 'business'
+  v_asset_type_name TEXT;
+  v_business_residence TEXT;
+  v_business_dist_area NUMERIC;
+  v_old_asset_size NUMERIC;
+  v_new_asset_size NUMERIC;
+  -- Store old values for each asset to use in STEP 6
+  v_asset_old_values RECORD;
+BEGIN
+  -- ========================================================================
+  -- STEP 1: ENFORCE VALIDATION
+  -- ========================================================================
+  IF p_validation_passed IS NULL THEN
+    RAISE EXCEPTION 'Validation status is required. Operations cannot proceed without validation.'
+      USING HINT = 'Ensure validation is performed before calling this function';
+  END IF;
+
+  IF p_validation_passed = FALSE THEN
+    RAISE EXCEPTION 'Validation failed: %', COALESCE(p_validation_errors, 'Unknown validation errors')
+      USING HINT = 'Fix validation errors before attempting to save';
+  END IF;
+
+  -- ========================================================================
+  -- STEP 2: GET OR CREATE USER
+  -- ========================================================================
+  IF p_user_id IS NOT NULL THEN
+    SELECT id INTO v_user_id_fk FROM users WHERE auth_user_id = p_user_id;
+    IF v_user_id_fk IS NULL THEN
+      INSERT INTO users (auth_user_id, email, created_at)
+      VALUES (p_user_id, p_user_id || '@system.local', now())
+      RETURNING id INTO v_user_id_fk;
+    END IF;
+  ELSE
+    SELECT id INTO v_user_id_fk FROM users WHERE id = v_default_user_id;
+    IF v_user_id_fk IS NULL THEN
+      v_user_id_fk := v_default_user_id;
+    END IF;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 3: CREATE ACTION ENTRY
+  -- ========================================================================
+  INSERT INTO actions (action_type, user_id, before_data, after_data, description, created_at)
+  VALUES (
+    p_action_type::audit_action_type,
+    v_user_id_fk,
+    p_before_data,
+    p_after_data,
+    p_description,
+    now()
+  )
+  RETURNING id INTO v_action_id;
+
+  -- ========================================================================
+  -- STEP 4: PROCESS EACH ASSET
+  -- ========================================================================
+  FOREACH v_asset_data IN ARRAY p_assets_data
+  LOOP
+    -- Remove any fields that don't exist in assets table to prevent errors
+    -- This includes 'id' (AG Grid internal field) and other non-database fields
+    v_asset_data := v_asset_data - 'id' - '_isNew' - '_isDirty' - '_validationErrors';
+    
+    v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
+    v_building_number := (v_asset_data->>'building_number')::BIGINT;
+    v_new_main_asset_type := (v_asset_data->>'main_asset_type')::BIGINT;
+
+    IF v_asset_id IS NULL OR v_building_number IS NULL THEN
+      RAISE EXCEPTION 'Asset ID and Building Number are required for all assets'
+        USING HINT = 'Ensure all assets in p_assets_data have asset_id and building_number';
+    END IF;
+
+    -- Store building number for flag removal (use first building if multiple)
+    IF v_building_num_for_flag IS NULL THEN
+      v_building_num_for_flag := v_building_number;
+    END IF;
+
+    -- Check if asset exists
+    SELECT * INTO v_existing_asset
+    FROM assets
+    WHERE asset_id = v_asset_id;
+
+    IF FOUND THEN
+      v_old_main_asset_type := v_existing_asset.main_asset_type;
+      v_old_asset_size := v_existing_asset.asset_size;
+      
+      -- Copy to history before update
+      INSERT INTO assets_history (
+        asset_id, building_number, main_asset_type, sub_asset_type_1, sub_asset_type_2,
+        sub_asset_type_3, sub_asset_type_4, sub_asset_type_5, sub_asset_type_6,
+        asset_size, sub_asset_size_1, sub_asset_size_2, sub_asset_size_3,
+        sub_asset_size_4, sub_asset_size_5, sub_asset_size_6,
+        is_new_measurement, business_distribution_area, residence_distribution_area,
+        action_id
+      )
+      SELECT 
+        asset_id, building_number, main_asset_type, sub_asset_type_1, sub_asset_type_2,
+        sub_asset_type_3, sub_asset_type_4, sub_asset_type_5, sub_asset_type_6,
+        asset_size, sub_asset_size_1, sub_asset_size_2, sub_asset_size_3,
+        sub_asset_size_4, sub_asset_size_5, sub_asset_size_6,
+        is_new_measurement, business_distribution_area, residence_distribution_area,
+        v_action_id
+      FROM assets
+      WHERE asset_id = v_asset_id;
+
+      -- UPDATE existing asset
+      UPDATE assets
+      SET
+        main_asset_type = v_new_main_asset_type,
+        sub_asset_type_1 = (v_asset_data->>'sub_asset_type_1')::BIGINT,
+        sub_asset_type_2 = (v_asset_data->>'sub_asset_type_2')::BIGINT,
+        sub_asset_type_3 = (v_asset_data->>'sub_asset_type_3')::BIGINT,
+        sub_asset_type_4 = (v_asset_data->>'sub_asset_type_4')::BIGINT,
+        sub_asset_type_5 = (v_asset_data->>'sub_asset_type_5')::BIGINT,
+        sub_asset_type_6 = (v_asset_data->>'sub_asset_type_6')::BIGINT,
+        asset_size = COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0),
+        sub_asset_size_1 = COALESCE((v_asset_data->>'sub_asset_size_1')::NUMERIC, 0),
+        sub_asset_size_2 = COALESCE((v_asset_data->>'sub_asset_size_2')::NUMERIC, 0),
+        sub_asset_size_3 = COALESCE((v_asset_data->>'sub_asset_size_3')::NUMERIC, 0),
+        sub_asset_size_4 = COALESCE((v_asset_data->>'sub_asset_size_4')::NUMERIC, 0),
+        sub_asset_size_5 = COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
+        sub_asset_size_6 = COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
+        is_new_measurement = COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false),
+        business_distribution_area = (v_asset_data->>'business_distribution_area')::NUMERIC,
+        residence_distribution_area = (v_asset_data->>'residence_distribution_area')::NUMERIC,
+        action_id = v_action_id,
+        updated_at = now()
+      WHERE asset_id = v_asset_id;
+    ELSE
+      -- INSERT new asset
+      INSERT INTO assets (
+        asset_id,
+        building_number,
+        main_asset_type,
+        sub_asset_type_1,
+        sub_asset_type_2,
+        sub_asset_type_3,
+        sub_asset_type_4,
+        sub_asset_type_5,
+        sub_asset_type_6,
+        asset_size,
+        sub_asset_size_1,
+        sub_asset_size_2,
+        sub_asset_size_3,
+        sub_asset_size_4,
+        sub_asset_size_5,
+        sub_asset_size_6,
+        is_new_measurement,
+        business_distribution_area,
+        residence_distribution_area,
+        action_id
+      )
+      VALUES (
+        v_asset_id,
+        v_building_number,
+        v_new_main_asset_type,
+        (v_asset_data->>'sub_asset_type_1')::BIGINT,
+        (v_asset_data->>'sub_asset_type_2')::BIGINT,
+        (v_asset_data->>'sub_asset_type_3')::BIGINT,
+        (v_asset_data->>'sub_asset_type_4')::BIGINT,
+        (v_asset_data->>'sub_asset_type_5')::BIGINT,
+        (v_asset_data->>'sub_asset_type_6')::BIGINT,
+        COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'sub_asset_size_1')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'sub_asset_size_2')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'sub_asset_size_3')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'sub_asset_size_4')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
+        COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false),
+        (v_asset_data->>'business_distribution_area')::NUMERIC,
+        (v_asset_data->>'residence_distribution_area')::NUMERIC,
+        v_action_id
+      );
+      
+      v_old_main_asset_type := NULL;
+    END IF;
+
+    -- Track affected assets and buildings
+    v_affected_asset_ids := array_append(v_affected_asset_ids, v_asset_id);
+    IF NOT (v_building_number = ANY(v_affected_buildings)) THEN
+      v_affected_buildings := array_append(v_affected_buildings, v_building_number);
+    END IF;
+
+    v_count := v_count + 1;
+  END LOOP;
+
+  -- ========================================================================
+  -- STEP 5: UPDATE BUILDING TOTAL AREAS FOR ALL AFFECTED BUILDINGS
+  -- ========================================================================
+  FOREACH v_building_number IN ARRAY v_affected_buildings
+  LOOP
+    PERFORM update_building_total_area(v_building_number);
+  END LOOP;
+
+  -- ========================================================================
+  -- STEP 6: UPDATE DISTRIBUTION FLAGS FOR ALL ASSETS WITH TYPE OR SIZE CHANGES
+  -- Note: During distribution, asset types are updated (e.g., to 199 for residence)
+  -- We need to set flags for these type changes, then remove them after successful distribution
+  -- ========================================================================
+  FOREACH v_asset_data IN ARRAY p_assets_data
+  LOOP
+    v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
+    v_building_number := (v_asset_data->>'building_number')::BIGINT;
+    v_new_main_asset_type := (v_asset_data->>'main_asset_type')::BIGINT;
+    v_new_asset_size := COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0);
+
+    -- Get old type and size from the history entry we just created in STEP 4
+    -- This represents the state BEFORE the current update
+    -- We use action_id to get the specific history entry for this transaction
+    SELECT main_asset_type, asset_size 
+    INTO v_asset_old_values
+    FROM assets_history
+    WHERE asset_id = v_asset_id
+      AND action_id = v_action_id  -- Only get the history entry we just created in this transaction
+    ORDER BY history_created_at DESC NULLS LAST, created_at DESC
+    LIMIT 1;
+    
+    -- Extract old values if found
+    IF FOUND THEN
+      v_old_main_asset_type := v_asset_old_values.main_asset_type;
+      v_old_asset_size := v_asset_old_values.asset_size;
+    ELSE
+      -- New asset - no old values to compare
+      v_old_main_asset_type := NULL;
+      v_old_asset_size := NULL;
+    END IF;
+
+    -- Update flags if type changed (using existing function)
+    IF v_old_main_asset_type IS NOT NULL AND v_old_main_asset_type != v_new_main_asset_type THEN
+      PERFORM set_distribution_flags_for_asset_type_change(
+        v_building_number,
+        v_old_main_asset_type,
+        v_new_main_asset_type
+      );
+    END IF;
+
+    -- Also set flags if asset_size changed (for business/residence assets)
+    IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL 
+       AND v_old_asset_size != v_new_asset_size 
+       AND v_new_main_asset_type IS NOT NULL THEN
+      -- Get business_residence for the asset type
+      SELECT business_residence INTO v_business_residence
+      FROM asset_types
+      WHERE name = v_new_main_asset_type;
+
+      IF v_business_residence = 'עסקים' THEN
+        -- Business asset size changed → set business distribution flag only
+        UPDATE buildings
+        SET need_business_distribution = true
+        WHERE building_number = v_building_number;
+        
+        RAISE NOTICE 'Set need_business_distribution=true for building % (business asset size changed)', v_building_number;
+        
+      ELSIF v_business_residence = 'מגורים' THEN
+        -- Residence asset size changed → set residence distribution flag only
+        UPDATE buildings
+        SET need_residence_distribution = true
+        WHERE building_number = v_building_number;
+        
+        RAISE NOTICE 'Set need_residence_distribution=true for building % (residence asset size changed)', v_building_number;
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- ========================================================================
+  -- STEP 7: REMOVE DISTRIBUTION FLAGS FOR distribute_shared ACTIONS
+  -- Only after successful save, and only the relevant flag
+  -- ========================================================================
+  IF p_action_type = 'distribute_shared' AND v_building_num_for_flag IS NOT NULL THEN
+    -- Determine distribution type by checking description first (most reliable)
+    -- Then check asset data fields as fallback
+    v_distribution_type := NULL;
+    
+    -- STEP 7a: Check description (most reliable method)
+    IF p_description IS NOT NULL THEN
+      IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
+        v_distribution_type := 'residence';
+      ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
+        v_distribution_type := 'business';
+      END IF;
+    END IF;
+    
+    -- STEP 7b: If description didn't help, check asset data
+    IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
+      -- Check if business_distribution_area is being updated (business distribution)
+      FOREACH v_asset_data IN ARRAY p_assets_data
+      LOOP
+        -- Check if business_distribution_area is set and non-zero
+        BEGIN
+          IF (v_asset_data->>'business_distribution_area') IS NOT NULL THEN
+            v_business_dist_area := (v_asset_data->>'business_distribution_area')::NUMERIC;
+            IF v_business_dist_area IS NOT NULL AND v_business_dist_area > 0 THEN
+              v_distribution_type := 'business';
+              EXIT; -- Found business distribution, no need to check more
+            END IF;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          -- Ignore conversion errors, continue checking
+          NULL;
+        END;
+      END LOOP;
+      
+      -- If still not determined, check if main_asset_type is 199 (residence distribution)
+      IF v_distribution_type IS NULL THEN
+        v_asset_type_name := (p_assets_data[1]->>'main_asset_type');
+        -- Check both string and numeric comparison
+        IF v_asset_type_name = '199' OR v_asset_type_name::BIGINT = 199 THEN
+          v_distribution_type := 'residence';
+        END IF;
+      END IF;
+    END IF;
+    
+    -- STEP 7c: Remove the relevant flag only
+    IF v_distribution_type = 'residence' THEN
+      -- Residence distribution → remove residence flag
+      UPDATE buildings
+      SET need_residence_distribution = false
+      WHERE building_number = v_building_num_for_flag;
+      
+      RAISE NOTICE 'Removed need_residence_distribution flag for building % (residence distribution completed)', v_building_num_for_flag;
+      
+    ELSIF v_distribution_type = 'business' THEN
+      -- Business distribution → remove business flag
+      UPDATE buildings
+      SET need_business_distribution = false
+      WHERE building_number = v_building_num_for_flag;
+      
+      RAISE NOTICE 'Removed need_business_distribution flag for building % (business distribution completed)', v_building_num_for_flag;
+    ELSE
+      -- Could not determine type - log warning but don't fail
+      RAISE WARNING 'Could not determine distribution type for building %. Description: %, Flags not removed.', 
+        v_building_num_for_flag, 
+        COALESCE(p_description, 'NULL');
+    END IF;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 8: RETURN RESULT
+  -- ========================================================================
+  v_result := jsonb_build_object(
+    'success', true,
+    'action_id', v_action_id,
+    'affected_asset_ids', v_affected_asset_ids,
+    'affected_buildings', v_affected_buildings,
+    'count', v_count,
+    'message', format('Successfully saved %s assets with all post-save actions completed', v_count)
+  );
+
+  RETURN v_result;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Any error will cause automatic rollback of the entire transaction
+    -- This includes asset updates AND flag removal
+    RAISE EXCEPTION 'Bulk transaction failed and rolled back: %', SQLERRM
+      USING HINT = 'All changes have been rolled back. No partial data was saved. Distribution flags remain set.';
+END;
+$function$
+"
 "FUNCTION","public.search_assets_by_range(from_id bigint, to_id bigint)","CREATE OR REPLACE FUNCTION public.search_assets_by_range(from_id bigint, to_id bigint)
  RETURNS TABLE(building_number bigint, asset_id bigint, payer_id text, main_asset_type text, asset_size numeric, sub_asset_type_1 text, sub_asset_size_1 numeric, sub_asset_type_2 text, sub_asset_size_2 numeric, sub_asset_type_3 text, sub_asset_size_3 numeric, sub_asset_type_4 text, sub_asset_size_4 numeric, sub_asset_type_5 text, sub_asset_size_5 numeric, sub_asset_type_6 text, sub_asset_size_6 numeric, measurement_date text, created_at timestamp with time zone, updated_at timestamp with time zone)
  LANGUAGE plpgsql
@@ -1693,6 +2430,95 @@ BEGIN
 END;
 $function$
 "
+"FUNCTION","public.set_distribution_flags_for_asset_type_change(p_building_number integer, p_old_main_asset_type text, p_new_main_asset_type text)","CREATE OR REPLACE FUNCTION public.set_distribution_flags_for_asset_type_change(p_building_number integer, p_old_main_asset_type text, p_new_main_asset_type text)
+ RETURNS TABLE(business_flag_set boolean, residence_flag_set boolean)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+v_old_type_data RECORD;
+v_new_type_data RECORD;
+v_old_is_non_accountable BOOLEAN;
+v_new_is_non_accountable BOOLEAN;
+v_business_residence TEXT;
+v_business_flag_set BOOLEAN := FALSE;
+v_residence_flag_set BOOLEAN := FALSE;
+BEGIN
+-- Skip if no building_number
+IF p_building_number IS NULL THEN
+RETURN QUERY SELECT v_business_flag_set, v_residence_flag_set;
+RETURN;
+END IF;
+
+-- Exit early if type didn't change
+IF p_old_main_asset_type = p_new_main_asset_type 
+OR p_old_main_asset_type IS NOT DISTINCT FROM p_new_main_asset_type THEN
+RETURN QUERY SELECT v_business_flag_set, v_residence_flag_set;
+RETURN;
+END IF;
+
+-- Lookup old asset type data
+IF p_old_main_asset_type IS NOT NULL THEN
+SELECT business_residence, non_accountable_for_distribution
+INTO v_old_type_data
+FROM asset_types
+WHERE name = p_old_main_asset_type;
+
+v_old_is_non_accountable := COALESCE(v_old_type_data.non_accountable_for_distribution, FALSE);
+ELSE
+v_old_is_non_accountable := FALSE;
+END IF;
+
+-- Lookup new asset type data
+IF p_new_main_asset_type IS NOT NULL THEN
+SELECT business_residence, non_accountable_for_distribution
+INTO v_new_type_data
+FROM asset_types
+WHERE name = p_new_main_asset_type;
+
+v_new_is_non_accountable := COALESCE(v_new_type_data.non_accountable_for_distribution, FALSE);
+ELSE
+v_new_is_non_accountable := FALSE;
+END IF;
+
+-- Only set flags if changing to/from non_accountable type
+IF v_old_is_non_accountable OR v_new_is_non_accountable THEN
+-- Use the new type's business_residence, fall back to old type
+v_business_residence := COALESCE(v_new_type_data.business_residence, v_old_type_data.business_residence);
+
+-- Set appropriate distribution flag(s)
+IF v_business_residence = 'עסקים' THEN
+-- Business type
+UPDATE buildings
+SET need_business_distribution = TRUE
+WHERE building_number = p_building_number;
+
+v_business_flag_set := TRUE;
+
+ELSIF v_business_residence = 'מגורים' THEN
+-- Residence type
+UPDATE buildings
+SET need_residence_distribution = TRUE
+WHERE building_number = p_building_number;
+
+v_residence_flag_set := TRUE;
+
+ELSE
+-- Unknown type or NULL: set both flags to be safe
+UPDATE buildings
+SET need_business_distribution = TRUE,
+need_residence_distribution = TRUE
+WHERE building_number = p_building_number;
+
+v_business_flag_set := TRUE;
+v_residence_flag_set := TRUE;
+END IF;
+END IF;
+
+RETURN QUERY SELECT v_business_flag_set, v_residence_flag_set;
+END;
+$function$
+"
 "FUNCTION","public.soft_delete_building(p_building_number bigint)","CREATE OR REPLACE FUNCTION public.soft_delete_building(p_building_number bigint)
  RETURNS void
  LANGUAGE plpgsql
@@ -1710,6 +2536,137 @@ UPDATE buildings
 SET deleted_at = now()
 WHERE building_number = p_building_number
 AND deleted_at IS NULL;
+END;
+$function$
+"
+"FUNCTION","public.update_asset_type_with_distribution_reset(p_id bigint, p_updates jsonb)","CREATE OR REPLACE FUNCTION public.update_asset_type_with_distribution_reset(p_id bigint, p_updates jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+  v_before_data jsonb;
+  v_after_data jsonb;
+  v_asset_type_name text;
+  v_old_non_accountable_for_distribution boolean;
+  v_new_non_accountable_for_distribution boolean;
+  v_affected_buildings bigint[];
+  v_building_number bigint;
+  v_business_residence text;
+BEGIN
+  -- Get before data
+  SELECT row_to_json(at.*)::jsonb INTO v_before_data
+  FROM asset_types at
+  WHERE at.id = p_id;
+  
+  IF v_before_data IS NULL THEN
+    RAISE EXCEPTION 'Asset type with id % not found', p_id;
+  END IF;
+  
+  v_asset_type_name := v_before_data->>'name';
+  v_old_non_accountable_for_distribution := COALESCE((v_before_data->>'non_accountable_for_distribution')::boolean, false);
+  
+  -- Check if non_accountable_for_distribution is being changed
+  IF p_updates ? 'non_accountable_for_distribution' THEN
+    v_new_non_accountable_for_distribution := COALESCE((p_updates->>'non_accountable_for_distribution')::boolean, false);
+    
+    -- Update the asset type
+    UPDATE asset_types
+    SET 
+      name = COALESCE((p_updates->>'name')::text, name),
+      description = COALESCE((p_updates->>'description')::text, description),
+      tax_region = CASE WHEN p_updates ? 'tax_region' THEN (p_updates->>'tax_region')::integer ELSE tax_region END,
+      elevator = CASE WHEN p_updates ? 'elevator' THEN (p_updates->>'elevator')::text ELSE elevator END,
+      single_double_family = CASE WHEN p_updates ? 'single_double_family' THEN (p_updates->>'single_double_family')::text ELSE single_double_family END,
+      penthouse = CASE WHEN p_updates ? 'penthouse' THEN (p_updates->>'penthouse')::text ELSE penthouse END,
+      condo = CASE WHEN p_updates ? 'condo' THEN (p_updates->>'condo')::text ELSE condo END,
+      townhouses = CASE WHEN p_updates ? 'townhouses' THEN (p_updates->>'townhouses')::text ELSE townhouses END,
+      business_residence = CASE WHEN p_updates ? 'business_residence' THEN (p_updates->>'business_residence')::text ELSE business_residence END,
+      shared_area_usage = CASE WHEN p_updates ? 'shared_area_usage' THEN (p_updates->>'shared_area_usage')::text ELSE shared_area_usage END,
+      non_accountable_for_total_area = COALESCE((p_updates->>'non_accountable_for_total_area')::boolean, non_accountable_for_total_area),
+      non_accountable_for_distribution = v_new_non_accountable_for_distribution,
+      min_size = CASE WHEN p_updates ? 'min_size' THEN (p_updates->>'min_size')::numeric ELSE min_size END,
+      max_size = CASE WHEN p_updates ? 'max_size' THEN (p_updates->>'max_size')::numeric ELSE max_size END,
+      active = COALESCE((p_updates->>'active')::text, active),
+      area_description_for_tab = CASE WHEN p_updates ? 'area_description_for_tab' THEN (p_updates->>'area_description_for_tab')::text ELSE area_description_for_tab END,
+      updated_at = now()
+    WHERE id = p_id;
+    
+    -- Get after data
+    SELECT row_to_json(at.*)::jsonb INTO v_after_data
+    FROM asset_types at
+    WHERE at.id = p_id;
+    
+    -- If non_accountable_for_distribution changed, reset flags for affected buildings
+    IF v_old_non_accountable_for_distribution IS DISTINCT FROM v_new_non_accountable_for_distribution THEN
+      -- Find all buildings with assets of this type
+      SELECT ARRAY_AGG(DISTINCT building_number) INTO v_affected_buildings
+      FROM assets
+      WHERE main_asset_type = v_asset_type_name
+        AND building_number IS NOT NULL;
+      
+      -- Get the asset type's business_residence field to determine which flag to set
+      SELECT business_residence INTO v_business_residence
+      FROM asset_types
+      WHERE id = p_id;
+      
+      -- Set flag based on business_residence type
+      -- (true = needs distribution, false = already distributed)
+      IF v_affected_buildings IS NOT NULL AND array_length(v_affected_buildings, 1) > 0 THEN
+        IF v_business_residence = 'עסקים' THEN
+          -- Business type: only set business distribution flag
+          UPDATE buildings
+          SET need_business_distribution = true
+          WHERE building_number = ANY(v_affected_buildings);
+        ELSIF v_business_residence = 'מגורים' THEN
+          -- Residence type: only set residence distribution flag
+          UPDATE buildings
+          SET need_residence_distribution = true
+          WHERE building_number = ANY(v_affected_buildings);
+        ELSE
+          -- Unknown type: set both flags to be safe
+          UPDATE buildings
+          SET need_business_distribution = true,
+              need_residence_distribution = true
+          WHERE building_number = ANY(v_affected_buildings);
+        END IF;
+      END IF;
+    END IF;
+  ELSE
+    -- Update without checking distribution flag (field not changed)
+    UPDATE asset_types
+    SET 
+      name = COALESCE((p_updates->>'name')::text, name),
+      description = COALESCE((p_updates->>'description')::text, description),
+      tax_region = CASE WHEN p_updates ? 'tax_region' THEN (p_updates->>'tax_region')::integer ELSE tax_region END,
+      elevator = CASE WHEN p_updates ? 'elevator' THEN (p_updates->>'elevator')::text ELSE elevator END,
+      single_double_family = CASE WHEN p_updates ? 'single_double_family' THEN (p_updates->>'single_double_family')::text ELSE single_double_family END,
+      penthouse = CASE WHEN p_updates ? 'penthouse' THEN (p_updates->>'penthouse')::text ELSE penthouse END,
+      condo = CASE WHEN p_updates ? 'condo' THEN (p_updates->>'condo')::text ELSE condo END,
+      townhouses = CASE WHEN p_updates ? 'townhouses' THEN (p_updates->>'townhouses')::text ELSE townhouses END,
+      business_residence = CASE WHEN p_updates ? 'business_residence' THEN (p_updates->>'business_residence')::text ELSE business_residence END,
+      shared_area_usage = CASE WHEN p_updates ? 'shared_area_usage' THEN (p_updates->>'shared_area_usage')::text ELSE shared_area_usage END,
+      non_accountable_for_total_area = CASE WHEN p_updates ? 'non_accountable_for_total_area' THEN (p_updates->>'non_accountable_for_total_area')::boolean ELSE non_accountable_for_total_area END,
+      min_size = CASE WHEN p_updates ? 'min_size' THEN (p_updates->>'min_size')::numeric ELSE min_size END,
+      max_size = CASE WHEN p_updates ? 'max_size' THEN (p_updates->>'max_size')::numeric ELSE max_size END,
+      active = COALESCE((p_updates->>'active')::text, active),
+      area_description_for_tab = CASE WHEN p_updates ? 'area_description_for_tab' THEN (p_updates->>'area_description_for_tab')::text ELSE area_description_for_tab END,
+      updated_at = now()
+    WHERE id = p_id;
+    
+    -- Get after data
+    SELECT row_to_json(at.*)::jsonb INTO v_after_data
+    FROM asset_types at
+    WHERE at.id = p_id;
+  END IF;
+  
+  -- Return result with before/after data and affected buildings
+  RETURN jsonb_build_object(
+    'before_data', v_before_data,
+    'after_data', v_after_data,
+    'affected_buildings', COALESCE(v_affected_buildings, ARRAY[]::bigint[]),
+    'distribution_flags_reset', CASE WHEN v_affected_buildings IS NOT NULL AND array_length(v_affected_buildings, 1) > 0 THEN true ELSE false END
+  );
 END;
 $function$
 "

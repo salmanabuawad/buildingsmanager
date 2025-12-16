@@ -51,6 +51,10 @@ DECLARE
   v_asset_type_name TEXT;
   v_business_residence TEXT;
   v_business_dist_area NUMERIC;
+  v_old_asset_size NUMERIC;
+  v_new_asset_size NUMERIC;
+  -- Store old values for each asset to use in STEP 6
+  v_asset_old_values RECORD;
 BEGIN
   -- ========================================================================
   -- STEP 1: ENFORCE VALIDATION
@@ -85,22 +89,30 @@ BEGIN
   -- ========================================================================
   -- STEP 3: CREATE ACTION ENTRY
   -- ========================================================================
-  INSERT INTO actions (action_type, user_id, before_data, after_data, description, created_at)
+  INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
   VALUES (
     p_action_type::audit_action_type,
     v_user_id_fk,
+    'bulk_asset', -- entity_type for bulk operations
+    NULL, -- entity_id will be set after we know all affected asset IDs
     p_before_data,
     p_after_data,
     p_description,
     now()
   )
-  RETURNING id INTO v_action_id;
+  RETURNING action_id INTO v_action_id;
 
   -- ========================================================================
   -- STEP 4: PROCESS EACH ASSET
   -- ========================================================================
   FOREACH v_asset_data IN ARRAY p_assets_data
   LOOP
+    -- Remove any fields that don't exist in assets table to prevent errors
+    -- This includes 'id' (AG Grid internal field) and other non-database fields
+    -- Use jsonb subtraction operator to remove multiple keys at once
+    -- Note: PostgreSQL jsonb subtraction operator can remove multiple keys
+    v_asset_data := v_asset_data - 'id' - '_isNew' - '_isDirty' - '_validationErrors' - '_isMasterRow';
+    
     v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
     v_building_number := (v_asset_data->>'building_number')::BIGINT;
     v_new_main_asset_type := (v_asset_data->>'main_asset_type')::BIGINT;
@@ -122,6 +134,7 @@ BEGIN
 
     IF FOUND THEN
       v_old_main_asset_type := v_existing_asset.main_asset_type;
+      v_old_asset_size := v_existing_asset.asset_size;
       
       -- Copy to history before update
       INSERT INTO assets_history (
@@ -233,28 +246,72 @@ BEGIN
   END LOOP;
 
   -- ========================================================================
-  -- STEP 6: UPDATE DISTRIBUTION FLAGS FOR ALL ASSETS WITH TYPE CHANGES
+  -- STEP 6: UPDATE DISTRIBUTION FLAGS FOR ALL ASSETS WITH TYPE OR SIZE CHANGES
+  -- Note: During distribution, asset types are updated (e.g., to 199 for residence)
+  -- We need to set flags for these type changes, then remove them after successful distribution
   -- ========================================================================
   FOREACH v_asset_data IN ARRAY p_assets_data
   LOOP
     v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
     v_building_number := (v_asset_data->>'building_number')::BIGINT;
     v_new_main_asset_type := (v_asset_data->>'main_asset_type')::BIGINT;
+    v_new_asset_size := COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0);
 
-    -- Get old type from history
-    SELECT main_asset_type INTO v_old_main_asset_type
+    -- Get old type and size from the history entry we just created in STEP 4
+    -- This represents the state BEFORE the current update
+    -- We use action_id to get the specific history entry for this transaction
+    SELECT main_asset_type, asset_size 
+    INTO v_asset_old_values
     FROM assets_history
     WHERE asset_id = v_asset_id
-    ORDER BY created_at DESC
+      AND action_id = v_action_id  -- Only get the history entry we just created in this transaction
+    ORDER BY history_created_at DESC NULLS LAST, created_at DESC
     LIMIT 1;
+    
+    -- Extract old values if found
+    IF FOUND THEN
+      v_old_main_asset_type := v_asset_old_values.main_asset_type;
+      v_old_asset_size := v_asset_old_values.asset_size;
+    ELSE
+      -- New asset - no old values to compare
+      v_old_main_asset_type := NULL;
+      v_old_asset_size := NULL;
+    END IF;
 
-    -- Update flags if type changed
+    -- Update flags if type changed (using existing function)
     IF v_old_main_asset_type IS NOT NULL AND v_old_main_asset_type != v_new_main_asset_type THEN
       PERFORM set_distribution_flags_for_asset_type_change(
         v_building_number,
         v_old_main_asset_type,
         v_new_main_asset_type
       );
+    END IF;
+
+    -- Also set flags if asset_size changed (for business/residence assets)
+    IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL 
+       AND v_old_asset_size != v_new_asset_size 
+       AND v_new_main_asset_type IS NOT NULL THEN
+      -- Get business_residence for the asset type
+      SELECT business_residence INTO v_business_residence
+      FROM asset_types
+      WHERE name = v_new_main_asset_type;
+
+      IF v_business_residence = 'עסקים' THEN
+        -- Business asset size changed → set business distribution flag only
+        UPDATE buildings
+        SET need_business_distribution = true
+        WHERE building_number = v_building_number;
+        
+        RAISE NOTICE 'Set need_business_distribution=true for building % (business asset size changed)', v_building_number;
+        
+      ELSIF v_business_residence = 'מגורים' THEN
+        -- Residence asset size changed → set residence distribution flag only
+        UPDATE buildings
+        SET need_residence_distribution = true
+        WHERE building_number = v_building_number;
+        
+        RAISE NOTICE 'Set need_residence_distribution=true for building % (residence asset size changed)', v_building_number;
+      END IF;
     END IF;
   END LOOP;
 
@@ -331,7 +388,16 @@ BEGIN
   END IF;
 
   -- ========================================================================
-  -- STEP 8: RETURN RESULT
+  -- STEP 8: UPDATE AUDIT ENTRY WITH ENTITY_ID (comma-separated asset IDs)
+  -- ========================================================================
+  IF array_length(v_affected_asset_ids, 1) > 0 THEN
+    UPDATE audit
+    SET entity_id = array_to_string(v_affected_asset_ids, ',')
+    WHERE action_id = v_action_id;
+  END IF;
+
+  -- ========================================================================
+  -- STEP 9: RETURN RESULT
   -- ========================================================================
   v_result := jsonb_build_object(
     'success', true,

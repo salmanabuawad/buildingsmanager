@@ -1544,16 +1544,33 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const assetsToUpdate: Partial<Asset>[] = [];
         const allAffectedAssetIds = new Set<number>();
         
+        // Helper function to prepare asset data with all required fields
+        const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
+          const merged = { ...asset, ...changes };
+          // Ensure all required fields are present
+          return {
+            ...merged,
+            building_number: merged.building_number ?? asset.building_number,
+            asset_id: merged.asset_id ?? asset.asset_id,
+            measurement_date: merged.measurement_date ?? asset.measurement_date,
+            asset_size: merged.asset_size ?? asset.asset_size ?? 0,
+            // Ensure sub-asset sizes are numbers, not undefined
+            sub_asset_size_1: merged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
+            sub_asset_size_2: merged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
+            sub_asset_size_3: merged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
+            sub_asset_size_4: merged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
+            sub_asset_size_5: merged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
+            sub_asset_size_6: merged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
+          } as Partial<Asset>;
+        };
+        
         // First, add all assets that received distribution
         for (const asset of residentialAssets) {
           const assetId = String(asset.asset_id);
           const changes = updatedDirtyAssets.get(assetId) || {};
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
           if (currentAsset) {
-            assetsToUpdate.push({
-              ...currentAsset,
-              ...changes
-            } as Partial<Asset>);
+            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
             allAffectedAssetIds.add(asset.asset_id);
           }
         }
@@ -1568,10 +1585,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
           if (currentAsset && Object.keys(changes).length > 0) {
-            assetsToUpdate.push({
-              ...currentAsset,
-              ...changes
-            } as Partial<Asset>);
+            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
             allAffectedAssetIds.add(assetIdNum);
           }
         }
@@ -1879,16 +1893,33 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const assetsToUpdate: Partial<Asset>[] = [];
         const allAffectedAssetIds = new Set<number>();
         
+        // Helper function to prepare asset data with all required fields
+        const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
+          const merged = { ...asset, ...changes };
+          // Ensure all required fields are present
+          return {
+            ...merged,
+            building_number: merged.building_number ?? asset.building_number,
+            asset_id: merged.asset_id ?? asset.asset_id,
+            measurement_date: merged.measurement_date ?? asset.measurement_date,
+            asset_size: merged.asset_size ?? asset.asset_size ?? 0,
+            // Ensure sub-asset sizes are numbers, not undefined
+            sub_asset_size_1: merged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
+            sub_asset_size_2: merged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
+            sub_asset_size_3: merged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
+            sub_asset_size_4: merged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
+            sub_asset_size_5: merged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
+            sub_asset_size_6: merged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
+          } as Partial<Asset>;
+        };
+        
         // First, add all assets that received distribution
         for (const asset of businessAssets) {
           const assetId = String(asset.asset_id);
           const changes = updatedDirtyAssets.get(assetId) || {};
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
           if (currentAsset) {
-            assetsToUpdate.push({
-              ...currentAsset,
-              ...changes
-            } as Partial<Asset>);
+            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
             allAffectedAssetIds.add(asset.asset_id);
           }
         }
@@ -1903,10 +1934,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           
           const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
           if (currentAsset && Object.keys(changes).length > 0) {
-            assetsToUpdate.push({
-              ...currentAsset,
-              ...changes
-            } as Partial<Asset>);
+            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
             allAffectedAssetIds.add(assetIdNum);
           }
         }

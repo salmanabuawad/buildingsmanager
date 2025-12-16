@@ -1917,51 +1917,35 @@ export const api = {
         
         if (mainAssetTypeChangedToNonAccountableForDistribution) {
           console.log('[api.assets.update] ✓ Setting distribution flags because main_asset_type changed FROM or TO a type with non_accountable_for_distribution=true');
-          
+
           if (!updatedAsset.building_number) {
             console.warn('[api.assets.update] ⚠ Cannot set distribution flags: building_number is null/undefined');
-          } else if (typeToUseForBusinessResidence) {
-            const isBusiness = typeToUseForBusinessResidence.business_residence === 'עסקים';
-            const isResidence = typeToUseForBusinessResidence.business_residence === 'מגורים';
-            
-            console.log(`[api.assets.update] Found asset type to use for business_residence:`, {
-              name: typeToUseForBusinessResidence.name,
-              business_residence: typeToUseForBusinessResidence.business_residence,
-              isBusiness,
-              isResidence,
-              buildingNumber: updatedAsset.building_number
-            });
-            
+          } else {
             try {
-              if (isBusiness) {
-                console.log(`[api.assets.update] Calling markBusinessDistributionNeeded for building ${updatedAsset.building_number}...`);
-                await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] ✓ Successfully set need_business_distribution flag for building ${updatedAsset.building_number} (business type)`);
-              } else if (isResidence) {
-                console.log(`[api.assets.update] Calling markResidenceDistributionNeeded for building ${updatedAsset.building_number}...`);
-                await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] ✓ Successfully set need_residence_distribution flag for building ${updatedAsset.building_number} (residence type)`);
-              } else {
-                // Unknown type: set both flags to be safe
-                console.log(`[api.assets.update] Calling both mark functions for building ${updatedAsset.building_number} (unknown business_residence: "${typeToUseForBusinessResidence.business_residence}")...`);
-                await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
-                await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] ✓ Successfully set both distribution flags for building ${updatedAsset.building_number} (unknown business_residence)`);
+              // Call database function to set distribution flags
+              const { data, error } = await supabase.rpc('set_distribution_flags_for_asset_type_change', {
+                p_building_number: updatedAsset.building_number,
+                p_old_main_asset_type: oldMainType || null,
+                p_new_main_asset_type: newMainType || null
+              });
+
+              if (error) {
+                console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags for building ${updatedAsset.building_number}:`, error);
+              } else if (data && data.length > 0) {
+                const result = data[0];
+                if (result.business_flag_set && result.residence_flag_set) {
+                  console.log(`[api.assets.update] ✓ Set both distribution flags for building ${updatedAsset.building_number}`);
+                } else if (result.business_flag_set) {
+                  console.log(`[api.assets.update] ✓ Set need_business_distribution flag for building ${updatedAsset.building_number}`);
+                } else if (result.residence_flag_set) {
+                  console.log(`[api.assets.update] ✓ Set need_residence_distribution flag for building ${updatedAsset.building_number}`);
+                } else {
+                  console.log(`[api.assets.update] ℹ No distribution flags needed for building ${updatedAsset.building_number}`);
+                }
               }
             } catch (flagError) {
               console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags for building ${updatedAsset.building_number}:`, flagError);
               // Don't throw - this is a side effect that shouldn't fail the main operation
-            }
-          } else {
-            // Should not happen, but set both flags to be safe
-            console.warn(`[api.assets.update] ⚠ Could not determine which type to use for business_residence, setting both flags as fallback`);
-            try {
-              await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
-              await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-              console.log(`[api.assets.update] ✓ Successfully set both distribution flags for building ${updatedAsset.building_number} (fallback)`);
-            } catch (flagError) {
-              console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags (fallback) for building ${updatedAsset.building_number}:`, flagError);
-              // Don't throw - this is a fallback
             }
           }
         }
@@ -3251,8 +3235,36 @@ export const api = {
 
       if (error) throw error;
 
-      // Distribution flags are now handled by database trigger
-      // The audit log only records data, no business logic here
+      // Call distribution flag function for each asset that changed type
+      console.log('[api.auditLog.bulkTransferAreas] Checking distribution flags for assets...');
+
+      try {
+        for (let i = 0; i < oldAssets.length; i++) {
+          const oldAsset = oldAssets[i];
+          const newAsset = newAssets[i];
+
+          // Only process if building_number exists and type changed
+          if (newAsset.building_number && oldAsset.main_asset_type !== newAsset.main_asset_type) {
+            const { data: flagData, error: flagError } = await supabase.rpc('set_distribution_flags_for_asset_type_change', {
+              p_building_number: newAsset.building_number,
+              p_old_main_asset_type: oldAsset.main_asset_type || null,
+              p_new_main_asset_type: newAsset.main_asset_type || null
+            });
+
+            if (flagError) {
+              console.error(`[api.auditLog.bulkTransferAreas] Failed to set flags for building ${newAsset.building_number}:`, flagError);
+            } else if (flagData && flagData.length > 0) {
+              const result = flagData[0];
+              if (result.business_flag_set || result.residence_flag_set) {
+                console.log(`[api.auditLog.bulkTransferAreas] ✓ Set distribution flags for building ${newAsset.building_number}`);
+              }
+            }
+          }
+        }
+      } catch (flagError) {
+        console.error('[api.auditLog.bulkTransferAreas] ❌ ERROR setting distribution flags:', flagError);
+        // Don't throw - flags are a side effect, shouldn't fail the main operation
+      }
 
       return {
         action_id: data.action_id,

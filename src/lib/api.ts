@@ -3,6 +3,36 @@ import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 
 /**
+ * ============================================================================
+ * 🚨 CRITICAL: TRANSACTIONAL SAVE ARCHITECTURE - DO NOT MODIFY 🚨
+ * ============================================================================
+ *
+ * This file implements validation-first, transactional-save architecture.
+ *
+ * MANDATORY RULES:
+ * 1. ALL asset saves MUST use transactional functions:
+ *    - api.assets.saveTransactional() for single saves
+ *    - api.assets.saveBulkTransactional() for bulk saves
+ *
+ * 2. NEVER use direct database operations:
+ *    ❌ supabase.from('assets').insert()
+ *    ❌ supabase.from('assets').update()
+ *
+ * 3. Validation is MANDATORY and enforced at database level
+ *
+ * 4. All post-save actions happen in ONE transaction:
+ *    - Asset save
+ *    - Building total area update
+ *    - Distribution flags update
+ *    - Audit log creation
+ *
+ * 5. ALWAYS check result.success before proceeding
+ *
+ * See: CRITICAL_ARCHITECTURE_DO_NOT_MODIFY.md for complete documentation
+ * ============================================================================
+ */
+
+/**
  * Get the current user name from Supabase auth
  * Returns 'default' if no user is logged in
  */
@@ -561,6 +591,116 @@ function sanitizeBuildingInput(input: any): any {
   }
   
   return sanitized;
+}
+
+/**
+ * Validate and save a single asset with transactional post-save actions
+ * ENFORCES: Validation must pass before save
+ * GUARANTEES: All operations (save + post-save actions) in ONE transaction
+ */
+async function validateAndSaveAsset(
+  assetData: any,
+  actionType: string = 'manual_update',
+  description?: string
+): Promise<{ success: boolean; asset_id: number; error?: string }> {
+  const { validateAsset } = await import('./validation');
+  const userInfo = await getCurrentUserInfo();
+
+  // STEP 1: Run validation
+  const validationResult = await validateAsset(assetData, 'assets');
+
+  // STEP 2: Call transactional save function (rejects if validation failed)
+  try {
+    const { data, error } = await supabase.rpc('save_asset_transactional', {
+      p_asset_data: assetData,
+      p_validation_passed: validationResult.valid,
+      p_validation_errors: validationResult.error || null,
+      p_action_type: actionType,
+      p_user_id: userInfo.user_id || null,
+      p_description: description || null
+    });
+
+    if (error) {
+      return {
+        success: false,
+        asset_id: assetData.asset_id,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      asset_id: data.asset_id
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      asset_id: assetData.asset_id,
+      error: err.message || 'Unknown error during save'
+    };
+  }
+}
+
+/**
+ * Validate and save multiple assets with transactional post-save actions
+ * ENFORCES: Validation must pass for ALL assets before save
+ * GUARANTEES: All operations (saves + post-save actions) in ONE transaction
+ */
+async function validateAndSaveBulkAssets(
+  assetsData: any[],
+  actionType: string = 'manual_update',
+  beforeData?: any,
+  afterData?: any,
+  description?: string
+): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> {
+  const { validateAsset } = await import('./validation');
+  const userInfo = await getCurrentUserInfo();
+
+  // STEP 1: Validate ALL assets
+  const validationResults = await Promise.all(
+    assetsData.map(asset => validateAsset(asset, 'assets'))
+  );
+
+  // Check if ALL assets are valid
+  const allValid = validationResults.every(result => result.valid);
+  const validationErrors = validationResults
+    .filter(result => !result.valid)
+    .map((result, index) => `Asset ${index + 1}: ${result.error}`);
+
+  // STEP 2: Call transactional bulk save function (rejects if any validation failed)
+  try {
+    const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
+      p_assets_data: assetsData,
+      p_validation_passed: allValid,
+      p_validation_errors: validationErrors.length > 0 ? validationErrors.join('; ') : null,
+      p_action_type: actionType,
+      p_user_id: userInfo.user_id || null,
+      p_before_data: beforeData || null,
+      p_after_data: afterData || null,
+      p_description: description || null
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+        validationErrors: validationErrors.length > 0 ? validationErrors : undefined
+      };
+    }
+
+    return {
+      success: true,
+      action_id: data.action_id,
+      affected_asset_ids: data.affected_asset_ids,
+      count: data.count
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Unknown error during bulk save',
+      validationErrors: validationErrors.length > 0 ? validationErrors : undefined
+    };
+  }
 }
 
 export const api = {
@@ -1653,12 +1793,15 @@ export const api = {
       return data;
     },
     update: async (id: string | number, input: Partial<Asset>, actionType?: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared', skipAudit: boolean = false): Promise<Asset> => {
+      console.log('[api.assets.update] ⚡ UPDATE CALLED:', { id, idType: typeof id, actionType, skipAudit, hasInput: !!input });
+
       // Get asset ID as number
       const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
-      
+      console.log('[api.assets.update] Parsed assetIdNum:', assetIdNum, 'isNaN:', isNaN(assetIdNum));
+
       // Preserve is_new_measurement flag before sanitization (sanitizeAssetInput doesn't handle it)
       const isNewMeasurement = input.is_new_measurement;
-      
+
       // Get the current asset data before update (for change log)
       let beforeData: Asset | null = null;
       try {
@@ -1668,11 +1811,10 @@ export const api = {
           .eq('asset_id', assetIdNum)
           .maybeSingle();
         beforeData = assetData || null;
+        console.log('[api.assets.update] beforeData fetch result:', { hasBeforeData: !!beforeData, assetId: assetIdNum });
       } catch (err) {
         // If asset doesn't exist, that's fine - we'll still try to update
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[api.assets.update] Could not fetch before data:', err);
-        }
+        console.error('[api.assets.update] ERROR fetching before data:', err);
       }
       
       // Sanitize the input data first (no need to fetch existing asset - we can update directly)
@@ -1789,6 +1931,13 @@ export const api = {
       // Reset distribution flags if needed (for business: asset_size change)
       // Also reset if main_asset_type changed to/from a type with non_accountable_for_distribution = true
       // Note: Distribution flags are business logic and should be updated regardless of audit logging (skipAudit)
+      console.log('[api.assets.update] Distribution flag check gate:', {
+        hasBuilding: !!updatedAsset.building_number,
+        buildingNumber: updatedAsset.building_number,
+        hasBeforeData: !!beforeData,
+        willCheckFlags: !!(updatedAsset.building_number && beforeData)
+      });
+
       if (updatedAsset.building_number && beforeData) {
         const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
         const oldMainType = String(beforeData.main_asset_type || '').trim();
@@ -1908,51 +2057,35 @@ export const api = {
         
         if (mainAssetTypeChangedToNonAccountableForDistribution) {
           console.log('[api.assets.update] ✓ Setting distribution flags because main_asset_type changed FROM or TO a type with non_accountable_for_distribution=true');
-          
+
           if (!updatedAsset.building_number) {
             console.warn('[api.assets.update] ⚠ Cannot set distribution flags: building_number is null/undefined');
-          } else if (typeToUseForBusinessResidence) {
-            const isBusiness = typeToUseForBusinessResidence.business_residence === 'עסקים';
-            const isResidence = typeToUseForBusinessResidence.business_residence === 'מגורים';
-            
-            console.log(`[api.assets.update] Found asset type to use for business_residence:`, {
-              name: typeToUseForBusinessResidence.name,
-              business_residence: typeToUseForBusinessResidence.business_residence,
-              isBusiness,
-              isResidence,
-              buildingNumber: updatedAsset.building_number
-            });
-            
+          } else {
             try {
-              if (isBusiness) {
-                console.log(`[api.assets.update] Calling markBusinessDistributionNeeded for building ${updatedAsset.building_number}...`);
-                await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] ✓ Successfully set need_business_distribution flag for building ${updatedAsset.building_number} (business type)`);
-              } else if (isResidence) {
-                console.log(`[api.assets.update] Calling markResidenceDistributionNeeded for building ${updatedAsset.building_number}...`);
-                await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] ✓ Successfully set need_residence_distribution flag for building ${updatedAsset.building_number} (residence type)`);
-              } else {
-                // Unknown type: set both flags to be safe
-                console.log(`[api.assets.update] Calling both mark functions for building ${updatedAsset.building_number} (unknown business_residence: "${typeToUseForBusinessResidence.business_residence}")...`);
-                await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
-                await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-                console.log(`[api.assets.update] ✓ Successfully set both distribution flags for building ${updatedAsset.building_number} (unknown business_residence)`);
+              // Call database function to set distribution flags
+              const { data, error } = await supabase.rpc('set_distribution_flags_for_asset_type_change', {
+                p_building_number: updatedAsset.building_number,
+                p_old_main_asset_type: oldMainType || null,
+                p_new_main_asset_type: newMainType || null
+              });
+
+              if (error) {
+                console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags for building ${updatedAsset.building_number}:`, error);
+              } else if (data && data.length > 0) {
+                const result = data[0];
+                if (result.business_flag_set && result.residence_flag_set) {
+                  console.log(`[api.assets.update] ✓ Set both distribution flags for building ${updatedAsset.building_number}`);
+                } else if (result.business_flag_set) {
+                  console.log(`[api.assets.update] ✓ Set need_business_distribution flag for building ${updatedAsset.building_number}`);
+                } else if (result.residence_flag_set) {
+                  console.log(`[api.assets.update] ✓ Set need_residence_distribution flag for building ${updatedAsset.building_number}`);
+                } else {
+                  console.log(`[api.assets.update] ℹ No distribution flags needed for building ${updatedAsset.building_number}`);
+                }
               }
             } catch (flagError) {
               console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags for building ${updatedAsset.building_number}:`, flagError);
               // Don't throw - this is a side effect that shouldn't fail the main operation
-            }
-          } else {
-            // Should not happen, but set both flags to be safe
-            console.warn(`[api.assets.update] ⚠ Could not determine which type to use for business_residence, setting both flags as fallback`);
-            try {
-              await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
-              await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-              console.log(`[api.assets.update] ✓ Successfully set both distribution flags for building ${updatedAsset.building_number} (fallback)`);
-            } catch (flagError) {
-              console.error(`[api.assets.update] ❌ ERROR: Failed to set distribution flags (fallback) for building ${updatedAsset.building_number}:`, flagError);
-              // Don't throw - this is a fallback
             }
           }
         }
@@ -1969,6 +2102,12 @@ export const api = {
           const assetType = await getAssetBusinessResidenceType(updatedAsset);
           await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', false, mainAssetTypeChanged);
         }
+      } else {
+        console.log('[api.assets.update] ⚠ Skipping distribution flag check:', {
+          reason: !updatedAsset.building_number ? 'No building_number' : 'No beforeData',
+          buildingNumber: updatedAsset.building_number,
+          hasBeforeData: !!beforeData
+        });
       }
 
       // Log audit entry ONLY for transfer_area or distribute_shared actions
@@ -2017,79 +2156,39 @@ export const api = {
     },
     delete: async (id: number | string): Promise<{ message: string }> => {
       const assetIdNum = typeof id === 'string' ? parseInt(id, 10) : id;
-      
-      // Get asset data before deletion (for change log and building number)
-      let beforeData: Asset | null = null;
-      let buildingNumber: number | null = null;
-      try {
-        const { data: asset } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('asset_id', assetIdNum)
-          .maybeSingle();
-        beforeData = asset || null;
-        buildingNumber = asset?.building_number || null;
-      } catch (err) {
-        console.warn('Failed to get asset data before deletion:', err);
-      }
-      
-      // Copy to history BEFORE deletion (transaction-based, replaces trigger)
-      // Do NOT create audit entry - audit entries are only created by bulk operations
-      // Regular asset deletion should not create audit entries
-      try {
-        await supabase.rpc('copy_asset_to_history_before_update', {
-          p_asset_id: assetIdNum
-        });
-      } catch (historyError) {
-        console.warn('Failed to copy asset to history before deletion:', historyError);
-        // Continue with deletion even if history copy fails
+
+      const userInfo = await getCurrentUserInfo();
+
+      const { data, error } = await supabase.rpc('delete_asset_transactional', {
+        p_asset_id: assetIdNum,
+        p_user_id: userInfo.user_id || null,
+        p_description: 'Asset deleted'
+      });
+
+      if (error) {
+        console.error('[api.assets.delete] Transaction failed:', error);
+        throw error;
       }
 
-      // Delete from assets table
-      const { error } = await supabase
-        .from('assets')
-        .delete()
-        .eq('asset_id', assetIdNum);
-
-      if (error) throw error;
-
-      // Update building total area (transaction-based, replaces trigger)
-      if (buildingNumber) {
-        try {
-          await supabase.rpc('update_building_total_area', {
-            p_building_number: buildingNumber
-          });
-        } catch (areaError) {
-          console.warn('Failed to update building total area after asset deletion:', areaError);
-          // Don't fail the operation if area update fails
-        }
-      }
-      
-      // Reset distribution flags when asset is deleted
-      // Deleting assets requires re-distribution
-      if (buildingNumber && beforeData) {
-        try {
-          const assetType = await getAssetBusinessResidenceType(beforeData);
-          await resetDistributionFlagsIfNeeded(buildingNumber, assetType, 'delete', false, false);
-          console.log(`[api.assets.delete] Reset distribution flags for building ${buildingNumber} after asset deletion`);
-        } catch (flagError) {
-          console.warn('Failed to reset distribution flags after asset deletion:', flagError);
-          // Don't fail the operation if flag reset fails
-        }
-      }
-
-      // Log change entry asynchronously
-      if (beforeData) {
-        logChangeAsync(
-          'assets',
-          'DELETE',
-          String(assetIdNum),
-          beforeData,
-          undefined
-        );
-      }
+      console.log('[api.assets.delete] Asset deleted successfully in transaction:', data);
 
       return { message: 'Asset deleted successfully' };
+    },
+    saveTransactional: async (
+      assetData: any,
+      actionType: string = 'manual_update',
+      description?: string
+    ): Promise<{ success: boolean; asset_id: number; error?: string }> => {
+      return validateAndSaveAsset(assetData, actionType, description);
+    },
+    saveBulkTransactional: async (
+      assetsData: any[],
+      actionType: string = 'manual_update',
+      beforeData?: any,
+      afterData?: any,
+      description?: string
+    ): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> => {
+      return validateAndSaveBulkAssets(assetsData, actionType, beforeData, afterData, description);
     },
   },
   measurements: {
@@ -3154,41 +3253,23 @@ export const api = {
       description?: string,
       userName?: string
     ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
-      const userInfo = await getCurrentUserInfo();
-      
-      // Convert assets to array (Supabase will convert to JSONB automatically)
-      const assetsArray = assets.map(asset => {
-        const sanitized = sanitizeAssetInput(asset);
-        return {
-          ...sanitized,
-          asset_id: sanitized.asset_id,
-          building_number: sanitized.building_number,
-          asset_size: sanitized.asset_size || 0,
-          sub_asset_size_1: sanitized.sub_asset_size_1 || 0,
-          sub_asset_size_2: sanitized.sub_asset_size_2 || 0,
-          sub_asset_size_3: sanitized.sub_asset_size_3 || 0,
-          sub_asset_size_4: sanitized.sub_asset_size_4 || 0,
-          sub_asset_size_5: sanitized.sub_asset_size_5 || 0,
-          sub_asset_size_6: sanitized.sub_asset_size_6 || 0,
-          business_distribution_area: sanitized.business_distribution_area != null ? sanitized.business_distribution_area : undefined,
-        };
-      });
-      
-      const { data, error } = await supabase.rpc('bulk_update_assets_with_audit', {
-        p_assets: assetsArray,
-        p_action_type: actionType,
-        p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-        p_before_data: beforeData || null,
-        p_after_data: afterData || null,
-        p_description: description || null
-      });
-      
-      if (error) throw error;
-      
+      // Use new transactional save with validation enforcement
+      const result = await validateAndSaveBulkAssets(
+        assets,
+        actionType,
+        beforeData,
+        afterData,
+        description
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Bulk update failed');
+      }
+
       return {
-        action_id: data.action_id,
-        affected_asset_ids: data.affected_asset_ids || [],
-        count: data.count || 0
+        action_id: result.action_id!,
+        affected_asset_ids: result.affected_asset_ids!,
+        count: result.count!
       };
     },
     bulkTransferAreas: async (
@@ -3233,9 +3314,40 @@ export const api = {
         p_after_data: afterData || null,
         p_description: description || null
       });
-      
+
       if (error) throw error;
-      
+
+      // Call distribution flag function for each asset that changed type
+      console.log('[api.auditLog.bulkTransferAreas] Checking distribution flags for assets...');
+
+      try {
+        for (let i = 0; i < oldAssets.length; i++) {
+          const oldAsset = oldAssets[i];
+          const newAsset = newAssets[i];
+
+          // Only process if building_number exists and type changed
+          if (newAsset.building_number && oldAsset.main_asset_type !== newAsset.main_asset_type) {
+            const { data: flagData, error: flagError } = await supabase.rpc('set_distribution_flags_for_asset_type_change', {
+              p_building_number: newAsset.building_number,
+              p_old_main_asset_type: oldAsset.main_asset_type || null,
+              p_new_main_asset_type: newAsset.main_asset_type || null
+            });
+
+            if (flagError) {
+              console.error(`[api.auditLog.bulkTransferAreas] Failed to set flags for building ${newAsset.building_number}:`, flagError);
+            } else if (flagData && flagData.length > 0) {
+              const result = flagData[0];
+              if (result.business_flag_set || result.residence_flag_set) {
+                console.log(`[api.auditLog.bulkTransferAreas] ✓ Set distribution flags for building ${newAsset.building_number}`);
+              }
+            }
+          }
+        }
+      } catch (flagError) {
+        console.error('[api.auditLog.bulkTransferAreas] ❌ ERROR setting distribution flags:', flagError);
+        // Don't throw - flags are a side effect, shouldn't fail the main operation
+      }
+
       return {
         action_id: data.action_id,
         affected_asset_ids: data.affected_asset_ids || [],

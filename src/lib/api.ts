@@ -286,7 +286,7 @@ export interface AssetType {
   business_residence?: string;
   shared_area_usage?: string;
   active?: string;
-  non_accountable_for_total_area?: boolean; // לא נספר
+  non_accountable_for_total_area?: boolean; // לא נספר בחישוב שטח מבנה
   non_accountable_for_distribution?: boolean; // לא נספר בפיזור
   min_size?: number;
   max_size?: number;

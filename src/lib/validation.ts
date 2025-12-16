@@ -2570,10 +2570,16 @@ export const buildingValidators = {
       // Use cached asset types from memory (synchronous, no API call)
       const assetTypes = getAssetTypes();
       
-      // Map to find asset types by name
+      // Map to find asset types by name (handle both string and number keys)
       const assetTypeMap = new Map<string, AssetType>();
       for (const at of assetTypes) {
-        assetTypeMap.set(String(at.name), at);
+        const key = String(at.name).trim();
+        assetTypeMap.set(key, at);
+        // Also add numeric key if name is numeric
+        const numKey = parseInt(key, 10);
+        if (!isNaN(numKey)) {
+          assetTypeMap.set(String(numKey), at);
+        }
       }
 
       // Collect tax regions by business_residence type
@@ -2583,13 +2589,62 @@ export const buildingValidators = {
 
       // Process each asset (skip non-accountable assets)
       for (const asset of assets) {
-        // Skip assets where main_asset_type has not_accountable = true
+        // Skip assets where main_asset_type has non_accountable_for_total_area = true
+        // IMPORTANT: Only check main_asset_type, not sub-asset types
+        let shouldSkipAsset = false;
+        
         if (asset.main_asset_type) {
-          const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
-          if (mainAssetType && mainAssetType.non_accountable_for_total_area === true) {
-            // Skip this asset entirely - don't process main or sub asset types
-            continue;
+          const mainAssetTypeKey = String(asset.main_asset_type).trim();
+          let mainAssetType = assetTypeMap.get(mainAssetTypeKey);
+          
+          // Try numeric lookup if string lookup failed
+          if (!mainAssetType) {
+            const numKey = parseInt(mainAssetTypeKey, 10);
+            if (!isNaN(numKey)) {
+              mainAssetType = assetTypeMap.get(String(numKey));
+            }
           }
+          
+          // Also try finding by direct comparison in assetTypes array as fallback
+          if (!mainAssetType) {
+            mainAssetType = assetTypes.find(at => {
+              const atName = String(at.name).trim();
+              const assetTypeName = mainAssetTypeKey;
+              return atName === assetTypeName || 
+                     (parseInt(atName, 10) === parseInt(assetTypeName, 10) && !isNaN(parseInt(atName, 10)));
+            });
+          }
+          
+          // If asset type found and has non_accountable_for_total_area = true, skip entire asset
+          if (mainAssetType) {
+            // Explicitly check for true value (handle null, undefined, false)
+            if (mainAssetType.non_accountable_for_total_area === true) {
+              shouldSkipAsset = true;
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[validateTaxRegionsByBusinessType] Skipping non-accountable asset:', {
+                  assetId: asset.asset_id,
+                  main_asset_type: asset.main_asset_type,
+                  assetTypeName: mainAssetType.name,
+                  non_accountable_for_total_area: mainAssetType.non_accountable_for_total_area
+                });
+              }
+            }
+          } else {
+            // Asset type not found - log warning in development
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[validateTaxRegionsByBusinessType] Asset type not found for asset:', {
+                assetId: asset.asset_id,
+                main_asset_type: asset.main_asset_type,
+                mainAssetTypeKey,
+                availableAssetTypes: assetTypes.map(at => at.name).slice(0, 10)
+              });
+            }
+          }
+        }
+        
+        // Skip this asset entirely - don't process main or sub asset types for building validation
+        if (shouldSkipAsset) {
+          continue;
         }
 
         // Process main asset type
@@ -2676,7 +2731,13 @@ export const buildingValidators = {
       const assetTypes = getAssetTypes();
       const assetTypeMap = new Map<string, any>();
       for (const at of assetTypes) {
-        assetTypeMap.set(String(at.name), at);
+        const key = String(at.name).trim();
+        assetTypeMap.set(key, at);
+        // Also add numeric key if name is numeric
+        const numKey = parseInt(key, 10);
+        if (!isNaN(numKey)) {
+          assetTypeMap.set(String(numKey), at);
+        }
       }
 
       // Calculate total asset area (excluding non_accountable_for_total_area assets)
@@ -2688,7 +2749,27 @@ export const buildingValidators = {
         // Only check main_asset_type for non_accountable_for_total_area flag
         // If main asset type has this flag set to true, exclude the entire asset from area calculation
         if (asset.main_asset_type) {
-          const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
+          const mainAssetTypeKey = String(asset.main_asset_type).trim();
+          let mainAssetType = assetTypeMap.get(mainAssetTypeKey);
+          
+          // Try numeric lookup if string lookup failed
+          if (!mainAssetType) {
+            const numKey = parseInt(mainAssetTypeKey, 10);
+            if (!isNaN(numKey)) {
+              mainAssetType = assetTypeMap.get(String(numKey));
+            }
+          }
+          
+          // Also try finding by direct comparison in assetTypes array as fallback
+          if (!mainAssetType) {
+            mainAssetType = assetTypes.find(at => {
+              const atName = String(at.name).trim();
+              const assetTypeName = mainAssetTypeKey;
+              return atName === assetTypeName || 
+                     (parseInt(atName, 10) === parseInt(assetTypeName, 10) && !isNaN(parseInt(atName, 10)));
+            });
+          }
+          
           if (mainAssetType && mainAssetType.non_accountable_for_total_area === true) {
             // Skip this asset entirely - don't count its area in the total
             return sum;

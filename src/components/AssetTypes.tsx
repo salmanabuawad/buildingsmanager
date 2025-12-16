@@ -736,14 +736,14 @@ export function AssetTypes() {
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
       'עסקים/מגורים',            // business_residence
       'שימוש בשטח משותף',         // shared_area_usage
-      'לא נספר',                  // non_accountable_for_total_area
+      'לא נספר בחישוב שטח מבנה',  // non_accountable_for_total_area
       'לא נספר בפיזור',           // non_accountable_for_distribution
       'שטח מ',                   // min_size
       'שטח עד'                   // max_size
     ];
 
     // Example rows
-    // Note: 'לא נספר' column - 'כן' means NOT accountable, 'לא' means IS accountable
+    // Note: 'לא נספר בחישוב שטח מבנה' column - 'כן' means NOT accountable, 'לא' means IS accountable
     const exampleRows = [
       ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', '', 'לא', 'לא', '20', '150'],
       ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', '', 'לא', 'לא', '30', '200'],
@@ -770,7 +770,7 @@ export function AssetTypes() {
         { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
         { wch: 15 }, // עסקים/מגורים
         { wch: 20 }, // שימוש בשטח משותף
-        { wch: 10 }, // לא נספר
+        { wch: 25 }, // לא נספר בחישוב שטח מבנה
         { wch: 15 }, // לא נספר בפיזור
         { wch: 10 }, // שטח מ
         { wch: 10 }  // שטח עד
@@ -797,7 +797,7 @@ export function AssetTypes() {
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
       'עסקים/מגורים',            // business_residence
       'שימוש בשטח משותף',         // shared_area_usage
-      'לא נספר',                  // not_accountable
+      'לא נספר בחישוב שטח מבנה',  // non_accountable_for_total_area
       'שטח מ',                   // min_size
       'שטח עד'                   // max_size
     ];
@@ -848,7 +848,7 @@ export function AssetTypes() {
         { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
         { wch: 15 }, // עסקים/מגורים
         { wch: 20 }, // שימוש בשטח משותף
-        { wch: 10 }, // לא נספר
+        { wch: 25 }, // לא נספר בחישוב שטח מבנה
         { wch: 15 }, // לא נספר בפיזור
         { wch: 10 }, // שטח מ
         { wch: 10 }  // שטח עד
@@ -963,6 +963,7 @@ export function AssetTypes() {
         'non_accountable_for_total_area': 'non_accountable_for_total_area',
         'non_accountable_total_area': 'non_accountable_for_total_area',
         'לא נספר': 'non_accountable_for_total_area',
+        'לא נספר בחישוב שטח מבנה': 'non_accountable_for_total_area',
         // non_accountable_for_distribution field
         'non_accountable_for_distribution': 'non_accountable_for_distribution',
         'לא נספר בפיזור': 'non_accountable_for_distribution',

@@ -1547,20 +1547,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Helper function to prepare asset data with all required fields
         const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
           const merged = { ...asset, ...changes };
+          // Remove any fields that don't exist in the database (like 'id' from AG Grid)
+          const { id, _isNew, _isDirty, _validationErrors, ...cleanMerged } = merged as any;
           // Ensure all required fields are present
           return {
-            ...merged,
-            building_number: merged.building_number ?? asset.building_number,
-            asset_id: merged.asset_id ?? asset.asset_id,
-            measurement_date: merged.measurement_date ?? asset.measurement_date,
-            asset_size: merged.asset_size ?? asset.asset_size ?? 0,
+            ...cleanMerged,
+            building_number: cleanMerged.building_number ?? asset.building_number,
+            asset_id: cleanMerged.asset_id ?? asset.asset_id,
+            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date,
+            asset_size: cleanMerged.asset_size ?? asset.asset_size ?? 0,
             // Ensure sub-asset sizes are numbers, not undefined
-            sub_asset_size_1: merged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
-            sub_asset_size_2: merged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
-            sub_asset_size_3: merged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
-            sub_asset_size_4: merged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
-            sub_asset_size_5: merged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
-            sub_asset_size_6: merged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
+            sub_asset_size_1: cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
+            sub_asset_size_2: cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
+            sub_asset_size_3: cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
+            sub_asset_size_4: cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
+            sub_asset_size_5: cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
+            sub_asset_size_6: cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
           } as Partial<Asset>;
         };
         
@@ -1901,20 +1903,22 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Helper function to prepare asset data with all required fields
         const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
           const merged = { ...asset, ...changes };
+          // Remove any fields that don't exist in the database (like 'id' from AG Grid)
+          const { id, _isNew, _isDirty, _validationErrors, ...cleanMerged } = merged as any;
           // Ensure all required fields are present
           return {
-            ...merged,
-            building_number: merged.building_number ?? asset.building_number,
-            asset_id: merged.asset_id ?? asset.asset_id,
-            measurement_date: merged.measurement_date ?? asset.measurement_date,
-            asset_size: merged.asset_size ?? asset.asset_size ?? 0,
+            ...cleanMerged,
+            building_number: cleanMerged.building_number ?? asset.building_number,
+            asset_id: cleanMerged.asset_id ?? asset.asset_id,
+            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date,
+            asset_size: cleanMerged.asset_size ?? asset.asset_size ?? 0,
             // Ensure sub-asset sizes are numbers, not undefined
-            sub_asset_size_1: merged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
-            sub_asset_size_2: merged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
-            sub_asset_size_3: merged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
-            sub_asset_size_4: merged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
-            sub_asset_size_5: merged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
-            sub_asset_size_6: merged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
+            sub_asset_size_1: cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
+            sub_asset_size_2: cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
+            sub_asset_size_3: cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
+            sub_asset_size_4: cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
+            sub_asset_size_5: cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
+            sub_asset_size_6: cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
           } as Partial<Asset>;
         };
         

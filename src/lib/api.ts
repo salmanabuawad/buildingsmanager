@@ -563,6 +563,116 @@ function sanitizeBuildingInput(input: any): any {
   return sanitized;
 }
 
+/**
+ * Validate and save a single asset with transactional post-save actions
+ * ENFORCES: Validation must pass before save
+ * GUARANTEES: All operations (save + post-save actions) in ONE transaction
+ */
+async function validateAndSaveAsset(
+  assetData: any,
+  actionType: string = 'manual_update',
+  description?: string
+): Promise<{ success: boolean; asset_id: number; error?: string }> {
+  const { validateAsset } = await import('./validation');
+  const userInfo = await getCurrentUserInfo();
+
+  // STEP 1: Run validation
+  const validationResult = await validateAsset(assetData, 'assets');
+
+  // STEP 2: Call transactional save function (rejects if validation failed)
+  try {
+    const { data, error } = await supabase.rpc('save_asset_transactional', {
+      p_asset_data: assetData,
+      p_validation_passed: validationResult.valid,
+      p_validation_errors: validationResult.error || null,
+      p_action_type: actionType,
+      p_user_id: userInfo.user_id || null,
+      p_description: description || null
+    });
+
+    if (error) {
+      return {
+        success: false,
+        asset_id: assetData.asset_id,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      asset_id: data.asset_id
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      asset_id: assetData.asset_id,
+      error: err.message || 'Unknown error during save'
+    };
+  }
+}
+
+/**
+ * Validate and save multiple assets with transactional post-save actions
+ * ENFORCES: Validation must pass for ALL assets before save
+ * GUARANTEES: All operations (saves + post-save actions) in ONE transaction
+ */
+async function validateAndSaveBulkAssets(
+  assetsData: any[],
+  actionType: string = 'manual_update',
+  beforeData?: any,
+  afterData?: any,
+  description?: string
+): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> {
+  const { validateAsset } = await import('./validation');
+  const userInfo = await getCurrentUserInfo();
+
+  // STEP 1: Validate ALL assets
+  const validationResults = await Promise.all(
+    assetsData.map(asset => validateAsset(asset, 'assets'))
+  );
+
+  // Check if ALL assets are valid
+  const allValid = validationResults.every(result => result.valid);
+  const validationErrors = validationResults
+    .filter(result => !result.valid)
+    .map((result, index) => `Asset ${index + 1}: ${result.error}`);
+
+  // STEP 2: Call transactional bulk save function (rejects if any validation failed)
+  try {
+    const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
+      p_assets_data: assetsData,
+      p_validation_passed: allValid,
+      p_validation_errors: validationErrors.length > 0 ? validationErrors.join('; ') : null,
+      p_action_type: actionType,
+      p_user_id: userInfo.user_id || null,
+      p_before_data: beforeData || null,
+      p_after_data: afterData || null,
+      p_description: description || null
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+        validationErrors: validationErrors.length > 0 ? validationErrors : undefined
+      };
+    }
+
+    return {
+      success: true,
+      action_id: data.action_id,
+      affected_asset_ids: data.affected_asset_ids,
+      count: data.count
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Unknown error during bulk save',
+      validationErrors: validationErrors.length > 0 ? validationErrors : undefined
+    };
+  }
+}
+
 export const api = {
   buildings: {
     getAll: async (): Promise<Building[]> => {
@@ -2090,6 +2200,22 @@ export const api = {
 
       return { message: 'Asset deleted successfully' };
     },
+    saveTransactional: async (
+      assetData: any,
+      actionType: string = 'manual_update',
+      description?: string
+    ): Promise<{ success: boolean; asset_id: number; error?: string }> => {
+      return validateAndSaveAsset(assetData, actionType, description);
+    },
+    saveBulkTransactional: async (
+      assetsData: any[],
+      actionType: string = 'manual_update',
+      beforeData?: any,
+      afterData?: any,
+      description?: string
+    ): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> => {
+      return validateAndSaveBulkAssets(assetsData, actionType, beforeData, afterData, description);
+    },
   },
   measurements: {
     getAll: async (assetId: string): Promise<AssetMeasurement[]> => {
@@ -3153,41 +3279,23 @@ export const api = {
       description?: string,
       userName?: string
     ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
-      const userInfo = await getCurrentUserInfo();
-      
-      // Convert assets to array (Supabase will convert to JSONB automatically)
-      const assetsArray = assets.map(asset => {
-        const sanitized = sanitizeAssetInput(asset);
-        return {
-          ...sanitized,
-          asset_id: sanitized.asset_id,
-          building_number: sanitized.building_number,
-          asset_size: sanitized.asset_size || 0,
-          sub_asset_size_1: sanitized.sub_asset_size_1 || 0,
-          sub_asset_size_2: sanitized.sub_asset_size_2 || 0,
-          sub_asset_size_3: sanitized.sub_asset_size_3 || 0,
-          sub_asset_size_4: sanitized.sub_asset_size_4 || 0,
-          sub_asset_size_5: sanitized.sub_asset_size_5 || 0,
-          sub_asset_size_6: sanitized.sub_asset_size_6 || 0,
-          business_distribution_area: sanitized.business_distribution_area != null ? sanitized.business_distribution_area : undefined,
-        };
-      });
-      
-      const { data, error } = await supabase.rpc('bulk_update_assets_with_audit', {
-        p_assets: assetsArray,
-        p_action_type: actionType,
-        p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-        p_before_data: beforeData || null,
-        p_after_data: afterData || null,
-        p_description: description || null
-      });
-      
-      if (error) throw error;
-      
+      // Use new transactional save with validation enforcement
+      const result = await validateAndSaveBulkAssets(
+        assets,
+        actionType,
+        beforeData,
+        afterData,
+        description
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Bulk update failed');
+      }
+
       return {
-        action_id: data.action_id,
-        affected_asset_ids: data.affected_asset_ids || [],
-        count: data.count || 0
+        action_id: result.action_id!,
+        affected_asset_ids: result.affected_asset_ids!,
+        count: result.count!
       };
     },
     bulkTransferAreas: async (

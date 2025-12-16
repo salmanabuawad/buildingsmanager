@@ -656,102 +656,38 @@ async function validateAndSaveBulkAssets(
   const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
 
-  // STEP 0: Sanitize all assets - remove fields that don't exist in database (like 'id')
-  // Also ensure all required fields are present with default values
-  const sanitizedAssetsData = assetsData.map(asset => {
-    // Remove AG Grid internal fields and any 'id' field
-    // BUT preserve 'id' temporarily for validation (it will be removed before sending to DB)
+  // STEP 0: Prepare assets for validation and save - same format as single save
+  // Remove only AG Grid internal fields and preserve 'id' temporarily for validation
+  const preparedAssetsData = assetsData.map(asset => {
+    // Remove AG Grid internal fields (same as single save - no extra sanitization)
     const { _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanAsset } = asset as any;
-    const tempId = cleanAsset.id; // Preserve for validation
-    
-    // Remove 'id' from cleanAsset for sanitization
-    delete cleanAsset.id;
-    
-    // Sanitize the asset data
-    const sanitized = sanitizeAssetInput(cleanAsset);
-    
-    // Ensure required fields are present (validation expects these)
-    // building_number and asset_id are required - preserve from original if sanitization removed them
-    // Check both sanitized result AND original cleanAsset
-    if (!sanitized.building_number) {
-      if (cleanAsset.building_number != null) {
-        sanitized.building_number = sanitizeInteger(cleanAsset.building_number);
-      } else if (asset.building_number != null) {
-        // Fallback to original asset data
-        sanitized.building_number = sanitizeInteger(asset.building_number);
-      }
-    }
-    
-    if (!sanitized.asset_id) {
-      if (cleanAsset.asset_id != null) {
-        sanitized.asset_id = sanitizeInteger(cleanAsset.asset_id);
-      } else if (asset.asset_id != null) {
-        // Fallback to original asset data
-        sanitized.asset_id = sanitizeInteger(asset.asset_id);
-      }
-    }
-    
-    // Ensure building_number is present (critical for validation)
-    if (!sanitized.building_number) {
-      console.error('[validateAndSaveBulkAssets] Missing building_number for asset:', {
-        asset_id: sanitized.asset_id,
-        original_asset: asset,
-        clean_asset: cleanAsset,
-        sanitized: sanitized
-      });
-      throw new Error(`Asset ${sanitized.asset_id || 'unknown'} is missing building_number`);
-    }
-    
-    // If main_asset_type exists but asset_size is 0 or missing, calculate from sub-asset sizes
-    if (sanitized.main_asset_type && (!sanitized.asset_size || sanitized.asset_size === 0)) {
-      const subSizes = [
-        sanitized.sub_asset_size_1 || 0,
-        sanitized.sub_asset_size_2 || 0,
-        sanitized.sub_asset_size_3 || 0,
-        sanitized.sub_asset_size_4 || 0,
-        sanitized.sub_asset_size_5 || 0,
-        sanitized.sub_asset_size_6 || 0,
-      ];
-      const calculatedSize = subSizes.reduce((sum, size) => sum + (size || 0), 0);
-      if (calculatedSize > 0) {
-        sanitized.asset_size = calculatedSize;
-      }
-    }
-    
-    // Ensure sub-asset sizes are numbers (not undefined)
-    sanitized.sub_asset_size_1 = sanitized.sub_asset_size_1 ?? 0;
-    sanitized.sub_asset_size_2 = sanitized.sub_asset_size_2 ?? 0;
-    sanitized.sub_asset_size_3 = sanitized.sub_asset_size_3 ?? 0;
-    sanitized.sub_asset_size_4 = sanitized.sub_asset_size_4 ?? 0;
-    sanitized.sub_asset_size_5 = sanitized.sub_asset_size_5 ?? 0;
-    sanitized.sub_asset_size_6 = sanitized.sub_asset_size_6 ?? 0;
-    
-    // Ensure measurement_date has a default
-    if (!sanitized.measurement_date) {
-      sanitized.measurement_date = '01/01/1900';
-    }
-    
-    // Add 'id' back temporarily for validation (will be removed before sending to DB)
-    if (tempId != null) {
-      sanitized.id = tempId;
-    }
-    
-    return sanitized;
+    // Preserve 'id' temporarily for validation (will be removed before sending to DB)
+    return cleanAsset;
   });
 
-  // STEP 1: Validate ALL assets
+  // STEP 1: Validate ALL assets (same as single save)
   const validationResults = await Promise.all(
-    sanitizedAssetsData.map(asset => AssetValidationHandler.validateSingleAsset(asset))
+    preparedAssetsData.map(asset => AssetValidationHandler.validateSingleAsset(asset))
   );
 
   // Check if ALL assets are valid
   const allValid = validationResults.every(result => result.valid);
   const validationErrors = validationResults
     .filter(result => !result.valid)
-    .map((result, index) => `Asset ${index + 1}: ${result.errors?.join(', ') || 'Validation failed'}`);
+    .map((result, index) => {
+      const assetId = preparedAssetsData[index]?.asset_id || `Asset ${index + 1}`;
+      const buildingNumber = preparedAssetsData[index]?.building_number;
+      const assetIdentifier = buildingNumber 
+        ? `נכס ${assetId} (מבנה ${buildingNumber})` 
+        : `נכס ${assetId}`;
+      const errors = result.errors?.length > 0 
+        ? result.errors.join('; ') 
+        : 'Validation failed';
+      return `${assetIdentifier}: ${errors}`;
+    });
 
-  // STEP 2: Remove 'id' field before sending to database (it was only kept for validation)
-  const assetsForDatabase = sanitizedAssetsData.map(asset => {
+  // STEP 2: Remove 'id' field before sending to database (same as single save - no extra transformation)
+  const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...assetWithoutId } = asset as any;
     return assetWithoutId;
   });

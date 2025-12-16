@@ -33,7 +33,7 @@ interface Tab {
 function App() {
   const { preferences, setEditMode } = usePreferences();
   const [tabs, setTabs] = useState<Tab[]>([
-    { id: 'buildings', type: 'buildings', label: 'מבנים' }
+    { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
   ]);
   const [activeTabId, setActiveTabId] = useState('buildings');
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
@@ -139,9 +139,13 @@ function App() {
       // Check if tab already exists
       const existingTab = prev.find(t => t.id === newTab.id);
       if (existingTab) {
-        // Tab already exists, just activate it
+        // Tab already exists, refresh it and activate it
         setActiveTabId(newTab.id);
-        return prev;
+        return prev.map(tab => 
+          tab.id === newTab.id 
+            ? { ...tab, refreshKey: Date.now() } 
+            : tab
+        );
       }
       
       // For most tab types, close existing tabs of the same type (except 'buildings' and 'assets')
@@ -155,15 +159,15 @@ function App() {
       
       // Ensure buildings tab exists
       const hasBuildings = filteredTabs.some(t => t.id === 'buildings');
-      const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
-      const tabsToReturn = hasBuildings ? [...filteredTabs, newTab] : [buildingsTab, ...filteredTabs, newTab];
+      const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+      const tabsToReturn = hasBuildings ? [...filteredTabs, { ...newTab, refreshKey: Date.now() }] : [buildingsTab, ...filteredTabs, { ...newTab, refreshKey: Date.now() }];
       return tabsToReturn;
     });
     setActiveTabId(newTab.id);
   }
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
+    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
     
     // Ensure buildings tab exists
     const existingBuildingsTab = tabs.find(t => t.id === 'buildings');
@@ -227,7 +231,8 @@ function App() {
           type: 'assets',
           buildingNumber,
           label: `מבנה ${buildingNumber} - כל הנכסים`,
-          path: `/buildings/${buildingNumber}/assets`
+          path: `/buildings/${buildingNumber}/assets`,
+          refreshKey: Date.now()
         };
         tabsToCreate.push(allAssetsTab);
         
@@ -241,7 +246,8 @@ function App() {
             type: 'assets',
             buildingNumber,
             taxRegion: region,
-            label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`
+            label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`,
+            refreshKey: Date.now()
           };
           tabsToCreate.push(regionTab);
         }
@@ -269,13 +275,17 @@ function App() {
       const existingTab = tabs.find(t => t.id === allAssetsTabId);
       
       if (existingTab) {
-        // Tab already exists, close all other assets tabs and switch to it
+        // Tab already exists, refresh it, close all other assets tabs and switch to it
         setTabs(prev => {
-          // Close all assets tabs except the one we're switching to
+          // Close all assets tabs except the one we're switching to, and refresh it
           const keepTabs = prev.filter(t => 
             t.id === 'buildings' || 
             t.type !== 'assets' || 
             t.id === allAssetsTabId
+          ).map(tab => 
+            tab.id === allAssetsTabId 
+              ? { ...tab, refreshKey: Date.now() } 
+              : tab
           );
           return keepTabs;
         });
@@ -286,7 +296,8 @@ function App() {
           id: allAssetsTabId,
           type: 'assets',
           buildingNumber,
-          label: `מבנה ${buildingNumber} - כל הנכסים`
+          label: `מבנה ${buildingNumber} - כל הנכסים`,
+          refreshKey: Date.now()
         };
         setTabs(prev => {
           // Check if tab already exists
@@ -315,9 +326,13 @@ function App() {
       const existingTab = prevTabs.find(t => t.id === assetDetailsTabId);
 
       if (existingTab) {
-        // Tab already exists, just activate it
+        // Tab already exists, refresh it and activate it
         setActiveTabId(assetDetailsTabId);
-        return prevTabs;
+        return prevTabs.map(tab => 
+          tab.id === assetDetailsTabId 
+            ? { ...tab, refreshKey: Date.now() } 
+            : tab
+        );
       }
       
       const newTab: Tab = {
@@ -327,7 +342,8 @@ function App() {
         assetIdentifier: assetId,
         buildingNumber,
         taxRegion, // Pass taxRegion from AssetsList tab - same as AssetsList
-        label: `נכס ${assetId}`
+        label: `נכס ${assetId}`,
+        refreshKey: Date.now()
       };
       
       // Remove all other asset-details tabs (this closes the current tab if it's an asset-details tab)
@@ -608,7 +624,7 @@ function App() {
     setTabs(prevTabs => {
       const newTabs = prevTabs.filter(tab => tab.id !== tabId);
       if (newTabs.length === 0) {
-        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים' };
+        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
         return [buildingsTab];
       }
       return newTabs;
@@ -1034,7 +1050,15 @@ function App() {
                   }`}
                 >
                   <div
-                    onClick={() => setActiveTabId(tab.id)}
+                    onClick={() => {
+                      // Refresh the tab when switching to it
+                      setTabs(prev => prev.map(t => 
+                        t.id === tab.id 
+                          ? { ...t, refreshKey: Date.now() } 
+                          : t
+                      ));
+                      setActiveTabId(tab.id);
+                    }}
                     className="flex items-center gap-2 flex-shrink-0"
                   >
                     {tab.type === 'admin' ? (
@@ -1116,34 +1140,35 @@ function App() {
               />
             )}
             {activeTab?.type === 'asset-types' && (
-              <AssetTypes />
+              <AssetTypes key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'asset-search' && (
-              <AssetSearch onSelectAsset={handleSelectAsset} />
+              <AssetSearch key={activeTab.refreshKey} onSelectAsset={handleSelectAsset} />
             )}
             {activeTab?.type === 'validation-rules' && (
-              <ValidationRulesManager />
+              <ValidationRulesManager key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'address-list' && (
-              <AddressListComponent />
+              <AddressListComponent key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'field-config' && (
-              <FieldConfigManager />
+              <FieldConfigManager key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'asset-data-entry' && (
-              <AssetDataEntry />
+              <AssetDataEntry key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'building-list-import' && (
-              <BuildingListImport />
+              <BuildingListImport key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'assets-file-import' && (
-              <AssetsFileImport mode="regular" />
+              <AssetsFileImport key={activeTab.refreshKey} mode="regular" />
             )}
             {activeTab?.type === 'assets-skeleton-import' && (
-              <AssetsFileImport mode="skeleton" />
+              <AssetsFileImport key={activeTab.refreshKey} mode="skeleton" />
             )}
             {activeTab?.type === 'asset-details' && (
               <AssetDetails 
+                key={activeTab.refreshKey}
                 assetId={activeTab.assetId ? parseInt(activeTab.assetId) : undefined}
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
@@ -1165,7 +1190,7 @@ function App() {
               />
             )}
             {activeTab?.type === 'audit-log' && (
-              <AuditLog />
+              <AuditLog key={activeTab.refreshKey} />
             )}
           </div>
         </div>

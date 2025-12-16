@@ -86,7 +86,7 @@ async function resetDistributionFlagsIfNeeded(
   if (!buildingNumber) return;
   
   try {
-    // Get current building data
+    // Get current building data to check if flags need to be reset
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
       .select('business_shared_area_distributed, residence_shared_area_distributed')
@@ -101,7 +101,7 @@ async function resetDistributionFlagsIfNeeded(
     
     // For residence: reset on create or delete
     if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete')) {
-      if (building.residence_shared_area_distributed) {
+      if (building.residence_shared_area_distributed === true) {
         updates.residence_shared_area_distributed = false;
       }
     }
@@ -109,13 +109,13 @@ async function resetDistributionFlagsIfNeeded(
     // For business: reset on create, delete, or asset_size change
     if (assetType === 'business') {
       if (changeType === 'create' || changeType === 'delete' || assetSizeChanged) {
-        if (building.business_shared_area_distributed) {
+        if (building.business_shared_area_distributed === true) {
           updates.business_shared_area_distributed = false;
         }
       }
     }
     
-    // Update building if flags need to be reset
+    // Update building if flags need to be reset (use direct supabase call to avoid circular reference)
     if (Object.keys(updates).length > 0) {
       await supabase
         .from('buildings')
@@ -806,6 +806,76 @@ export const api = {
       }
 
       return { message: 'Building deleted successfully' };
+    },
+    // Distribution flag management API
+    markBusinessDistributionNeeded: async (buildingNumber: number): Promise<void> => {
+      const { error } = await supabase
+        .from('buildings')
+        .update({ business_shared_area_distributed: false })
+        .eq('building_number', buildingNumber);
+      
+      if (error) {
+        console.error('[api.buildings.markBusinessDistributionNeeded] Failed:', error);
+        throw error;
+      }
+      console.log(`[api.buildings.markBusinessDistributionNeeded] Marked building ${buildingNumber} as needing business distribution`);
+    },
+    markBusinessDistributionDone: async (buildingNumber: number): Promise<void> => {
+      const { error } = await supabase
+        .from('buildings')
+        .update({ business_shared_area_distributed: true })
+        .eq('building_number', buildingNumber);
+      
+      if (error) {
+        console.error('[api.buildings.markBusinessDistributionDone] Failed:', error);
+        throw error;
+      }
+      console.log(`[api.buildings.markBusinessDistributionDone] Marked building ${buildingNumber} as having completed business distribution`);
+    },
+    markResidenceDistributionNeeded: async (buildingNumber: number): Promise<void> => {
+      const { error } = await supabase
+        .from('buildings')
+        .update({ residence_shared_area_distributed: false })
+        .eq('building_number', buildingNumber);
+      
+      if (error) {
+        console.error('[api.buildings.markResidenceDistributionNeeded] Failed:', error);
+        throw error;
+      }
+      console.log(`[api.buildings.markResidenceDistributionNeeded] Marked building ${buildingNumber} as needing residence distribution`);
+    },
+    markResidenceDistributionDone: async (buildingNumber: number): Promise<void> => {
+      const { error } = await supabase
+        .from('buildings')
+        .update({ residence_shared_area_distributed: true })
+        .eq('building_number', buildingNumber);
+      
+      if (error) {
+        console.error('[api.buildings.markResidenceDistributionDone] Failed:', error);
+        throw error;
+      }
+      console.log(`[api.buildings.markResidenceDistributionDone] Marked building ${buildingNumber} as having completed residence distribution`);
+    },
+    getDistributionStatus: async (buildingNumber: number): Promise<{ business: boolean | null; residence: boolean | null }> => {
+      const { data, error } = await supabase
+        .from('buildings')
+        .select('business_shared_area_distributed, residence_shared_area_distributed')
+        .eq('building_number', buildingNumber)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('[api.buildings.getDistributionStatus] Failed:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('Building not found');
+      }
+      
+      return {
+        business: data.business_shared_area_distributed,
+        residence: data.residence_shared_area_distributed
+      };
     },
   },
   assets: {
@@ -2023,8 +2093,6 @@ export const api = {
             console.log(`[api.assetTypes.update] non_accountable_for_distribution changed for asset type ${beforeData.name}. Before: ${beforeData.non_accountable_for_distribution}, After: ${data.non_accountable_for_distribution}`);
             
             // Find all buildings that have assets with this asset type (only main_asset_type)
-            // We reset flags for all buildings with this asset type, regardless of business/residence
-            // The flag will only matter if the building has business_shared_area > 0
             const { data: affectedAssets, error: assetsError } = await supabase
               .from('assets')
               .select('building_number')
@@ -2039,20 +2107,15 @@ export const api = {
               
               console.log(`[api.assetTypes.update] Found ${affectedAssets.length} assets with type ${beforeData.name} in ${buildingNumbers.length} building(s):`, buildingNumbers);
               
-              // Always reset business_shared_area_distributed flag to false when non_accountable_for_distribution changes
-              // This ensures the distribution alert appears and distribution can be recalculated
-              const { data: updatedBuildings, error: updateError } = await supabase
-                .from('buildings')
-                .update({ business_shared_area_distributed: false })
-                .in('building_number', buildingNumbers)
-                .select('building_number, business_shared_area_distributed');
-              
-              if (updateError) {
-                console.error('[api.assetTypes.update] Failed to reset distribution flags:', updateError);
-              } else if (updatedBuildings && updatedBuildings.length > 0) {
-                console.log(`[api.assetTypes.update] Successfully reset business distribution flags for ${updatedBuildings.length} building(s):`, updatedBuildings.map(b => ({ building: b.building_number, flag: b.business_shared_area_distributed })));
-              } else {
-                console.warn(`[api.assetTypes.update] No buildings were updated. Expected ${buildingNumbers.length} buildings, but update returned no rows.`);
+              // Mark all affected buildings as needing business distribution
+              // Use the new API function for consistency
+              for (const buildingNumber of buildingNumbers) {
+                try {
+                  await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+                } catch (err) {
+                  console.warn(`[api.assetTypes.update] Failed to mark building ${buildingNumber} as needing distribution:`, err);
+                  // Continue with other buildings even if one fails
+                }
               }
             } else {
               console.log(`[api.assetTypes.update] No assets found with type ${beforeData.name}, no flags to reset`);

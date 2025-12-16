@@ -1798,9 +1798,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       
       // Update building flag to indicate distribution is done
       try {
-        await api.buildings.update(building.building_number, {
-          residence_shared_area_distributed: true
-        });
+        await api.buildings.markResidenceDistributionDone(building.building_number);
         // Refresh building data
         const updatedBuilding = await api.buildings.getOne(building.building_number);
         setBuilding(updatedBuilding);
@@ -2114,16 +2112,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         setAssets(updatedAssets);
       }
       
-      // Update building flag to indicate distribution is done
+      // Mark distribution as done using the API
       try {
-        await api.buildings.update(building.building_number, {
-          business_shared_area_distributed: true
-        });
+        await api.buildings.markBusinessDistributionDone(building.building_number);
         // Refresh building data
         const updatedBuilding = await api.buildings.getOne(building.building_number);
         setBuilding(updatedBuilding);
       } catch (flagError) {
-        console.warn('Failed to update business distribution flag:', flagError);
+        console.warn('Failed to mark business distribution as done:', flagError);
       }
       
       // Note: Building state with updated overload_ratio was already set in the try block above

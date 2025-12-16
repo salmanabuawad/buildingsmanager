@@ -1967,6 +1967,7 @@ DECLARE
   v_new_non_accountable_for_distribution boolean;
   v_affected_buildings bigint[];
   v_building_number bigint;
+  v_business_residence text;
 BEGIN
   -- Get before data
   SELECT row_to_json(at.*)::jsonb INTO v_before_data
@@ -2012,22 +2013,39 @@ BEGIN
     WHERE at.id = p_id;
     
     -- If non_accountable_for_distribution changed, reset flags for affected buildings
-    -- This affects both business and residence distribution, so reset both flags
+    -- Only set the flag for the relevant business/residence type
     IF v_old_non_accountable_for_distribution IS DISTINCT FROM v_new_non_accountable_for_distribution THEN
+      -- Get the asset type's business_residence field to determine which flag to set
+      SELECT business_residence INTO v_business_residence
+      FROM asset_types
+      WHERE id = p_id;
+      
       -- Find all buildings with assets of this type
       SELECT ARRAY_AGG(DISTINCT building_number) INTO v_affected_buildings
       FROM assets
       WHERE main_asset_type = v_asset_type_name
         AND building_number IS NOT NULL;
       
-      -- Set both need_business_distribution and need_residence_distribution flags to true
-      -- because non_accountable_for_distribution affects both distribution types
+      -- Set flag based on business_residence type
       -- (true = needs distribution, false = already distributed)
       IF v_affected_buildings IS NOT NULL AND array_length(v_affected_buildings, 1) > 0 THEN
-        UPDATE buildings
-        SET need_business_distribution = true,
-            need_residence_distribution = true
-        WHERE building_number = ANY(v_affected_buildings);
+        IF v_business_residence = 'עסקים' THEN
+          -- Business type: only set business distribution flag
+          UPDATE buildings
+          SET need_business_distribution = true
+          WHERE building_number = ANY(v_affected_buildings);
+        ELSIF v_business_residence = 'מגורים' THEN
+          -- Residence type: only set residence distribution flag
+          UPDATE buildings
+          SET need_residence_distribution = true
+          WHERE building_number = ANY(v_affected_buildings);
+        ELSE
+          -- Unknown type: set both flags to be safe
+          UPDATE buildings
+          SET need_business_distribution = true,
+              need_residence_distribution = true
+          WHERE building_number = ANY(v_affected_buildings);
+        END IF;
       END IF;
     END IF;
   ELSE

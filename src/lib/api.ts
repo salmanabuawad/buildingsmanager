@@ -1663,7 +1663,7 @@ export const api = {
 
       // Reset distribution flags if needed (for business: asset_size change)
       // Also reset if main_asset_type changed to/from a type with non_accountable_for_distribution = true
-      // Note: We check this even if skipAudit is true, because distribution flags need to be reset regardless
+      // Note: Distribution flags are business logic and should be updated regardless of audit logging (skipAudit)
       if (updatedAsset.building_number && beforeData) {
         const assetSizeChanged = beforeData.asset_size !== updatedAsset.asset_size;
         const oldMainType = String(beforeData.main_asset_type || '').trim();
@@ -1715,22 +1715,48 @@ export const api = {
           }
         }
         
-        // Reset flags if asset size changed OR if main_asset_type changed to/from non_accountable_for_distribution type
-        if (assetSizeChanged || mainAssetTypeChangedToNonAccountable) {
-          // If main_asset_type changed to/from non_accountable_for_distribution, reset both flags
-          if (mainAssetTypeChangedToNonAccountable) {
-            try {
+        // Reset flags if asset size changed OR if main_asset_type changed to/from non_accountable_for_distribution
+        // Only set flags when main_asset_type changes to/from non_accountable_for_distribution type
+        // Note: Distribution flags should be updated regardless of skipAudit (audit logging is separate from business logic)
+        if (mainAssetTypeChangedToNonAccountable) {
+          // Get the business/residence type of the new asset type to determine which flag to set
+          try {
+            const { data: newTypeData } = await supabase
+              .from('asset_types')
+              .select('name, business_residence')
+              .or(`name.eq.${newMainType},name.eq.${parseInt(newMainType, 10) || 0}`)
+              .maybeSingle();
+            
+            if (newTypeData) {
+              const isBusiness = newTypeData.business_residence === 'עסקים';
+              const isResidence = newTypeData.business_residence === 'מגורים';
+              
+              if (isBusiness) {
+                await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
+                console.log(`[api.assets.update] Set need_business_distribution flag for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type (business)`);
+              } else if (isResidence) {
+                await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
+                console.log(`[api.assets.update] Set need_residence_distribution flag for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type (residence)`);
+              } else {
+                // Unknown type: set both flags to be safe
+                await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
+                await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
+                console.log(`[api.assets.update] Set both distribution flags for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type (unknown)`);
+              }
+            } else {
+              // Type not found: set both flags to be safe
               await api.buildings.markBusinessDistributionNeeded(updatedAsset.building_number);
               await api.buildings.markResidenceDistributionNeeded(updatedAsset.building_number);
-              console.log(`[api.assets.update] Reset both distribution flags for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type`);
-            } catch (err) {
-              console.warn(`[api.assets.update] Failed to reset distribution flags:`, err);
+              console.log(`[api.assets.update] Set both distribution flags for building ${updatedAsset.building_number} due to main_asset_type change to/from non_accountable_for_distribution type (type not found)`);
             }
-          } else if (!skipAudit) {
-            // Normal case: only reset based on asset type and size change (but skip if skipAudit is true)
-            const assetType = await getAssetBusinessResidenceType(updatedAsset);
-            await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
+          } catch (err) {
+            console.warn(`[api.assets.update] Failed to reset distribution flags:`, err);
           }
+        } else if (assetSizeChanged || mainAssetTypeChanged) {
+          // Normal case: reset based on asset type and size change
+          // Note: Distribution flags should be updated regardless of skipAudit
+          const assetType = await getAssetBusinessResidenceType(updatedAsset);
+          await resetDistributionFlagsIfNeeded(updatedAsset.building_number, assetType, 'update', assetSizeChanged);
         }
       }
 
@@ -2158,10 +2184,20 @@ export const api = {
             data = updateData;
             
             // Manually reset flags if needed (fallback behavior)
-            if (beforeData && beforeData.name && 'non_accountable_for_distribution' in input) {
+            // Check if non_accountable_for_distribution changed
+            if (beforeData && beforeData.name) {
               const oldValue = beforeData.non_accountable_for_distribution === true;
-              const newValue = input.non_accountable_for_distribution === true;
+              const newValue = 'non_accountable_for_distribution' in input 
+                ? (input.non_accountable_for_distribution === true || input.non_accountable_for_distribution === 'true')
+                : oldValue;
+              
               if (oldValue !== newValue) {
+                console.log('[api.assetTypes.update] non_accountable_for_distribution changed, resetting flags for affected buildings:', {
+                  assetTypeName: beforeData.name,
+                  oldValue,
+                  newValue
+                });
+                
                 const { data: affectedAssets } = await supabase
                   .from('assets')
                   .select('building_number')
@@ -2170,16 +2206,33 @@ export const api = {
                 
                 if (affectedAssets && affectedAssets.length > 0) {
                   const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
+                  console.log(`[api.assetTypes.update] Found ${buildingNumbers.length} affected building(s):`, buildingNumbers);
+                  
+                  // Get the asset type's business_residence to determine which flag to set
+                  const isBusiness = beforeData.business_residence === 'עסקים';
+                  const isResidence = beforeData.business_residence === 'מגורים';
+                  
                   for (const buildingNumber of buildingNumbers) {
                     try {
-                      // Reset both business and residence distribution flags
-                      // because non_accountable_for_distribution affects both distribution types
-                      await api.buildings.markBusinessDistributionNeeded(buildingNumber);
-                      await api.buildings.markResidenceDistributionNeeded(buildingNumber);
+                      // Set flag based on business_residence type
+                      if (isBusiness) {
+                        await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+                        console.log(`[api.assetTypes.update] Set need_business_distribution flag for building ${buildingNumber} (business type)`);
+                      } else if (isResidence) {
+                        await api.buildings.markResidenceDistributionNeeded(buildingNumber);
+                        console.log(`[api.assetTypes.update] Set need_residence_distribution flag for building ${buildingNumber} (residence type)`);
+                      } else {
+                        // Unknown type: set both flags to be safe
+                        await api.buildings.markBusinessDistributionNeeded(buildingNumber);
+                        await api.buildings.markResidenceDistributionNeeded(buildingNumber);
+                        console.log(`[api.assetTypes.update] Set both flags for building ${buildingNumber} (unknown type)`);
+                      }
                     } catch (err) {
-                      console.warn(`[api.assetTypes.update] Failed to mark building ${buildingNumber}:`, err);
+                      console.error(`[api.assetTypes.update] Failed to mark building ${buildingNumber}:`, err);
                     }
                   }
+                } else {
+                  console.log('[api.assetTypes.update] No affected buildings found for asset type:', beforeData.name);
                 }
               }
             }
@@ -2197,8 +2250,15 @@ export const api = {
             data = afterData as AssetType;
             
             // Log if distribution flags were reset
-            if (result?.distribution_flags_reset && result?.affected_buildings) {
-              console.log(`[api.assetTypes.update] Updated asset type and reset distribution flags for ${result.affected_buildings.length} building(s) in transaction`);
+            if (result?.affected_buildings && Array.isArray(result.affected_buildings) && result.affected_buildings.length > 0) {
+              console.log(`[api.assetTypes.update] Database function updated asset type and set distribution flags to true for ${result.affected_buildings.length} building(s):`, result.affected_buildings);
+            } else if (beforeData && 'non_accountable_for_distribution' in input) {
+              // Check if non_accountable_for_distribution changed but no buildings were affected
+              const oldValue = beforeData.non_accountable_for_distribution === true;
+              const newValue = input.non_accountable_for_distribution === true;
+              if (oldValue !== newValue) {
+                console.log('[api.assetTypes.update] non_accountable_for_distribution changed but no affected buildings found (database function may have handled it)');
+              }
             }
           } else {
             throw new Error('Database function returned no data');

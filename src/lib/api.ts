@@ -2020,7 +2020,7 @@ export const api = {
         
         if (nonAccountableForDistributionChanged) {
           try {
-            // Find all buildings that have assets with this asset type
+            // Find all buildings that have assets with this asset type (only main_asset_type)
             const { data: affectedAssets, error: assetsError } = await supabase
               .from('assets')
               .select('building_number')
@@ -2032,11 +2032,12 @@ export const api = {
               const buildingNumbers = [...new Set(affectedAssets.map(a => a.building_number))];
               
               // Reset business_shared_area_distributed flag for all affected buildings
+              // Always reset to false when non_accountable_for_distribution changes, regardless of current value
+              // This ensures the distribution alert appears and distribution can be recalculated
               const { error: updateError } = await supabase
                 .from('buildings')
                 .update({ business_shared_area_distributed: false })
-                .in('building_number', buildingNumbers)
-                .eq('business_shared_area_distributed', true); // Only update if currently true
+                .in('building_number', buildingNumbers);
               
               if (updateError) {
                 console.warn('[api.assetTypes.update] Failed to reset distribution flags:', updateError);

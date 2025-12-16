@@ -2511,8 +2511,13 @@ export const buildingValidators = {
             const assetTypes = getAssetTypes();
             
             // Map tax regions to their business_residence types
+            // Exclude asset types with non_accountable_for_total_area = true
             const taxRegionToBusinessType = new Map<number, string>();
             for (const at of assetTypes) {
+              // Skip non-accountable asset types - they should not affect building validation
+              if (at.non_accountable_for_total_area === true) {
+                continue;
+              }
               if (at.tax_region != null && at.business_residence) {
                 taxRegionToBusinessType.set(at.tax_region, at.business_residence);
               }
@@ -2677,48 +2682,20 @@ export const buildingValidators = {
       // Calculate total asset area (excluding non_accountable_for_total_area assets)
       // Note: Shared areas (residence_shared_area and business_shared_area) are distributed to assets
       // but should NOT be included in the size comparison
+      // IMPORTANT: Only check main_asset_type for non_accountable_for_total_area flag
+      // Sub-asset types are NOT checked - if main asset type is non_accountable, entire asset is excluded
       const totalAssetAreaWithShared = assets.reduce((sum, asset) => {
-        // Skip assets where main_asset_type has non_accountable_for_total_area = true
+        // Only check main_asset_type for non_accountable_for_total_area flag
+        // If main asset type has this flag set to true, exclude the entire asset from area calculation
         if (asset.main_asset_type) {
-          const assetType = assetTypeMap.get(String(asset.main_asset_type));
-          if (assetType && assetType.non_accountable_for_total_area === true) {
+          const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
+          if (mainAssetType && mainAssetType.non_accountable_for_total_area === true) {
+            // Skip this asset entirely - don't count its area in the total
             return sum;
           }
         }
         
-        // Check if asset has ANY residence asset type (main or sub)
-        let isResidenceAsset = false;
-        
-        // Check main asset type
-        if (asset.main_asset_type) {
-          const mainAssetType = assetTypeMap.get(String(asset.main_asset_type));
-          if (mainAssetType && mainAssetType.business_residence === 'מגורים') {
-            isResidenceAsset = true;
-          }
-        }
-        
-        // Check sub asset types if main type is not residence
-        if (!isResidenceAsset) {
-          const subAssetTypes = [
-            asset.sub_asset_type_1,
-            asset.sub_asset_type_2,
-            asset.sub_asset_type_3,
-            asset.sub_asset_type_4,
-            asset.sub_asset_type_5,
-            asset.sub_asset_type_6
-          ];
-          
-          for (const subType of subAssetTypes) {
-            if (subType) {
-              const subAssetType = assetTypeMap.get(String(subType));
-              if (subAssetType && subAssetType.business_residence === 'מגורים') {
-                isResidenceAsset = true;
-                break;
-              }
-            }
-          }
-        }
-        
+        // Asset is accountable - add its size to the total
         return sum + (asset.asset_size || 0);
       }, 0);
 

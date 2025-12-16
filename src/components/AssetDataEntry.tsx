@@ -636,7 +636,7 @@ export function AssetDataEntry() {
             discount_date_from: row.discount_date_from || undefined,
             discount_date_to: row.discount_date_to || undefined
           };
-          await api.assets.update(row._dbId!, updateData);
+          await api.assets.update(row._dbId!, updateData, 'manual_update', false);
           row._isDirty = false;
           row._dirtyFields = new Set<string>();
           savedCount++;

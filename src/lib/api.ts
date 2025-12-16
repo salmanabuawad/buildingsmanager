@@ -3253,13 +3253,21 @@ export const api = {
 
       // After successful transfer, check if any main_asset_type changed to/from non_accountable_for_distribution
       // If so, set the appropriate distribution flags for those buildings
-      console.log('[api.auditLog.bulkTransferAreas] Checking if distribution flags need to be set for bulk transfer...');
+      console.log('[api.auditLog.bulkTransferAreas] Checking if distribution flags need to be set for bulk transfer...', {
+        oldAssetsCount: oldAssets.length,
+        newAssetsCount: newAssets.length
+      });
 
       try {
         // Fetch all asset types to check non_accountable_for_distribution flag
         const { data: allAssetTypes } = await supabase
           .from('asset_types')
           .select('name, business_residence, non_accountable_for_distribution');
+
+        console.log('[api.auditLog.bulkTransferAreas] Fetched asset types:', {
+          count: allAssetTypes?.length || 0,
+          sample: allAssetTypes?.slice(0, 3).map(at => ({ name: at.name, br: at.business_residence, non_acc: at.non_accountable_for_distribution }))
+        });
 
         if (allAssetTypes && allAssetTypes.length > 0) {
           // Track which buildings need which flags set
@@ -3272,13 +3280,31 @@ export const api = {
             const oldAsset = oldAssets[i];
             const newAsset = newAssets[i];
 
-            if (!newAsset.building_number) continue;
+            console.log('[api.auditLog.bulkTransferAreas] Checking asset', i, {
+              asset_id: newAsset.asset_id,
+              building_number: newAsset.building_number,
+              hasBuilding: !!newAsset.building_number
+            });
+
+            if (!newAsset.building_number) {
+              console.log('[api.auditLog.bulkTransferAreas] ⚠️ Skipping asset - no building_number');
+              continue;
+            }
 
             const oldMainType = String(oldAsset.main_asset_type || '').trim();
             const newMainType = String(newAsset.main_asset_type || '').trim();
             const mainAssetTypeChanged = oldMainType !== newMainType && newMainType !== '';
 
-            if (!mainAssetTypeChanged) continue;
+            console.log('[api.auditLog.bulkTransferAreas] Type change check:', {
+              oldMainType,
+              newMainType,
+              mainAssetTypeChanged
+            });
+
+            if (!mainAssetTypeChanged) {
+              console.log('[api.auditLog.bulkTransferAreas] ⚠️ Skipping asset - type did not change');
+              continue;
+            }
 
             // Find asset type data
             const findAssetType = (typeName: string) => {
@@ -3308,12 +3334,25 @@ export const api = {
             const oldTypeData = findAssetType(oldMainType);
             const newTypeData = findAssetType(newMainType);
 
+            console.log('[api.auditLog.bulkTransferAreas] Asset type lookup results:', {
+              oldType: oldMainType,
+              oldTypeData: oldTypeData ? { name: oldTypeData.name, br: oldTypeData.business_residence, non_acc: oldTypeData.non_accountable_for_distribution } : null,
+              newType: newMainType,
+              newTypeData: newTypeData ? { name: newTypeData.name, br: newTypeData.business_residence, non_acc: newTypeData.non_accountable_for_distribution } : null
+            });
+
             const oldIsNonAccountable = oldTypeData?.non_accountable_for_distribution === true;
             const newIsNonAccountable = newTypeData?.non_accountable_for_distribution === true;
 
+            console.log('[api.auditLog.bulkTransferAreas] Non-accountable check:', {
+              oldIsNonAccountable,
+              newIsNonAccountable,
+              shouldSetFlag: oldIsNonAccountable || newIsNonAccountable
+            });
+
             // Only set flags if changing to/from non_accountable type
             if (oldIsNonAccountable || newIsNonAccountable) {
-              console.log(`[api.auditLog.bulkTransferAreas] Asset ${newAsset.asset_id} type changed from ${oldMainType} to ${newMainType} - setting distribution flags`);
+              console.log(`[api.auditLog.bulkTransferAreas] ✓ Asset ${newAsset.asset_id} type changed from ${oldMainType} to ${newMainType} - setting distribution flags`);
 
               // Use the new type's business_residence to determine which flag
               const typeToUse = newTypeData || oldTypeData;
@@ -3321,18 +3360,31 @@ export const api = {
                 const isBusiness = typeToUse.business_residence === 'עסקים';
                 const isResidence = typeToUse.business_residence === 'מגורים';
 
+                console.log('[api.auditLog.bulkTransferAreas] Type to use:', {
+                  name: typeToUse.name,
+                  business_residence: typeToUse.business_residence,
+                  isBusiness,
+                  isResidence
+                });
+
                 if (isBusiness) {
                   buildingsNeedingBusinessFlag.add(newAsset.building_number!);
+                  console.log(`[api.auditLog.bulkTransferAreas] → Added building ${newAsset.building_number} to business flag list`);
                 } else if (isResidence) {
                   buildingsNeedingResidenceFlag.add(newAsset.building_number!);
+                  console.log(`[api.auditLog.bulkTransferAreas] → Added building ${newAsset.building_number} to residence flag list`);
                 } else {
                   // Unknown type: set both flags
                   buildingsNeedingBothFlags.add(newAsset.building_number!);
+                  console.log(`[api.auditLog.bulkTransferAreas] → Added building ${newAsset.building_number} to both flags list (unknown type)`);
                 }
               } else {
                 // No type data: set both flags to be safe
                 buildingsNeedingBothFlags.add(newAsset.building_number!);
+                console.log(`[api.auditLog.bulkTransferAreas] → Added building ${newAsset.building_number} to both flags list (no type data)`);
               }
+            } else {
+              console.log(`[api.auditLog.bulkTransferAreas] ✗ Asset ${newAsset.asset_id} - not setting flags (neither old nor new type has non_accountable_for_distribution=true)`);
             }
           }
 

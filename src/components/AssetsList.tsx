@@ -998,19 +998,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             assetsToSave.push(assetData);
           } else {
             // For updates, ensure building_number is included
-            const updateData: any = { 
+            // Note: is_new_measurement should only be set for explicit "save as new measurement" operations,
+            // not for distribution saves. Distribution saves update assets in place without creating history.
+            assetsToSave.push({ 
               asset_id: assetId, 
               building_number: buildingNumberValue,
               ...changes 
-            };
-            
-            // For distribution saves, set is_new_measurement to true
-            // This will copy the old record to history before updating
-            if (isDistributionSave) {
-              updateData.is_new_measurement = true;
-            }
-            
-            assetsToSave.push(updateData);
+            });
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));

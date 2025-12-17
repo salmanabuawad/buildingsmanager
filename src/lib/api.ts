@@ -310,7 +310,7 @@ export interface Asset {
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
   action_id?: number; // References the audit entry that caused this record to be created or updated
-  business_distribution_area?: number; // Area distributed to this asset from business shared area distribution
+  area_from_distribution?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
 }
 
@@ -466,7 +466,7 @@ export function sanitizeAssetInput(input: any): any {
     discount_type: input.discount_type != null ? sanitizeText(input.discount_type) : undefined,
     discount_date_from: input.discount_date_from != null ? sanitizeDate(input.discount_date_from) : undefined,
     discount_date_to: input.discount_date_to != null ? sanitizeDate(input.discount_date_to) : undefined,
-    business_distribution_area: input.business_distribution_area != null ? sanitizeNumber(input.business_distribution_area) : undefined,
+    area_from_distribution: input.area_from_distribution != null ? sanitizeNumber(input.area_from_distribution) : undefined,
     exported_to_automation: input.exported_to_automation != null ? (input.exported_to_automation === true || input.exported_to_automation === 'true') : undefined,
   };
   

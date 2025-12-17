@@ -69,7 +69,7 @@ BEGIN
   -- ========================================================================
   IF v_existing_asset IS NULL THEN
     -- INSERT new asset
-    INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, business_distribution_area, exported_to_automation)
+    INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation)
     VALUES (
       v_asset_id,
       v_building_number,
@@ -100,7 +100,7 @@ BEGIN
       (p_asset_data->>'discount_type')::TEXT,
       (p_asset_data->>'discount_date_from')::TEXT,
       (p_asset_data->>'discount_date_to')::TEXT,
-      (p_asset_data->>'business_distribution_area')::NUMERIC,
+      (p_asset_data->>'area_from_distribution')::NUMERIC,
       COALESCE((p_asset_data->>'exported_to_automation')::BOOLEAN, false)
     );
   ELSE
@@ -135,7 +135,7 @@ BEGIN
       discount_type = COALESCE((p_asset_data->>'discount_type')::TEXT, discount_type),
       discount_date_from = COALESCE((p_asset_data->>'discount_date_from')::TEXT, discount_date_from),
       discount_date_to = COALESCE((p_asset_data->>'discount_date_to')::TEXT, discount_date_to),
-      business_distribution_area = COALESCE((p_asset_data->>'business_distribution_area')::NUMERIC, business_distribution_area),
+      area_from_distribution = COALESCE((p_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
       exported_to_automation = COALESCE((p_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
       updated_at = NOW()
     WHERE asset_id = v_asset_id;
@@ -329,7 +329,7 @@ BEGIN
     -- Save asset (INSERT or UPDATE)
     IF v_existing_asset IS NULL THEN
       -- INSERT new asset
-      INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, business_distribution_area, exported_to_automation)
+      INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation)
       VALUES (
         v_asset_id,
         v_building_number,
@@ -360,7 +360,7 @@ BEGIN
         (v_asset_data->>'discount_type')::TEXT,
         (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT,
-        (v_asset_data->>'business_distribution_area')::NUMERIC,
+        (v_asset_data->>'business_area_from_distribution')::NUMERIC,
         COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
       );
     ELSE
@@ -395,7 +395,7 @@ BEGIN
         discount_type = COALESCE((v_asset_data->>'discount_type')::TEXT, discount_type),
         discount_date_from = COALESCE((v_asset_data->>'discount_date_from')::TEXT, discount_date_from),
         discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
-        business_distribution_area = COALESCE((v_asset_data->>'business_distribution_area')::NUMERIC, business_distribution_area),
+        area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
         exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
         updated_at = NOW()
       WHERE asset_id = v_asset_id;
@@ -475,16 +475,19 @@ BEGIN
     
     -- STEP 4b: If description didn't help, check asset data
     IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
-      -- Check if business_distribution_area is being updated (business distribution)
+      -- Check if area_from_distribution is being updated (distribution)
       FOREACH v_asset_data IN ARRAY p_assets_data
       LOOP
-        -- Check if business_distribution_area is set and non-zero
+        -- Check if area_from_distribution is set and non-zero
         BEGIN
-          IF (v_asset_data->>'business_distribution_area') IS NOT NULL THEN
-            v_business_dist_area := (v_asset_data->>'business_distribution_area')::NUMERIC;
+          IF (v_asset_data->>'area_from_distribution') IS NOT NULL THEN
+            v_business_dist_area := (v_asset_data->>'area_from_distribution')::NUMERIC;
             IF v_business_dist_area IS NOT NULL AND v_business_dist_area > 0 THEN
-              v_distribution_type := 'business';
-              EXIT; -- Found business distribution, no need to check more
+              -- Determine distribution type by checking asset type (business_residence)
+              -- For now, check description or asset type to determine if business or residence
+              -- This will be determined by the asset's business_residence type
+              v_distribution_type := 'business'; -- Default, will be refined by description check
+              EXIT; -- Found distribution, no need to check more
             END IF;
           END IF;
         EXCEPTION WHEN OTHERS THEN

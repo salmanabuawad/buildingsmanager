@@ -904,13 +904,31 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       let isDistributionSave = false;
       let distributionType: 'residence' | 'business' | null = null;
       
-      // Check for business distribution: look for business_distribution_area changes
+      // Check for distribution: look for area_from_distribution changes
+      // Need to determine if it's business or residence based on asset types
       for (const [assetId, changes] of dirtyAssets.entries()) {
         if (deletedAssets.has(assetId)) continue;
-        if (changes.business_distribution_area !== undefined) {
+        if (changes.area_from_distribution !== undefined) {
           isDistributionSave = true;
-          distributionType = 'business';
-          break;
+          // Determine type by checking asset's business_residence type
+          const asset = assets.find(a => String(a.asset_id) === String(assetId));
+          if (asset && asset.main_asset_type) {
+            const assetType = assetTypes.find(at => String(at.name) === String(asset.main_asset_type));
+            if (assetType?.business_residence === 'עסקים') {
+              distributionType = 'business';
+            } else if (assetType?.business_residence === 'מגורים') {
+              distributionType = 'residence';
+            }
+          }
+          // If type not determined yet, check building flags as fallback
+          if (!distributionType && building) {
+            if (building.need_business_distribution) {
+              distributionType = 'business';
+            } else if (building.need_residence_distribution) {
+              distributionType = 'residence';
+            }
+          }
+          if (distributionType) break;
         }
       }
       
@@ -1761,7 +1779,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return;
       }
 
-      // Sum all business accountable assets' main size (reducing existing business_distribution_area)
+      // Sum all business accountable assets' main size (reducing existing area_from_distribution)
       let totalMainSize = 0;
       for (const asset of businessAssets) {
         const assetId = String(asset.asset_id);
@@ -1769,11 +1787,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const currentAssetSize = existingChanges.asset_size !== undefined
           ? existingChanges.asset_size
           : (asset.asset_size || 0);
-        // Get current business_distribution_area (check existing changes first, then current asset)
-        const currentDistributionArea = existingChanges.business_distribution_area !== undefined
-          ? existingChanges.business_distribution_area
-          : (asset.business_distribution_area || 0);
-        // Subtract existing business_distribution_area from asset size before calculation
+        // Get current area_from_distribution (check existing changes first, then current asset)
+        const currentDistributionArea = existingChanges.area_from_distribution !== undefined
+          ? existingChanges.area_from_distribution
+          : (asset.area_from_distribution || 0);
+        // Subtract existing area_from_distribution from asset size before calculation
         const baseAssetSize = currentAssetSize - currentDistributionArea;
         totalMainSize += baseAssetSize;
       }
@@ -1817,29 +1835,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Get current business_distribution_area (check existing changes first, then current asset)
-        const currentDistributionArea = existingChanges.business_distribution_area !== undefined
-          ? existingChanges.business_distribution_area
-          : (currentAsset?.business_distribution_area || 0);
+        // Get current area_from_distribution (check existing changes first, then current asset)
+        const currentDistributionArea = existingChanges.area_from_distribution !== undefined
+          ? existingChanges.area_from_distribution
+          : (currentAsset?.area_from_distribution || 0);
 
-        // Calculate base asset size (reducing existing business_distribution_area)
+        // Calculate base asset size (reducing existing area_from_distribution)
         const baseAssetSize = currentAssetSize - currentDistributionArea;
 
-        // Calculate what the new total business_distribution_area should be based on base asset size
+        // Calculate what the new total area_from_distribution should be based on base asset size
         const newDistributionArea = overloadRatio * baseAssetSize;
 
-        // If business_distribution_area is not zero, calculate delta; otherwise use full new distribution
+        // If area_from_distribution is not zero, calculate delta; otherwise use full new distribution
         let areaToAdd: number;
         if (currentDistributionArea && currentDistributionArea !== 0) {
-          // Calculate delta: new_business_distribution_area - current_business_distribution_area
+          // Calculate delta: new_area_from_distribution - current_area_from_distribution
           areaToAdd = newDistributionArea - currentDistributionArea;
         } else {
           // First time distribution, use full amount
           areaToAdd = newDistributionArea;
         }
 
-        // Update business_distribution_area by adding the delta to the current value
-        changes.business_distribution_area = (currentDistributionArea || 0) + areaToAdd;
+        // Update area_from_distribution by adding the delta to the current value
+        changes.area_from_distribution = (currentDistributionArea || 0) + areaToAdd;
 
         if (String(currentMainType) === '299') {
           // Case: main type is 299
@@ -1943,7 +1961,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         'גודל נכס משנה 5',
         'סוג נכס משנה 6',
         'גודל נכס משנה 6',
-        'שטח פיזור עסקים'  // business_distribution_area
+        'שטח פיזור'  // area_from_distribution
       ];
 
       // Convert assets to rows
@@ -1972,7 +1990,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         asset.sub_asset_size_5 || '',
         asset.sub_asset_type_6 || '',
         asset.sub_asset_size_6 || '',
-        asset.business_distribution_area || ''
+        asset.area_from_distribution || ''
       ]);
 
       // Create data array with headers and rows
@@ -2823,8 +2841,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
-      field: 'business_distribution_area',
-      headerName: 'שטח פיזור עסקים',
+      field: 'area_from_distribution',
+      headerName: 'שטח פיזור',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

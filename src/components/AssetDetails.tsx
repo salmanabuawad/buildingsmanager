@@ -4513,10 +4513,17 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                                   : auditData.auditLog.after_data;
                                 
                                 // Get overload_ratio directly from after_data (simple structure)
-                                if (afterData?.overload_ratio != null) {
-                                  overloadRatio = typeof afterData.overload_ratio === 'number' 
-                                    ? afterData.overload_ratio 
-                                    : parseFloat(afterData.overload_ratio);
+                                // Include 0 values (when shared area is 0, overload_ratio should be 0)
+                                if (afterData && 'overload_ratio' in afterData) {
+                                  const ratioValue = afterData.overload_ratio;
+                                  // Handle both null/undefined and 0 values
+                                  if (ratioValue != null) {
+                                    overloadRatio = typeof ratioValue === 'number' 
+                                      ? ratioValue 
+                                      : parseFloat(ratioValue);
+                                  } else if (ratioValue === 0 || ratioValue === '0') {
+                                    overloadRatio = 0;
+                                  }
                                 }
                               } catch (err) {
                                 // Silently handle parsing errors

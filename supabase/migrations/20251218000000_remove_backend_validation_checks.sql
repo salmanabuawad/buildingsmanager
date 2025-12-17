@@ -266,6 +266,7 @@ DECLARE
   v_building_data JSONB := NULL;
   v_first_building_number BIGINT := NULL;
   v_asset_record RECORD;
+  v_asset_jsonb JSONB; -- Separate variable for JSONB results
   v_entity_asset_ids BIGINT[];
   v_overload_ratio NUMERIC := NULL;
 BEGIN
@@ -327,12 +328,12 @@ BEGIN
       LOOP
         v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
         IF v_asset_id IS NOT NULL THEN
-          SELECT to_jsonb(a.*) INTO v_asset_record
+          SELECT to_jsonb(a.*) INTO v_asset_jsonb
           FROM assets a
           WHERE a.asset_id = v_asset_id;
           
-          IF v_asset_record IS NOT NULL THEN
-            v_before_assets := array_append(v_before_assets, to_jsonb(v_asset_record));
+          IF v_asset_jsonb IS NOT NULL THEN
+            v_before_assets := array_append(v_before_assets, v_asset_jsonb);
           END IF;
         END IF;
       END LOOP;
@@ -589,12 +590,12 @@ BEGIN
       -- For non-distribution operations, only get assets that were updated
       FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
       LOOP
-        SELECT to_jsonb(a.*) INTO v_asset_record
+        SELECT to_jsonb(a.*) INTO v_asset_jsonb
         FROM assets a
         WHERE a.asset_id = v_asset_id;
         
-        IF v_asset_record IS NOT NULL THEN
-          v_after_assets := array_append(v_after_assets, v_asset_record);
+        IF v_asset_jsonb IS NOT NULL THEN
+          v_after_assets := array_append(v_after_assets, v_asset_jsonb);
         END IF;
       END LOOP;
     END IF;

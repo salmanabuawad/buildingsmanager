@@ -1049,15 +1049,25 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (isDistributionSave && distributionType && building) {
           if (distributionType === 'residence' && building?.residence_shared_area) {
             description = `Distributed residence shared area (מגורים) (${building.residence_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets`;
-          } else if (distributionType === 'business' && building?.business_shared_area) {
-            const overloadRatio = building.overload_ratio ? building.overload_ratio.toFixed(2) : '0.00';
-            description = `Distributed business shared area (עסקים) (${building.business_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatio}%`;
+          } else if (distributionType === 'business' && building?.business_shared_area != null) {
+            // When shared area is 0, overload_ratio should be 0
+            const overloadRatioValue = building.business_shared_area <= 0 
+              ? 0 
+              : (building.overload_ratio ?? 0);
+            const overloadRatio = overloadRatioValue.toFixed(2);
+            const sharedAreaText = building.business_shared_area > 0 
+              ? building.business_shared_area.toLocaleString('he-IL')
+              : '0 (clearing previous distribution)';
+            description = `Distributed business shared area (עסקים) (${sharedAreaText}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatio}%`;
           }
           
           // For distribution operations, prepare after_data with overload_ratio
           // The database function will collect all assets, but we provide overload_ratio
+          // When shared area is 0, overload_ratio should be 0 (not null or old value)
           afterData = {
-            overload_ratio: building.overload_ratio || null
+            overload_ratio: distributionType === 'business' && building.business_shared_area! <= 0 
+              ? 0 
+              : (building.overload_ratio ?? null)
           };
         }
         
@@ -1072,14 +1082,20 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           }
           
           // If this was a business distribution, save the building with updated overload_ratio
-          if (isDistributionSave && distributionType === 'business' && building && building.overload_ratio != null) {
+          // Always save overload_ratio for business distributions, even if it's 0 (when shared area is 0)
+          if (isDistributionSave && distributionType === 'business' && building) {
             try {
               // Get the old overload_ratio for audit description
               const oldBuilding = await api.buildings.getOne(building.building_number);
               const oldOverloadRatio = oldBuilding?.overload_ratio;
               
+              // When shared area is 0, overload_ratio should be 0 (explicitly set, not null)
+              const overloadRatioToSave = building.business_shared_area! <= 0 
+                ? 0 
+                : (building.overload_ratio ?? null);
+              
               await api.buildings.update(building.building_number, {
-                overload_ratio: building.overload_ratio
+                overload_ratio: overloadRatioToSave
               });
               
               // The audit entry is automatically created by api.buildings.update
@@ -1715,8 +1731,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       // Update local state only - changes will be saved when user clicks "Save All"
-      setDirtyAssets(updatedDirtyAssets);
-      setAssets(updatedAssets);
+        setDirtyAssets(updatedDirtyAssets);
+        setAssets(updatedAssets);
       
       // Show result in modal
       const sharedAreaText = building.residence_shared_area! > 0 
@@ -1882,16 +1898,18 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       // Calculate overload ratio = business_shared_area / totalMainSize
-      // If shared area is 0, overloadRatio will be 0 (clearing distribution)
+      // If shared area is 0, overloadRatio should be explicitly 0 (clearing distribution)
       // If totalMainSize is 0 but we're clearing, use 0 for overloadRatio
-      const overloadRatio = totalMainSize > 0 ? (building.business_shared_area! / totalMainSize) : 0;
+      const overloadRatio = isClearingDistribution || building.business_shared_area! <= 0
+        ? 0
+        : (totalMainSize > 0 ? (building.business_shared_area! / totalMainSize) : 0);
       // Convert to percentage for storage (multiply by 100)
       const overloadRatioPercentage = overloadRatio * 100;
 
       // Update local building state only - overload_ratio will be saved when user clicks "Save All"
-      // Only update if we're still viewing the same building
-      if (building.building_number === buildingNumber) {
-        setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
+        // Only update if we're still viewing the same building
+        if (building.building_number === buildingNumber) {
+          setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
       }
 
       // Track changes
@@ -1979,8 +1997,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       // Update local state only - changes will be saved when user clicks "Save All"
-      setDirtyAssets(updatedDirtyAssets);
-      setAssets(updatedAssets);
+        setDirtyAssets(updatedDirtyAssets);
+        setAssets(updatedAssets);
       
       // Note: Building state with updated overload_ratio was already set in the try block above
       // Show result in modal

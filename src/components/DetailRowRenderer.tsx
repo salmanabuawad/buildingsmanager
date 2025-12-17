@@ -187,8 +187,8 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return map;
   }, [params.assetColumnDefs]);
 
-  // Define allowed fields: asset_id, asset types, and sizes only
-  // Order: reversed - main type + size first, then subtypes (1 to 6), then asset_id
+  // Define allowed fields: asset_id, asset types, sizes, and distribution area
+  // Order: reversed - main type + size first, then subtypes (1 to 6), then area_from_distribution, then asset_id
   const allowedFields = useMemo(() => [
     'main_asset_type',
     'asset_size',
@@ -204,6 +204,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     'sub_asset_size_5',
     'sub_asset_type_6',
     'sub_asset_size_6',
+    'area_from_distribution',
     'asset_id'
   ], []);
 

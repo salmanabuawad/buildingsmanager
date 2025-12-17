@@ -4435,11 +4435,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                                   ? JSON.parse(auditData.auditLog.after_data) 
                                   : auditData.auditLog.after_data;
                                 
-                                // Get overload_ratio from building data
-                                if (afterData?.building?.overload_ratio != null) {
-                                  overloadRatio = typeof afterData.building.overload_ratio === 'number' 
-                                    ? afterData.building.overload_ratio 
-                                    : parseFloat(afterData.building.overload_ratio);
+                                // Get overload_ratio directly from after_data (simple structure)
+                                if (afterData?.overload_ratio != null) {
+                                  overloadRatio = typeof afterData.overload_ratio === 'number' 
+                                    ? afterData.overload_ratio 
+                                    : parseFloat(afterData.overload_ratio);
                                 }
                               } catch (err) {
                                 // Silently handle parsing errors

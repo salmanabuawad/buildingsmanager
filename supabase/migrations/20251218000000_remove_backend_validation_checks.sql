@@ -476,6 +476,10 @@ BEGIN
         discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
         area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
         exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
+        action_id = CASE 
+          WHEN p_action_type = 'distribute_shared' THEN v_action_id 
+          ELSE action_id 
+        END,
         updated_at = NOW()
       WHERE asset_id = v_asset_id;
     END IF;
@@ -522,15 +526,18 @@ BEGIN
       END IF;
     END IF;
 
-    -- Create audit log for this asset
-    PERFORM log_audit_for_asset(
-      v_asset_id,
-      CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
-      p_user_id,
-      p_action_type::audit_action_type,
-      false, -- p_copy_to_history
-      p_description
-    );
+    -- For distribution operations, we use the bulk audit entry created at STEP 2b
+    -- For other operations, create individual audit log for each asset
+    IF p_action_type != 'distribute_shared' THEN
+      PERFORM log_audit_for_asset(
+        v_asset_id,
+        CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
+        p_user_id,
+        p_action_type::audit_action_type,
+        false, -- p_copy_to_history
+        p_description
+      );
+    END IF;
 
     v_count := v_count + 1;
   END LOOP;

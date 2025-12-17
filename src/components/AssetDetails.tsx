@@ -1228,18 +1228,53 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       let beforeAssets = extractAssets(beforeParsed);
       let afterAssets = extractAssets(afterParsed);
       
-      // For distribution operations (distribute_shared), the after_data.assets contains ALL affected assets
-      // We should prioritize JSON data over database records for distribution operations
-      // Only fall back to database records if JSON extraction completely failed
+      // For distribution operations (distribute_shared), we need to get ALL affected assets
+      // The structure can vary:
+      // 1. after_data.assets (array) - contains all affected assets (for bulk operations)
+      // 2. after_data.asset (single) - only the current asset (for single asset operations)
+      // 3. before_data.building.assets (array) - all assets before distribution
+      // 4. after_data.building.assets (array) - all assets after distribution (if present)
       if (audit.action_type === 'distribute_shared') {
-        // For distribution, after_data.assets should contain all affected assets
-        // If we have JSON data, use it exclusively (it's more complete)
-        if (afterAssets.length > 0) {
-          // Use JSON data - it contains all affected assets
-          // Don't fall back to database records which might be incomplete
-        } else if (afterParsed && afterParsed.assets && Array.isArray(afterParsed.assets) && afterParsed.assets.length > 0) {
-          // Try direct extraction from assets array
-          afterAssets = afterParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+        // First, get all assets from before_data.building.assets for "before" state
+        if (beforeParsed && beforeParsed.building && beforeParsed.building.assets && Array.isArray(beforeParsed.building.assets)) {
+          beforeAssets = beforeParsed.building.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+        }
+        
+        // For "after" state, try multiple sources in order of preference:
+        if (afterParsed) {
+          // 1. Try after_data.assets array (for bulk operations)
+          if (afterParsed.assets && Array.isArray(afterParsed.assets) && afterParsed.assets.length > 0) {
+            afterAssets = afterParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+          }
+          // 2. Try after_data.building.assets array
+          else if (afterParsed.building && afterParsed.building.assets && Array.isArray(afterParsed.building.assets)) {
+            afterAssets = afterParsed.building.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+          }
+          // 3. If only single asset in after_data.asset, use before_data.building.assets as base
+          // and update the matching asset with after_data.asset values
+          else if (afterParsed.asset && beforeAssets.length > 0) {
+            const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
+            const afterAssetId = afterAsset?.asset_id;
+            
+            // Start with before assets and update the one that matches
+            afterAssets = beforeAssets.map((a: any) => {
+              if (a.asset_id === afterAssetId) {
+                return { ...a, ...afterAsset, is_latest: false } as Asset;
+              }
+              return { ...a, is_latest: false } as Asset;
+            });
+          }
+          // 4. Fallback: if we have after_data.asset but no before assets, use it
+          else if (afterParsed.asset) {
+            const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
+            afterAssets = [{ ...afterAsset, is_latest: false } as Asset];
+          }
+        }
+        
+        // If we still don't have after assets but have before assets, use before assets as after
+        // (this handles cases where after_data is incomplete)
+        if (afterAssets.length === 0 && beforeAssets.length > 0) {
+          afterAssets = beforeAssets.map((a: any) => ({ ...a, is_latest: false } as Asset));
         }
       } else {
         // For other operations (transfer_area, manual_update, etc.), fall back to database records

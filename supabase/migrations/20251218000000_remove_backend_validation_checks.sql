@@ -258,6 +258,15 @@ DECLARE
   v_new_asset_size NUMERIC;
   -- Store old values for each asset to use in STEP 6
   v_asset_old_values RECORD;
+  -- For collecting audit data
+  v_before_data_collected JSONB := NULL;
+  v_after_data_collected JSONB := NULL;
+  v_before_assets JSONB[] := ARRAY[]::JSONB[];
+  v_after_assets JSONB[] := ARRAY[]::JSONB[];
+  v_building_data JSONB := NULL;
+  v_first_building_number BIGINT := NULL;
+  v_asset_record RECORD;
+  v_entity_asset_ids BIGINT[];
 BEGIN
   -- ========================================================================
   -- STEP 1: GET OR CREATE USER
@@ -289,7 +298,68 @@ BEGIN
   END IF;
 
   -- ========================================================================
-  -- STEP 2: CREATE AUDIT ACTION RECORD
+  -- STEP 2: COLLECT BEFORE DATA (if not provided)
+  -- For distribution operations, collect ALL assets in the building
+  -- ========================================================================
+  -- Get first building number from assets (all assets in distribution belong to same building)
+  IF array_length(p_assets_data, 1) > 0 THEN
+    v_first_building_number := (p_assets_data[1]->>'building_number')::BIGINT;
+  END IF;
+  
+  -- Collect BEFORE data from database (if not provided)
+  IF (p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb) 
+     AND v_first_building_number IS NOT NULL THEN
+    -- Collect building data before update
+    SELECT to_jsonb(b.*) INTO v_building_data
+    FROM buildings b
+    WHERE b.building_number = v_first_building_number;
+    
+    -- For distribution operations, collect ALL assets in the building
+    -- For other operations, only collect affected assets
+    IF p_action_type = 'distribute_shared' THEN
+      -- Get ALL assets in the building before update
+      FOR v_asset_record IN 
+        SELECT * FROM assets 
+        WHERE building_number = v_first_building_number
+        ORDER BY asset_id
+      LOOP
+        v_before_assets := array_append(v_before_assets, to_jsonb(v_asset_record));
+      END LOOP;
+    ELSE
+      -- For non-distribution operations, only get assets that will be updated
+      FOREACH v_asset_data IN ARRAY p_assets_data
+      LOOP
+        v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
+        IF v_asset_id IS NOT NULL THEN
+          SELECT to_jsonb(a.*) INTO v_asset_record
+          FROM assets a
+          WHERE a.asset_id = v_asset_id;
+          
+          IF v_asset_record IS NOT NULL THEN
+            v_before_assets := array_append(v_before_assets, to_jsonb(v_asset_record));
+          END IF;
+        END IF;
+      END LOOP;
+    END IF;
+    
+    -- Convert jsonb array to jsonb array for assets
+    SELECT jsonb_agg(elem) INTO v_before_data_collected
+    FROM unnest(v_before_assets) AS elem;
+    
+    -- Build before_data with both assets and building
+    v_before_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_before_data_collected, '[]'::jsonb),
+      'building', jsonb_build_object(
+        'building', COALESCE(v_building_data, 'null'::jsonb),
+        'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
+      )
+    );
+  ELSE
+    v_before_data_collected := p_before_data;
+  END IF;
+  
+  -- ========================================================================
+  -- STEP 2b: CREATE AUDIT ACTION RECORD (with collected before_data)
   -- ========================================================================
   INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
   VALUES (
@@ -297,8 +367,8 @@ BEGIN
     v_user_id_fk,
     'bulk_asset', -- entity_type for bulk operations
     NULL, -- entity_id will be set after we know all affected asset IDs
-    p_before_data,
-    p_after_data,
+    v_before_data_collected,
+    NULL, -- after_data will be collected after updates
     p_description,
     now()
   )
@@ -471,6 +541,100 @@ BEGIN
 
     v_count := v_count + 1;
   END LOOP;
+
+  -- ========================================================================
+  -- STEP 3b: COLLECT AFTER DATA (if not provided)
+  -- For distribution operations, collect ALL assets in the building after update
+  -- ========================================================================
+  -- Collect AFTER data from database (if not provided)
+  IF (p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb) 
+     AND v_first_building_number IS NOT NULL THEN
+    -- Collect building data after update
+    SELECT to_jsonb(b.*) INTO v_building_data
+    FROM buildings b
+    WHERE b.building_number = v_first_building_number;
+    
+    -- For distribution operations, collect ALL assets in the building
+    -- For other operations, only collect affected assets
+    IF p_action_type = 'distribute_shared' THEN
+      -- Get ALL assets in the building after update
+      FOR v_asset_record IN 
+        SELECT * FROM assets 
+        WHERE building_number = v_first_building_number
+        ORDER BY asset_id
+      LOOP
+        v_after_assets := array_append(v_after_assets, to_jsonb(v_asset_record));
+      END LOOP;
+    ELSE
+      -- For non-distribution operations, only get assets that were updated
+      FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
+      LOOP
+        SELECT to_jsonb(a.*) INTO v_asset_record
+        FROM assets a
+        WHERE a.asset_id = v_asset_id;
+        
+        IF v_asset_record IS NOT NULL THEN
+          v_after_assets := array_append(v_after_assets, v_asset_record);
+        END IF;
+      END LOOP;
+    END IF;
+    
+    -- Convert jsonb array to jsonb array for assets
+    SELECT jsonb_agg(elem) INTO v_after_data_collected
+    FROM unnest(v_after_assets) AS elem;
+    
+    -- Build after_data with both assets and building
+    v_after_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_after_data_collected, '[]'::jsonb),
+      'building', jsonb_build_object(
+        'building', COALESCE(v_building_data, 'null'::jsonb),
+        'assets', COALESCE(v_after_data_collected, '[]'::jsonb)
+      )
+    );
+    
+    -- For distribution operations, entity_id should include ALL assets in the building
+    -- For other operations, only include affected assets
+    IF p_action_type = 'distribute_shared' THEN
+      -- Get ALL asset IDs in the building
+      SELECT array_agg(asset_id ORDER BY asset_id) INTO v_entity_asset_ids
+      FROM assets
+      WHERE building_number = v_first_building_number;
+    ELSE
+      -- For other operations, use affected asset IDs
+      v_entity_asset_ids := v_affected_asset_ids;
+    END IF;
+    
+    -- Update audit entry with collected after data and entity_id
+    UPDATE audit
+    SET 
+      after_data = v_after_data_collected,
+      entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
+    WHERE action_id = v_action_id;
+  ELSE
+    -- If after_data was provided, use it and update audit entry with entity_id
+    IF p_action_type = 'distribute_shared' AND v_first_building_number IS NOT NULL THEN
+      -- Get ALL asset IDs in the building
+      SELECT array_agg(asset_id ORDER BY asset_id) INTO v_entity_asset_ids
+      FROM assets
+      WHERE building_number = v_first_building_number;
+    ELSE
+      -- For other operations, use affected asset IDs
+      v_entity_asset_ids := v_affected_asset_ids;
+    END IF;
+    
+    IF p_after_data IS NOT NULL THEN
+      UPDATE audit
+      SET 
+        after_data = p_after_data,
+        entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
+      WHERE action_id = v_action_id;
+    ELSE
+      -- Even if after_data is not provided, update entity_id
+      UPDATE audit
+      SET entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
+      WHERE action_id = v_action_id;
+    END IF;
+  END IF;
 
   -- ========================================================================
   -- STEP 4: REMOVE DISTRIBUTION FLAGS FOR distribute_shared ACTIONS

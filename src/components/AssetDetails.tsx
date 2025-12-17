@@ -1228,13 +1228,27 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       let beforeAssets = extractAssets(beforeParsed);
       let afterAssets = extractAssets(afterParsed);
       
-      // If JSON extraction failed or returned empty, fall back to database records
-      // This ensures we always have data to display
-      if (beforeAssets.length === 0 && historyAssets.length > 0) {
-        beforeAssets = historyAssets;
-      }
-      if (afterAssets.length === 0 && currentAssets.length > 0) {
-        afterAssets = currentAssets;
+      // For distribution operations (distribute_shared), the after_data.assets contains ALL affected assets
+      // We should prioritize JSON data over database records for distribution operations
+      // Only fall back to database records if JSON extraction completely failed
+      if (audit.action_type === 'distribute_shared') {
+        // For distribution, after_data.assets should contain all affected assets
+        // If we have JSON data, use it exclusively (it's more complete)
+        if (afterAssets.length > 0) {
+          // Use JSON data - it contains all affected assets
+          // Don't fall back to database records which might be incomplete
+        } else if (afterParsed && afterParsed.assets && Array.isArray(afterParsed.assets) && afterParsed.assets.length > 0) {
+          // Try direct extraction from assets array
+          afterAssets = afterParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+        }
+      } else {
+        // For other operations (transfer_area, manual_update, etc.), fall back to database records
+        if (beforeAssets.length === 0 && historyAssets.length > 0) {
+          beforeAssets = historyAssets;
+        }
+        if (afterAssets.length === 0 && currentAssets.length > 0) {
+          afterAssets = currentAssets;
+        }
       }
       
       // Update cache with loaded data (no buildings)

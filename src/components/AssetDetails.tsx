@@ -380,108 +380,104 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             const allDistributeAuditsUnique = Array.from(uniqueAudits.values());
             
             if (allDistributeAuditsUnique.length > 0) {
-                
-                if (allDistributeAudits.length > 0) {
-                  // Create a map of asset types with non_accountable_for_distribution = true
-                  const nonAccountableForDistributionTypes = new Set<string>();
-                  assetTypes.forEach(at => {
-                    if (at.non_accountable_for_distribution === true && at.name) {
-                      nonAccountableForDistributionTypes.add(String(at.name).trim());
-                      const nameNum = parseInt(String(at.name).trim(), 10);
-                      if (!isNaN(nameNum)) {
-                        nonAccountableForDistributionTypes.add(String(nameNum));
-                      }
-                    }
+              // Create a map of asset types with non_accountable_for_distribution = true
+              const nonAccountableForDistributionTypes = new Set<string>();
+              assetTypes.forEach(at => {
+                if (at.non_accountable_for_distribution === true && at.name) {
+                  nonAccountableForDistributionTypes.add(String(at.name).trim());
+                  const nameNum = parseInt(String(at.name).trim(), 10);
+                  if (!isNaN(nameNum)) {
+                    nonAccountableForDistributionTypes.add(String(nameNum));
+                  }
+                }
+              });
+              
+              // Step 6: For each distribution audit, get the current asset from after_data
+              // This ensures we have one record per distribution action_id
+              // Each audit.action_id represents a unique distribution operation
+              allDistributeAuditsUnique.forEach(audit => {
+                try {
+                  const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                  const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
+                  const afterAssets = afterData?.assets || [];
+                  const beforeAssets = beforeData?.assets || [];
+                  
+                  // Normalize audit.action_id to number for comparison
+                  const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
+                  if (isNaN(auditActionId)) {
+                    return; // Skip if action_id is invalid
+                  }
+                  
+                  // Check if we already have an asset with this action_id (should only be one per action_id)
+                  const alreadyExists = allDistributeAssets.some(a => {
+                    const aId = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
+                    return !isNaN(aId) && aId === auditActionId;
                   });
                   
-                  // Step 6: For each distribution audit, get the current asset from after_data
-                  // This ensures we have one record per distribution action_id
-                  // Each audit.action_id represents a unique distribution operation
-                  allDistributeAuditsUnique.forEach(audit => {
-                    try {
-                      const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                      const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
-                      const afterAssets = afterData?.assets || [];
-                      const beforeAssets = beforeData?.assets || [];
+                  if (alreadyExists) {
+                    return; // Skip if we already have this distribution
+                  }
+                  
+                  // Find the current asset in after_data (state after this distribution)
+                  const currentAssetInAfter = afterAssets.find((a: any) => 
+                    a.asset_id === asset.asset_id && 
+                    a.building_number === buildingNumber
+                  );
+                  if (currentAssetInAfter) {
+                    // CRITICAL: Set action_id from audit.action_id to ensure each distribution has unique action_id
+                    allDistributeAssets.push({
+                      ...currentAssetInAfter,
+                      is_latest: false,
+                      action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
+                      history_created_at: audit.created_at
+                    } as Asset);
+                  } else {
+                    // If not in after_data, check before_data (for non-accountable assets)
+                    const currentAssetInBefore = beforeAssets.find((a: any) => 
+                      a.asset_id === asset.asset_id && 
+                      a.building_number === buildingNumber
+                    );
+                    if (currentAssetInBefore) {
+                      const mainTypeStr = String(currentAssetInBefore.main_asset_type || '').trim();
+                      const mainTypeNum = parseInt(mainTypeStr, 10);
+                      const isNonAccountableForDistribution = 
+                        nonAccountableForDistributionTypes.has(mainTypeStr) ||
+                        (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
                       
-                      // Normalize audit.action_id to number for comparison
-                      const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
-                      if (isNaN(auditActionId)) {
-                        return; // Skip if action_id is invalid
-                      }
-                      
-                      // Check if we already have an asset with this action_id (should only be one per action_id)
-                      const alreadyExists = allDistributeAssets.some(a => {
-                        const aId = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
-                        return !isNaN(aId) && aId === auditActionId;
-                      });
-                      
-                      if (alreadyExists) {
-                        return; // Skip if we already have this distribution
-                      }
-                      
-                      // Find the current asset in after_data (state after this distribution)
-                      const currentAssetInAfter = afterAssets.find((a: any) => 
-                        a.asset_id === asset.asset_id && 
-                        a.building_number === buildingNumber
-                      );
-                      if (currentAssetInAfter) {
-                        // CRITICAL: Set action_id from audit.action_id to ensure each distribution has unique action_id
+                      if (isNonAccountableForDistribution) {
                         allDistributeAssets.push({
-                          ...currentAssetInAfter,
+                          ...currentAssetInBefore,
                           is_latest: false,
                           action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
                           history_created_at: audit.created_at
                         } as Asset);
-                      } else {
-                        // If not in after_data, check before_data (for non-accountable assets)
-                        const currentAssetInBefore = beforeAssets.find((a: any) => 
-                          a.asset_id === asset.asset_id && 
-                          a.building_number === buildingNumber
-                        );
-                        if (currentAssetInBefore) {
-                          const mainTypeStr = String(currentAssetInBefore.main_asset_type || '').trim();
-                          const mainTypeNum = parseInt(mainTypeStr, 10);
-                          const isNonAccountableForDistribution = 
-                            nonAccountableForDistributionTypes.has(mainTypeStr) ||
-                            (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
-                          
-                          if (isNonAccountableForDistribution) {
-                            allDistributeAssets.push({
-                              ...currentAssetInBefore,
-                              is_latest: false,
-                              action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
-                              history_created_at: audit.created_at
-                            } as Asset);
-                          }
-                        }
-                      }
-                    } catch (e) {
-                      if (process.env.NODE_ENV === 'development') {
-                        console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
                       }
                     }
-                  });
-                  
+                  }
+                } catch (e) {
                   if (process.env.NODE_ENV === 'development') {
-                    console.log('[AssetDetails] Distribution assets loaded from audit records:', {
-                      actionIdsFromTables: Array.from(actionIdsFromTables),
-                      totalUniqueAudits: allDistributeAuditsUnique.length,
-                      distributionActionIds: allDistributeAuditsUnique.map(a => {
-                        const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
-                        return id;
-                      }),
-                      auditCount: allDistributeAuditsUnique.length,
-                      assetCount: allDistributeAssets.length,
-                      assets: allDistributeAssets.map(a => ({
-                        asset_id: a.asset_id,
-                        action_id: a.action_id,
-                        action_id_type: typeof a.action_id,
-                        measurement_date: a.measurement_date
-                      }))
-                    });
+                    console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
                   }
                 }
+              });
+              
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[AssetDetails] Distribution assets loaded from audit records:', {
+                  actionIdsFromTables: Array.from(actionIdsFromTables),
+                  totalUniqueAudits: allDistributeAuditsUnique.length,
+                  distributionActionIds: allDistributeAuditsUnique.map(a => {
+                    const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
+                    return id;
+                  }),
+                  auditCount: allDistributeAuditsUnique.length,
+                  assetCount: allDistributeAssets.length,
+                  assets: allDistributeAssets.map(a => ({
+                    asset_id: a.asset_id,
+                    action_id: a.action_id,
+                    action_id_type: typeof a.action_id,
+                    measurement_date: a.measurement_date
+                  }))
+                });
               }
             }
             

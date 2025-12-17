@@ -144,6 +144,31 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   
   // Calculate total changes: new assets count as 1 each, even if edited
   // Edited existing assets (not in newAssets) + new assets + deleted assets
+  // Check if there are any assets with previous residence distribution
+  const hasPreviousResidenceDistribution = useMemo(() => {
+    if (!assets || assets.length === 0) return false;
+    // Check if any residential assets have area_from_distribution > 0
+    // For residence, we need to check assets that are residential type
+    // But since residence distribution uses sub-asset types, we check if any assets have main_asset_type = '199'
+    // and have sub-asset sizes > 0 that might be from distribution
+    // Actually, for residence, the distribution is stored in sub-asset sizes, not area_from_distribution
+    // So we check if any assets have main_asset_type = '199' (which indicates previous residence distribution)
+    return assets.some(asset => {
+      const mainType = String(asset.main_asset_type || '').trim();
+      return mainType === '199';
+    });
+  }, [assets]);
+
+  // Check if there are any assets with previous business distribution
+  const hasPreviousBusinessDistribution = useMemo(() => {
+    if (!assets || assets.length === 0) return false;
+    // Check if any business assets have area_from_distribution > 0
+    return assets.some(asset => {
+      const areaFromDist = asset.area_from_distribution || 0;
+      return areaFromDist > 0;
+    });
+  }, [assets]);
+
   const totalChanges = useMemo(() => {
     let editedExistingAssets = 0;
     for (const assetId of dirtyAssets.keys()) {
@@ -3248,7 +3273,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleDistributeSharedArea}
-              disabled={loading || assets.length === 0 || building.need_residence_distribution !== true}
+              disabled={
+                loading || 
+                assets.length === 0 || 
+                building.need_residence_distribution !== true ||
+                (building.residence_shared_area! <= 0 && !hasPreviousResidenceDistribution)
+              }
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title={building.need_residence_distribution === true 
                 ? building.residence_shared_area! > 0
@@ -3265,7 +3295,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}
-              disabled={loading || assets.length === 0 || building.need_business_distribution !== true}
+              disabled={
+                loading || 
+                assets.length === 0 || 
+                building.need_business_distribution !== true ||
+                (building.business_shared_area! <= 0 && !hasPreviousBusinessDistribution)
+              }
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
               title={building.need_business_distribution === true
                 ? building.business_shared_area! > 0

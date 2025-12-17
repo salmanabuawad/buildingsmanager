@@ -332,6 +332,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   
                   // Step 6: For each distribution audit, get the current asset from after_data
                   // This ensures we have one record per distribution action_id
+                  // Each audit.action_id represents a unique distribution operation
                   allDistributeAudits.forEach(audit => {
                     try {
                       const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
@@ -342,16 +343,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       // Find the current asset in after_data (state after this distribution)
                       const currentAssetInAfter = afterAssets.find((a: any) => a.asset_id === asset.asset_id);
                       if (currentAssetInAfter) {
-                        const alreadyExists = allDistributeAssets.some(a => 
-                          a.asset_id === currentAssetInAfter.asset_id && 
-                          a.action_id === audit.action_id &&
-                          a.measurement_date === currentAssetInAfter.measurement_date
-                        );
+                        // Check if we already have an asset with this action_id (should only be one per action_id)
+                        const alreadyExists = allDistributeAssets.some(a => a.action_id === audit.action_id);
                         if (!alreadyExists) {
+                          // CRITICAL: Set action_id from audit.action_id to ensure each distribution has unique action_id
                           allDistributeAssets.push({
                             ...currentAssetInAfter,
                             is_latest: false,
-                            action_id: audit.action_id,
+                            action_id: audit.action_id, // Use audit.action_id (unique per distribution)
                             history_created_at: audit.created_at
                           } as Asset);
                         }
@@ -366,16 +365,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                             (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
                           
                           if (isNonAccountableForDistribution) {
-                            const alreadyExists = allDistributeAssets.some(a => 
-                              a.asset_id === currentAssetInBefore.asset_id && 
-                              a.action_id === audit.action_id &&
-                              a.measurement_date === currentAssetInBefore.measurement_date
-                            );
+                            // Check if we already have an asset with this action_id
+                            const alreadyExists = allDistributeAssets.some(a => a.action_id === audit.action_id);
                             if (!alreadyExists) {
                               allDistributeAssets.push({
                                 ...currentAssetInBefore,
                                 is_latest: false,
-                                action_id: audit.action_id,
+                                action_id: audit.action_id, // Use audit.action_id (unique per distribution)
                                 history_created_at: audit.created_at
                               } as Asset);
                             }
@@ -409,11 +405,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             setAdditionalDistributionAssets(allDistributeAssets);
             
             if (process.env.NODE_ENV === 'development') {
+              const uniqueActionIds = [...new Set(allDistributeAssets.map(a => a.action_id).filter(id => id != null))];
               console.log('[AssetDetails] Distribution assets loaded:', {
-                actionIds: distributeActionIds,
+                totalAssetsLoaded: allDistributeAssets.length,
+                uniqueActionIds: uniqueActionIds,
+                uniqueActionIdsCount: uniqueActionIds.length,
                 currentAssetId: asset.asset_id,
-                count: allDistributeAssets.length,
-                uniqueAssetIds: [...new Set(allDistributeAssets.map(a => a.asset_id))],
                 assets: allDistributeAssets.map(a => ({
                   asset_id: a.asset_id,
                   action_id: a.action_id,
@@ -584,10 +581,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     // Add from additionalDistributionAssets (primary source)
     additionalDistributionAssets.forEach(row => {
-      if (row.action_id != null) {
+      // Ensure action_id is a number and not null/undefined
+      const actionId = typeof row.action_id === 'number' ? row.action_id : 
+                      (typeof row.action_id === 'string' ? parseInt(row.action_id, 10) : null);
+      
+      if (actionId != null && !isNaN(actionId)) {
         // Use the first occurrence of each action_id (they should all have the same action_id for a distribution)
-        if (!grouped.has(row.action_id)) {
-          grouped.set(row.action_id, row);
+        if (!grouped.has(actionId)) {
+          grouped.set(actionId, { ...row, action_id: actionId });
         }
       }
     });
@@ -595,10 +596,13 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     // Also include history rows with distribute_shared action_type (for backward compatibility)
     // But these should be rare since distributions don't create history records
     historyRows.forEach(row => {
-      if (row.action_id != null) {
-        const actionType = historyWithActionTypes.get(row.action_id);
-        if (actionType === 'distribute_shared' && !grouped.has(row.action_id)) {
-          grouped.set(row.action_id, row);
+      const actionId = typeof row.action_id === 'number' ? row.action_id : 
+                      (typeof row.action_id === 'string' ? parseInt(row.action_id, 10) : null);
+      
+      if (actionId != null && !isNaN(actionId)) {
+        const actionType = historyWithActionTypes.get(actionId);
+        if (actionType === 'distribute_shared' && !grouped.has(actionId)) {
+          grouped.set(actionId, { ...row, action_id: actionId });
         }
       }
     });
@@ -606,9 +610,14 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     // Also include current asset if it has distribute_shared action_type
     // (for backward compatibility, but distributions should be in additionalDistributionAssets)
     if (latestMeasurement?.action_id != null) {
-      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
-      if (actionType === 'distribute_shared' && !grouped.has(latestMeasurement.action_id)) {
-        grouped.set(latestMeasurement.action_id, { ...latestMeasurement, is_latest: false } as Asset);
+      const actionId = typeof latestMeasurement.action_id === 'number' ? latestMeasurement.action_id : 
+                      (typeof latestMeasurement.action_id === 'string' ? parseInt(latestMeasurement.action_id, 10) : null);
+      
+      if (actionId != null && !isNaN(actionId)) {
+        const actionType = historyWithActionTypes.get(actionId);
+        if (actionType === 'distribute_shared' && !grouped.has(actionId)) {
+          grouped.set(actionId, { ...latestMeasurement, is_latest: false, action_id: actionId } as Asset);
+        }
       }
     }
     
@@ -616,15 +625,34 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     
     if (process.env.NODE_ENV === 'development') {
       const uniqueActionIds = Array.from(grouped.keys());
-      const uniqueActionIdsFromAdditional = [...new Set(additionalDistributionAssets.map(a => a.action_id).filter(id => id != null))];
-      console.log('[AssetDetails] distributionHistoryRows:', {
-        count: result.length,
+      const uniqueActionIdsFromAdditional = [...new Set(additionalDistributionAssets.map(a => {
+        const id = typeof a.action_id === 'number' ? a.action_id : 
+                   (typeof a.action_id === 'string' ? parseInt(a.action_id, 10) : null);
+        return id;
+      }).filter(id => id != null && !isNaN(id)))];
+      
+      console.log('[AssetDetails] distributionHistoryRows (FINAL):', {
+        finalCount: result.length,
         uniqueActionIds: uniqueActionIds,
         uniqueActionIdsFromAdditional: uniqueActionIdsFromAdditional,
         additionalDistributionAssetsCount: additionalDistributionAssets.length,
+        additionalDistributionAssetsRaw: additionalDistributionAssets.map(a => ({
+          asset_id: a.asset_id,
+          action_id: a.action_id,
+          action_id_type: typeof a.action_id,
+          measurement_date: a.measurement_date
+        })),
         latestMeasurementActionId: latestMeasurement?.action_id,
-        latestMeasurementActionType: latestMeasurement?.action_id ? historyWithActionTypes.get(latestMeasurement.action_id) : null,
-        rows: result.map(r => ({ asset_id: r.asset_id, action_id: r.action_id, measurement_date: r.measurement_date }))
+        latestMeasurementActionType: latestMeasurement?.action_id ? historyWithActionTypes.get(
+          typeof latestMeasurement.action_id === 'number' ? latestMeasurement.action_id : 
+          parseInt(String(latestMeasurement.action_id), 10)
+        ) : null,
+        rows: result.map(r => ({ 
+          asset_id: r.asset_id, 
+          action_id: r.action_id, 
+          action_id_type: typeof r.action_id,
+          measurement_date: r.measurement_date 
+        }))
       });
     }
     

@@ -880,6 +880,47 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       const assetsToSave: any[] = [];
 
+      // Detect if this is a distribution save by checking for distribution-related changes
+      let isDistributionSave = false;
+      let distributionType: 'residence' | 'business' | null = null;
+      
+      // Check for business distribution: look for business_distribution_area changes
+      for (const [assetId, changes] of dirtyAssets.entries()) {
+        if (deletedAssets.has(assetId)) continue;
+        if (changes.business_distribution_area !== undefined) {
+          isDistributionSave = true;
+          distributionType = 'business';
+          break;
+        }
+      }
+      
+      // Check for residence distribution: look for main_asset_type changed to 199
+      if (!isDistributionSave) {
+        for (const [assetId, changes] of dirtyAssets.entries()) {
+          if (deletedAssets.has(assetId)) continue;
+          if (changes.main_asset_type === '199' || changes.main_asset_type === 199) {
+            // Also check if original asset type was not 199 (to avoid false positives)
+            const asset = assets.find(a => String(a.asset_id) === String(assetId));
+            if (asset && String(asset.main_asset_type) !== '199') {
+              isDistributionSave = true;
+              distributionType = 'residence';
+              break;
+            }
+          }
+        }
+      }
+      
+      // Fallback: check building flags if we couldn't determine from changes
+      if (!isDistributionSave && building) {
+        if (building.need_residence_distribution === true) {
+          isDistributionSave = true;
+          distributionType = 'residence';
+        } else if (building.need_business_distribution === true) {
+          isDistributionSave = true;
+          distributionType = 'business';
+        }
+      }
+
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
           if (deletedAssets.has(assetId)) continue;
@@ -933,7 +974,21 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       if (assetsToSave.length > 0) {
-        const result = await api.assets.saveBulkTransactional(assetsToSave, 'manual_update');
+        // Use 'distribute_shared' action type if this is a distribution save
+        const actionType = isDistributionSave ? 'distribute_shared' : 'manual_update';
+        
+        // Create description for distribution saves (include Hebrew keywords for database detection)
+        let description: string | null = null;
+        if (isDistributionSave && distributionType) {
+          if (distributionType === 'residence' && building?.residence_shared_area) {
+            description = `Distributed residence shared area (מגורים) (${building.residence_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets`;
+          } else if (distributionType === 'business' && building?.business_shared_area) {
+            const overloadRatio = building.overload_ratio ? building.overload_ratio.toFixed(2) : '0.00';
+            description = `Distributed business shared area (עסקים) (${building.business_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatio}%`;
+          }
+        }
+        
+        const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, undefined, description);
 
         if (result.success) {
           savedCount = result.count || 0;

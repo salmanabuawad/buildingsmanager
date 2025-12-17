@@ -265,8 +265,8 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
         const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
         
-        // Fetch distribution assets - get action_ids from assets and assets_history tables, then filter for distributions
-        // This is more efficient: get all action_ids for the asset, filter for distribute_shared, then query audit
+        // Fetch distribution assets - get action_ids from assets and assets_history tables, then get all audit records
+        // This ensures we get ALL distributions for this asset, not just the latest
         if (asset?.asset_id && buildingNumber) {
           try {
             const allDistributeAssets: Asset[] = [];
@@ -302,34 +302,22 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               });
             }
             
-            // Step 4: Query audit table to get action_type for these action_ids and filter for distribute_shared
+            // Step 4: Query audit table to get ALL records for these action_ids
+            // Then filter for distribute_shared in the results
             const actionIdsArray = Array.from(allActionIds);
             if (actionIdsArray.length > 0) {
-              const { data: auditsForActionIds, error: auditsErr } = await supabase
+              // Get ALL audit records for these action_ids
+              const { data: allAuditsForActionIds, error: auditsErr } = await supabase
                 .from('audit')
-                .select('action_id, action_type')
-                .in('action_id', actionIdsArray);
+                .select('action_id, before_data, after_data, entity_id, created_at, action_type')
+                .in('action_id', actionIdsArray)
+                .order('created_at', { ascending: false });
               
-              // Step 5: Filter for only distribute_shared actions
-              const distributionActionIds = new Set<number>();
-              if (!auditsErr && auditsForActionIds) {
-                auditsForActionIds.forEach(audit => {
-                  if (audit.action_type === 'distribute_shared') {
-                    distributionActionIds.add(audit.action_id);
-                  }
-                });
-              }
-              
-              // Step 6: Get full audit data for distribution actions
-              const distributionActionIdsArray = Array.from(distributionActionIds);
-              if (distributionActionIdsArray.length > 0) {
-                const { data: distributeAudits, error: distributeAuditErr } = await supabase
-                  .from('audit')
-                  .select('action_id, before_data, after_data, entity_id, created_at')
-                  .in('action_id', distributionActionIdsArray)
-                  .order('created_at', { ascending: false });
+              if (!auditsErr && allAuditsForActionIds) {
+                // Step 5: Filter for only distribute_shared actions
+                const allDistributeAudits = allAuditsForActionIds.filter(audit => audit.action_type === 'distribute_shared');
                 
-                if (!distributeAuditErr && distributeAudits) {
+                if (allDistributeAudits.length > 0) {
                   // Create a map of asset types with non_accountable_for_distribution = true
                   const nonAccountableForDistributionTypes = new Set<string>();
                   assetTypes.forEach(at => {
@@ -342,109 +330,78 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     }
                   });
                   
-                  // Step 7: Get assets from assets table with distribution action_ids
-                  const { data: distributeAssetsFromTable, error: assetsTableErr } = await supabase
-                    .from('assets')
-                    .select('*')
-                    .eq('asset_id', asset.asset_id)
-                    .in('action_id', distributionActionIdsArray);
-                  
-                  if (!assetsTableErr && distributeAssetsFromTable) {
-                    distributeAssetsFromTable.forEach(assetData => {
-                      const audit = distributeAudits.find(a => a.action_id === assetData.action_id);
-                      allDistributeAssets.push({
-                        ...assetData,
-                        is_latest: false,
-                        history_created_at: audit?.created_at || null
-                      } as Asset);
-                    });
-                  }
-                  
-                  // Step 8: Get assets from assets_history table with distribution action_ids
-                  const { data: distributeHistoryFromTable, error: historyTableErr } = await supabase
-                    .from('assets_history')
-                    .select('*')
-                    .eq('asset_id', asset.asset_id)
-                    .in('action_id', distributionActionIdsArray);
-                  
-                  if (!historyTableErr && distributeHistoryFromTable) {
-                    distributeHistoryFromTable.forEach(assetData => {
-                      const audit = distributeAudits.find(a => a.action_id === assetData.action_id);
-                      const alreadyExists = allDistributeAssets.some(a => 
-                        a.asset_id === assetData.asset_id && 
-                        a.action_id === assetData.action_id &&
-                        a.measurement_date === assetData.measurement_date
-                      );
-                      if (!alreadyExists) {
-                        allDistributeAssets.push({
-                          ...assetData,
-                          is_latest: false,
-                          history_created_at: audit?.created_at || assetData.history_created_at || null
-                        } as Asset);
-                      }
-                    });
-                  }
-                  
-                  // Step 9: Also get data from audit before_data/after_data for completeness
-                  // This ensures we have all affected assets even if they're not in assets/assets_history
-                  distributeAudits.forEach(audit => {
+                  // Step 6: For each distribution audit, get the current asset from after_data
+                  // This ensures we have one record per distribution action_id
+                  allDistributeAudits.forEach(audit => {
                     try {
                       const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
                       const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
                       const afterAssets = afterData?.assets || [];
                       const beforeAssets = beforeData?.assets || [];
                       
-                      // Add current asset from after_data if not already added
-                      afterAssets.forEach((assetData: any) => {
-                        if (assetData.asset_id === asset.asset_id) {
-                          const alreadyExists = allDistributeAssets.some(a => 
-                            a.asset_id === assetData.asset_id && 
-                            a.action_id === audit.action_id &&
-                            a.measurement_date === assetData.measurement_date
-                          );
-                          if (!alreadyExists) {
-                            allDistributeAssets.push({
-                              ...assetData,
-                              is_latest: false,
-                              action_id: audit.action_id,
-                              history_created_at: audit.created_at
-                            } as Asset);
+                      // Find the current asset in after_data (state after this distribution)
+                      const currentAssetInAfter = afterAssets.find((a: any) => a.asset_id === asset.asset_id);
+                      if (currentAssetInAfter) {
+                        const alreadyExists = allDistributeAssets.some(a => 
+                          a.asset_id === currentAssetInAfter.asset_id && 
+                          a.action_id === audit.action_id &&
+                          a.measurement_date === currentAssetInAfter.measurement_date
+                        );
+                        if (!alreadyExists) {
+                          allDistributeAssets.push({
+                            ...currentAssetInAfter,
+                            is_latest: false,
+                            action_id: audit.action_id,
+                            history_created_at: audit.created_at
+                          } as Asset);
+                        }
+                      } else {
+                        // If not in after_data, check before_data (for non-accountable assets)
+                        const currentAssetInBefore = beforeAssets.find((a: any) => a.asset_id === asset.asset_id);
+                        if (currentAssetInBefore) {
+                          const mainTypeStr = String(currentAssetInBefore.main_asset_type || '').trim();
+                          const mainTypeNum = parseInt(mainTypeStr, 10);
+                          const isNonAccountableForDistribution = 
+                            nonAccountableForDistributionTypes.has(mainTypeStr) ||
+                            (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
+                          
+                          if (isNonAccountableForDistribution) {
+                            const alreadyExists = allDistributeAssets.some(a => 
+                              a.asset_id === currentAssetInBefore.asset_id && 
+                              a.action_id === audit.action_id &&
+                              a.measurement_date === currentAssetInBefore.measurement_date
+                            );
+                            if (!alreadyExists) {
+                              allDistributeAssets.push({
+                                ...currentAssetInBefore,
+                                is_latest: false,
+                                action_id: audit.action_id,
+                                history_created_at: audit.created_at
+                              } as Asset);
+                            }
                           }
                         }
-                      });
-                      
-                      // Add non-accountable assets from before_data
-                      beforeAssets.forEach((assetData: any) => {
-                        if (!assetData.main_asset_type || assetData.asset_id !== asset.asset_id) return;
-                        
-                        const mainTypeStr = String(assetData.main_asset_type).trim();
-                        const mainTypeNum = parseInt(mainTypeStr, 10);
-                        const isNonAccountableForDistribution = 
-                          nonAccountableForDistributionTypes.has(mainTypeStr) ||
-                          (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
-                        
-                        if (isNonAccountableForDistribution) {
-                          const alreadyExists = allDistributeAssets.some(a => 
-                            a.asset_id === assetData.asset_id && 
-                            a.action_id === audit.action_id &&
-                            a.measurement_date === assetData.measurement_date
-                          );
-                          if (!alreadyExists) {
-                            allDistributeAssets.push({
-                              ...assetData,
-                              is_latest: false,
-                              action_id: audit.action_id,
-                              history_created_at: audit.created_at
-                            } as Asset);
-                          }
-                        }
-                      });
+                      }
                     } catch (e) {
                       if (process.env.NODE_ENV === 'development') {
                         console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
                       }
                     }
                   });
+                  
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[AssetDetails] Distribution assets loaded from audit records:', {
+                      totalActionIds: actionIdsArray.length,
+                      distributionActionIds: allDistributeAudits.map(a => a.action_id),
+                      auditCount: allDistributeAudits.length,
+                      assetCount: allDistributeAssets.length,
+                      assets: allDistributeAssets.map(a => ({
+                        asset_id: a.asset_id,
+                        action_id: a.action_id,
+                        measurement_date: a.measurement_date
+                      }))
+                    });
+                  }
                 }
               }
             }
@@ -4577,25 +4534,36 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
                     fullWidthCellRenderer={DetailRowRenderer}
                     fullWidthCellRendererParams={(params: any) => {
-                      // Ensure the data object has the correct _actionId
-                      // This is critical for DetailRowRenderer to look up the correct audit data
-                      const rowData = params.data;
-                      const actionId = rowData?._actionId || rowData?.action_id;
+                      // CRITICAL: Get the row data directly from rowNode.data to avoid closure issues
+                      // AG Grid may reuse params object, so we must read from rowNode.data which is always current
+                      const rowNode = params.node || params.rowNode;
+                      const rowData = rowNode?.data || params.data;
+                      
+                      // Get actionId from the row data - this is the key to looking up the correct audit data
+                      const actionId = rowData?._actionId || rowData?._parentActionId || rowData?.action_id;
                       
                       if (process.env.NODE_ENV === 'development' && rowData?._isDetailRow) {
                         console.log('[AssetDetails] fullWidthCellRendererParams for detail row:', {
+                          actionId: actionId,
                           _actionId: rowData._actionId,
-                          action_id: rowData.action_id,
                           _parentActionId: rowData._parentActionId,
-                          availableCacheKeys: Array.from(auditDataCache.keys())
+                          action_id: rowData.action_id,
+                          rowNodeId: rowNode?.id,
+                          availableCacheKeys: Array.from(auditDataCache.keys()),
+                          hasCacheData: auditDataCache.has(actionId)
                         });
                       }
                       
+                      // Create a new data object with the correct actionId to ensure DetailRowRenderer uses it
+                      const detailRowData = {
+                        ...rowData,
+                        _isDetailRow: true,
+                        _actionId: actionId, // Explicitly set _actionId from row data
+                        _parentActionId: rowData?._parentActionId || actionId
+                      };
+                      
                       return {
-                        data: {
-                          ...rowData,
-                          _actionId: actionId // Ensure _actionId is set correctly
-                        },
+                        data: detailRowData, // Pass the data object with correct _actionId
                         expandedRows: expandedHistoryRows,
                         auditDataCache,
                         assetColumnDefs,

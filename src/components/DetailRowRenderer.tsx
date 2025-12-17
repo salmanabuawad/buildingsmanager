@@ -26,11 +26,31 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return null;
   }
 
-  const actionId = data._actionId;
+  // Get actionId from data - try multiple sources to ensure we get the correct one
+  const actionId = data._actionId || data._parentActionId || data.action_id;
   
   // Debug: Log which actionId we're looking for
   if (process.env.NODE_ENV === 'development') {
-    console.log('[DetailRowRenderer] Rendering for actionId:', actionId, 'Available cache keys:', Array.from(params.auditDataCache.keys()));
+    console.log('[DetailRowRenderer] Rendering for actionId:', actionId, {
+      _actionId: data._actionId,
+      _parentActionId: data._parentActionId,
+      action_id: data.action_id,
+      availableCacheKeys: Array.from(params.auditDataCache.keys()),
+      hasCacheData: params.auditDataCache.has(actionId)
+    });
+  }
+  
+  if (!actionId) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[DetailRowRenderer] No actionId found in data:', data);
+    }
+    return (
+      <div className="p-4 bg-gray-50 border-t border-gray-200">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800">שגיאה: לא נמצא מזהה פעולה</p>
+        </div>
+      </div>
+    );
   }
   
   const auditData = params.auditDataCache.get(actionId);

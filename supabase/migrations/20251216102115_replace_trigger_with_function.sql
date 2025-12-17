@@ -22,9 +22,13 @@
 DROP TRIGGER IF EXISTS trigger_auto_set_distribution_flags ON assets;
 DROP FUNCTION IF EXISTS auto_set_distribution_flags();
 
+-- Drop existing function if it exists (with both INTEGER and BIGINT signatures)
+DROP FUNCTION IF EXISTS set_distribution_flags_for_asset_type_change(INTEGER, TEXT, TEXT);
+DROP FUNCTION IF EXISTS set_distribution_flags_for_asset_type_change(BIGINT, TEXT, TEXT);
+
 -- Create explicit function to set distribution flags
 CREATE OR REPLACE FUNCTION set_distribution_flags_for_asset_type_change(
-  p_building_number INTEGER,
+  p_building_number BIGINT,
   p_old_main_asset_type TEXT,
   p_new_main_asset_type TEXT
 )

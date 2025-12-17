@@ -267,6 +267,7 @@ DECLARE
   v_first_building_number BIGINT := NULL;
   v_asset_record RECORD;
   v_entity_asset_ids BIGINT[];
+  v_overload_ratio NUMERIC := NULL;
 BEGIN
   -- ========================================================================
   -- STEP 1: GET OR CREATE USER
@@ -309,11 +310,6 @@ BEGIN
   -- Collect BEFORE data from database (if not provided)
   IF (p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb) 
      AND v_first_building_number IS NOT NULL THEN
-    -- Collect building data before update
-    SELECT to_jsonb(b.*) INTO v_building_data
-    FROM buildings b
-    WHERE b.building_number = v_first_building_number;
-    
     -- For distribution operations, collect ALL assets in the building
     -- For other operations, only collect affected assets
     IF p_action_type = 'distribute_shared' THEN
@@ -346,13 +342,10 @@ BEGIN
     SELECT jsonb_agg(elem) INTO v_before_data_collected
     FROM unnest(v_before_assets) AS elem;
     
-    -- Build before_data structure: building.assets contains all assets, building.building contains building data
-    -- Structure: { building: { building: {...}, assets: [...] } }
+    -- Build before_data structure: simple structure with just assets
+    -- Structure: { assets: [...] }
     v_before_data_collected := jsonb_build_object(
-      'building', jsonb_build_object(
-        'building', COALESCE(v_building_data, 'null'::jsonb),
-        'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
-      )
+      'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
     );
   ELSE
     v_before_data_collected := p_before_data;
@@ -577,37 +570,41 @@ BEGIN
     SELECT jsonb_agg(elem) INTO v_after_data_collected
     FROM unnest(v_after_assets) AS elem;
     
-    -- Get building data - use provided data if available (includes overload_ratio), otherwise from database
+    -- Get overload_ratio - use provided data if available, otherwise from database
     IF p_after_data IS NOT NULL AND p_after_data != 'null'::jsonb AND p_after_data != '{}'::jsonb THEN
-      -- Merge provided building data with collected assets
-      -- Extract building data from provided after_data if it exists
-      IF p_after_data ? 'building' AND p_after_data->'building' ? 'building' THEN
+      -- Extract overload_ratio from provided after_data
+      IF p_after_data ? 'overload_ratio' THEN
+        v_overload_ratio := (p_after_data->>'overload_ratio')::NUMERIC;
+      ELSIF p_after_data ? 'building' AND p_after_data->'building' ? 'building' THEN
         v_building_data := p_after_data->'building'->'building';
+        IF v_building_data ? 'overload_ratio' THEN
+          v_overload_ratio := (v_building_data->>'overload_ratio')::NUMERIC;
+        END IF;
       ELSIF p_after_data ? 'building' THEN
         v_building_data := p_after_data->'building';
-      ELSE
-        -- If no building data in provided after_data, get from database
-        SELECT to_jsonb(b.*) INTO v_building_data
-        FROM buildings b
-        WHERE b.building_number = v_first_building_number;
+        IF v_building_data ? 'overload_ratio' THEN
+          v_overload_ratio := (v_building_data->>'overload_ratio')::NUMERIC;
+        END IF;
       END IF;
-    ELSE
-      -- Collect building data from database
-      SELECT to_jsonb(b.*) INTO v_building_data
+    END IF;
+    
+    -- If overload_ratio not found in provided data, get from database
+    IF v_overload_ratio IS NULL THEN
+      SELECT b.overload_ratio INTO v_overload_ratio
       FROM buildings b
       WHERE b.building_number = v_first_building_number;
     END IF;
     
-    -- Build after_data structure for distribution operations:
-    -- Structure: { assets: [...], building: { building: {...}, assets: [...] } }
-    -- The building data should include the current overload_ratio (from provided data or database)
+    -- Build after_data structure: simple structure with assets and overload_ratio
+    -- Structure: { assets: [...], overload_ratio: ... }
     v_after_data_collected := jsonb_build_object(
-      'assets', COALESCE(v_after_data_collected, '[]'::jsonb),
-      'building', jsonb_build_object(
-        'building', COALESCE(v_building_data, 'null'::jsonb),
-        'assets', COALESCE(v_after_data_collected, '[]'::jsonb)
-      )
+      'assets', COALESCE(v_after_data_collected, '[]'::jsonb)
     );
+    
+    -- Add overload_ratio if it exists (for business distributions)
+    IF v_overload_ratio IS NOT NULL THEN
+      v_after_data_collected := v_after_data_collected || jsonb_build_object('overload_ratio', v_overload_ratio);
+    END IF;
     
     -- For distribution operations, entity_id should include ALL assets in the building
     -- For other operations, only include affected assets

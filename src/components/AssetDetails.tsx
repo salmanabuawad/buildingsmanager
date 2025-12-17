@@ -175,8 +175,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
             } else {
               // Only parse JSON if entity_id doesn't match (fallback check)
               try {
-                const beforeAssets = audit.before_data?.assets || [];
-                const afterAssets = audit.after_data?.assets || [];
+                // Simple structure: after_data.assets and before_data.assets
+                const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
+                const afterAssets = afterData?.assets || [];
+                const beforeAssets = beforeData?.assets || [];
                 const allAssets = [...beforeAssets, ...afterAssets];
                 if (allAssets.some((a: any) => String(a.asset_id) === assetIdStr)) {
                   actionIds.add(audit.action_id);
@@ -186,6 +189,42 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
               }
             }
           });
+        }
+        
+        // Also check for the latest distribution action for the building (even if assets don't have action_id set)
+        // This ensures we catch the most recent distribution that might still be in the assets table
+        if (buildingNumber) {
+          const { data: latestDistributeAction, error: latestDistributeErr } = await supabase
+            .from('audit')
+            .select('action_id, action_type, entity_id, before_data, after_data')
+            .eq('action_type', 'distribute_shared')
+            .eq('entity_type', 'bulk_asset')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (!latestDistributeErr && latestDistributeAction && latestDistributeAction.length > 0) {
+            const latestAudit = latestDistributeAction[0];
+            const entityIds = latestAudit.entity_id ? latestAudit.entity_id.split(',').map((id: string) => id.trim()) : [];
+            const isCurrentAssetAffected = entityIds.includes(assetIdStr);
+            
+            // Also check JSON data if entity_id doesn't match
+            if (!isCurrentAssetAffected) {
+              try {
+                const afterData = typeof latestAudit.after_data === 'string' ? JSON.parse(latestAudit.after_data) : latestAudit.after_data;
+                const beforeData = typeof latestAudit.before_data === 'string' ? JSON.parse(latestAudit.before_data) : latestAudit.before_data;
+                const afterAssets = afterData?.assets || [];
+                const beforeAssets = beforeData?.assets || [];
+                const allAssets = [...beforeAssets, ...afterAssets];
+                if (allAssets.some((a: any) => String(a.asset_id) === assetIdStr)) {
+                  actionIds.add(latestAudit.action_id);
+                }
+              } catch (e) {
+                // Ignore JSON parse errors
+              }
+            } else {
+              actionIds.add(latestAudit.action_id);
+            }
+          }
         }
 
         // Query for transfer_area actions affecting this asset
@@ -297,6 +336,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   if (isCurrentAssetAffected) {
                     // Add ALL assets from after_data (assets that received distributed area)
                     const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                    // Simple structure: after_data.assets
                     const afterAssets = afterData?.assets || [];
                     
                     afterAssets.forEach((assetData: any) => {
@@ -319,6 +359,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     // Also add assets with non_accountable_for_distribution = true from before_data
                     // These assets don't receive distributed area but should still appear in distribution history
                     const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
+                    // Simple structure: before_data.assets
                     const beforeAssets = beforeData?.assets || [];
                     
                     // Create a map of asset types with non_accountable_for_distribution = true
@@ -369,6 +410,100 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   }
                 }
               });
+            }
+            
+            // 4. Also check for the latest distribution action for the building (even if assets don't have action_id set)
+            // This ensures we catch the most recent distribution that might still be in the assets table
+            if (buildingNumber) {
+              try {
+                const { data: latestDistributeAudit, error: latestDistributeErr } = await supabase
+                  .from('audit')
+                  .select('action_id, before_data, after_data, entity_id, created_at')
+                  .eq('action_type', 'distribute_shared')
+                  .eq('entity_type', 'bulk_asset')
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+                
+                if (!latestDistributeErr && latestDistributeAudit && latestDistributeAudit.length > 0) {
+                  const latestAudit = latestDistributeAudit[0];
+                  const entityIds = latestAudit.entity_id ? latestAudit.entity_id.split(',').map((id: string) => id.trim()) : [];
+                  const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
+                  
+                  // Only process if this is a new action_id we haven't seen yet
+                  if (isCurrentAssetAffected && !distributeActionIds.includes(latestAudit.action_id)) {
+                    try {
+                      const afterData = typeof latestAudit.after_data === 'string' ? JSON.parse(latestAudit.after_data) : latestAudit.after_data;
+                      const afterAssets = afterData?.assets || [];
+                      
+                      afterAssets.forEach((assetData: any) => {
+                        // Check if we already have this asset (avoid duplicates)
+                        const alreadyExists = allDistributeAssets.some(a => 
+                          a.asset_id === assetData.asset_id && 
+                          a.action_id === latestAudit.action_id &&
+                          a.measurement_date === assetData.measurement_date
+                        );
+                        if (!alreadyExists) {
+                          allDistributeAssets.push({
+                            ...assetData,
+                            is_latest: false,
+                            action_id: latestAudit.action_id,
+                            history_created_at: latestAudit.created_at
+                          } as Asset);
+                        }
+                      });
+                      
+                      // Also add from before_data
+                      const beforeData = typeof latestAudit.before_data === 'string' ? JSON.parse(latestAudit.before_data) : latestAudit.before_data;
+                      const beforeAssets = beforeData?.assets || [];
+                      
+                      const nonAccountableForDistributionTypes = new Set<string>();
+                      assetTypes.forEach(at => {
+                        if (at.non_accountable_for_distribution === true && at.name) {
+                          nonAccountableForDistributionTypes.add(String(at.name).trim());
+                          const nameNum = parseInt(String(at.name).trim(), 10);
+                          if (!isNaN(nameNum)) {
+                            nonAccountableForDistributionTypes.add(String(nameNum));
+                          }
+                        }
+                      });
+                      
+                      beforeAssets.forEach((assetData: any) => {
+                        if (!assetData.main_asset_type) return;
+                        
+                        const mainTypeStr = String(assetData.main_asset_type).trim();
+                        const mainTypeNum = parseInt(mainTypeStr, 10);
+                        const isNonAccountableForDistribution = 
+                          nonAccountableForDistributionTypes.has(mainTypeStr) ||
+                          (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
+                        
+                        if (isNonAccountableForDistribution) {
+                          const alreadyExists = allDistributeAssets.some(a => 
+                            a.asset_id === assetData.asset_id && 
+                            a.action_id === latestAudit.action_id &&
+                            a.measurement_date === assetData.measurement_date
+                          );
+                          if (!alreadyExists) {
+                            allDistributeAssets.push({
+                              ...assetData,
+                              is_latest: false,
+                              action_id: latestAudit.action_id,
+                              history_created_at: latestAudit.created_at
+                            } as Asset);
+                          }
+                        }
+                      });
+                    } catch (e) {
+                      if (process.env.NODE_ENV === 'development') {
+                        console.error('[AssetDetails] Error parsing latest distribution audit:', e);
+                      }
+                    }
+                  }
+                }
+              } catch (err) {
+                if (process.env.NODE_ENV === 'development') {
+                  console.error('[AssetDetails] Error checking latest distribution:', err);
+                }
+              }
             }
             
             setAdditionalDistributionAssets(allDistributeAssets);
@@ -1229,46 +1364,37 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       let afterAssets = extractAssets(afterParsed);
       
       // For distribution operations (distribute_shared), we need to get ALL affected assets
-      // The structure can vary:
-      // 1. after_data.assets (array) - contains all affected assets (for bulk operations)
-      // 2. after_data.asset (single) - only the current asset (for single asset operations)
-      // 3. before_data.building.assets (array) - all assets before distribution
-      // 4. after_data.building.assets (array) - all assets after distribution (if present)
+      // Simple structure:
+      // - before_data.assets (array) - contains all affected assets before distribution
+      // - after_data.assets (array) - contains all affected assets after distribution
+      // - after_data.overload_ratio (number) - overload ratio for business distributions
       if (audit.action_type === 'distribute_shared') {
-        // First, get all assets from before_data.building.assets for "before" state
-        if (beforeParsed && beforeParsed.building && beforeParsed.building.assets && Array.isArray(beforeParsed.building.assets)) {
-          beforeAssets = beforeParsed.building.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+        // Get all assets from before_data.assets for "before" state
+        if (beforeParsed && beforeParsed.assets && Array.isArray(beforeParsed.assets)) {
+          beforeAssets = beforeParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
         }
         
-        // For "after" state, try multiple sources in order of preference:
-        if (afterParsed) {
-          // 1. Try after_data.assets array (for bulk operations)
-          if (afterParsed.assets && Array.isArray(afterParsed.assets) && afterParsed.assets.length > 0) {
-            afterAssets = afterParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
-          }
-          // 2. Try after_data.building.assets array
-          else if (afterParsed.building && afterParsed.building.assets && Array.isArray(afterParsed.building.assets)) {
-            afterAssets = afterParsed.building.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
-          }
-          // 3. If only single asset in after_data.asset, use before_data.building.assets as base
-          // and update the matching asset with after_data.asset values
-          else if (afterParsed.asset && beforeAssets.length > 0) {
-            const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
-            const afterAssetId = afterAsset?.asset_id;
-            
-            // Start with before assets and update the one that matches
-            afterAssets = beforeAssets.map((a: any) => {
-              if (a.asset_id === afterAssetId) {
-                return { ...a, ...afterAsset, is_latest: false } as Asset;
-              }
-              return { ...a, is_latest: false } as Asset;
-            });
-          }
-          // 4. Fallback: if we have after_data.asset but no before assets, use it
-          else if (afterParsed.asset) {
-            const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
-            afterAssets = [{ ...afterAsset, is_latest: false } as Asset];
-          }
+        // Get all assets from after_data.assets for "after" state
+        if (afterParsed && afterParsed.assets && Array.isArray(afterParsed.assets)) {
+          afterAssets = afterParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
+        }
+        // Fallback: if after_data.asset exists (single asset), use it
+        else if (afterParsed && afterParsed.asset && beforeAssets.length > 0) {
+          const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
+          const afterAssetId = afterAsset?.asset_id;
+          
+          // Start with before assets and update the one that matches
+          afterAssets = beforeAssets.map((a: any) => {
+            if (a.asset_id === afterAssetId) {
+              return { ...a, ...afterAsset, is_latest: false } as Asset;
+            }
+            return { ...a, is_latest: false } as Asset;
+          });
+        }
+        // Fallback: if we have after_data.asset but no before assets, use it
+        else if (afterParsed && afterParsed.asset) {
+          const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
+          afterAssets = [{ ...afterAsset, is_latest: false } as Asset];
         }
         
         // If we still don't have after assets but have before assets, use before assets as after

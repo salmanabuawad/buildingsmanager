@@ -1027,15 +1027,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
             description = `Distributed business shared area (עסקים) (${building.business_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatio}%`;
           }
           
-          // For distribution operations, prepare after_data with building data including overload_ratio
-          // The database function will collect all assets, but we provide building data with overload_ratio
+          // For distribution operations, prepare after_data with overload_ratio
+          // The database function will collect all assets, but we provide overload_ratio
           afterData = {
-            building: {
-              building: {
-                ...building,
-                overload_ratio: building.overload_ratio || null
-              }
-            }
+            overload_ratio: building.overload_ratio || null
           };
         }
         

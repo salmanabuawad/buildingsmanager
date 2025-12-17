@@ -1382,9 +1382,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
         
         // Exclude assets with non_accountable_for_distribution = true
+        // Check explicitly for true (treat null/undefined as false, meaning asset IS accountable)
         if (assetType.non_accountable_for_distribution === true) {
           nonAccountableForDistributionCount++;
           debugInfo.reason = 'non_accountable_for_distribution';
+          debugInfo.assetTypeNonAccountable = assetType.non_accountable_for_distribution;
           if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
@@ -1717,6 +1719,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
         
         // Exclude assets with non_accountable_for_distribution = true
+        // Check explicitly for true (treat null/undefined as false, meaning asset IS accountable)
         if (assetType.non_accountable_for_distribution === true) {
           nonAccountableForDistributionCount++;
           return false;

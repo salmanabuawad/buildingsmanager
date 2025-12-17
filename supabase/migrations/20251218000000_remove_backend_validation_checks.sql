@@ -28,8 +28,8 @@ DECLARE
   v_asset_id BIGINT;
   v_building_number BIGINT;
   v_existing_asset RECORD;
-  v_old_main_asset_type BIGINT;
-  v_new_main_asset_type BIGINT;
+  v_old_main_asset_type TEXT;
+  v_new_main_asset_type TEXT;
   v_old_asset_size NUMERIC;
   v_new_asset_size NUMERIC;
   v_audit_id BIGINT;
@@ -44,7 +44,7 @@ BEGIN
   -- ========================================================================
   v_asset_id := (p_asset_data->>'asset_id')::BIGINT;
   v_building_number := (p_asset_data->>'building_number')::BIGINT;
-  v_new_main_asset_type := (p_asset_data->>'main_asset_type')::BIGINT;
+  v_new_main_asset_type := (p_asset_data->>'main_asset_type')::TEXT;
   v_new_asset_size := COALESCE((p_asset_data->>'asset_size')::NUMERIC, 0);
 
   IF v_asset_id IS NULL OR v_building_number IS NULL THEN
@@ -187,8 +187,9 @@ BEGIN
   v_audit_id := log_audit_for_asset(
     v_asset_id,
     CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
-    p_action_type::audit_action_type,
     p_user_id,
+    p_action_type::audit_action_type,
+    false, -- p_copy_to_history
     p_description
   );
 
@@ -239,8 +240,8 @@ DECLARE
   v_asset_id BIGINT;
   v_building_number BIGINT;
   v_existing_asset RECORD;
-  v_old_main_asset_type BIGINT;
-  v_new_main_asset_type BIGINT;
+  v_old_main_asset_type TEXT;
+  v_new_main_asset_type TEXT;
   v_affected_asset_ids BIGINT[] := ARRAY[]::BIGINT[];
   v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];
   v_action_id BIGINT;
@@ -265,27 +266,42 @@ BEGIN
   IF p_user_id IS NOT NULL THEN
     SELECT user_id INTO v_user_id_fk
     FROM users
-    WHERE user_id = p_user_id::BIGINT;
+    WHERE auth_user_id = p_user_id;
     
-    IF NOT FOUND THEN
-      INSERT INTO users (user_id, user_name, user_email)
-      VALUES (p_user_id::BIGINT, 'User ' || p_user_id, NULL)
-      ON CONFLICT (user_id) DO NOTHING
+    IF v_user_id_fk IS NULL THEN
+      INSERT INTO users (auth_user_id, user_name, user_email)
+      VALUES (p_user_id, p_user_id, NULL)
+      ON CONFLICT (auth_user_id) DO UPDATE
+      SET updated_at = now()
       RETURNING user_id INTO v_user_id_fk;
-      
-      IF v_user_id_fk IS NULL THEN
-        SELECT user_id INTO v_user_id_fk FROM users WHERE user_id = p_user_id::BIGINT;
-      END IF;
     END IF;
   ELSE
+    v_user_id_fk := get_or_create_user_from_auth();
+  END IF;
+  
+  -- If still no user, use default
+  IF v_user_id_fk IS NULL THEN
+    SELECT user_id INTO v_default_user_id
+    FROM users
+    WHERE user_name = 'default' AND auth_user_id IS NULL
+    LIMIT 1;
     v_user_id_fk := v_default_user_id;
   END IF;
 
   -- ========================================================================
   -- STEP 2: CREATE AUDIT ACTION RECORD
   -- ========================================================================
-  INSERT INTO audit_actions (action_type, user_id, before_data, after_data, description)
-  VALUES (p_action_type::audit_action_type, v_user_id_fk, p_before_data, p_after_data, p_description)
+  INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
+  VALUES (
+    p_action_type::audit_action_type,
+    v_user_id_fk,
+    'bulk_asset', -- entity_type for bulk operations
+    NULL, -- entity_id will be set after we know all affected asset IDs
+    p_before_data,
+    p_after_data,
+    p_description,
+    now()
+  )
   RETURNING action_id INTO v_action_id;
 
   -- ========================================================================
@@ -301,7 +317,7 @@ BEGIN
     
     v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
     v_building_number := (v_asset_data->>'building_number')::BIGINT;
-    v_new_main_asset_type := (v_asset_data->>'main_asset_type')::BIGINT;
+    v_new_main_asset_type := (v_asset_data->>'main_asset_type')::TEXT;
 
     IF v_asset_id IS NULL OR v_building_number IS NULL THEN
       RAISE EXCEPTION 'Asset ID and Building Number are required for all assets'
@@ -447,8 +463,9 @@ BEGIN
     PERFORM log_audit_for_asset(
       v_asset_id,
       CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
-      p_action_type::audit_action_type,
       p_user_id,
+      p_action_type::audit_action_type,
+      false, -- p_copy_to_history
       p_description
     );
 

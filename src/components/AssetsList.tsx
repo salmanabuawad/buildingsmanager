@@ -1035,6 +1035,27 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               successfullySaved.add(assetId);
             }
           }
+          
+          // If this was a business distribution, save the building with updated overload_ratio
+          if (isDistributionSave && distributionType === 'business' && building && building.overload_ratio != null) {
+            try {
+              // Get the old overload_ratio for audit description
+              const oldBuilding = await api.buildings.getOne(building.building_number);
+              const oldOverloadRatio = oldBuilding?.overload_ratio;
+              
+              await api.buildings.update(building.building_number, {
+                overload_ratio: building.overload_ratio
+              });
+              
+              // The audit entry is automatically created by api.buildings.update
+              // It will include overload_ratio in the after_data via get_building_audit_data
+              // The description will mention the update
+            } catch (buildingUpdateError) {
+              console.warn('Failed to save overload_ratio to building:', buildingUpdateError);
+              // Don't fail the entire save operation if building update fails
+              // The overload_ratio is already in local state and will be visible in UI
+            }
+          }
         } else {
           if (result.validationErrors && result.validationErrors.length > 0) {
             errors.push(...result.validationErrors);

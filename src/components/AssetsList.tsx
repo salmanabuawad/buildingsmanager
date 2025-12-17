@@ -1565,165 +1565,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         updatedCount++;
       }
 
-      // Save ALL assets with unsaved changes in bulk with single audit entry and action_id
-      // This includes both assets that received distribution AND any other assets with unsaved changes
-      try {
-        // Prepare assets for bulk update (with all changes applied)
-        // Include ALL assets with unsaved changes, not just those that received distribution
-        const assetsToUpdate: Partial<Asset>[] = [];
-        const allAffectedAssetIds = new Set<number>();
-        
-        // Helper function to prepare asset data with all required fields
-        const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
-          const merged = { ...asset, ...changes };
-          // Preserve 'id' temporarily for validation (it's needed to determine if this is an update)
-          // It will be removed in api.ts before sending to database
-          const tempId = (merged as any).id;
-          
-          // Remove any fields that don't exist in the database (like 'id' from AG Grid)
-          const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
-          
-          // Ensure building_number is present and valid
-          // Try multiple sources: cleanMerged, asset, changes, building object, or fallback to component prop
-          // All assets in this list belong to the same building, so use component's buildingNumber as fallback
-          let buildingNumberValue = cleanMerged.building_number ?? asset.building_number ?? changes.building_number;
-          if (!buildingNumberValue && building) {
-            // Fallback to building object's building_number
-            buildingNumberValue = building.building_number;
-          }
-          if (!buildingNumberValue) {
-            // Fallback to component's buildingNumber prop (all assets in this list belong to the same building)
-            buildingNumberValue = buildingNumber; // Use the prop from the component scope
-          }
-          if (!buildingNumberValue) {
-            console.error('[prepareAssetForSave] Missing building_number for asset:', {
-              asset_id: asset.asset_id,
-              asset: asset,
-              changes: changes,
-              cleanMerged: cleanMerged,
-              building: building,
-              component_buildingNumber: buildingNumber
-            });
-            throw new Error(`Asset ${asset.asset_id} is missing building_number`);
-          }
-          
-          // Ensure asset_id is present
-          const assetId = cleanMerged.asset_id ?? asset.asset_id;
-          if (!assetId) {
-            throw new Error(`Asset is missing asset_id`);
-          }
-          
-          // Get main_asset_type (preserve it if it exists)
-          const mainAssetType = cleanMerged.main_asset_type ?? asset.main_asset_type;
-          
-          // If main_asset_type exists, ensure asset_size is > 0
-          let assetSize = cleanMerged.asset_size ?? asset.asset_size ?? 0;
-          if (mainAssetType && String(mainAssetType).trim() !== '' && assetSize === 0) {
-            // If main type exists but size is 0, calculate from sub-asset sizes
-            const subSizes = [
-              cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
-              cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
-              cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
-              cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
-              cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
-              cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
-            ];
-            assetSize = subSizes.reduce((sum, size) => sum + (size || 0), 0);
-          }
-          
-          // Ensure all required fields are present
-          const prepared = {
-            ...cleanMerged,
-            building_number: buildingNumberValue,
-            asset_id: assetId,
-            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date ?? '01/01/1900',
-            main_asset_type: mainAssetType,
-            asset_size: assetSize,
-            // Ensure sub-asset sizes are numbers, not undefined
-            sub_asset_size_1: cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
-            sub_asset_size_2: cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
-            sub_asset_size_3: cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
-            sub_asset_size_4: cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
-            sub_asset_size_5: cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
-            sub_asset_size_6: cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
-          } as Partial<Asset>;
-          
-          // Add 'id' back for validation (will be removed in api.ts before sending to DB)
-          if (tempId != null) {
-            (prepared as any).id = tempId;
-          }
-          
-          return prepared;
-        };
-        
-        // First, add all assets that received distribution
-        for (const asset of residentialAssets) {
-          const assetId = String(asset.asset_id);
-          const changes = updatedDirtyAssets.get(assetId) || {};
-          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-          // Get original asset from assets array to preserve 'id' field for validation
-          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-          if (currentAsset) {
-            // Merge original asset's 'id' into currentAsset if it exists
-            const assetWithId = originalAsset && (originalAsset as any).id 
-              ? { ...currentAsset, id: (originalAsset as any).id }
-              : currentAsset;
-            assetsToUpdate.push(prepareAssetForSave(assetWithId, changes));
-            allAffectedAssetIds.add(asset.asset_id);
-          }
-        }
-        
-        // Then, add any other assets with unsaved changes that weren't part of distribution
-        for (const [assetId, changes] of updatedDirtyAssets.entries()) {
-          // Skip if already included or marked for deletion
-          if (deletedAssets.has(assetId)) continue;
-          
-          const assetIdNum = parseInt(assetId, 10);
-          if (isNaN(assetIdNum) || allAffectedAssetIds.has(assetIdNum)) continue;
-          
-          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-          if (currentAsset && Object.keys(changes).length > 0) {
-            assetsToUpdate.push(prepareAssetForSave(currentAsset, changes));
-            allAffectedAssetIds.add(assetIdNum);
-          }
-        }
-        
-        // Database transaction will automatically collect before/after asset data
-        // Pass null to let the database function collect before/after data from the database
-        const result = await api.auditLog.bulkUpdateAssets(
-          assetsToUpdate,
-          'distribute_shared',
-          null, // Database will collect before asset data automatically (lowercase null, not NULL)
-          null, // Database will collect after asset data automatically (lowercase null, not NULL)
-          `Distributed residence shared area (${building.residence_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets${assetsToUpdate.length > updatedCount ? ` and saved ${assetsToUpdate.length - updatedCount} other assets with unsaved changes` : ''}`
-        );
-        
-        // Update state after successful bulk save
-        setDirtyAssets(updatedDirtyAssets);
-        setAssets(updatedAssets);
-        
-        // NOTE: Distribution flag removal is handled by save_assets_bulk_transactional
-        // as part of the transaction. Flag is only removed after successful save.
-        // Refresh building data to get updated flag status (only if building number matches)
-        try {
-          const updatedBuilding = await api.buildings.getOne(building.building_number);
-          // Only update if we're still viewing the same building to prevent reload loops
-          if (updatedBuilding.building_number === buildingNumber) {
-            setBuilding(updatedBuilding);
-          }
-        } catch (refreshError) {
-          console.warn('Failed to refresh building data after distribution:', refreshError);
-        }
-      } catch (auditError) {
-        console.warn('Failed to bulk update assets for distribute shared area:', auditError);
-        // Still update local state even if bulk save fails
-        setDirtyAssets(updatedDirtyAssets);
-        setAssets(updatedAssets);
-        // NOTE: Flag is NOT removed if save fails (transaction rollback)
-      }
+      // Update local state only - changes will be saved when user clicks "Save All"
+      setDirtyAssets(updatedDirtyAssets);
+      setAssets(updatedAssets);
       
       // Show result in modal
-      setDistributionResult(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים`);
+      setDistributionResult(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. השינויים יישמרו בלחיצה על "שמור הכל"`);
       setDistributionModalOpen(true);
 
       // Refresh grid
@@ -1881,27 +1728,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       // Convert to percentage for storage (multiply by 100)
       const overloadRatioPercentage = overloadRatio * 100;
 
-      // Save overload ratio to building as percentage (update via API)
-      try {
-        const updatedBuilding = await api.buildings.update(building.building_number, {
-          overload_ratio: overloadRatioPercentage
-        });
-        // Update local building state with the returned data from the server
-        // This ensures the building state includes the updated overload_ratio
-        // Only update if we're still viewing the same building
-        if (updatedBuilding.building_number === buildingNumber) {
-          setBuilding(updatedBuilding);
-        }
-        console.log('Overload ratio updated successfully:', overloadRatioPercentage);
-      } catch (err) {
-        console.error('Failed to save overload ratio to building:', err);
-        // Update local state anyway so UI shows the calculated value
-        // Only update if we're still viewing the same building
-        if (building.building_number === buildingNumber) {
-          setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
-        }
-        // Log warning but don't show error to user - distribution still succeeded
-        console.warn('Overload ratio update failed, but distribution completed successfully');
+      // Update local building state only - overload_ratio will be saved when user clicks "Save All"
+      // Only update if we're still viewing the same building
+      if (building.building_number === buildingNumber) {
+        setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
       }
 
       // Track changes
@@ -1988,172 +1818,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         updatedCount++;
       }
 
-      // Save ALL assets with unsaved changes in bulk with single audit entry and action_id
-      // This includes both assets that received distribution AND any other assets with unsaved changes
-      try {
-        // Prepare assets for bulk update (with all changes applied)
-        // Include ALL assets with unsaved changes, not just those that received distribution
-        const assetsToUpdate: Partial<Asset>[] = [];
-        const allAffectedAssetIds = new Set<number>();
-        
-        // Helper function to prepare asset data with all required fields
-        const prepareAssetForSave = (asset: Asset, changes: Partial<Asset>): Partial<Asset> => {
-          const merged = { ...asset, ...changes };
-          // Preserve 'id' temporarily for validation (it's needed to determine if this is an update)
-          // It will be removed in api.ts before sending to database
-          const tempId = (merged as any).id;
-          
-          // Remove any fields that don't exist in the database (like 'id' from AG Grid)
-          const { id, _isNew, _isDirty, _validationErrors, _isMasterRow, ...cleanMerged } = merged as any;
-          
-          // Ensure building_number is present and valid
-          // Try multiple sources: cleanMerged, asset, changes, building object, or fallback to component prop
-          // All assets in this list belong to the same building, so use component's buildingNumber as fallback
-          let buildingNumberValue = cleanMerged.building_number ?? asset.building_number ?? changes.building_number;
-          if (!buildingNumberValue && building) {
-            // Fallback to building object's building_number
-            buildingNumberValue = building.building_number;
-          }
-          if (!buildingNumberValue) {
-            // Fallback to component's buildingNumber prop (all assets in this list belong to the same building)
-            buildingNumberValue = buildingNumber; // Use the prop from the component scope
-          }
-          if (!buildingNumberValue) {
-            console.error('[prepareAssetForSave] Missing building_number for asset:', {
-              asset_id: asset.asset_id,
-              asset: asset,
-              changes: changes,
-              cleanMerged: cleanMerged,
-              building: building,
-              component_buildingNumber: buildingNumber
-            });
-            throw new Error(`Asset ${asset.asset_id} is missing building_number`);
-          }
-          
-          // Ensure asset_id is present
-          const assetId = cleanMerged.asset_id ?? asset.asset_id;
-          if (!assetId) {
-            throw new Error(`Asset is missing asset_id`);
-          }
-          
-          // Get main_asset_type (preserve it if it exists)
-          const mainAssetType = cleanMerged.main_asset_type ?? asset.main_asset_type;
-          
-          // If main_asset_type exists, ensure asset_size is > 0
-          let assetSize = cleanMerged.asset_size ?? asset.asset_size ?? 0;
-          if (mainAssetType && String(mainAssetType).trim() !== '' && assetSize === 0) {
-            // If main type exists but size is 0, calculate from sub-asset sizes
-            const subSizes = [
-              cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
-              cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
-              cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
-              cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
-              cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
-              cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
-            ];
-            assetSize = subSizes.reduce((sum, size) => sum + (size || 0), 0);
-          }
-          
-          // Ensure all required fields are present
-          const prepared = {
-            ...cleanMerged,
-            building_number: buildingNumberValue,
-            asset_id: assetId,
-            measurement_date: cleanMerged.measurement_date ?? asset.measurement_date ?? '01/01/1900',
-            main_asset_type: mainAssetType,
-            asset_size: assetSize,
-            // Ensure sub-asset sizes are numbers, not undefined
-            sub_asset_size_1: cleanMerged.sub_asset_size_1 ?? asset.sub_asset_size_1 ?? 0,
-            sub_asset_size_2: cleanMerged.sub_asset_size_2 ?? asset.sub_asset_size_2 ?? 0,
-            sub_asset_size_3: cleanMerged.sub_asset_size_3 ?? asset.sub_asset_size_3 ?? 0,
-            sub_asset_size_4: cleanMerged.sub_asset_size_4 ?? asset.sub_asset_size_4 ?? 0,
-            sub_asset_size_5: cleanMerged.sub_asset_size_5 ?? asset.sub_asset_size_5 ?? 0,
-            sub_asset_size_6: cleanMerged.sub_asset_size_6 ?? asset.sub_asset_size_6 ?? 0,
-          } as Partial<Asset>;
-          
-          // Add 'id' back for validation (will be removed in api.ts before sending to DB)
-          if (tempId != null) {
-            (prepared as any).id = tempId;
-          }
-          
-          return prepared;
-        };
-        
-        // First, add all assets that received distribution
-        for (const asset of businessAssets) {
-          const assetId = String(asset.asset_id);
-          const changes = updatedDirtyAssets.get(assetId) || {};
-          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-          // Get original asset from assets array to preserve 'id' field for validation
-          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-          if (currentAsset) {
-            // Merge original asset's 'id' into currentAsset if it exists
-            const assetWithId = originalAsset && (originalAsset as any).id 
-              ? { ...currentAsset, id: (originalAsset as any).id }
-              : currentAsset;
-            assetsToUpdate.push(prepareAssetForSave(assetWithId, changes));
-            allAffectedAssetIds.add(asset.asset_id);
-          }
-        }
-        
-        // Then, add any other assets with unsaved changes that weren't part of distribution
-        for (const [assetId, changes] of updatedDirtyAssets.entries()) {
-          // Skip if already included or marked for deletion
-          if (deletedAssets.has(assetId)) continue;
-          
-          const assetIdNum = parseInt(assetId, 10);
-          if (isNaN(assetIdNum) || allAffectedAssetIds.has(assetIdNum)) continue;
-          
-          const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-          // Get original asset from assets array to preserve 'id' field for validation
-          const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-          if (currentAsset && Object.keys(changes).length > 0) {
-            // Merge original asset's 'id' into currentAsset if it exists
-            const assetWithId = originalAsset && (originalAsset as any).id 
-              ? { ...currentAsset, id: (originalAsset as any).id }
-              : currentAsset;
-            assetsToUpdate.push(prepareAssetForSave(assetWithId, changes));
-            allAffectedAssetIds.add(assetIdNum);
-          }
-        }
-        
-        // Database transaction will automatically collect before/after asset data
-        // Pass NULL to let the database function collect before/after data from the database
-        const result = await api.auditLog.bulkUpdateAssets(
-          assetsToUpdate,
-          'distribute_shared',
-          null, // Database will collect before asset data automatically (lowercase null, not NULL)
-          null, // Database will collect after asset data automatically (lowercase null, not NULL)
-          `Distributed business shared area (${building.business_shared_area!.toLocaleString('he-IL')}) to ${updatedCount} assets. Overload ratio: ${overloadRatioPercentage.toFixed(2)}%${assetsToUpdate.length > updatedCount ? `. Also saved ${assetsToUpdate.length - updatedCount} other assets with unsaved changes` : ''}`
-        );
-        
-        // Update state after successful bulk save
-        setDirtyAssets(updatedDirtyAssets);
-        setAssets(updatedAssets);
-        
-        // NOTE: Distribution flag removal is handled by save_assets_bulk_transactional
-        // as part of the transaction. Flag is only removed after successful save.
-        // Refresh building data to get updated flag status (only if building number matches)
-        try {
-          const updatedBuilding = await api.buildings.getOne(building.building_number);
-          // Only update if we're still viewing the same building to prevent reload loops
-          if (updatedBuilding.building_number === buildingNumber) {
-            setBuilding(updatedBuilding);
-          }
-        } catch (refreshError) {
-          console.warn('Failed to refresh building data after distribution:', refreshError);
-        }
-      } catch (auditError) {
-        console.warn('Failed to bulk update assets for distribute shared area:', auditError);
-        // Still update local state even if bulk save fails
-        setDirtyAssets(updatedDirtyAssets);
-        setAssets(updatedAssets);
-        // NOTE: Flag is NOT removed if save fails (transaction rollback)
-      }
+      // Update local state only - changes will be saved when user clicks "Save All"
+      setDirtyAssets(updatedDirtyAssets);
+      setAssets(updatedAssets);
       
       // Note: Building state with updated overload_ratio was already set in the try block above
       // Show result in modal
-      setDistributionResult(`פוזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`);
+      setDistributionResult(`פוזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%. השינויים יישמרו בלחיצה על "שמור הכל"`);
       setDistributionModalOpen(true);
 
       // Refresh grid

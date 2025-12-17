@@ -901,11 +901,6 @@ export const api = {
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
       
-      // NOTE: Distribution flags for shared areas should be set by transactional functions
-      // when assets are saved/updated, not when building shared areas are updated directly
-      // Flags are part of asset save transactions and cannot be set separately
-      // If shared areas change, flags will be set when assets are next saved via transactional functions
-      
       // Remove read-only fields that shouldn't be updated directly
       delete (cleanedInput as any).action_id;
       delete (cleanedInput as any).created_at;
@@ -917,13 +912,41 @@ export const api = {
         return api.buildings.getOne(buildingNumber);
       }
       
-      // Note: buildings table doesn't have updated_at column, so don't include it
-      const { data, error } = await supabase
-        .from('buildings')
-        .update(cleanedInput)
-        .eq('building_number', buildingNumber)
-        .select()
-        .single();
+      // Use bulk database function to update building - it will automatically set distribution flags
+      // when shared areas change. Always use bulk function, even for single building updates.
+      const buildingsData = [{
+        building_number: buildingNumber,
+        updates: cleanedInput
+      }];
+      
+      const { data: functionResult, error: rpcError } = await supabase.rpc('update_buildings_bulk_with_distribution_flags', {
+        p_buildings_data: buildingsData
+      });
+
+      let data: Building | null = null;
+      let error: any = null;
+
+      if (rpcError) {
+        // If RPC fails, fall back to direct update (for backwards compatibility)
+        const fallbackResult = await supabase
+          .from('buildings')
+          .update(cleanedInput)
+          .eq('building_number', buildingNumber)
+          .select()
+          .single();
+        
+        data = fallbackResult.data;
+        error = fallbackResult.error;
+      } else {
+        // Bulk function returns {success, count, buildings: [...]}
+        // Extract the first (and only) building from the result
+        const result = functionResult as { success: boolean; buildings: Building[]; count: number };
+        if (result && result.buildings && result.buildings.length > 0) {
+          data = result.buildings[0];
+        } else {
+          error = { message: 'No building data returned from bulk update function' };
+        }
+      }
 
       if (error) {
         // Log the error details for debugging - serialize the error object properly
@@ -964,6 +987,10 @@ export const api = {
         const errorDetails = error.details ? ` (${error.details})` : '';
         const errorHint = error.hint ? ` - ${error.hint}` : '';
         throw new Error(`שגיאה בעדכון מבנה: ${errorMessage}${errorDetails}${errorHint}`);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to update building: No data returned');
       }
       
       // Log audit entry (transaction-based, replaces trigger)

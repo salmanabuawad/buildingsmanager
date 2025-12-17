@@ -68,7 +68,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, [taxRegion, buildingNumber]);
 
   // Helper function to check if an asset type is non_accountable_for_total_area
-  const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
+  const isAssetTypeNotAccountableForTotalArea = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
       return false;
     }
@@ -80,12 +80,32 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, [assetTypes]);
 
   // Helper function to check if an asset is non_accountable_for_total_area
-  const isAssetNotAccountable = useCallback((asset: Asset): boolean => {
+  const isAssetNotAccountableForTotalArea = useCallback((asset: Asset): boolean => {
     if (!asset || !asset.main_asset_type) {
       return false;
     }
-    return isAssetTypeNotAccountable(asset.main_asset_type);
-  }, [isAssetTypeNotAccountable]);
+    return isAssetTypeNotAccountableForTotalArea(asset.main_asset_type);
+  }, [isAssetTypeNotAccountableForTotalArea]);
+
+  // Helper function to check if an asset type is non_accountable_for_distribution
+  const isAssetTypeNotAccountableForDistribution = useCallback((assetTypeName: string | null | undefined): boolean => {
+    if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    
+    // Find asset type by name - ensure both are strings for comparison
+    const assetTypeNameStr = String(assetTypeName).trim();
+    const assetType = assetTypes.find(at => String(at.name).trim() === assetTypeNameStr);
+    return assetType?.non_accountable_for_distribution === true;
+  }, [assetTypes]);
+
+  // Helper function to check if an asset is non_accountable_for_distribution
+  const isAssetNotAccountableForDistribution = useCallback((asset: Asset): boolean => {
+    if (!asset || !asset.main_asset_type) {
+      return false;
+    }
+    return isAssetTypeNotAccountableForDistribution(asset.main_asset_type);
+  }, [isAssetTypeNotAccountableForDistribution]);
 
   // Helper function to check if a field should be editable
   // For non-accountable assets, only main_asset_type is editable
@@ -96,12 +116,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     const baseEditable = newAssets.has(assetId) || !!taxRegion;
     
     // For non-accountable assets, only main_asset_type is editable
-    if (isAssetNotAccountable(asset)) {
+    if (isAssetNotAccountableForTotalArea(asset)) {
       return fieldName === 'main_asset_type' && baseEditable;
     }
     
     return baseEditable;
-  }, [isAssetNotAccountable, newAssets, taxRegion]);
+  }, [isAssetNotAccountableForTotalArea, newAssets, taxRegion]);
 
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
@@ -405,7 +425,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       );
 
       // Skip validation if asset is not_accountable - skip ALL validations including quick ones
-      if (isAssetNotAccountable(updatedAsset)) {
+      if (isAssetNotAccountableForTotalArea(updatedAsset)) {
         // Clear existing validation timer for this asset
         const existingTimer = validationTimerRef.current.get(String(assetId));
         if (existingTimer) {
@@ -572,7 +592,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         if (asset.is_latest === false) return false;
         
         // Skip non-accountable assets - they should not be validated
-        if (isAssetNotAccountable(asset)) return false;
+        if (isAssetNotAccountableForTotalArea(asset)) return false;
         
         return true;
       });
@@ -1305,11 +1325,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Filter assets: only accountable assets
       let deletedCount = 0;
-      let notAccountableCount = 0;
+      let notAccountableForDistributionCount = 0;
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
       let residentialFoundCount = 0;
-      let nonAccountableForDistributionCount = 0;
       
       const residentialAssets = assets.filter((asset, index) => {
         const debugInfo: any = {
@@ -1326,10 +1345,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Exclude non-accountable assets using the helper function
-        if (isAssetNotAccountable(asset)) {
-          notAccountableCount++;
-          debugInfo.reason = 'not_accountable';
+        // Exclude non-accountable assets for distribution using the helper function
+        if (isAssetNotAccountableForDistribution(asset)) {
+          notAccountableForDistributionCount++;
+          debugInfo.reason = 'not_accountable_for_distribution';
           if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
           return false;
         }
@@ -1381,15 +1400,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Exclude assets with non_accountable_for_distribution = true
-        // Check explicitly for true (treat null/undefined as false, meaning asset IS accountable)
-        if (assetType.non_accountable_for_distribution === true) {
-          nonAccountableForDistributionCount++;
-          debugInfo.reason = 'non_accountable_for_distribution';
-          debugInfo.assetTypeNonAccountable = assetType.non_accountable_for_distribution;
-          if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
-          return false;
-        }
+        // Note: non_accountable_for_distribution check is already done earlier via isAssetNotAccountableForDistribution
+        // This redundant check is removed since the helper function handles it
         
         debugInfo.assetTypeName = assetType.name;
         debugInfo.assetTypeId = assetType.id;
@@ -1411,10 +1423,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         totalAssets: assets.length,
         residentialFound: residentialFoundCount,
         deletedCount,
-        notAccountableCount,
+        notAccountableForDistributionCount,
         noMainTypeCount,
         assetTypeNotFoundCount,
-        nonAccountableForDistributionCount,
         finalResidentialAssets: residentialAssets.length
       });
 
@@ -1422,12 +1433,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Provide detailed error message
         const reasons: string[] = [];
         if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
-        if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
+        if (notAccountableForDistributionCount > 0) reasons.push(`${notAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
-        if (nonAccountableForDistributionCount > 0) reasons.push(`${nonAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + nonAccountableForDistributionCount;
+        const totalFiltered = deletedCount + notAccountableForDistributionCount + noMainTypeCount + assetTypeNotFoundCount;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי מגורים במבנה לפזר בהם שטח משותף';
@@ -1640,7 +1650,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     } finally {
       setLoading(false);
     }
-  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
+  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountableForDistribution]);
 
   const handleDistributeBusinessSharedArea = useCallback(async () => {
     if (!building || !building.business_shared_area || building.business_shared_area <= 0) {
@@ -1668,11 +1678,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       // Filter assets: only business assets that are accountable
       let deletedCount = 0;
-      let notAccountableCount = 0;
+      let notAccountableForDistributionCount = 0;
       let noMainTypeCount = 0;
       let assetTypeNotFoundCount = 0;
       let notBusinessCount = 0;
-      let nonAccountableForDistributionCount = 0;
       
       const businessAssets = assets.filter(asset => {
         // Skip deleted assets
@@ -1681,9 +1690,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Exclude non-accountable assets
-        if (isAssetNotAccountable(asset)) {
-          notAccountableCount++;
+        // Exclude non-accountable assets for distribution
+        if (isAssetNotAccountableForDistribution(asset)) {
+          notAccountableForDistributionCount++;
           return false;
         }
         
@@ -1718,12 +1727,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
           return false;
         }
         
-        // Exclude assets with non_accountable_for_distribution = true
-        // Check explicitly for true (treat null/undefined as false, meaning asset IS accountable)
-        if (assetType.non_accountable_for_distribution === true) {
-          nonAccountableForDistributionCount++;
-          return false;
-        }
+        // Note: non_accountable_for_distribution check is already done earlier via isAssetNotAccountableForDistribution
+        // This redundant check is removed since the helper function handles it
         
         return true;
       });
@@ -1732,13 +1737,12 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Provide detailed error message
         const reasons: string[] = [];
         if (deletedCount > 0) reasons.push(`${deletedCount} נכסים שנמחקו`);
-        if (notAccountableCount > 0) reasons.push(`${notAccountableCount} נכסים לא נספרים`);
+        if (notAccountableForDistributionCount > 0) reasons.push(`${notAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
         if (noMainTypeCount > 0) reasons.push(`${noMainTypeCount} נכסים ללא סוג נכס ראשי`);
         if (assetTypeNotFoundCount > 0) reasons.push(`${assetTypeNotFoundCount} נכסים עם סוג נכס שלא נמצא`);
         if (notBusinessCount > 0) reasons.push(`${notBusinessCount} נכסים שאינם מסוג עסקים`);
-        if (nonAccountableForDistributionCount > 0) reasons.push(`${nonAccountableForDistributionCount} נכסים לא נספרים בפיזור`);
         
-        const totalFiltered = deletedCount + notAccountableCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount + nonAccountableForDistributionCount;
+        const totalFiltered = deletedCount + notAccountableForDistributionCount + noMainTypeCount + assetTypeNotFoundCount + notBusinessCount;
         const totalAssets = assets.length;
         
         let errorMsg = 'אין נכסי עסקים במבנה לפזר בהם שטח משותף';
@@ -1895,7 +1899,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     } finally {
       setLoading(false);
     }
-  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountable]);
+  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountableForDistribution]);
 
   // Export assets to Excel
   const handleExportToExcel = useCallback(async () => {
@@ -2556,7 +2560,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Penthouse checkbox - only editable if asset is not non-accountable
         if (!params || !params.data) return false;
         const asset = params.data as Asset;
-        if (isAssetNotAccountable(asset)) return false;
+        if (isAssetNotAccountableForTotalArea(asset)) return false;
         const assetId = String(asset.asset_id);
         return newAssets.has(assetId) || !!taxRegion;
       },

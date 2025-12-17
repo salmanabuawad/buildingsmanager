@@ -574,28 +574,31 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [historyRows, historyWithActionTypes]);
 
   const distributionHistoryRows = useMemo(() => {
-    const rows: Asset[] = [];
-    
     // For distributions, rely ENTIRELY on audit table data (additionalDistributionAssets)
     // Distributions don't create history records - they update assets in place
     // So we get all distribution data from audit.before_data and audit.after_data
-    rows.push(...additionalDistributionAssets);
+    
+    // Group by action_id to get unique distribution operations
+    // Each action_id represents one distribution operation
+    const grouped = new Map<number, Asset>();
+    
+    // Add from additionalDistributionAssets (primary source)
+    additionalDistributionAssets.forEach(row => {
+      if (row.action_id != null) {
+        // Use the first occurrence of each action_id (they should all have the same action_id for a distribution)
+        if (!grouped.has(row.action_id)) {
+          grouped.set(row.action_id, row);
+        }
+      }
+    });
     
     // Also include history rows with distribute_shared action_type (for backward compatibility)
     // But these should be rare since distributions don't create history records
     historyRows.forEach(row => {
       if (row.action_id != null) {
         const actionType = historyWithActionTypes.get(row.action_id);
-        if (actionType === 'distribute_shared') {
-          // Check if not already added from additionalDistributionAssets
-          const alreadyExists = rows.some(r => 
-            r.asset_id === row.asset_id && 
-            r.measurement_date === row.measurement_date &&
-            r.action_id === row.action_id
-          );
-          if (!alreadyExists) {
-            rows.push(row);
-          }
+        if (actionType === 'distribute_shared' && !grouped.has(row.action_id)) {
+          grouped.set(row.action_id, row);
         }
       }
     });
@@ -604,58 +607,28 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     // (for backward compatibility, but distributions should be in additionalDistributionAssets)
     if (latestMeasurement?.action_id != null) {
       const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
-      if (actionType === 'distribute_shared') {
-        // Check if not already added to avoid duplicates
-        const alreadyExists = rows.some(r => 
-          r.asset_id === latestMeasurement.asset_id && 
-          r.measurement_date === latestMeasurement.measurement_date &&
-          r.action_id === latestMeasurement.action_id
-        );
-        if (!alreadyExists) {
-          rows.push({ ...latestMeasurement, is_latest: false } as Asset);
-        }
+      if (actionType === 'distribute_shared' && !grouped.has(latestMeasurement.action_id)) {
+        grouped.set(latestMeasurement.action_id, { ...latestMeasurement, is_latest: false } as Asset);
       }
     }
     
-    // Remove duplicates based on asset_id, action_id, and measurement_date
-    const uniqueRows = rows.filter((row, index, self) => 
-      index === self.findIndex(r => 
-        r.asset_id === row.asset_id && 
-        r.action_id === row.action_id && 
-        r.measurement_date === row.measurement_date
-      )
-    );
-    
-    // Group by action_id and return only one master record per action_id
-    const grouped = new Map<number, Asset>();
-    uniqueRows.forEach(row => {
-      if (row.action_id != null) {
-        if (!grouped.has(row.action_id)) {
-          grouped.set(row.action_id, row);
-        }
-      }
-    });
+    const result = Array.from(grouped.values());
     
     if (process.env.NODE_ENV === 'development') {
+      const uniqueActionIds = Array.from(grouped.keys());
+      const uniqueActionIdsFromAdditional = [...new Set(additionalDistributionAssets.map(a => a.action_id).filter(id => id != null))];
       console.log('[AssetDetails] distributionHistoryRows:', {
-        count: grouped.size,
-        uniqueRowsCount: uniqueRows.length,
-        historyRowsCount: historyRows.filter(r => {
-          if (r.action_id != null) {
-            const actionType = historyWithActionTypes.get(r.action_id);
-            return actionType === 'distribute_shared';
-          }
-          return false;
-        }).length,
+        count: result.length,
+        uniqueActionIds: uniqueActionIds,
+        uniqueActionIdsFromAdditional: uniqueActionIdsFromAdditional,
         additionalDistributionAssetsCount: additionalDistributionAssets.length,
         latestMeasurementActionId: latestMeasurement?.action_id,
         latestMeasurementActionType: latestMeasurement?.action_id ? historyWithActionTypes.get(latestMeasurement.action_id) : null,
-        actionTypesMap: Array.from(historyWithActionTypes.entries()),
-        rows: Array.from(grouped.values())
+        rows: result.map(r => ({ asset_id: r.asset_id, action_id: r.action_id, measurement_date: r.measurement_date }))
       });
     }
     
-    return Array.from(grouped.values());
+    return result;
   }, [historyRows, historyWithActionTypes, latestMeasurement, additionalDistributionAssets]);
 
   const transferHistoryRows = useMemo(() => {

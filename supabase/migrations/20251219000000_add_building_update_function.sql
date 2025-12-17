@@ -79,22 +79,20 @@ BEGIN
     -- Start with the provided updates
     v_final_updates := v_updates;
     
-    -- Check if residence_shared_area changed and is > 0
+    -- Check if residence_shared_area changed (even if new value is zero)
     IF v_old_residence_area IS DISTINCT FROM v_new_residence_area 
-       AND v_new_residence_area IS NOT NULL 
-       AND v_new_residence_area > 0 THEN
-      -- Set need_residence_distribution flag to true
+       AND v_new_residence_area IS NOT NULL THEN
+      -- Set need_residence_distribution flag to true when shared area changes (even if new value is 0)
       v_final_updates := v_final_updates || jsonb_build_object('need_residence_distribution', true);
       
       RAISE NOTICE 'Setting need_residence_distribution=true for building % (residence_shared_area changed from % to %)', 
         v_building_number, v_old_residence_area, v_new_residence_area;
     END IF;
     
-    -- Check if business_shared_area changed and is > 0
+    -- Check if business_shared_area changed (even if new value is zero)
     IF v_old_business_area IS DISTINCT FROM v_new_business_area 
-       AND v_new_business_area IS NOT NULL 
-       AND v_new_business_area > 0 THEN
-      -- Set need_business_distribution flag to true
+       AND v_new_business_area IS NOT NULL THEN
+      -- Set need_business_distribution flag to true when shared area changes (even if new value is 0)
       v_final_updates := v_final_updates || jsonb_build_object('need_business_distribution', true);
       
       RAISE NOTICE 'Setting need_business_distribution=true for building % (business_shared_area changed from % to %)', 
@@ -158,5 +156,5 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true if shared area changed and new value is > 0. All updates happen in a single transaction. Use this function for all building updates, even single ones.';
+COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true whenever shared area changes, even if new value is 0. All updates happen in a single transaction. Use this function for all building updates, even single ones.';
 

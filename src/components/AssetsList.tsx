@@ -1291,7 +1291,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   // Distribute shared area to all residential assets
   const handleDistributeSharedArea = useCallback(async () => {
-    if (!building || !building.residence_shared_area || building.residence_shared_area <= 0) {
+    if (!building || building.residence_shared_area == null || building.residence_shared_area <= 0) {
       setError('אין שטח משותף מגורים במבנה או השטח הוא 0');
       setTimeout(() => setError(null), 3000);
       return;
@@ -3213,27 +3213,31 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               ייצא ל-Excel
             </button>
           </div>
-          {/* Distribute shared area button - only visible in residence tabs when residence_shared_area > 0 */}
-          {building && isResidentTaxRegion && building.residence_shared_area != null && building.residence_shared_area > 0 && (
+          {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on */}
+          {building && isResidentTaxRegion && building.residence_shared_area != null && (
             <button
               type="button"
               onClick={handleDistributeSharedArea}
               disabled={loading || assets.length === 0 || building.need_residence_distribution !== true}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
-              title={`פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`}
+              title={building.need_residence_distribution === true 
+                ? `פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`
+                : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
             >
               <Download className="h-4 w-4" />
               פזר שטח משותף מגורים
             </button>
           )}
-          {/* Distribute business shared area button - only visible in business tabs (not multi tax region, not residence) when business_shared_area > 0 */}
-          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && building.business_shared_area > 0 && (
+          {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on */}
+          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
             <button
               type="button"
               onClick={handleDistributeBusinessSharedArea}
               disabled={loading || assets.length === 0 || building.need_business_distribution !== true}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
-              title={`פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`}
+              title={building.need_business_distribution === true
+                ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
+                : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
             >
               <Download className="h-4 w-4" />
               פזר שטח משותף עסקים

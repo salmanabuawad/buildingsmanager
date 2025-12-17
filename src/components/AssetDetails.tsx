@@ -202,14 +202,6 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
           }
         }
         
-        // Query for transfer_area actions affecting this asset (more specific)
-        const { data: transferActions, error: transferError } = await supabase
-          .from('audit')
-          .select('action_id, action_type, entity_id, before_data, after_data')
-          .eq('action_type', 'transfer_area')
-          .eq('entity_type', 'bulk_asset')
-          .or(`entity_id.ilike.%${assetIdStr}%,entity_id.eq.${assetIdStr}`);
-
         // Query for transfer_area actions affecting this asset
         const { data: transferActions, error: transferError } = await supabase
           .from('audit')

@@ -346,9 +346,9 @@ BEGIN
     SELECT jsonb_agg(elem) INTO v_before_data_collected
     FROM unnest(v_before_assets) AS elem;
     
-    -- Build before_data with both assets and building
+    -- Build before_data structure: building.assets contains all assets, building.building contains building data
+    -- Structure: { building: { building: {...}, assets: [...] } }
     v_before_data_collected := jsonb_build_object(
-      'assets', COALESCE(v_before_data_collected, '[]'::jsonb),
       'building', jsonb_build_object(
         'building', COALESCE(v_building_data, 'null'::jsonb),
         'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
@@ -543,17 +543,11 @@ BEGIN
   END LOOP;
 
   -- ========================================================================
-  -- STEP 3b: COLLECT AFTER DATA (if not provided)
+  -- STEP 3b: COLLECT AFTER DATA (always collect assets, merge with provided building data)
   -- For distribution operations, collect ALL assets in the building after update
   -- ========================================================================
-  -- Collect AFTER data from database (if not provided)
-  IF (p_after_data IS NULL OR p_after_data = 'null'::jsonb OR p_after_data = '{}'::jsonb) 
-     AND v_first_building_number IS NOT NULL THEN
-    -- Collect building data after update
-    SELECT to_jsonb(b.*) INTO v_building_data
-    FROM buildings b
-    WHERE b.building_number = v_first_building_number;
-    
+  -- Always collect assets from database (even if after_data is provided, we need all assets for distribution)
+  IF v_first_building_number IS NOT NULL THEN
     -- For distribution operations, collect ALL assets in the building
     -- For other operations, only collect affected assets
     IF p_action_type = 'distribute_shared' THEN
@@ -583,7 +577,30 @@ BEGIN
     SELECT jsonb_agg(elem) INTO v_after_data_collected
     FROM unnest(v_after_assets) AS elem;
     
-    -- Build after_data with both assets and building
+    -- Get building data - use provided data if available (includes overload_ratio), otherwise from database
+    IF p_after_data IS NOT NULL AND p_after_data != 'null'::jsonb AND p_after_data != '{}'::jsonb THEN
+      -- Merge provided building data with collected assets
+      -- Extract building data from provided after_data if it exists
+      IF p_after_data ? 'building' AND p_after_data->'building' ? 'building' THEN
+        v_building_data := p_after_data->'building'->'building';
+      ELSIF p_after_data ? 'building' THEN
+        v_building_data := p_after_data->'building';
+      ELSE
+        -- If no building data in provided after_data, get from database
+        SELECT to_jsonb(b.*) INTO v_building_data
+        FROM buildings b
+        WHERE b.building_number = v_first_building_number;
+      END IF;
+    ELSE
+      -- Collect building data from database
+      SELECT to_jsonb(b.*) INTO v_building_data
+      FROM buildings b
+      WHERE b.building_number = v_first_building_number;
+    END IF;
+    
+    -- Build after_data structure for distribution operations:
+    -- Structure: { assets: [...], building: { building: {...}, assets: [...] } }
+    -- The building data should include the current overload_ratio (from provided data or database)
     v_after_data_collected := jsonb_build_object(
       'assets', COALESCE(v_after_data_collected, '[]'::jsonb),
       'building', jsonb_build_object(
@@ -611,8 +628,26 @@ BEGIN
       entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
     WHERE action_id = v_action_id;
   ELSE
-    -- If after_data was provided, use it and update audit entry with entity_id
-    IF p_action_type = 'distribute_shared' AND v_first_building_number IS NOT NULL THEN
+    -- If no building number, use provided after_data as-is or collect minimal data
+    IF p_after_data IS NOT NULL AND p_after_data != 'null'::jsonb AND p_after_data != '{}'::jsonb THEN
+      v_after_data_collected := p_after_data;
+      -- Still update entity_id
+      UPDATE audit
+      SET 
+        after_data = v_after_data_collected,
+        entity_id = array_to_string(v_affected_asset_ids, ',')
+      WHERE action_id = v_action_id;
+    ELSE
+      -- No building number and no provided data - just update entity_id
+      UPDATE audit
+      SET entity_id = array_to_string(v_affected_asset_ids, ',')
+      WHERE action_id = v_action_id;
+    END IF;
+  END IF;
+    
+    -- For distribution operations, entity_id should include ALL assets in the building
+    -- For other operations, only include affected assets
+    IF p_action_type = 'distribute_shared' THEN
       -- Get ALL asset IDs in the building
       SELECT array_agg(asset_id ORDER BY asset_id) INTO v_entity_asset_ids
       FROM assets
@@ -622,19 +657,6 @@ BEGIN
       v_entity_asset_ids := v_affected_asset_ids;
     END IF;
     
-    IF p_after_data IS NOT NULL THEN
-      UPDATE audit
-      SET 
-        after_data = p_after_data,
-        entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
-      WHERE action_id = v_action_id;
-    ELSE
-      -- Even if after_data is not provided, update entity_id
-      UPDATE audit
-      SET entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
-      WHERE action_id = v_action_id;
-    END IF;
-  END IF;
 
   -- ========================================================================
   -- STEP 4: REMOVE DISTRIBUTION FLAGS FOR distribute_shared ACTIONS

@@ -1017,16 +1017,29 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         
         // Create description for distribution saves (include Hebrew keywords for database detection)
         let description: string | null = null;
-        if (isDistributionSave && distributionType) {
+        let afterData: any = undefined;
+        
+        if (isDistributionSave && distributionType && building) {
           if (distributionType === 'residence' && building?.residence_shared_area) {
             description = `Distributed residence shared area (מגורים) (${building.residence_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets`;
           } else if (distributionType === 'business' && building?.business_shared_area) {
             const overloadRatio = building.overload_ratio ? building.overload_ratio.toFixed(2) : '0.00';
             description = `Distributed business shared area (עסקים) (${building.business_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets. Overload ratio: ${overloadRatio}%`;
           }
+          
+          // For distribution operations, prepare after_data with building data including overload_ratio
+          // The database function will collect all assets, but we provide building data with overload_ratio
+          afterData = {
+            building: {
+              building: {
+                ...building,
+                overload_ratio: building.overload_ratio || null
+              }
+            }
+          };
         }
         
-        const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, undefined, description);
+        const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, afterData, description);
 
         if (result.success) {
           savedCount = result.count || 0;

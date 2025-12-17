@@ -265,57 +265,121 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
         const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
         
-        // Fetch distribution assets - get action_ids from assets and assets_history tables, then get all audit records
-        // This ensures we get ALL distributions for this asset, not just the latest
+        // Fetch distribution assets - use TWO approaches to ensure we get ALL distributions:
+        // 1. Get action_ids from assets and assets_history tables
+        // 2. Query audit table directly for all distribute_shared actions and check if asset is involved
         if (asset?.asset_id && buildingNumber) {
           try {
             const allDistributeAssets: Asset[] = [];
+            const foundActionIds = new Set<number>();
             
-            // Step 1: Get all action_ids from assets table for this asset
+            // APPROACH 1: Get action_ids from assets and assets_history tables
             const { data: assetsWithActionId, error: assetsErr } = await supabase
               .from('assets')
               .select('action_id')
               .eq('asset_id', asset.asset_id)
               .not('action_id', 'is', null);
             
-            // Step 2: Get all action_ids from assets_history table for this asset
             const { data: historyWithActionId, error: historyErr } = await supabase
               .from('assets_history')
               .select('action_id')
               .eq('asset_id', asset.asset_id)
               .not('action_id', 'is', null);
             
-            // Step 3: Collect all unique action_ids
-            const allActionIds = new Set<number>();
+            const actionIdsFromTables = new Set<number>();
             if (!assetsErr && assetsWithActionId) {
               assetsWithActionId.forEach(a => {
                 if (a.action_id) {
-                  allActionIds.add(a.action_id);
+                  const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
+                  if (!isNaN(id)) {
+                    actionIdsFromTables.add(id);
+                    foundActionIds.add(id);
+                  }
                 }
               });
             }
             if (!historyErr && historyWithActionId) {
               historyWithActionId.forEach(a => {
                 if (a.action_id) {
-                  allActionIds.add(a.action_id);
+                  const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
+                  if (!isNaN(id)) {
+                    actionIdsFromTables.add(id);
+                    foundActionIds.add(id);
+                  }
                 }
               });
             }
             
-            // Step 4: Query audit table to get ALL records for these action_ids
-            // Then filter for distribute_shared in the results
-            const actionIdsArray = Array.from(allActionIds);
-            if (actionIdsArray.length > 0) {
-              // Get ALL audit records for these action_ids
-              const { data: allAuditsForActionIds, error: auditsErr } = await supabase
+            // APPROACH 2: Query audit table directly for distribute_shared actions
+            // Then check if this asset is in before_data or after_data
+            // This catches distributions even if action_id wasn't set on the asset
+            // We can't filter by building_number directly, so we'll fetch and filter in memory
+            // For efficiency, we could limit to recent distributions, but for now we'll get all
+            const { data: allDistributeAuditsDirect, error: directAuditsErr } = await supabase
+              .from('audit')
+              .select('action_id, before_data, after_data, entity_id, created_at, action_type')
+              .eq('action_type', 'distribute_shared')
+              .eq('entity_type', 'bulk_asset')
+              .order('created_at', { ascending: false })
+              .limit(1000); // Limit to prevent performance issues
+            
+            // Combine both approaches: use action_ids from tables, plus any from direct audit query
+            const allDistributeAudits: any[] = [];
+            
+            // First, get audits for action_ids from tables
+            if (actionIdsFromTables.size > 0) {
+              const actionIdsArray = Array.from(actionIdsFromTables);
+              const { data: auditsForActionIds, error: auditsErr } = await supabase
                 .from('audit')
                 .select('action_id, before_data, after_data, entity_id, created_at, action_type')
                 .in('action_id', actionIdsArray)
+                .eq('action_type', 'distribute_shared')
                 .order('created_at', { ascending: false });
               
-              if (!auditsErr && allAuditsForActionIds) {
-                // Step 5: Filter for only distribute_shared actions
-                const allDistributeAudits = allAuditsForActionIds.filter(audit => audit.action_type === 'distribute_shared');
+              if (!auditsErr && auditsForActionIds) {
+                allDistributeAudits.push(...auditsForActionIds);
+              }
+            }
+            
+            // Second, check direct audit query results to find any distributions involving this asset
+            if (!directAuditsErr && allDistributeAuditsDirect) {
+              allDistributeAuditsDirect.forEach(audit => {
+                // Only add if we haven't already found this action_id
+                const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
+                if (!isNaN(auditActionId) && !foundActionIds.has(auditActionId)) {
+                  try {
+                    const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                    const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
+                    const afterAssets = afterData?.assets || [];
+                    const beforeAssets = beforeData?.assets || [];
+                    
+                    // Check if this asset is involved in this distribution
+                    const assetInAfter = afterAssets.some((a: any) => a.asset_id === asset.asset_id);
+                    const assetInBefore = beforeAssets.some((a: any) => a.asset_id === asset.asset_id);
+                    
+                    if (assetInAfter || assetInBefore) {
+                      allDistributeAudits.push(audit);
+                      foundActionIds.add(auditActionId);
+                    }
+                  } catch (e) {
+                    // Skip if parsing fails
+                  }
+                }
+              });
+            }
+            
+            // Remove duplicates (same action_id)
+            const uniqueAudits = new Map<number, any>();
+            allDistributeAudits.forEach(audit => {
+              const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
+              if (!isNaN(auditActionId) && !uniqueAudits.has(auditActionId)) {
+                uniqueAudits.set(auditActionId, audit);
+              }
+            });
+            
+            const allDistributeAuditsUnique = Array.from(uniqueAudits.values());
+            
+            if (allDistributeAuditsUnique.length > 0) {
                 
                 if (allDistributeAudits.length > 0) {
                   // Create a map of asset types with non_accountable_for_distribution = true
@@ -333,30 +397,48 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   // Step 6: For each distribution audit, get the current asset from after_data
                   // This ensures we have one record per distribution action_id
                   // Each audit.action_id represents a unique distribution operation
-                  allDistributeAudits.forEach(audit => {
+                  allDistributeAuditsUnique.forEach(audit => {
                     try {
                       const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
                       const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
                       const afterAssets = afterData?.assets || [];
                       const beforeAssets = beforeData?.assets || [];
                       
+                      // Normalize audit.action_id to number for comparison
+                      const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
+                      if (isNaN(auditActionId)) {
+                        return; // Skip if action_id is invalid
+                      }
+                      
+                      // Check if we already have an asset with this action_id (should only be one per action_id)
+                      const alreadyExists = allDistributeAssets.some(a => {
+                        const aId = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
+                        return !isNaN(aId) && aId === auditActionId;
+                      });
+                      
+                      if (alreadyExists) {
+                        return; // Skip if we already have this distribution
+                      }
+                      
                       // Find the current asset in after_data (state after this distribution)
-                      const currentAssetInAfter = afterAssets.find((a: any) => a.asset_id === asset.asset_id);
+                      const currentAssetInAfter = afterAssets.find((a: any) => 
+                        a.asset_id === asset.asset_id && 
+                        a.building_number === buildingNumber
+                      );
                       if (currentAssetInAfter) {
-                        // Check if we already have an asset with this action_id (should only be one per action_id)
-                        const alreadyExists = allDistributeAssets.some(a => a.action_id === audit.action_id);
-                        if (!alreadyExists) {
-                          // CRITICAL: Set action_id from audit.action_id to ensure each distribution has unique action_id
-                          allDistributeAssets.push({
-                            ...currentAssetInAfter,
-                            is_latest: false,
-                            action_id: audit.action_id, // Use audit.action_id (unique per distribution)
-                            history_created_at: audit.created_at
-                          } as Asset);
-                        }
+                        // CRITICAL: Set action_id from audit.action_id to ensure each distribution has unique action_id
+                        allDistributeAssets.push({
+                          ...currentAssetInAfter,
+                          is_latest: false,
+                          action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
+                          history_created_at: audit.created_at
+                        } as Asset);
                       } else {
                         // If not in after_data, check before_data (for non-accountable assets)
-                        const currentAssetInBefore = beforeAssets.find((a: any) => a.asset_id === asset.asset_id);
+                        const currentAssetInBefore = beforeAssets.find((a: any) => 
+                          a.asset_id === asset.asset_id && 
+                          a.building_number === buildingNumber
+                        );
                         if (currentAssetInBefore) {
                           const mainTypeStr = String(currentAssetInBefore.main_asset_type || '').trim();
                           const mainTypeNum = parseInt(mainTypeStr, 10);
@@ -365,16 +447,12 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                             (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
                           
                           if (isNonAccountableForDistribution) {
-                            // Check if we already have an asset with this action_id
-                            const alreadyExists = allDistributeAssets.some(a => a.action_id === audit.action_id);
-                            if (!alreadyExists) {
-                              allDistributeAssets.push({
-                                ...currentAssetInBefore,
-                                is_latest: false,
-                                action_id: audit.action_id, // Use audit.action_id (unique per distribution)
-                                history_created_at: audit.created_at
-                              } as Asset);
-                            }
+                            allDistributeAssets.push({
+                              ...currentAssetInBefore,
+                              is_latest: false,
+                              action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
+                              history_created_at: audit.created_at
+                            } as Asset);
                           }
                         }
                       }
@@ -387,13 +465,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                   
                   if (process.env.NODE_ENV === 'development') {
                     console.log('[AssetDetails] Distribution assets loaded from audit records:', {
-                      totalActionIds: actionIdsArray.length,
-                      distributionActionIds: allDistributeAudits.map(a => a.action_id),
-                      auditCount: allDistributeAudits.length,
+                      actionIdsFromTables: Array.from(actionIdsFromTables),
+                      totalUniqueAudits: allDistributeAuditsUnique.length,
+                      distributionActionIds: allDistributeAuditsUnique.map(a => {
+                        const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
+                        return id;
+                      }),
+                      auditCount: allDistributeAuditsUnique.length,
                       assetCount: allDistributeAssets.length,
                       assets: allDistributeAssets.map(a => ({
                         asset_id: a.asset_id,
                         action_id: a.action_id,
+                        action_id_type: typeof a.action_id,
                         measurement_date: a.measurement_date
                       }))
                     });

@@ -443,6 +443,31 @@ BEGIN
         COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
       );
     ELSE
+      -- Check if is_new_measurement is true - if so, copy to history before update
+      IF COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false) = true THEN
+        -- Copy current asset to history before updating
+        -- Preserve the old action_id in history (before the new distribution action_id is set)
+        INSERT INTO assets_history (
+          asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+          sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+          sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+          sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+          elevator, single_double_family, condo, townhouses, penthouse,
+          structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
+          area_from_distribution, exported_to_automation, action_id, created_at, updated_at
+        )
+        SELECT 
+          asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+          sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+          sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+          sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+          elevator, single_double_family, condo, townhouses, penthouse,
+          structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
+          area_from_distribution, exported_to_automation, action_id, created_at, updated_at
+        FROM assets
+        WHERE asset_id = v_asset_id;
+      END IF;
+      
       -- UPDATE existing asset - only update fields that are provided
       UPDATE assets
       SET
@@ -476,6 +501,7 @@ BEGIN
         discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
         area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
         exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
+        is_new_measurement = false, -- Reset flag after copying to history
         action_id = CASE 
           WHEN p_action_type = 'distribute_shared' THEN v_action_id 
           ELSE action_id 

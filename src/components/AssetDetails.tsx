@@ -1270,9 +1270,18 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
 
   // Load audit details when a row is expanded
   const loadAuditDetails = useCallback(async (actionId: number) => {
-    // Check if already loaded
-    if (auditDataCache.has(actionId)) {
+    // Check if already loaded (but allow reload if data is incomplete)
+    const existingData = auditDataCache.get(actionId);
+    if (existingData && !existingData.loading && existingData.auditLog && 
+        (existingData.beforeAssets.length > 0 || existingData.afterAssets.length > 0)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetDetails] Audit data already loaded for actionId:', actionId);
+      }
       return;
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AssetDetails] Loading audit details for actionId:', actionId);
     }
     
     // Set loading state
@@ -1366,14 +1375,25 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
       
       // Update cache with loaded data (no buildings)
-      setAuditDataCache(prev => new Map(prev).set(actionId, {
-        auditLog: audit,
-        loading: false,
-        error: null,
-        beforeAssets,
-        afterAssets,
-        relatedAssets: allAssets
-      }));
+      setAuditDataCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(actionId, {
+          auditLog: audit,
+          loading: false,
+          error: null,
+          beforeAssets,
+          afterAssets,
+          relatedAssets: allAssets
+        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AssetDetails] Cached audit data for actionId:', actionId, {
+            beforeAssetsCount: beforeAssets.length,
+            afterAssetsCount: afterAssets.length,
+            auditActionType: audit.action_type
+          });
+        }
+        return newCache;
+      });
       
       // Increment refresh key to force DetailRowRenderer to re-render with new data
       setDetailRowRefreshKey(prev => prev + 1);
@@ -4556,19 +4576,39 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                       columnDefs={columnDefs}
                     isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
                     fullWidthCellRenderer={DetailRowRenderer}
-                    fullWidthCellRendererParams={(params: any) => ({
-                      expandedRows: expandedHistoryRows,
-                      auditDataCache,
-                      assetColumnDefs,
-                      currentTabAssetId: asset?.asset_id,
-                      refreshKey: detailRowRefreshKey, // Force re-render when this changes
-                      onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
-                        // Navigate to asset view - dispatch custom event that App.tsx can listen to
-                        window.dispatchEvent(new CustomEvent('openAssetView', {
-                          detail: { assetDbId, assetId, buildingNumber, taxRegion }
-                        }));
+                    fullWidthCellRendererParams={(params: any) => {
+                      // Ensure the data object has the correct _actionId
+                      // This is critical for DetailRowRenderer to look up the correct audit data
+                      const rowData = params.data;
+                      const actionId = rowData?._actionId || rowData?.action_id;
+                      
+                      if (process.env.NODE_ENV === 'development' && rowData?._isDetailRow) {
+                        console.log('[AssetDetails] fullWidthCellRendererParams for detail row:', {
+                          _actionId: rowData._actionId,
+                          action_id: rowData.action_id,
+                          _parentActionId: rowData._parentActionId,
+                          availableCacheKeys: Array.from(auditDataCache.keys())
+                        });
                       }
-                    })}
+                      
+                      return {
+                        data: {
+                          ...rowData,
+                          _actionId: actionId // Ensure _actionId is set correctly
+                        },
+                        expandedRows: expandedHistoryRows,
+                        auditDataCache,
+                        assetColumnDefs,
+                        currentTabAssetId: asset?.asset_id,
+                        refreshKey: detailRowRefreshKey, // Force re-render when this changes
+                        onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
+                          // Navigate to asset view - dispatch custom event that App.tsx can listen to
+                          window.dispatchEvent(new CustomEvent('openAssetView', {
+                            detail: { assetDbId, assetId, buildingNumber, taxRegion }
+                          }));
+                        }
+                      };
+                    }}
                     defaultColDef={{
                       resizable: true,
                       wrapHeaderText: true,

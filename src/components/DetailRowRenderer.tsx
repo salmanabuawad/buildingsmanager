@@ -27,6 +27,12 @@ export function DetailRowRenderer(params: DetailRowParams) {
   }
 
   const actionId = data._actionId;
+  
+  // Debug: Log which actionId we're looking for
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DetailRowRenderer] Rendering for actionId:', actionId, 'Available cache keys:', Array.from(params.auditDataCache.keys()));
+  }
+  
   const auditData = params.auditDataCache.get(actionId);
 
   if (!auditData) {

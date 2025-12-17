@@ -630,11 +630,31 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [activeHistoryTab]);
 
   // Filter history rows by action_type
+  // IMPORTANT: All history records from assets_history should show in regular history tab
+  // because they represent previous states/measurements of the asset
+  // The action_id on a history record represents the action that moved it to history
+  // (i.e., the action that created the NEXT state), but the history record itself
+  // should be visible in regular history as it's a previous measurement
   const regularHistoryRows = useMemo(() => {
+    // Show ALL history rows in regular history, regardless of action_id
+    // History records represent previous states and should all be visible
+    // Distribution and transfer tabs show the operations, but regular history shows all previous states
     const filtered = historyRows.filter(row => {
-      if (row.action_id == null) return true; // Records without action_id are regular history
+      // Records without action_id are always regular history
+      if (row.action_id == null) return true;
+      
+      // For records with action_id, check the action type
       const actionType = historyWithActionTypes.get(row.action_id);
-      return actionType === 'manual_update' || actionType === 'import_file' || actionType === null;
+      
+      // Show manual updates, imports, and null/unknown in regular history
+      // Also show distribution/transfer history records in regular history
+      // because they represent previous states before those operations
+      // (The distribution/transfer tabs show the operations themselves, not the history records)
+      return actionType === 'manual_update' || 
+             actionType === 'import_file' || 
+             actionType === null ||
+             actionType === 'distribute_shared' ||
+             actionType === 'transfer_area';
     });
     
     // Group by action_id and return only one master record per action_id

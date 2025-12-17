@@ -1961,7 +1961,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         'גודל נכס משנה 5',
         'סוג נכס משנה 6',
         'גודל נכס משנה 6',
-        'שטח פיזור'  // area_from_distribution
+        'שטח מפיזור'  // area_from_distribution
       ];
 
       // Convert assets to rows
@@ -2842,7 +2842,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     },
     {
       field: 'area_from_distribution',
-      headerName: 'שטח פיזור',
+      headerName: 'שטח מפיזור',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

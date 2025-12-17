@@ -1291,7 +1291,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
   // Distribute shared area to all residential assets
   const handleDistributeSharedArea = useCallback(async () => {
-    if (!building || building.residence_shared_area == null || building.residence_shared_area <= 0) {
+    // Allow distribution if flag is set, even if current area is 0 (to clear previous distribution)
+    if (!building || building.residence_shared_area == null) {
+      setError('אין שטח משותף מגורים במבנה');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    // If area is 0 but flag is set, allow distribution to clear previous distribution
+    if (building.residence_shared_area <= 0 && building.need_residence_distribution !== true) {
       setError('אין שטח משותף מגורים במבנה או השטח הוא 0');
       setTimeout(() => setError(null), 3000);
       return;
@@ -1686,7 +1694,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       setAssets(updatedAssets);
       
       // Show result in modal
-      setDistributionResult(`פוזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. השינויים יישמרו בלחיצה על "שמור הכל"`);
+      const sharedAreaText = building.residence_shared_area! > 0 
+        ? building.residence_shared_area!.toLocaleString('he-IL')
+        : '0 (ניקוי פיזור קודם)';
+      setDistributionResult(`פוזר שטח משותף מגורים (${sharedAreaText}) בין ${updatedCount} נכסים. השינויים יישמרו בלחיצה על "שמור הכל"`);
       setDistributionModalOpen(true);
 
       // Refresh grid
@@ -1702,7 +1713,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountableForDistribution]);
 
   const handleDistributeBusinessSharedArea = useCallback(async () => {
-    if (!building || !building.business_shared_area || building.business_shared_area <= 0) {
+    // Allow distribution if flag is set, even if current area is 0 (to clear previous distribution)
+    if (!building || building.business_shared_area == null) {
+      setError('אין שטח משותף עסקים במבנה');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    // If area is 0 but flag is set, allow distribution to clear previous distribution
+    if (building.business_shared_area <= 0 && building.need_business_distribution !== true) {
       setError('אין שטח משותף עסקים במבנה או השטח הוא 0');
       setTimeout(() => setError(null), 3000);
       return;
@@ -1827,7 +1846,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         totalMainSize += baseAssetSize;
       }
 
-      if (totalMainSize <= 0) {
+      // If shared area is 0, we're clearing the distribution - allow this even if totalMainSize is 0
+      const isClearingDistribution = building.business_shared_area! <= 0;
+      
+      if (totalMainSize <= 0 && !isClearingDistribution) {
         setError('סכום שטחי הנכסים העסקיים הוא 0 או שלילי');
         setTimeout(() => setError(null), 3000);
         setLoading(false);
@@ -1835,7 +1857,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       }
 
       // Calculate overload ratio = business_shared_area / totalMainSize
-      const overloadRatio = building.business_shared_area! / totalMainSize;
+      // If shared area is 0, overloadRatio will be 0 (clearing distribution)
+      // If totalMainSize is 0 but we're clearing, use 0 for overloadRatio
+      const overloadRatio = totalMainSize > 0 ? (building.business_shared_area! / totalMainSize) : 0;
       // Convert to percentage for storage (multiply by 100)
       const overloadRatioPercentage = overloadRatio * 100;
 
@@ -1935,7 +1959,13 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       
       // Note: Building state with updated overload_ratio was already set in the try block above
       // Show result in modal
-      setDistributionResult(`פוזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין ${updatedCount} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%. השינויים יישמרו בלחיצה על "שמור הכל"`);
+      const sharedAreaText = building.business_shared_area! > 0 
+        ? building.business_shared_area!.toLocaleString('he-IL')
+        : '0 (ניקוי פיזור קודם)';
+      const overloadRatioText = building.business_shared_area! > 0
+        ? ` יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%.`
+        : '';
+      setDistributionResult(`פוזר שטח משותף עסקים (${sharedAreaText}) בין ${updatedCount} נכסים.${overloadRatioText} השינויים יישמרו בלחיצה על "שמור הכל"`);
       setDistributionModalOpen(true);
 
       // Refresh grid
@@ -3221,7 +3251,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               disabled={loading || assets.length === 0 || building.need_residence_distribution !== true}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
               title={building.need_residence_distribution === true 
-                ? `פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`
+                ? building.residence_shared_area! > 0
+                  ? `פזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין כל נכסי המגורים`
+                  : 'נקה פיזור קודם של שטח משותף מגורים (שטח משותף = 0)'
                 : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
             >
               <Download className="h-4 w-4" />
@@ -3236,7 +3268,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               disabled={loading || assets.length === 0 || building.need_business_distribution !== true}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
               title={building.need_business_distribution === true
-                ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
+                ? building.business_shared_area! > 0
+                  ? `פזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין כל נכסי העסקים`
+                  : 'נקה פיזור קודם של שטח משותף עסקים (שטח משותף = 0)'
                 : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
             >
               <Download className="h-4 w-4" />

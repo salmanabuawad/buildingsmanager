@@ -3115,16 +3115,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       {building && (() => {
         // Check if distribution is needed: flag must be true (needs distribution)
         // With new field names: true = needs distribution, false = already distributed
+        // Show alert even if shared area is 0, as long as the flag is raised
         const needsResidenceDistribution = isResidentTaxRegion && 
           building.residence_shared_area != null && 
-          building.residence_shared_area > 0 && 
           building.need_residence_distribution === true;
         
         const needsBusinessDistribution = taxRegion && 
           !isMultiTaxRegion && 
           !isResidentTaxRegion && 
           building.business_shared_area != null && 
-          building.business_shared_area > 0 && 
           building.need_business_distribution === true;
         
         if (!needsResidenceDistribution && !needsBusinessDistribution) {

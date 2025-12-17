@@ -68,31 +68,41 @@ BEGIN
       CONTINUE;
     END IF;
     
-    -- Get old values
-    v_old_residence_area := COALESCE(v_old_building.residence_shared_area, 0);
-    v_old_business_area := COALESCE(v_old_building.business_shared_area, 0);
+    -- Get old values (keep NULL as NULL, don't convert to 0)
+    v_old_residence_area := v_old_building.residence_shared_area;
+    v_old_business_area := v_old_building.business_shared_area;
     
     -- Get new values from updates
-    v_new_residence_area := COALESCE((v_updates->>'residence_shared_area')::NUMERIC, v_old_residence_area);
-    v_new_business_area := COALESCE((v_updates->>'business_shared_area')::NUMERIC, v_old_business_area);
+    -- If the field is provided in updates, use it; otherwise keep the old value
+    IF v_updates ? 'residence_shared_area' THEN
+      v_new_residence_area := (v_updates->>'residence_shared_area')::NUMERIC;
+    ELSE
+      v_new_residence_area := v_old_residence_area;
+    END IF;
+    
+    IF v_updates ? 'business_shared_area' THEN
+      v_new_business_area := (v_updates->>'business_shared_area')::NUMERIC;
+    ELSE
+      v_new_business_area := v_old_business_area;
+    END IF;
     
     -- Start with the provided updates
     v_final_updates := v_updates;
     
-    -- Check if residence_shared_area changed (even if new value is zero)
-    IF v_old_residence_area IS DISTINCT FROM v_new_residence_area 
-       AND v_new_residence_area IS NOT NULL THEN
-      -- Set need_residence_distribution flag to true when shared area changes (even if new value is 0)
+    -- Check if residence_shared_area changed (even if new value is zero or NULL)
+    -- Set flag whenever old value is different from new value
+    IF v_old_residence_area IS DISTINCT FROM v_new_residence_area THEN
+      -- Set need_residence_distribution flag to true when shared area changes
       v_final_updates := v_final_updates || jsonb_build_object('need_residence_distribution', true);
       
       RAISE NOTICE 'Setting need_residence_distribution=true for building % (residence_shared_area changed from % to %)', 
         v_building_number, v_old_residence_area, v_new_residence_area;
     END IF;
     
-    -- Check if business_shared_area changed (even if new value is zero)
-    IF v_old_business_area IS DISTINCT FROM v_new_business_area 
-       AND v_new_business_area IS NOT NULL THEN
-      -- Set need_business_distribution flag to true when shared area changes (even if new value is 0)
+    -- Check if business_shared_area changed (even if new value is zero or NULL)
+    -- Set flag whenever old value is different from new value
+    IF v_old_business_area IS DISTINCT FROM v_new_business_area THEN
+      -- Set need_business_distribution flag to true when shared area changes
       v_final_updates := v_final_updates || jsonb_build_object('need_business_distribution', true);
       
       RAISE NOTICE 'Setting need_business_distribution=true for building % (business_shared_area changed from % to %)', 

@@ -2678,17 +2678,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => {
-        // Penthouse checkbox - only editable if asset is not non-accountable
-        if (!params || !params.data) return false;
-        const asset = params.data as Asset;
-        if (isAssetNotAccountableForTotalArea(asset)) return false;
-        const assetId = String(asset.asset_id);
-        return newAssets.has(assetId) || !!taxRegion;
-      },
-      cellRenderer: penthouseCellRenderer,
-      cellStyle: { textAlign: 'center' },
-      headerClass: 'text-center'
+      editable: (params) => isFieldEditable(params, 'penthouse'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
     },
     {
       field: 'floor',

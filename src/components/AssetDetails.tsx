@@ -273,106 +273,188 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
         const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
         const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
         
-        // Fetch distribution assets - rely ENTIRELY on audit table since distributions don't create history records
-        // Distributions update assets in place, so all data is in audit.before_data and audit.after_data
-        // Query ALL distribution actions for the building, not just ones in actionIds
+        // Fetch distribution assets - get action_ids from assets and assets_history tables, then filter for distributions
+        // This is more efficient: get all action_ids for the asset, filter for distribute_shared, then query audit
         if (asset?.asset_id && buildingNumber) {
           try {
             const allDistributeAssets: Asset[] = [];
             
-            // Query ALL distribution actions for this building
-            // Filter by building_number in the assets data, not by entity_id
-            // This ensures we get ALL distributions for the building, including the latest
-            const { data: allDistributeAudits, error: distributeAuditErr } = await supabase
-              .from('audit')
-              .select('action_id, before_data, after_data, entity_id, created_at')
-              .eq('action_type', 'distribute_shared')
-              .eq('entity_type', 'bulk_asset')
-              .order('created_at', { ascending: false });
+            // Step 1: Get all action_ids from assets table for this asset
+            const { data: assetsWithActionId, error: assetsErr } = await supabase
+              .from('assets')
+              .select('action_id')
+              .eq('asset_id', asset.asset_id)
+              .not('action_id', 'is', null);
             
-            if (!distributeAuditErr && allDistributeAudits) {
-              // Create a map of asset types with non_accountable_for_distribution = true
-              const nonAccountableForDistributionTypes = new Set<string>();
-              assetTypes.forEach(at => {
-                if (at.non_accountable_for_distribution === true && at.name) {
-                  nonAccountableForDistributionTypes.add(String(at.name).trim());
-                  const nameNum = parseInt(String(at.name).trim(), 10);
-                  if (!isNaN(nameNum)) {
-                    nonAccountableForDistributionTypes.add(String(nameNum));
-                  }
+            // Step 2: Get all action_ids from assets_history table for this asset
+            const { data: historyWithActionId, error: historyErr } = await supabase
+              .from('assets_history')
+              .select('action_id')
+              .eq('asset_id', asset.asset_id)
+              .not('action_id', 'is', null);
+            
+            // Step 3: Collect all unique action_ids
+            const allActionIds = new Set<number>();
+            if (!assetsErr && assetsWithActionId) {
+              assetsWithActionId.forEach(a => {
+                if (a.action_id) {
+                  allActionIds.add(a.action_id);
                 }
               });
+            }
+            if (!historyErr && historyWithActionId) {
+              historyWithActionId.forEach(a => {
+                if (a.action_id) {
+                  allActionIds.add(a.action_id);
+                }
+              });
+            }
+            
+            // Step 4: Query audit table to get action_type for these action_ids and filter for distribute_shared
+            const actionIdsArray = Array.from(allActionIds);
+            if (actionIdsArray.length > 0) {
+              const { data: auditsForActionIds, error: auditsErr } = await supabase
+                .from('audit')
+                .select('action_id, action_type')
+                .in('action_id', actionIdsArray);
               
-              allDistributeAudits.forEach(audit => {
-                try {
-                  // Check if this distribution affects assets in the current building
-                  const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                  const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
-                  const afterAssets = afterData?.assets || [];
-                  const beforeAssets = beforeData?.assets || [];
-                  
-                  // Check if any asset in this distribution belongs to the current building
-                  const affectsThisBuilding = afterAssets.some((a: any) => a.building_number === buildingNumber) ||
-                                             beforeAssets.some((a: any) => a.building_number === buildingNumber);
-                  
-                  // Check if current asset is affected
-                  const isCurrentAssetAffected = afterAssets.some((a: any) => a.asset_id === asset.asset_id) ||
-                                                beforeAssets.some((a: any) => a.asset_id === asset.asset_id);
-                  
-                  // Process if this distribution affects the building and the current asset
-                  if (affectsThisBuilding && isCurrentAssetAffected) {
-                    // Add the current asset from after_data (state after distribution)
-                    afterAssets.forEach((assetData: any) => {
-                      if (assetData.asset_id === asset.asset_id) {
-                        const alreadyExists = allDistributeAssets.some(a => 
-                          a.asset_id === assetData.asset_id && 
-                          a.action_id === audit.action_id &&
-                          a.measurement_date === assetData.measurement_date
-                        );
-                        if (!alreadyExists) {
-                          allDistributeAssets.push({
-                            ...assetData,
-                            is_latest: false,
-                            action_id: audit.action_id,
-                            history_created_at: audit.created_at
-                          } as Asset);
-                        }
+              // Step 5: Filter for only distribute_shared actions
+              const distributionActionIds = new Set<number>();
+              if (!auditsErr && auditsForActionIds) {
+                auditsForActionIds.forEach(audit => {
+                  if (audit.action_type === 'distribute_shared') {
+                    distributionActionIds.add(audit.action_id);
+                  }
+                });
+              }
+              
+              // Step 6: Get full audit data for distribution actions
+              const distributionActionIdsArray = Array.from(distributionActionIds);
+              if (distributionActionIdsArray.length > 0) {
+                const { data: distributeAudits, error: distributeAuditErr } = await supabase
+                  .from('audit')
+                  .select('action_id, before_data, after_data, entity_id, created_at')
+                  .in('action_id', distributionActionIdsArray)
+                  .order('created_at', { ascending: false });
+                
+                if (!distributeAuditErr && distributeAudits) {
+                  // Create a map of asset types with non_accountable_for_distribution = true
+                  const nonAccountableForDistributionTypes = new Set<string>();
+                  assetTypes.forEach(at => {
+                    if (at.non_accountable_for_distribution === true && at.name) {
+                      nonAccountableForDistributionTypes.add(String(at.name).trim());
+                      const nameNum = parseInt(String(at.name).trim(), 10);
+                      if (!isNaN(nameNum)) {
+                        nonAccountableForDistributionTypes.add(String(nameNum));
                       }
+                    }
+                  });
+                  
+                  // Step 7: Get assets from assets table with distribution action_ids
+                  const { data: distributeAssetsFromTable, error: assetsTableErr } = await supabase
+                    .from('assets')
+                    .select('*')
+                    .eq('asset_id', asset.asset_id)
+                    .in('action_id', distributionActionIdsArray);
+                  
+                  if (!assetsTableErr && distributeAssetsFromTable) {
+                    distributeAssetsFromTable.forEach(assetData => {
+                      const audit = distributeAudits.find(a => a.action_id === assetData.action_id);
+                      allDistributeAssets.push({
+                        ...assetData,
+                        is_latest: false,
+                        history_created_at: audit?.created_at || null
+                      } as Asset);
                     });
-                    
-                    // Also add non-accountable assets from before_data if they're the current asset
-                    beforeAssets.forEach((assetData: any) => {
-                      if (!assetData.main_asset_type || assetData.asset_id !== asset.asset_id) return;
-                      
-                      const mainTypeStr = String(assetData.main_asset_type).trim();
-                      const mainTypeNum = parseInt(mainTypeStr, 10);
-                      const isNonAccountableForDistribution = 
-                        nonAccountableForDistributionTypes.has(mainTypeStr) ||
-                        (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
-                      
-                      if (isNonAccountableForDistribution) {
-                        const alreadyExists = allDistributeAssets.some(a => 
-                          a.asset_id === assetData.asset_id && 
-                          a.action_id === audit.action_id &&
-                          a.measurement_date === assetData.measurement_date
-                        );
-                        if (!alreadyExists) {
-                          allDistributeAssets.push({
-                            ...assetData,
-                            is_latest: false,
-                            action_id: audit.action_id,
-                            history_created_at: audit.created_at
-                          } as Asset);
-                        }
+                  }
+                  
+                  // Step 8: Get assets from assets_history table with distribution action_ids
+                  const { data: distributeHistoryFromTable, error: historyTableErr } = await supabase
+                    .from('assets_history')
+                    .select('*')
+                    .eq('asset_id', asset.asset_id)
+                    .in('action_id', distributionActionIdsArray);
+                  
+                  if (!historyTableErr && distributeHistoryFromTable) {
+                    distributeHistoryFromTable.forEach(assetData => {
+                      const audit = distributeAudits.find(a => a.action_id === assetData.action_id);
+                      const alreadyExists = allDistributeAssets.some(a => 
+                        a.asset_id === assetData.asset_id && 
+                        a.action_id === assetData.action_id &&
+                        a.measurement_date === assetData.measurement_date
+                      );
+                      if (!alreadyExists) {
+                        allDistributeAssets.push({
+                          ...assetData,
+                          is_latest: false,
+                          history_created_at: audit?.created_at || assetData.history_created_at || null
+                        } as Asset);
                       }
                     });
                   }
-                } catch (e) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
-                  }
+                  
+                  // Step 9: Also get data from audit before_data/after_data for completeness
+                  // This ensures we have all affected assets even if they're not in assets/assets_history
+                  distributeAudits.forEach(audit => {
+                    try {
+                      const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
+                      const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
+                      const afterAssets = afterData?.assets || [];
+                      const beforeAssets = beforeData?.assets || [];
+                      
+                      // Add current asset from after_data if not already added
+                      afterAssets.forEach((assetData: any) => {
+                        if (assetData.asset_id === asset.asset_id) {
+                          const alreadyExists = allDistributeAssets.some(a => 
+                            a.asset_id === assetData.asset_id && 
+                            a.action_id === audit.action_id &&
+                            a.measurement_date === assetData.measurement_date
+                          );
+                          if (!alreadyExists) {
+                            allDistributeAssets.push({
+                              ...assetData,
+                              is_latest: false,
+                              action_id: audit.action_id,
+                              history_created_at: audit.created_at
+                            } as Asset);
+                          }
+                        }
+                      });
+                      
+                      // Add non-accountable assets from before_data
+                      beforeAssets.forEach((assetData: any) => {
+                        if (!assetData.main_asset_type || assetData.asset_id !== asset.asset_id) return;
+                        
+                        const mainTypeStr = String(assetData.main_asset_type).trim();
+                        const mainTypeNum = parseInt(mainTypeStr, 10);
+                        const isNonAccountableForDistribution = 
+                          nonAccountableForDistributionTypes.has(mainTypeStr) ||
+                          (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
+                        
+                        if (isNonAccountableForDistribution) {
+                          const alreadyExists = allDistributeAssets.some(a => 
+                            a.asset_id === assetData.asset_id && 
+                            a.action_id === audit.action_id &&
+                            a.measurement_date === assetData.measurement_date
+                          );
+                          if (!alreadyExists) {
+                            allDistributeAssets.push({
+                              ...assetData,
+                              is_latest: false,
+                              action_id: audit.action_id,
+                              history_created_at: audit.created_at
+                            } as Asset);
+                          }
+                        }
+                      });
+                    } catch (e) {
+                      if (process.env.NODE_ENV === 'development') {
+                        console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
+                      }
+                    }
+                  });
                 }
-              });
+              }
             }
             
             setAdditionalDistributionAssets(allDistributeAssets);

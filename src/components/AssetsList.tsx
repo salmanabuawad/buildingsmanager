@@ -3065,7 +3065,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         }
         
         return (
-          <div className="fixed top-4 right-4 z-50 max-w-md space-y-2">
+          <div className="fixed bottom-4 left-4 z-50 max-w-md space-y-2">
             {needsResidenceDistribution && (
               <div className="animate-pulse" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
                 <div className="bg-amber-500 border-l-4 border-amber-700 rounded-lg p-4 shadow-lg">
@@ -3439,10 +3439,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
       />
 
-      {/* Distribution Result Alert - Bottom Left Corner */}
+      {/* Distribution Result Modal */}
       {distributionModalOpen && distributionResult && (
-        <div className="fixed bottom-4 left-4 z-50 max-w-md w-full mx-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 border-l-4 border-blue-500">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setDistributionModalOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">תוצאות פיזור שטח משותף</h3>
               <button
@@ -3454,9 +3454,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
               </button>
             </div>
             <div className="mb-6">
-              <p className="text-gray-700 text-lg">{distributionResult}</p>
+              <p className="text-gray-700 text-lg text-center">{distributionResult}</p>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-center">
               <button
                 onClick={() => setDistributionModalOpen(false)}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-semibold"

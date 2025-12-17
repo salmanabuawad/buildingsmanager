@@ -439,17 +439,14 @@ BEGIN
         (v_asset_data->>'discount_type')::TEXT,
         (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT,
-        (v_asset_data->>'business_area_from_distribution')::NUMERIC,
+        (v_asset_data->>'area_from_distribution')::NUMERIC,
         COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
       );
     ELSE
       -- Check if is_new_measurement is true - if so, copy to history before update
-      -- This ensures distribution saves act like "save as new measurement"
-      -- The old data is moved to history, preserving the complete state before distribution
       IF COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false) = true THEN
         -- Copy current asset to history before updating
         -- Preserve the old action_id in history (before the new distribution action_id is set)
-        -- history_created_at will be set automatically to NOW() via DEFAULT
         INSERT INTO assets_history (
           asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
           sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,

@@ -3031,7 +3031,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             <h3 className="text-lg font-semibold text-indigo-900">ייבוא רגיל - כל השדות</h3>
           </div>
           <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-wrap gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -3043,17 +3043,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     const fileName = file.name.toLowerCase();
                     const validExtensions = ['.xlsx', '.xls'];
                     const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
-                    
+
                     if (!isValidFile) {
-                      setErrorModal({ 
-                        isOpen: true, 
+                      setErrorModal({
+                        isOpen: true,
                         message: 'יש לבחור קובץ Excel בלבד (.xlsx או .xls)',
                         title: 'סוג קובץ לא תקין'
                       });
                       e.target.value = '';
                       return;
                     }
-                    
+
                     handleFileUpload(e);
                   }
                 }}
@@ -3064,7 +3064,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isParsing}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
                 {isParsing ? (
                   <>
@@ -3113,7 +3113,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             <h3 className="text-lg font-semibold text-orange-900">ייבוא שלד - מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם</h3>
           </div>
           <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-wrap gap-3">
               <input
                 ref={skeletonFileInputRef}
                 type="file"
@@ -3125,17 +3125,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     const fileName = file.name.toLowerCase();
                     const validExtensions = ['.xlsx', '.xls'];
                     const isValidFile = validExtensions.some(ext => fileName.endsWith(ext));
-                    
+
                     if (!isValidFile) {
-                      setErrorModal({ 
-                        isOpen: true, 
+                      setErrorModal({
+                        isOpen: true,
                         message: 'יש לבחור קובץ Excel בלבד (.xlsx או .xls)',
                         title: 'סוג קובץ לא תקין'
                       });
                       e.target.value = '';
                       return;
                     }
-                    
+
                     handleSkeletonFileUpload(e);
                   }
                 }}
@@ -3146,7 +3146,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => skeletonFileInputRef.current?.click()}
                 disabled={isParsing || isSaving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
                 {isParsing || isSaving ? (
                   <>

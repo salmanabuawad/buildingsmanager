@@ -2250,6 +2250,31 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     );
   }, [newAssets, dirtyAssets]);
 
+  // Check if tax region is "resident" (מגורים)
+  // Find asset types with this tax region and check if they are all "מגורים"
+  const isResidentTaxRegion = useMemo(() => {
+    if (!taxRegion || !assetTypes || assetTypes.length === 0) return false;
+    
+    // Parse tax region (could be single number or comma-separated)
+    const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
+    
+    if (taxRegionNumbers.length === 0) return false;
+    
+    // Check if all asset types with these tax regions are "מגורים" (residence)
+    const assetTypesForTaxRegions = assetTypes.filter(at => 
+      at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
+    );
+    
+    if (assetTypesForTaxRegions.length === 0) return false;
+    
+    // Check if all asset types are "מגורים" (residence)
+    const allAreResidence = assetTypesForTaxRegions.every(at => 
+      at.business_residence === 'מגורים'
+    );
+    
+    return allAreResidence;
+  }, [taxRegion, assetTypes]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
@@ -2819,7 +2844,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable]);
 
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
@@ -2849,31 +2874,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     
     return allResidence;
   }, [assets, assetTypes, deletedAssets]);
-
-  // Check if tax region is "resident" (מגורים)
-  // Find asset types with this tax region and check if they are all "מגורים"
-  const isResidentTaxRegion = useMemo(() => {
-    if (!taxRegion || !assetTypes || assetTypes.length === 0) return false;
-    
-    // Parse tax region (could be single number or comma-separated)
-    const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
-    
-    if (taxRegionNumbers.length === 0) return false;
-    
-    // Check if all asset types with these tax regions are "מגורים" (residence)
-    const assetTypesForTaxRegions = assetTypes.filter(at => 
-      at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
-    );
-    
-    if (assetTypesForTaxRegions.length === 0) return false;
-    
-    // Check if all asset types are "מגורים" (residence)
-    const allAreResidence = assetTypesForTaxRegions.every(at => 
-      at.business_residence === 'מגורים'
-    );
-    
-    return allAreResidence;
-  }, [taxRegion, assetTypes]);
 
   // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or taxRegion itself contains comma)
   const isMultiTaxRegion = useMemo(() => {

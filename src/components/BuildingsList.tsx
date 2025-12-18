@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
 import { buildingValidators } from '../lib/validation';

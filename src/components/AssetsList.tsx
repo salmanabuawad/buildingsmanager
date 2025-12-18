@@ -445,83 +445,9 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         )
       );
 
-      // If asset_size changed, raise the relevant distribution flag
-      if (field === 'asset_size' && building && assetTypes && assetTypes.length > 0) {
-        try {
-          // Determine if asset is residence or business
-          const mainAssetType = String(updatedAsset.main_asset_type || '').trim();
-          const isResidenceAsset = mainAssetType === '199';
-          const isBusinessAsset = !isResidenceAsset && (updatedAsset.area_from_distribution != null && updatedAsset.area_from_distribution > 0);
-          
-          // Calculate if we're in a residence or business tab
-          let isResidentTaxRegionTab = false;
-          let isBusinessTaxRegionTab = false;
-          
-          if (taxRegion && assetTypes) {
-            // Parse tax region (could be single number or comma-separated)
-            const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
-            const isMultiTaxRegionTab = !taxRegion || (taxRegion && taxRegion.includes(','));
-            
-            if (taxRegionNumbers.length > 0) {
-              // Check if all asset types with these tax regions are "מגורים" (residence)
-              const assetTypesForTaxRegions = assetTypes.filter(at => 
-                at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
-              );
-              
-              if (assetTypesForTaxRegions.length > 0) {
-                const allAreResidence = assetTypesForTaxRegions.every(at => 
-                  at.business_residence === 'מגורים'
-                );
-                isResidentTaxRegionTab = allAreResidence;
-              }
-            }
-            
-            isBusinessTaxRegionTab = taxRegion && !isMultiTaxRegionTab && !isResidentTaxRegionTab;
-          }
-          
-          // Determine which flag to raise
-          let shouldRaiseResidenceFlag = false;
-          let shouldRaiseBusinessFlag = false;
-          
-          if (isResidenceAsset || isResidentTaxRegionTab) {
-            // If it's a residence asset or we're in a residence tab, raise residence flag
-            shouldRaiseResidenceFlag = true;
-          } else if (isBusinessAsset || isBusinessTaxRegionTab) {
-            // If it's a business asset or we're in a business tab, raise business flag
-            shouldRaiseBusinessFlag = true;
-          } else {
-            // If we can't determine, check if building has shared areas
-            // If building has residence shared area, assume residence
-            // If building has business shared area, assume business
-            if (building.residence_shared_area != null) {
-              shouldRaiseResidenceFlag = true;
-            }
-            if (building.business_shared_area != null) {
-              shouldRaiseBusinessFlag = true;
-            }
-          }
-          
-          // Update building flags if needed
-          const updates: any = {};
-          if (shouldRaiseResidenceFlag && building.need_residence_distribution !== true) {
-            updates.need_residence_distribution = true;
-          }
-          if (shouldRaiseBusinessFlag && building.need_business_distribution !== true) {
-            updates.need_business_distribution = true;
-          }
-          
-          if (Object.keys(updates).length > 0) {
-            // Update building flags via API
-            await api.buildings.update(building.building_number, updates);
-            
-            // Update local building state
-            setBuilding(prev => prev ? { ...prev, ...updates } : prev);
-          }
-        } catch (error) {
-          console.warn('Failed to update distribution flags after asset size change:', error);
-          // Don't show error to user - this is a background operation
-        }
-      }
+      // Distribution flags are set in the database during the transaction save,
+      // not when the field changes in the UI. This ensures flags are only set
+      // when data is actually saved.
 
       // Skip validation if asset is not_accountable - skip ALL validations including quick ones
       if (isAssetNotAccountableForTotalArea(updatedAsset)) {
@@ -1879,12 +1805,14 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
         // Calculate base asset size (reducing existing area_from_distribution)
         // This is needed to calculate the distribution proportionally to the base size
+        // Note: We only READ currentAssetSize for calculation, we do NOT update it
         const baseAssetSize = currentAssetSize - currentDistributionArea;
 
         // Calculate what the new total area_from_distribution should be based on base asset size
         const newDistributionArea = overloadRatio * baseAssetSize;
 
-        // Update area_from_distribution (only field that gets updated in distribution)
+        // IMPORTANT: Only update area_from_distribution field
+        // Do NOT update asset_size, sub_asset_size_1, or any other sub-asset sizes
         // For clearing distribution (overloadRatio = 0), set to 0; otherwise set to new value
         changes.area_from_distribution = newDistributionArea;
 

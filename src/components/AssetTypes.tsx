@@ -1135,7 +1135,7 @@ export function AssetTypes() {
                 onChange={handleFileImport}
                 className="hidden"
               />
-              <div className="flex items-center gap-1">
+              <div className="flex items-stretch gap-0">
                 <button
                   type="button"
                   onClick={() => downloadTemplate('excel')}
@@ -1148,7 +1148,7 @@ export function AssetTypes() {
                 <button
                   type="button"
                   onClick={() => downloadTemplate('csv')}
-                  className="flex items-center gap-1 px-2.5 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md font-medium text-xs"
+                  className="flex items-center justify-center px-3 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm"
                   title="הורד תבנית CSV"
                 >
                   CSV

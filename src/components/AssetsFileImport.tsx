@@ -3079,7 +3079,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 )}
               </button>
 
-              <div className="flex-1 flex items-center gap-1">
+              <div className="flex-1 flex items-stretch gap-0">
                 <button
                   type="button"
                   onClick={() => downloadTemplate('excel')}
@@ -3091,7 +3091,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <button
                   type="button"
                   onClick={() => downloadTemplate('csv')}
-                  className="px-2.5 py-2 bg-indigo-600 text-white rounded-r-lg rounded-l-none hover:bg-indigo-700 transition-colors text-xs font-medium"
+                  className="flex items-center justify-center px-3 py-2 bg-indigo-600 text-white rounded-r-lg rounded-l-none hover:bg-indigo-700 transition-colors text-sm font-medium"
                   title="הורד תבנית CSV"
                 >
                   CSV
@@ -3161,7 +3161,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 )}
               </button>
 
-              <div className="flex-1 flex items-center gap-1">
+              <div className="flex-1 flex items-stretch gap-0">
                 <button
                   type="button"
                   onClick={() => downloadSkeletonTemplate('excel')}
@@ -3174,7 +3174,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 <button
                   type="button"
                   onClick={() => downloadSkeletonTemplate('csv')}
-                  className="px-2.5 py-1.5 bg-orange-600 text-white rounded-r-lg rounded-l-none hover:bg-orange-700 transition-colors text-xs font-medium"
+                  className="flex items-center justify-center px-3 py-1.5 bg-orange-600 text-white rounded-r-lg rounded-l-none hover:bg-orange-700 transition-colors text-sm font-medium"
                   title="הורד תבנית שלד CSV"
                 >
                   CSV

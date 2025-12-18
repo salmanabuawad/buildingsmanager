@@ -3079,24 +3079,24 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 )}
               </button>
 
-              <div className="flex items-center flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => downloadTemplate('excel')}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-l-lg rounded-r-none hover:bg-indigo-700 transition-colors text-sm font-medium border-r-2 border-indigo-500"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>הורד תבנית</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadTemplate('csv')}
-                  className="flex items-center justify-center px-3 py-2.5 bg-indigo-600 text-white rounded-r-lg rounded-l-none hover:bg-indigo-700 transition-colors text-sm font-medium whitespace-nowrap"
-                  title="הורד תבנית CSV"
-                >
-                  CSV
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => downloadTemplate('excel')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+              >
+                <Download className="h-4 w-4" />
+                <span>הורד תבנית Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => downloadTemplate('csv')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                title="הורד תבנית CSV"
+              >
+                <Download className="h-4 w-4" />
+                <span>הורד תבנית CSV</span>
+              </button>
             </div>
             <p className="text-xs text-indigo-700">
               ייבוא מלא עם כל השדות. הקובץ חייב לכלול את כל העמודות הנדרשות לפי התבנית.
@@ -3161,25 +3161,25 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 )}
               </button>
 
-              <div className="flex items-center flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => downloadSkeletonTemplate('excel')}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-l-lg rounded-r-none hover:bg-orange-700 transition-colors text-sm font-medium border-r-2 border-orange-500"
-                  title="הורד תבנית שלד Excel - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>הורד תבנית שלד</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadSkeletonTemplate('csv')}
-                  className="flex items-center justify-center px-3 py-2.5 bg-orange-600 text-white rounded-r-lg rounded-l-none hover:bg-orange-700 transition-colors text-sm font-medium whitespace-nowrap"
-                  title="הורד תבנית שלד CSV"
-                >
-                  CSV
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => downloadSkeletonTemplate('excel')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+                title="הורד תבנית שלד Excel - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
+              >
+                <Download className="h-4 w-4" />
+                <span>הורד תבנית שלד Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => downloadSkeletonTemplate('csv')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+                title="הורד תבנית שלד CSV"
+              >
+                <Download className="h-4 w-4" />
+                <span>הורד תבנית שלד CSV</span>
+              </button>
             </div>
             <p className="text-xs text-orange-700">
               ייבוא ישיר של נכסים. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם (כל השדות חובה)

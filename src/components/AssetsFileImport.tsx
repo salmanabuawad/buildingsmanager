@@ -76,14 +76,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   }, [isAssetTypeNotAccountable]);
 
   // Helper function to check if a field should be editable
-  // For non-accountable assets, only main_asset_type is editable
+  // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (!params || !params.data) return false;
     const row = params.data as ImportAssetRow;
     
-    // For non-accountable assets, only main_asset_type is editable
+    // For non-accountable assets, all fields are readonly (including main_asset_type)
     if (isAssetRowNotAccountable(row)) {
-      return fieldName === 'main_asset_type';
+      return false;
     }
     
     return true; // All fields are editable by default in import

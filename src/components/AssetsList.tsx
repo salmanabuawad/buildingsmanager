@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
@@ -23,7 +23,12 @@ interface AssetsListProps {
   onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
 }
-export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset }: AssetsListProps) {
+
+export interface AssetsListRef {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -108,16 +113,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   }, [isAssetTypeNotAccountableForDistribution]);
 
   // Helper function to check if a field should be editable
-  // For non-accountable assets, only main_asset_type is editable
+  // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const assetId = String(asset.asset_id);
     const baseEditable = newAssets.has(assetId) || !!taxRegion;
     
-    // For non-accountable assets, only main_asset_type is editable
+    // For non-accountable assets, all fields are readonly (including main_asset_type)
     if (isAssetNotAccountableForTotalArea(asset)) {
-      return fieldName === 'main_asset_type' && baseEditable;
+      return false;
     }
     
     return baseEditable;
@@ -174,6 +179,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     }
     return newAssets.size + editedExistingAssets + deletedAssets.size;
   }, [newAssets, dirtyAssets, deletedAssets]);
+
+  // Expose hasUnsavedChanges via ref
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => totalChanges > 0
+  }), [totalChanges]);
   
   useEffect(() => {
     fetchData();
@@ -2504,7 +2514,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       headerName: 'דירת גג',
       editable: (params) => isFieldEditable(params, 'penthouse'),
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: !isResidentTaxRegion // Hide penthouse for business assets (only show for residence)
     },
     {
       field: 'floor',
@@ -3371,4 +3382,4 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
       )}
     </>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BuildingsList } from './components/BuildingsList';
 import { AssetsList } from './components/AssetsList';
 import { AssetDetails } from './components/AssetDetails';
@@ -55,6 +55,17 @@ function App() {
     invalid: number;
     errors: Array<{ assetId: string; buildingNumber: number; errors: string[] }>;
   } | null>(null);
+  
+  // Refs to child components for checking dirty state
+  const buildingsListRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
+  const assetsListRef = useRef<AssetsListRef | null>(null);
+  const assetDetailsRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
+  const transferAreasRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
+  const assetDataEntryRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
+  
+  // Confirmation modal state
+  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   // Helper function to get area_description_for_tab from tax region number(s)
   // Uses cached asset types from ValidationContext (no API call needed)
   const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
@@ -135,45 +146,48 @@ function App() {
   // Helper function to open a new tab, closing any existing tab of the same type
   // Exception: 'buildings' tab is always kept and multiple 'assets' tabs can exist (for different buildings/tax regions)
   function openTab(newTab: Tab) {
-    setTabs(prev => {
-      // Check if tab already exists
-      const existingTab = prev.find(t => t.id === newTab.id);
-      if (existingTab) {
-        // Tab already exists, refresh it and activate it
-        setActiveTabId(newTab.id);
-        return prev.map(tab => 
-          tab.id === newTab.id 
-            ? { ...tab, refreshKey: Date.now() } 
-            : tab
-        );
-      }
-      
-      // For most tab types, close existing tabs of the same type (except 'buildings' and 'assets')
-      // 'assets' tabs can have multiple instances (for different buildings/tax regions)
-      // 'buildings' tab should always be kept
-      let filteredTabs = prev;
-      if (newTab.type !== 'buildings' && newTab.type !== 'assets') {
-        // Remove all existing tabs of the same type
-        filteredTabs = prev.filter(t => t.type !== newTab.type);
-      }
-      
-      // Ensure buildings tab exists
-      const hasBuildings = filteredTabs.some(t => t.id === 'buildings');
-      const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-      const tabsToReturn = hasBuildings ? [...filteredTabs, { ...newTab, refreshKey: Date.now() }] : [buildingsTab, ...filteredTabs, { ...newTab, refreshKey: Date.now() }];
-      return tabsToReturn;
+    handleNavigation(() => {
+      setTabs(prev => {
+        // Check if tab already exists
+        const existingTab = prev.find(t => t.id === newTab.id);
+        if (existingTab) {
+          // Tab already exists, refresh it and activate it
+          setActiveTabId(newTab.id);
+          return prev.map(tab => 
+            tab.id === newTab.id 
+              ? { ...tab, refreshKey: Date.now() } 
+              : tab
+          );
+        }
+        
+        // For most tab types, close existing tabs of the same type (except 'buildings' and 'assets')
+        // 'assets' tabs can have multiple instances (for different buildings/tax regions)
+        // 'buildings' tab should always be kept
+        let filteredTabs = prev;
+        if (newTab.type !== 'buildings' && newTab.type !== 'assets') {
+          // Remove all existing tabs of the same type
+          filteredTabs = prev.filter(t => t.type !== newTab.type);
+        }
+        
+        // Ensure buildings tab exists
+        const hasBuildings = filteredTabs.some(t => t.id === 'buildings');
+        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+        const tabsToReturn = hasBuildings ? [...filteredTabs, { ...newTab, refreshKey: Date.now() }] : [buildingsTab, ...filteredTabs, { ...newTab, refreshKey: Date.now() }];
+        return tabsToReturn;
+      });
+      setActiveTabId(newTab.id);
     });
-    setActiveTabId(newTab.id);
   }
 
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
-    const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-    
-    // Ensure buildings tab exists
-    const existingBuildingsTab = tabs.find(t => t.id === 'buildings');
-    if (!existingBuildingsTab) {
-      setTabs(prev => [buildingsTab, ...prev]);
-    }
+    handleNavigation(() => {
+      const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+      
+      // Ensure buildings tab exists
+      const existingBuildingsTab = tabs.find(t => t.id === 'buildings');
+      if (!existingBuildingsTab) {
+        setTabs(prev => [buildingsTab, ...prev]);
+      }
 
     if (taxRegions && taxRegions.trim() !== '') {
       const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
@@ -317,6 +331,7 @@ function App() {
         setActiveTabId(allAssetsTabId);
       }
     }
+    });
   }
 
   const handleSelectAsset = useCallback((assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
@@ -591,53 +606,105 @@ function App() {
   }
 
   function openAssetsFileImport() {
-    const assetsFileImportTabId = 'assets-file-import-panel';
+    handleNavigation(() => {
+      const assetsFileImportTabId = 'assets-file-import-panel';
 
-    const newTab: Tab = {
-      id: assetsFileImportTabId,
-      type: 'assets-file-import',
-      label: 'ייבוא מלא'
-    };
+      const newTab: Tab = {
+        id: assetsFileImportTabId,
+        type: 'assets-file-import',
+        label: 'ייבוא מלא'
+      };
 
-    // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
-    setTabs(prev => prev.filter(tab => tab.type !== 'assets-file-import' && tab.type !== 'assets-skeleton-import'));
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(assetsFileImportTabId);
+      // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
+      setTabs(prev => prev.filter(tab => tab.type !== 'assets-file-import' && tab.type !== 'assets-skeleton-import'));
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(assetsFileImportTabId);
+    });
   }
 
   function openAssetsSkeletonImport() {
-    const assetsSkeletonImportTabId = 'assets-skeleton-import-panel';
+    handleNavigation(() => {
+      const assetsSkeletonImportTabId = 'assets-skeleton-import-panel';
 
-    const newTab: Tab = {
-      id: assetsSkeletonImportTabId,
-      type: 'assets-skeleton-import',
-      label: 'ייבוא שלד'
-    };
+      const newTab: Tab = {
+        id: assetsSkeletonImportTabId,
+        type: 'assets-skeleton-import',
+        label: 'ייבוא שלד'
+      };
 
-    // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
-    setTabs(prev => prev.filter(tab => tab.type !== 'assets-file-import' && tab.type !== 'assets-skeleton-import'));
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(assetsSkeletonImportTabId);
+      // Remove all other assets-file-import and assets-skeleton-import tabs, then add new one
+      setTabs(prev => prev.filter(tab => tab.type !== 'assets-file-import' && tab.type !== 'assets-skeleton-import'));
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(assetsSkeletonImportTabId);
+    });
   }
 
-  function handleCloseTab(tabId: string) {
-    setTabs(prevTabs => {
-      const newTabs = prevTabs.filter(tab => tab.id !== tabId);
-      if (newTabs.length === 0) {
-        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-        return [buildingsTab];
-      }
-      return newTabs;
-    });
-
-    if (activeTabId === tabId) {
-      const remainingTabs = tabs.filter(tab => tab.id !== tabId);
-      if (remainingTabs.length > 0) {
-        setActiveTabId(remainingTabs[remainingTabs.length - 1].id);
-      } else {
-        setActiveTabId('buildings');
-      }
+  // Check if current tab has unsaved changes
+  const checkForUnsavedChanges = (): boolean => {
+    const activeTab = tabs.find(tab => tab.id === activeTabId);
+    if (!activeTab) return false;
+    
+    switch (activeTab.type) {
+      case 'buildings':
+        return buildingsListRef.current?.hasUnsavedChanges() || false;
+      case 'assets':
+        return assetsListRef.current?.hasUnsavedChanges() || false;
+      case 'asset-details':
+        return assetDetailsRef.current?.hasUnsavedChanges() || false;
+      case 'transfer-areas':
+        return transferAreasRef.current?.hasUnsavedChanges() || false;
+      case 'asset-data-entry':
+        return assetDataEntryRef.current?.hasUnsavedChanges() || false;
+      default:
+        return false;
     }
+  };
+
+  // Handle navigation with dirty check
+  const handleNavigation = (navigationAction: () => void) => {
+    if (checkForUnsavedChanges()) {
+      setPendingNavigation(() => navigationAction);
+      setShowUnsavedChangesModal(true);
+    } else {
+      navigationAction();
+    }
+  };
+
+  // Confirm navigation (proceed anyway)
+  const handleConfirmNavigation = () => {
+    setShowUnsavedChangesModal(false);
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+  };
+
+  // Cancel navigation
+  const handleCancelNavigation = () => {
+    setShowUnsavedChangesModal(false);
+    setPendingNavigation(null);
+  };
+
+  function handleCloseTab(tabId: string) {
+    handleNavigation(() => {
+      setTabs(prevTabs => {
+        const newTabs = prevTabs.filter(tab => tab.id !== tabId);
+        if (newTabs.length === 0) {
+          const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+          return [buildingsTab];
+        }
+        return newTabs;
+      });
+
+      if (activeTabId === tabId) {
+        const remainingTabs = tabs.filter(tab => tab.id !== tabId);
+        if (remainingTabs.length > 0) {
+          setActiveTabId(remainingTabs[remainingTabs.length - 1].id);
+        } else {
+          setActiveTabId('buildings');
+        }
+      }
+    });
   }
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
@@ -1051,13 +1118,15 @@ function App() {
                 >
                   <div
                     onClick={() => {
-                      // Refresh the tab when switching to it
-                      setTabs(prev => prev.map(t => 
-                        t.id === tab.id 
-                          ? { ...t, refreshKey: Date.now() } 
-                          : t
-                      ));
-                      setActiveTabId(tab.id);
+                      handleNavigation(() => {
+                        // Refresh the tab when switching to it
+                        setTabs(prev => prev.map(t => 
+                          t.id === tab.id 
+                            ? { ...t, refreshKey: Date.now() } 
+                            : t
+                        ));
+                        setActiveTabId(tab.id);
+                      });
                     }}
                     className="flex items-center gap-2 flex-shrink-0"
                   >
@@ -1155,7 +1224,7 @@ function App() {
               <FieldConfigManager key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'asset-data-entry' && (
-              <AssetDataEntry key={activeTab.refreshKey} />
+              <AssetDataEntry ref={assetDataEntryRef} key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'building-list-import' && (
               <BuildingListImport key={activeTab.refreshKey} />
@@ -1168,6 +1237,7 @@ function App() {
             )}
             {activeTab?.type === 'asset-details' && (
               <AssetDetails 
+                ref={assetDetailsRef}
                 key={activeTab.refreshKey}
                 assetId={activeTab.assetId ? parseInt(activeTab.assetId) : undefined}
                 buildingNumber={activeTab.buildingNumber}
@@ -1315,6 +1385,44 @@ function App() {
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {showUnsavedChangesModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          dir="rtl"
+          onClick={handleCancelNavigation}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
+              <h3 className="text-lg font-bold text-slate-900">יש שינויים שלא נשמרו</h3>
+            </div>
+            
+            <p className="text-slate-600 mb-6">
+              יש לך שינויים שלא נשמרו בלשונית הנוכחית. האם אתה בטוח שברצונך לעזוב? השינויים יאבדו.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCancelNavigation}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleConfirmNavigation}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+              >
+                עזוב ללא שמירה
               </button>
             </div>
           </div>

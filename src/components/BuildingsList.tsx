@@ -1691,13 +1691,7 @@ export function BuildingsList({
     {
       field: 'overload_ratio',
       headerName: 'אחוז העמסה',
-      editable: (params: any) => {
-        if (!params || !params.data) return false;
-        const building = params.data as Building;
-        const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        return isNew || !buildingsToDelete.has(buildingKey);
-      },
+      editable: false, // overload_ratio is readonly in all tabs
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;

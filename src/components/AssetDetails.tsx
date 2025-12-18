@@ -976,15 +976,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [isAssetTypeNotAccountable]);
 
   // Helper function to check if a field should be editable
-  // For non-accountable assets, only main_asset_type is editable
+  // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const baseEditable = asset.is_latest === true && editMode === 'inline';
     
-    // For non-accountable assets, only main_asset_type is editable
+    // For non-accountable assets, all fields are readonly (including main_asset_type)
     if (isAssetNotAccountable(asset)) {
-      return fieldName === 'main_asset_type' && baseEditable;
+      return false;
     }
     
     return baseEditable;
@@ -3176,6 +3176,15 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     }
   ], []);
 
+  // Check if asset is business (to hide penthouse)
+  const isBusinessAsset = useMemo(() => {
+    if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+    const assetType = assetTypes.find(at => at.name === asset.main_asset_type);
+    return assetType?.business_residence === 'עסקים';
+  }, [asset?.main_asset_type, assetTypes]);
+
   // Optimize columnDefs dependencies - only recreate when necessary
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
@@ -3368,6 +3377,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
+      hide: isBusinessAsset, // Hide penthouse for business assets (only show for residence)
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
@@ -3687,7 +3697,7 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       }
       return colDef;
     });
-  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, asset]);
+  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, asset, isBusinessAsset]);
 
   useEffect(() => {
     // Reset state when assetId changes to ensure fresh data is loaded

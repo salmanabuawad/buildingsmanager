@@ -4196,6 +4196,24 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
                     {areaDescriptionForTab}
                   </p>
                 )}
+                {(() => {
+                  // Check if asset is a business asset
+                  if (!asset?.main_asset_type || !assetTypes || assetTypes.length === 0 || !building) {
+                    return null;
+                  }
+                  const assetType = assetTypes.find(at => at.name === asset.main_asset_type);
+                  const isBusinessAsset = assetType?.business_residence === 'עסקים';
+                  
+                  // Show overload_ratio for business assets only
+                  if (isBusinessAsset && building.overload_ratio != null) {
+                    return (
+                      <p className="text-xs text-white font-medium bg-purple-600 px-2 py-0.5 rounded">
+                        אחוז העמסה: {building.overload_ratio.toFixed(2)}%
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>

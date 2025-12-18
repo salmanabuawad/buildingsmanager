@@ -3008,6 +3008,11 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
                     שטח משותף עסקים: {building.business_shared_area.toLocaleString('he-IL')}
                   </p>
                 )}
+                {taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building?.overload_ratio != null && (
+                  <p className="text-sm text-white font-semibold bg-purple-600 px-2 py-1 rounded">
+                    אחוז העמסה: {building.overload_ratio.toFixed(2)}%
+                  </p>
+                )}
               </div>
               {taxRegion ? (
                 <p className="text-sm text-white font-semibold bg-teal-700 px-3 py-1 rounded">

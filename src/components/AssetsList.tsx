@@ -1582,6 +1582,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const changes: Partial<Asset> = { ...existingChanges };
 
         // For residence distribution, use simple per-asset division
+        // Redistribution ignores any existing area_from_distribution and recalculates from scratch
         // Update area_from_distribution (only field that gets updated in distribution)
         // For clearing distribution (areaPerAsset = 0), set to 0; otherwise set to new value
         changes.area_from_distribution = areaPerAsset;
@@ -1740,7 +1741,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return;
       }
 
-      // Sum all business accountable assets' main size (reducing existing area_from_distribution)
+      // Sum all business accountable assets' main size (ignore existing area_from_distribution)
       let totalMainSize = 0;
       for (const asset of businessAssets) {
         const assetId = String(asset.asset_id);
@@ -1748,13 +1749,8 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const currentAssetSize = existingChanges.asset_size !== undefined
           ? existingChanges.asset_size
           : (asset.asset_size || 0);
-        // Get current area_from_distribution (check existing changes first, then current asset)
-        const currentDistributionArea = existingChanges.area_from_distribution !== undefined
-          ? existingChanges.area_from_distribution
-          : (asset.area_from_distribution || 0);
-        // Subtract existing area_from_distribution from asset size before calculation
-        const baseAssetSize = currentAssetSize - currentDistributionArea;
-        totalMainSize += baseAssetSize;
+        // Use asset_size directly, ignoring any existing area_from_distribution
+        totalMainSize += currentAssetSize;
       }
 
       // If shared area is 0, we're clearing the distribution - allow this even if totalMainSize is 0
@@ -1795,21 +1791,15 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Get current asset size and area_from_distribution for calculation
+        // Get current asset size for calculation (ignore existing area_from_distribution)
         const currentAssetSize = existingChanges.asset_size !== undefined
           ? existingChanges.asset_size
           : (currentAsset?.asset_size || 0);
-        const currentDistributionArea = existingChanges.area_from_distribution !== undefined
-          ? existingChanges.area_from_distribution
-          : (currentAsset?.area_from_distribution || 0);
 
-        // Calculate base asset size (reducing existing area_from_distribution)
-        // This is needed to calculate the distribution proportionally to the base size
+        // Calculate new distribution area based on asset_size directly
+        // Redistribution ignores any existing area_from_distribution and recalculates from scratch
         // Note: We only READ currentAssetSize for calculation, we do NOT update it
-        const baseAssetSize = currentAssetSize - currentDistributionArea;
-
-        // Calculate what the new total area_from_distribution should be based on base asset size
-        const newDistributionArea = overloadRatio * baseAssetSize;
+        const newDistributionArea = overloadRatio * currentAssetSize;
 
         // IMPORTANT: Only update area_from_distribution field
         // Do NOT update asset_size, sub_asset_size_1, or any other sub-asset sizes
@@ -2773,10 +2763,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     {
       field: 'area_from_distribution',
       headerName: 'גודל שטח משותף',
-      editable: (params) => {
-        const fieldName = params.colDef?.field || '';
-        return isFieldEditable(params, fieldName);
-      },
+      editable: false, // Always readonly - only updated through distribution functions
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;

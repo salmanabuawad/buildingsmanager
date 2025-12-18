@@ -708,10 +708,10 @@ export function AddressListComponent() {
               <Download className="h-5 w-5" />
               <span className="hidden sm:inline">ייצא ל-Excel</span>
             </button>
-            <div className="flex items-stretch gap-0">
+            <div className="flex items-center">
               <button
                 onClick={() => handleExportTemplate('excel')}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md border-r border-teal-700"
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md border-r-2 border-teal-500"
                 title="הורד תבנית לקובץ Excel"
               >
                 <Download className="h-5 w-5" />
@@ -719,7 +719,7 @@ export function AddressListComponent() {
               </button>
               <button
                 onClick={() => handleExportTemplate('csv')}
-                className="flex items-center justify-center px-3 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium"
+                className="flex items-center justify-center min-w-[50px] px-3 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium whitespace-nowrap"
                 title="הורד תבנית CSV"
               >
                 CSV

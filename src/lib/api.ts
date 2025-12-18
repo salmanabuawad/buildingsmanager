@@ -342,7 +342,6 @@ export interface AssetType {
   condo?: string;
   townhouses?: string;
   business_residence?: string;
-  shared_area_usage?: string;
   active?: string;
   non_accountable_for_total_area?: boolean; // לא נספר בחישוב שטח מבנה
   non_accountable_for_distribution?: boolean; // לא נספר בפיזור
@@ -2161,7 +2160,7 @@ export const api = {
       // Explicitly select all fields including business_residence to ensure it's included
       const { data, error } = await supabase
         .from('asset_types')
-        .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, shared_area_usage, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
+        .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
         .order('name');
 
       if (error) throw error;

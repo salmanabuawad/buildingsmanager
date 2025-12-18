@@ -2941,7 +2941,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
   // Grid options are now defined inline in the AgGridReact component
 
-  async function downloadTemplate() {
+  async function downloadTemplate(format: 'excel' | 'csv' = 'excel') {
     const headers = [
       'מזהה מבנה',
       'מזהה משלם',
@@ -2970,15 +2970,23 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     ];
 
     const data = [headers];
-    const { exportToExcel } = await import('../lib/excelExport');
-    exportToExcel({
-      filename: 'assets_template.xlsx',
-      sheetName: 'נכסים',
-      data
-    });
+    if (format === 'csv') {
+      const { exportToCSV } = await import('../lib/csvExport');
+      exportToCSV({
+        filename: 'assets_template.csv',
+        data
+      });
+    } else {
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename: 'assets_template.xlsx',
+        sheetName: 'נכסים',
+        data
+      });
+    }
   }
 
-  async function downloadSkeletonTemplate() {
+  async function downloadSkeletonTemplate(format: 'excel' | 'csv' = 'excel') {
     const headers = [
       'מזהה מבנה',
       'מזהה נכס',
@@ -2987,12 +2995,20 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     ];
 
     const data = [headers];
-    const { exportToExcel } = await import('../lib/excelExport');
-    exportToExcel({
-      filename: 'assets_skeleton_template.xlsx',
-      sheetName: 'נכסים',
-      data
-    });
+    if (format === 'csv') {
+      const { exportToCSV } = await import('../lib/csvExport');
+      exportToCSV({
+        filename: 'assets_skeleton_template.csv',
+        data
+      });
+    } else {
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename: 'assets_skeleton_template.xlsx',
+        sheetName: 'נכסים',
+        data
+      });
+    }
   }
 
   return (
@@ -3063,14 +3079,24 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={downloadTemplate}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-              >
-                <Download className="h-4 w-4" />
-                <span>הורד תבנית</span>
-              </button>
+              <div className="flex-1 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => downloadTemplate('excel')}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-l-lg rounded-r-none hover:bg-indigo-700 transition-colors text-sm font-medium border-r border-indigo-700"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>הורד תבנית</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadTemplate('csv')}
+                  className="px-2.5 py-2 bg-indigo-600 text-white rounded-r-lg rounded-l-none hover:bg-indigo-700 transition-colors text-xs font-medium"
+                  title="הורד תבנית CSV"
+                >
+                  CSV
+                </button>
+              </div>
             </div>
             <p className="text-xs text-indigo-700">
               ייבוא מלא עם כל השדות. הקובץ חייב לכלול את כל העמודות הנדרשות לפי התבנית.
@@ -3135,15 +3161,25 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={downloadSkeletonTemplate}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
-                title="הורד תבנית שלד - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span>הורד תבנית שלד</span>
-              </button>
+              <div className="flex-1 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => downloadSkeletonTemplate('excel')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-l-lg rounded-r-none hover:bg-orange-700 transition-colors text-sm font-medium border-r border-orange-700"
+                  title="הורד תבנית שלד Excel - מזהה מבנה, מזהה נכס, אזור מס, מזהה משלם (כל השדות חובה)"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>הורד תבנית שלד</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadSkeletonTemplate('csv')}
+                  className="px-2.5 py-1.5 bg-orange-600 text-white rounded-r-lg rounded-l-none hover:bg-orange-700 transition-colors text-xs font-medium"
+                  title="הורד תבנית שלד CSV"
+                >
+                  CSV
+                </button>
+              </div>
             </div>
             <p className="text-xs text-orange-700 leading-tight">
               ייבוא ישיר של נכסים. הקובץ חייב לכלול עמודות: מזהה מבנה, מזהה נכס, אזור מס ומזהה משלם (כל השדות חובה)

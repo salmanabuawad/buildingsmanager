@@ -54,7 +54,7 @@ export function AddressListComponent() {
     }
   }
 
-  async function handleExportTemplate() {
+  async function handleExportTemplate(format: 'excel' | 'csv' = 'excel') {
     // Create template data with headers and example rows
     const templateData = [
       ['סמל_רחוב', 'שם_רחוב'],
@@ -63,17 +63,26 @@ export function AddressListComponent() {
       ['1003', 'רחוב בן גוריון']
     ];
 
-    // Use improved export function to reduce antivirus false positives
-    const { exportToExcel } = await import('../lib/excelExport');
-    exportToExcel({
-      filename: 'תבנית_רשימת_כתובות.xlsx',
-      sheetName: 'תבנית כתובות',
-      data: templateData,
-      columnWidths: [
-        { wch: 15 }, // סמל_רחוב
-        { wch: 30 }  // שם_רחוב
-      ]
-    });
+    if (format === 'csv') {
+      // Export as CSV
+      const { exportToCSV } = await import('../lib/csvExport');
+      exportToCSV({
+        filename: 'תבנית_רשימת_כתובות.csv',
+        data: templateData
+      });
+    } else {
+      // Export as Excel
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename: 'תבנית_רשימת_כתובות.xlsx',
+        sheetName: 'תבנית כתובות',
+        data: templateData,
+        columnWidths: [
+          { wch: 15 }, // סמל_רחוב
+          { wch: 30 }  // שם_רחוב
+        ]
+      });
+    }
   }
 
   async function handleExportToExcel() {
@@ -702,14 +711,23 @@ export function AddressListComponent() {
               <Download className="h-5 w-5" />
               <span className="hidden sm:inline">ייצא ל-Excel</span>
             </button>
-            <button
-              onClick={handleExportTemplate}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
-              title="הורד תבנית לקובץ Excel"
-            >
-              <Download className="h-5 w-5" />
-              <span className="hidden sm:inline">הורד תבנית</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleExportTemplate('excel')}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md border-r border-teal-700"
+                title="הורד תבנית לקובץ Excel"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">הורד תבנית</span>
+              </button>
+              <button
+                onClick={() => handleExportTemplate('csv')}
+                className="px-2.5 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
+                title="הורד תבנית CSV"
+              >
+                CSV
+              </button>
+            </div>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}

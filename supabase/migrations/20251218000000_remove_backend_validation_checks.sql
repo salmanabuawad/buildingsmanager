@@ -817,3 +817,143 @@ SET
   visible = EXCLUDED.visible,
   updated_at = now();
 
+-- ============================================================================
+-- TRIGGERS: Automatically handle post-save actions for direct table operations
+-- ============================================================================
+-- These triggers ensure that building total area and distribution flags are
+-- updated even when assets are modified directly (not through transactional functions)
+-- They will also fire when using transactional functions, but the operations are idempotent
+
+-- Function to automatically update building total area after asset changes
+CREATE OR REPLACE FUNCTION auto_update_building_total_area()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_building_number BIGINT;
+BEGIN
+  -- Determine building_number based on operation
+  IF TG_OP = 'DELETE' THEN
+    v_building_number := OLD.building_number;
+  ELSE
+    v_building_number := NEW.building_number;
+  END IF;
+
+  -- Skip if no building_number
+  IF v_building_number IS NULL THEN
+    IF TG_OP = 'DELETE' THEN
+      RETURN OLD;
+    ELSE
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  -- Update building total area
+  -- This is idempotent - safe to call multiple times
+  PERFORM update_building_total_area(v_building_number);
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS trigger_auto_update_building_total_area ON assets;
+
+-- Create trigger that fires after insert, update, or delete
+CREATE TRIGGER trigger_auto_update_building_total_area
+  AFTER INSERT OR UPDATE OR DELETE ON assets
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_update_building_total_area();
+
+COMMENT ON FUNCTION auto_update_building_total_area IS 'Automatically updates building total area after asset INSERT/UPDATE/DELETE operations. Works for both direct table operations and transactional function calls.';
+
+-- Function to automatically set distribution flags when asset size or type changes
+-- This ensures flags are set even when direct table operations bypass transactional functions
+CREATE OR REPLACE FUNCTION auto_set_distribution_flags_on_change()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_business_residence TEXT;
+  v_type_changed BOOLEAN := FALSE;
+  v_size_changed BOOLEAN := FALSE;
+  v_old_type TEXT;
+  v_new_type TEXT;
+BEGIN
+  -- Only process INSERT or UPDATE
+  IF TG_OP = 'DELETE' THEN
+    -- For DELETE, distribution flags should be set via delete_asset_transactional
+    -- But we can still update building total area (handled above)
+    RETURN OLD;
+  END IF;
+
+  -- Skip if no building_number or main_asset_type
+  IF NEW.building_number IS NULL OR NEW.main_asset_type IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Check if type or size changed (for UPDATE)
+  IF TG_OP = 'UPDATE' THEN
+    v_old_type := OLD.main_asset_type;
+    v_new_type := NEW.main_asset_type;
+    
+    IF (v_old_type IS DISTINCT FROM v_new_type) THEN
+      v_type_changed := TRUE;
+    END IF;
+    IF (OLD.asset_size IS DISTINCT FROM NEW.asset_size) AND NEW.asset_size IS NOT NULL THEN
+      v_size_changed := TRUE;
+    END IF;
+  ELSE
+    -- For INSERT, check if asset_size is set
+    IF NEW.asset_size IS NOT NULL AND NEW.asset_size > 0 THEN
+      v_size_changed := TRUE;
+    END IF;
+    v_type_changed := TRUE; -- New asset always checks type
+  END IF;
+
+  -- Only proceed if something changed
+  IF NOT v_type_changed AND NOT v_size_changed THEN
+    RETURN NEW;
+  END IF;
+
+  -- Get business_residence for the asset type
+  SELECT business_residence INTO v_business_residence
+  FROM asset_types
+  WHERE name = NEW.main_asset_type;
+
+  -- Set appropriate distribution flag based on business_residence
+  -- This matches the logic in save_asset_transactional
+  IF v_business_residence = 'עסקים' THEN
+    UPDATE buildings
+    SET need_business_distribution = true
+    WHERE building_number = NEW.building_number;
+    
+  ELSIF v_business_residence = 'מגורים' THEN
+    UPDATE buildings
+    SET need_residence_distribution = true
+    WHERE building_number = NEW.building_number;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS trigger_auto_set_distribution_flags_on_change ON assets;
+
+-- Create trigger that fires after insert or update
+-- This will fire when asset_size or main_asset_type changes
+CREATE TRIGGER trigger_auto_set_distribution_flags_on_change
+  AFTER INSERT OR UPDATE OF main_asset_type, asset_size ON assets
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_set_distribution_flags_on_change();
+
+COMMENT ON FUNCTION auto_set_distribution_flags_on_change IS 'Automatically sets building distribution flags when asset main_asset_type or asset_size changes. Works for both direct table operations and transactional function calls.';
+
+-- ============================================================================
+-- REMOVE shared_area_usage COLUMN FROM asset_types TABLE
+-- ============================================================================
+
+-- Drop the shared_area_usage column from asset_types table
+ALTER TABLE asset_types DROP COLUMN IF EXISTS shared_area_usage;
+

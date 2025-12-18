@@ -43,7 +43,6 @@ export function AssetTypes() {
     condo: '',
     townhouses: '',
     business_residence: '',
-    shared_area_usage: '',
     non_accountable_for_total_area: false,
     non_accountable_for_distribution: false,
     min_size: '',
@@ -87,7 +86,6 @@ export function AssetTypes() {
       condo: '', 
       townhouses: '', 
       business_residence: '', 
-      shared_area_usage: '', 
       non_accountable_for_total_area: false, 
       non_accountable_for_distribution: false, 
       min_size: '', 
@@ -125,7 +123,6 @@ export function AssetTypes() {
         condo: formData.condo || undefined,
         townhouses: formData.townhouses || undefined,
         business_residence: formData.business_residence || undefined,
-        shared_area_usage: formData.shared_area_usage || undefined,
         non_accountable_for_total_area: formData.non_accountable_for_total_area || undefined,
         non_accountable_for_distribution: formData.non_accountable_for_distribution || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
@@ -529,30 +526,6 @@ export function AssetTypes() {
       }
     },
     {
-      field: 'shared_area_usage',
-      headerName: 'שטח משותף',
-      editable: true,
-      cellRenderer: (params: any) => {
-        const assetType = params.data as AssetType;
-        if (!assetType) return null;
-        const currentValue = getCurrentValue(assetType, 'shared_area_usage');
-        const isDirty = isFieldDirty(assetType.id, 'shared_area_usage');
-        return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={currentValue === 'כן'}
-              onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
-              }}
-              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
-            />
-          </div>
-        );
-      },
-      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
-    },
-    {
       field: 'non_accountable_for_total_area',
       headerName: 'לא נספר בחישוב שטח מבנה',
       editable: true,
@@ -721,7 +694,7 @@ export function AssetTypes() {
   }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes]);
 
 
-  async function downloadTemplate() {
+  async function downloadTemplate(format: 'excel' | 'csv' = 'excel') {
     // Headers - can be in any order, import will map by exact field name match
     // Supports both Hebrew and English field names
     const headers = [
@@ -735,7 +708,6 @@ export function AssetTypes() {
       'בית משותף',               // condo
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
       'עסקים/מגורים',            // business_residence
-      'שימוש בשטח משותף',         // shared_area_usage
       'לא נספר בחישוב שטח מבנה',  // non_accountable_for_total_area
       'לא נספר בפיזור',           // non_accountable_for_distribution
       'שטח מ',                   // min_size
@@ -745,37 +717,45 @@ export function AssetTypes() {
     // Example rows
     // Note: 'לא נספר בחישוב שטח מבנה' column - 'כן' means NOT accountable, 'לא' means IS accountable
     const exampleRows = [
-      ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', '', 'לא', 'לא', '20', '150'],
-      ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', '', 'לא', 'לא', '30', '200'],
-      ['101', 'חנות', '10', 'אזור דרום', '', '', '', '', '', 'עסקים', '', 'כן', 'לא', '10', '100']
+      ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', 'לא', 'לא', '20', '150'],
+      ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', 'לא', 'לא', '30', '200'],
+      ['101', 'חנות', '10', 'אזור דרום', '', '', '', '', '', 'עסקים', 'כן', 'לא', '10', '100']
     ];
 
     // Create data array with headers and example rows
     const data = [headers, ...exampleRows];
 
-    // Use improved export function to reduce antivirus false positives
-    const { exportToExcel } = await import('../lib/excelExport');
-    exportToExcel({
-      filename: 'תבנית_סוגי_נכסים.xlsx',
-      sheetName: 'סוגי נכסים',
-      data,
-      columnWidths: [
-        { wch: 12 }, // סוג נכס
-        { wch: 25 }, // תיאור
-        { wch: 12 }, // אזור מיסים
-        { wch: 8 },  // מעלית
-        { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
-        { wch: 10 }, // דירת גג
-        { wch: 12 }, // בית משותף
-        { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
-        { wch: 15 }, // עסקים/מגורים
-        { wch: 20 }, // שימוש בשטח משותף
-        { wch: 25 }, // לא נספר בחישוב שטח מבנה
-        { wch: 15 }, // לא נספר בפיזור
-        { wch: 10 }, // שטח מ
-        { wch: 10 }  // שטח עד
-      ]
-    });
+    if (format === 'csv') {
+      // Export as CSV
+      const { exportToCSV } = await import('../lib/csvExport');
+      exportToCSV({
+        filename: 'תבנית_סוגי_נכסים.csv',
+        data
+      });
+    } else {
+      // Export as Excel
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename: 'תבנית_סוגי_נכסים.xlsx',
+        sheetName: 'סוגי נכסים',
+        data,
+        columnWidths: [
+          { wch: 12 }, // סוג נכס
+          { wch: 25 }, // תיאור
+          { wch: 12 }, // אזור מיסים
+          { wch: 8 },  // מעלית
+          { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
+          { wch: 10 }, // דירת גג
+          { wch: 12 }, // בית משותף
+          { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
+          { wch: 15 }, // עסקים/מגורים
+          { wch: 25 }, // לא נספר בחישוב שטח מבנה
+          { wch: 15 }, // לא נספר בפיזור
+          { wch: 10 }, // שטח מ
+          { wch: 10 }  // שטח עד
+        ]
+      });
+    }
   }
 
   async function exportAssetTypes() {
@@ -796,7 +776,6 @@ export function AssetTypes() {
       'בית משותף',               // condo
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
       'עסקים/מגורים',            // business_residence
-      'שימוש בשטח משותף',         // shared_area_usage
       'לא נספר בחישוב שטח מבנה',  // non_accountable_for_total_area
       'שטח מ',                   // min_size
       'שטח עד'                   // max_size
@@ -816,7 +795,6 @@ export function AssetTypes() {
         assetType.condo || '',
         assetType.townhouses || '',
         assetType.business_residence || '',
-        assetType.shared_area_usage || '',
         assetType.non_accountable_for_total_area ? 'כן' : 'לא',
         assetType.non_accountable_for_distribution ? 'כן' : 'לא',
         assetType.min_size?.toString() || '',
@@ -847,7 +825,6 @@ export function AssetTypes() {
         { wch: 12 }, // בית משותף
         { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
         { wch: 15 }, // עסקים/מגורים
-        { wch: 20 }, // שימוש בשטח משותף
         { wch: 25 }, // לא נספר בחישוב שטח מבנה
         { wch: 15 }, // לא נספר בפיזור
         { wch: 10 }, // שטח מ
@@ -954,11 +931,6 @@ export function AssetTypes() {
         'businessresidence': 'business_residence',
         'עסקים/מגורים': 'business_residence',
         'עסקיםמגורים': 'business_residence',
-        // shared_area_usage field
-        'shared_area_usage': 'shared_area_usage',
-        'sharedareausage': 'shared_area_usage',
-        'שימוש בשטח משותף': 'shared_area_usage',
-        'שטח משותף': 'shared_area_usage',
         // non_accountable_for_total_area field
         'non_accountable_for_total_area': 'non_accountable_for_total_area',
         'non_accountable_total_area': 'non_accountable_for_total_area',
@@ -1055,7 +1027,6 @@ export function AssetTypes() {
           const condo = getValue('condo');
           const townhouses = getValue('townhouses');
           const business_residence = getValue('business_residence');
-          const shared_area_usage = getValue('shared_area_usage');
           const non_accountable_for_total_area = getValue('non_accountable_for_total_area');
           const non_accountable_for_distribution = getValue('non_accountable_for_distribution');
           const min_size = getValue('min_size');
@@ -1085,7 +1056,6 @@ export function AssetTypes() {
             condo: condo || undefined,
             townhouses: townhouses || undefined,
             business_residence: validBusinessResidence,
-            shared_area_usage: shared_area_usage || undefined,
             non_accountable_for_total_area: non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'כן' || non_accountable_for_total_area.toLowerCase() === 'yes' || non_accountable_for_total_area === '1' || non_accountable_for_total_area === 'true') ? true : (non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'לא' || non_accountable_for_total_area.toLowerCase() === 'no' || non_accountable_for_total_area === '0' || non_accountable_for_total_area === 'false') ? false : undefined),
             non_accountable_for_distribution: non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'כן' || non_accountable_for_distribution.toLowerCase() === 'yes' || non_accountable_for_distribution === '1' || non_accountable_for_distribution === 'true') ? true : (non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'לא' || non_accountable_for_distribution.toLowerCase() === 'no' || non_accountable_for_distribution === '0' || non_accountable_for_distribution === 'false') ? false : undefined),
             min_size: min_size ? parseFloat(min_size) : undefined,
@@ -1173,15 +1143,25 @@ export function AssetTypes() {
                 onChange={handleFileImport}
                 className="hidden"
               />
-              <button
-                type="button"
-                onClick={downloadTemplate}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-                title="הורד תבנית"
-              >
-                <Download className="h-5 w-5" />
-                <span className="hidden sm:inline">{t('downloadTemplate')}</span>
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => downloadTemplate('excel')}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md font-medium border-r border-green-700"
+                  title="הורד תבנית Excel"
+                >
+                  <Download className="h-5 w-5" />
+                  <span className="hidden sm:inline">{t('downloadTemplate')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadTemplate('csv')}
+                  className="flex items-center gap-1 px-2.5 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md font-medium text-xs"
+                  title="הורד תבנית CSV"
+                >
+                  CSV
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={exportAssetTypes}
@@ -1354,17 +1334,6 @@ export function AssetTypes() {
                   <option value="עסקים">עסקים</option>
                   <option value="מגורים">מגורים</option>
                 </select>
-              </div>
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
-                  <input
-                    type="checkbox"
-                    checked={formData.shared_area_usage === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, shared_area_usage: e.target.checked ? 'כן' : '' })}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  />
-                  שימוש בשטח משותף
-                </label>
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל">

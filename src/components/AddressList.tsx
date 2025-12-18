@@ -55,12 +55,9 @@ export function AddressListComponent() {
   }
 
   async function handleExportTemplate(format: 'excel' | 'csv' = 'excel') {
-    // Create template data with headers and example rows
+    // Create template data with headers only (no sample data)
     const templateData = [
-      ['סמל_רחוב', 'שם_רחוב'],
-      ['1001', 'רחוב הרצל'],
-      ['1002', 'רחוב ויצמן'],
-      ['1003', 'רחוב בן גוריון']
+      ['סמל_רחוב', 'שם_רחוב']
     ];
 
     if (format === 'csv') {

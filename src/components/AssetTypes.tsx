@@ -714,16 +714,8 @@ export function AssetTypes() {
       'שטח עד'                   // max_size
     ];
 
-    // Example rows
-    // Note: 'לא נספר בחישוב שטח מבנה' column - 'כן' means NOT accountable, 'לא' means IS accountable
-    const exampleRows = [
-      ['199', 'דירה רגילה', '10', 'אזור מרכז', 'כן', '', '', 'כן', '', 'מגורים', 'לא', 'לא', '20', '150'],
-      ['299', 'דירה מורכבת', '40', 'אזור צפון', '', '', '', 'כן', '', 'מגורים', 'לא', 'לא', '30', '200'],
-      ['101', 'חנות', '10', 'אזור דרום', '', '', '', '', '', 'עסקים', 'כן', 'לא', '10', '100']
-    ];
-
-    // Create data array with headers and example rows
-    const data = [headers, ...exampleRows];
+    // Create data array with headers only (no sample data)
+    const data = [headers];
 
     if (format === 'csv') {
       // Export as CSV

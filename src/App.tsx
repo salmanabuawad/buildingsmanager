@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { BuildingsList } from './components/BuildingsList';
+import { BuildingsList, BuildingsListRef } from './components/BuildingsList';
 import { AssetsList } from './components/AssetsList';
 import { AssetDetails } from './components/AssetDetails';
 import { AssetTypes } from './components/AssetTypes';
@@ -7,10 +7,10 @@ import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';
 import { BuildingListImport } from './components/BuildingListImport';
 import { AssetsFileImport } from './components/AssetsFileImport';
-import { TransferAreas } from './components/TransferAreas';
+import { TransferAreas, TransferAreasRef } from './components/TransferAreas';
 import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
-import { AssetDataEntry } from './components/AssetDataEntry';
+import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText } from 'lucide-react';
 import { api, AssetType } from './lib/api';
@@ -57,11 +57,11 @@ function App() {
   } | null>(null);
   
   // Refs to child components for checking dirty state
-  const buildingsListRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
+  const buildingsListRef = useRef<BuildingsListRef | null>(null);
   const assetsListRef = useRef<AssetsListRef | null>(null);
-  const assetDetailsRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
-  const transferAreasRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
-  const assetDataEntryRef = useRef<{ hasUnsavedChanges: () => boolean } | null>(null);
+  const assetDetailsRef = useRef<AssetDetailsRef | null>(null);
+  const transferAreasRef = useRef<TransferAreasRef | null>(null);
+  const assetDataEntryRef = useRef<AssetDataEntryRef | null>(null);
   
   // Confirmation modal state
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
@@ -1192,6 +1192,7 @@ function App() {
             )}
             {activeTab?.type === 'assets' && activeTab.buildingNumber && (
                 <AssetsList
+                  ref={assetsListRef}
                   key={activeTab.refreshKey}
                   buildingNumber={activeTab.buildingNumber}
                   taxRegion={activeTab.taxRegion}
@@ -1202,6 +1203,7 @@ function App() {
               )}
             {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (
               <TransferAreas
+                ref={transferAreasRef}
                 key={activeTab.refreshKey}
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}

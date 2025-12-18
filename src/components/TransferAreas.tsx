@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
@@ -18,7 +18,11 @@ interface TransferAreasProps {
   selectedAssetIds: string[];
 }
 
-export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: TransferAreasProps) {
+export interface TransferAreasRef {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({ buildingNumber, taxRegion, selectedAssetIds }, ref) => {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -906,6 +910,11 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
   const hasChanges = dirtyAssets.size > 0;
 
+  // Expose hasUnsavedChanges via ref
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => hasChanges
+  }), [hasChanges]);
+
   // Calculate current total area (sum of asset_size, excluding assets with not_accountable = true, with dirty changes applied)
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
@@ -1535,5 +1544,5 @@ export function TransferAreas({ buildingNumber, taxRegion, selectedAssetIds }: T
 
     </div>
   );
-}
+});
 

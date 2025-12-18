@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
 import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, Share2, ArrowRightLeft } from 'lucide-react';
@@ -31,7 +31,11 @@ interface AssetDetailsProps {
   onAssetCreated?: (assetDbId: number, assetIdentifier: string) => void;
 }
 
-export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }: AssetDetailsProps) {
+export interface AssetDetailsRef {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }, ref) => {
   const { t } = useTranslation();
   const { preferences, setEditMode } = usePreferences();
   const { validationRules } = useValidationRules(); // Get validation rules from context
@@ -1262,6 +1266,11 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
   }, [validationTaxRegion, assetTypes, building, validateDiscountDates]);
 
   const hasChanges = dirtyAssets.size > 0;
+
+  // Expose hasUnsavedChanges via ref
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => hasChanges
+  }), [hasChanges]);
 
   // Handler for double-click on row
   const handleRowDoubleClick = useCallback((event: any) => {
@@ -4998,4 +5007,4 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
     </div>
     </>
   );
-}
+});

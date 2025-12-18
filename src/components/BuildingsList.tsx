@@ -357,14 +357,18 @@ interface BuildingsListProps {
   setShowCreateModal: (show: boolean) => void;
 }
 
-export function BuildingsList({ 
+export interface BuildingsListRef {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({ 
   onSelectBuilding, 
   onOpenAssetTypes, 
   onOpenAssetSearch, 
   onOpenValidationRules, 
   showCreateModal, 
   setShowCreateModal 
-}: BuildingsListProps) {
+}, ref) => {
   const { t } = useTranslation();
   
   // State management
@@ -433,6 +437,11 @@ export function BuildingsList({
     const deletedCount = buildingsToDelete.size;
     return newBuildingsCount + editedExistingBuildings + deletedCount;
   }, [newBuildings, dirtyBuildings, buildingsToDelete]);
+
+  // Expose hasUnsavedChanges via ref
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => totalChanges > 0
+  }), [totalChanges]);
 
   // Check if there are any validation errors
   const hasValidationErrors = useMemo(() => {
@@ -2770,4 +2779,4 @@ export function BuildingsList({
       )}
     </>
   );
-}
+});

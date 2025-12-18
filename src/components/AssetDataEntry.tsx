@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
@@ -42,7 +42,11 @@ interface AssetRow {
   _validationErrors?: Map<string, string>;
   _originalMeasurementDate?: string;
 }
-export function AssetDataEntry() {
+export interface AssetDataEntryRef {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => {
   const { t } = useTranslation();
   const gridRef = useRef<AgGridReact>(null);
   
@@ -1544,4 +1548,4 @@ export function AssetDataEntry() {
       )}
     </div>
   );
-}
+});

@@ -309,11 +309,11 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return assetId || '';
   };
 
-  // Prepare columns: asset_id and _source first (right side in RTL), then allowed fields
+  // Prepare columns: asset_id and _source first (right side in RTL), then area_from_distribution, then other allowed fields
   // In RTL, items at the beginning of the array appear on the right
   const tableColumns = useMemo(() => {
-    const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id');
-    return ['asset_id', '_source', ...fieldsWithoutAssetId];
+    const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id' && f !== 'area_from_distribution');
+    return ['asset_id', '_source', 'area_from_distribution', ...fieldsWithoutAssetId];
   }, [allowedFields]);
 
   // Group rows by asset_id to apply same background color to before/after pairs

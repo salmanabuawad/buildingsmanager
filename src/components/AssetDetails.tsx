@@ -3163,6 +3163,16 @@ export function AssetDetails({ assetId, buildingNumber, taxRegion, onDataUpdate,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+    },
+    {
+      field: 'area_from_distribution',
+      headerName: 'גודל שטח משותף',
+      width: 120,
+      sortable: true,
+      filter: true,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     }
   ], []);
 

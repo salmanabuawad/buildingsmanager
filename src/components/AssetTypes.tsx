@@ -1135,25 +1135,25 @@ export function AssetTypes() {
                 onChange={handleFileImport}
                 className="hidden"
               />
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => downloadTemplate('excel')}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-l-md rounded-r-none transition-all duration-200 shadow-sm hover:shadow-md font-medium border-r-2 border-green-500"
-                  title="הורד תבנית Excel"
-                >
-                  <Download className="h-5 w-5" />
-                  <span className="hidden sm:inline">{t('downloadTemplate')}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadTemplate('csv')}
-                  className="flex items-center justify-center min-w-[50px] px-3 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-r-md rounded-l-none transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm whitespace-nowrap"
-                  title="הורד תבנית CSV"
-                >
-                  CSV
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => downloadTemplate('excel')}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                title="הורד תבנית Excel"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">הורד תבנית Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => downloadTemplate('csv')}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                title="הורד תבנית CSV"
+              >
+                <Download className="h-5 w-5" />
+                <span className="hidden sm:inline">הורד תבנית CSV</span>
+              </button>
               <button
                 type="button"
                 onClick={exportAssetTypes}

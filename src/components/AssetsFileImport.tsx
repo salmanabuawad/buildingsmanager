@@ -2966,7 +2966,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       'סוג הנחה',
       'תאריך הנחה מ',
       'תאריך הנחה עד',
-      'שטח מפיזור'  // area_from_distribution
+      'גודל שטח משותף'  // area_from_distribution
     ];
 
     const data = [headers];

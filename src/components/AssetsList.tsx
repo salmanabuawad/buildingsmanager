@@ -148,14 +148,10 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
   const hasPreviousResidenceDistribution = useMemo(() => {
     if (!assets || assets.length === 0) return false;
     // Check if any residential assets have area_from_distribution > 0
-    // For residence, we need to check assets that are residential type
-    // But since residence distribution uses sub-asset types, we check if any assets have main_asset_type = '199'
-    // and have sub-asset sizes > 0 that might be from distribution
-    // Actually, for residence, the distribution is stored in sub-asset sizes, not area_from_distribution
-    // So we check if any assets have main_asset_type = '199' (which indicates previous residence distribution)
+    // Residence distribution now uses area_from_distribution (same as business)
     return assets.some(asset => {
-      const mainType = String(asset.main_asset_type || '').trim();
-      return mainType === '199';
+      const areaFromDist = asset.area_from_distribution || 0;
+      return areaFromDist > 0;
     });
   }, [assets]);
 
@@ -1643,7 +1639,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         return;
       }
 
-      // Calculate area per asset
+      // Calculate area per asset (simple division for residence distribution)
       const areaPerAsset = building.residence_shared_area! / residentialAssets.length;
       
       // Track changes
@@ -1653,149 +1649,16 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
 
       for (const asset of residentialAssets) {
         const assetId = String(asset.asset_id);
-        const assetTaxRegion = asset.tax_region != null ? String(asset.tax_region) : null;
-        
-        // Find shared area usage asset type for this tax region
-        let sharedAreaAssetType: AssetType | undefined;
-        if (assetTaxRegion) {
-          // Try to find asset type with shared_area_usage = true for this tax region
-          sharedAreaAssetType = assetTypes.find(at => 
-            at.active === 'כן' &&
-            at.tax_region !== null &&
-            String(at.tax_region) === assetTaxRegion &&
-            at.shared_area_usage === 'כן'
-          );
-        }
-        
-        if (!sharedAreaAssetType) {
-          // Try to find any asset type with shared_area_usage = true
-          sharedAreaAssetType = assetTypes.find(at => 
-            at.active === 'כן' && at.shared_area_usage === 'כן'
-          );
-        }
-
-        if (!sharedAreaAssetType) {
-          setError(`לא נמצא סוג נכס משנה עם שימוש בשטח משותף לנכס ${asset.asset_id}`);
-          setTimeout(() => setError(null), 5000);
-          setLoading(false);
-          return;
-        }
-
-        // Get current asset state (including any dirty changes) - need this for checking existing slots
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
         const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-
-        // Helper to get current sub-asset type (checking dirty changes first, then existing asset state)
-        const getCurrentSubAssetType = (index: number): string => {
-          const typeKey = `sub_asset_type_${index}` as keyof Asset;
-          if (existingChanges[typeKey] !== undefined) {
-            return String(existingChanges[typeKey] || '');
-          }
-          return String(currentAsset?.[typeKey] || '');
-        };
-
-        // Find all sub-asset slots
-        const subAssetFields = [
-          { type: 'sub_asset_type_1', size: 'sub_asset_size_1' },
-          { type: 'sub_asset_type_2', size: 'sub_asset_size_2' },
-          { type: 'sub_asset_type_3', size: 'sub_asset_size_3' },
-          { type: 'sub_asset_type_4', size: 'sub_asset_size_4' },
-          { type: 'sub_asset_type_5', size: 'sub_asset_size_5' },
-          { type: 'sub_asset_type_6', size: 'sub_asset_size_6' }
-        ];
-
-        // First, check if asset already has THIS SPECIFIC shared area asset type
-        let existingSharedAreaSlot: { type: string; size: string } | null = null;
-        for (const field of subAssetFields) {
-          const index = parseInt(field.type.replace('sub_asset_type_', ''));
-          const currentType = getCurrentSubAssetType(index);
-          
-          // Check if this slot already has the exact same shared area asset type
-          if (currentType && currentType.trim() === sharedAreaAssetType.name) {
-            existingSharedAreaSlot = field;
-            break;
-          }
-        }
-
-        // Get current main type and size (using existingChanges and currentAsset already declared above)
-        const currentMainType = existingChanges.main_asset_type !== undefined 
-          ? existingChanges.main_asset_type 
-          : (currentAsset?.main_asset_type || '');
-        const currentAssetSize = existingChanges.asset_size !== undefined
-          ? existingChanges.asset_size
-          : (currentAsset?.asset_size || 0);
 
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Decide which sub-asset slot to use for the DISTRIBUTION subtype
-        let slotToUse: { type: string; size: string } | null = null;
-
-        if (currentMainType && String(currentMainType) !== '199') {
-          // Case 1: main asset type is NOT 199
-          // Step 1: move main type + size to subtype 1
-          changes.sub_asset_type_1 = String(currentMainType);
-          changes.sub_asset_size_1 = currentAssetSize;
-          // Step 2: set main type to 199
-          changes.main_asset_type = '199';
-
-          // Step 3: for distribution, if we already have this shared subtype somewhere, update that slot;
-          // otherwise, use subtype 2 explicitly
-          if (existingSharedAreaSlot) {
-            slotToUse = existingSharedAreaSlot;
-          } else {
-            slotToUse = { type: 'sub_asset_type_2', size: 'sub_asset_size_2' };
-          }
-        } else {
-          // Case 2: main asset type is already 199
-          if (existingSharedAreaSlot) {
-            // Update existing slot
-            slotToUse = existingSharedAreaSlot;
-          } else {
-            // Find first empty slot
-            for (const field of subAssetFields) {
-              const index = parseInt(field.type.replace('sub_asset_type_', ''));
-              const currentType = getCurrentSubAssetType(index);
-              
-              if (!currentType || currentType.trim() === '') {
-                slotToUse = field;
-                break;
-              }
-            }
-          }
-        }
-
-        if (!slotToUse) {
-          setError(`לא נמצא מקום פנוי בנכסי משנה לנכס ${asset.asset_id}`);
-          setTimeout(() => setError(null), 5000);
-          setLoading(false);
-          return;
-        }
-
-        // Now add/update the shared area in the selected slot (subtype 2 when converting to 199)
-        changes[slotToUse.type as keyof Asset] = sharedAreaAssetType.name;
-        
-        // Overwrite the existing size with the new distributed area (don't add to existing)
-        changes[slotToUse.size as keyof Asset] = areaPerAsset;
-
-        // Ensure all sub-asset sizes in `changes` reflect the effective state,
-        // then calculate main asset size as the sum of all sub-asset sizes.
-        let totalSubAssetSize = 0;
-        for (let i = 1; i <= 6; i++) {
-          const sizeKey = `sub_asset_size_${i}` as keyof Asset;
-          // If this size wasn't explicitly changed, populate it from existingChanges/currentAsset
-          if (changes[sizeKey] === undefined) {
-            const fromExisting = existingChanges[sizeKey] as number | undefined;
-            const fromCurrent = currentAsset?.[sizeKey] as number | undefined;
-            changes[sizeKey] = (fromExisting ?? fromCurrent ?? 0) as any;
-          }
-          const sizeVal = (changes[sizeKey] as number | undefined) ?? 0;
-          totalSubAssetSize += sizeVal || 0;
-        }
-
-        // Always update the main asset size to be the sum of all sub-asset sizes
-        // This ensures that both newly converted 199 assets and existing 199 assets get updated
-        changes.asset_size = totalSubAssetSize;
+        // For residence distribution, use simple per-asset division
+        // Update area_from_distribution (only field that gets updated in distribution)
+        // For clearing distribution (areaPerAsset = 0), set to 0; otherwise set to new value
+        changes.area_from_distribution = areaPerAsset;
 
         updatedDirtyAssets.set(assetId, changes);
 
@@ -2003,65 +1866,27 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
         const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
 
-        // Get current main type and size
-        const currentMainType = existingChanges.main_asset_type !== undefined 
-          ? existingChanges.main_asset_type 
-          : (currentAsset?.main_asset_type || '');
-        const currentAssetSize = existingChanges.asset_size !== undefined
-          ? existingChanges.asset_size
-          : (currentAsset?.asset_size || 0);
-
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Get current area_from_distribution (check existing changes first, then current asset)
+        // Get current asset size and area_from_distribution for calculation
+        const currentAssetSize = existingChanges.asset_size !== undefined
+          ? existingChanges.asset_size
+          : (currentAsset?.asset_size || 0);
         const currentDistributionArea = existingChanges.area_from_distribution !== undefined
           ? existingChanges.area_from_distribution
           : (currentAsset?.area_from_distribution || 0);
 
         // Calculate base asset size (reducing existing area_from_distribution)
+        // This is needed to calculate the distribution proportionally to the base size
         const baseAssetSize = currentAssetSize - currentDistributionArea;
 
         // Calculate what the new total area_from_distribution should be based on base asset size
         const newDistributionArea = overloadRatio * baseAssetSize;
 
-        // If area_from_distribution is not zero, calculate delta; otherwise use full new distribution
-        let areaToAdd: number;
-        if (currentDistributionArea && currentDistributionArea !== 0) {
-          // Calculate delta: new_area_from_distribution - current_area_from_distribution
-          areaToAdd = newDistributionArea - currentDistributionArea;
-        } else {
-          // First time distribution, use full amount
-          areaToAdd = newDistributionArea;
-        }
-
-        // Update area_from_distribution by adding the delta to the current value
-        changes.area_from_distribution = (currentDistributionArea || 0) + areaToAdd;
-
-        if (String(currentMainType) === '299') {
-          // Case: main type is 299
-          // Update sub_asset_size_1 = current + areaToAdd (delta if re-distributing, or full if first time)
-          const currentSubSize1 = existingChanges.sub_asset_size_1 !== undefined
-            ? existingChanges.sub_asset_size_1
-            : (currentAsset?.sub_asset_size_1 || 0);
-          
-          changes.sub_asset_size_1 = (currentSubSize1 || 0) + areaToAdd;
-
-          // Update main size = sum of all subtypes
-          let totalSubAssetSize = changes.sub_asset_size_1 || 0;
-          for (let i = 2; i <= 6; i++) {
-            const sizeKey = `sub_asset_size_${i}` as keyof Asset;
-            const currentSubSize = existingChanges[sizeKey] !== undefined
-              ? (existingChanges[sizeKey] as number | undefined)
-              : (currentAsset?.[sizeKey] as number | undefined);
-            totalSubAssetSize += (typeof currentSubSize === 'number' ? currentSubSize : 0);
-          }
-          changes.asset_size = totalSubAssetSize;
-        } else {
-          // Case: main type is NOT 299
-          // Update main size = current size + areaToAdd (delta if re-distributing, or full if first time)
-          changes.asset_size = currentAssetSize + areaToAdd;
-        }
+        // Update area_from_distribution (only field that gets updated in distribution)
+        // For clearing distribution (overloadRatio = 0), set to 0; otherwise set to new value
+        changes.area_from_distribution = newDistributionArea;
 
         updatedDirtyAssets.set(assetId, changes);
 
@@ -2146,7 +1971,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
         'גודל נכס משנה 5',
         'סוג נכס משנה 6',
         'גודל נכס משנה 6',
-        'שטח מפיזור'  // area_from_distribution
+        'גודל שטח משותף'  // area_from_distribution
       ];
 
       // Convert assets to rows
@@ -3019,7 +2844,7 @@ export function AssetsList({ buildingNumber, taxRegion, onSelectAsset, onOpenTra
     },
     {
       field: 'area_from_distribution',
-      headerName: 'שטח מפיזור',
+      headerName: 'גודל שטח משותף',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

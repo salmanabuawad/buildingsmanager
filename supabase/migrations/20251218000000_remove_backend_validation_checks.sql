@@ -780,3 +780,40 @@ $$;
 
 COMMENT ON FUNCTION save_assets_bulk_transactional IS 'Bulk save assets with transactional post-save actions. Validation is handled in application layer. All operations (saves, update totals, set flags, remove flags for distribute_shared, audit) happen in ONE transaction. For distribute_shared actions, removes the relevant distribution flag (business OR residence) only after successful save.';
 
+-- ============================================================================
+-- FIELD CONFIGURATION: Add area_from_distribution to assets-list grid
+-- ============================================================================
+
+-- Add area_from_distribution to assets-list grid
+INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
+VALUES ('assets-list', 'area_from_distribution', 18, 8, 'גודל שטח משותף', false, null, true, NULL)
+ON CONFLICT (grid_name, field_name) DO UPDATE
+SET 
+  width_chars = EXCLUDED.width_chars,
+  padding = EXCLUDED.padding,
+  hebrew_name = EXCLUDED.hebrew_name,
+  visible = EXCLUDED.visible,
+  updated_at = now();
+
+-- Add area_from_distribution to asset-details-main grid
+INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
+VALUES ('asset-details-main', 'area_from_distribution', 18, 8, 'גודל שטח משותף', false, null, true, NULL)
+ON CONFLICT (grid_name, field_name) DO UPDATE
+SET 
+  width_chars = EXCLUDED.width_chars,
+  padding = EXCLUDED.padding,
+  hebrew_name = EXCLUDED.hebrew_name,
+  visible = EXCLUDED.visible,
+  updated_at = now();
+
+-- Add area_from_distribution to asset-details-history grid
+INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
+VALUES ('asset-details-history', 'area_from_distribution', 18, 8, 'גודל שטח משותף', false, null, true, NULL)
+ON CONFLICT (grid_name, field_name) DO UPDATE
+SET 
+  width_chars = EXCLUDED.width_chars,
+  padding = EXCLUDED.padding,
+  hebrew_name = EXCLUDED.hebrew_name,
+  visible = EXCLUDED.visible,
+  updated_at = now();
+

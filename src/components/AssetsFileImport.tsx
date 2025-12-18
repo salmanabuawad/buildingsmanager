@@ -3191,11 +3191,11 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {/* Imported Assets Grid */}
         {importedAssets.length > 0 && (
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
               <h2 className="text-lg font-bold text-slate-900">
                 נכסים מיובאים ({importedAssets.length})
               </h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleValidate}

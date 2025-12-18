@@ -1,13 +1,13 @@
 /**
  * CSV Export Helper
- * Provides standardized CSV export functionality
+ * Provides standardized CSV export functionality with reduced antivirus false positives
  */
 
 export interface CSVExportOptions {
   filename: string;
   data: any[][];
   delimiter?: string; // Default: comma
-  includeBOM?: boolean; // BOM for UTF-8 Excel support, default: true
+  includeBOM?: boolean; // BOM for UTF-8 Excel support, default: false (reduces antivirus false positives)
 }
 
 /**
@@ -31,38 +31,53 @@ function escapeCSVField(field: any): string {
 
 /**
  * Export data to CSV file
+ * Optimized to reduce antivirus false positives
  * 
  * @param options CSV export options
  */
 export function exportToCSV(options: CSVExportOptions): void {
   try {
-    const { filename, data, delimiter = ',', includeBOM = true } = options;
+    const { filename, data, delimiter = ',', includeBOM = false } = options;
 
-    // Convert data to CSV rows
-    const csvRows = data.map(row => 
-      row.map(field => escapeCSVField(field)).join(delimiter)
-    );
+    // Validate data - ensure it's a valid 2D array
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('CSV data must be a non-empty array');
+    }
 
-    // Join rows with newlines
+    // Convert data to CSV rows with proper escaping
+    const csvRows = data.map(row => {
+      if (!Array.isArray(row)) {
+        return '';
+      }
+      return row.map(field => escapeCSVField(field)).join(delimiter);
+    });
+
+    // Join rows with standard newlines (Unix style for better compatibility)
     const csvContent = csvRows.join('\n');
 
-    // Add BOM for UTF-8 Excel support if requested
+    // Create content - BOM disabled by default to reduce antivirus false positives
+    // Most modern applications can handle UTF-8 without BOM
     const content = includeBOM ? '\ufeff' + csvContent : csvContent;
 
-    // Create blob
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    // Create blob with standard CSV MIME type (without charset parameter to reduce false positives)
+    const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
 
-    // Create download link
+    // Create download link with standard attributes
     const link = document.createElement('a');
     link.href = url;
     link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+    link.style.display = 'none'; // Hide link
     document.body.appendChild(link);
+    
+    // Trigger download
     link.click();
 
-    // Cleanup
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Cleanup after a short delay to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   } catch (error) {
     console.error('Error exporting to CSV:', error);
     throw error;

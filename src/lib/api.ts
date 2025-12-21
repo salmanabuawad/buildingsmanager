@@ -2947,7 +2947,6 @@ export const api = {
         count: data.count || 0
       };
     },
-  },
   distributionAudit: {
     getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer'): Promise<DistributionAudit[]> => {
       let query = supabase

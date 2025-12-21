@@ -1240,10 +1240,9 @@ export const api = {
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       try {
         // First record: fetch from assets table (latest measurement)
-        // Explicitly include action_id in the select
         let masterQuery = supabase
           .from('assets')
-          .select('*, action_id')
+          .select('*')
           .eq('asset_id', assetId);
 
         if (buildingNumber) {
@@ -1257,10 +1256,9 @@ export const api = {
         }
 
         // Other records: fetch from assets_history table
-        // Explicitly include action_id in the select
         let historyQuery = supabase
           .from('assets_history')
-          .select('*, action_id')
+          .select('*')
           .eq('asset_id', assetId);
 
         if (buildingNumber) {

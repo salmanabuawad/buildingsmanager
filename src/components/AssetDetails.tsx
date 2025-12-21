@@ -127,17 +127,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
-  // Load action_type for history records with action_id, and also fetch distribute/transfer actions for this asset
-  // Memoize the current asset_id to prevent unnecessary re-runs
+  // Load distribution and transfer assets from audit table
+  // Query audit table directly by building_number and filter by asset_id in JSON data
   const currentAssetIdRef = useRef<number | undefined>(asset?.asset_id);
   useEffect(() => {
     currentAssetIdRef.current = asset?.asset_id;
   }, [asset?.asset_id]);
 
   useEffect(() => {
-    const loadActionTypes = async () => {
-      // Early return if no asset_id
-      if (!currentAssetIdRef.current) {
+    const loadDistributionAndTransferAssets = async () => {
+      // Early return if no asset_id or building_number
+      if (!currentAssetIdRef.current || !buildingNumber) {
         setHistoryWithActionTypes(new Map());
         setAuditCreatedAtMap(new Map());
         setAdditionalDistributionAssets([]);
@@ -145,23 +145,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         return;
       }
 
-      const actionIds = new Set<number>();
-      historyRows.forEach(row => {
-        if (row.action_id != null) {
-          actionIds.add(row.action_id);
-        }
-      });
-      
-      // Also check current asset (latest) for action_id
-      if (latestMeasurement?.action_id != null) {
-        actionIds.add(latestMeasurement.action_id);
-      }
+      const assetId = currentAssetIdRef.current;
+      const assetIdStr = String(assetId);
 
-      // For distribute_shared, query ALL distribution actions for the building
-      // Distributions don't create history records, so we need to get all from audit table
-      // For transfer_area, query actions affecting this specific asset
       try {
-        const assetIdStr = String(currentAssetIdRef.current);
         
         // Query for ALL distribute_shared actions (not just ones affecting this asset)
         // We'll filter by building later when we process the audit data

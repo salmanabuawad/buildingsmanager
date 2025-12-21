@@ -2,6 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, Calendar } from 'lucide-react';
 import { DistributionAudit, api, Asset, AssetType } from '../lib/api';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { formatNumberToTwoDecimals } from '../lib/numberUtils';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
+import { useTranslation } from 'react-i18next';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface DistributionHistoryModalProps {
   isOpen: boolean;
@@ -14,6 +20,7 @@ export function DistributionHistoryModal({
   onClose,
   buildingNumber,
 }: DistributionHistoryModalProps) {
+  const { t } = useTranslation();
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<DistributionAudit[]>([]);
@@ -64,76 +71,200 @@ export function DistributionHistoryModal({
     setSelectedRecord(null);
   };
 
-  const getAssetTypeDescription = (typeName: string | undefined): string => {
-    if (!typeName) return '';
-    const assetType = assetTypes.find(at => at.name === typeName);
-    return assetType?.description || typeName;
-  };
-
-  const renderAssetDetails = (asset: Asset) => {
-    const details: JSX.Element[] = [];
-    
-    // Asset ID
-    details.push(
-      <div key="asset_id" className="font-semibold text-base mb-2">
-        נכס: {asset.asset_id}
-      </div>
-    );
-
-    // Main asset type and size
-    if (asset.main_asset_type) {
-      const typeDesc = getAssetTypeDescription(asset.main_asset_type);
-      details.push(
-        <div key="main" className="mb-1">
-          <span className="font-semibold">סוג ראשי:</span> {asset.main_asset_type}
-          {typeDesc && typeDesc !== asset.main_asset_type && (
-            <span className="text-gray-600 mr-2">({typeDesc})</span>
-          )}
-        </div>
-      );
-    }
-    
-    if (asset.asset_size != null && asset.asset_size !== 0) {
-      details.push(
-        <div key="main_size" className="mb-1">
-          <span className="font-semibold">גודל ראשי:</span> {asset.asset_size.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-      );
-    }
-
-    // Sub assets
-    for (let i = 1; i <= 6; i++) {
-      const typeKey = `sub_asset_type_${i}` as keyof Asset;
-      const sizeKey = `sub_asset_size_${i}` as keyof Asset;
-      const subType = asset[typeKey] as string | undefined;
-      const subSize = asset[sizeKey] as number | undefined;
-      
-      if (subType && subSize != null && subSize !== 0) {
-        const typeDesc = getAssetTypeDescription(subType);
-        details.push(
-          <div key={`sub_${i}`} className="mb-1 mr-4">
-            <span className="font-semibold">משנה {i}:</span> {subType}
-            {typeDesc && typeDesc !== subType && (
-              <span className="text-gray-600 mr-2">({typeDesc})</span>
-            )}
-            {' '}
-            <span className="font-semibold">גודל:</span> {subSize.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-        );
-      }
-    }
-
-    // Area from distribution
-    if (asset.area_from_distribution != null && asset.area_from_distribution !== 0) {
-      details.push(
-        <div key="distribution" className="mt-2 pt-2 border-t border-gray-300">
-          <span className="font-semibold">שטח משותף:</span> {asset.area_from_distribution.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-      );
-    }
-
-    return details;
-  };
+  const columnDefs: ColDef<Asset>[] = useMemo(() => {
+    const defs: ColDef<Asset>[] = [
+      {
+        field: 'asset_id',
+        headerName: t('assetId'),
+        pinned: 'right',
+        sortable: false,
+        filter: false,
+        headerClass: 'ag-right-aligned-header',
+        cellStyle: { textAlign: 'right', fontWeight: '600' },
+        width: 100,
+      },
+      {
+        field: 'payer_id',
+        headerName: t('payerId'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        width: 120,
+      },
+      {
+        field: 'main_asset_type',
+        headerName: t('mainAssetType'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'asset_size',
+        headerName: t('mainAssetSize'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'sub_asset_type_1',
+        headerName: t('subAssetType1'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'sub_asset_size_1',
+        headerName: t('subAssetSize1'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'sub_asset_type_2',
+        headerName: t('subAssetType2'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'sub_asset_size_2',
+        headerName: t('subAssetSize2'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'sub_asset_type_3',
+        headerName: t('subAssetType3'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'sub_asset_size_3',
+        headerName: t('subAssetSize3'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'sub_asset_type_4',
+        headerName: t('subAssetType4'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'sub_asset_size_4',
+        headerName: t('subAssetSize4'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'sub_asset_type_5',
+        headerName: t('subAssetType5'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'sub_asset_size_5',
+        headerName: t('subAssetSize5'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'sub_asset_type_6',
+        headerName: t('subAssetType6'),
+        sortable: false,
+        filter: false,
+        cellStyle: { textAlign: 'right' },
+        tooltipValueGetter: (params) => {
+          if (!params.value) return '';
+          const assetType = assetTypes.find(at => at.name === params.value);
+          return assetType?.description || params.value;
+        },
+        width: 120,
+      },
+      {
+        field: 'sub_asset_size_6',
+        headerName: t('subAssetSize6'),
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 120,
+      },
+      {
+        field: 'area_from_distribution',
+        headerName: 'גודל שטח משותף',
+        sortable: false,
+        filter: false,
+        type: 'numericColumn',
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
+        width: 150,
+      },
+    ];
+    return defs;
+  }, [assetTypes, t]);
 
   if (!isOpen) return null;
 
@@ -147,7 +278,7 @@ export function DistributionHistoryModal({
       <div
         className={`bg-white rounded-xl shadow-2xl p-4 sm:p-6 transition-all duration-300 border border-gray-100 ${
           isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-        } max-w-5xl w-full max-h-[90vh] flex flex-col`}
+        } max-w-[95vw] w-full max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-teal-50 border-b border-teal-200">
@@ -213,15 +344,25 @@ export function DistributionHistoryModal({
                 {/* Before Assets */}
                 <div>
                   <h3 className="text-lg font-bold mb-3 text-gray-800">נכסים לפני פיזור ({selectedRecord.affected_assets_before.length})</h3>
-                  <div className="bg-red-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <div className="space-y-3">
-                      {selectedRecord.affected_assets_before.map((asset, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border border-red-200 shadow-sm">
-                          <div className="text-sm space-y-1">
-                            {renderAssetDetails(asset)}
-                          </div>
-                        </div>
-                      ))}
+                  <div className="bg-red-50 rounded-lg p-2" style={{ height: '500px' }}>
+                    <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
+                      <AgGridReact<Asset>
+                        rowData={selectedRecord.affected_assets_before}
+                        columnDefs={columnDefs}
+                        defaultColDef={{
+                          resizable: true,
+                          sortable: false,
+                          filter: false,
+                        }}
+                        suppressRowClickSelection={true}
+                        rowSelection="multiple"
+                        domLayout="normal"
+                        headerHeight={40}
+                        rowHeight={35}
+                        suppressCellFocus={true}
+                        suppressScrollOnNewData={true}
+                        animateRows={false}
+                      />
                     </div>
                   </div>
                 </div>
@@ -229,15 +370,25 @@ export function DistributionHistoryModal({
                 {/* After Assets */}
                 <div>
                   <h3 className="text-lg font-bold mb-3 text-gray-800">נכסים אחרי פיזור ({selectedRecord.affected_assets_after.length})</h3>
-                  <div className="bg-green-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <div className="space-y-3">
-                      {selectedRecord.affected_assets_after.map((asset, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border border-green-200 shadow-sm">
-                          <div className="text-sm space-y-1">
-                            {renderAssetDetails(asset)}
-                          </div>
-                        </div>
-                      ))}
+                  <div className="bg-green-50 rounded-lg p-2" style={{ height: '500px' }}>
+                    <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
+                      <AgGridReact<Asset>
+                        rowData={selectedRecord.affected_assets_after}
+                        columnDefs={columnDefs}
+                        defaultColDef={{
+                          resizable: true,
+                          sortable: false,
+                          filter: false,
+                        }}
+                        suppressRowClickSelection={true}
+                        rowSelection="multiple"
+                        domLayout="normal"
+                        headerHeight={40}
+                        rowHeight={35}
+                        suppressCellFocus={true}
+                        suppressScrollOnNewData={true}
+                        animateRows={false}
+                      />
                     </div>
                   </div>
                 </div>

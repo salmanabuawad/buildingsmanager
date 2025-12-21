@@ -92,6 +92,37 @@ export function TransferHistoryModal({
     return beforeValue !== afterValue;
   };
 
+  // Check if asset has any changes
+  const hasAssetChanged = (beforeAsset: Asset | undefined, afterAsset: Asset | undefined): boolean => {
+    if (!beforeAsset && !afterAsset) return false;
+    if (!beforeAsset || !afterAsset) return true; // One exists but not the other
+    
+    // Compare relevant fields
+    const fieldsToCompare = [
+      'main_asset_type', 'asset_size',
+      'sub_asset_type_1', 'sub_asset_size_1',
+      'sub_asset_type_2', 'sub_asset_size_2',
+      'sub_asset_type_3', 'sub_asset_size_3',
+      'sub_asset_type_4', 'sub_asset_size_4',
+      'sub_asset_type_5', 'sub_asset_size_5',
+      'sub_asset_type_6', 'sub_asset_size_6'
+    ];
+    
+    for (const field of fieldsToCompare) {
+      const beforeValue = (beforeAsset as any)[field];
+      const afterValue = (afterAsset as any)[field];
+      
+      // Handle null/undefined
+      if (beforeValue == null && afterValue == null) continue;
+      if (beforeValue == null || afterValue == null) return true;
+      
+      // Compare values
+      if (beforeValue !== afterValue) return true;
+    }
+    
+    return false;
+  };
+
   // Create row data with before and after rows for each asset
   const rowData = useMemo(() => {
     if (!selectedRecord) return [];
@@ -112,9 +143,16 @@ export function TransferHistoryModal({
       ...Array.from(afterMap.keys())
     ])).sort((a, b) => a - b);
     
-    // Create rows: for each asset, create two rows (before and after)
+    // Filter to only include assets that have changed
+    const changedAssetIds = allAssetIds.filter(assetId => {
+      const beforeAsset = beforeMap.get(assetId);
+      const afterAsset = afterMap.get(assetId);
+      return hasAssetChanged(beforeAsset, afterAsset);
+    });
+    
+    // Create rows: for each changed asset, create two rows (before and after)
     const rows: any[] = [];
-    allAssetIds.forEach(assetId => {
+    changedAssetIds.forEach(assetId => {
       const beforeAsset = beforeMap.get(assetId);
       const afterAsset = afterMap.get(assetId);
       

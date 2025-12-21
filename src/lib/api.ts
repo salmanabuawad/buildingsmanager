@@ -2880,15 +2880,9 @@ export const api = {
       description?: string,
       userName?: string
     ): Promise<{ affected_asset_ids: number[]; count: number }> => {
-      const userInfo = await getCurrentUserInfo();
-      
-      // Convert to arrays (Supabase will convert to JSONB automatically)
-      const oldAssetsArray = oldAssets.map(asset => ({
-        asset_id: asset.asset_id,
-        building_number: asset.building_number
-      }));
-      
-      const newAssetsArray = newAssets.map(asset => {
+      // Prepare assets with is_new_measurement flag set to true
+      // This will cause save_assets_bulk_transactional to copy existing assets to history before updating
+      const assetsToSave = newAssets.map(asset => {
         const sanitized = sanitizeAssetInput(asset);
         return {
           ...sanitized,
@@ -2901,50 +2895,52 @@ export const api = {
           sub_asset_size_4: sanitized.sub_asset_size_4 || 0,
           sub_asset_size_5: sanitized.sub_asset_size_5 || 0,
           sub_asset_size_6: sanitized.sub_asset_size_6 || 0,
+          is_new_measurement: true, // This flag tells the function to copy to history before updating
         };
       });
-      
-      const { data, error } = await supabase.rpc('bulk_transfer_areas', {
-        p_old_assets: oldAssetsArray, // Supabase will convert to JSONB automatically
-        p_new_assets: newAssetsArray // Supabase will convert to JSONB automatically
-      });
 
-      if (error) throw error;
+      // Prepare before_data from oldAssets for audit logging
+      // If beforeData is provided, use it; otherwise construct from oldAssets
+      // If neither is available, pass null to let the database function collect it
+      const beforeDataForAudit = beforeData || (oldAssets.length > 0 ? {
+        assets: oldAssets.map(asset => ({
+          asset_id: asset.asset_id,
+          building_number: asset.building_number,
+          main_asset_type: asset.main_asset_type,
+          asset_size: asset.asset_size,
+          sub_asset_type_1: asset.sub_asset_type_1,
+          sub_asset_size_1: asset.sub_asset_size_1,
+          sub_asset_type_2: asset.sub_asset_type_2,
+          sub_asset_size_2: asset.sub_asset_size_2,
+          sub_asset_type_3: asset.sub_asset_type_3,
+          sub_asset_size_3: asset.sub_asset_size_3,
+          sub_asset_type_4: asset.sub_asset_type_4,
+          sub_asset_size_4: asset.sub_asset_size_4,
+          sub_asset_type_5: asset.sub_asset_type_5,
+          sub_asset_size_5: asset.sub_asset_size_5,
+          sub_asset_type_6: asset.sub_asset_type_6,
+          sub_asset_size_6: asset.sub_asset_size_6,
+          measurement_date: asset.measurement_date,
+        }))
+      } : null);
 
-      // Call distribution flag function for each asset that changed type
-      console.log('[api.auditLog.bulkTransferAreas] Checking distribution flags for assets...');
+      // Use validateAndSaveBulkAssets which will call save_assets_bulk_transactional
+      // This function handles validation, copying to history, and logging to audit table
+      const result = await validateAndSaveBulkAssets(
+        assetsToSave,
+        'transfer_area',
+        beforeDataForAudit,
+        afterData,
+        description || `Transferred areas for ${oldAssets.length} assets as new measurements`
+      );
 
-      try {
-        for (let i = 0; i < oldAssets.length; i++) {
-          const oldAsset = oldAssets[i];
-          const newAsset = newAssets[i];
-
-          // Only process if building_number exists and type changed
-          if (newAsset.building_number && oldAsset.main_asset_type !== newAsset.main_asset_type) {
-            const { data: flagData, error: flagError } = await supabase.rpc('set_distribution_flags_for_asset_type_change', {
-              p_building_number: newAsset.building_number,
-              p_old_main_asset_type: oldAsset.main_asset_type || null,
-              p_new_main_asset_type: newAsset.main_asset_type || null
-            });
-
-            if (flagError) {
-              console.error(`[api.auditLog.bulkTransferAreas] Failed to set flags for building ${newAsset.building_number}:`, flagError);
-            } else if (flagData && flagData.length > 0) {
-              const result = flagData[0];
-              if (result.business_flag_set || result.residence_flag_set) {
-                console.log(`[api.auditLog.bulkTransferAreas] ✓ Set distribution flags for building ${newAsset.building_number}`);
-              }
-            }
-          }
-        }
-      } catch (flagError) {
-        console.error('[api.auditLog.bulkTransferAreas] ❌ ERROR setting distribution flags:', flagError);
-        // Don't throw - flags are a side effect, shouldn't fail the main operation
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to transfer areas');
       }
 
       return {
-        affected_asset_ids: data.affected_asset_ids || [],
-        count: data.count || 0
+        affected_asset_ids: result.affected_asset_ids || [],
+        count: result.count || 0
       };
     },
   distributionAudit: {

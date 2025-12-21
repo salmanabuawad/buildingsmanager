@@ -136,8 +136,6 @@ export function TransferHistoryModal({
     return rows;
   }, [selectedRecord]);
 
-  const columnDefs: ColDef<any>[] = useMemo(() => {
-
   if (!isOpen) return null;
 
   return (

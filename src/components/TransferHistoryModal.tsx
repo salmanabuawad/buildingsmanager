@@ -315,11 +315,11 @@ export function TransferHistoryModal({
                               {row.asset_id}
                             </td>
                             <td className="border border-gray-300 px-3 py-2 text-right font-semibold">לפני</td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}>
+                            <td 
+                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
+                              title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}
+                            >
                               {asset?.main_asset_type || ''}
-                              {asset?.main_asset_type && getAssetTypeDescription(asset.main_asset_type) !== asset.main_asset_type && (
-                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.main_asset_type)})</span>
-                              )}
                             </td>
                             <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
                               {asset?.asset_size != null && asset.asset_size !== 0 ? formatNumberToTwoDecimals(asset.asset_size, false) : ''}

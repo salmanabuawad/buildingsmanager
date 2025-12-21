@@ -184,30 +184,28 @@ export function DistributionHistoryModal({
               </button>
 
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm font-semibold text-gray-600">תאריך:</span>
-                    <p className="text-lg">{formatDateToDDMMYYYY(selectedRecord.created_at)}</p>
-                  </div>
+                <div className="flex flex-wrap gap-4 items-baseline">
+                  <span className="text-sm font-semibold text-gray-600">תאריך:</span>
+                  <span className="text-lg">{formatDateToDDMMYYYY(selectedRecord.created_at)}</span>
                   {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">שטח משותף:</span>
-                      <p className="text-lg">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</p>
-                    </div>
+                    <>
+                      <span className="text-sm font-semibold text-gray-600 mr-2">שטח משותף:</span>
+                      <span className="text-lg">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
+                    </>
                   )}
                   {selectedRecord.overload_ratio !== null && selectedRecord.overload_ratio !== undefined && (
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">אחוז העמסה:</span>
-                      <p className="text-lg">{selectedRecord.overload_ratio.toFixed(2)}%</p>
-                    </div>
-                  )}
-                  {selectedRecord.description && (
-                    <div className="col-span-2">
-                      <span className="text-sm font-semibold text-gray-600">תיאור:</span>
-                      <p className="text-lg">{selectedRecord.description}</p>
-                    </div>
+                    <>
+                      <span className="text-sm font-semibold text-gray-600 mr-2">אחוז העמסה:</span>
+                      <span className="text-lg">{selectedRecord.overload_ratio.toFixed(2)}%</span>
+                    </>
                   )}
                 </div>
+                {selectedRecord.description && (
+                  <div>
+                    <span className="text-sm font-semibold text-gray-600">תיאור:</span>
+                    <p className="text-lg">{selectedRecord.description}</p>
+                  </div>
+                )}
               </div>
 
                 <div>
@@ -413,19 +411,20 @@ export function DistributionHistoryModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Calendar className="h-5 w-5 text-teal-600" />
-                      <div>
-                        <div className="font-semibold text-lg">
-                          {formatDateToDDMMYYYY(record.created_at)}
-                        </div>
+                      <div className="flex flex-wrap gap-4 items-baseline">
+                        <span className="text-sm font-semibold text-gray-600">תאריך:</span>
+                        <span className="text-lg font-semibold">{formatDateToDDMMYYYY(record.created_at)}</span>
                         {record.shared_area_size !== null && record.shared_area_size !== undefined && (
-                          <div className="text-sm text-gray-600">
-                            שטח משותף: {record.shared_area_size.toLocaleString('he-IL')}
-                          </div>
+                          <>
+                            <span className="text-sm font-semibold text-gray-600">שטח משותף:</span>
+                            <span className="text-lg">{record.shared_area_size.toLocaleString('he-IL')}</span>
+                          </>
                         )}
                         {record.overload_ratio !== null && record.overload_ratio !== undefined && (
-                          <div className="text-sm text-gray-600">
-                            אחוז העמסה: {record.overload_ratio.toFixed(2)}%
-                          </div>
+                          <>
+                            <span className="text-sm font-semibold text-gray-600">אחוז העמסה:</span>
+                            <span className="text-lg">{record.overload_ratio.toFixed(2)}%</span>
+                          </>
                         )}
                       </div>
                     </div>

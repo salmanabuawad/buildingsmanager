@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, Calendar } from 'lucide-react';
-import { DistributionAudit, api } from '../lib/api';
+import { DistributionAudit, api, Asset, AssetType } from '../lib/api';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 
 interface TransferHistoryModalProps {
@@ -19,6 +19,7 @@ export function TransferHistoryModal({
   const [history, setHistory] = useState<DistributionAudit[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<DistributionAudit | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,8 +33,12 @@ export function TransferHistoryModal({
     setLoading(true);
     setError(null);
     try {
-      const data = await api.distributionAudit.getByBuilding(buildingNumber, 'transfer');
-      setHistory(data);
+      const [historyData, assetTypesData] = await Promise.all([
+        api.distributionAudit.getByBuilding(buildingNumber, 'transfer'),
+        api.assetTypes.getAll()
+      ]);
+      setHistory(historyData);
+      setAssetTypes(assetTypesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בטעינת היסטוריית העברות');
       console.error('Error loading transfer history:', err);
@@ -57,6 +62,68 @@ export function TransferHistoryModal({
 
   const handleBackToList = () => {
     setSelectedRecord(null);
+  };
+
+  const getAssetTypeDescription = (typeName: string | undefined): string => {
+    if (!typeName) return '';
+    const assetType = assetTypes.find(at => at.name === typeName);
+    return assetType?.description || typeName;
+  };
+
+  const renderAssetDetails = (asset: Asset) => {
+    const details: JSX.Element[] = [];
+    
+    // Asset ID
+    details.push(
+      <div key="asset_id" className="font-semibold text-base mb-2">
+        נכס: {asset.asset_id}
+      </div>
+    );
+
+    // Main asset type and size
+    if (asset.main_asset_type) {
+      const typeDesc = getAssetTypeDescription(asset.main_asset_type);
+      details.push(
+        <div key="main" className="mb-1">
+          <span className="font-semibold">סוג ראשי:</span> {asset.main_asset_type}
+          {typeDesc && typeDesc !== asset.main_asset_type && (
+            <span className="text-gray-600 mr-2">({typeDesc})</span>
+          )}
+        </div>
+      );
+    }
+    
+    if (asset.asset_size != null && asset.asset_size !== 0) {
+      details.push(
+        <div key="main_size" className="mb-1">
+          <span className="font-semibold">גודל ראשי:</span> {asset.asset_size.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+      );
+    }
+
+    // Sub assets
+    for (let i = 1; i <= 6; i++) {
+      const typeKey = `sub_asset_type_${i}` as keyof Asset;
+      const sizeKey = `sub_asset_size_${i}` as keyof Asset;
+      const subType = asset[typeKey] as string | undefined;
+      const subSize = asset[sizeKey] as number | undefined;
+      
+      if (subType && subSize != null && subSize !== 0) {
+        const typeDesc = getAssetTypeDescription(subType);
+        details.push(
+          <div key={`sub_${i}`} className="mb-1 mr-4">
+            <span className="font-semibold">משנה {i}:</span> {subType}
+            {typeDesc && typeDesc !== subType && (
+              <span className="text-gray-600 mr-2">({typeDesc})</span>
+            )}
+            {' '}
+            <span className="font-semibold">גודל:</span> {subSize.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        );
+      }
+    }
+
+    return details;
   };
 
   if (!isOpen) return null;
@@ -132,14 +199,11 @@ export function TransferHistoryModal({
                 <div>
                   <h3 className="text-lg font-bold mb-3 text-gray-800">נכסים לפני העברה ({selectedRecord.affected_assets_before.length})</h3>
                   <div className="bg-red-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {selectedRecord.affected_assets_before.map((asset, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border border-red-200">
-                          <div className="text-sm">
-                            <div><span className="font-semibold">נכס:</span> {asset.asset_id}</div>
-                            {asset.asset_size !== null && asset.asset_size !== undefined && (
-                              <div><span className="font-semibold">גודל:</span> {asset.asset_size.toLocaleString('he-IL')}</div>
-                            )}
+                        <div key={idx} className="bg-white p-3 rounded border border-red-200 shadow-sm">
+                          <div className="text-sm space-y-1">
+                            {renderAssetDetails(asset)}
                           </div>
                         </div>
                       ))}
@@ -151,14 +215,11 @@ export function TransferHistoryModal({
                 <div>
                   <h3 className="text-lg font-bold mb-3 text-gray-800">נכסים אחרי העברה ({selectedRecord.affected_assets_after.length})</h3>
                   <div className="bg-green-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {selectedRecord.affected_assets_after.map((asset, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border border-green-200">
-                          <div className="text-sm">
-                            <div><span className="font-semibold">נכס:</span> {asset.asset_id}</div>
-                            {asset.asset_size !== null && asset.asset_size !== undefined && (
-                              <div><span className="font-semibold">גודל:</span> {asset.asset_size.toLocaleString('he-IL')}</div>
-                            )}
+                        <div key={idx} className="bg-white p-3 rounded border border-green-200 shadow-sm">
+                          <div className="text-sm space-y-1">
+                            {renderAssetDetails(asset)}
                           </div>
                         </div>
                       ))}

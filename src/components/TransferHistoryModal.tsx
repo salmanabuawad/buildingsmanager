@@ -3,11 +3,7 @@ import { X, Loader2, Calendar } from 'lucide-react';
 import { DistributionAudit, api, Asset, AssetType } from '../lib/api';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { formatNumberToTwoDecimals } from '../lib/numberUtils';
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
 import { useTranslation } from 'react-i18next';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface TransferHistoryModalProps {
   isOpen: boolean;
@@ -71,6 +67,31 @@ export function TransferHistoryModal({
     setSelectedRecord(null);
   };
 
+  // Get asset type description
+  const getAssetTypeDescription = (typeName: string | undefined): string => {
+    if (!typeName) return '';
+    const assetType = assetTypes.find(at => at.name === typeName);
+    return assetType?.description || typeName;
+  };
+
+  // Check if a value changed between before and after
+  const isValueChanged = (assetId: number, field: string): boolean => {
+    if (!selectedRecord) return false;
+    const beforeAsset = selectedRecord.affected_assets_before.find(a => a.asset_id === assetId);
+    const afterAsset = selectedRecord.affected_assets_after.find(a => a.asset_id === assetId);
+    if (!beforeAsset || !afterAsset) return false;
+    
+    const beforeValue = (beforeAsset as any)[field];
+    const afterValue = (afterAsset as any)[field];
+    
+    // Handle null/undefined
+    if (beforeValue == null && afterValue == null) return false;
+    if (beforeValue == null || afterValue == null) return true;
+    
+    // Compare values (handle numbers and strings)
+    return beforeValue !== afterValue;
+  };
+
   // Create row data with before and after rows for each asset
   const rowData = useMemo(() => {
     if (!selectedRecord) return [];
@@ -116,232 +137,6 @@ export function TransferHistoryModal({
   }, [selectedRecord]);
 
   const columnDefs: ColDef<any>[] = useMemo(() => {
-    const getCellStyle = (isBefore: boolean) => ({
-      textAlign: 'right' as const,
-      backgroundColor: isBefore ? '#fee2e2' : '#dcfce7'
-    });
-
-    const defs: ColDef<any>[] = [
-      {
-        field: 'status_label',
-        headerName: 'סטטוס',
-        sortable: false,
-        filter: false,
-        headerClass: 'ag-right-aligned-header',
-        cellStyle: (params: any) => ({
-          textAlign: 'right',
-          fontWeight: '600',
-          backgroundColor: params.data.is_before_row ? '#fee2e2' : '#dcfce7'
-        }),
-        valueGetter: (params) => params.data.is_before_row ? 'לפני' : 'אחרי',
-        width: 80,
-      },
-      {
-        field: 'asset_id',
-        headerName: t('assetId'),
-        pinned: 'right',
-        sortable: false,
-        filter: false,
-        headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (params: any) => {
-          // Only show asset_id on the first row (before row) of each asset pair
-          if (params.data.is_before_row) {
-            return params.value;
-          }
-          return '';
-        },
-        rowSpan: (params: any) => {
-          // Asset ID spans 2 rows (before and after)
-          return params.data.is_before_row ? 2 : 1;
-        },
-        width: 100,
-      },
-      {
-        field: 'asset.main_asset_type',
-        headerName: t('mainAssetType'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.main_asset_type,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.main_asset_type;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.asset_size',
-        headerName: t('mainAssetSize'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.asset_size,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_type_1',
-        headerName: t('subAssetType1'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_type_1,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.sub_asset_type_1;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_size_1',
-        headerName: t('subAssetSize1'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_size_1,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_type_2',
-        headerName: t('subAssetType2'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_type_2,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.sub_asset_type_2;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_size_2',
-        headerName: t('subAssetSize2'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_size_2,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_type_3',
-        headerName: t('subAssetType3'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_type_3,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.sub_asset_type_3;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_size_3',
-        headerName: t('subAssetSize3'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_size_3,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_type_4',
-        headerName: t('subAssetType4'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_type_4,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.sub_asset_type_4;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_size_4',
-        headerName: t('subAssetSize4'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_size_4,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_type_5',
-        headerName: t('subAssetType5'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_type_5,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.sub_asset_type_5;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_size_5',
-        headerName: t('subAssetSize5'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_size_5,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_type_6',
-        headerName: t('subAssetType6'),
-        sortable: false,
-        filter: false,
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_type_6,
-        tooltipValueGetter: (params) => {
-          const value = params.data.asset?.sub_asset_type_6;
-          if (!value) return '';
-          const assetType = assetTypes.find(at => at.name === value);
-          return assetType?.description || value;
-        },
-        width: 120,
-      },
-      {
-        field: 'asset.sub_asset_size_6',
-        headerName: t('subAssetSize6'),
-        sortable: false,
-        filter: false,
-        type: 'numericColumn',
-        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
-        valueGetter: (params) => params.data.asset?.sub_asset_size_6,
-        valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
-        width: 120,
-      },
-    ];
-    return defs;
-  }, [assetTypes, t]);
 
   if (!isOpen) return null;
 
@@ -415,33 +210,181 @@ export function TransferHistoryModal({
                 <h3 className="text-lg font-bold mb-3 text-gray-800">
                   נכסים - לפני ואחרי העברה ({selectedRecord.affected_assets_before.length} נכסים)
                 </h3>
-                <div className="rounded-lg p-2" style={{ height: '600px' }}>
-                  <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
-                    <AgGridReact
-                      rowData={rowData}
-                      columnDefs={columnDefs}
-                      defaultColDef={{
-                        resizable: true,
-                        sortable: false,
-                        filter: false,
-                      }}
-                      suppressRowClickSelection={true}
-                      rowSelection="multiple"
-                      domLayout="normal"
-                      headerHeight={40}
-                      rowHeight={35}
-                      suppressCellFocus={true}
-                      suppressScrollOnNewData={true}
-                      animateRows={false}
-                      getRowStyle={(params) => {
-                        // Add visual separator between asset groups
-                        if (!params.data.is_before_row) {
-                          return { borderBottom: '2px solid #cbd5e1' };
+                <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
+                  <table className="w-full border-collapse" dir="rtl">
+                    <thead className="bg-gray-100 sticky top-0">
+                      <tr>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">סטטוס</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('assetId')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('mainAssetType')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('mainAssetSize')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType1')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize1')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType2')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize2')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType3')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize3')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType4')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize4')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType5')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize5')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType6')}</th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize6')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rowData.map((row, idx) => {
+                        const asset = row.asset;
+                        const isBefore = row.is_before_row;
+                        const bgColor = isBefore ? '#fee2e2' : '#dcfce7';
+                        const isSecondRow = !isBefore && idx > 0 && rowData[idx - 1].asset_id === row.asset_id;
+                        
+                        if (isSecondRow) {
+                          // Second row (after) - skip asset_id cell because it's spanned from first row
+                          return (
+                            <tr key={`${row.asset_id}-after`} style={{ backgroundColor: bgColor }}>
+                              <td className="border border-gray-300 px-3 py-2 text-right font-semibold">אחרי</td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}>
+                                {asset?.main_asset_type || ''}
+                                {asset?.main_asset_type && getAssetTypeDescription(asset.main_asset_type) !== asset.main_asset_type && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.main_asset_type)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
+                                {asset?.asset_size != null && asset.asset_size !== 0 ? formatNumberToTwoDecimals(asset.asset_size, false) : ''}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_type_1 || ''}
+                                {asset?.sub_asset_type_1 && getAssetTypeDescription(asset.sub_asset_type_1) !== asset.sub_asset_type_1 && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_1)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_1 != null && asset.sub_asset_size_1 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_1, false) : ''}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_type_2 || ''}
+                                {asset?.sub_asset_type_2 && getAssetTypeDescription(asset.sub_asset_type_2) !== asset.sub_asset_type_2 && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_2)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_2 != null && asset.sub_asset_size_2 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_2, false) : ''}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_type_3 || ''}
+                                {asset?.sub_asset_type_3 && getAssetTypeDescription(asset.sub_asset_type_3) !== asset.sub_asset_type_3 && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_3)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_3 != null && asset.sub_asset_size_3 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_3, false) : ''}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_type_4 || ''}
+                                {asset?.sub_asset_type_4 && getAssetTypeDescription(asset.sub_asset_type_4) !== asset.sub_asset_type_4 && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_4)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_4 != null && asset.sub_asset_size_4 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_4, false) : ''}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_type_5 || ''}
+                                {asset?.sub_asset_type_5 && getAssetTypeDescription(asset.sub_asset_type_5) !== asset.sub_asset_type_5 && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_5)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_5 != null && asset.sub_asset_size_5 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_5, false) : ''}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_type_6 || ''}
+                                {asset?.sub_asset_type_6 && getAssetTypeDescription(asset.sub_asset_type_6) !== asset.sub_asset_type_6 && (
+                                  <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_6)})</span>
+                                )}
+                              </td>
+                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_6 != null && asset.sub_asset_size_6 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_6, false) : ''}
+                              </td>
+                            </tr>
+                          );
                         }
-                        return null;
-                      }}
-                    />
-                  </div>
+                        
+                        return (
+                          <tr key={`${row.asset_id}-before`} style={{ backgroundColor: bgColor }}>
+                            <td className="border border-gray-300 px-3 py-2 text-right font-semibold">לפני</td>
+                            <td className="border border-gray-300 px-3 py-2 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
+                              {row.asset_id}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}>
+                              {asset?.main_asset_type || ''}
+                              {asset?.main_asset_type && getAssetTypeDescription(asset.main_asset_type) !== asset.main_asset_type && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.main_asset_type)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
+                              {asset?.asset_size != null && asset.asset_size !== 0 ? formatNumberToTwoDecimals(asset.asset_size, false) : ''}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_type_1 || ''}
+                              {asset?.sub_asset_type_1 && getAssetTypeDescription(asset.sub_asset_type_1) !== asset.sub_asset_type_1 && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_1)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_size_1 != null && asset.sub_asset_size_1 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_1, false) : ''}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_type_2 || ''}
+                              {asset?.sub_asset_type_2 && getAssetTypeDescription(asset.sub_asset_type_2) !== asset.sub_asset_type_2 && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_2)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_size_2 != null && asset.sub_asset_size_2 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_2, false) : ''}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_type_3 || ''}
+                              {asset?.sub_asset_type_3 && getAssetTypeDescription(asset.sub_asset_type_3) !== asset.sub_asset_type_3 && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_3)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_size_3 != null && asset.sub_asset_size_3 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_3, false) : ''}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_type_4 || ''}
+                              {asset?.sub_asset_type_4 && getAssetTypeDescription(asset.sub_asset_type_4) !== asset.sub_asset_type_4 && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_4)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_size_4 != null && asset.sub_asset_size_4 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_4, false) : ''}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_type_5 || ''}
+                              {asset?.sub_asset_type_5 && getAssetTypeDescription(asset.sub_asset_type_5) !== asset.sub_asset_type_5 && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_5)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_size_5 != null && asset.sub_asset_size_5 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_5, false) : ''}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_type_6 || ''}
+                              {asset?.sub_asset_type_6 && getAssetTypeDescription(asset.sub_asset_type_6) !== asset.sub_asset_type_6 && (
+                                <span className="text-gray-600 mr-1">({getAssetTypeDescription(asset.sub_asset_type_6)})</span>
+                              )}
+                            </td>
+                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
+                              {asset?.sub_asset_size_6 != null && asset.sub_asset_size_6 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_6, false) : ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

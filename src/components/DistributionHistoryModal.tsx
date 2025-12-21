@@ -71,8 +71,71 @@ export function DistributionHistoryModal({
     setSelectedRecord(null);
   };
 
-  const columnDefs: ColDef<Asset>[] = useMemo(() => {
-    const defs: ColDef<Asset>[] = [
+  // Create row data with before and after rows for each asset
+  const rowData = useMemo(() => {
+    if (!selectedRecord) return [];
+    
+    const beforeMap = new Map<number, Asset>();
+    selectedRecord.affected_assets_before.forEach(asset => {
+      beforeMap.set(asset.asset_id, asset);
+    });
+    
+    const afterMap = new Map<number, Asset>();
+    selectedRecord.affected_assets_after.forEach(asset => {
+      afterMap.set(asset.asset_id, asset);
+    });
+    
+    // Get all unique asset IDs, sorted
+    const allAssetIds = Array.from(new Set([
+      ...Array.from(beforeMap.keys()),
+      ...Array.from(afterMap.keys())
+    ])).sort((a, b) => a - b);
+    
+    // Create rows: for each asset, create two rows (before and after)
+    const rows: any[] = [];
+    allAssetIds.forEach(assetId => {
+      const beforeAsset = beforeMap.get(assetId);
+      const afterAsset = afterMap.get(assetId);
+      
+      // Before row
+      rows.push({
+        asset_id: assetId,
+        is_before_row: true,
+        asset: beforeAsset,
+      });
+      
+      // After row
+      rows.push({
+        asset_id: assetId,
+        is_before_row: false,
+        asset: afterAsset,
+      });
+    });
+    
+    return rows;
+  }, [selectedRecord]);
+
+  const columnDefs: ColDef<any>[] = useMemo(() => {
+    const getCellStyle = (isBefore: boolean) => ({
+      textAlign: 'right' as const,
+      backgroundColor: isBefore ? '#fee2e2' : '#dcfce7'
+    });
+
+    const defs: ColDef<any>[] = [
+      {
+        field: 'status_label',
+        headerName: 'סטטוס',
+        sortable: false,
+        filter: false,
+        headerClass: 'ag-right-aligned-header',
+        cellStyle: (params: any) => ({
+          textAlign: 'right',
+          fontWeight: '600',
+          backgroundColor: params.data.is_before_row ? '#fee2e2' : '#dcfce7'
+        }),
+        valueGetter: (params) => params.data.is_before_row ? 'לפני' : 'אחרי',
+        width: 80,
+      },
       {
         field: 'asset_id',
         headerName: t('assetId'),
@@ -80,185 +143,210 @@ export function DistributionHistoryModal({
         sortable: false,
         filter: false,
         headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right', fontWeight: '600' },
+        cellStyle: { textAlign: 'right', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: any) => {
+          // Only show asset_id on the first row (before row) of each asset pair
+          if (params.data.is_before_row) {
+            return params.value;
+          }
+          return '';
+        },
+        rowSpan: (params: any) => {
+          // Asset ID spans 2 rows (before and after)
+          return params.data.is_before_row ? 2 : 1;
+        },
         width: 100,
       },
       {
-        field: 'payer_id',
-        headerName: t('payerId'),
-        sortable: false,
-        filter: false,
-        cellStyle: { textAlign: 'right' },
-        width: 120,
-      },
-      {
-        field: 'main_asset_type',
+        field: 'asset.main_asset_type',
         headerName: t('mainAssetType'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.main_asset_type,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.main_asset_type;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'asset_size',
+        field: 'asset.asset_size',
         headerName: t('mainAssetSize'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.asset_size,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'sub_asset_type_1',
+        field: 'asset.sub_asset_type_1',
         headerName: t('subAssetType1'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_type_1,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.sub_asset_type_1;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'sub_asset_size_1',
+        field: 'asset.sub_asset_size_1',
         headerName: t('subAssetSize1'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_size_1,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'sub_asset_type_2',
+        field: 'asset.sub_asset_type_2',
         headerName: t('subAssetType2'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_type_2,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.sub_asset_type_2;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'sub_asset_size_2',
+        field: 'asset.sub_asset_size_2',
         headerName: t('subAssetSize2'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_size_2,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'sub_asset_type_3',
+        field: 'asset.sub_asset_type_3',
         headerName: t('subAssetType3'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_type_3,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.sub_asset_type_3;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'sub_asset_size_3',
+        field: 'asset.sub_asset_size_3',
         headerName: t('subAssetSize3'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_size_3,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'sub_asset_type_4',
+        field: 'asset.sub_asset_type_4',
         headerName: t('subAssetType4'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_type_4,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.sub_asset_type_4;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'sub_asset_size_4',
+        field: 'asset.sub_asset_size_4',
         headerName: t('subAssetSize4'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_size_4,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'sub_asset_type_5',
+        field: 'asset.sub_asset_type_5',
         headerName: t('subAssetType5'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_type_5,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.sub_asset_type_5;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'sub_asset_size_5',
+        field: 'asset.sub_asset_size_5',
         headerName: t('subAssetSize5'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_size_5,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'sub_asset_type_6',
+        field: 'asset.sub_asset_type_6',
         headerName: t('subAssetType6'),
         sortable: false,
         filter: false,
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_type_6,
         tooltipValueGetter: (params) => {
-          if (!params.value) return '';
-          const assetType = assetTypes.find(at => at.name === params.value);
-          return assetType?.description || params.value;
+          const value = params.data.asset?.sub_asset_type_6;
+          if (!value) return '';
+          const assetType = assetTypes.find(at => at.name === value);
+          return assetType?.description || value;
         },
         width: 120,
       },
       {
-        field: 'sub_asset_size_6',
+        field: 'asset.sub_asset_size_6',
         headerName: t('subAssetSize6'),
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.sub_asset_size_6,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 120,
       },
       {
-        field: 'area_from_distribution',
+        field: 'asset.area_from_distribution',
         headerName: 'גודל שטח משותף',
         sortable: false,
         filter: false,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'right' },
+        cellStyle: (params: any) => getCellStyle(params.data.is_before_row),
+        valueGetter: (params) => params.data.asset?.area_from_distribution,
         valueFormatter: (params) => formatNumberToTwoDecimals(params.value, false),
         width: 150,
       },
@@ -340,56 +428,36 @@ export function DistributionHistoryModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Before Assets */}
-                <div>
-                  <h3 className="text-lg font-bold mb-3 text-gray-800">נכסים לפני פיזור ({selectedRecord.affected_assets_before.length})</h3>
-                  <div className="bg-red-50 rounded-lg p-2" style={{ height: '500px' }}>
-                    <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
-                      <AgGridReact<Asset>
-                        rowData={selectedRecord.affected_assets_before}
-                        columnDefs={columnDefs}
-                        defaultColDef={{
-                          resizable: true,
-                          sortable: false,
-                          filter: false,
-                        }}
-                        suppressRowClickSelection={true}
-                        rowSelection="multiple"
-                        domLayout="normal"
-                        headerHeight={40}
-                        rowHeight={35}
-                        suppressCellFocus={true}
-                        suppressScrollOnNewData={true}
-                        animateRows={false}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* After Assets */}
-                <div>
-                  <h3 className="text-lg font-bold mb-3 text-gray-800">נכסים אחרי פיזור ({selectedRecord.affected_assets_after.length})</h3>
-                  <div className="bg-green-50 rounded-lg p-2" style={{ height: '500px' }}>
-                    <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
-                      <AgGridReact<Asset>
-                        rowData={selectedRecord.affected_assets_after}
-                        columnDefs={columnDefs}
-                        defaultColDef={{
-                          resizable: true,
-                          sortable: false,
-                          filter: false,
-                        }}
-                        suppressRowClickSelection={true}
-                        rowSelection="multiple"
-                        domLayout="normal"
-                        headerHeight={40}
-                        rowHeight={35}
-                        suppressCellFocus={true}
-                        suppressScrollOnNewData={true}
-                        animateRows={false}
-                      />
-                    </div>
+              <div>
+                <h3 className="text-lg font-bold mb-3 text-gray-800">
+                  נכסים - לפני ואחרי פיזור ({selectedRecord.affected_assets_before.length} נכסים)
+                </h3>
+                <div className="rounded-lg p-2" style={{ height: '600px' }}>
+                  <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
+                    <AgGridReact
+                      rowData={rowData}
+                      columnDefs={columnDefs}
+                      defaultColDef={{
+                        resizable: true,
+                        sortable: false,
+                        filter: false,
+                      }}
+                      suppressRowClickSelection={true}
+                      rowSelection="multiple"
+                      domLayout="normal"
+                      headerHeight={40}
+                      rowHeight={35}
+                      suppressCellFocus={true}
+                      suppressScrollOnNewData={true}
+                      animateRows={false}
+                      getRowStyle={(params) => {
+                        // Add visual separator between asset groups
+                        if (!params.data.is_before_row) {
+                          return { borderBottom: '2px solid #cbd5e1' };
+                        }
+                        return null;
+                      }}
+                    />
                   </div>
                 </div>
               </div>

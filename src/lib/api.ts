@@ -309,7 +309,6 @@ export interface Asset {
   discount_type?: string; // סוג הנחה (Discount type)
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
-  action_id?: number; // References the audit entry that caused this record to be created or updated
   area_from_distribution?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
 }
@@ -391,17 +390,6 @@ export interface ValidationRule {
   updated_at: string;
 }
 
-export interface AuditLog {
-  action_id: number;
-  user_name: string;
-  action_type: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared';
-  entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
-  entity_id?: string;
-  before_data?: any; // JSONB
-  after_data?: any; // JSONB
-  description?: string;
-  created_at: string;
-}
 
 export interface ChangeLog {
   log_id: number;
@@ -417,6 +405,19 @@ export interface ChangeLog {
   ip_address?: string;
   user_agent?: string;
   session_id?: string;
+  created_at: string;
+}
+
+export interface DistributionAudit {
+  id: number;
+  building_number: number;
+  action_type: 'distribution' | 'transfer';
+  affected_assets_before: Asset[]; // JSONB parsed to Asset array
+  affected_assets_after: Asset[]; // JSONB parsed to Asset array
+  overload_ratio?: number;
+  shared_area_size?: number;
+  description?: string;
+  user_id?: number;
   created_at: string;
 }
 
@@ -651,7 +652,7 @@ async function validateAndSaveBulkAssets(
   beforeData?: any,
   afterData?: any,
   description?: string
-): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> {
+): Promise<{ success: boolean; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> {
   const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
 
@@ -768,7 +769,6 @@ async function validateAndSaveBulkAssets(
 
     return {
       success: true,
-      action_id: data.action_id,
       affected_asset_ids: data.affected_asset_ids,
       count: data.count
     };
@@ -856,20 +856,6 @@ export const api = {
         throw error;
       }
       
-      // Log audit entry (transaction-based, replaces trigger)
-      const userInfo = await getCurrentUserInfo();
-      try {
-        await supabase.rpc('log_audit_for_building', {
-          p_building_number: data.building_number,
-          p_operation: 'INSERT',
-          p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-          p_action_type: 'manual_update',
-          p_description: 'Building created'
-        });
-      } catch (auditError) {
-        console.warn('Failed to log audit entry for building creation:', auditError);
-        // Don't fail the operation if audit logging fails
-      }
       
       // Log change entry asynchronously
       logChangeAsync(
@@ -901,7 +887,6 @@ export const api = {
       );
       
       // Remove read-only fields that shouldn't be updated directly
-      delete (cleanedInput as any).action_id;
       delete (cleanedInput as any).created_at;
       // Don't allow updating building_number (primary key)
       delete (cleanedInput as any).building_number;
@@ -992,20 +977,6 @@ export const api = {
         throw new Error('Failed to update building: No data returned');
       }
       
-      // Log audit entry (transaction-based, replaces trigger)
-      const userInfo = await getCurrentUserInfo();
-      try {
-        await supabase.rpc('log_audit_for_building', {
-          p_building_number: buildingNumber,
-          p_operation: 'UPDATE',
-          p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-          p_action_type: 'manual_update',
-          p_description: 'Building updated'
-        });
-      } catch (auditError) {
-        console.warn('Failed to log audit entry for building update:', auditError);
-        // Don't fail the operation if audit logging fails
-      }
       
       // Log change entry asynchronously
       if (beforeData) {
@@ -1042,20 +1013,6 @@ export const api = {
         }
       }
 
-      // Log audit entry BEFORE deletion (transaction-based, replaces trigger)
-      const userInfo = await getCurrentUserInfo();
-      try {
-        await supabase.rpc('log_audit_for_building', {
-          p_building_number: buildingNumber,
-          p_operation: 'DELETE',
-          p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-          p_action_type: 'manual_update',
-          p_description: 'Building deleted'
-        });
-      } catch (auditError) {
-        console.warn('Failed to log audit entry for building deletion:', auditError);
-        // Continue with deletion even if audit logging fails
-      }
       
       const { error } = await supabase
         .from('buildings')
@@ -2914,202 +2871,6 @@ export const api = {
       return { message: 'Field configuration deleted successfully' };
     },
   },
-  auditLog: {
-    getAll: async (filters?: {
-      user_name?: string;
-      action_type?: string;
-      entity_type?: string;
-      entity_id?: string;
-      start_date?: string;
-      end_date?: string;
-      limit?: number;
-      offset?: number;
-    }): Promise<AuditLog[]> => {
-      let query = supabase
-        .from('audit')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (filters) {
-        if (filters.user_name) {
-          query = query.eq('user_name', filters.user_name);
-        }
-        if (filters.action_type) {
-          query = query.eq('action_type', filters.action_type);
-        }
-        if (filters.entity_type) {
-          query = query.eq('entity_type', filters.entity_type);
-        }
-        if (filters.entity_id) {
-          query = query.eq('entity_id', filters.entity_id);
-        }
-        if (filters.start_date) {
-          query = query.gte('created_at', filters.start_date);
-        }
-        if (filters.end_date) {
-          query = query.lte('created_at', filters.end_date);
-        }
-        if (filters.limit) {
-          query = query.limit(filters.limit);
-        }
-        if (filters.offset) {
-          query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
-        }
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data || [];
-    },
-    getOne: async (actionId: number): Promise<AuditLog> => {
-      const { data, error } = await supabase
-        .from('audit')
-        .select('*')
-        .eq('action_id', actionId)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    logEntry: async (input: {
-      action_type: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared';
-      entity_type: 'building' | 'asset' | 'bulk_building' | 'bulk_asset';
-      entity_id?: string;
-      before_data?: any;
-      after_data?: any;
-      description?: string;
-    }): Promise<{ action_id: number }> => {
-      // Get current user from auth context
-      const userInfo = await getCurrentUserInfo();
-      
-      const { data, error } = await supabase
-        .rpc('log_audit_entry', {
-          p_action_type: input.action_type,
-          p_entity_type: input.entity_type,
-          p_entity_id: input.entity_id || null,
-          p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-          p_before_data: input.before_data || null,
-          p_after_data: input.after_data || null,
-          p_description: input.description || null,
-        });
-
-      if (error) throw error;
-      return { action_id: Number(data) };
-    },
-    logBuildingAction: async (
-      buildingNumber: number,
-      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
-      beforeData?: any,
-      afterData?: any,
-      description?: string,
-      userName?: string
-    ): Promise<{ action_id: number }> => {
-      // Get building data with assets if not provided
-      let before = beforeData;
-      let after = afterData;
-
-      if (!before && !after) {
-        const { data: buildingData } = await supabase
-          .rpc('get_building_audit_data', { p_building_number: buildingNumber });
-        after = buildingData;
-      }
-
-      // Get current user if not provided
-      const currentUserName = userName || await getCurrentUserName();
-
-      const result = await api.auditLog.logEntry({
-        action_type: actionType,
-        entity_type: 'building',
-        entity_id: buildingNumber.toString(),
-        before_data: before,
-        after_data: after,
-        description,
-      });
-      return { action_id: result.action_id };
-    },
-    logAssetAction: async (
-      assetId: number,
-      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
-      beforeData?: any,
-      afterData?: any,
-      description?: string,
-      userName?: string
-    ): Promise<{ action_id: number }> => {
-      // Get asset data with building if not provided
-      let before = beforeData;
-      let after = afterData;
-
-      if (!before && !after) {
-        const { data: assetData } = await supabase
-          .rpc('get_asset_audit_data', { p_asset_id: assetId });
-        after = assetData;
-      }
-
-      // Get current user if not provided
-      const currentUserName = userName || await getCurrentUserName();
-
-      const result = await api.auditLog.logEntry({
-        action_type: actionType,
-        entity_type: 'asset',
-        entity_id: assetId.toString(),
-        before_data: before,
-        after_data: after,
-        description,
-      });
-      return { action_id: result.action_id };
-    },
-    logBulkBuildingAction: async (
-      buildingNumbers: number[],
-      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
-      beforeData?: any,
-      afterData?: any,
-      description?: string,
-      userName?: string
-    ): Promise<{ action_id: number }> => {
-      // Get current user if not provided
-      const currentUserName = userName || await getCurrentUserName();
-
-      const result = await api.auditLog.logEntry({
-        action_type: actionType,
-        entity_type: 'bulk_building',
-        entity_id: buildingNumbers.join(','),
-        before_data: beforeData,
-        after_data: afterData,
-        description,
-      });
-      return { action_id: result.action_id };
-    },
-    logBulkAssetAction: async (
-      assetIds: number[],
-      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
-      beforeData?: any,
-      afterData?: any,
-      description?: string,
-      userName?: string
-    ): Promise<{ action_id: number }> => {
-      // This function is deprecated - use bulk_update_assets_with_audit instead
-      // Get current user if not provided
-      const currentUserName = userName || await getCurrentUserName();
-
-      const result = await api.auditLog.logEntry({
-        action_type: actionType,
-        entity_type: 'bulk_asset',
-        entity_id: assetIds.join(','),
-        before_data: beforeData,
-        after_data: afterData,
-        description,
-      });
-      return { action_id: result.action_id };
-    },
-    bulkUpdateAssets: async (
-      assets: Partial<Asset>[],
-      actionType: 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared',
-      beforeData?: any,
-      afterData?: any,
-      description?: string,
-      userName?: string
-    ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
       // Use new transactional save with validation enforcement
       const result = await validateAndSaveBulkAssets(
         assets,
@@ -3124,7 +2885,6 @@ export const api = {
       }
 
       return {
-        action_id: result.action_id!,
         affected_asset_ids: result.affected_asset_ids!,
         count: result.count!
       };
@@ -3137,7 +2897,7 @@ export const api = {
       afterData?: any,
       description?: string,
       userName?: string
-    ): Promise<{ action_id: number; affected_asset_ids: number[]; count: number }> => {
+    ): Promise<{ affected_asset_ids: number[]; count: number }> => {
       const userInfo = await getCurrentUserInfo();
       
       // Convert to arrays (Supabase will convert to JSONB automatically)
@@ -3162,14 +2922,9 @@ export const api = {
         };
       });
       
-      const { data, error } = await supabase.rpc('bulk_transfer_areas_with_audit', {
+      const { data, error } = await supabase.rpc('bulk_transfer_areas', {
         p_old_assets: oldAssetsArray, // Supabase will convert to JSONB automatically
-        p_new_assets: newAssetsArray, // Supabase will convert to JSONB automatically
-        p_action_type: actionType,
-        p_user_id: userInfo.user_id || null, // auth_user_id (UUID as text)
-        p_before_data: beforeData || null,
-        p_after_data: afterData || null,
-        p_description: description || null
+        p_new_assets: newAssetsArray // Supabase will convert to JSONB automatically
       });
 
       if (error) throw error;
@@ -3206,10 +2961,76 @@ export const api = {
       }
 
       return {
-        action_id: data.action_id,
         affected_asset_ids: data.affected_asset_ids || [],
         count: data.count || 0
       };
+    },
+  },
+  distributionAudit: {
+    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer'): Promise<DistributionAudit[]> => {
+      let query = supabase
+        .from('audit')
+        .select('*')
+        .eq('building_number', buildingNumber)
+        .order('created_at', { ascending: false });
+      
+      if (actionType) {
+        query = query.eq('action_type', actionType);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Parse JSONB arrays to Asset arrays
+      return (data || []).map((record: any) => ({
+        ...record,
+        affected_assets_before: record.affected_assets_before || [],
+        affected_assets_after: record.affected_assets_after || [],
+      }));
+    },
+    getOne: async (id: number): Promise<DistributionAudit> => {
+      const { data, error } = await supabase
+        .from('audit')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      
+      // Parse JSONB arrays to Asset arrays
+      return {
+        ...data,
+        affected_assets_before: data.affected_assets_before || [],
+        affected_assets_after: data.affected_assets_after || [],
+      };
+    },
+    getByDateRange: async (
+      buildingNumber: number,
+      startDate: string,
+      endDate: string,
+      actionType?: 'distribution' | 'transfer'
+    ): Promise<DistributionAudit[]> => {
+      let query = supabase
+        .from('audit')
+        .select('*')
+        .eq('building_number', buildingNumber)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .order('created_at', { ascending: false });
+      
+      if (actionType) {
+        query = query.eq('action_type', actionType);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Parse JSONB arrays to Asset arrays
+      return (data || []).map((record: any) => ({
+        ...record,
+        affected_assets_before: record.affected_assets_before || [],
+        affected_assets_after: record.affected_assets_after || [],
+      }));
     },
   },
   changeLog: {

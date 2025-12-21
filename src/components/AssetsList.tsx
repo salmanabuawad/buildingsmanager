@@ -5,9 +5,11 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
+import { DistributionHistoryModal } from './DistributionHistoryModal';
+import { TransferHistoryModal } from './TransferHistoryModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
@@ -63,6 +65,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
+  const [distributionHistoryModalOpen, setDistributionHistoryModalOpen] = useState(false);
+  const [transferHistoryModalOpen, setTransferHistoryModalOpen] = useState(false);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -3158,6 +3162,30 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               פזר שטח משותף עסקים
             </button>
           )}
+          {/* Distribution history button */}
+          {building && (
+            <button
+              type="button"
+              onClick={() => setDistributionHistoryModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              title="הצג היסטוריית פיזור שטח משותף"
+            >
+              <History className="h-4 w-4" />
+              היסטוריית פיזור
+            </button>
+          )}
+          {/* Transfer history button */}
+          {building && (
+            <button
+              type="button"
+              onClick={() => setTransferHistoryModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              title="הצג היסטוריית העברות שטחים"
+            >
+              <Share2 className="h-4 w-4" />
+              היסטוריית העברות
+            </button>
+          )}
           {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
           {(() => {
             const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
@@ -3380,6 +3408,20 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           </div>
         </div>
       )}
+
+      {/* Distribution History Modal */}
+      <DistributionHistoryModal
+        isOpen={distributionHistoryModalOpen}
+        onClose={() => setDistributionHistoryModalOpen(false)}
+        buildingNumber={buildingNumber}
+      />
+
+      {/* Transfer History Modal */}
+      <TransferHistoryModal
+        isOpen={transferHistoryModalOpen}
+        onClose={() => setTransferHistoryModalOpen(false)}
+        buildingNumber={buildingNumber}
+      />
     </>
   );
 });

@@ -2871,25 +2871,7 @@ export const api = {
       return { message: 'Field configuration deleted successfully' };
     },
   },
-      // Use new transactional save with validation enforcement
-      const result = await validateAndSaveBulkAssets(
-        assets,
-        actionType,
-        beforeData,
-        afterData,
-        description
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Bulk update failed');
-      }
-
-      return {
-        affected_asset_ids: result.affected_asset_ids!,
-        count: result.count!
-      };
-    },
-    bulkTransferAreas: async (
+  bulkTransferAreas: async (
       oldAssets: Asset[],
       newAssets: Partial<Asset>[],
       actionType: 'transfer_area' = 'transfer_area',

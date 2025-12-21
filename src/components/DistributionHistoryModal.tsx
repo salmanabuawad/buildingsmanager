@@ -224,7 +224,7 @@ export function DistributionHistoryModal({
 
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                 <div className="flex flex-wrap gap-4 items-baseline">
-                  <span className="text-sm font-semibold text-gray-600">תאריך:</span>
+                    <span className="text-sm font-semibold text-gray-600">תאריך:</span>
                   <span className="text-lg">{formatDateToDDMMYYYY(selectedRecord.created_at)}</span>
                   {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
                     <>
@@ -239,18 +239,9 @@ export function DistributionHistoryModal({
                     </>
                   )}
                 </div>
-                {selectedRecord.description && (
-                  <div>
-                    <span className="text-sm font-semibold text-gray-600">תיאור:</span>
-                    <p className="text-lg">{selectedRecord.description}</p>
-                  </div>
-                )}
               </div>
 
                 <div>
-                <h3 className="text-lg font-bold mb-3 text-gray-800">
-                  נכסים - לפני ואחרי פיזור ({selectedRecord.affected_assets_before.length} נכסים)
-                </h3>
                 <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
                   <table className="w-full border-collapse" dir="rtl">
                     <thead className="bg-gray-100 sticky top-0">

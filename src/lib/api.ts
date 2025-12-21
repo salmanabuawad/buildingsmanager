@@ -2869,7 +2869,8 @@ export const api = {
       return { message: 'Field configuration deleted successfully' };
     },
   },
-  bulkTransferAreas: async (
+  auditLog: {
+    bulkTransferAreas: async (
       oldAssets: Asset[],
       newAssets: Partial<Asset>[],
       actionType: 'transfer_area' = 'transfer_area',
@@ -2941,6 +2942,7 @@ export const api = {
         count: result.count || 0
       };
     },
+  },
   distributionAudit: {
     getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer'): Promise<DistributionAudit[]> => {
       let query = supabase

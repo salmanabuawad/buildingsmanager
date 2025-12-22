@@ -82,9 +82,6 @@ export function DistributionHistoryModal({
     setSelectedRecord(record);
   };
 
-  const handleBackToList = () => {
-    setSelectedRecord(null);
-  };
 
   // Get asset type description
   const getAssetTypeDescription = (typeName: string | undefined): string => {
@@ -235,16 +232,6 @@ export function DistributionHistoryModal({
         </div>
         )}
         
-        {inline && selectedRecord && (
-          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-teal-50 border-b border-teal-200">
-            <button
-              onClick={handleBackToList}
-              className="text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
-            >
-              ← חזרה לרשימה
-            </button>
-          </div>
-        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
@@ -508,7 +495,7 @@ export function DistributionHistoryModal({
                 >
                   <Calendar className="h-4 w-4 flex-shrink-0" />
                   <span className="flex-shrink-0 whitespace-nowrap">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
-                  {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
                     <>
                       <span className="text-gray-400 flex-shrink-0">•</span>
                       <span className="flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>

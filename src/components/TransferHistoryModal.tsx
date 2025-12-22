@@ -72,9 +72,6 @@ export function TransferHistoryModal({
     setSelectedRecord(record);
   };
 
-  const handleBackToList = () => {
-    setSelectedRecord(null);
-  };
 
   // Get asset type description
   const getAssetTypeDescription = (typeName: string | undefined): string => {
@@ -255,53 +252,57 @@ export function TransferHistoryModal({
         </div>
         )}
         
-        {inline && selectedRecord && (
-          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
-            <button
-              onClick={handleBackToList}
-              className="text-violet-600 hover:text-violet-700 font-medium flex items-center gap-2"
-            >
-              ← חזרה לרשימה
-            </button>
-          </div>
-        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-              <span className="mr-3 text-gray-600">טוען היסטוריה...</span>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12 text-red-600">{error}</div>
-          ) : selectedRecord ? (
-            // Record Details View
-            <div className="space-y-4">
-              {!inline && (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+            <span className="mr-3 text-gray-600">טוען היסטוריה...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-600">{error}</div>
+        ) : history.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">אין היסטוריית העברות עבור מבנה זה</div>
+        ) : (
+          <div className="space-y-4">
+            {/* Date Tabs - Always Visible */}
+            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto">
+              {history.map((record) => (
                 <button
-                  onClick={handleBackToList}
-                  className="mb-4 text-violet-600 hover:text-violet-700 font-medium flex items-center gap-2"
+                  key={record.id}
+                  type="button"
+                  onClick={() => handleRecordClick(record)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg flex-shrink-0 ${
+                    selectedRecord && selectedRecord.id === record.id
+                      ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-md -mb-0.5'
+                      : 'text-gray-600 hover:text-violet-600 hover:bg-white/50'
+                  }`}
                 >
-                  ← חזרה לרשימה
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-shrink-0 whitespace-nowrap">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
                 </button>
-              )}
+              ))}
+            </div>
 
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">
-                  <span className="font-medium flex-shrink-0">{selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : ''}</span>
-                  {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
-                    <>
-                      <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
-                    </>
-                  )}
-                </div>
-                {selectedRecord.description && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    {selectedRecord.description}
+            {/* Record Details View - Show when record is selected */}
+            {selectedRecord && (
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">
+                    <span className="font-medium flex-shrink-0">{selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : ''}</span>
+                    {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
+                      <>
+                        <span className="text-gray-400 flex-shrink-0">•</span>
+                        <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
+                      </>
+                    )}
                   </div>
-                )}
+                  {selectedRecord.description && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      {selectedRecord.description}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -504,29 +505,9 @@ export function TransferHistoryModal({
                   </table>
                 </div>
               </div>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">אין היסטוריית העברות עבור מבנה זה</div>
-          ) : (
-            // History List View
-            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm">
-              {history.map((record) => (
-                <button
-                  key={record.id}
-                  type="button"
-                  onClick={() => handleRecordClick(record)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                    selectedRecord && selectedRecord.id === record.id
-                      ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-md -mb-0.5'
-                      : 'text-gray-600 hover:text-violet-600 hover:bg-white/50'
-                  }`}
-                >
-                  <Calendar className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-shrink-0 whitespace-nowrap">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
+        )}
         </div>
       </div>
     );

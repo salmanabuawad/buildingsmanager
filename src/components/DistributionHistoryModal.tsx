@@ -9,7 +9,7 @@ interface DistributionHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   buildingNumber: number;
-  taxRegion?: string; // Tax region for filtering distribution history (business or residence)
+  taxRegion?: string; // Business/residence type for filtering: 'עסקים' (business) or 'מגורים' (residence)
   inline?: boolean; // If true, render as inline content without modal wrapper
 }
 
@@ -34,7 +34,7 @@ export function DistributionHistoryModal({
       setSelectedRecord(null);
       loadHistory();
     }
-  }, [isOpen, buildingNumber]);
+  }, [isOpen, buildingNumber, taxRegion]);
 
   const loadHistory = async () => {
     setLoading(true);

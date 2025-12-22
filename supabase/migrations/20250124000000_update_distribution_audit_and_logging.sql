@@ -595,10 +595,15 @@ BEGIN
         v_after_assets_json := '[]'::jsonb;
       END IF;
       
-      -- Extract tax_region from first asset in affected_assets_after for distribution/transfer operations
-      -- All assets in a distribution should have the same tax_region
-      IF jsonb_array_length(v_after_assets_json) > 0 THEN
-        v_tax_region := (v_after_assets_json->0->>'tax_region');
+      -- Extract business_residence from first asset's asset type for distribution/transfer operations
+      -- All assets in a distribution should have the same business_residence (עסקים or מגורים)
+      IF jsonb_array_length(v_after_assets_json) > 0 AND (v_after_assets_json->0->>'main_asset_type') IS NOT NULL THEN
+        -- Look up the asset type's business_residence field
+        -- Store 'עסקים' for business or 'מגורים' for residence
+        SELECT business_residence INTO v_tax_region
+        FROM asset_types
+        WHERE name = (v_after_assets_json->0->>'main_asset_type')
+        LIMIT 1;
       END IF;
       
       -- Log to audit table (part of the same transaction)

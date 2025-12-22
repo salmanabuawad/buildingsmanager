@@ -303,25 +303,25 @@ export function TransferHistoryModal({
                   נכסים - לפני ואחרי העברה ({selectedRecord.affected_assets_before.length} נכסים)
                 </h3>
                 <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
-                  <table className="w-full border-collapse" dir="rtl">
+                  <table className="w-full border-collapse text-sm" dir="rtl">
                     <thead className="bg-gray-100 sticky top-0">
                       <tr>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('assetId')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">סטטוס</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('mainAssetType')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('mainAssetSize')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType1')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize1')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType2')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize2')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType3')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize3')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType4')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize4')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType5')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize5')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetType6')}</th>
-                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold">{t('subAssetSize6')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('assetId')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">סטטוס</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('mainAssetType')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('mainAssetSize')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType1')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetSize1')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType2')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetSize2')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType3')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetSize3')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType4')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetSize4')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType5')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetSize5')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetType6')}</th>
+                        <th className="border border-gray-300 px-2 py-1.5 text-right font-semibold text-xs">{t('subAssetSize6')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -335,68 +335,68 @@ export function TransferHistoryModal({
                           // Second row (after) - skip asset_id cell because it's spanned from first row
                           return (
                             <tr key={`${row.asset_id}-after`} style={{ backgroundColor: bgColor }}>
-                              <td className="border border-gray-300 px-3 py-2 text-right font-semibold">אחרי</td>
+                              <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">אחרי</td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
                                 title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}
                               >
                                 {asset?.main_asset_type || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
                                 {asset?.asset_size != null && asset.asset_size !== 0 ? formatNumberToTwoDecimals(asset.asset_size, false) : ''}
                               </td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}
                                 title={asset?.sub_asset_type_1 ? getAssetTypeDescription(asset.sub_asset_type_1) : ''}
                               >
                                 {asset?.sub_asset_type_1 || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
                                 {asset?.sub_asset_size_1 != null && asset.sub_asset_size_1 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_1, false) : ''}
                               </td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}
                                 title={asset?.sub_asset_type_2 ? getAssetTypeDescription(asset.sub_asset_type_2) : ''}
                               >
                                 {asset?.sub_asset_type_2 || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
                                 {asset?.sub_asset_size_2 != null && asset.sub_asset_size_2 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_2, false) : ''}
                               </td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}
                                 title={asset?.sub_asset_type_3 ? getAssetTypeDescription(asset.sub_asset_type_3) : ''}
                               >
                                 {asset?.sub_asset_type_3 || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
                                 {asset?.sub_asset_size_3 != null && asset.sub_asset_size_3 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_3, false) : ''}
                               </td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}
                                 title={asset?.sub_asset_type_4 ? getAssetTypeDescription(asset.sub_asset_type_4) : ''}
                               >
                                 {asset?.sub_asset_type_4 || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
                                 {asset?.sub_asset_size_4 != null && asset.sub_asset_size_4 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_4, false) : ''}
                               </td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}
                                 title={asset?.sub_asset_type_5 ? getAssetTypeDescription(asset.sub_asset_type_5) : ''}
                               >
                                 {asset?.sub_asset_type_5 || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
                                 {asset?.sub_asset_size_5 != null && asset.sub_asset_size_5 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_5, false) : ''}
                               </td>
                               <td 
-                                className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}
                                 title={asset?.sub_asset_type_6 ? getAssetTypeDescription(asset.sub_asset_type_6) : ''}
                               >
                                 {asset?.sub_asset_type_6 || ''}
                               </td>
-                              <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
                                 {asset?.sub_asset_size_6 != null && asset.sub_asset_size_6 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_6, false) : ''}
                               </td>
                             </tr>
@@ -418,7 +418,7 @@ export function TransferHistoryModal({
                         
                         return (
                           <tr key={`${row.asset_id}-before`} style={{ backgroundColor: bgColor }}>
-                            <td className="border border-gray-300 px-3 py-2 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
+                            <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
                               <button
                                 onClick={handleAssetIdClick}
                                 className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"
@@ -427,68 +427,68 @@ export function TransferHistoryModal({
                                 {row.asset_id}
                               </button>
                             </td>
-                            <td className="border border-gray-300 px-3 py-2 text-right font-semibold">לפני</td>
+                            <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">לפני</td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
                               title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}
                             >
                               {asset?.main_asset_type || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
                               {asset?.asset_size != null && asset.asset_size !== 0 ? formatNumberToTwoDecimals(asset.asset_size, false) : ''}
                             </td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}
                               title={asset?.sub_asset_type_1 ? getAssetTypeDescription(asset.sub_asset_type_1) : ''}
                             >
                               {asset?.sub_asset_type_1 || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
                               {asset?.sub_asset_size_1 != null && asset.sub_asset_size_1 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_1, false) : ''}
                             </td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}
                               title={asset?.sub_asset_type_2 ? getAssetTypeDescription(asset.sub_asset_type_2) : ''}
                             >
                               {asset?.sub_asset_type_2 || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
                               {asset?.sub_asset_size_2 != null && asset.sub_asset_size_2 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_2, false) : ''}
                             </td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}
                               title={asset?.sub_asset_type_3 ? getAssetTypeDescription(asset.sub_asset_type_3) : ''}
                             >
                               {asset?.sub_asset_type_3 || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
                               {asset?.sub_asset_size_3 != null && asset.sub_asset_size_3 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_3, false) : ''}
                             </td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}
                               title={asset?.sub_asset_type_4 ? getAssetTypeDescription(asset.sub_asset_type_4) : ''}
                             >
                               {asset?.sub_asset_type_4 || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
                               {asset?.sub_asset_size_4 != null && asset.sub_asset_size_4 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_4, false) : ''}
                             </td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}
                               title={asset?.sub_asset_type_5 ? getAssetTypeDescription(asset.sub_asset_type_5) : ''}
                             >
                               {asset?.sub_asset_type_5 || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
                               {asset?.sub_asset_size_5 != null && asset.sub_asset_size_5 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_5, false) : ''}
                             </td>
                             <td 
-                              className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}
+                              className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}
                               title={asset?.sub_asset_type_6 ? getAssetTypeDescription(asset.sub_asset_type_6) : ''}
                             >
                               {asset?.sub_asset_type_6 || ''}
                             </td>
-                            <td className={`border border-gray-300 px-3 py-2 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
+                            <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
                               {asset?.sub_asset_size_6 != null && asset.sub_asset_size_6 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_6, false) : ''}
                             </td>
                           </tr>

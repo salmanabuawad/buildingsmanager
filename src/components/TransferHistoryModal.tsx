@@ -34,12 +34,12 @@ export function TransferHistoryModal({
     }
   }, [isOpen, buildingNumber]);
 
-  // Auto-open single record
+  // Auto-open single record after history loads
   useEffect(() => {
-    if (history.length === 1 && !selectedRecord) {
+    if (!loading && history.length === 1 && !selectedRecord) {
       setSelectedRecord(history[0]);
     }
-  }, [history]);
+  }, [history, loading, selectedRecord]);
 
   const loadHistory = async () => {
     setLoading(true);

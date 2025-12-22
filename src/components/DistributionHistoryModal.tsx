@@ -38,12 +38,12 @@ export function DistributionHistoryModal({
     }
   }, [isOpen, buildingNumber, isResident]);
 
-  // Auto-open single record
+  // Auto-open single record after history loads
   useEffect(() => {
-    if (history.length === 1 && !selectedRecord) {
+    if (!loading && history.length === 1 && !selectedRecord) {
       setSelectedRecord(history[0]);
     }
-  }, [history]);
+  }, [history, loading, selectedRecord]);
 
   const loadHistory = async () => {
     setLoading(true);
@@ -276,10 +276,10 @@ export function DistributionHistoryModal({
                       <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
                     </>
                   )}
-                  {selectedRecord.overload_ratio !== null && selectedRecord.overload_ratio !== undefined && (
+                  {(selectedRecord.overload_ratio !== null && selectedRecord.overload_ratio !== undefined) && (
                     <>
                       <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{selectedRecord.overload_ratio.toFixed(2)}%</span>
+                      <span className="flex-shrink-0">אחוז העמסה: {selectedRecord.overload_ratio.toFixed(2)}%</span>
                     </>
                   )}
                 </div>
@@ -510,10 +510,10 @@ export function DistributionHistoryModal({
                         <span className="text-sm flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
                       </>
                         )}
-                        {record.overload_ratio !== null && record.overload_ratio !== undefined && (
+                        {(record.overload_ratio !== null && record.overload_ratio !== undefined) && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
-                        <span className="text-sm flex-shrink-0">{record.overload_ratio.toFixed(2)}%</span>
+                        <span className="text-sm flex-shrink-0">אחוז העמסה: {record.overload_ratio.toFixed(2)}%</span>
                       </>
                     )}
                   </div>

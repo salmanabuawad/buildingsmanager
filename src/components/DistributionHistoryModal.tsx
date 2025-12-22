@@ -235,6 +235,39 @@ export function DistributionHistoryModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
+          {/* Date Tabs - Always Visible when history exists */}
+          {history.length > 0 && (
+            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto mb-4">
+              {history.map((record) => (
+                <button
+                  key={record.id}
+                  type="button"
+                  onClick={() => handleRecordClick(record)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg flex-shrink-0 ${
+                    selectedRecord && selectedRecord.id === record.id
+                      ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-md -mb-0.5'
+                      : 'text-gray-600 hover:text-teal-600 hover:bg-white/50'
+                  }`}
+                >
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-shrink-0 whitespace-nowrap">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
+                  {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                    <>
+                      <span className="text-gray-400 flex-shrink-0">•</span>
+                      <span className="flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
+                    </>
+                  )}
+                  {record.overload_ratio != null && (
+                    <>
+                      <span className="text-gray-400 flex-shrink-0">•</span>
+                      <span className="flex-shrink-0">{typeof record.overload_ratio === 'number' ? record.overload_ratio.toFixed(2) : record.overload_ratio}%</span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
@@ -242,18 +275,11 @@ export function DistributionHistoryModal({
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-600">{error}</div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">אין היסטוריית פיזור עבור מבנה זה</div>
           ) : selectedRecord ? (
             // Record Details View
             <div className="space-y-4">
-              {!inline && (
-              <button
-                onClick={handleBackToList}
-                className="mb-4 text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
-              >
-                ← חזרה לרשימה
-              </button>
-              )}
-
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">
                   <span className="font-medium flex-shrink-0">{selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : ''}</span>
@@ -479,38 +505,7 @@ export function DistributionHistoryModal({
             </div>
           ) : history.length === 0 ? (
             <div className="text-center py-12 text-gray-500">אין היסטוריית פיזור עבור מבנה זה</div>
-          ) : (
-            // History List View
-            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm">
-              {history.map((record) => (
-                <button
-                  key={record.id}
-                  type="button"
-                  onClick={() => handleRecordClick(record)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                    selectedRecord && selectedRecord.id === record.id
-                      ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-md -mb-0.5'
-                      : 'text-gray-600 hover:text-teal-600 hover:bg-white/50'
-                  }`}
-                >
-                  <Calendar className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-shrink-0 whitespace-nowrap">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
-                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
-                    <>
-                      <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
-                    </>
-                  )}
-                  {record.overload_ratio != null && (
-                    <>
-                      <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{typeof record.overload_ratio === 'number' ? record.overload_ratio.toFixed(2) : record.overload_ratio}%</span>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     );

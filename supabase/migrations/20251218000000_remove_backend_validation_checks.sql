@@ -159,6 +159,7 @@ BEGIN
 
   -- ========================================================================
   -- STEP 5: UPDATE DISTRIBUTION FLAGS IF ASSET SIZE CHANGED
+  -- Handle size changes independently - set flag based on current asset type
   -- ========================================================================
   IF v_asset_size_changed AND v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL 
      AND v_new_main_asset_type IS NOT NULL THEN
@@ -364,20 +365,12 @@ BEGIN
   END IF;
   
   -- ========================================================================
-  -- STEP 2b: CREATE AUDIT ACTION RECORD (with collected before_data)
+  -- STEP 2b: CREATE AUDIT ACTION RECORD
+  -- Note: The audit table (from distribution_audit) is only used for distribution/transfer operations
+  -- For other operations, we don't create audit entries here
+  -- Audit entries for transfer_area and distribute_shared are created in STEP 3c using log_audit function
   -- ========================================================================
-  INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
-  VALUES (
-    p_action_type::audit_action_type,
-    v_user_id_fk,
-    'bulk_asset', -- entity_type for bulk operations
-    NULL, -- entity_id will be set after we know all affected asset IDs
-    v_before_data_collected,
-    NULL, -- after_data will be collected after updates
-    p_description,
-    now()
-  )
-  RETURNING action_id INTO v_action_id;
+  v_action_id := NULL;
 
   -- ========================================================================
   -- STEP 3: PROCESS EACH ASSET
@@ -541,6 +534,7 @@ BEGIN
     END IF;
 
     -- Also set flags if asset_size changed (for business/residence assets)
+    -- Handle size changes independently - set flag based on current asset type
     v_new_asset_size := COALESCE((v_asset_data->>'asset_size')::NUMERIC, v_old_asset_size);
     IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL 
        AND v_old_asset_size != v_new_asset_size 
@@ -935,29 +929,22 @@ BEGIN
   WHERE name = NEW.main_asset_type;
 
   -- Set appropriate distribution flag based on business_residence
-  -- This matches the logic in save_asset_transactional
-  IF v_business_residence = 'עסקים' THEN
-    -- For business assets:
-    -- - If SIZE changed: only set flag if building has business_shared_area > 0
-    -- - If TYPE changed: always set flag (using existing function handles this case)
-    IF v_size_changed THEN
+  -- Handle size changes independently - if size changed, set flag based on current type
+  IF v_size_changed THEN
+    -- Size changed - set flag based on current type's business_residence
+    IF v_business_residence = 'עסקים' THEN
       -- Business asset size changed → set business distribution flag only
       -- BUT only if building has business_shared_area > 0
       UPDATE buildings
       SET need_business_distribution = true
       WHERE building_number = NEW.building_number
         AND COALESCE(business_shared_area, 0) > 0;
-    ELSE
-      -- Type changed for business asset - set flag unconditionally
+    ELSIF v_business_residence = 'מגורים' THEN
+      -- Residence asset size changed → set residence distribution flag only
       UPDATE buildings
-      SET need_business_distribution = true
+      SET need_residence_distribution = true
       WHERE building_number = NEW.building_number;
     END IF;
-    
-  ELSIF v_business_residence = 'מגורים' THEN
-    UPDATE buildings
-    SET need_residence_distribution = true
-    WHERE building_number = NEW.building_number;
   END IF;
 
   RETURN NEW;

@@ -598,46 +598,44 @@ function sanitizeBuildingInput(input: any): any {
  * Validate and save a single asset with transactional post-save actions
  * ENFORCES: Validation must pass before save
  * GUARANTEES: All operations (save + post-save actions) in ONE transaction
+ * NOTE: Uses bulk transactional function for consistency
  */
 async function validateAndSaveAsset(
   assetData: any,
   actionType: string = 'manual_update',
   description?: string
 ): Promise<{ success: boolean; asset_id: number; error?: string }> {
-  const { AssetValidationHandler } = await import('./assetValidationHandler');
-  const userInfo = await getCurrentUserInfo();
+  // Use bulk transactional function for consistency - wrap single asset in array
+  const result = await validateAndSaveBulkAssets(
+    [assetData],
+    actionType,
+    null, // beforeData
+    null, // afterData
+    description
+  );
 
-  // STEP 1: Run validation
-  const validationResult = await AssetValidationHandler.validateSingleAsset(assetData);
-
-  // STEP 2: Call transactional save function (rejects if validation failed)
-  try {
-    const { data, error } = await supabase.rpc('save_asset_transactional', {
-      p_asset_data: assetData,
-      p_validation_passed: validationResult.valid,
-      p_validation_errors: validationResult.valid ? null : (validationResult.errors?.join('; ') || 'Validation failed'),
-      p_action_type: actionType,
-      p_user_id: userInfo.user_id || null,
-      p_description: description || null
-    });
-
-    if (error) {
-      return {
-        success: false,
-        asset_id: assetData.asset_id,
-        error: error.message
-      };
-    }
-
+  if (result.success) {
     return {
       success: true,
-      asset_id: data.asset_id
+      asset_id: assetData.asset_id
     };
-  } catch (err: any) {
+  } else {
+    // Combine validation errors and general error message
+    const errorMessages: string[] = [];
+    if (result.validationErrors && result.validationErrors.length > 0) {
+      errorMessages.push(...result.validationErrors);
+    }
+    if (result.error) {
+      errorMessages.push(result.error);
+    }
+    if (errorMessages.length === 0) {
+      errorMessages.push('Unknown error during save');
+    }
+    
     return {
       success: false,
       asset_id: assetData.asset_id,
-      error: err.message || 'Unknown error during save'
+      error: errorMessages.join('; ')
     };
   }
 }

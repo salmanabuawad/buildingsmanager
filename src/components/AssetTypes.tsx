@@ -693,7 +693,7 @@ export function AssetTypes() {
         
         // Area description for tab
         if (currentAssetType.area_description_for_tab) {
-          fields.push(`תיאור אזור לתצוגה בלשונית: ${currentAssetType.area_description_for_tab}`);
+          fields.push(`תיאור אזור: ${currentAssetType.area_description_for_tab}`);
         }
         
         // Business/Residence

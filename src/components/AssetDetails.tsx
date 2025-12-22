@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, Share2, ArrowRightLeft } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
@@ -4463,169 +4463,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               </div>
             </div>
 
-            {/* History Records Grid - 3 Tabs */}
-            {(historyRows.length > 0 || distributionHistoryRows.length > 0 || transferHistoryRows.length > 0) && (
+            {/* History Records Grid */}
+            {historyRows.length > 0 && (
               <div className="mt-2">
-                {/* Tab Navigation - Enhanced UI */}
-                <div className="flex items-center gap-0.5 mb-1.5 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-0.5">
-                  <button
-                    onClick={() => setActiveHistoryTab('history')}
-                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
-                      activeHistoryTab === 'history'
-                        ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                    }`}
-                  >
-                    <History className="h-3 w-3" />
-                    <span>היסטוריה</span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                      activeHistoryTab === 'history'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}>
-                      {regularHistoryRows.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveHistoryTab('distribution')}
-                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
-                      activeHistoryTab === 'distribution'
-                        ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Share2 className="h-3 w-3" />
-                    <span>היסטוריית פיזור שטחים</span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                      activeHistoryTab === 'distribution'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}>
-                      {distributionHistoryRows.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveHistoryTab('transfer')}
-                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg ${
-                      activeHistoryTab === 'transfer'
-                        ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ArrowRightLeft className="h-3 w-3" />
-                    <span>היסטוריית העברת שטחים</span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                      activeHistoryTab === 'transfer'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}>
-                      {transferHistoryRows.length}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Active Tab Content - Enhanced Styling */}
-                {(activeHistoryTab === 'distribution' || activeHistoryTab === 'transfer') ? (
-                  <div className="rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-                    {/* Date Tabs - Horizontal Row */}
-                    {dateTabs.length > 0 && (
-                      <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg p-1 overflow-x-auto flex-shrink-0" dir="rtl">
-                        {dateTabs.map((dateTab) => {
-                          const isSelected = selectedDateTab?.actionId === dateTab.actionId;
-                          // Get overload_ratio from audit data for distribution tab (business assets)
-                          let overloadRatio: number | null = null;
-                          const auditData = auditDataCache.get(dateTab.actionId);
-                          
-                          if (activeHistoryTab === 'distribution') {
-                            if (auditData?.auditLog?.after_data) {
-                              try {
-                                // Parse after_data if it's a string, otherwise use as-is
-                                const afterData = typeof auditData.auditLog.after_data === 'string' 
-                                  ? JSON.parse(auditData.auditLog.after_data) 
-                                  : auditData.auditLog.after_data;
-                                
-                                // Get overload_ratio directly from after_data (simple structure)
-                                // Include 0 values (when shared area is 0, overload_ratio should be 0)
-                                if (afterData && 'overload_ratio' in afterData) {
-                                  const ratioValue = afterData.overload_ratio;
-                                  // Handle both null/undefined and 0 values
-                                  if (ratioValue != null) {
-                                    overloadRatio = typeof ratioValue === 'number' 
-                                      ? ratioValue 
-                                      : parseFloat(ratioValue);
-                                  } else if (ratioValue === 0 || ratioValue === '0') {
-                                    overloadRatio = 0;
-                                  }
-                                }
-                              } catch (err) {
-                                // Silently handle parsing errors
-                                if (process.env.NODE_ENV === 'development') {
-                                  console.warn('Error parsing overload_ratio from audit data:', err);
-                                }
-                              }
-                            }
-                          }
-                          return (
-                            <button
-                              key={dateTab.actionId}
-                              onClick={() => {
-                                setSelectedDateTab({ actionId: dateTab.actionId, measurementDate: dateTab.measurementDate });
-                                // Load audit details if not already loaded
-                                if (!auditDataCache.has(dateTab.actionId)) {
-                                  loadAuditDetails(dateTab.actionId);
-                                }
-                              }}
-                              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-all duration-200 rounded-t-lg whitespace-nowrap ${
-                                isSelected
-                                  ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
-                                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                              }`}
-                            >
-                              {dateTab.formattedDateTime}
-                              {activeHistoryTab === 'distribution' && overloadRatio != null && !isNaN(overloadRatio) && (
-                                <span className="text-xs text-gray-500 font-bold">
-                                  ({overloadRatio.toFixed(2)}%)
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    
-                    {/* Detail Content */}
-                    {selectedDateTab && (
-                      <div className="flex-1 overflow-auto p-2" key={`detail-${selectedDateTab.actionId}`}>
-                        <DetailRowRenderer
-                          {...({
-                            data: {
-                              _isDetailRow: true,
-                              _actionId: selectedDateTab.actionId,
-                              _measurementDate: selectedDateTab.measurementDate
-                            },
-                            expandedRows: expandedHistoryRows,
-                            auditDataCache: auditDataCache,
-                            assetColumnDefs: assetColumnDefs,
-                            currentTabAssetId: asset?.asset_id,
-                            refreshKey: detailRowRefreshKey, // Force re-render when data loads
-                            onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
-                              window.dispatchEvent(new CustomEvent('openAssetView', {
-                                detail: { assetDbId, assetId, buildingNumber, taxRegion }
-                              }));
-                            }
-                          } as any)}
-                        />
-                      </div>
-                    )}
-                    
-                    {dateTabs.length === 0 && (
-                      <div className="p-4 text-center text-gray-500 text-xs">
-                        אין רשומות זמינות
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflowX: 'auto' }}>
+                <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflowX: 'auto' }}>
                     <style>{`
                       .ag-theme-alpine .ag-header {
                         background: linear-gradient(to bottom, #f9fafb, #f3f4f6) !important;
@@ -4922,8 +4763,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     tooltipShowDelay={200}
                     tooltipHideDelay={10000}
                   />
-                  </div>
-                )}
+                </div>
               </div>
             )}
 

@@ -590,26 +590,80 @@ BEGIN
       
       -- Map action_type to distribution_audit_action_type enum
       -- For distribute_shared, determine if it's business or residence distribution
+      -- Use the same logic as STEP 4: check description first (most reliable), then asset data
       IF p_action_type = 'distribute_shared' THEN
-        -- Extract business_residence from first asset's asset type
-        -- All assets in a distribution should have the same business_residence (עסקים or מגורים)
-        v_business_residence := NULL;
-        IF jsonb_array_length(v_after_assets_json) > 0 AND (v_after_assets_json->0->>'main_asset_type') IS NOT NULL THEN
-          -- Look up the asset type's business_residence field
-          SELECT business_residence INTO v_business_residence
-          FROM asset_types
-          WHERE name = (v_after_assets_json->0->>'main_asset_type')
-          LIMIT 1;
+        -- Determine distribution type using the same logic as STEP 4
+        -- This ensures consistency between audit logging and flag removal
+        v_distribution_type := NULL;
+        
+        -- Check description first (most reliable method - contains tab info)
+        IF p_description IS NOT NULL THEN
+          IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
+            v_distribution_type := 'residence';
+          ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
+            v_distribution_type := 'business';
+          END IF;
         END IF;
         
-        -- Set action type based on business_residence
-        IF v_business_residence = 'עסקים' THEN
+        -- If description didn't help, check asset data as fallback
+        IF v_distribution_type IS NULL AND jsonb_array_length(v_after_assets_json) > 0 THEN
+          DECLARE
+            v_asset_idx INTEGER := 0;
+            v_asset_count INTEGER;
+            v_main_asset_type_value TEXT;
+            v_main_asset_type_num BIGINT;
+          BEGIN
+            v_asset_count := jsonb_array_length(v_after_assets_json);
+            
+            -- Loop through assets to find business_residence
+            WHILE v_asset_idx < v_asset_count AND v_distribution_type IS NULL LOOP
+              IF (v_after_assets_json->v_asset_idx->>'main_asset_type') IS NOT NULL THEN
+                v_main_asset_type_value := TRIM((v_after_assets_json->v_asset_idx->>'main_asset_type'));
+                
+                -- Try to parse as number for numeric comparison
+                BEGIN
+                  v_main_asset_type_num := v_main_asset_type_value::BIGINT;
+                EXCEPTION WHEN OTHERS THEN
+                  v_main_asset_type_num := NULL;
+                END;
+                
+                -- Look up the asset type's business_residence field
+                SELECT business_residence INTO v_business_residence
+                FROM asset_types
+                WHERE TRIM(name::TEXT) = v_main_asset_type_value
+                LIMIT 1;
+                
+                -- If not found and we have a numeric value, try numeric comparison
+                IF v_business_residence IS NULL AND v_main_asset_type_num IS NOT NULL THEN
+                  SELECT business_residence INTO v_business_residence
+                  FROM asset_types
+                  WHERE name::BIGINT = v_main_asset_type_num
+                  LIMIT 1;
+                END IF;
+                
+                -- Set distribution type based on business_residence
+                IF v_business_residence = 'עסקים' THEN
+                  v_distribution_type := 'business';
+                ELSIF v_business_residence = 'מגורים' THEN
+                  v_distribution_type := 'residence';
+                END IF;
+              END IF;
+              
+              v_asset_idx := v_asset_idx + 1;
+            END LOOP;
+          END;
+        END IF;
+        
+        -- Set action type based on distribution type
+        IF v_distribution_type = 'business' THEN
           v_audit_action_type := 'business_distribution';
-        ELSIF v_business_residence = 'מגורים' THEN
+        ELSIF v_distribution_type = 'residence' THEN
           v_audit_action_type := 'residence_distribution';
         ELSE
-          -- Fallback to 'distribution' if business_residence is not found or is NULL
+          -- Fallback to 'distribution' if type is not determined
           v_audit_action_type := 'distribution';
+          RAISE WARNING 'Using fallback action_type "distribution" because distribution type could not be determined (description: %)', 
+            p_description;
         END IF;
       ELSIF p_action_type = 'transfer_area' THEN
         v_audit_action_type := 'transfer';

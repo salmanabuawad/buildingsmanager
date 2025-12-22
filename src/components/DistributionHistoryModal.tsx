@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, Calendar } from 'lucide-react';
 import { DistributionAudit, api, Asset, AssetType } from '../lib/api';
-import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM } from '../lib/dateUtils';
 import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 import { useTranslation } from 'react-i18next';
 
@@ -212,7 +212,7 @@ export function DistributionHistoryModal({
         {!inline && (
         <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-teal-50 border-b border-teal-200">
           <h2 className="text-2xl font-bold text-gray-900">
-            {selectedRecord ? 'פרטי פיזור שטח משותף' : `היסטוריית פיזור שטח משותף - מבנה ${buildingNumber}`}
+            {selectedRecord ? `פרטי פיזור שטח משותף - ${formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at)}` : `היסטוריית פיזור שטח משותף - מבנה ${buildingNumber}`}
           </h2>
           <button
             onClick={handleClose}

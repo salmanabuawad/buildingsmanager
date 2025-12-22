@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, Calendar } from 'lucide-react';
 import { DistributionAudit, api, Asset, AssetType } from '../lib/api';
-import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM } from '../lib/dateUtils';
 import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 import { useTranslation } from 'react-i18next';
 
@@ -233,7 +233,7 @@ export function TransferHistoryModal({
         {!inline && (
         <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
           <h2 className="text-2xl font-bold text-gray-900">
-            {selectedRecord ? 'פרטי העברת שטחים' : `היסטוריית העברות - מבנה ${buildingNumber}`}
+            {selectedRecord ? `פרטי העברת שטחים - ${formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at)}` : `היסטוריית העברות - מבנה ${buildingNumber}`}
           </h2>
           <button
             onClick={handleClose}

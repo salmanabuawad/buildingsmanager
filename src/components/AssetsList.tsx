@@ -2127,7 +2127,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     },
     {
       field: 'asset_size',
-      headerName: t('mainAssetSize'),
+      headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
       valueFormatter: (params) => params.value ? params.value.toLocaleString() : '',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -2644,7 +2644,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     },
     {
       field: 'asset_size',
-      headerName: t('mainAssetSize'),
+      headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
       editable: (params) => isFieldEditable(params, 'asset_size'),
       type: 'numericColumn',
       valueFormatter: (params) => {

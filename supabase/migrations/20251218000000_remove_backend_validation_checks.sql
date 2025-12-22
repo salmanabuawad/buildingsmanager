@@ -169,9 +169,11 @@ BEGIN
 
     IF v_business_residence = 'עסקים' THEN
       -- Business asset size changed → set business distribution flag only
+      -- BUT only if building has business_shared_area > 0
       UPDATE buildings
       SET need_business_distribution = true
-      WHERE building_number = v_building_number;
+      WHERE building_number = v_building_number
+        AND COALESCE(business_shared_area, 0) > 0;
       
     ELSIF v_business_residence = 'מגורים' THEN
       -- Residence asset size changed → set residence distribution flag only
@@ -541,9 +543,11 @@ BEGIN
 
       IF v_business_residence = 'עסקים' THEN
         -- Business asset size changed → set business distribution flag only
+        -- BUT only if building has business_shared_area > 0
         UPDATE buildings
         SET need_business_distribution = true
-        WHERE building_number = v_building_number;
+        WHERE building_number = v_building_number
+          AND COALESCE(business_shared_area, 0) > 0;
         
       ELSIF v_business_residence = 'מגורים' THEN
         -- Residence asset size changed → set residence distribution flag only

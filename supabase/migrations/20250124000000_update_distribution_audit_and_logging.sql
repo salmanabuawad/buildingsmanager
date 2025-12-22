@@ -41,6 +41,30 @@ END $$;
 -- UPDATE: save_assets_bulk_transactional to log distribution_audit
 -- ============================================================================
 
+-- Drop any existing versions with different signatures to avoid ambiguity
+DROP FUNCTION IF EXISTS save_assets_bulk_transactional(
+  JSONB[],
+  BOOLEAN,
+  TEXT,
+  TEXT,
+  TEXT,
+  JSONB,
+  JSONB,
+  TEXT
+);
+
+DROP FUNCTION IF EXISTS save_assets_bulk_transactional(
+  JSONB[],
+  BOOLEAN,
+  TEXT,
+  TEXT,
+  TEXT,
+  JSONB,
+  JSONB,
+  TEXT,
+  BOOLEAN
+);
+
 CREATE OR REPLACE FUNCTION save_assets_bulk_transactional(
   p_assets_data JSONB[],
   p_validation_passed BOOLEAN,

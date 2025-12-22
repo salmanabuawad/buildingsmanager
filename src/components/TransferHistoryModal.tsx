@@ -504,6 +504,7 @@ export function TransferHistoryModal({
                     </tbody>
                   </table>
                 </div>
+                </div>
               </div>
             )}
           </div>

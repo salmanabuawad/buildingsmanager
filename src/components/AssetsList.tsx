@@ -185,6 +185,23 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     return newAssets.size + editedExistingAssets + deletedAssets.size;
   }, [newAssets, dirtyAssets, deletedAssets]);
 
+  // Check if there are any validation errors for assets that have changes
+  const hasValidationErrors = useMemo(() => {
+    // Check validation errors for dirty assets (edited existing assets)
+    for (const assetId of dirtyAssets.keys()) {
+      if (validationErrors.has(String(assetId))) {
+        return true;
+      }
+    }
+    // Check validation errors for new assets
+    for (const assetId of newAssets) {
+      if (validationErrors.has(String(assetId))) {
+        return true;
+      }
+    }
+    return false;
+  }, [validationErrors, dirtyAssets, newAssets]);
+
   // Expose hasUnsavedChanges via ref
   useImperativeHandle(ref, () => ({
     hasUnsavedChanges: () => totalChanges > 0
@@ -3264,11 +3281,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                     <X className="h-4 w-4" />
                     ביטול
                   </button>
+                  {/* Save button: disabled when there are validation errors or no changes */}
                   <button
                     type="button"
                     onClick={handleSaveAll}
-                    disabled={loading || totalChanges === 0}
+                    disabled={loading || totalChanges === 0 || hasValidationErrors}
                     className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
+                    title={hasValidationErrors ? 'תקן שגיאות אימות לפני השמירה' : undefined}
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

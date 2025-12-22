@@ -1125,6 +1125,18 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               // The overload_ratio is already in local state and will be visible in UI
             }
           }
+          
+          // Update distribution history counter after successful distribution save
+          if (isDistributionSave && distributionType) {
+            try {
+              const actionType = distributionType === 'residence' ? 'residence_distribution' : 'business_distribution';
+              const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
+              setDistributionHistoryCount(distributionHistory.length);
+            } catch (error) {
+              console.error('Error updating distribution history count:', error);
+              // Don't fail the save operation if counter update fails
+            }
+          }
         } else {
           if (result.validationErrors && result.validationErrors.length > 0) {
             errors.push(...result.validationErrors);

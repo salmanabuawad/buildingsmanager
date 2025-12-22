@@ -255,17 +255,17 @@ export function TransferHistoryModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-            <span className="mr-3 text-gray-600">טוען היסטוריה...</span>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12 text-red-600">{error}</div>
-        ) : history.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">אין היסטוריית העברות עבור מבנה זה</div>
-        ) : (
-          <div className="space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+              <span className="mr-3 text-gray-600">טוען היסטוריה...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-600">{error}</div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">אין היסטוריית העברות עבור מבנה זה</div>
+          ) : (
+            <div className="space-y-4">
             {/* Date Tabs - Always Visible */}
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm overflow-x-auto">
               {history.map((record) => (

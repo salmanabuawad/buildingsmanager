@@ -98,14 +98,17 @@ export function TransferHistoryModal({
     if (!beforeAsset || !afterAsset) return true; // One exists but not the other
     
     // Compare relevant fields
+    // Note: measurement_date is critical for transfer operations (new measurements)
     const fieldsToCompare = [
+      'measurement_date', // Transfer operations create new measurements with different dates
       'main_asset_type', 'asset_size',
       'sub_asset_type_1', 'sub_asset_size_1',
       'sub_asset_type_2', 'sub_asset_size_2',
       'sub_asset_type_3', 'sub_asset_size_3',
       'sub_asset_type_4', 'sub_asset_size_4',
       'sub_asset_type_5', 'sub_asset_size_5',
-      'sub_asset_type_6', 'sub_asset_size_6'
+      'sub_asset_type_6', 'sub_asset_size_6',
+      'area_from_distribution' // May change during transfers
     ];
     
     for (const field of fieldsToCompare) {

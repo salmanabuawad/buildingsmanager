@@ -67,13 +67,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
   
-  // Switch to assets tab if transfer-history is active in residence tabs
-  useEffect(() => {
-    if (activeTab === 'transfer-history' && isResidentTaxRegion) {
-      setActiveTab('assets');
-    }
-  }, [isResidentTaxRegion, activeTab]);
-  
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
   const validationTaxRegion = useMemo(() => {
@@ -2284,6 +2277,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     
     return allAreResidence;
   }, [taxRegion, assetTypes]);
+
+  // Switch to assets tab if transfer-history is active in residence tabs
+  useEffect(() => {
+    if (activeTab === 'transfer-history' && isResidentTaxRegion) {
+      setActiveTab('assets');
+    }
+  }, [isResidentTaxRegion, activeTab]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [

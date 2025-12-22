@@ -418,6 +418,7 @@ export interface DistributionAudit {
   shared_area_size?: number;
   description?: string;
   user_id?: number;
+  tax_region?: string; // Tax region for filtering (business or residence)
   created_at: string;
 }
 
@@ -2944,7 +2945,7 @@ export const api = {
     },
   },
   distributionAudit: {
-    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer'): Promise<DistributionAudit[]> => {
+    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer', taxRegion?: string): Promise<DistributionAudit[]> => {
       let query = supabase
         .from('audit')
         .select('*')
@@ -2953,6 +2954,10 @@ export const api = {
       
       if (actionType) {
         query = query.eq('action_type', actionType);
+      }
+      
+      if (taxRegion) {
+        query = query.eq('tax_region', taxRegion);
       }
       
       const { data, error } = await query;

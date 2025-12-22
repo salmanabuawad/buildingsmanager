@@ -67,6 +67,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
   
+  // Switch to assets tab if transfer-history is active in residence tabs
+  useEffect(() => {
+    if (activeTab === 'transfer-history' && isResidentTaxRegion) {
+      setActiveTab('assets');
+    }
+  }, [isResidentTaxRegion, activeTab]);
+  
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
   const validationTaxRegion = useMemo(() => {
@@ -3257,18 +3264,20 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 <History className="h-4 w-4" />
                 היסטוריית פיזור
               </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('transfer-history')}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                  activeTab === 'transfer-history'
-                    ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-md -mb-0.5'
-                    : 'text-gray-600 hover:text-violet-600 hover:bg-white/50'
-                }`}
-              >
-                <Share2 className="h-4 w-4" />
-                היסטוריית העברות
-              </button>
+              {!isResidentTaxRegion && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('transfer-history')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                    activeTab === 'transfer-history'
+                      ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-md -mb-0.5'
+                      : 'text-gray-600 hover:text-violet-600 hover:bg-white/50'
+                  }`}
+                >
+                  <Share2 className="h-4 w-4" />
+                  היסטוריית העברות
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -3393,12 +3402,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               isOpen={true}
               onClose={() => setActiveTab('assets')}
               buildingNumber={buildingNumber}
+              taxRegion={taxRegion}
               inline={true}
             />
           </div>
         )}
         
-        {activeTab === 'transfer-history' && (
+        {activeTab === 'transfer-history' && !isResidentTaxRegion && (
           <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
             <TransferHistoryModal
               isOpen={true}

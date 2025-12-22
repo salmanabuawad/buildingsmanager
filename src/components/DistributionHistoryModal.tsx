@@ -9,6 +9,7 @@ interface DistributionHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   buildingNumber: number;
+  taxRegion?: string; // Tax region for filtering distribution history (business or residence)
   inline?: boolean; // If true, render as inline content without modal wrapper
 }
 
@@ -16,6 +17,7 @@ export function DistributionHistoryModal({
   isOpen,
   onClose,
   buildingNumber,
+  taxRegion,
   inline = false,
 }: DistributionHistoryModalProps) {
   const { t } = useTranslation();
@@ -39,7 +41,7 @@ export function DistributionHistoryModal({
     setError(null);
     try {
       const [historyData, assetTypesData] = await Promise.all([
-        api.distributionAudit.getByBuilding(buildingNumber, 'distribution'),
+        api.distributionAudit.getByBuilding(buildingNumber, 'distribution', taxRegion),
         api.assetTypes.getAll()
       ]);
       setHistory(historyData);
@@ -239,12 +241,12 @@ export function DistributionHistoryModal({
             // Record Details View
             <div className="space-y-4">
               {!inline && (
-                <button
-                  onClick={handleBackToList}
-                  className="mb-4 text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
-                >
-                  ← חזרה לרשימה
-                </button>
+              <button
+                onClick={handleBackToList}
+                className="mb-4 text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
+              >
+                ← חזרה לרשימה
+              </button>
               )}
 
               <div className="bg-gray-50 rounded-lg p-3">
@@ -484,13 +486,13 @@ export function DistributionHistoryModal({
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <Calendar className="h-4 w-4 text-teal-600 flex-shrink-0" />
                     <span className="text-sm font-medium flex-shrink-0">{formatDateToDDMMYYYY(record.created_at)}</span>
-                    {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
                         <span className="text-sm flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
                       </>
-                    )}
-                    {record.overload_ratio !== null && record.overload_ratio !== undefined && (
+                        )}
+                        {record.overload_ratio !== null && record.overload_ratio !== undefined && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
                         <span className="text-sm flex-shrink-0">{record.overload_ratio.toFixed(2)}%</span>

@@ -96,6 +96,7 @@ DECLARE
   v_before_assets_json JSONB;
   v_after_assets_json JSONB;
   v_building_record RECORD;
+  v_tax_region TEXT := NULL; -- Tax region extracted from assets for distribution/transfer operations
 BEGIN
   -- ========================================================================
   -- STEP 1: GET OR CREATE USER
@@ -594,6 +595,12 @@ BEGIN
         v_after_assets_json := '[]'::jsonb;
       END IF;
       
+      -- Extract tax_region from first asset in affected_assets_after for distribution/transfer operations
+      -- All assets in a distribution should have the same tax_region
+      IF jsonb_array_length(v_after_assets_json) > 0 THEN
+        v_tax_region := (v_after_assets_json->0->>'tax_region');
+      END IF;
+      
       -- Log to audit table (part of the same transaction)
       PERFORM log_audit(
         v_first_building_number,
@@ -603,7 +610,8 @@ BEGIN
         v_distribution_overload_ratio,
         v_distribution_shared_area_size,
         p_description,
-        p_user_id
+        p_user_id,
+        v_tax_region
       );
     END IF;
   ELSE

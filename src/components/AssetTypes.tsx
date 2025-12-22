@@ -696,11 +696,6 @@ export function AssetTypes() {
           fields.push(`תיאור אזור: ${currentAssetType.area_description_for_tab}`);
         }
         
-        // Business/Residence
-        if (currentAssetType.business_residence) {
-          fields.push(`עסקים/מגורים: ${currentAssetType.business_residence}`);
-        }
-        
         // Checkbox fields (show only if checked)
         if (currentAssetType.elevator === 'כן') {
           fields.push('מעלית: כן');
@@ -1525,6 +1520,8 @@ export function AssetTypes() {
                   enableRtl: true,
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
+                  tooltipShowDelay: 0,
+                  tooltipHideDelay: 0,
                 }}
               />
             </div>

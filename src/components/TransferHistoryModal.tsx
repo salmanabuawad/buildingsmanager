@@ -290,22 +290,13 @@ export function TransferHistoryModal({
             {/* Record Details View - Show when record is selected */}
             {selectedRecord && (
               <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">
-                    <span className="font-medium flex-shrink-0">{selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : ''}</span>
-                    {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
-                      <>
-                        <span className="text-gray-400 flex-shrink-0">•</span>
-                        <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
-                      </>
-                    )}
-                  </div>
-                  {selectedRecord.description && (
-                    <div className="mt-2 text-sm text-gray-600">
+                {selectedRecord.description && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-sm text-gray-600">
                       {selectedRecord.description}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div>
                 <h3 className="text-lg font-bold mb-3 text-gray-800">

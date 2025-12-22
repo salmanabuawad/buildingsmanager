@@ -280,24 +280,6 @@ export function DistributionHistoryModal({
           ) : selectedRecord ? (
             // Record Details View
             <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">
-                  <span className="font-medium flex-shrink-0">{selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : ''}</span>
-                  {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
-                    <>
-                      <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
-                    </>
-                  )}
-                  {selectedRecord.overload_ratio != null && (
-                    <>
-                      <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{typeof selectedRecord.overload_ratio === 'number' ? selectedRecord.overload_ratio.toFixed(2) : selectedRecord.overload_ratio}%</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
                 <div>
                 <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
                   <table className="w-full border-collapse" dir="rtl">

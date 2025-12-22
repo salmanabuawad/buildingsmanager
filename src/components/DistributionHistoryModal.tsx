@@ -238,12 +238,14 @@ export function DistributionHistoryModal({
           ) : selectedRecord ? (
             // Record Details View
             <div className="space-y-4">
-              <button
-                onClick={handleBackToList}
-                className="mb-4 text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
-              >
-                ← חזרה לרשימה
-              </button>
+              {!inline && (
+                <button
+                  onClick={handleBackToList}
+                  className="mb-4 text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
+                >
+                  ← חזרה לרשימה
+                </button>
+              )}
 
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">

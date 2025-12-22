@@ -3228,9 +3228,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 </>
               );
             })()}
+          </div>
+          
           {/* Tab Navigation */}
           {building && (
-            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm">
+            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm mt-2">
               <button
                 type="button"
                 onClick={() => setActiveTab('assets')}
@@ -3269,7 +3271,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               </button>
             </div>
           )}
-          </div>
+        </div>
         
         {/* Tab Content */}
         {activeTab === 'assets' && (

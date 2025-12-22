@@ -231,18 +231,18 @@ export function TransferHistoryModal({
     <div className={`bg-white ${inline ? '' : 'rounded-xl shadow-2xl'} p-4 sm:p-6 ${inline ? '' : 'transition-all duration-300 border border-gray-100'} ${inline ? '' : isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} ${inline ? 'w-full h-full' : 'max-w-[95vw] w-full max-h-[90vh]'} flex flex-col`} dir="rtl">
         {/* Header */}
         {!inline && (
-          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {selectedRecord ? 'פרטי העברת שטחים' : `היסטוריית העברות - מבנה ${buildingNumber}`}
-            </h2>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-              aria-label="סגור"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
+        <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {selectedRecord ? 'פרטי העברת שטחים' : `היסטוריית העברות - מבנה ${buildingNumber}`}
+          </h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            aria-label="סגור"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
         )}
         
         {inline && selectedRecord && (
@@ -275,28 +275,24 @@ export function TransferHistoryModal({
                 ← חזרה לרשימה
               </button>
 
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm font-semibold text-gray-600">תאריך:</span>
-                    <p className="text-lg">{formatDateToDDMMYYYY(selectedRecord.created_at)}</p>
-                  </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-sm whitespace-nowrap">
+                  <span className="font-medium">{formatDateToDDMMYYYY(selectedRecord.created_at)}</span>
                   {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">שטח שהועבר:</span>
-                      <p className="text-lg">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</p>
-                    </div>
-                  )}
-                  {selectedRecord.description && (
-                    <div className="col-span-2">
-                      <span className="text-sm font-semibold text-gray-600">תיאור:</span>
-                      <p className="text-lg">{selectedRecord.description}</p>
-                    </div>
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <span>{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
+                    </>
                   )}
                 </div>
+                {selectedRecord.description && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    {selectedRecord.description}
+                  </div>
+                )}
               </div>
 
-              <div>
+                <div>
                 <h3 className="text-lg font-bold mb-3 text-gray-800">
                   נכסים - לפני ואחרי העברה ({selectedRecord.affected_assets_before.length} נכסים)
                 </h3>
@@ -401,10 +397,29 @@ export function TransferHistoryModal({
                           );
                         }
                         
+                        const handleAssetIdClick = (e: any) => {
+                          e.stopPropagation();
+                          const assetBuildingNumber = asset?.building_number || buildingNumber;
+                          window.dispatchEvent(new CustomEvent('openAssetView', {
+                            detail: {
+                              assetDbId: row.asset_id,
+                              assetId: String(row.asset_id),
+                              buildingNumber: assetBuildingNumber,
+                              taxRegion: undefined
+                            }
+                          }));
+                        };
+                        
                         return (
                           <tr key={`${row.asset_id}-before`} style={{ backgroundColor: bgColor }}>
                             <td className="border border-gray-300 px-3 py-2 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
-                              {row.asset_id}
+                              <button
+                                onClick={handleAssetIdClick}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"
+                                title="פתח פרטי נכס"
+                              >
+                                {row.asset_id}
+                              </button>
                             </td>
                             <td className="border border-gray-300 px-3 py-2 text-right font-semibold">לפני</td>
                             <td 
@@ -490,20 +505,17 @@ export function TransferHistoryModal({
                   className="bg-gray-50 hover:bg-violet-50 border border-gray-200 hover:border-violet-300 rounded-lg p-4 cursor-pointer transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-5 w-5 text-violet-600" />
-                      <div>
-                        <div className="font-semibold text-lg">
-                          {formatDateToDDMMYYYY(record.created_at)}
-                        </div>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <Calendar className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                      <span className="text-sm font-medium">{formatDateToDDMMYYYY(record.created_at)}</span>
                         {record.shared_area_size !== null && record.shared_area_size !== undefined && (
-                          <div className="text-sm text-gray-600">
-                            שטח שהועבר: {record.shared_area_size.toLocaleString('he-IL')}
-                          </div>
-                        )}
-                      </div>
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-sm">{record.shared_area_size.toLocaleString('he-IL')}</span>
+                        </>
+                      )}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 flex-shrink-0 mr-2">
                       {record.affected_assets_after.length} נכסים
                     </div>
                   </div>

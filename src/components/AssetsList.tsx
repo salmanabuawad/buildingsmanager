@@ -3061,8 +3061,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             <p className="text-green-800 text-sm font-medium">{success}</p>
           </div>
         )}
-        <div className="mb-2 flex justify-between items-center gap-2">
-          <div className="flex gap-2">
+        <div className="mb-3 space-y-3">
+          {/* Primary Actions Row */}
+          <div className="flex flex-wrap items-center gap-2">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected */}
             {(() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
@@ -3090,7 +3091,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                       addEmptyRow();
                     }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:from-emerald-700 active:to-emerald-800 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold border border-emerald-700/20"
                 >
                   <Plus className="h-4 w-4" />
                   הוסף נכס
@@ -3100,7 +3101,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 active:from-cyan-700 active:to-cyan-800 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold border border-cyan-700/20"
               title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -3110,67 +3111,71 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               type="button"
               onClick={handleExportToExcel}
               disabled={loading || assets.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-blue-700/20 disabled:border-gray-500/20"
               title="ייצא את כל הנכסים לקובץ Excel"
             >
               <FileSpreadsheet className="h-4 w-4" />
               ייצא ל-Excel
             </button>
           </div>
-          {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on */}
-          {building && isResidentTaxRegion && building.residence_shared_area != null && (
-            <button
-              type="button"
-              onClick={handleDistributeSharedArea}
-              disabled={
-                loading || 
-                assets.length === 0 || 
-                building.need_residence_distribution !== true ||
-                (building.residence_shared_area! <= 0 && !hasPreviousResidenceDistribution)
-              }
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
-              title={building.need_residence_distribution === true 
-                ? building.residence_shared_area! > 0
-                  ? `פזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין כל נכסי המגורים`
-                  : 'נקה פיזור קודם של שטח משותף מגורים (שטח משותף = 0)'
-                : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
-            >
-              <Download className="h-4 w-4" />
-              פזר שטח משותף מגורים
-            </button>
-          )}
-          {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on */}
-          {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
-            <button
-              type="button"
-              onClick={handleDistributeBusinessSharedArea}
-              disabled={
-                loading || 
-                assets.length === 0 || 
-                building.need_business_distribution !== true ||
-                (building.business_shared_area! <= 0 && !hasPreviousBusinessDistribution)
-              }
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
-              title={building.need_business_distribution === true
-                ? building.business_shared_area! > 0
-                  ? `פזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין כל נכסי העסקים`
-                  : 'נקה פיזור קודם של שטח משותף עסקים (שטח משותף = 0)'
-                : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
-            >
-              <Download className="h-4 w-4" />
-              פזר שטח משותף עסקים
-            </button>
-          )}
+          
+          {/* Distribution Actions Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on */}
+            {building && isResidentTaxRegion && building.residence_shared_area != null && (
+              <button
+                type="button"
+                onClick={handleDistributeSharedArea}
+                disabled={
+                  loading || 
+                  assets.length === 0 || 
+                  building.need_residence_distribution !== true ||
+                  (building.residence_shared_area! <= 0 && !hasPreviousResidenceDistribution)
+                }
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 active:from-teal-700 active:to-teal-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-teal-700/20 disabled:border-gray-500/20"
+                title={building.need_residence_distribution === true 
+                  ? building.residence_shared_area! > 0
+                    ? `פזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין כל נכסי המגורים`
+                    : 'נקה פיזור קודם של שטח משותף מגורים (שטח משותף = 0)'
+                  : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
+              >
+                <Download className="h-4 w-4" />
+                פזר שטח משותף מגורים
+              </button>
+            )}
+            {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on */}
+            {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
+              <button
+                type="button"
+                onClick={handleDistributeBusinessSharedArea}
+                disabled={
+                  loading || 
+                  assets.length === 0 || 
+                  building.need_business_distribution !== true ||
+                  (building.business_shared_area! <= 0 && !hasPreviousBusinessDistribution)
+                }
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 active:from-violet-700 active:to-violet-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-violet-700/20 disabled:border-gray-500/20"
+                title={building.need_business_distribution === true
+                  ? building.business_shared_area! > 0
+                    ? `פזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין כל נכסי העסקים`
+                    : 'נקה פיזור קודם של שטח משותף עסקים (שטח משותף = 0)'
+                  : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
+              >
+                <Download className="h-4 w-4" />
+                פזר שטח משותף עסקים
+              </button>
+            )}
+          </div>
           {/* Tab Navigation */}
           {building && (
-            <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg">
+            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm">
               <button
                 type="button"
                 onClick={() => setActiveTab('assets')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200 rounded-t-lg ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                   activeTab === 'assets'
-                    ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-md -mb-0.5'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-white/50'
                 }`}
               >
                 <BuildingIcon className="h-4 w-4" />
@@ -3179,10 +3184,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               <button
                 type="button"
                 onClick={() => setActiveTab('distribution-history')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200 rounded-t-lg ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                   activeTab === 'distribution-history'
-                    ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-md -mb-0.5'
+                    : 'text-gray-600 hover:text-teal-600 hover:bg-white/50'
                 }`}
               >
                 <History className="h-4 w-4" />
@@ -3191,10 +3196,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               <button
                 type="button"
                 onClick={() => setActiveTab('transfer-history')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200 rounded-t-lg ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
                   activeTab === 'transfer-history'
-                    ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-md -mb-0.5'
+                    : 'text-gray-600 hover:text-violet-600 hover:bg-white/50'
                 }`}
               >
                 <Share2 className="h-4 w-4" />
@@ -3224,7 +3229,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;
             
             return (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200">
                 {shouldShowTransferButton && (
                   <button
                     type="button"
@@ -3237,7 +3242,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                       }
                     }}
                     disabled={!canTransferAreas}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-500 hover:bg-violet-600 active:bg-violet-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none font-medium"
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
                     title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                   >
                     <ArrowRightLeft className="h-4 w-4" />
@@ -3248,7 +3253,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   type="button"
                   onClick={handleCancelAll}
                   disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 active:from-gray-700 active:to-gray-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-gray-700/20 disabled:border-gray-400/20"
                 >
                   <X className="h-4 w-4" />
                   ביטול
@@ -3257,7 +3262,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   type="button"
                   onClick={handleSaveAll}
                   disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

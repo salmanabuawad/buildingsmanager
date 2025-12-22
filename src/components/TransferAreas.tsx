@@ -819,25 +819,52 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return;
       }
 
-      // Save all assets in bulk with single audit entry and action_id (same as distribute)
+      // Save all assets in bulk with single audit entry (same as distribute)
       if (originalAssets.length > 0) {
         try {
-          // Prepare before and after data - database transaction will collect automatically
-          // Pass NULL to let the database function collect before/after data from the database
-          // Database will collect before data from assets table before moving to history
-          // Database will collect after data from assets table after creating new measurements
-          const affectedAssetIds = originalAssets.map(a => a.asset_id);
+          // Prepare assets with is_new_measurement flag set to true
+          // This will cause save_assets_bulk_transactional to copy existing assets to history before updating
+          const assetsToSave = newAssetsData.map(asset => ({
+            ...asset,
+            is_new_measurement: true, // This flag tells the function to copy to history before updating
+          }));
           
-          // Use bulkTransferAreas which handles creating new measurements and audit logging
+          // Prepare before_data from originalAssets for audit logging
+          const beforeDataForAudit = originalAssets.length > 0 ? {
+            assets: originalAssets.map(asset => ({
+              asset_id: asset.asset_id,
+              building_number: asset.building_number,
+              main_asset_type: asset.main_asset_type,
+              asset_size: asset.asset_size,
+              sub_asset_type_1: asset.sub_asset_type_1,
+              sub_asset_size_1: asset.sub_asset_size_1,
+              sub_asset_type_2: asset.sub_asset_type_2,
+              sub_asset_size_2: asset.sub_asset_size_2,
+              sub_asset_type_3: asset.sub_asset_type_3,
+              sub_asset_size_3: asset.sub_asset_size_3,
+              sub_asset_type_4: asset.sub_asset_type_4,
+              sub_asset_size_4: asset.sub_asset_size_4,
+              sub_asset_type_5: asset.sub_asset_type_5,
+              sub_asset_size_5: asset.sub_asset_size_5,
+              sub_asset_type_6: asset.sub_asset_type_6,
+              sub_asset_size_6: asset.sub_asset_size_6,
+              measurement_date: asset.measurement_date,
+            }))
+          } : null;
+          
+          // Use saveBulkTransactional which handles creating new measurements and audit logging
           // Database transaction will automatically collect before/after asset data
-          const result = await api.auditLog.bulkTransferAreas(
-            originalAssets,
-            newAssetsData,
+          const result = await api.assets.saveBulkTransactional(
+            assetsToSave,
             'transfer_area',
-            null, // Database will collect before asset data automatically (lowercase null, not NULL)
-            null, // Database will collect after asset data automatically (lowercase null, not NULL)
+            beforeDataForAudit,
+            null, // Database will collect after asset data automatically
             `Transferred areas for ${originalAssets.length} assets as new measurements`
           );
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to transfer areas');
+          }
           
           // Update asset identifiers for all affected assets
           const newIdentifiers = new Map<string, { asset_id: number; building_number: number }>();

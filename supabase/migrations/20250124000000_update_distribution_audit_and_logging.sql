@@ -589,7 +589,13 @@ BEGIN
             v_distribution_overload_ratio := NULL;
           ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
             v_distribution_shared_area_size := v_building_record.business_shared_area;
-            v_distribution_overload_ratio := v_building_record.overload_ratio;
+            -- Use provided overload_ratio if available (current value from p_after_data), otherwise fallback to building record
+            -- IMPORTANT: The provided value is the correct overload_ratio for THIS distribution, not the previous one
+            IF v_overload_ratio IS NOT NULL THEN
+              v_distribution_overload_ratio := v_overload_ratio;
+            ELSE
+              v_distribution_overload_ratio := v_building_record.overload_ratio;
+            END IF;
           END IF;
         END IF;
       END IF;

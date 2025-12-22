@@ -1061,6 +1061,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         let description: string | null = null;
         let afterData: any = undefined;
         
+        // Determine tab context (business or residence) for passing to API
+        const isBusinessContext = !isResidentTaxRegion;
+        
         if (isDistributionSave && distributionType && building) {
           if (distributionType === 'residence' && building?.residence_shared_area) {
             description = `Distributed residence shared area (מגורים) (${building.residence_shared_area.toLocaleString('he-IL')}) to ${assetsToSave.length} assets`;
@@ -1086,7 +1089,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           };
         }
         
-        const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, afterData, description);
+        const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, afterData, description, isBusinessContext);
 
         if (result.success) {
           savedCount = result.count || 0;

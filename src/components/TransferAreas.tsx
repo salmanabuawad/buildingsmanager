@@ -53,6 +53,33 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     fetchData();
   }, [buildingNumber, selectedAssetIds]);
 
+  // Determine if this is a business or residence tab based on tax region and asset types
+  // This is used to pass the correct context to backend saves
+  const isBusinessContext = useMemo(() => {
+    if (!taxRegion || !assetTypes || assetTypes.length === 0) return undefined;
+    
+    // Parse tax region (could be single number or comma-separated)
+    const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
+    
+    if (taxRegionNumbers.length === 0) return undefined;
+    
+    // Check if all asset types with these tax regions are "מגורים" (residence)
+    const assetTypesForTaxRegions = assetTypes.filter(at => 
+      at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
+    );
+    
+    if (assetTypesForTaxRegions.length === 0) return undefined;
+    
+    // Check if all asset types are "מגורים" (residence)
+    const allAreResidence = assetTypesForTaxRegions.every(at => 
+      at.business_residence === 'מגורים'
+    );
+    
+    // If all are residence, return false (not business context)
+    // Otherwise, return true (business context)
+    return !allAreResidence;
+  }, [taxRegion, assetTypes]);
+
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
     if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
@@ -858,7 +885,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             'transfer_area',
             beforeDataForAudit,
             null, // Database will collect after asset data automatically
-            `Transferred areas for ${originalAssets.length} assets as new measurements`
+            `Transferred areas for ${originalAssets.length} assets as new measurements`,
+            isBusinessContext
           );
           
           if (!result.success) {

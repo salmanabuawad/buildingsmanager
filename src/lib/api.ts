@@ -611,7 +611,8 @@ async function validateAndSaveAsset(
     actionType,
     null, // beforeData
     null, // afterData
-    description
+    description,
+    undefined // isBusinessContext - not available in single asset save context
   );
 
   if (result.success) {
@@ -650,7 +651,8 @@ async function validateAndSaveBulkAssets(
   actionType: string = 'manual_update',
   beforeData?: any,
   afterData?: any,
-  description?: string
+  description?: string,
+  isBusinessContext?: boolean
 ): Promise<{ success: boolean; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> {
   const { AssetValidationHandler } = await import('./assetValidationHandler');
   const userInfo = await getCurrentUserInfo();
@@ -755,7 +757,8 @@ async function validateAndSaveBulkAssets(
       p_user_id: userInfo.user_id || null,
       p_before_data: beforeData || null,
       p_after_data: afterData || null,
-      p_description: description || null
+      p_description: description || null,
+      p_is_business_context: isBusinessContext !== undefined ? isBusinessContext : null
     });
 
     if (error) {
@@ -2027,9 +2030,10 @@ export const api = {
       actionType: string = 'manual_update',
       beforeData?: any,
       afterData?: any,
-      description?: string
+      description?: string,
+      isBusinessContext?: boolean
     ): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> => {
-      return validateAndSaveBulkAssets(assetsData, actionType, beforeData, afterData, description);
+      return validateAndSaveBulkAssets(assetsData, actionType, beforeData, afterData, description, isBusinessContext);
     },
   },
   measurements: {

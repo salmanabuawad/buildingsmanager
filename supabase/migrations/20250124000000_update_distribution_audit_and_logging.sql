@@ -49,7 +49,8 @@ CREATE OR REPLACE FUNCTION save_assets_bulk_transactional(
   p_user_id TEXT DEFAULT NULL,
   p_before_data JSONB DEFAULT NULL,
   p_after_data JSONB DEFAULT NULL,
-  p_description TEXT DEFAULT NULL
+  p_description TEXT DEFAULT NULL,
+  p_is_business_context BOOLEAN DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -64,7 +65,6 @@ DECLARE
   v_new_main_asset_type TEXT;
   v_affected_asset_ids BIGINT[] := ARRAY[]::BIGINT[];
   v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];
-  v_action_id BIGINT;
   v_count INTEGER := 0;
   v_result JSONB;
   v_user_id_fk BIGINT;
@@ -227,34 +227,15 @@ BEGIN
   END IF;
   
   -- ========================================================================
-  -- STEP 2b: CREATE AUDIT ACTION RECORD (with collected before_data)
-  -- Note: For transfer_area and distribute_shared, we skip this step because
-  --       we'll create the audit entry in STEP 3c using log_audit function
+  -- STEP 2b: SKIP AUDIT ACTION RECORD CREATION
+  -- Note: The audit table structure has changed - it no longer has action_id,
+  --       entity_type, entity_id, before_data, after_data columns.
+  --       For transfer_area and distribute_shared, we'll create the audit entry
+  --       in STEP 3c using log_audit function.
+  --       For other operations, we don't create audit entries in this table.
   -- ========================================================================
-  -- Only create audit entry here for non-distribution/transfer operations
-  -- For transfer_area and distribute_shared, audit entry is created in STEP 3c
-  IF p_action_type != 'distribute_shared' AND p_action_type != 'transfer_area' THEN
-    BEGIN
-      INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
-      VALUES (
-        p_action_type::audit_action_type,
-        v_user_id_fk,
-        'bulk_asset', -- entity_type for bulk operations
-        NULL, -- entity_id will be set after we know all affected asset IDs
-        v_before_data_collected,
-        NULL, -- after_data will be collected after updates
-        p_description,
-        now()
-      )
-      RETURNING action_id INTO v_action_id;
-    EXCEPTION WHEN OTHERS THEN
-      -- Ignore if audit table doesn't exist
-      v_action_id := NULL;
-    END;
-  ELSE
-    -- For transfer/distribution, audit entry will be created in STEP 3c
-    v_action_id := NULL;
-  END IF;
+  -- For all operations, audit entry will be created in STEP 3c if needed
+  -- (only for transfer_area and distribute_shared)
 
   -- ========================================================================
   -- STEP 3: PROCESS EACH ASSET
@@ -290,6 +271,85 @@ BEGIN
       v_old_main_asset_type := NULL;
       v_old_asset_size := NULL;
     END IF;
+
+    -- Check if asset_size will change (BEFORE UPDATE) and set flag accordingly
+    -- For UPDATE: Extract new value from JSON, compare with old value
+    -- Use existing asset type if main_asset_type is not in JSON (type not changing)
+    IF v_existing_asset IS NOT NULL AND v_old_asset_size IS NOT NULL THEN
+      -- If main_asset_type not in JSON, use existing type (type not changing)
+      IF v_new_main_asset_type IS NULL THEN
+        v_new_main_asset_type := v_old_main_asset_type;
+      END IF;
+      
+      -- Only proceed if we have a valid asset type
+      IF v_new_main_asset_type IS NOT NULL THEN
+      -- UPDATE: Get new asset_size from JSON (what will be saved)
+      -- The UPDATE uses: COALESCE((v_asset_data->>'asset_size')::NUMERIC, asset_size)
+      -- So if asset_size is in JSON and valid numeric, use it; otherwise it stays the same
+      BEGIN
+        -- Check if asset_size key exists and has a value
+        IF (v_asset_data ? 'asset_size') THEN
+          -- Try to extract numeric value
+          v_new_asset_size := (v_asset_data->>'asset_size')::NUMERIC;
+        ELSE
+          -- asset_size not in JSON, so it won't change (UPDATE will use COALESCE to keep old value)
+          v_new_asset_size := v_old_asset_size;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN
+        -- If cast fails (null, empty, invalid), size won't change (COALESCE will keep old value)
+        v_new_asset_size := v_old_asset_size;
+      END;
+      
+      -- Check if size will change (compare before UPDATE)
+      -- Compare numeric values (handle floating point with small tolerance)
+      IF v_new_asset_size IS NOT NULL 
+         AND v_old_asset_size IS NOT NULL
+         AND ABS(v_old_asset_size - v_new_asset_size) > 0.0001 THEN
+        -- Determine business/residence from direct parameter (tab context) or fallback to building shared areas
+        -- Priority: 1) direct parameter, 2) building shared areas
+        DECLARE
+          v_is_business_context BOOLEAN := FALSE;
+          v_is_residence_context BOOLEAN := FALSE;
+        BEGIN
+          -- Use direct parameter if provided (most reliable - comes from tab context)
+          IF p_is_business_context IS NOT NULL THEN
+            IF p_is_business_context THEN
+              v_is_business_context := TRUE;
+              RAISE NOTICE 'Asset size change detected: Setting business distribution flag (from direct parameter)';
+            ELSE
+              v_is_residence_context := TRUE;
+              RAISE NOTICE 'Asset size change detected: Setting residence distribution flag (from direct parameter)';
+            END IF;
+          -- Fallback: Check building shared areas
+          ELSIF NOT v_is_business_context AND NOT v_is_residence_context THEN
+            SELECT 
+              COALESCE(business_shared_area, 0) > 0,
+              COALESCE(residence_shared_area, 0) > 0
+            INTO v_is_business_context, v_is_residence_context
+            FROM buildings
+            WHERE building_number = v_building_number;
+          END IF;
+          
+          -- Set appropriate flag based on context
+          IF v_is_business_context THEN
+            UPDATE buildings
+            SET need_business_distribution = true
+            WHERE building_number = v_building_number
+              AND COALESCE(business_shared_area, 0) > 0;
+          END IF;
+          
+          IF v_is_residence_context THEN
+            UPDATE buildings
+            SET need_residence_distribution = true
+            WHERE building_number = v_building_number;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          -- Ignore if lookup fails
+          NULL;
+        END;
+      END IF;  -- End check for size change
+      END IF;  -- End check for valid asset type
+    END IF;  -- End check for existing asset and old size
 
     -- Save asset (INSERT or UPDATE)
     IF v_existing_asset IS NULL THEN
@@ -441,31 +501,6 @@ BEGIN
       );
     END IF;
 
-    -- Also set flags if asset_size changed (for business/residence assets)
-    v_new_asset_size := COALESCE((v_asset_data->>'asset_size')::NUMERIC, v_old_asset_size);
-    IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL 
-       AND v_old_asset_size != v_new_asset_size 
-       AND v_new_main_asset_type IS NOT NULL THEN
-      -- Get business_residence for the asset type
-      SELECT business_residence INTO v_business_residence
-      FROM asset_types
-      WHERE name = v_new_main_asset_type;
-
-      IF v_business_residence = 'עסקים' THEN
-        -- Business asset size changed → set business distribution flag only
-        -- BUT only if building has business_shared_area > 0
-        UPDATE buildings
-        SET need_business_distribution = true
-        WHERE building_number = v_building_number
-          AND COALESCE(business_shared_area, 0) > 0;
-        
-      ELSIF v_business_residence = 'מגורים' THEN
-        -- Residence asset size changed → set residence distribution flag only
-        UPDATE buildings
-        SET need_residence_distribution = true
-        WHERE building_number = v_building_number;
-      END IF;
-    END IF;
 
     -- For distribution operations, we use the bulk audit entry created at STEP 2b
     -- For other operations, create individual audit log for each asset
@@ -638,19 +673,8 @@ BEGIN
       v_entity_asset_ids := v_affected_asset_ids;
     END IF;
     
-    -- Update audit entry with collected after data and entity_id
-    BEGIN
-      IF v_action_id IS NOT NULL THEN
-        UPDATE audit
-        SET 
-          after_data = v_after_data_collected,
-          entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
-        WHERE action_id = v_action_id;
-      END IF;
-    EXCEPTION WHEN OTHERS THEN
-      -- Ignore if audit table doesn't exist
-      NULL;
-    END;
+    -- Note: Audit entries are now created using log_audit function in STEP 3c
+    -- No need to update old-style audit entries here
     
     -- ========================================================================
     -- STEP 3c: LOG TO DISTRIBUTION_AUDIT (for distribute_shared and transfer_area operations)
@@ -826,28 +850,13 @@ BEGIN
     IF p_after_data IS NOT NULL AND p_after_data != 'null'::jsonb AND p_after_data != '{}'::jsonb THEN
       v_after_data_collected := p_after_data;
       -- Still update entity_id
-      BEGIN
-        IF v_action_id IS NOT NULL THEN
-          UPDATE audit
-          SET 
-            after_data = v_after_data_collected,
-            entity_id = array_to_string(v_affected_asset_ids, ',')
-          WHERE action_id = v_action_id;
-        END IF;
-      EXCEPTION WHEN OTHERS THEN
-        NULL;
-      END;
+      -- Note: Audit entries are now created using log_audit function
+      -- No need to update old-style audit entries here
     ELSE
-      -- No building number and no provided data - just update entity_id
-      BEGIN
-        IF v_action_id IS NOT NULL THEN
-          UPDATE audit
-          SET entity_id = array_to_string(v_affected_asset_ids, ',')
-          WHERE action_id = v_action_id;
-        END IF;
-      EXCEPTION WHEN OTHERS THEN
-        NULL;
-      END;
+      -- No building number and no provided data
+      -- Note: Audit entries are now created using log_audit function
+      -- No need to update old-style audit entries here
+      NULL; -- Do nothing
     END IF;
   END IF;
 
@@ -922,7 +931,6 @@ BEGIN
   -- ========================================================================
   v_result := jsonb_build_object(
     'success', true,
-    'action_id', v_action_id,
     'affected_asset_ids', v_affected_asset_ids,
     'affected_buildings', v_affected_buildings,
     'count', v_count,

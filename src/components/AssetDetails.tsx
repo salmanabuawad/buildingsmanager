@@ -112,6 +112,33 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return result;
   }, [taxRegion, buildingNumber]);
 
+  // Determine if this is a business or residence tab based on tax region and asset types
+  // This is used to pass the correct context to backend saves
+  const isBusinessContext = useMemo(() => {
+    if (!taxRegion || !assetTypes || assetTypes.length === 0) return undefined;
+    
+    // Parse tax region (could be single number or comma-separated)
+    const taxRegionNumbers = taxRegion.split(',').map(tr => parseInt(tr.trim())).filter(tr => !isNaN(tr));
+    
+    if (taxRegionNumbers.length === 0) return undefined;
+    
+    // Check if all asset types with these tax regions are "מגורים" (residence)
+    const assetTypesForTaxRegions = assetTypes.filter(at => 
+      at.tax_region != null && taxRegionNumbers.includes(at.tax_region)
+    );
+    
+    if (assetTypesForTaxRegions.length === 0) return undefined;
+    
+    // Check if all asset types are "מגורים" (residence)
+    const allAreResidence = assetTypesForTaxRegions.every(at => 
+      at.business_residence === 'מגורים'
+    );
+    
+    // If all are residence, return false (not business context)
+    // Otherwise, return true (business context)
+    return !allAreResidence;
+  }, [taxRegion, assetTypes]);
+
   // Find the latest measurement (from assets table, is_latest=true)
   const latestMeasurement = useMemo(() => {
     return allMeasurements.find(m => m.is_latest === true) || null;
@@ -2161,7 +2188,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           discount_date_to: currentAssetData.discount_date_to || undefined
         });
 
-        const result = await api.assets.saveBulkTransactional([assetData], 'manual_update');
+        const result = await api.assets.saveBulkTransactional([assetData], 'manual_update', undefined, undefined, undefined, isBusinessContext);
 
         if (!result.success) {
           throw new Error(result.error || 'Failed to save asset');
@@ -2219,7 +2246,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         });
       }
 
-      const result = await api.assets.saveBulkTransactional(assetsToUpdate, 'manual_update');
+      const result = await api.assets.saveBulkTransactional(assetsToUpdate, 'manual_update', undefined, undefined, undefined, isBusinessContext);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to save assets');
@@ -2442,7 +2469,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         is_new_measurement: true
       };
 
-      const result = await api.assets.saveBulkTransactional([updateDataWithFlag], 'manual_update');
+      const result = await api.assets.saveBulkTransactional([updateDataWithFlag], 'manual_update', undefined, undefined, undefined, isBusinessContext);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to save new measurement');
@@ -2566,7 +2593,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
-      const result = await api.assets.saveBulkTransactional([{ asset_id: assetId, structure_drawing_url: publicUrl }], 'manual_update');
+      const result = await api.assets.saveBulkTransactional([{ asset_id: assetId, structure_drawing_url: publicUrl }], 'manual_update', undefined, undefined, undefined, isBusinessContext);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to update structure drawing URL');

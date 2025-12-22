@@ -907,7 +907,8 @@ BEGIN
     IF (v_old_type IS DISTINCT FROM v_new_type) THEN
       v_type_changed := TRUE;
     END IF;
-    IF (OLD.asset_size IS DISTINCT FROM NEW.asset_size) AND NEW.asset_size IS NOT NULL THEN
+    -- Check if asset_size changed (use IS DISTINCT FROM to handle NULLs correctly)
+    IF (OLD.asset_size IS DISTINCT FROM NEW.asset_size) THEN
       v_size_changed := TRUE;
     END IF;
   ELSE
@@ -955,9 +956,10 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trigger_auto_set_distribution_flags_on_change ON assets;
 
 -- Create trigger that fires after insert or update
--- This will fire when asset_size or main_asset_type changes
+-- Fire on any UPDATE (not just specific columns) to catch all changes
+-- The function will check which fields actually changed
 CREATE TRIGGER trigger_auto_set_distribution_flags_on_change
-  AFTER INSERT OR UPDATE OF main_asset_type, asset_size ON assets
+  AFTER INSERT OR UPDATE ON assets
   FOR EACH ROW
   EXECUTE FUNCTION auto_set_distribution_flags_on_change();
 

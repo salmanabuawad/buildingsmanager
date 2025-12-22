@@ -472,23 +472,23 @@ export function DistributionHistoryModal({
             <div className="text-center py-12 text-gray-500">אין היסטוריית פיזור עבור מבנה זה</div>
           ) : (
             // History List View
-            <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
               {history.map((record) => (
                 <div
                   key={record.id}
                   onClick={() => handleRecordClick(record)}
                   className="bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 rounded-lg p-3 cursor-pointer transition-all"
                 >
-                  <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                  <div className="flex items-center gap-2 whitespace-nowrap">
                     <Calendar className="h-4 w-4 text-teal-600 flex-shrink-0" />
                     <span className="text-sm font-medium flex-shrink-0">{formatDateToDDMMYYYY(record.created_at)}</span>
-                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                    {record.shared_area_size !== null && record.shared_area_size !== undefined && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
                         <span className="text-sm flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
                       </>
-                        )}
-                        {record.overload_ratio !== null && record.overload_ratio !== undefined && (
+                    )}
+                    {record.overload_ratio !== null && record.overload_ratio !== undefined && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
                         <span className="text-sm flex-shrink-0">{record.overload_ratio.toFixed(2)}%</span>

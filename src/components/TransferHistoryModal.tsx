@@ -497,7 +497,7 @@ export function TransferHistoryModal({
             <div className="text-center py-12 text-gray-500">אין היסטוריית העברות עבור מבנה זה</div>
           ) : (
             // History List View
-            <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
               {history.map((record) => (
                 <div
                   key={record.id}
@@ -506,7 +506,7 @@ export function TransferHistoryModal({
                 >
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <Calendar className="h-4 w-4 text-violet-600 flex-shrink-0" />
-                    <span className="text-sm font-medium">{formatDateToDDMMYYYY(record.created_at)}</span>
+                    <span className="text-sm font-medium flex-shrink-0">{formatDateToDDMMYYYY(record.created_at)}</span>
                   </div>
                 </div>
               ))}

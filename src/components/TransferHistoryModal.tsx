@@ -509,18 +509,21 @@ export function TransferHistoryModal({
             <div className="text-center py-12 text-gray-500">אין היסטוריית העברות עבור מבנה זה</div>
           ) : (
             // History List View
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm">
               {history.map((record) => (
-                <div
+                <button
                   key={record.id}
+                  type="button"
                   onClick={() => handleRecordClick(record)}
-                  className="bg-gray-50 hover:bg-violet-50 border border-gray-200 hover:border-violet-300 rounded-lg p-3 cursor-pointer transition-all"
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                    selectedRecord && selectedRecord.id === record.id
+                      ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-md -mb-0.5'
+                      : 'text-gray-600 hover:text-violet-600 hover:bg-white/50'
+                  }`}
                 >
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <Calendar className="h-4 w-4 text-violet-600 flex-shrink-0" />
-                    <span className="text-sm font-medium flex-shrink-0">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
-                  </div>
-                </div>
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-shrink-0 whitespace-nowrap">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
+                </button>
               ))}
             </div>
           )}

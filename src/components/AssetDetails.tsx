@@ -586,17 +586,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         }
       } catch (err) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('[AssetDetails] Error loading action types:', err);
+          console.error('[AssetDetails] Error loading distribution and transfer assets:', err);
         }
       }
     };
 
-    loadActionTypes();
+    loadDistributionAndTransferAssets();
   }, [
-    // Use JSON.stringify to create stable dependency - only re-run if action_ids actually change
-    JSON.stringify(historyRows.map(r => r.action_id).filter(id => id != null).sort()),
-    latestMeasurement?.action_id,
     asset?.asset_id,
+    buildingNumber,
     activeHistoryTab,
     assetTypes // Include assetTypes to check for non_accountable_for_distribution assets
   ]);

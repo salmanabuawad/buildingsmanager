@@ -232,7 +232,7 @@ export function TransferHistoryModal({
   if (!isOpen) return null;
 
   const content = (
-    <div className={`bg-white ${inline ? '' : 'rounded-xl shadow-2xl'} p-4 sm:p-6 ${inline ? '' : 'transition-all duration-300 border border-gray-100'} ${inline ? '' : isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} ${inline ? 'w-full h-full' : 'max-w-[95vw] w-full max-h-[90vh]'} flex flex-col`} dir="rtl">
+    <div className={`bg-white ${inline ? '' : 'rounded-xl shadow-2xl'} pt-2 sm:pt-3 px-4 sm:px-6 pb-4 sm:pb-6 ${inline ? '' : 'transition-all duration-300 border border-gray-100'} ${inline ? '' : isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} ${inline ? 'w-full h-full' : 'max-w-[95vw] w-full max-h-[90vh]'} flex flex-col`} dir="rtl">
         {/* Header */}
         {!inline && (
         <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">

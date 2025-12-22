@@ -411,7 +411,7 @@ export interface ChangeLog {
 export interface DistributionAudit {
   id: number;
   building_number: number;
-  action_type: 'distribution' | 'transfer';
+  action_type: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution';
   affected_assets_before: Asset[]; // JSONB parsed to Asset array
   affected_assets_after: Asset[]; // JSONB parsed to Asset array
   overload_ratio?: number;
@@ -2973,6 +2973,43 @@ export const api = {
         affected_assets_before: record.affected_assets_before || [],
         affected_assets_after: record.affected_assets_after || [],
       }));
+    },
+    saveCurrentState: async (
+      buildingNumber: number,
+      actionType: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution',
+      affectedAssetsAfter: Asset[],
+      sharedAreaSize?: number,
+      overloadRatio?: number | null
+    ): Promise<void> => {
+      // Delete any existing "current" records for this building and action type
+      // to avoid duplicates (we identify "current" by description 'פיזור נוכחי' or 'העברה נוכחית')
+      const currentDescription = actionType === 'transfer' ? 'העברה נוכחית' : 'פיזור נוכחי';
+      
+      await supabase
+        .from('audit')
+        .delete()
+        .eq('building_number', buildingNumber)
+        .eq('action_type', actionType)
+        .eq('description', currentDescription);
+      
+      // Insert current state as new audit record
+      // For transfer, shared_area_size and overload_ratio are not used
+      const { error } = await supabase.rpc('log_audit', {
+        p_building_number: buildingNumber,
+        p_action_type: actionType,
+        p_affected_assets_before: [],
+        p_affected_assets_after: affectedAssetsAfter,
+        p_shared_area_size: (actionType === 'transfer' ? null : (sharedAreaSize || null)),
+        p_overload_ratio: (actionType === 'transfer' ? null : (overloadRatio || null)),
+        p_description: currentDescription,
+        p_user_id: null,
+        p_tax_region: null
+      });
+      
+      if (error) {
+        console.error('Error saving current state to audit:', error);
+        throw error;
+      }
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
       const { data, error } = await supabase

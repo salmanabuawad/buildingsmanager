@@ -45,10 +45,26 @@ export function TransferHistoryModal({
     setLoading(true);
     setError(null);
     try {
-      const [historyData, assetTypesData] = await Promise.all([
-        api.distributionAudit.getByBuilding(buildingNumber, 'transfer'),
-        api.assetTypes.getAll()
+      const [assetTypesData, currentAssets] = await Promise.all([
+        api.assetTypes.getAll(),
+        api.assets.getAll(buildingNumber)
       ]);
+      
+      // Save current state to audit table if we have assets
+      if (currentAssets && currentAssets.length > 0) {
+        // Save current state to audit table (this will delete old "current" records and insert new one)
+        await api.distributionAudit.saveCurrentState(
+          buildingNumber,
+          'transfer',
+          currentAssets,
+          undefined, // No shared area for transfer
+          undefined  // No overload ratio for transfer
+        );
+      }
+      
+      // Now fetch history (which will include the current state we just saved)
+      const historyData = await api.distributionAudit.getByBuilding(buildingNumber, 'transfer');
+      
       setHistory(historyData);
       setAssetTypes(assetTypesData);
     } catch (err) {
@@ -290,18 +306,7 @@ export function TransferHistoryModal({
             {/* Record Details View - Show when record is selected */}
             {selectedRecord && (
               <div className="space-y-4">
-                {selectedRecord.description && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-sm text-gray-600">
-                      {selectedRecord.description}
-                    </div>
-                  </div>
-                )}
-
                 <div>
-                <h3 className="text-lg font-bold mb-3 text-gray-800">
-                  נכסים - לפני ואחרי העברה ({selectedRecord.affected_assets_before.length} נכסים)
-                </h3>
                 <div className="rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
                   <table className="w-full border-collapse text-sm" dir="rtl">
                     <thead className="bg-gray-100 sticky top-0">

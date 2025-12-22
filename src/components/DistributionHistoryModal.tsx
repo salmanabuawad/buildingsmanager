@@ -54,11 +54,67 @@ export function DistributionHistoryModal({
                         isResident === false ? 'business_distribution' : 
                         'distribution'; // Show all if not specified
       
-      const [historyData, assetTypesData] = await Promise.all([
-        api.distributionAudit.getByBuilding(buildingNumber, actionType),
-        api.assetTypes.getAll()
+      const [assetTypesData, currentAssets, building] = await Promise.all([
+        api.assetTypes.getAll(),
+        api.assets.getAll(buildingNumber),
+        api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
-      setHistory(historyData);
+      
+      // Save current state to audit table if we have assets and building
+      if (currentAssets && currentAssets.length > 0 && building && (isResident === true || isResident === false)) {
+        // Filter assets by business/residence if needed
+        let filteredAssets = currentAssets;
+        if (isResident === true) {
+          // Filter for residence assets only
+          filteredAssets = currentAssets.filter(asset => {
+            if (!asset.main_asset_type) return false;
+            const assetType = assetTypesData.find(at => {
+              const atName = String(at.name || '').trim();
+              const assetTypeName = String(asset.main_asset_type || '').trim();
+              return atName === assetTypeName || 
+                     (parseInt(atName, 10) === parseInt(assetTypeName, 10) && !isNaN(parseInt(atName, 10)));
+            });
+            return assetType?.business_residence === 'מגורים';
+          });
+        } else if (isResident === false) {
+          // Filter for business assets only
+          filteredAssets = currentAssets.filter(asset => {
+            if (!asset.main_asset_type) return false;
+            const assetType = assetTypesData.find(at => {
+              const atName = String(at.name || '').trim();
+              const assetTypeName = String(asset.main_asset_type || '').trim();
+              return atName === assetTypeName || 
+                     (parseInt(atName, 10) === parseInt(assetTypeName, 10) && !isNaN(parseInt(atName, 10)));
+            });
+            return assetType?.business_residence === 'עסקים';
+          });
+        }
+        
+        // Calculate shared area size and overload ratio
+        const sharedAreaSize = isResident === true 
+          ? (building.residence_shared_area || 0)
+          : (building.business_shared_area || 0);
+        
+        // Calculate overload ratio - use building overload_ratio for now
+        // Note: If separate business/residence overload ratios exist, use those
+        const overloadRatio = building.overload_ratio || null;
+        
+        // Save current state to audit table (this will delete old "current" records and insert new one)
+        await api.distributionAudit.saveCurrentState(
+          buildingNumber,
+          actionType as 'business_distribution' | 'residence_distribution',
+          filteredAssets,
+          sharedAreaSize > 0 ? sharedAreaSize : undefined,
+          overloadRatio
+        );
+      }
+      
+      // Now fetch history (which will include the current state we just saved)
+      const historyData = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
+      
+      const combinedHistory = historyData;
+      
+      setHistory(combinedHistory);
       setAssetTypes(assetTypesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בטעינת היסטוריית פיזור');

@@ -9,12 +9,14 @@ interface TransferHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   buildingNumber: number;
+  inline?: boolean; // If true, render as inline content without modal wrapper
 }
 
 export function TransferHistoryModal({
   isOpen,
   onClose,
   buildingNumber,
+  inline = false,
 }: TransferHistoryModalProps) {
   const { t } = useTranslation();
   const [isClosing, setIsClosing] = useState(false);
@@ -508,6 +510,20 @@ export function TransferHistoryModal({
           )}
         </div>
       </div>
+    );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div
+      className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
+        isClosing ? 'opacity-0' : 'opacity-100'
+      }`}
+      dir="rtl"
+    >
+      {content}
     </div>
   );
 }

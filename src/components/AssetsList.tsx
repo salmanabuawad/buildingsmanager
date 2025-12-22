@@ -65,8 +65,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
-  const [distributionHistoryModalOpen, setDistributionHistoryModalOpen] = useState(false);
-  const [transferHistoryModalOpen, setTransferHistoryModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -3162,29 +3161,46 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               פזר שטח משותף עסקים
             </button>
           )}
-          {/* Distribution history button */}
+          {/* Tab Navigation */}
           {building && (
-            <button
-              type="button"
-              onClick={() => setDistributionHistoryModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-              title="הצג היסטוריית פיזור שטח משותף"
-            >
-              <History className="h-4 w-4" />
-              היסטוריית פיזור
-            </button>
-          )}
-          {/* Transfer history button */}
-          {building && (
-            <button
-              type="button"
-              onClick={() => setTransferHistoryModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-              title="הצג היסטוריית העברות שטחים"
-            >
-              <Share2 className="h-4 w-4" />
-              היסטוריית העברות
-            </button>
+            <div className="flex items-center gap-1 border-b-2 border-gray-200 bg-gray-50 rounded-t-lg">
+              <button
+                type="button"
+                onClick={() => setActiveTab('assets')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200 rounded-t-lg ${
+                  activeTab === 'assets'
+                    ? 'text-blue-700 bg-white border-b-2 border-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                }`}
+              >
+                <BuildingIcon className="h-4 w-4" />
+                נכסים
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('distribution-history')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200 rounded-t-lg ${
+                  activeTab === 'distribution-history'
+                    ? 'text-teal-700 bg-white border-b-2 border-teal-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                }`}
+              >
+                <History className="h-4 w-4" />
+                היסטוריית פיזור
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('transfer-history')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200 rounded-t-lg ${
+                  activeTab === 'transfer-history'
+                    ? 'text-violet-700 bg-white border-b-2 border-violet-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                }`}
+              >
+                <Share2 className="h-4 w-4" />
+                היסטוריית העברות
+              </button>
+            </div>
           )}
           {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
           {(() => {
@@ -3254,7 +3270,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             );
           })()}
         </div>
-        <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
+        
+        {/* Tab Content */}
+        {activeTab === 'assets' && (
+          <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
           <AgGridReact
             ref={gridRef}
             rowData={assets}
@@ -3363,7 +3382,30 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             enableRtl={true}
             suppressHorizontalScroll={false}
           />
-        </div>
+          </div>
+        )}
+        
+        {activeTab === 'distribution-history' && (
+          <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+            <DistributionHistoryModal
+              isOpen={true}
+              onClose={() => setActiveTab('assets')}
+              buildingNumber={buildingNumber}
+              inline={true}
+            />
+          </div>
+        )}
+        
+        {activeTab === 'transfer-history' && (
+          <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+            <TransferHistoryModal
+              isOpen={true}
+              onClose={() => setActiveTab('assets')}
+              buildingNumber={buildingNumber}
+              inline={true}
+            />
+          </div>
+        )}
       </div>
 
       <ValidationResultModal
@@ -3409,19 +3451,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         </div>
       )}
 
-      {/* Distribution History Modal */}
-      <DistributionHistoryModal
-        isOpen={distributionHistoryModalOpen}
-        onClose={() => setDistributionHistoryModalOpen(false)}
-        buildingNumber={buildingNumber}
-      />
-
-      {/* Transfer History Modal */}
-      <TransferHistoryModal
-        isOpen={transferHistoryModalOpen}
-        onClose={() => setTransferHistoryModalOpen(false)}
-        buildingNumber={buildingNumber}
-      />
     </>
   );
 });

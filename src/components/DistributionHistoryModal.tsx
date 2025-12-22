@@ -71,6 +71,7 @@ export function DistributionHistoryModal({
   };
 
   const handleRecordClick = (record: DistributionAudit) => {
+    console.log('Selected record created_at:', record.created_at, typeof record.created_at);
     setSelectedRecord(record);
   };
 
@@ -212,7 +213,10 @@ export function DistributionHistoryModal({
         {!inline && (
         <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-teal-50 border-b border-teal-200">
           <h2 className="text-2xl font-bold text-gray-900">
-            {selectedRecord ? `פרטי פיזור שטח משותף - ${formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at)}` : `היסטוריית פיזור שטח משותף - מבנה ${buildingNumber}`}
+            {selectedRecord ? (() => {
+              const formattedDateTime = selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : '';
+              return formattedDateTime ? `פרטי פיזור שטח משותף - ${formattedDateTime}` : `פרטי פיזור שטח משותף - ${selectedRecord.created_at ? formatDateToDDMMYYYY(selectedRecord.created_at) : ''}`;
+            })() : `היסטוריית פיזור שטח משותף - מבנה ${buildingNumber} (${history.length})`}
           </h2>
           <button
             onClick={handleClose}

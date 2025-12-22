@@ -233,7 +233,10 @@ export function TransferHistoryModal({
         {!inline && (
         <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
           <h2 className="text-2xl font-bold text-gray-900">
-            {selectedRecord ? `פרטי העברת שטחים - ${formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at)}` : `היסטוריית העברות - מבנה ${buildingNumber}`}
+            {selectedRecord ? (() => {
+              const formattedDateTime = selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : '';
+              return formattedDateTime ? `פרטי העברת שטחים - ${formattedDateTime}` : `פרטי העברת שטחים - ${selectedRecord.created_at ? formatDateToDDMMYYYY(selectedRecord.created_at) : ''}`;
+            })() : `היסטוריית העברות - מבנה ${buildingNumber} (${history.length})`}
           </h2>
           <button
             onClick={handleClose}

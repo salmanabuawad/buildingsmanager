@@ -2992,14 +2992,38 @@ export const api = {
         .eq('action_type', actionType)
         .eq('description', currentDescription);
       
+      // Fetch the most recent audit record (excluding current state records) to use as "before" data
+      // This creates a chain of states where each current state's "before" is the previous state's "after"
+      let affectedAssetsBefore: Asset[] = [];
+      try {
+        const { data: recentRecord, error: fetchError } = await supabase
+          .from('audit')
+          .select('affected_assets_after')
+          .eq('building_number', buildingNumber)
+          .eq('action_type', actionType)
+          .neq('description', currentDescription) // Exclude current state records
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(); // Use maybeSingle() instead of single() to handle case when no record exists
+        
+        if (!fetchError && recentRecord && recentRecord.affected_assets_after) {
+          // Parse JSONB array to Asset array (same as getByBuilding does)
+          const assetsData = recentRecord.affected_assets_after;
+          affectedAssetsBefore = Array.isArray(assetsData) ? assetsData : [];
+        }
+      } catch (err) {
+        // If no previous record exists or error fetching, use empty array
+        // This is fine for the first state record
+        console.log('No previous audit record found, using empty before data:', err);
+      }
+      
       // Insert current state as new audit record
-      // For current state, there's no real "before" state, so use empty array
-      // The UI will handle displaying assets from the "after" state when "before" is empty
+      // The "before" data is the previous state's "after" data, creating a chain of states
       // For transfer, shared_area_size and overload_ratio are not used
       const { error } = await supabase.rpc('log_audit', {
         p_building_number: buildingNumber,
         p_action_type: actionType,
-        p_affected_assets_before: [],
+        p_affected_assets_before: affectedAssetsBefore,
         p_affected_assets_after: affectedAssetsAfter,
         p_shared_area_size: (actionType === 'transfer' ? null : (sharedAreaSize || null)),
         p_overload_ratio: (actionType === 'transfer' ? null : (overloadRatio || null)),

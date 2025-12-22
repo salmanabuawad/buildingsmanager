@@ -3061,8 +3061,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             <p className="text-green-800 text-sm font-medium">{success}</p>
           </div>
         )}
-        <div className="mb-3 space-y-3">
-          {/* Primary Actions Row */}
+        <div className="mb-3">
+          {/* All Action Buttons in One Row */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Hide add button if building has more than one tax region and no specific taxRegion is selected */}
             {(() => {
@@ -3117,10 +3117,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               <FileSpreadsheet className="h-4 w-4" />
               ייצא ל-Excel
             </button>
-          </div>
-          
-          {/* Distribution Actions Row */}
-          <div className="flex flex-wrap items-center gap-2">
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on */}
             {building && isResidentTaxRegion && building.residence_shared_area != null && (
               <button
@@ -3165,7 +3161,73 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 פזר שטח משותף עסקים
               </button>
             )}
-          </div>
+            {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
+            {(() => {
+              const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
+              // If building has multiple tax regions, only show buttons when a specific taxRegion is selected
+              // If building has only one tax region, show buttons (taxRegion may or may not be set)
+              const shouldShowButtons = !hasMultipleTaxRegions || taxRegion;
+              
+              if (!shouldShowButtons) return null;
+              
+              // Check if building is private (single_double_family)
+              const isPrivateBuilding = building?.single_double_family === 'כן' || building?.single_double_family === 'yes';
+              
+              // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
+              const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
+              
+              // Show transfer button only in business tabs (not in residence tabs)
+              const shouldShowTransferButton = !isResidentTaxRegion;
+              
+              // Check if we have 2 or more selected assets for transfer areas button
+              const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;
+              
+              return (
+                <>
+                  {shouldShowTransferButton && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenTransferAreas && selectedAssets.size >= 2) {
+                          const selectedAssetIds = Array.from(selectedAssets);
+                          onOpenTransferAreas(selectedAssetIds, buildingNumber, taxRegion);
+                          // Clear selection after opening
+                          setSelectedAssets(new Set());
+                        }
+                      }}
+                      disabled={!canTransferAreas}
+                      className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
+                      title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                      העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCancelAll}
+                    disabled={loading || totalChanges === 0}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 active:from-gray-700 active:to-gray-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-gray-700/20 disabled:border-gray-400/20"
+                  >
+                    <X className="h-4 w-4" />
+                    ביטול
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveAll}
+                    disabled={loading || totalChanges === 0}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
+                  </button>
+                </>
+              );
+            })()}
           {/* Tab Navigation */}
           {building && (
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm">
@@ -3207,74 +3269,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               </button>
             </div>
           )}
-          {/* Show save and cancel buttons only if a specific tax region is selected (same visibility logic as delete button) */}
-          {(() => {
-            const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
-            // If building has multiple tax regions, only show buttons when a specific taxRegion is selected
-            // If building has only one tax region, show buttons (taxRegion may or may not be set)
-            const shouldShowButtons = !hasMultipleTaxRegions || taxRegion;
-            
-            if (!shouldShowButtons) return null;
-            
-            // Check if building is private (single_double_family)
-            const isPrivateBuilding = building?.single_double_family === 'כן' || building?.single_double_family === 'yes';
-            
-            // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
-            const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
-            
-            // Show transfer button only in business tabs (not in residence tabs)
-            const shouldShowTransferButton = !isResidentTaxRegion;
-            
-            // Check if we have 2 or more selected assets for transfer areas button
-            const canTransferAreas = selectedAssets.size >= 2 && shouldShowTransferButton;
-            
-            return (
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200">
-                {shouldShowTransferButton && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onOpenTransferAreas && selectedAssets.size >= 2) {
-                        const selectedAssetIds = Array.from(selectedAssets);
-                        onOpenTransferAreas(selectedAssetIds, buildingNumber, taxRegion);
-                        // Clear selection after opening
-                        setSelectedAssets(new Set());
-                      }
-                    }}
-                    disabled={!canTransferAreas}
-                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
-                    title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
-                  >
-                    <ArrowRightLeft className="h-4 w-4" />
-                    העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCancelAll}
-                  disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 active:from-gray-700 active:to-gray-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-gray-700/20 disabled:border-gray-400/20"
-                >
-                  <X className="h-4 w-4" />
-                  ביטול
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveAll}
-                  disabled={loading || totalChanges === 0}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
-                </button>
-              </div>
-            );
-          })()}
-        </div>
+          </div>
         
         {/* Tab Content */}
         {activeTab === 'assets' && (

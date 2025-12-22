@@ -477,28 +477,23 @@ export function DistributionHistoryModal({
                 <div
                   key={record.id}
                   onClick={() => handleRecordClick(record)}
-                  className="bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 rounded-lg p-4 cursor-pointer transition-all"
+                  className="bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 rounded-lg p-3 cursor-pointer transition-all"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <Calendar className="h-4 w-4 text-teal-600 flex-shrink-0" />
-                      <span className="text-sm font-medium">{formatDateToDDMMYYYY(record.created_at)}</span>
-                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
-                        <>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-sm">{record.shared_area_size.toLocaleString('he-IL')}</span>
-                        </>
-                        )}
-                        {record.overload_ratio !== null && record.overload_ratio !== undefined && (
-                        <>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-sm">{record.overload_ratio.toFixed(2)}%</span>
-                        </>
-                        )}
-                      </div>
-                    <div className="text-sm text-gray-500 flex-shrink-0 mr-2">
-                      {record.affected_assets_after.length} נכסים
-                    </div>
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    <Calendar className="h-4 w-4 text-teal-600 flex-shrink-0" />
+                    <span className="text-sm font-medium">{formatDateToDDMMYYYY(record.created_at)}</span>
+                    {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                      <>
+                        <span className="text-gray-400">•</span>
+                        <span className="text-sm">{record.shared_area_size.toLocaleString('he-IL')}</span>
+                      </>
+                    )}
+                    {record.overload_ratio !== null && record.overload_ratio !== undefined && (
+                      <>
+                        <span className="text-gray-400">•</span>
+                        <span className="text-sm">{record.overload_ratio.toFixed(2)}%</span>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

@@ -1521,7 +1521,7 @@ export function AssetTypes() {
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
                   tooltipShowDelay: 100,
-                  tooltipHideDelay: 1000,
+                  tooltipHideDelay: 10000,
                 }}
               />
             </div>

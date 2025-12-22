@@ -289,7 +289,16 @@ BEGIN
       RETURNING user_id INTO v_user_id_fk;
     END IF;
   ELSE
-    v_user_id_fk := get_or_create_user_from_auth();
+    -- Use get_or_create_user_from_auth if it exists, otherwise default
+    BEGIN
+      SELECT get_or_create_user_from_auth() INTO v_user_id_fk;
+    EXCEPTION WHEN OTHERS THEN
+      SELECT user_id INTO v_default_user_id
+      FROM users
+      WHERE user_name = 'default' AND auth_user_id IS NULL
+      LIMIT 1;
+      v_user_id_fk := v_default_user_id;
+    END;
   END IF;
   
   -- If still no user, use default
@@ -928,9 +937,22 @@ BEGIN
   -- Set appropriate distribution flag based on business_residence
   -- This matches the logic in save_asset_transactional
   IF v_business_residence = 'עסקים' THEN
-    UPDATE buildings
-    SET need_business_distribution = true
-    WHERE building_number = NEW.building_number;
+    -- For business assets:
+    -- - If SIZE changed: only set flag if building has business_shared_area > 0
+    -- - If TYPE changed: always set flag (using existing function handles this case)
+    IF v_size_changed THEN
+      -- Business asset size changed → set business distribution flag only
+      -- BUT only if building has business_shared_area > 0
+      UPDATE buildings
+      SET need_business_distribution = true
+      WHERE building_number = NEW.building_number
+        AND COALESCE(business_shared_area, 0) > 0;
+    ELSE
+      -- Type changed for business asset - set flag unconditionally
+      UPDATE buildings
+      SET need_business_distribution = true
+      WHERE building_number = NEW.building_number;
+    END IF;
     
   ELSIF v_business_residence = 'מגורים' THEN
     UPDATE buildings

@@ -227,31 +227,34 @@ export function TransferHistoryModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div
-      className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
-        isClosing ? 'opacity-0' : 'opacity-100'
-      }`}
-      dir="rtl"
-    >
-      <div
-        className={`bg-white rounded-xl shadow-2xl p-4 sm:p-6 transition-all duration-300 border border-gray-100 ${
-          isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-        } max-w-[95vw] w-full max-h-[90vh] flex flex-col`}
-      >
+  const content = (
+    <div className={`bg-white ${inline ? '' : 'rounded-xl shadow-2xl'} p-4 sm:p-6 ${inline ? '' : 'transition-all duration-300 border border-gray-100'} ${inline ? '' : isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} ${inline ? 'w-full h-full' : 'max-w-[95vw] w-full max-h-[90vh]'} flex flex-col`} dir="rtl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {selectedRecord ? 'פרטי העברת שטחים' : `היסטוריית העברות - מבנה ${buildingNumber}`}
-          </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-            aria-label="סגור"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+        {!inline && (
+          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {selectedRecord ? 'פרטי העברת שטחים' : `היסטוריית העברות - מבנה ${buildingNumber}`}
+            </h2>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              aria-label="סגור"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+        )}
+        
+        {inline && selectedRecord && (
+          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-t-lg bg-violet-50 border-b border-violet-200">
+            <button
+              onClick={handleBackToList}
+              className="text-violet-600 hover:text-violet-700 font-medium flex items-center gap-2"
+            >
+              ← חזרה לרשימה
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4">

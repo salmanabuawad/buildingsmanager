@@ -146,13 +146,14 @@ BEGIN
     v_first_building_number := (p_assets_data[1]->>'building_number')::BIGINT;
   END IF;
   
-  -- Collect BEFORE data from database (if not provided)
-  IF (p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb) 
-     AND v_first_building_number IS NOT NULL THEN
+  -- Collect BEFORE data from database
+  -- IMPORTANT: For transfer_area operations, ALWAYS collect from database to ensure accuracy
+  -- For other operations, collect from database if not provided, otherwise use provided data
+  IF v_first_building_number IS NOT NULL THEN
     -- For distribution and transfer operations, collect affected assets
     IF p_action_type = 'distribute_shared' OR p_action_type = 'transfer_area' THEN
       -- For distribution, get ALL assets in the building before update
-      -- For transfer, get only affected assets
+      -- For transfer, get only affected assets (ALWAYS from database, ignore provided data)
       IF p_action_type = 'distribute_shared' THEN
         -- Get ALL assets in the building before update
         FOR v_asset_record IN 
@@ -163,7 +164,8 @@ BEGIN
           v_before_assets := array_append(v_before_assets, to_jsonb(v_asset_record));
         END LOOP;
       ELSE
-        -- For transfer operations, only get assets that will be updated
+        -- For transfer operations, ALWAYS collect from database (ignore provided before_data)
+        -- This ensures we have the accurate "before" state from the database
         FOREACH v_asset_data IN ARRAY p_assets_data
         LOOP
           v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
@@ -178,76 +180,50 @@ BEGIN
           END IF;
         END LOOP;
       END IF;
+      
+      -- Convert jsonb array to jsonb array for assets
+      SELECT jsonb_agg(elem) INTO v_before_data_collected
+      FROM unnest(v_before_assets) AS elem;
+      
+      -- Build before_data structure: simple structure with just assets
+      -- Structure: { assets: [...] }
+      v_before_data_collected := jsonb_build_object(
+        'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
+      );
     ELSE
-      -- For non-distribution/transfer operations, only get assets that will be updated
-      FOREACH v_asset_data IN ARRAY p_assets_data
-      LOOP
-        v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
-        IF v_asset_id IS NOT NULL THEN
-          SELECT to_jsonb(a.*) INTO v_asset_jsonb
-          FROM assets a
-          WHERE a.asset_id = v_asset_id;
-          
-          IF v_asset_jsonb IS NOT NULL THEN
-            v_before_assets := array_append(v_before_assets, v_asset_jsonb);
-          END IF;
-        END IF;
-      END LOOP;
-    END IF;
-    
-    -- Convert jsonb array to jsonb array for assets
-    SELECT jsonb_agg(elem) INTO v_before_data_collected
-    FROM unnest(v_before_assets) AS elem;
-    
-    -- Build before_data structure: simple structure with just assets
-    -- Structure: { assets: [...] }
-    v_before_data_collected := jsonb_build_object(
-      'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
-    );
-  ELSE
-    -- Use provided before_data, but for transfer operations, filter to only affected assets
-    IF p_action_type = 'transfer_area' AND p_before_data IS NOT NULL AND p_before_data != 'null'::jsonb AND p_before_data != '{}'::jsonb THEN
-      -- Extract assets from provided before_data
-      DECLARE
-        v_provided_before_assets JSONB;
-      BEGIN
-        IF p_before_data ? 'assets' THEN
-          v_provided_before_assets := p_before_data->'assets';
-        ELSIF jsonb_typeof(p_before_data) = 'array' THEN
-          v_provided_before_assets := p_before_data;
-        ELSE
-          v_provided_before_assets := '[]'::jsonb;
-        END IF;
-        
-        -- Filter to only include affected asset IDs (safety check)
-        -- Note: v_affected_asset_ids will be populated later, so we need to extract IDs from p_assets_data
-        DECLARE
-          v_expected_asset_ids BIGINT[];
-          v_filtered_before_assets JSONB;
-        BEGIN
-          -- Extract asset IDs from p_assets_data (these are the assets being updated)
-          SELECT array_agg((elem->>'asset_id')::BIGINT) INTO v_expected_asset_ids
-          FROM unnest(p_assets_data) AS elem
-          WHERE (elem->>'asset_id')::BIGINT IS NOT NULL;
-          
-          -- Filter provided before assets to only include expected asset IDs
-          IF v_expected_asset_ids IS NOT NULL AND array_length(v_expected_asset_ids, 1) > 0 THEN
-            SELECT jsonb_agg(elem) INTO v_filtered_before_assets
-            FROM jsonb_array_elements(v_provided_before_assets) AS elem
-            WHERE (elem->>'asset_id')::BIGINT = ANY(v_expected_asset_ids);
+      -- For non-distribution/transfer operations, collect from database if not provided
+      IF p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb THEN
+        -- Only get assets that will be updated
+        FOREACH v_asset_data IN ARRAY p_assets_data
+        LOOP
+          v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
+          IF v_asset_id IS NOT NULL THEN
+            SELECT to_jsonb(a.*) INTO v_asset_jsonb
+            FROM assets a
+            WHERE a.asset_id = v_asset_id;
             
-            v_before_data_collected := jsonb_build_object(
-              'assets', COALESCE(v_filtered_before_assets, '[]'::jsonb)
-            );
-          ELSE
-            v_before_data_collected := jsonb_build_object('assets', '[]'::jsonb);
+            IF v_asset_jsonb IS NOT NULL THEN
+              v_before_assets := array_append(v_before_assets, v_asset_jsonb);
+            END IF;
           END IF;
-        END;
-      END;
-    ELSE
-      -- For non-transfer operations, use provided before_data as-is
-      v_before_data_collected := p_before_data;
+        END LOOP;
+        
+        -- Convert jsonb array to jsonb array for assets
+        SELECT jsonb_agg(elem) INTO v_before_data_collected
+        FROM unnest(v_before_assets) AS elem;
+        
+        -- Build before_data structure
+        v_before_data_collected := jsonb_build_object(
+          'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
+        );
+      ELSE
+        -- Use provided before_data as-is for non-transfer operations
+        v_before_data_collected := p_before_data;
+      END IF;
     END IF;
+  ELSE
+    -- No building number - use provided before_data if available
+    v_before_data_collected := p_before_data;
   END IF;
   
   -- ========================================================================

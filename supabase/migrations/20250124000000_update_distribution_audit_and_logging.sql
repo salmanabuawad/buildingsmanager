@@ -616,6 +616,26 @@ BEGIN
         v_after_assets_json := '[]'::jsonb;
       END IF;
       
+      -- For transfer operations, filter to include ONLY affected assets (those in v_affected_asset_ids)
+      -- This ensures audit only contains the assets that were actually changed
+      IF p_action_type = 'transfer_area' AND array_length(v_affected_asset_ids, 1) > 0 THEN
+        -- Filter before assets to only include affected asset IDs
+        SELECT jsonb_agg(elem)
+        INTO v_before_assets_json
+        FROM jsonb_array_elements(v_before_assets_json) AS elem
+        WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
+        
+        -- Filter after assets to only include affected asset IDs
+        SELECT jsonb_agg(elem)
+        INTO v_after_assets_json
+        FROM jsonb_array_elements(v_after_assets_json) AS elem
+        WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
+        
+        -- Ensure we have arrays (not null) even if filtering resulted in empty arrays
+        v_before_assets_json := COALESCE(v_before_assets_json, '[]'::jsonb);
+        v_after_assets_json := COALESCE(v_after_assets_json, '[]'::jsonb);
+      END IF;
+      
       -- Map action_type to distribution_audit_action_type enum
       -- For distribute_shared, determine if it's business or residence distribution
       -- Use the same logic as STEP 4: check description first (most reliable), then asset data

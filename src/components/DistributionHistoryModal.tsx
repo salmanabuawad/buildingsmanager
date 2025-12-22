@@ -70,7 +70,25 @@ export function DistributionHistoryModal({
   // Get asset type description
   const getAssetTypeDescription = (typeName: string | undefined): string => {
     if (!typeName) return '';
-    const assetType = assetTypes.find(at => at.name === typeName);
+    
+    // Try string comparison first (trimmed)
+    const typeNameStr = String(typeName).trim();
+    let assetType = assetTypes.find(at => {
+      const atNameStr = String(at.name || '').trim();
+      return atNameStr === typeNameStr;
+    });
+    
+    // If not found, try numeric comparison
+    if (!assetType) {
+      const typeNameNum = parseInt(typeNameStr, 10);
+      if (!isNaN(typeNameNum)) {
+        assetType = assetTypes.find(at => {
+          const atNameNum = parseInt(String(at.name || '').trim(), 10);
+          return !isNaN(atNameNum) && atNameNum === typeNameNum;
+        });
+      }
+    }
+    
     return assetType?.description || typeName;
   };
 

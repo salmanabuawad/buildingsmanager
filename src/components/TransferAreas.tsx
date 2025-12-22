@@ -830,25 +830,24 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           }));
           
           // Prepare before_data from originalAssets for audit logging
+          // Include all asset fields to ensure complete audit trail including asset types and sub asset types
           const beforeDataForAudit = originalAssets.length > 0 ? {
             assets: originalAssets.map(asset => ({
-              asset_id: asset.asset_id,
-              building_number: asset.building_number,
+              ...asset, // Include all asset fields
+              // Explicitly ensure asset type fields are included (they're already in the spread, but being explicit)
               main_asset_type: asset.main_asset_type,
-              asset_size: asset.asset_size,
               sub_asset_type_1: asset.sub_asset_type_1,
-              sub_asset_size_1: asset.sub_asset_size_1,
               sub_asset_type_2: asset.sub_asset_type_2,
-              sub_asset_size_2: asset.sub_asset_size_2,
               sub_asset_type_3: asset.sub_asset_type_3,
-              sub_asset_size_3: asset.sub_asset_size_3,
               sub_asset_type_4: asset.sub_asset_type_4,
-              sub_asset_size_4: asset.sub_asset_size_4,
               sub_asset_type_5: asset.sub_asset_type_5,
-              sub_asset_size_5: asset.sub_asset_size_5,
               sub_asset_type_6: asset.sub_asset_type_6,
+              sub_asset_size_1: asset.sub_asset_size_1,
+              sub_asset_size_2: asset.sub_asset_size_2,
+              sub_asset_size_3: asset.sub_asset_size_3,
+              sub_asset_size_4: asset.sub_asset_size_4,
+              sub_asset_size_5: asset.sub_asset_size_5,
               sub_asset_size_6: asset.sub_asset_size_6,
-              measurement_date: asset.measurement_date,
             }))
           } : null;
           

@@ -72,6 +72,7 @@ DECLARE
   v_building_num_for_flag BIGINT;
   v_distribution_type TEXT; -- 'residence' or 'business'
   v_asset_type_name TEXT;
+  v_new_type_non_accountable BOOLEAN;
   v_business_residence TEXT;
   v_business_dist_area NUMERIC;
   v_old_asset_size NUMERIC;
@@ -296,7 +297,13 @@ BEGIN
         (v_asset_data->>'discount_type')::TEXT,
         (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT,
-        (v_asset_data->>'area_from_distribution')::NUMERIC,
+        CASE 
+          -- If asset type is non_accountable_for_distribution, set area_from_distribution to 0
+          WHEN v_new_main_asset_type IS NOT NULL AND EXISTS (
+            SELECT 1 FROM asset_types WHERE name = v_new_main_asset_type AND COALESCE(non_accountable_for_distribution, FALSE) = TRUE
+          ) THEN 0
+          ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0)
+        END,
         COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
       );
     ELSE
@@ -365,6 +372,27 @@ BEGIN
         is_new_measurement = false, -- Reset flag after copying to history
         updated_at = NOW()
       WHERE asset_id = v_asset_id;
+      
+      -- If asset type changed to non_accountable_for_distribution, set area_from_distribution to 0
+      IF v_old_main_asset_type IS NOT NULL AND v_old_main_asset_type != v_new_main_asset_type AND v_new_main_asset_type IS NOT NULL THEN
+        BEGIN
+          -- Check if new asset type has non_accountable_for_distribution = true
+          SELECT COALESCE(non_accountable_for_distribution, FALSE) INTO v_new_type_non_accountable
+          FROM asset_types
+          WHERE name = v_new_main_asset_type
+          LIMIT 1;
+          
+          -- If new type is non_accountable_for_distribution, set area_from_distribution to 0
+          IF v_new_type_non_accountable = TRUE THEN
+            UPDATE assets
+            SET area_from_distribution = 0
+            WHERE asset_id = v_asset_id;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          -- Ignore errors (asset type might not exist)
+          NULL;
+        END;
+      END IF;
     END IF;
 
     -- Track affected assets and buildings

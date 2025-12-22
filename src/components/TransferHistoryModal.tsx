@@ -288,12 +288,12 @@ export function TransferHistoryModal({
               )}
 
               <div className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm whitespace-nowrap">
-                  <span className="font-medium">{formatDateToDDMMYYYY(selectedRecord.created_at)}</span>
+                <div className="flex items-center gap-2 text-sm whitespace-nowrap overflow-hidden">
+                  <span className="font-medium flex-shrink-0">{selectedRecord.created_at ? formatDateTimeToDDMMYYYYHHMM(selectedRecord.created_at) : ''}</span>
                   {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
                     <>
-                      <span className="text-gray-400">•</span>
-                      <span>{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
+                      <span className="text-gray-400 flex-shrink-0">•</span>
+                      <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
                     </>
                   )}
                 </div>
@@ -518,7 +518,7 @@ export function TransferHistoryModal({
                 >
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <Calendar className="h-4 w-4 text-violet-600 flex-shrink-0" />
-                    <span className="text-sm font-medium flex-shrink-0">{formatDateToDDMMYYYY(record.created_at)}</span>
+                    <span className="text-sm font-medium flex-shrink-0">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
                   </div>
                 </div>
               ))}

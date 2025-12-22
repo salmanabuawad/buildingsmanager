@@ -45,25 +45,10 @@ export function TransferHistoryModal({
     setLoading(true);
     setError(null);
     try {
-      const [assetTypesData, currentAssets] = await Promise.all([
+      const [assetTypesData, historyData] = await Promise.all([
         api.assetTypes.getAll(),
-        api.assets.getAll(buildingNumber)
+        api.distributionAudit.getByBuilding(buildingNumber, 'transfer')
       ]);
-      
-      // Save current state to audit table if we have assets
-      if (currentAssets && currentAssets.length > 0) {
-        // Save current state to audit table (this will delete old "current" records and insert new one)
-        await api.distributionAudit.saveCurrentState(
-          buildingNumber,
-          'transfer',
-          currentAssets,
-          undefined, // No shared area for transfer
-          undefined  // No overload ratio for transfer
-        );
-      }
-      
-      // Now fetch history (which will include the current state we just saved)
-      const historyData = await api.distributionAudit.getByBuilding(buildingNumber, 'transfer');
       
       setHistory(historyData);
       setAssetTypes(assetTypesData);
@@ -523,12 +508,12 @@ export function TransferHistoryModal({
                       })}
                     </tbody>
                   </table>
-                </div>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        )}
+            </div>
+          )}
         </div>
       </div>
     );

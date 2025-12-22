@@ -84,6 +84,7 @@ DECLARE
   v_after_data_collected JSONB := NULL;
   v_before_assets JSONB[] := ARRAY[]::JSONB[];
   v_after_assets JSONB[] := ARRAY[]::JSONB[];
+  v_after_assets_array JSONB := NULL;
   v_building_data JSONB := NULL;
   v_first_building_number BIGINT := NULL;
   v_asset_record RECORD;
@@ -204,29 +205,80 @@ BEGIN
       'assets', COALESCE(v_before_data_collected, '[]'::jsonb)
     );
   ELSE
-    v_before_data_collected := p_before_data;
+    -- Use provided before_data, but for transfer operations, filter to only affected assets
+    IF p_action_type = 'transfer_area' AND p_before_data IS NOT NULL AND p_before_data != 'null'::jsonb AND p_before_data != '{}'::jsonb THEN
+      -- Extract assets from provided before_data
+      DECLARE
+        v_provided_before_assets JSONB;
+      BEGIN
+        IF p_before_data ? 'assets' THEN
+          v_provided_before_assets := p_before_data->'assets';
+        ELSIF jsonb_typeof(p_before_data) = 'array' THEN
+          v_provided_before_assets := p_before_data;
+        ELSE
+          v_provided_before_assets := '[]'::jsonb;
+        END IF;
+        
+        -- Filter to only include affected asset IDs (safety check)
+        -- Note: v_affected_asset_ids will be populated later, so we need to extract IDs from p_assets_data
+        DECLARE
+          v_expected_asset_ids BIGINT[];
+          v_filtered_before_assets JSONB;
+        BEGIN
+          -- Extract asset IDs from p_assets_data (these are the assets being updated)
+          SELECT array_agg((elem->>'asset_id')::BIGINT) INTO v_expected_asset_ids
+          FROM unnest(p_assets_data) AS elem
+          WHERE (elem->>'asset_id')::BIGINT IS NOT NULL;
+          
+          -- Filter provided before assets to only include expected asset IDs
+          IF v_expected_asset_ids IS NOT NULL AND array_length(v_expected_asset_ids, 1) > 0 THEN
+            SELECT jsonb_agg(elem) INTO v_filtered_before_assets
+            FROM jsonb_array_elements(v_provided_before_assets) AS elem
+            WHERE (elem->>'asset_id')::BIGINT = ANY(v_expected_asset_ids);
+            
+            v_before_data_collected := jsonb_build_object(
+              'assets', COALESCE(v_filtered_before_assets, '[]'::jsonb)
+            );
+          ELSE
+            v_before_data_collected := jsonb_build_object('assets', '[]'::jsonb);
+          END IF;
+        END;
+      END;
+    ELSE
+      -- For non-transfer operations, use provided before_data as-is
+      v_before_data_collected := p_before_data;
+    END IF;
   END IF;
   
   -- ========================================================================
   -- STEP 2b: CREATE AUDIT ACTION RECORD (with collected before_data)
+  -- Note: For transfer_area and distribute_shared, we skip this step because
+  --       we'll create the audit entry in STEP 3c using log_audit function
   -- ========================================================================
-  BEGIN
-    INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
-    VALUES (
-      p_action_type::audit_action_type,
-      v_user_id_fk,
-      'bulk_asset', -- entity_type for bulk operations
-      NULL, -- entity_id will be set after we know all affected asset IDs
-      v_before_data_collected,
-      NULL, -- after_data will be collected after updates
-      p_description,
-      now()
-    )
-    RETURNING action_id INTO v_action_id;
-  EXCEPTION WHEN OTHERS THEN
-    -- Ignore if audit table doesn't exist
+  -- Only create audit entry here for non-distribution/transfer operations
+  -- For transfer_area and distribute_shared, audit entry is created in STEP 3c
+  IF p_action_type != 'distribute_shared' AND p_action_type != 'transfer_area' THEN
+    BEGIN
+      INSERT INTO audit (action_type, user_id, entity_type, entity_id, before_data, after_data, description, created_at)
+      VALUES (
+        p_action_type::audit_action_type,
+        v_user_id_fk,
+        'bulk_asset', -- entity_type for bulk operations
+        NULL, -- entity_id will be set after we know all affected asset IDs
+        v_before_data_collected,
+        NULL, -- after_data will be collected after updates
+        p_description,
+        now()
+      )
+      RETURNING action_id INTO v_action_id;
+    EXCEPTION WHEN OTHERS THEN
+      -- Ignore if audit table doesn't exist
+      v_action_id := NULL;
+    END;
+  ELSE
+    -- For transfer/distribution, audit entry will be created in STEP 3c
     v_action_id := NULL;
-  END;
+  END IF;
 
   -- ========================================================================
   -- STEP 3: PROCESS EACH ASSET
@@ -461,7 +513,11 @@ BEGIN
   -- ========================================================================
   -- STEP 3b: COLLECT AFTER DATA (always collect assets, merge with provided building data)
   -- For distribution operations, collect ALL assets in the building after update
+  -- For transfer operations, ONLY collect affected assets
   -- ========================================================================
+  -- Reset v_after_assets array to ensure it's empty before collecting
+  v_after_assets := ARRAY[]::JSONB[];
+  
   -- Always collect assets from database (even if after_data is provided, we need all assets for distribution)
   IF v_first_building_number IS NOT NULL THEN
     -- For distribution operations, collect ALL assets in the building
@@ -476,8 +532,23 @@ BEGIN
       LOOP
         v_after_assets := array_append(v_after_assets, to_jsonb(v_asset_record));
       END LOOP;
+    ELSIF p_action_type = 'transfer_area' THEN
+      -- For transfer operations, ONLY get assets that were actually updated (affected assets)
+      -- This is critical to ensure audit only contains affected assets
+      IF array_length(v_affected_asset_ids, 1) > 0 THEN
+        FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
+        LOOP
+          SELECT to_jsonb(a.*) INTO v_asset_jsonb
+          FROM assets a
+          WHERE a.asset_id = v_asset_id;
+          
+          IF v_asset_jsonb IS NOT NULL THEN
+            v_after_assets := array_append(v_after_assets, v_asset_jsonb);
+          END IF;
+        END LOOP;
+      END IF;
     ELSE
-      -- For non-distribution operations, only get assets that were updated
+      -- For other non-distribution/transfer operations, only get assets that were updated
       FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
       LOOP
         SELECT to_jsonb(a.*) INTO v_asset_jsonb
@@ -491,8 +562,16 @@ BEGIN
     END IF;
     
     -- Convert jsonb array to jsonb array for assets
-    SELECT jsonb_agg(elem) INTO v_after_data_collected
+    -- Build temporary array first, then build structure
+    SELECT jsonb_agg(elem) INTO v_after_assets_array
     FROM unnest(v_after_assets) AS elem;
+    
+    -- Build after_data structure: simple structure with just assets
+    -- Structure: { assets: [...] }
+    -- This ensures consistent structure for both distribution and transfer
+    v_after_data_collected := jsonb_build_object(
+      'assets', COALESCE(v_after_assets_array, '[]'::jsonb)
+    );
     
     -- Get overload_ratio - use provided data if available, otherwise from database
     IF p_after_data IS NOT NULL AND p_after_data != 'null'::jsonb AND p_after_data != '{}'::jsonb THEN
@@ -557,13 +636,8 @@ BEGIN
       v_distribution_overload_ratio := NULL;
     END IF;
     
-    -- Build after_data structure: simple structure with assets and overload_ratio
-    -- Structure: { assets: [...], overload_ratio: ... }
-    v_after_data_collected := jsonb_build_object(
-      'assets', COALESCE(v_after_data_collected, '[]'::jsonb)
-    );
-    
     -- Add overload_ratio if it exists (for business distributions)
+    -- Note: v_after_data_collected already has the structure { assets: [...] } from above
     IF v_overload_ratio IS NOT NULL THEN
       v_after_data_collected := v_after_data_collected || jsonb_build_object('overload_ratio', v_overload_ratio);
     END IF;
@@ -616,24 +690,31 @@ BEGIN
         v_after_assets_json := '[]'::jsonb;
       END IF;
       
-      -- For transfer operations, filter to include ONLY affected assets (those in v_affected_asset_ids)
-      -- This ensures audit only contains the assets that were actually changed
-      IF p_action_type = 'transfer_area' AND array_length(v_affected_asset_ids, 1) > 0 THEN
-        -- Filter before assets to only include affected asset IDs
-        SELECT jsonb_agg(elem)
-        INTO v_before_assets_json
-        FROM jsonb_array_elements(v_before_assets_json) AS elem
-        WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
-        
-        -- Filter after assets to only include affected asset IDs
-        SELECT jsonb_agg(elem)
-        INTO v_after_assets_json
-        FROM jsonb_array_elements(v_after_assets_json) AS elem
-        WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
-        
-        -- Ensure we have arrays (not null) even if filtering resulted in empty arrays
-        v_before_assets_json := COALESCE(v_before_assets_json, '[]'::jsonb);
-        v_after_assets_json := COALESCE(v_after_assets_json, '[]'::jsonb);
+      -- For transfer operations, ALWAYS filter to include ONLY affected assets (those in v_affected_asset_ids)
+      -- This is CRITICAL: transfer audit must ONLY contain affected assets, not all building assets
+      -- DO NOT REMOVE OR MODIFY THIS FILTER - it prevents all assets from being saved to audit
+      IF p_action_type = 'transfer_area' THEN
+        IF array_length(v_affected_asset_ids, 1) > 0 THEN
+          -- Filter before assets to only include affected asset IDs
+          SELECT jsonb_agg(elem)
+          INTO v_before_assets_json
+          FROM jsonb_array_elements(v_before_assets_json) AS elem
+          WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
+          
+          -- Filter after assets to only include affected asset IDs
+          SELECT jsonb_agg(elem)
+          INTO v_after_assets_json
+          FROM jsonb_array_elements(v_after_assets_json) AS elem
+          WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
+          
+          -- Ensure we have arrays (not null) even if filtering resulted in empty arrays
+          v_before_assets_json := COALESCE(v_before_assets_json, '[]'::jsonb);
+          v_after_assets_json := COALESCE(v_after_assets_json, '[]'::jsonb);
+        ELSE
+          -- If no affected assets (shouldn't happen, but safety check), set to empty arrays
+          v_before_assets_json := '[]'::jsonb;
+          v_after_assets_json := '[]'::jsonb;
+        END IF;
       END IF;
       
       -- Map action_type to distribution_audit_action_type enum
@@ -719,6 +800,31 @@ BEGIN
       
       -- Log to audit table (part of the same transaction)
       -- Note: tax_region parameter is kept for backward compatibility but not used for filtering
+      -- For transfer operations, verify that only affected assets are being logged
+      -- This is a final safety check before logging
+      IF p_action_type = 'transfer_area' THEN
+        -- Verify that the arrays contain only affected assets
+        -- This should already be filtered above, but this is a safety check
+        IF array_length(v_affected_asset_ids, 1) > 0 THEN
+          -- Re-filter one more time to be absolutely sure (defensive programming)
+          SELECT jsonb_agg(elem)
+          INTO v_before_assets_json
+          FROM jsonb_array_elements(v_before_assets_json) AS elem
+          WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
+          
+          SELECT jsonb_agg(elem)
+          INTO v_after_assets_json
+          FROM jsonb_array_elements(v_after_assets_json) AS elem
+          WHERE (elem->>'asset_id')::BIGINT = ANY(v_affected_asset_ids);
+          
+          v_before_assets_json := COALESCE(v_before_assets_json, '[]'::jsonb);
+          v_after_assets_json := COALESCE(v_after_assets_json, '[]'::jsonb);
+        END IF;
+      END IF;
+      
+      -- IMPORTANT: Only call log_audit ONCE per transfer/distribution operation
+      -- This ensures only ONE audit entry is created per operation
+      -- DO NOT add additional log_audit calls - this is the ONLY place audit entries are created for transfers/distributions
       PERFORM log_audit(
         v_first_building_number,
         v_audit_action_type,

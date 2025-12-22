@@ -66,6 +66,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
+  const [distributionHistoryCount, setDistributionHistoryCount] = useState<number>(0);
+  const [transferHistoryCount, setTransferHistoryCount] = useState<number>(0);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -2285,6 +2287,34 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
   }, [isResidentTaxRegion, activeTab]);
 
+  // Fetch distribution and transfer history counts
+  useEffect(() => {
+    const fetchHistoryCounts = async () => {
+      if (!buildingNumber) return;
+      
+      try {
+        // Fetch distribution history count
+        const actionType = isResidentTaxRegion ? 'residence_distribution' : 'business_distribution';
+        const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
+        setDistributionHistoryCount(distributionHistory.length);
+        
+        // Fetch transfer history count (only for business)
+        if (!isResidentTaxRegion) {
+          const transferHistory = await api.distributionAudit.getByBuilding(buildingNumber, 'transfer');
+          setTransferHistoryCount(transferHistory.length);
+        } else {
+          setTransferHistoryCount(0);
+        }
+      } catch (error) {
+        console.error('Error fetching history counts:', error);
+        setDistributionHistoryCount(0);
+        setTransferHistoryCount(0);
+      }
+    };
+    
+    fetchHistoryCounts();
+  }, [buildingNumber, isResidentTaxRegion]);
+
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
@@ -3263,6 +3293,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               >
                 <History className="h-4 w-4" />
                 היסטוריית פיזור
+                {distributionHistoryCount > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-teal-100 text-teal-700 rounded-full">
+                    {distributionHistoryCount}
+                  </span>
+                )}
               </button>
               {!isResidentTaxRegion && (
                 <button
@@ -3276,6 +3311,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 >
                   <Share2 className="h-4 w-4" />
                   היסטוריית העברות
+                  {transferHistoryCount > 0 && (
+                    <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 rounded-full">
+                      {transferHistoryCount}
+                    </span>
+                  )}
                 </button>
               )}
             </div>

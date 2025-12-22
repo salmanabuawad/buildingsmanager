@@ -276,10 +276,10 @@ export function DistributionHistoryModal({
                       <span className="flex-shrink-0">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
                     </>
                   )}
-                  {selectedRecord.overload_ratio !== null && selectedRecord.overload_ratio !== undefined && (
+                  {selectedRecord.overload_ratio != null && (
                     <>
                       <span className="text-gray-400 flex-shrink-0">•</span>
-                      <span className="flex-shrink-0">{selectedRecord.overload_ratio.toFixed(2)}%</span>
+                      <span className="flex-shrink-0">{typeof selectedRecord.overload_ratio === 'number' ? selectedRecord.overload_ratio.toFixed(2) : selectedRecord.overload_ratio}%</span>
                     </>
                   )}
                 </div>
@@ -504,16 +504,16 @@ export function DistributionHistoryModal({
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <Calendar className="h-4 w-4 text-teal-600 flex-shrink-0" />
                     <span className="text-sm font-medium flex-shrink-0">{record.created_at ? formatDateTimeToDDMMYYYYHHMM(record.created_at) : ''}</span>
-                    {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
                         <span className="text-sm flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
                       </>
-                    )}
-                    {record.overload_ratio !== null && record.overload_ratio !== undefined && (
+                        )}
+                        {record.overload_ratio != null && (
                       <>
                         <span className="text-gray-400 flex-shrink-0">•</span>
-                        <span className="text-sm flex-shrink-0">{record.overload_ratio.toFixed(2)}%</span>
+                        <span className="text-sm flex-shrink-0">{typeof record.overload_ratio === 'number' ? record.overload_ratio.toFixed(2) : record.overload_ratio}%</span>
                       </>
                     )}
                   </div>

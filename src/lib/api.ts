@@ -2945,7 +2945,7 @@ export const api = {
     },
   },
   distributionAudit: {
-    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer', taxRegion?: string): Promise<DistributionAudit[]> => {
+    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution', taxRegion?: string): Promise<DistributionAudit[]> => {
       let query = supabase
         .from('audit')
         .select('*')
@@ -2953,12 +2953,16 @@ export const api = {
         .order('created_at', { ascending: false });
       
       if (actionType) {
-        query = query.eq('action_type', actionType);
+        // For backward compatibility, map 'distribution' to both business and residence
+        if (actionType === 'distribution') {
+          query = query.in('action_type', ['business_distribution', 'residence_distribution', 'distribution']);
+        } else {
+          query = query.eq('action_type', actionType);
+        }
       }
       
-      if (taxRegion) {
-        query = query.eq('tax_region', taxRegion);
-      }
+      // taxRegion parameter is kept for backward compatibility but no longer used
+      // Filtering is now done by action_type ('business_distribution' or 'residence_distribution')
       
       const { data, error } = await query;
       if (error) throw error;

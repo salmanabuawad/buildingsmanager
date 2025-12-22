@@ -9,7 +9,8 @@ interface DistributionHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   buildingNumber: number;
-  taxRegion?: string; // Business/residence type for filtering: 'עסקים' (business) or 'מגורים' (residence)
+  taxRegion?: string; // Deprecated: kept for backward compatibility. Use isResident to determine action type.
+  isResident?: boolean; // If true, filter for residence_distribution; if false, filter for business_distribution
   inline?: boolean; // If true, render as inline content without modal wrapper
 }
 
@@ -18,6 +19,7 @@ export function DistributionHistoryModal({
   onClose,
   buildingNumber,
   taxRegion,
+  isResident,
   inline = false,
 }: DistributionHistoryModalProps) {
   const { t } = useTranslation();
@@ -34,14 +36,19 @@ export function DistributionHistoryModal({
       setSelectedRecord(null);
       loadHistory();
     }
-  }, [isOpen, buildingNumber, taxRegion]);
+  }, [isOpen, buildingNumber, isResident]);
 
   const loadHistory = async () => {
     setLoading(true);
     setError(null);
     try {
+      // Determine action type based on isResident flag
+      const actionType = isResident === true ? 'residence_distribution' : 
+                        isResident === false ? 'business_distribution' : 
+                        'distribution'; // Show all if not specified
+      
       const [historyData, assetTypesData] = await Promise.all([
-        api.distributionAudit.getByBuilding(buildingNumber, 'distribution', taxRegion),
+        api.distributionAudit.getByBuilding(buildingNumber, actionType),
         api.assetTypes.getAll()
       ]);
       setHistory(historyData);

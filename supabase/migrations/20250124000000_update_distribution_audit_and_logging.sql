@@ -96,7 +96,7 @@ DECLARE
   v_before_assets_json JSONB;
   v_after_assets_json JSONB;
   v_building_record RECORD;
-  v_tax_region TEXT := NULL; -- Tax region extracted from assets for distribution/transfer operations
+  v_tax_region TEXT := NULL; -- Deprecated: kept for backward compatibility but no longer used
 BEGIN
   -- ========================================================================
   -- STEP 1: GET OR CREATE USER
@@ -571,13 +571,6 @@ BEGIN
     -- Part of the same transaction - will rollback if save fails
     -- ========================================================================
     IF (p_action_type = 'distribute_shared' OR p_action_type = 'transfer_area') AND v_first_building_number IS NOT NULL THEN
-      -- Map action_type to distribution_audit_action_type enum
-      IF p_action_type = 'distribute_shared' THEN
-        v_audit_action_type := 'distribution';
-      ELSIF p_action_type = 'transfer_area' THEN
-        v_audit_action_type := 'transfer';
-      END IF;
-      
       -- Extract assets arrays from before_data and after_data
       IF v_before_data_collected IS NOT NULL AND v_before_data_collected ? 'assets' THEN
         v_before_assets_json := v_before_data_collected->'assets';
@@ -595,18 +588,35 @@ BEGIN
         v_after_assets_json := '[]'::jsonb;
       END IF;
       
-      -- Extract business_residence from first asset's asset type for distribution/transfer operations
-      -- All assets in a distribution should have the same business_residence (עסקים or מגורים)
-      IF jsonb_array_length(v_after_assets_json) > 0 AND (v_after_assets_json->0->>'main_asset_type') IS NOT NULL THEN
-        -- Look up the asset type's business_residence field
-        -- Store 'עסקים' for business or 'מגורים' for residence
-        SELECT business_residence INTO v_tax_region
-        FROM asset_types
-        WHERE name = (v_after_assets_json->0->>'main_asset_type')
-        LIMIT 1;
+      -- Map action_type to distribution_audit_action_type enum
+      -- For distribute_shared, determine if it's business or residence distribution
+      IF p_action_type = 'distribute_shared' THEN
+        -- Extract business_residence from first asset's asset type
+        -- All assets in a distribution should have the same business_residence (עסקים or מגורים)
+        v_business_residence := NULL;
+        IF jsonb_array_length(v_after_assets_json) > 0 AND (v_after_assets_json->0->>'main_asset_type') IS NOT NULL THEN
+          -- Look up the asset type's business_residence field
+          SELECT business_residence INTO v_business_residence
+          FROM asset_types
+          WHERE name = (v_after_assets_json->0->>'main_asset_type')
+          LIMIT 1;
+        END IF;
+        
+        -- Set action type based on business_residence
+        IF v_business_residence = 'עסקים' THEN
+          v_audit_action_type := 'business_distribution';
+        ELSIF v_business_residence = 'מגורים' THEN
+          v_audit_action_type := 'residence_distribution';
+        ELSE
+          -- Fallback to 'distribution' if business_residence is not found or is NULL
+          v_audit_action_type := 'distribution';
+        END IF;
+      ELSIF p_action_type = 'transfer_area' THEN
+        v_audit_action_type := 'transfer';
       END IF;
       
       -- Log to audit table (part of the same transaction)
+      -- Note: tax_region parameter is kept for backward compatibility but not used for filtering
       PERFORM log_audit(
         v_first_building_number,
         v_audit_action_type,
@@ -616,7 +626,7 @@ BEGIN
         v_distribution_shared_area_size,
         p_description,
         p_user_id,
-        v_tax_region
+        NULL -- tax_region is no longer used for filtering, set to NULL
       );
     END IF;
   ELSE

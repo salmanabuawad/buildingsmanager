@@ -3402,7 +3402,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               isOpen={true}
               onClose={() => setActiveTab('assets')}
               buildingNumber={buildingNumber}
-              taxRegion={isResidentTaxRegion ? 'מגורים' : 'עסקים'}
+              isResident={isResidentTaxRegion}
               inline={true}
             />
           </div>

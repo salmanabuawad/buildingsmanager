@@ -245,20 +245,19 @@ export function DistributionHistoryModal({
                 ← חזרה לרשימה
               </button>
 
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="flex flex-wrap gap-4 items-baseline">
-                    <span className="text-sm font-semibold text-gray-600">תאריך:</span>
-                  <span className="text-lg">{formatDateToDDMMYYYY(selectedRecord.created_at)}</span>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">{formatDateToDDMMYYYY(selectedRecord.created_at)}</span>
                   {selectedRecord.shared_area_size !== null && selectedRecord.shared_area_size !== undefined && (
                     <>
-                      <span className="text-sm font-semibold text-gray-600 mr-2">שטח משותף:</span>
-                      <span className="text-lg">{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
+                      <span className="text-gray-400">•</span>
+                      <span>{selectedRecord.shared_area_size.toLocaleString('he-IL')}</span>
                     </>
                   )}
                   {selectedRecord.overload_ratio !== null && selectedRecord.overload_ratio !== undefined && (
                     <>
-                      <span className="text-sm font-semibold text-gray-600 mr-2">אחוז העמסה:</span>
-                      <span className="text-lg">{selectedRecord.overload_ratio.toFixed(2)}%</span>
+                      <span className="text-gray-400">•</span>
+                      <span>{selectedRecord.overload_ratio.toFixed(2)}%</span>
                     </>
                   )}
                 </div>
@@ -462,24 +461,21 @@ export function DistributionHistoryModal({
                   className="bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 rounded-lg p-4 cursor-pointer transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-5 w-5 text-teal-600" />
-                      <div className="flex flex-wrap gap-4 items-baseline">
-                        <span className="text-sm font-semibold text-gray-600">תאריך:</span>
-                        <span className="text-lg font-semibold">{formatDateToDDMMYYYY(record.created_at)}</span>
-                        {record.shared_area_size !== null && record.shared_area_size !== undefined && (
-                          <>
-                            <span className="text-sm font-semibold text-gray-600">שטח משותף:</span>
-                            <span className="text-lg">{record.shared_area_size.toLocaleString('he-IL')}</span>
-                          </>
-                        )}
-                        {record.overload_ratio !== null && record.overload_ratio !== undefined && (
-                          <>
-                            <span className="text-sm font-semibold text-gray-600">אחוז העמסה:</span>
-                            <span className="text-lg">{record.overload_ratio.toFixed(2)}%</span>
-                          </>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-teal-600" />
+                      <span className="text-sm font-medium">{formatDateToDDMMYYYY(record.created_at)}</span>
+                      {record.shared_area_size !== null && record.shared_area_size !== undefined && (
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-sm">{record.shared_area_size.toLocaleString('he-IL')}</span>
+                        </>
+                      )}
+                      {record.overload_ratio !== null && record.overload_ratio !== undefined && (
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-sm">{record.overload_ratio.toFixed(2)}%</span>
+                        </>
+                      )}
                     </div>
                     <div className="text-sm text-gray-500">
                       {record.affected_assets_after.length} נכסים

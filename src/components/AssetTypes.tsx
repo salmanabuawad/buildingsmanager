@@ -1520,9 +1520,8 @@ export function AssetTypes() {
                   enableRtl: true,
                   suppressMovableColumns: true,
                   suppressColumnMoveAnimation: true,
-                  tooltipShowDelay: 0,
-                  tooltipHideDelay: 100,
-                  tooltipMouseTrack: false,
+                  tooltipShowDelay: 100,
+                  tooltipHideDelay: 1000,
                 }}
               />
             </div>

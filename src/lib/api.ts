@@ -2993,6 +2993,8 @@ export const api = {
         .eq('description', currentDescription);
       
       // Insert current state as new audit record
+      // For current state, there's no real "before" state, so use empty array
+      // The UI will handle displaying assets from the "after" state when "before" is empty
       // For transfer, shared_area_size and overload_ratio are not used
       const { error } = await supabase.rpc('log_audit', {
         p_building_number: buildingNumber,

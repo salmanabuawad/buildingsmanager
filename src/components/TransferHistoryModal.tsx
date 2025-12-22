@@ -214,32 +214,54 @@ export function TransferHistoryModal({
       ...Array.from(afterMap.keys())
     ])).sort((a, b) => a - b);
     
+    // Check if this is a "current state" record (no before data or description indicates current state)
+    const isCurrentState = selectedRecord.description === 'העברה נוכחית' || 
+                          selectedRecord.description === 'פיזור נוכחי' ||
+                          selectedRecord.affected_assets_before.length === 0;
+    
     // Filter to only include assets that have changed
+    // For current state records, show all assets from after state
     const changedAssetIds = allAssetIds.filter(assetId => {
+      if (isCurrentState) {
+        // For current state, show all assets that exist in after state
+        return afterMap.has(assetId);
+      }
       const beforeAsset = beforeMap.get(assetId);
       const afterAsset = afterMap.get(assetId);
       return hasAssetChanged(beforeAsset, afterAsset);
     });
     
     // Create rows: for each changed asset, create two rows (before and after)
+    // For current state records, only show "after" row since there's no real "before"
     const rows: any[] = [];
     changedAssetIds.forEach(assetId => {
       const beforeAsset = beforeMap.get(assetId);
       const afterAsset = afterMap.get(assetId);
       
-      // Before row
-      rows.push({
-        asset_id: assetId,
-        is_before_row: true,
-        asset: beforeAsset,
-      });
-      
-      // After row
-      rows.push({
-        asset_id: assetId,
-        is_before_row: false,
-        asset: afterAsset,
-      });
+      // For current state records, only show after row
+      if (isCurrentState) {
+        rows.push({
+          asset_id: assetId,
+          is_before_row: false,
+          asset: afterAsset,
+        });
+      } else {
+        // Before row (only show if before asset exists)
+        if (beforeAsset) {
+          rows.push({
+            asset_id: assetId,
+            is_before_row: true,
+            asset: beforeAsset,
+          });
+        }
+        
+        // After row
+        rows.push({
+          asset_id: assetId,
+          is_before_row: false,
+          asset: afterAsset,
+        });
+      }
     });
     
     return rows;

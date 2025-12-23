@@ -48,6 +48,7 @@ export function AssetTypes() {
   const [isImporting, setIsImporting] = useState(false);
   const [dirtyAssetTypes, setDirtyAssetTypes] = useState<Map<number, Partial<AssetType>>>(new Map());
   const [deletedAssetTypes, setDeletedAssetTypes] = useState<Set<number>>(new Set());
+  const [selectedAssetTypes, setSelectedAssetTypes] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<AgGridReact<AssetType>>(null);
   
@@ -335,6 +336,23 @@ export function AssetTypes() {
   // Column definitions for ag-grid
   const columnDefs: ColDef<AssetType>[] = useMemo(() => {
     const defs: ColDef<AssetType>[] = [
+    {
+      colId: 'selection',
+      headerName: '',
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      headerCheckboxSelectionFilteredOnly: false,
+      width: 50,
+      pinned: 'left',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      headerClass: 'ag-center-header'
+    },
     {
       field: 'active',
       headerName: 'פעיל',
@@ -1546,6 +1564,14 @@ export function AssetTypes() {
                 }}
                 onColumnMoved={gridPreferences.handleColumnMoved}
                 getRowId={(params: any) => String(params.data.id)}
+                rowSelection="multiple"
+                onSelectionChanged={(params) => {
+                  const selectedIds = new Set<number>();
+                  params.api.getSelectedRows().forEach((row: AssetType) => {
+                    selectedIds.add(row.id);
+                  });
+                  setSelectedAssetTypes(selectedIds);
+                }}
                 gridOptions={{
                   suppressColumnVirtualisation: true,
                   alwaysShowHorizontalScroll: true,

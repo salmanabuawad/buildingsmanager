@@ -6,10 +6,34 @@ import { Plus, Tag, Upload, Save, X, Loader2, Download, Trash2, ArrowUpDown, Arr
 import * as XLSX from 'xlsx';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, CellValueChangedEvent, GridReadyEvent } from 'ag-grid-community';
+import { ColDef, CellValueChangedEvent, GridReadyEvent, ITooltipParams } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+
+// Custom tooltip component that supports line breaks
+const CustomTooltip = (params: ITooltipParams) => {
+  if (!params.value) return null;
+  // Split by <br/> or \n to create lines
+  const lines = String(params.value).split(/<br\/>|\n/);
+  return (
+    <div style={{ 
+      backgroundColor: '#333', 
+      color: '#fff', 
+      padding: '8px 12px', 
+      borderRadius: '4px',
+      fontSize: '12px',
+      whiteSpace: 'pre-line',
+      maxWidth: '300px',
+      direction: 'rtl',
+      textAlign: 'right'
+    }}>
+      {lines.map((line, index) => (
+        <div key={index}>{line}</div>
+      ))}
+    </div>
+  );
+};
 
 export function AssetTypes() {
   const { t } = useTranslation();
@@ -740,6 +764,7 @@ export function AssetTypes() {
         // Join with line breaks for proper row display
         return fields.length > 0 ? fields.join('\n') : 'אין פרטים נוספים';
       },
+      tooltipComponent: CustomTooltip,
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 
@@ -1528,6 +1553,8 @@ export function AssetTypes() {
                   suppressColumnMoveAnimation: true,
                   tooltipShowDelay: 100,
                   tooltipHideDelay: 10000,
+                  enableBrowserTooltips: false,
+                  tooltipMouseTrack: false,
                 }}
               />
             </div>

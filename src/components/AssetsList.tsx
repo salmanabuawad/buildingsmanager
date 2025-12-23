@@ -5,11 +5,12 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2 } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
 import { TransferHistoryModal } from './TransferHistoryModal';
+import { ChangeTaxRegionModal } from './ChangeTaxRegionModal';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
@@ -68,6 +69,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
   const [distributionHistoryCount, setDistributionHistoryCount] = useState<number>(0);
   const [transferHistoryCount, setTransferHistoryCount] = useState<number>(0);
+  const [changeTaxRegionModalOpen, setChangeTaxRegionModalOpen] = useState(false);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -2952,6 +2954,22 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     return !taxRegion || (taxRegion && taxRegion.includes(','));
   }, [taxRegion]);
 
+  // Extract available tax regions from building
+  const availableTaxRegions = useMemo(() => {
+    if (!building?.tax_region) return [];
+    const taxRegionStr = String(building.tax_region);
+    if (!taxRegionStr.includes(',')) {
+      // Single tax region
+      const num = parseInt(taxRegionStr.trim(), 10);
+      return isNaN(num) ? [] : [num];
+    }
+    // Multiple tax regions (comma-separated)
+    return taxRegionStr.split(',')
+      .map(tr => parseInt(tr.trim(), 10))
+      .filter(tr => !isNaN(tr))
+      .sort((a, b) => a - b);
+  }, [building?.tax_region]);
+
   // Check if tax region is "business" (עסקים) - has at least one business asset type
   const isBusinessTaxRegion = useMemo(() => {
     if (!taxRegion || !assetTypes || assetTypes.length === 0) {
@@ -3186,6 +3204,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               <FileSpreadsheet className="h-4 w-4" />
               ייצא ל-Excel
             </button>
+            {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) */}
+            {!taxRegion && building && availableTaxRegions.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setChangeTaxRegionModalOpen(true)}
+                disabled={loading || selectedAssets.size === 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 active:from-purple-700 active:to-purple-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-purple-700/20 disabled:border-gray-500/20"
+                title={selectedAssets.size > 0 ? `שנה אזור מס ל-${selectedAssets.size} נכסים נבחרים` : 'בחר נכסים לשינוי אזור מס'}
+              >
+                <MapPin className="h-4 w-4" />
+                שנה אזור מס {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
+              </button>
+            )}
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on */}
             {building && isResidentTaxRegion && building.residence_shared_area != null && (
               <button
@@ -3506,6 +3537,23 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         taxRegion={taxRegion}
         onSelectAsset={onSelectAsset}
         onExportInvalid={batchValidationResults && batchValidationResults.errors.some(e => e.errors.length > 0) ? handleExportInvalidAssetsToFile : undefined}
+      />
+
+      {/* Change Tax Region Modal */}
+      <ChangeTaxRegionModal
+        isOpen={changeTaxRegionModalOpen}
+        onClose={() => {
+          setChangeTaxRegionModalOpen(false);
+          setSelectedAssets(new Set()); // Clear selection after closing
+        }}
+        selectedAssetIds={Array.from(selectedAssets)}
+        buildingNumber={buildingNumber}
+        availableTaxRegions={availableTaxRegions}
+        assetTypes={assetTypes}
+        onSuccess={() => {
+          fetchData(); // Refresh assets after successful change
+          setSelectedAssets(new Set()); // Clear selection
+        }}
       />
 
       {/* Distribution Result Modal */}

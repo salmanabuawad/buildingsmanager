@@ -1138,13 +1138,44 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       const newValue = event.newValue;
 
       // Create updated asset with new value
-      const updatedAsset = { ...data, [field]: newValue };
+      let updatedAsset = { ...data, [field]: newValue };
+
+      // Handle main_asset_type changes - validate non_accountable flags
+      if (field === 'main_asset_type' && newValue) {
+        const newAssetTypeName = String(newValue).trim();
+        const newAssetType = assetTypes?.find(at => {
+          const atNameStr = String(at.name).trim();
+          return atNameStr === newAssetTypeName;
+        });
+        
+        // If asset type not found, try numeric comparison
+        const newAssetTypeFinal = newAssetType || assetTypes?.find(at => {
+          const atNameNum = parseInt(String(at.name).trim(), 10);
+          const newTypeNum = parseInt(newAssetTypeName, 10);
+          return !isNaN(atNameNum) && !isNaN(newTypeNum) && atNameNum === newTypeNum;
+        });
+
+        if (newAssetTypeFinal) {
+          // If new asset type has non_accountable_for_distribution = true and asset has area_from_distribution > 0, set it to 0
+          if (newAssetTypeFinal.non_accountable_for_distribution === true) {
+            const currentAreaFromDistribution = updatedAsset.area_from_distribution || 0;
+            if (currentAreaFromDistribution > 0) {
+              updatedAsset = { ...updatedAsset, area_from_distribution: 0 };
+            }
+          }
+        }
+      }
 
       // Track the change in dirtyAssets immediately (no debounce)
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
         const existing = newMap.get(assetId) || {};
-        newMap.set(assetId, { ...existing, [field]: newValue });
+        const changesToStore = { ...existing, [field]: newValue };
+        // Also include area_from_distribution change if it was set to 0
+        if (updatedAsset.area_from_distribution !== data.area_from_distribution) {
+          changesToStore.area_from_distribution = updatedAsset.area_from_distribution;
+        }
+        newMap.set(assetId, changesToStore);
         return newMap;
       });
 

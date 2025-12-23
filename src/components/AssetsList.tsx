@@ -464,7 +464,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Create updated asset with new value
       let updatedAsset = { ...data, [field]: newValue };
 
-      // Handle main_asset_type changes - validate non_accountable flags
+      // Handle main_asset_type changes - validate non_accountable flags and tax region compatibility
       if (field === 'main_asset_type' && newValue) {
         const newAssetTypeName = String(newValue).trim();
         const newAssetType = assetTypes?.find(at => {
@@ -480,6 +480,60 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         });
 
         if (newAssetTypeFinal) {
+          // Validate tax region compatibility - check if asset type exists for asset's tax region
+          const assetTaxRegion = data.tax_region != null ? String(data.tax_region) : validationTaxRegion;
+          if (assetTaxRegion && assetTypes) {
+            const assetTaxRegionNum = parseInt(assetTaxRegion, 10);
+            if (!isNaN(assetTaxRegionNum)) {
+              // Check if there's an asset type with the same name that matches the asset's tax region
+              const matchingAssetTypeForTaxRegion = assetTypes.find(at => {
+                const atNameStr = String(at.name).trim();
+                const atTaxRegionNum = at.tax_region != null 
+                  ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
+                  : null;
+                return atNameStr === newAssetTypeName && 
+                       atTaxRegionNum != null && 
+                       !isNaN(atTaxRegionNum) && 
+                       atTaxRegionNum === assetTaxRegionNum &&
+                       at.active === 'כן';
+              });
+              
+              if (!matchingAssetTypeForTaxRegion) {
+                // Asset type doesn't exist for this tax region - find valid tax regions
+                const validTaxRegions = new Set<number>();
+                assetTypes.forEach(at => {
+                  const atNameStr = String(at.name).trim();
+                  const atTaxRegionNum = at.tax_region != null 
+                    ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
+                    : null;
+                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && at.active === 'כן') {
+                    validTaxRegions.add(atTaxRegionNum);
+                  }
+                });
+                
+                const validRegionsStr = Array.from(validTaxRegions).sort((a, b) => a - b).join(', ');
+                const errorMsg = validRegionsStr 
+                  ? `סוג נכס ${newAssetTypeName} תקף רק באזורי מס: ${validRegionsStr}, אך הנכס הוא באזור מס ${assetTaxRegionNum}`
+                  : `סוג נכס ${newAssetTypeName} לא תקף לאזור מס ${assetTaxRegionNum}`;
+                
+                setError(errorMsg);
+                setTimeout(() => setError(null), 5000);
+                setValidationErrors(prev => {
+                  const newMap = new Map(prev);
+                  newMap.set(assetId, errorMsg);
+                  return newMap;
+                });
+                event.api.refreshCells({ rowNodes: [event.node!], force: true });
+                // Revert the change by resetting the cell value
+                const rowNode = event.api.getRowNode(assetId);
+                if (rowNode) {
+                  rowNode.setDataValue(field, data[field]);
+                }
+                return;
+              }
+            }
+          }
+
           // If new asset type has non_accountable_for_distribution = true and asset has area_from_distribution > 0, set it to 0
           if (newAssetTypeFinal.non_accountable_for_distribution === true) {
             const currentAreaFromDistribution = updatedAsset.area_from_distribution || 0;
@@ -487,6 +541,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               updatedAsset = { ...updatedAsset, area_from_distribution: 0 };
             }
           }
+        } else {
+          // Asset type not found - show error (full validation will catch this later, but show immediate feedback)
+          const errorMsg = `סוג נכס ${newAssetTypeName} לא נמצא`;
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            newMap.set(assetId, errorMsg);
+            return newMap;
+          });
+          event.api.refreshCells({ rowNodes: [event.node!], force: true });
         }
       }
 

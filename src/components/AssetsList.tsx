@@ -3135,15 +3135,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       {building && (() => {
         // Check if distribution is needed: flag must be true (needs distribution)
         // With new field names: true = needs distribution, false = already distributed
-        // Show alert even if shared area is 0, as long as the flag is raised
+        // Show alert if flag is raised, regardless of shared area value (even if 0 or null)
         const needsResidenceDistribution = isResidentTaxRegion && 
-          building.residence_shared_area != null && 
           building.need_residence_distribution === true;
         
         const needsBusinessDistribution = taxRegion && 
           !isMultiTaxRegion && 
           !isResidentTaxRegion && 
-          building.business_shared_area != null && 
           building.need_business_distribution === true;
         
         if (!needsResidenceDistribution && !needsBusinessDistribution) {

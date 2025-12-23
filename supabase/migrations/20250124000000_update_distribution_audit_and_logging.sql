@@ -374,7 +374,8 @@ BEGIN
           END IF;
           
           -- Set appropriate flag based on context
-          -- For business: only set flag if business_shared_area > 0
+          -- For business: set flag only if business_shared_area > 0 (regardless of residence_shared_area)
+          -- No need to set flag if there's no business shared area to distribute
           IF v_is_business_context THEN
             UPDATE buildings
             SET need_business_distribution = true
@@ -382,7 +383,7 @@ BEGIN
               AND COALESCE(business_shared_area, 0) > 0;
           END IF;
           
-          -- For residence: set flag regardless of shared area value (residence always needs distribution if type/size changes)
+          -- For residence: set flag regardless of shared area values (residence always needs distribution if type/size changes)
           IF v_is_residence_context THEN
             UPDATE buildings
             SET need_residence_distribution = true

@@ -87,6 +87,8 @@ DECLARE
   v_existing_asset RECORD;
   v_old_main_asset_type TEXT;
   v_new_main_asset_type TEXT;
+  v_type_changed BOOLEAN := FALSE;
+  v_size_changed BOOLEAN := FALSE;
   v_affected_asset_ids BIGINT[] := ARRAY[]::BIGINT[];
   v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];
   v_count INTEGER := 0;
@@ -115,6 +117,8 @@ DECLARE
   v_asset_jsonb JSONB; -- Separate variable for JSONB results
   v_entity_asset_ids BIGINT[];
   v_overload_ratio NUMERIC := NULL;
+  -- Track if asset was found (for INSERT vs UPDATE check)
+  v_asset_found BOOLEAN := FALSE;
   -- For distribution audit logging
   v_audit_action_type distribution_audit_action_type;
   v_distribution_shared_area_size NUMERIC := NULL;
@@ -287,27 +291,26 @@ BEGIN
     SELECT * INTO v_existing_asset
     FROM assets
     WHERE asset_id = v_asset_id;
+    
+    -- Store FOUND status
+    v_asset_found := FOUND;
 
-    IF FOUND THEN
+    IF v_asset_found THEN
       v_old_main_asset_type := v_existing_asset.main_asset_type;
       v_old_asset_size := v_existing_asset.asset_size;
-    ELSE
-      v_old_main_asset_type := NULL;
-      v_old_asset_size := NULL;
-    END IF;
-
-    -- Check if asset_size will change (BEFORE UPDATE) and set flag accordingly
-    -- For UPDATE: Extract new value from JSON, compare with old value
-    -- Use existing asset type if main_asset_type is not in JSON (type not changing)
-    IF v_existing_asset IS NOT NULL AND v_old_asset_size IS NOT NULL THEN
-      -- If main_asset_type not in JSON, use existing type (type not changing)
+      
+      -- Check if asset_size OR main_asset_type will change (BEFORE UPDATE) and set flag accordingly
+      -- For UPDATE: Extract new values from JSON, compare with old values
+      -- Use existing asset type if main_asset_type is not in JSON (type not changing)
       IF v_new_main_asset_type IS NULL THEN
         v_new_main_asset_type := v_old_main_asset_type;
       END IF;
       
-      -- Only proceed if we have a valid asset type
-      IF v_new_main_asset_type IS NOT NULL THEN
-      -- UPDATE: Get new asset_size from JSON (what will be saved)
+      -- Determine if type changed
+      v_type_changed := (v_old_main_asset_type IS DISTINCT FROM v_new_main_asset_type);
+      
+      -- Determine if size changed
+      -- Extract new size from JSON (what will be saved)
       -- The UPDATE uses: COALESCE((v_asset_data->>'asset_size')::NUMERIC, asset_size)
       -- So if asset_size is in JSON and valid numeric, use it; otherwise it stays the same
       BEGIN
@@ -326,35 +329,52 @@ BEGIN
       
       -- Check if size will change (compare before UPDATE)
       -- Compare numeric values (handle floating point with small tolerance)
-      IF v_new_asset_size IS NOT NULL 
-         AND v_old_asset_size IS NOT NULL
-         AND ABS(v_old_asset_size - v_new_asset_size) > 0.0001 THEN
-        -- Determine business/residence from direct parameter (tab context) or fallback to building shared areas
-        -- Priority: 1) direct parameter, 2) building shared areas
+      IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL THEN
+        v_size_changed := (ABS(v_old_asset_size - v_new_asset_size) > 0.0001);
+        RAISE NOTICE 'Size change check: old=%, new=%, changed=%', v_old_asset_size, v_new_asset_size, v_size_changed;
+      ELSE
+        -- If either is NULL, no change detected
+        v_size_changed := FALSE;
+        RAISE NOTICE 'Size change check: old_asset_size IS NULL or new_asset_size IS NULL - no size change detected';
+      END IF;
+      
+      -- If either type or size changed, set distribution flag based on tab context
+      -- Both type and size changes use the same logic - tab context (p_is_business_context)
+      IF v_type_changed OR v_size_changed THEN
+        -- Determine business/residence from direct parameter (tab context)
+        -- No fallback - business and residence are completely separated
         DECLARE
           v_is_business_context BOOLEAN := FALSE;
           v_is_residence_context BOOLEAN := FALSE;
         BEGIN
-          -- Use direct parameter if provided (most reliable - comes from tab context)
+          -- Use direct parameter (always provided from frontend)
           IF p_is_business_context IS NOT NULL THEN
             IF p_is_business_context THEN
               v_is_business_context := TRUE;
-              RAISE NOTICE 'Asset size change detected: Setting business distribution flag (from direct parameter)';
+              IF v_type_changed AND v_size_changed THEN
+                RAISE NOTICE 'Asset type and size change detected: Setting business distribution flag (from direct parameter)';
+              ELSIF v_type_changed THEN
+                RAISE NOTICE 'Asset type change detected: Setting business distribution flag (from direct parameter)';
+              ELSE
+                RAISE NOTICE 'Asset size change detected: Setting business distribution flag (from direct parameter)';
+              END IF;
             ELSE
               v_is_residence_context := TRUE;
-              RAISE NOTICE 'Asset size change detected: Setting residence distribution flag (from direct parameter)';
+              IF v_type_changed AND v_size_changed THEN
+                RAISE NOTICE 'Asset type and size change detected: Setting residence distribution flag (from direct parameter)';
+              ELSIF v_type_changed THEN
+                RAISE NOTICE 'Asset type change detected: Setting residence distribution flag (from direct parameter)';
+              ELSE
+                RAISE NOTICE 'Asset size change detected: Setting residence distribution flag (from direct parameter)';
+              END IF;
             END IF;
-          -- Fallback: Check building shared areas
-          ELSIF NOT v_is_business_context AND NOT v_is_residence_context THEN
-            SELECT 
-              COALESCE(business_shared_area, 0) > 0,
-              COALESCE(residence_shared_area, 0) > 0
-            INTO v_is_business_context, v_is_residence_context
-            FROM buildings
-            WHERE building_number = v_building_number;
+          ELSE
+            -- If parameter not provided, log warning but don't set any flags
+            RAISE WARNING 'Asset type/size change detected but p_is_business_context is NULL - no distribution flag will be set';
           END IF;
           
           -- Set appropriate flag based on context
+          -- For business: only set flag if business_shared_area > 0
           IF v_is_business_context THEN
             UPDATE buildings
             SET need_business_distribution = true
@@ -362,6 +382,7 @@ BEGIN
               AND COALESCE(business_shared_area, 0) > 0;
           END IF;
           
+          -- For residence: set flag regardless of shared area value (residence always needs distribution if type/size changes)
           IF v_is_residence_context THEN
             UPDATE buildings
             SET need_residence_distribution = true
@@ -371,12 +392,11 @@ BEGIN
           -- Ignore if lookup fails
           NULL;
         END;
-      END IF;  -- End check for size change
-      END IF;  -- End check for valid asset type
-    END IF;  -- End check for existing asset and old size
+      END IF;  -- End check for type or size change
+    END IF;  -- End check for existing asset
 
     -- Save asset (INSERT or UPDATE)
-    IF v_existing_asset IS NULL THEN
+    IF NOT v_asset_found THEN
       -- INSERT new asset
       INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation)
       VALUES (
@@ -516,14 +536,9 @@ BEGIN
     -- Update building total area
     PERFORM update_building_total_area(v_building_number);
 
-    -- Update flags if type changed (using existing function)
-    IF v_old_main_asset_type IS NOT NULL AND v_old_main_asset_type != v_new_main_asset_type THEN
-      PERFORM set_distribution_flags_for_asset_type_change(
-        v_building_number,
-        v_old_main_asset_type,
-        v_new_main_asset_type
-      );
-    END IF;
+    -- Note: Distribution flags are now set BEFORE the UPDATE (above) based on tab context
+    -- Both type and size changes use the same logic with p_is_business_context parameter
+    -- No need to call set_distribution_flags_for_asset_type_change
 
 
     -- For distribution operations, we use the bulk audit entry created at STEP 2b
@@ -974,3 +989,7 @@ $$;
 
 COMMENT ON FUNCTION save_assets_bulk_transactional IS 'Bulk save assets with transactional post-save actions. Validation is handled in application layer. All operations (saves, update totals, set flags, remove flags for distribute_shared, audit) happen in ONE transaction. For distribute_shared and transfer_area actions, logs to audit table.';
 
+-- Note: The trigger auto_set_distribution_flags_on_change is dropped in migration
+-- 20251220000001_drop_distribution_flag_trigger.sql (runs after this migration).
+-- Distribution flags are now set correctly in save_assets_bulk_transactional
+-- using p_is_business_context parameter for proper tab context separation.

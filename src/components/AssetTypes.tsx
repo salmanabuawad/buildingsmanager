@@ -696,6 +696,11 @@ export function AssetTypes() {
           fields.push(`תיאור אזור: ${currentAssetType.area_description_for_tab}`);
         }
         
+        // Business/residence
+        if (currentAssetType.business_residence) {
+          fields.push(`עסקים/מגורים: ${currentAssetType.business_residence}`);
+        }
+        
         // Checkbox fields (show only if checked)
         if (currentAssetType.elevator === 'כן') {
           fields.push('מעלית: כן');
@@ -732,6 +737,7 @@ export function AssetTypes() {
           }
         }
         
+        // Join with line breaks for proper row display
         return fields.length > 0 ? fields.join('\n') : 'אין פרטים נוספים';
       },
       cellStyle: (params: any) => {

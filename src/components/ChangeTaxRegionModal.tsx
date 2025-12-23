@@ -60,8 +60,8 @@ export function ChangeTaxRegionModal({
     setError(null);
     
     try {
-      // Fetch current assets
-      const assetsData = await api.assets.getByBuilding(buildingNumber);
+      // Fetch current assets for the building
+      const assetsData = await api.assets.getAll(buildingNumber);
       const assetsToUpdate = assetsData.filter(asset => 
         selectedAssetIds.includes(String(asset.asset_id))
       );

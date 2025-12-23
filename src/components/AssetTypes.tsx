@@ -20,13 +20,14 @@ const CustomTooltip = (params: ITooltipParams) => {
     <div style={{ 
       backgroundColor: '#333', 
       color: '#fff', 
-      padding: '8px 12px', 
+      padding: '10px 14px', 
       borderRadius: '4px',
-      fontSize: '12px',
+      fontSize: '14px',
       whiteSpace: 'pre-line',
-      maxWidth: '300px',
+      maxWidth: '400px',
       direction: 'rtl',
-      textAlign: 'right'
+      textAlign: 'right',
+      lineHeight: '1.6'
     }}>
       {lines.map((line, index) => (
         <div key={index}>{line}</div>

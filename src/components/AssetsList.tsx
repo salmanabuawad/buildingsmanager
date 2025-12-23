@@ -2388,9 +2388,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         // If building has only one tax region, show delete button (taxRegion may or may not be set)
         const shouldShowDeleteButton = !hasMultipleTaxRegions || taxRegion;
         
-        // Show checkbox only when a specific tax region is selected (single tax region tab)
+        // Show checkbox in multi-tax-region mode (all assets view) or single tax region tab
         // Checkbox should be hidden for new assets, same as view icon
-        const shouldShowCheckbox = !!taxRegion && !isNew;
+        const shouldShowCheckbox = !isNew && (
+          (!taxRegion && hasMultipleTaxRegions) || // All assets view when building has multiple tax regions
+          !!taxRegion // Specific tax region tab
+        );
         const isSelected = safeSelectedAssets.has(assetId);
         
         return (
@@ -2412,7 +2415,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   });
                 }}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                title="בחר להעברת שטחים"
+                title={!taxRegion && hasMultipleTaxRegions ? "בחר לשינוי אזור מס" : "בחר להעברת שטחים"}
               />
             )}
             {hasValidationError && safeValidationErrors && (

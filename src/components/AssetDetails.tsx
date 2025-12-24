@@ -2897,8 +2897,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }, [dirtyAssets, validationErrors]);
 
 
-  // Memoize the structure_drawing_url cell renderer to prevent recreation
-  const structureDrawingCellRenderer = useCallback((params: any) => {
+  // Memoize the actions cell renderer - shows invalid validation icon
+  const actionsCellRenderer = useCallback((params: any) => {
     const asset = params.data as Asset;
     if (!asset) return null;
     
@@ -2909,9 +2909,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     // Convert to number for consistency with validationErrors Map key type
     const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
     if (isNaN(assetIdNum)) return null;
-    
-    const hasDrawing = !!asset.structure_drawing_url;
-    const isLatest = asset.is_latest === true;
 
     // Use ref to get the latest validationErrors to avoid stale closure issues
     const currentValidationErrors = validationErrorsRef.current;
@@ -2942,6 +2939,20 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             <AlertCircle className="h-5 w-5" />
           </button>
         )}
+      </div>
+    );
+  }, [setToast]);
+
+  // Memoize the structure_drawing_url cell renderer to prevent recreation
+  const structureDrawingCellRenderer = useCallback((params: any) => {
+    const asset = params.data as Asset;
+    if (!asset) return null;
+    
+    const hasDrawing = !!asset.structure_drawing_url;
+    const isLatest = asset.is_latest === true;
+
+    return (
+      <div className="flex items-center justify-center gap-1 h-full">
         {isLatest ? (
           <div className="flex flex-col items-center gap-1">
             <label className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer" title={t('upload') || 'העלה קובץ'}>
@@ -3373,28 +3384,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
-      headerName: t('structureDrawing'),
-      field: 'structure_drawing_url',
-      pinned: 'right', // Pinned to the right side, right before asset_id
-      sortable: false,
-      filter: false,
-      editable: false,
-      lockPosition: true,
-      lockPinned: true,
-      suppressMovable: true,
-      suppressHeaderMenuButton: true,
-      headerClass: 'ag-right-aligned-header',
-      cellRenderer: structureDrawingCellRenderer,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
-    },
-    {
       field: 'asset_id',
       headerName: t('assetId'),
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      pinned: 'right', // Pinned to the right side, rightmost
+      pinned: 'right', // Pinned to the right side
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
@@ -3869,6 +3865,36 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value, false),
     },
     {
+      headerName: t('structureDrawing'),
+      field: 'structure_drawing_url',
+      pinned: 'right', // Pinned to the right side
+      sortable: false,
+      filter: false,
+      editable: false,
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      headerClass: 'ag-right-aligned-header',
+      cellRenderer: structureDrawingCellRenderer,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
+      colId: 'actions',
+      headerName: t('actions') || 'פעולות',
+      pinned: 'right', // Pinned to the right side, rightmost
+      sortable: false,
+      filter: false,
+      editable: false,
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      headerClass: 'ag-right-aligned-header',
+      cellRenderer: actionsCellRenderer,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
       field: 'extra_field_1',
       headerName: '',
       editable: false,
@@ -3892,7 +3918,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
       return colDef;
     });
-  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, asset, isBusinessAsset]);
+  }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, actionsCellRenderer, asset, isBusinessAsset]);
 
   // Apply field configurations to column definitions for main grid
   const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');

@@ -399,7 +399,7 @@ BEGIN
     -- Save asset (INSERT or UPDATE)
     IF NOT v_asset_found THEN
       -- INSERT new asset
-      INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation)
+      INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation, comment)
       VALUES (
         v_asset_id,
         v_building_number,
@@ -437,7 +437,8 @@ BEGIN
           ) THEN 0
           ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0)
         END,
-        COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
+        COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false),
+        (v_asset_data->>'comment')::TEXT
       );
     ELSE
       -- Check if is_new_measurement is true - if so, copy to history before update
@@ -451,7 +452,7 @@ BEGIN
             sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
             elevator, single_double_family, condo, townhouses, penthouse,
             structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
-            area_from_distribution, exported_to_automation, created_at, updated_at
+            area_from_distribution, exported_to_automation, comment, created_at, updated_at
           )
           SELECT 
             asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
@@ -460,7 +461,7 @@ BEGIN
             sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
             elevator, single_double_family, condo, townhouses, penthouse,
             structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
-            area_from_distribution, exported_to_automation, created_at, updated_at
+            area_from_distribution, exported_to_automation, comment, created_at, updated_at
           FROM assets
           WHERE asset_id = v_asset_id;
         EXCEPTION WHEN OTHERS THEN
@@ -502,6 +503,7 @@ BEGIN
         discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
         area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
         exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
+        comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
         is_new_measurement = false, -- Reset flag after copying to history
         updated_at = NOW()
       WHERE asset_id = v_asset_id;

@@ -321,6 +321,20 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: R
               />
             </div>
 
+            {/* Comment */}
+            <div className="col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                הערה
+              </label>
+              <textarea
+                value={formData.comment || ''}
+                onChange={(e) => handleFieldChange('comment', e.target.value || undefined)}
+                placeholder="הערה"
+                rows={3}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right resize-vertical"
+              />
+            </div>
+
             {/* Sub Asset Types and Sizes - 2 sets per row */}
             {[0, 1, 2].map((rowIndex) => {
               const num1 = rowIndex * 2 + 1;

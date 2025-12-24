@@ -311,6 +311,7 @@ export interface Asset {
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
   area_from_distribution?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
+  comment?: string; // User comment/notes about the asset (הערה על הנכס)
 }
 
 export interface AssetMeasurement {

@@ -1385,7 +1385,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       floor: undefined,
       discount_type: undefined,
       discount_date_from: undefined,
-      discount_date_to: undefined
+      discount_date_to: undefined,
+      comment: undefined
     };
 
     setAssets(prev => [newAsset, ...prev]);
@@ -2041,7 +2042,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         'גודל נכס משנה 5',
         'סוג נכס משנה 6',
         'גודל נכס משנה 6',
-        'גודל שטח משותף'  // area_from_distribution
+        'גודל שטח משותף',  // area_from_distribution
+        'הערה'  // comment
       ];
 
       // Convert assets to rows
@@ -2070,7 +2072,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         asset.sub_asset_size_5 || '',
         asset.sub_asset_type_6 || '',
         asset.sub_asset_size_6 || '',
-        asset.area_from_distribution || ''
+        asset.area_from_distribution || '',
+        asset.comment || ''
       ]);
 
       // Create data array with headers and rows
@@ -2334,6 +2337,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       headerName: 'תאריך הנחה עד',
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
+    },
+    {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      tooltipValueGetter: (params) => params.value || ''
     }
     ];
     

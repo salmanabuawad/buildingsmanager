@@ -2269,7 +2269,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           floor: currentAssetData.floor != null && currentAssetData.floor !== '' ? currentAssetData.floor : undefined,
           discount_type: currentAssetData.discount_type || undefined,
           discount_date_from: currentAssetData.discount_date_from || undefined,
-          discount_date_to: currentAssetData.discount_date_to || undefined
+          discount_date_to: currentAssetData.discount_date_to || undefined,
+          comment: currentAssetData.comment || undefined
         });
 
         const result = await api.assets.saveBulkTransactional([assetData], 'manual_update', undefined, undefined, undefined, isBusinessContext);
@@ -3604,6 +3605,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params) => getCellStyle(params, 'comment'),
+      tooltipValueGetter: (params) => params.value || ''
+    },
+    {
       field: 'main_asset_type',
       headerName: t('mainAssetType'),
       editable: (params) => {
@@ -3971,6 +3983,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           discount_type: undefined,
           discount_date_from: undefined,
           discount_date_to: undefined,
+          comment: undefined,
           is_latest: true
         };
         

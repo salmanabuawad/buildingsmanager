@@ -35,6 +35,7 @@ interface AssetRow {
   discount_type?: string;
   discount_date_from?: string;
   discount_date_to?: string;
+  comment?: string;
   _isNew?: boolean;
   _dbId?: number;
   _isDirty?: boolean;
@@ -429,7 +430,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
           floor: row.floor || undefined,
           discount_type: row.discount_type || undefined,
           discount_date_from: row.discount_date_from || undefined,
-          discount_date_to: row.discount_date_to || undefined
+          discount_date_to: row.discount_date_to || undefined,
+          comment: row.comment || undefined
         });
       }
       for (const row of dirtyRows) {
@@ -455,7 +457,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
           floor: row.floor || undefined,
           discount_type: row.discount_type || undefined,
           discount_date_from: row.discount_date_from || undefined,
-          discount_date_to: row.discount_date_to || undefined
+          discount_date_to: row.discount_date_to || undefined,
+          comment: row.comment || undefined
         });
       }
 
@@ -691,7 +694,8 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         floor: row.floor || undefined,
         discount_type: row.discount_type || undefined,
         discount_date_from: row.discount_date_from || undefined,
-        discount_date_to: row.discount_date_to || undefined
+        discount_date_to: row.discount_date_to || undefined,
+        comment: row.comment || undefined
       };
 
       const result = await api.assets.saveBulkTransactional([newMeasurementData], 'manual_update');
@@ -727,6 +731,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         discount_type: newMeasurementData.discount_type || undefined,
         discount_date_from: newMeasurementData.discount_date_from || undefined,
         discount_date_to: newMeasurementData.discount_date_to || undefined,
+        comment: newMeasurementData.comment || undefined,
         _isNew: false,
         _dbId: newAssetId
       };
@@ -959,6 +964,17 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         return isFieldEditable(params, fieldName);
       },
       cellStyle: (params) => getCellStyle(params, 'discount_date_to', false)
+    },
+    {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params) => getCellStyle(params, 'comment', false),
+      tooltipValueGetter: (params) => params.value || ''
     },
     {
       field: 'asset_id',

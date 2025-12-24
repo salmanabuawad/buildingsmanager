@@ -39,6 +39,7 @@ interface ImportAssetRow {
   discount_type?: string;
   discount_date_from?: string;
   discount_date_to?: string;
+  comment?: string;
   _validationErrors?: string[];
   _isDirty?: boolean;
 }
@@ -248,7 +249,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'floor': 'קומה',
         'discount_type': 'סוג הנחה',
         'discount_date_from': 'תאריך הנחה מ',
-        'discount_date_to': 'תאריך הנחה עד'
+        'discount_date_to': 'תאריך הנחה עד',
+        'comment': 'הערה'
       };
 
       // Match headers by exact name only (case-insensitive, trimmed)
@@ -341,6 +343,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_type: undefined,
           discount_date_from: undefined,
           discount_date_to: undefined,
+          comment: undefined,
         };
 
         // Use header-based mapping only (no fallback to fixed position)
@@ -428,6 +431,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerMap['discount_date_to'] !== undefined) {
           asset.discount_date_to = values[headerMap['discount_date_to']] || undefined;
+        }
+        if (headerMap['comment'] !== undefined) {
+          asset.comment = values[headerMap['comment']] || undefined;
         }
 
         assets.push(asset);
@@ -1292,7 +1298,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         floor: null,
         discount_type: null,
         discount_date_from: null,
-        discount_date_to: null
+        discount_date_to: null,
+        comment: null
       }));
 
       // Sanitize assets before insert (same as regular mode)
@@ -1816,7 +1823,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           floor: asset.floor || null,
           discount_type: asset.discount_type || null,
           discount_date_from: asset.discount_date_from || null,
-          discount_date_to: asset.discount_date_to || null
+          discount_date_to: asset.discount_date_to || null,
+          comment: asset.comment || null
         };
 
         if (asset.penthouse === 'כן') {
@@ -2913,6 +2921,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       headerName: 'תאריך הנחה עד',
       editable: true,
       cellStyle: getCellStyle
+    },
+    {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: true,
+      cellStyle: getCellStyle,
+      tooltipValueGetter: (params) => params.value || ''
     }
     ];
     
@@ -3536,6 +3551,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="discount_type">סוג הנחה</option>
                         <option value="discount_date_from">תאריך הנחה מ</option>
                         <option value="discount_date_to">תאריך הנחה עד</option>
+                        <option value="comment">הערה</option>
                       </select>
                     </div>
                   </div>

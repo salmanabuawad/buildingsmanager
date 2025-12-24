@@ -97,48 +97,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Add field configurations for comment field with width_chars = 5 and padding = 2
+-- Add field configurations for comment field with width_chars = 6 and padding = 2
 -- Insert comment field configurations for all relevant grids
 
 -- Assets List grid - comment
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('assets-list', 'comment', 5, 2, 'הערה', false, null, true, NULL)
+  ('assets-list', 'comment', 6, 2, 'הערה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Details Main grid - comment
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-details-main', 'comment', 5, 2, 'הערה', false, null, true, NULL)
+  ('asset-details-main', 'comment', 6, 2, 'הערה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Details History grid - comment
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-details-history', 'comment', 5, 2, 'הערה', false, null, true, NULL)
+  ('asset-details-history', 'comment', 6, 2, 'הערה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Data Entry grid - comment
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-data-entry', 'comment', 5, 2, 'הערה', false, null, true, NULL)
+  ('asset-data-entry', 'comment', 6, 2, 'הערה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Transfer Areas grid - comment
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('transfer-areas', 'comment', 5, 2, 'הערה', false, null, true, NULL)
+  ('transfer-areas', 'comment', 6, 2, 'הערה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Assets File Import grid - comment
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('assets-file-import', 'comment', 5, 2, 'הערה', false, null, true, NULL)
+  ('assets-file-import', 'comment', 6, 2, 'הערה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 

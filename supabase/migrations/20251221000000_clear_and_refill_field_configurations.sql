@@ -13,9 +13,10 @@
   and other display properties for grid fields across the application.
 */
 
--- Update the default padding value to 2
+-- Update the default padding value to 2 and width_chars to 6
 ALTER TABLE field_configurations
-  ALTER COLUMN padding SET DEFAULT 2;
+  ALTER COLUMN padding SET DEFAULT 2,
+  ALTER COLUMN width_chars SET DEFAULT 6;
 
 -- Delete all existing field configurations
 DELETE FROM field_configurations;
@@ -38,51 +39,51 @@ SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding,
 -- Buildings List grid
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('buildings-list', 'building_number', 10, 2, 'מספר בניין', true, 'left', true, NULL),
+  ('buildings-list', 'building_number', 10, 2, 'מספר בניין', true, 'right', true, NULL),
   ('buildings-list', 'actions', 10, 2, 'פעולות', true, 'right', true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding, 
     pinned = CASE WHEN EXCLUDED.field_name IN ('building_number', 'actions') THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name = 'building_number' THEN 'left' WHEN EXCLUDED.field_name = 'actions' THEN 'right' ELSE field_configurations.pin_side END, 
+    pin_side = CASE WHEN EXCLUDED.field_name IN ('building_number', 'actions') THEN 'right' ELSE field_configurations.pin_side END, 
     updated_at = now();
 
 -- Asset Details Main grid
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
   ('asset-details-main', 'asset_id', 10, 2, 'מזהה נכס', true, 'right', true, NULL),
-  ('asset-details-main', 'building_number', 10, 2, 'מספר בניין', true, 'left', true, NULL),
+  ('asset-details-main', 'building_number', 10, 2, 'מספר בניין', true, 'right', true, NULL),
   ('asset-details-main', 'actions', 10, 2, 'פעולות', true, 'right', true, NULL),
   ('asset-details-main', 'payer_id', 10, 2, 'מזהה משלם', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding, 
     pinned = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name = 'asset_id' THEN 'right' WHEN EXCLUDED.field_name = 'building_number' THEN 'left' WHEN EXCLUDED.field_name = 'actions' THEN 'right' ELSE field_configurations.pin_side END, 
+    pin_side = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN 'right' ELSE field_configurations.pin_side END, 
     updated_at = now();
 
 -- Asset Details History grid
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
   ('asset-details-history', 'asset_id', 10, 2, 'מזהה נכס', true, 'right', true, NULL),
-  ('asset-details-history', 'building_number', 10, 2, 'מספר בניין', true, 'left', true, NULL),
+  ('asset-details-history', 'building_number', 10, 2, 'מספר בניין', true, 'right', true, NULL),
   ('asset-details-history', 'actions', 10, 2, 'פעולות', true, 'right', true, NULL),
   ('asset-details-history', 'payer_id', 10, 2, 'מזהה משלם', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding, 
     pinned = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name = 'asset_id' THEN 'right' WHEN EXCLUDED.field_name = 'building_number' THEN 'left' WHEN EXCLUDED.field_name = 'actions' THEN 'right' ELSE field_configurations.pin_side END, 
+    pin_side = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN 'right' ELSE field_configurations.pin_side END, 
     updated_at = now();
 
 -- Asset Data Entry grid
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
   ('asset-data-entry', 'asset_id', 10, 2, 'מזהה נכס', true, 'right', true, NULL),
-  ('asset-data-entry', 'building_number', 10, 2, 'מספר בניין', true, 'left', true, NULL),
+  ('asset-data-entry', 'building_number', 10, 2, 'מספר בניין', true, 'right', true, NULL),
   ('asset-data-entry', 'actions', 10, 2, 'פעולות', true, 'right', true, NULL),
   ('asset-data-entry', 'payer_id', 10, 2, 'מזהה משלם', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding, 
     pinned = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name = 'asset_id' THEN 'right' WHEN EXCLUDED.field_name = 'building_number' THEN 'left' WHEN EXCLUDED.field_name = 'actions' THEN 'right' ELSE field_configurations.pin_side END, 
+    pin_side = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN 'right' ELSE field_configurations.pin_side END, 
     updated_at = now();
 
 -- Transfer Areas grid
@@ -101,13 +102,13 @@ SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding,
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
   ('assets-file-import', 'asset_id', 10, 2, 'מזהה נכס', true, 'right', true, NULL),
-  ('assets-file-import', 'building_number', 10, 2, 'מספר בניין', true, 'left', true, NULL),
+  ('assets-file-import', 'building_number', 10, 2, 'מספר בניין', true, 'right', true, NULL),
   ('assets-file-import', 'actions', 10, 2, 'פעולות', true, 'right', true, NULL),
   ('assets-file-import', 'payer_id', 10, 2, 'מזהה משלם', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding, 
     pinned = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name = 'asset_id' THEN 'right' WHEN EXCLUDED.field_name = 'building_number' THEN 'left' WHEN EXCLUDED.field_name = 'actions' THEN 'right' ELSE field_configurations.pin_side END, 
+    pin_side = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'building_number', 'actions') THEN 'right' ELSE field_configurations.pin_side END, 
     updated_at = now();
 
 -- Insert checkbox field configurations with width_chars = 4 and padding = 2
@@ -320,63 +321,63 @@ VALUES
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = 6, padding = 2, updated_at = now();
 
--- Insert tax_region field configurations with width_chars = 5 and padding = 2
+-- Insert tax_region field configurations with width_chars = 6 and padding = 2
 
 -- Assets List grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('assets-list', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('assets-list', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Details Main grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-details-main', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('asset-details-main', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Details History grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-details-history', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('asset-details-history', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Data Entry grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-data-entry', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('asset-data-entry', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Transfer Areas grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('transfer-areas', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('transfer-areas', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Assets File Import grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('assets-file-import', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('assets-file-import', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Asset Types grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('asset-types', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('asset-types', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Buildings List grid - tax_region
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
-  ('buildings-list', 'tax_region', 5, 2, 'אזור מס', false, null, true, NULL)
+  ('buildings-list', 'tax_region', 6, 2, 'אזור מס', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
-SET width_chars = 5, padding = 2, updated_at = now();
+SET width_chars = 6, padding = 2, updated_at = now();
 
 -- Insert date field configurations with width_chars = 10 and padding = 2
 -- Date fields: measurement_date, discount_date_from, discount_date_to
@@ -435,15 +436,15 @@ VALUES
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = 10, padding = 2, updated_at = now();
 
--- Set width_chars = 5 and padding = 2 for all other fields that don't have specific widths (10, 4, or 6)
+-- Set width_chars = 6 and padding = 2 for all other fields that don't have specific widths (10, 4, or 6)
 -- This covers any existing fields like: measurement_date, floor, discount_type, discount_date_from, 
 -- discount_date_to, structure_drawing_url, area_from_distribution, name, description,
 -- area_description_for_tab, business_residence, min_size, max_size, and any other fields
 -- Note: This UPDATE will affect any fields that were already in the table before the DELETE above
 -- or fields that get added later through other means (UI, other migrations, etc.)
 UPDATE field_configurations
-SET width_chars = 5, padding = 2, updated_at = now()
-WHERE width_chars IS NULL OR width_chars NOT IN (10, 4, 6, 5);
+SET width_chars = 6, padding = 2, updated_at = now()
+WHERE width_chars IS NULL OR width_chars NOT IN (10, 4, 6);
 
 -- Note: Additional field configurations can be added through the Field Config Manager UI
 -- or by importing a configuration file with the updated field definitions.

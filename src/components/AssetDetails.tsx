@@ -22,6 +22,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { DetailRowRenderer } from './DetailRowRenderer';
+import { useFieldConfig } from '../lib/useFieldConfig';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -3816,6 +3817,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     });
   }, [t, assetTypes, editMode, isFieldEditable, getCellStyle, structureDrawingCellRenderer, asset, isBusinessAsset]);
 
+  // Apply field configurations to column definitions for main grid
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');
+
+  // Apply field configurations to column definitions for history grid
+  const configuredHistoryColumnDefs = useFieldConfig(columnDefs, 'asset-details-history');
+
   useEffect(() => {
     // Reset state when assetId changes to ensure fresh data is loaded
     if (assetId) {
@@ -4485,7 +4492,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 <AgGridReact<Asset>
                   ref={gridRef}
                   rowData={pinnedTopRowData}
-                  columnDefs={columnDefs}
+                  columnDefs={configuredColumnDefs}
                 defaultColDef={{
                   resizable: true,
                   wrapHeaderText: true,
@@ -4635,7 +4642,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     <AgGridReact<Asset>
                       ref={historyGridRef}
                       rowData={historyRowsWithDetails}
-                      columnDefs={columnDefs}
+                      columnDefs={configuredHistoryColumnDefs}
                     isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
                     fullWidthCellRenderer={DetailRowRenderer}
                     fullWidthCellRendererParams={(params: any) => {

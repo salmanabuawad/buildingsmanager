@@ -12,6 +12,7 @@ interface ChangeTaxRegionModalProps {
   availableTaxRegions: number[]; // Tax regions available for the building
   assetTypes: AssetType[];
   onSuccess: () => void;
+  onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
 }
 
 export function ChangeTaxRegionModal({
@@ -21,7 +22,8 @@ export function ChangeTaxRegionModal({
   buildingNumber,
   availableTaxRegions,
   assetTypes,
-  onSuccess
+  onSuccess,
+  onSelectAsset
 }: ChangeTaxRegionModalProps) {
   const [selectedTaxRegion, setSelectedTaxRegion] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -112,7 +114,7 @@ export function ChangeTaxRegionModal({
         tax_region: selectedTaxRegion
       }));
       
-      const results: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
+      const results: Array<{ assetId: string; assetDbId?: string | number; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
       
       for (let i = 0; i < assetsWithNewTaxRegion.length; i++) {
         const asset = assetsWithNewTaxRegion[i];
@@ -145,8 +147,10 @@ export function ChangeTaxRegionModal({
             }
           }
           
+          // asset_id is the primary key, so use it as both assetId and assetDbId
           results.push({
             assetId: String(asset.asset_id),
+            assetDbId: asset.asset_id, // asset_id is the primary key
             buildingNumber: asset.building_number,
             errors: errors,
             matchedAssetTypeRecord: validationResult.matchedAssetTypeRecord
@@ -155,6 +159,7 @@ export function ChangeTaxRegionModal({
           console.error(`Error validating asset ${asset.asset_id}:`, err);
           results.push({
             assetId: String(asset.asset_id),
+            assetDbId: asset.asset_id, // asset_id is the primary key
             buildingNumber: asset.building_number,
             errors: [err instanceof Error ? err.message : 'שגיאה באימות נכס']
           });
@@ -171,6 +176,7 @@ export function ChangeTaxRegionModal({
         invalid: invalidCount,
         errors: results.filter(r => r.errors.length > 0).map(r => ({
           assetId: r.assetId,
+          assetDbId: r.assetDbId,
           buildingNumber: r.buildingNumber,
           errors: r.errors,
           matchedAssetTypeRecord: r.matchedAssetTypeRecord
@@ -376,6 +382,7 @@ export function ChangeTaxRegionModal({
         batchTitle={`תוצאות אימות - שינוי אזור מס ל-${selectedTaxRegion}`}
         buildingNumber={buildingNumber}
         taxRegion={selectedTaxRegion ? String(selectedTaxRegion) : undefined}
+        onSelectAsset={onSelectAsset}
       />
     </div>
   );

@@ -3667,6 +3667,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }}
         selectedAssetIds={Array.from(selectedAssets)}
         buildingNumber={buildingNumber}
+        onSelectAsset={onSelectAsset}
         availableTaxRegions={availableTaxRegions}
         assetTypes={assetTypes}
         onSuccess={() => {

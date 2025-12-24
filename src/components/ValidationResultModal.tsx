@@ -313,10 +313,11 @@ export function ValidationResultModal({
                                     onSelectAsset ? (
                                       <button
                                         onClick={() => {
-                                          // Since asset_id is now the primary key, use it directly
-                                          if (error.assetId && error.buildingNumber) {
+                                          // Use assetDbId if available, otherwise fallback to assetId
+                                          const assetDbId = error.assetDbId || error.assetId;
+                                          if (assetDbId && error.buildingNumber) {
                                             onSelectAsset(
-                                              error.assetId,
+                                              assetDbId,
                                               error.assetId,
                                               error.buildingNumber,
                                               taxRegion

@@ -3153,10 +3153,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const needsResidenceDistribution = isResidentTaxRegion && 
           building.need_residence_distribution === true;
         
-        const needsBusinessDistribution = taxRegion && 
-          !isMultiTaxRegion && 
-          !isResidentTaxRegion && 
-          building.need_business_distribution === true;
+        // Show business distribution alert if:
+        // 1. Flag is raised, AND
+        // 2. We're not in a residence tax region, AND
+        // 3. Either we're in a business tax region tab OR we're not in any specific tax region tab
+        const needsBusinessDistribution = building.need_business_distribution === true &&
+          !isResidentTaxRegion &&
+          (taxRegion ? (!isMultiTaxRegion) : true); // Show if taxRegion is set (and not multi) OR if taxRegion is not set
         
         if (!needsResidenceDistribution && !needsBusinessDistribution) {
           return null;

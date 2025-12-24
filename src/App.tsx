@@ -334,6 +334,44 @@ function App() {
     });
   }
 
+  const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {
+    const assetTypes = getAssetTypes();
+    const getAreaDescriptionForTaxRegion = (taxRegionNum: string | number | null | undefined): string => {
+      if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+        return String(taxRegionNum || '');
+      }
+      
+      const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+      if (isNaN(taxRegion)) {
+        return String(taxRegionNum);
+      }
+      
+      const matchingAssetType = assetTypes.find((at: AssetType) =>
+        at.tax_region === taxRegion && at.area_description_for_tab
+      );
+      
+      return matchingAssetType?.area_description_for_tab || String(taxRegion);
+    };
+    
+    const assetsTabId = assetIds && assetIds.length > 0
+      ? `assets-${buildingNumber}-region-${taxRegion}-errors-${Date.now()}`
+      : `assets-${buildingNumber}-region-${taxRegion}`;
+    
+    const newTab: Tab = {
+      id: assetsTabId,
+      type: 'assets',
+      buildingNumber,
+      taxRegion,
+      selectedAssetIds: assetIds,
+      label: assetIds && assetIds.length > 0
+        ? `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)} (תיקון שגיאות)`
+        : `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)}`,
+      refreshKey: Date.now()
+    };
+    
+    openTab(newTab);
+  }, [tabs, assetTypes]);
+
   const handleSelectAsset = useCallback((assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
     const assetDetailsTabId = `asset-details-${assetDbId}`;
     
@@ -1199,6 +1237,8 @@ function App() {
                   onSelectAsset={handleSelectAsset}
                   onOpenTransferAreas={handleOpenTransferAreas}
                   onOpenNewAsset={handleOpenNewAsset}
+                  selectedAssetIds={activeTab.selectedAssetIds}
+                  onOpenAssetsTab={handleOpenAssetsTab}
                 />
               )}
             {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (

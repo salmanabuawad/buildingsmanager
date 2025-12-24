@@ -13,6 +13,7 @@ interface ChangeTaxRegionModalProps {
   assetTypes: AssetType[];
   onSuccess: () => void;
   onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
+  onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
 }
 
 export function ChangeTaxRegionModal({
@@ -23,7 +24,8 @@ export function ChangeTaxRegionModal({
   availableTaxRegions,
   assetTypes,
   onSuccess,
-  onSelectAsset
+  onSelectAsset,
+  onOpenAssetsTab
 }: ChangeTaxRegionModalProps) {
   const [selectedTaxRegion, setSelectedTaxRegion] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -186,6 +188,12 @@ export function ChangeTaxRegionModal({
       setValidationResults(batchResults);
       setValidationCompleted(true);
       setValidationModalOpen(true);
+      
+      // If there are validation errors, open a new tab with the assets that have errors
+      if (batchResults.invalid > 0 && onOpenAssetsTab && selectedTaxRegion) {
+        const assetIdsWithErrors = batchResults.errors.map(e => e.assetId);
+        onOpenAssetsTab(buildingNumber, String(selectedTaxRegion), assetIdsWithErrors);
+      }
     } catch (err) {
       console.error('Error validating assets:', err);
       setError(err instanceof Error ? err.message : 'שגיאה באימות נכסים');

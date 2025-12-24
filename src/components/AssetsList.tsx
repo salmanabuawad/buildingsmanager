@@ -25,13 +25,15 @@ interface AssetsListProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
   onOpenTransferAreas?: (selectedAssetIds: string[], buildingNumber: number, taxRegion?: string) => void;
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
+  selectedAssetIds?: string[]; // Optional: filter to show only these asset IDs
+  onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
 }
 
 export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset }, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -329,6 +331,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         console.log(`[AssetsList] No tax region filter - showing all assets:`, {
           totalAssets: (assetsData || []).length
         });
+      }
+      
+      // Additional filter: if selectedAssetIds is provided, filter to only show those assets
+      // This is applied after tax region filtering (if any)
+      if (selectedAssetIds && selectedAssetIds.length > 0) {
+        const selectedAssetIdsSet = new Set(selectedAssetIds.map(id => String(id)));
+        filteredAssets = filteredAssets.filter(asset => 
+          selectedAssetIdsSet.has(String(asset.asset_id))
+        );
+        console.log(`[AssetsList] Filtered to ${filteredAssets.length} assets with selected asset IDs`);
       }
       
       // Ensure all assets have valid IDs
@@ -3671,6 +3683,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         selectedAssetIds={Array.from(selectedAssets)}
         buildingNumber={buildingNumber}
         onSelectAsset={onSelectAsset}
+        onOpenAssetsTab={onOpenAssetsTab}
         availableTaxRegions={availableTaxRegions}
         assetTypes={assetTypes}
         onSuccess={() => {

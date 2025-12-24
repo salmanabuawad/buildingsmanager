@@ -9,6 +9,314 @@
 */
 
 -- ============================================================================
+-- ENSURE ENUM TYPE EXISTS
+-- ============================================================================
+
+-- Create enum for action types (if not exists)
+DO $$ BEGIN
+  CREATE TYPE audit_action_type AS ENUM (
+    'manual_update',
+    'import_file',
+    'transfer_area',
+    'distribute_shared'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- ============================================================================
+-- ENSURE audit TABLE EXISTS WITH CORRECT STRUCTURE
+-- ============================================================================
+
+-- Ensure audit table exists with all required columns
+-- The table uses 'id' as primary key, not 'action_id'
+CREATE TABLE IF NOT EXISTS audit (
+  id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL,
+  action_type audit_action_type NOT NULL,
+  entity_type text NOT NULL CHECK (entity_type IN ('building', 'asset', 'bulk_building', 'bulk_asset')),
+  entity_id text, -- Can be building_number, asset_id, or comma-separated IDs for bulk operations
+  before_data jsonb, -- JSON containing all related building/asset data before the action
+  after_data jsonb, -- JSON containing all related building/asset data after the action
+  description text, -- Optional description of the action
+  created_at timestamptz DEFAULT now()
+);
+
+-- Fix action_type column type if it's using distribution_audit_action_type
+DO $$ 
+BEGIN
+  -- Check if action_type column exists and has wrong type
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' 
+    AND column_name = 'action_type'
+    AND udt_name = 'distribution_audit_action_type'
+  ) THEN
+    -- Change the column type from distribution_audit_action_type to audit_action_type
+    -- First, we need to convert existing values
+    -- Map 'distribution' -> 'distribute_shared', 'transfer' -> 'transfer_area'
+    ALTER TABLE audit 
+      ALTER COLUMN action_type TYPE text;
+    
+    UPDATE audit 
+      SET action_type = CASE 
+        WHEN action_type = 'distribution' THEN 'distribute_shared'
+        WHEN action_type = 'transfer' THEN 'transfer_area'
+        WHEN action_type = 'business_distribution' THEN 'distribute_shared'
+        WHEN action_type = 'residence_distribution' THEN 'distribute_shared'
+        ELSE action_type
+      END;
+    
+    -- Now change to audit_action_type
+    ALTER TABLE audit 
+      ALTER COLUMN action_type TYPE audit_action_type 
+      USING action_type::audit_action_type;
+  END IF;
+END $$;
+
+-- Ensure id column exists (rename from action_id if needed)
+DO $$ 
+BEGIN
+  -- If table exists with action_id but no id, rename action_id to id
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'action_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'id'
+  ) THEN
+    -- Drop any foreign key constraints that reference audit.action_id first
+    -- (This should be handled separately if needed, but we'll rename the column)
+    ALTER TABLE audit RENAME COLUMN action_id TO id;
+  END IF;
+END $$;
+
+-- Add entity_type column if it doesn't exist (for cases where table exists but column is missing)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'entity_type'
+  ) THEN
+    -- Add column without NOT NULL constraint first
+    ALTER TABLE audit ADD COLUMN entity_type text;
+    
+    -- Update existing rows to have a default value if needed
+    -- (You may want to set appropriate values based on your data)
+    UPDATE audit SET entity_type = 'asset' WHERE entity_type IS NULL;
+    
+    -- Now add NOT NULL constraint and CHECK constraint
+    ALTER TABLE audit ALTER COLUMN entity_type SET NOT NULL;
+    ALTER TABLE audit ADD CONSTRAINT check_entity_type 
+      CHECK (entity_type IN ('building', 'asset', 'bulk_building', 'bulk_asset'));
+  ELSIF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'entity_type' 
+    AND is_nullable = 'YES'
+  ) THEN
+    -- Column exists but is nullable, add constraint if missing
+    -- First update NULL values
+    UPDATE audit SET entity_type = 'asset' WHERE entity_type IS NULL;
+    
+    -- Add NOT NULL constraint
+    ALTER TABLE audit ALTER COLUMN entity_type SET NOT NULL;
+    
+    -- Add CHECK constraint if it doesn't exist
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint 
+      WHERE conname = 'check_entity_type' 
+      AND conrelid = 'audit'::regclass
+    ) THEN
+      ALTER TABLE audit ADD CONSTRAINT check_entity_type 
+        CHECK (entity_type IN ('building', 'asset', 'bulk_building', 'bulk_asset'));
+    END IF;
+  END IF;
+END $$;
+
+-- Add entity_id column if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'entity_id'
+  ) THEN
+    ALTER TABLE audit ADD COLUMN entity_id text;
+  END IF;
+END $$;
+
+-- Add before_data column if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'before_data'
+  ) THEN
+    ALTER TABLE audit ADD COLUMN before_data jsonb;
+  END IF;
+END $$;
+
+-- Add after_data column if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'after_data'
+  ) THEN
+    ALTER TABLE audit ADD COLUMN after_data jsonb;
+  END IF;
+END $$;
+
+-- Add description column if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'description'
+  ) THEN
+    ALTER TABLE audit ADD COLUMN description text;
+  END IF;
+END $$;
+
+-- Handle building_number column if it exists (from old migrations)
+-- If it exists with NOT NULL, either remove it or make it nullable
+DO $$ 
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'building_number'
+  ) THEN
+    -- Check if it's NOT NULL
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'audit' 
+      AND column_name = 'building_number' 
+      AND is_nullable = 'NO'
+    ) THEN
+      -- Make it nullable first (so we can update existing rows)
+      ALTER TABLE audit ALTER COLUMN building_number DROP NOT NULL;
+      
+      -- Populate building_number from entity_id where entity_type is 'building'
+      UPDATE audit 
+      SET building_number = (entity_id::bigint)
+      WHERE entity_type = 'building' 
+        AND entity_id IS NOT NULL 
+        AND building_number IS NULL;
+      
+      -- For asset entities, extract building_number from entity_id if possible
+      -- (entity_id could be asset_id, so we might need to look it up)
+      -- For now, just leave it NULL for non-building entities
+    END IF;
+    
+    -- Optionally, we could drop the column entirely since we use entity_id/entity_type now
+    -- But we'll keep it for backward compatibility and just make it nullable
+  END IF;
+END $$;
+
+-- ============================================================================
+-- ENSURE log_audit_entry FUNCTION EXISTS
+-- ============================================================================
+
+-- Ensure log_audit_entry function exists (it's used by log_audit_for_asset)
+-- This function should already exist from initial_schema.sql, but we ensure it here
+-- to avoid any dependency issues during migration execution
+CREATE OR REPLACE FUNCTION log_audit_entry(
+  p_action_type audit_action_type,
+  p_entity_type text,
+  p_entity_id text,
+  p_user_id text DEFAULT NULL, -- auth_user_id (UUID as text)
+  p_before_data jsonb DEFAULT NULL,
+  p_after_data jsonb DEFAULT NULL,
+  p_description text DEFAULT NULL
+)
+RETURNS bigint AS $$
+DECLARE
+  v_audit_id bigint;
+  v_user_id_fk bigint;
+  v_default_user_id bigint;
+BEGIN
+  -- Get or create user
+  IF p_user_id IS NOT NULL THEN
+    SELECT user_id INTO v_user_id_fk
+    FROM users
+    WHERE auth_user_id = p_user_id;
+    
+    IF v_user_id_fk IS NULL THEN
+      INSERT INTO users (auth_user_id, user_name, user_email)
+      VALUES (p_user_id, p_user_id, NULL)
+      ON CONFLICT (auth_user_id) DO UPDATE
+      SET updated_at = now()
+      RETURNING user_id INTO v_user_id_fk;
+    END IF;
+  ELSE
+    -- Use get_or_create_user_from_auth if it exists, otherwise use default user
+    BEGIN
+      v_user_id_fk := get_or_create_user_from_auth();
+    EXCEPTION WHEN OTHERS THEN
+      v_user_id_fk := NULL;
+    END;
+  END IF;
+  
+  -- If still no user, use default
+  IF v_user_id_fk IS NULL THEN
+    SELECT user_id INTO v_default_user_id
+    FROM users
+    WHERE user_name = 'default' AND auth_user_id IS NULL
+    LIMIT 1;
+    v_user_id_fk := v_default_user_id;
+  END IF;
+  
+  INSERT INTO audit (
+    user_id,
+    action_type,
+    entity_type,
+    entity_id,
+    before_data,
+    after_data,
+    description
+  ) VALUES (
+    v_user_id_fk,
+    p_action_type,
+    p_entity_type,
+    p_entity_id,
+    p_before_data,
+    p_after_data,
+    p_description
+  )
+  RETURNING id INTO v_audit_id;
+  
+  RETURN v_audit_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- DROP EXISTING FUNCTIONS TO AVOID NAME CONFLICTS
+-- ============================================================================
+
+-- Drop any existing versions with different signatures to avoid ambiguity
+DROP FUNCTION IF EXISTS save_assets_bulk_transactional(
+  JSONB[],
+  BOOLEAN,
+  TEXT,
+  TEXT,
+  TEXT,
+  JSONB,
+  JSONB,
+  TEXT
+);
+
+DROP FUNCTION IF EXISTS save_assets_bulk_transactional(
+  JSONB[],
+  BOOLEAN,
+  TEXT,
+  TEXT,
+  TEXT,
+  JSONB,
+  JSONB,
+  TEXT,
+  BOOLEAN
+);
+
+-- ============================================================================
 -- FUNCTION: save_asset_transactional (UPDATED - validation checks removed)
 -- ============================================================================
 
@@ -232,7 +540,8 @@ CREATE OR REPLACE FUNCTION save_assets_bulk_transactional(
   p_user_id TEXT DEFAULT NULL,
   p_before_data JSONB DEFAULT NULL,
   p_after_data JSONB DEFAULT NULL,
-  p_description TEXT DEFAULT NULL
+  p_description TEXT DEFAULT NULL,
+  p_is_business_context BOOLEAN DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -247,7 +556,6 @@ DECLARE
   v_new_main_asset_type TEXT;
   v_affected_asset_ids BIGINT[] := ARRAY[]::BIGINT[];
   v_affected_buildings BIGINT[] := ARRAY[]::BIGINT[];
-  v_action_id BIGINT;
   v_count INTEGER := 0;
   v_result JSONB;
   v_user_id_fk BIGINT;
@@ -272,6 +580,9 @@ DECLARE
   v_asset_jsonb JSONB; -- Separate variable for JSONB results
   v_entity_asset_ids BIGINT[];
   v_overload_ratio NUMERIC := NULL;
+  v_type_changed BOOLEAN := FALSE;
+  v_size_changed BOOLEAN := FALSE;
+  v_asset_found BOOLEAN := FALSE;
 BEGIN
   -- ========================================================================
   -- STEP 1: GET OR CREATE USER
@@ -327,12 +638,23 @@ BEGIN
     -- For other operations, only collect affected assets
     IF p_action_type = 'distribute_shared' THEN
       -- Get ALL assets in the building before update
+      -- Use explicit column list to avoid action_id
       FOR v_asset_record IN 
-        SELECT * FROM assets 
+        SELECT 
+          asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+          sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+          sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+          sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+          elevator, single_double_family, condo, townhouses, penthouse,
+          structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
+          area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+          is_new_measurement
+        FROM assets 
         WHERE building_number = v_first_building_number
         ORDER BY asset_id
       LOOP
-        v_before_assets := array_append(v_before_assets, to_jsonb(v_asset_record));
+        v_asset_jsonb := to_jsonb(v_asset_record);
+        v_before_assets := array_append(v_before_assets, v_asset_jsonb);
       END LOOP;
     ELSE
       -- For non-distribution operations, only get assets that will be updated
@@ -340,7 +662,44 @@ BEGIN
       LOOP
         v_asset_id := (v_asset_data->>'asset_id')::BIGINT;
         IF v_asset_id IS NOT NULL THEN
-          SELECT to_jsonb(a.*) INTO v_asset_jsonb
+          -- Use explicit column list to avoid action_id - build JSONB manually
+          SELECT jsonb_build_object(
+            'asset_id', a.asset_id,
+            'building_number', a.building_number,
+            'payer_id', a.payer_id,
+            'measurement_date', a.measurement_date,
+            'main_asset_type', a.main_asset_type,
+            'asset_size', a.asset_size,
+            'tax_region', a.tax_region,
+            'sub_asset_type_1', a.sub_asset_type_1,
+            'sub_asset_size_1', a.sub_asset_size_1,
+            'sub_asset_type_2', a.sub_asset_type_2,
+            'sub_asset_size_2', a.sub_asset_size_2,
+            'sub_asset_type_3', a.sub_asset_type_3,
+            'sub_asset_size_3', a.sub_asset_size_3,
+            'sub_asset_type_4', a.sub_asset_type_4,
+            'sub_asset_size_4', a.sub_asset_size_4,
+            'sub_asset_type_5', a.sub_asset_type_5,
+            'sub_asset_size_5', a.sub_asset_size_5,
+            'sub_asset_type_6', a.sub_asset_type_6,
+            'sub_asset_size_6', a.sub_asset_size_6,
+            'elevator', a.elevator,
+            'single_double_family', a.single_double_family,
+            'condo', a.condo,
+            'townhouses', a.townhouses,
+            'penthouse', a.penthouse,
+            'structure_drawing_url', a.structure_drawing_url,
+            'floor', a.floor,
+            'discount_type', a.discount_type,
+            'discount_date_from', a.discount_date_from,
+            'discount_date_to', a.discount_date_to,
+            'area_from_distribution', a.area_from_distribution,
+            'exported_to_automation', a.exported_to_automation,
+            'comment', a.comment,
+            'created_at', a.created_at,
+            'updated_at', a.updated_at,
+            'is_new_measurement', a.is_new_measurement
+          ) INTO v_asset_jsonb
           FROM assets a
           WHERE a.asset_id = v_asset_id;
           
@@ -363,14 +722,6 @@ BEGIN
   ELSE
     v_before_data_collected := p_before_data;
   END IF;
-  
-  -- ========================================================================
-  -- STEP 2b: CREATE AUDIT ACTION RECORD
-  -- Note: The audit table (from distribution_audit) is only used for distribution/transfer operations
-  -- For other operations, we don't create audit entries here
-  -- Audit entries for transfer_area and distribute_shared are created in STEP 3c using log_audit function
-  -- ========================================================================
-  v_action_id := NULL;
 
   -- ========================================================================
   -- STEP 3: PROCESS EACH ASSET
@@ -398,11 +749,24 @@ BEGIN
     END IF;
 
     -- Check if asset exists
-    SELECT * INTO v_existing_asset
+    -- Use explicit column list to avoid action_id if it exists
+    SELECT 
+      asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+      sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+      elevator, single_double_family, condo, townhouses, penthouse,
+      structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
+      area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+      is_new_measurement
+    INTO v_existing_asset
     FROM assets
     WHERE asset_id = v_asset_id;
 
-    IF FOUND THEN
+    -- Store FOUND status
+    v_asset_found := FOUND;
+
+    IF v_asset_found THEN
       v_old_main_asset_type := v_existing_asset.main_asset_type;
       v_old_asset_size := v_existing_asset.asset_size;
     ELSE
@@ -413,7 +777,7 @@ BEGIN
     -- Save asset (INSERT or UPDATE)
     IF v_existing_asset IS NULL THEN
       -- INSERT new asset
-      INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation)
+      INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6, elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation, comment)
       VALUES (
         v_asset_id,
         v_building_number,
@@ -445,13 +809,13 @@ BEGIN
         (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT,
         (v_asset_data->>'area_from_distribution')::NUMERIC,
-        COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
+        COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false),
+        (v_asset_data->>'comment')::TEXT
       );
     ELSE
       -- Check if is_new_measurement is true - if so, copy to history before update
       IF COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false) = true THEN
         -- Copy current asset to history before updating
-        -- Preserve the old action_id in history (before the new distribution action_id is set)
         INSERT INTO assets_history (
           asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
           sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
@@ -459,7 +823,7 @@ BEGIN
           sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
           elevator, single_double_family, condo, townhouses, penthouse,
           structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
-          area_from_distribution, exported_to_automation, action_id, created_at, updated_at
+          area_from_distribution, exported_to_automation, comment, created_at, updated_at
         )
         SELECT 
           asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
@@ -468,7 +832,7 @@ BEGIN
           sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
           elevator, single_double_family, condo, townhouses, penthouse,
           structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
-          area_from_distribution, exported_to_automation, action_id, created_at, updated_at
+          area_from_distribution, exported_to_automation, comment, created_at, updated_at
         FROM assets
         WHERE asset_id = v_asset_id;
       END IF;
@@ -506,11 +870,8 @@ BEGIN
         discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
         area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
         exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
+        comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
         is_new_measurement = false, -- Reset flag after copying to history
-        action_id = CASE 
-          WHEN p_action_type = 'distribute_shared' THEN v_action_id 
-          ELSE action_id 
-        END,
         updated_at = NOW()
       WHERE asset_id = v_asset_id;
     END IF;
@@ -524,39 +885,66 @@ BEGIN
     -- Update building total area
     PERFORM update_building_total_area(v_building_number);
 
-    -- Update flags if type changed (using existing function)
-    IF v_old_main_asset_type IS NOT NULL AND v_old_main_asset_type != v_new_main_asset_type THEN
-      PERFORM set_distribution_flags_for_asset_type_change(
-        v_building_number,
-        v_old_main_asset_type,
-        v_new_main_asset_type
-      );
-    END IF;
-
-    -- Also set flags if asset_size changed (for business/residence assets)
-    -- Handle size changes independently - set flag based on current asset type
-    v_new_asset_size := COALESCE((v_asset_data->>'asset_size')::NUMERIC, v_old_asset_size);
-    IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL 
-       AND v_old_asset_size != v_new_asset_size 
-       AND v_new_main_asset_type IS NOT NULL THEN
-      -- Get business_residence for the asset type
-      SELECT business_residence INTO v_business_residence
-      FROM asset_types
-      WHERE name = v_new_main_asset_type;
-
-      IF v_business_residence = 'עסקים' THEN
-        -- Business asset size changed → set business distribution flag only
-        -- BUT only if building has business_shared_area > 0
-        UPDATE buildings
-        SET need_business_distribution = true
-        WHERE building_number = v_building_number
-          AND COALESCE(business_shared_area, 0) > 0;
-        
-      ELSIF v_business_residence = 'מגורים' THEN
-        -- Residence asset size changed → set residence distribution flag only
-        UPDATE buildings
-        SET need_residence_distribution = true
-        WHERE building_number = v_building_number;
+    -- Update distribution flags if type or size changed
+    -- Use both p_is_business_context (priority) AND asset type's business_residence (fallback)
+    IF v_asset_found THEN
+      -- Determine if type changed
+      v_type_changed := (v_old_main_asset_type IS DISTINCT FROM v_new_main_asset_type);
+      
+      -- Determine if size changed
+      v_new_asset_size := COALESCE((v_asset_data->>'asset_size')::NUMERIC, v_old_asset_size);
+      IF v_old_asset_size IS NOT NULL AND v_new_asset_size IS NOT NULL THEN
+        v_size_changed := (ABS(v_old_asset_size - v_new_asset_size) > 0.0001);
+      ELSE
+        v_size_changed := FALSE;
+      END IF;
+      
+      -- If either type or size changed, set distribution flag
+      IF v_type_changed OR v_size_changed THEN
+        -- Use p_is_business_context if provided (from tab context)
+        -- Otherwise, fall back to asset type's business_residence
+        DECLARE
+          v_is_business_context BOOLEAN := FALSE;
+          v_is_residence_context BOOLEAN := FALSE;
+        BEGIN
+          -- First check p_is_business_context parameter
+          IF p_is_business_context IS NOT NULL THEN
+            v_is_business_context := p_is_business_context;
+            v_is_residence_context := NOT p_is_business_context;
+          ELSE
+            -- Fall back to asset type's business_residence
+            IF v_new_main_asset_type IS NOT NULL THEN
+              SELECT business_residence INTO v_business_residence
+              FROM asset_types
+              WHERE name = v_new_main_asset_type;
+              
+              IF v_business_residence = 'עסקים' THEN
+                v_is_business_context := TRUE;
+              ELSIF v_business_residence = 'מגורים' THEN
+                v_is_residence_context := TRUE;
+              END IF;
+            END IF;
+          END IF;
+          
+          -- Set appropriate flag based on context
+          IF v_is_business_context THEN
+            -- Business: set flag only if building has business_shared_area > 0
+            UPDATE buildings
+            SET need_business_distribution = true
+            WHERE building_number = v_building_number
+              AND COALESCE(business_shared_area, 0) > 0;
+          END IF;
+          
+          IF v_is_residence_context THEN
+            -- Residence: always set flag
+            UPDATE buildings
+            SET need_residence_distribution = true
+            WHERE building_number = v_building_number;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          -- Ignore errors
+          NULL;
+        END;
       END IF;
     END IF;
 
@@ -586,18 +974,66 @@ BEGIN
     -- For other operations, only collect affected assets
     IF p_action_type = 'distribute_shared' THEN
       -- Get ALL assets in the building after update
+      -- Use explicit column list to avoid action_id
       FOR v_asset_record IN 
-        SELECT * FROM assets 
+        SELECT 
+          asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+          sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+          sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+          sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+          elevator, single_double_family, condo, townhouses, penthouse,
+          structure_drawing_url, floor, discount_type, discount_date_from, discount_date_to,
+          area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+          is_new_measurement
+        FROM assets 
         WHERE building_number = v_first_building_number
         ORDER BY asset_id
       LOOP
-        v_after_assets := array_append(v_after_assets, to_jsonb(v_asset_record));
+        v_asset_jsonb := to_jsonb(v_asset_record);
+        v_after_assets := array_append(v_after_assets, v_asset_jsonb);
       END LOOP;
     ELSE
       -- For non-distribution operations, only get assets that were updated
       FOR v_asset_id IN SELECT unnest(v_affected_asset_ids)
       LOOP
-        SELECT to_jsonb(a.*) INTO v_asset_jsonb
+        -- Use explicit column list to avoid action_id - build JSONB manually
+        SELECT jsonb_build_object(
+          'asset_id', a.asset_id,
+          'building_number', a.building_number,
+          'payer_id', a.payer_id,
+          'measurement_date', a.measurement_date,
+          'main_asset_type', a.main_asset_type,
+          'asset_size', a.asset_size,
+          'tax_region', a.tax_region,
+          'sub_asset_type_1', a.sub_asset_type_1,
+          'sub_asset_size_1', a.sub_asset_size_1,
+          'sub_asset_type_2', a.sub_asset_type_2,
+          'sub_asset_size_2', a.sub_asset_size_2,
+          'sub_asset_type_3', a.sub_asset_type_3,
+          'sub_asset_size_3', a.sub_asset_size_3,
+          'sub_asset_type_4', a.sub_asset_type_4,
+          'sub_asset_size_4', a.sub_asset_size_4,
+          'sub_asset_type_5', a.sub_asset_type_5,
+          'sub_asset_size_5', a.sub_asset_size_5,
+          'sub_asset_type_6', a.sub_asset_type_6,
+          'sub_asset_size_6', a.sub_asset_size_6,
+          'elevator', a.elevator,
+          'single_double_family', a.single_double_family,
+          'condo', a.condo,
+          'townhouses', a.townhouses,
+          'penthouse', a.penthouse,
+          'structure_drawing_url', a.structure_drawing_url,
+          'floor', a.floor,
+          'discount_type', a.discount_type,
+          'discount_date_from', a.discount_date_from,
+          'discount_date_to', a.discount_date_to,
+          'area_from_distribution', a.area_from_distribution,
+          'exported_to_automation', a.exported_to_automation,
+          'comment', a.comment,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at,
+          'is_new_measurement', a.is_new_measurement
+        ) INTO v_asset_jsonb
         FROM assets a
         WHERE a.asset_id = v_asset_id;
         
@@ -658,43 +1094,10 @@ BEGIN
       -- For other operations, use affected asset IDs
       v_entity_asset_ids := v_affected_asset_ids;
     END IF;
-    
-    -- Update audit entry with collected after data and entity_id
-    UPDATE audit
-    SET 
-      after_data = v_after_data_collected,
-      entity_id = array_to_string(COALESCE(v_entity_asset_ids, v_affected_asset_ids), ',')
-    WHERE action_id = v_action_id;
-  ELSE
-    -- If no building number, use provided after_data as-is or collect minimal data
-    IF p_after_data IS NOT NULL AND p_after_data != 'null'::jsonb AND p_after_data != '{}'::jsonb THEN
-      v_after_data_collected := p_after_data;
-      -- Still update entity_id
-      UPDATE audit
-      SET 
-        after_data = v_after_data_collected,
-        entity_id = array_to_string(v_affected_asset_ids, ',')
-      WHERE action_id = v_action_id;
-    ELSE
-      -- No building number and no provided data - just update entity_id
-      UPDATE audit
-      SET entity_id = array_to_string(v_affected_asset_ids, ',')
-      WHERE action_id = v_action_id;
-    END IF;
   END IF;
-    
-    -- For distribution operations, entity_id should include ALL assets in the building
-    -- For other operations, only include affected assets
-    IF p_action_type = 'distribute_shared' THEN
-      -- Get ALL asset IDs in the building
-      SELECT array_agg(asset_id ORDER BY asset_id) INTO v_entity_asset_ids
-      FROM assets
-      WHERE building_number = v_first_building_number;
-    ELSE
-      -- For other operations, use affected asset IDs
-      v_entity_asset_ids := v_affected_asset_ids;
-    END IF;
-    
+  
+  -- Note: Audit entries are created by log_audit_for_asset function for individual assets
+  -- No need to update audit entries here since log_audit_for_asset handles it
 
   -- ========================================================================
   -- STEP 4: REMOVE DISTRIBUTION FLAGS FOR distribute_shared ACTIONS
@@ -767,7 +1170,6 @@ BEGIN
   -- ========================================================================
   v_result := jsonb_build_object(
     'success', true,
-    'action_id', v_action_id,
     'affected_asset_ids', v_affected_asset_ids,
     'affected_buildings', v_affected_buildings,
     'count', v_count,

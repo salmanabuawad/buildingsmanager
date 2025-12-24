@@ -27,13 +27,14 @@ interface AssetsListProps {
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
   selectedAssetIds?: string[]; // Optional: filter to show only these asset IDs
   onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
+  isErrorFixingMode?: boolean; // When true, hide all buttons except Validate, Save, Save as new, and Cancel
 }
 
 export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab }, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -3284,8 +3285,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         <div className="mb-3">
           {/* All Action Buttons in One Row */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Hide add button if building has more than one tax region and no specific taxRegion is selected */}
-            {(() => {
+            {/* Hide add button if building has more than one tax region and no specific taxRegion is selected, or in error fixing mode */}
+            {!isErrorFixingMode && (() => {
               const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
               // If a specific taxRegion is selected (we're in a tax region tab), show buttons
               // If no taxRegion but building has multiple regions, hide buttons
@@ -3327,18 +3328,20 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               <CheckCircle2 className="h-4 w-4" />
               {selectedAssets.size > 0 ? `אמת נבחרים (${selectedAssets.size})` : 'אמת הכל'}
             </button>
-            <button
-              type="button"
-              onClick={handleExportToExcel}
-              disabled={loading || assets.length === 0}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-blue-700/20 disabled:border-gray-500/20"
-              title="ייצא את כל הנכסים לקובץ Excel"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              ייצא ל-Excel
-            </button>
-            {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) */}
-            {!taxRegion && building && availableTaxRegions.length > 1 && (
+            {!isErrorFixingMode && (
+              <button
+                type="button"
+                onClick={handleExportToExcel}
+                disabled={loading || assets.length === 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-blue-700/20 disabled:border-gray-500/20"
+                title="ייצא את כל הנכסים לקובץ Excel"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                ייצא ל-Excel
+              </button>
+            )}
+            {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) and not in error fixing mode */}
+            {!isErrorFixingMode && !taxRegion && building && availableTaxRegions.length > 1 && (
               <button
                 type="button"
                 onClick={() => setChangeTaxRegionModalOpen(true)}
@@ -3350,8 +3353,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 שנה אזור מס {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
               </button>
             )}
-            {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on */}
-            {building && isResidentTaxRegion && building.residence_shared_area != null && (
+            {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on, hidden in error fixing mode */}
+            {!isErrorFixingMode && building && isResidentTaxRegion && building.residence_shared_area != null && (
               <button
                 type="button"
                 onClick={handleDistributeSharedArea}
@@ -3372,8 +3375,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 פזר שטח משותף מגורים
               </button>
             )}
-            {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on */}
-            {building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
+            {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on, hidden in error fixing mode */}
+            {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
               <button
                 type="button"
                 onClick={handleDistributeBusinessSharedArea}
@@ -3417,7 +3420,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               
               return (
                 <>
-                  {shouldShowTransferButton && (
+                  {!isErrorFixingMode && shouldShowTransferButton && (
                     <button
                       type="button"
                       onClick={() => {
@@ -3465,8 +3468,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             })()}
           </div>
           
-          {/* Tab Navigation */}
-          {building && (
+          {/* Tab Navigation - hidden in error fixing mode */}
+          {!isErrorFixingMode && building && (
             <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm mt-2">
               <button
                 type="button"

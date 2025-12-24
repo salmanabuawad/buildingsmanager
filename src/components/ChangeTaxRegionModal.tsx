@@ -220,9 +220,22 @@ export function ChangeTaxRegionModal({
       return;
     }
     
-    // Check if there are validation errors
+    // Check if there are validation errors - prevent saving if any errors exist
     if (validationResults && validationResults.invalid > 0) {
-      setError('יש לתקן את כל השגיאות לפני שמירה');
+      setError('לא ניתן לשמור עד שכל השגיאות יתוקנו. אנא תקן את השגיאות ולאחר מכן הרץ אימות מחדש.');
+      setValidationModalOpen(true);
+      return;
+    }
+    
+    // Double-check: ensure validation was completed and passed
+    if (!validationCompleted) {
+      setError('יש להריץ אימות לפני שמירה');
+      return;
+    }
+    
+    // Triple-check: ensure no errors exist
+    if (validationResults && validationResults.errors && validationResults.errors.length > 0) {
+      setError('לא ניתן לשמור עד שכל השגיאות יתוקנו. אנא תקן את השגיאות ולאחר מכן הרץ אימות מחדש.');
       setValidationModalOpen(true);
       return;
     }
@@ -327,15 +340,20 @@ export function ChangeTaxRegionModal({
                 {validationResults.invalid > 0 ? (
                   <>
                     <X className="h-4 w-4 text-yellow-600" />
-                    <p className="text-sm text-yellow-800">
-                      נמצאו {validationResults.invalid} נכסים עם שגיאות מתוך {validationResults.total}
-                    </p>
+                    <div className="flex-1">
+                      <p className="text-sm text-yellow-800 font-semibold">
+                        נמצאו {validationResults.invalid} נכסים עם שגיאות מתוך {validationResults.total}
+                      </p>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        לא ניתן לשמור עד שכל השגיאות יתוקנו. תקן את השגיאות ולאחר מכן הרץ אימות מחדש.
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <p className="text-sm text-green-800">
-                      כל הנכסים תקינים ({validationResults.valid}/{validationResults.total})
+                      כל הנכסים תקינים ({validationResults.valid}/{validationResults.total}) - ניתן לשמור
                     </p>
                   </>
                 )}

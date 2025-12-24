@@ -27,6 +27,7 @@ interface Tab {
   assetId?: string;
   assetIdentifier?: string;
   selectedAssetIds?: string[];
+  isErrorFixingMode?: boolean; // For assets tabs: hide all buttons except Validate, Save, Save as new, and Cancel
   path?: string; // URL path for routing compatibility
 }
 
@@ -373,6 +374,7 @@ function App() {
       buildingNumber,
       taxRegion,
       selectedAssetIds: assetIds,
+      isErrorFixingMode: assetIds && assetIds.length > 0, // Enable error fixing mode when assetIds are provided
       label: assetIds && assetIds.length > 0
         ? `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)} (תיקון שגיאות)`
         : `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)}`,
@@ -1249,6 +1251,7 @@ function App() {
                   onOpenNewAsset={handleOpenNewAsset}
                   selectedAssetIds={activeTab.selectedAssetIds}
                   onOpenAssetsTab={handleOpenAssetsTab}
+                  isErrorFixingMode={activeTab.isErrorFixingMode}
                 />
               )}
             {activeTab?.type === 'transfer-areas' && activeTab.buildingNumber && activeTab.selectedAssetIds && (

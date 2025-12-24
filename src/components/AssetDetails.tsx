@@ -2799,23 +2799,26 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       // Update validationErrors state to reflect validation results
       // This ensures the invalid icon is updated based on the validation results
       if (latestRow.asset_id) {
-        const latestRowId = String(latestRow.asset_id);
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          if (actualValid) {
-            // Validation passed - clear errors for this asset
-            newMap.delete(latestRowId);
-          } else if (allErrors.length > 0) {
-            // Validation failed - set errors for this asset
-            const errorMap = new Map<string, string>();
-            allErrors.forEach((error, index) => {
-              // Use a generic field name or index if we can't determine the field
-              errorMap.set(`error_${index}`, error);
-            });
-            newMap.set(latestRowId, errorMap);
-          }
-          return newMap;
-        });
+        // Use number for consistency with validationErrors Map key type
+        const latestRowId = typeof latestRow.asset_id === 'string' ? parseInt(latestRow.asset_id, 10) : latestRow.asset_id;
+        if (!isNaN(latestRowId)) {
+          setValidationErrors(prev => {
+            const newMap = new Map(prev);
+            if (actualValid) {
+              // Validation passed - clear errors for this asset
+              newMap.delete(latestRowId);
+            } else if (allErrors.length > 0) {
+              // Validation failed - set errors for this asset
+              const errorMap = new Map<string, string>();
+              allErrors.forEach((error, index) => {
+                // Use a generic field name or index if we can't determine the field
+                errorMap.set(`error_${index}`, error);
+              });
+              newMap.set(latestRowId, errorMap);
+            }
+            return newMap;
+          });
+        }
         
         // Refresh grid cells after validation to update invalid icon
         // Use setTimeout to ensure state update is processed first
@@ -2851,22 +2854,47 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }
 
 
-  // Helper function to get cell style for dirty fields
+  // Helper function to get cell style for dirty fields and validation errors
   // Memoize getCellStyle to prevent recreation on every render
   const getCellStyle = useCallback((params: any, fieldName: string) => {
-    const assetId = params.data?.id;
-    if (!assetId) return {};
+    // Use asset_id (same as getRowStyle and validationErrors) or fallback to id
+    const assetId = params.data?.asset_id || params.data?.id;
+    if (!assetId) return { textAlign: 'right' };
     
-    const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
+    // Convert to number for consistency with validationErrors Map key type
+    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    if (isNaN(assetIdNum)) return { textAlign: 'right' };
+    
+    const isDirty = dirtyAssets.has(assetIdNum) && dirtyAssets.get(assetIdNum)?.hasOwnProperty(fieldName);
     const isLatest = params.data.is_latest === true;
     
+    // Check for validation errors for this asset and field
+    // validationErrors uses asset_id (number) as key
+    const assetErrors = validationErrors.get(assetIdNum);
+    const hasFieldError = assetErrors && assetErrors.has(fieldName);
+    // Also check if there are any errors for this asset (even if not field-specific)
+    const hasAnyError = assetErrors && assetErrors.size > 0;
+    
+    // If there's a validation error, apply red styling
+    if (hasFieldError || hasAnyError) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '2px solid #ef4444',
+        borderRadius: '4px',
+        fontWeight: isDirty ? 'bold' : 'normal',
+        textAlign: 'right'
+      };
+    }
+    
+    // Normal styling for dirty fields
     return {
       fontWeight: isDirty ? 'bold' : 'normal',
       backgroundColor: isLatest ? undefined : '#f3f4f6',
       color: isLatest ? undefined : '#6b7280',
-      cursor: isLatest ? 'text' : 'default'
+      cursor: isLatest ? 'text' : 'default',
+      textAlign: 'right'
     };
-  }, [dirtyAssets]);
+  }, [dirtyAssets, validationErrors]);
 
 
   // Memoize the structure_drawing_url cell renderer to prevent recreation
@@ -2874,15 +2902,22 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     const asset = params.data as Asset;
     if (!asset) return null;
     
-    const assetId = asset.id;
+    // Use asset_id (same as validationErrors) or fallback to id
+    const assetId = asset.asset_id || asset.id;
+    if (!assetId) return null;
+    
+    // Convert to number for consistency with validationErrors Map key type
+    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    if (isNaN(assetIdNum)) return null;
+    
     const hasDrawing = !!asset.structure_drawing_url;
     const isLatest = asset.is_latest === true;
 
     // Use ref to get the latest validationErrors to avoid stale closure issues
     const currentValidationErrors = validationErrorsRef.current;
     const errors: string[] = [];
-    if (currentValidationErrors.has(assetId)) {
-      const fieldErrors = currentValidationErrors.get(assetId);
+    if (currentValidationErrors.has(assetIdNum)) {
+      const fieldErrors = currentValidationErrors.get(assetIdNum);
       if (fieldErrors && fieldErrors.size > 0) {
         fieldErrors.forEach((errorMsg) => {
           errors.push(errorMsg);

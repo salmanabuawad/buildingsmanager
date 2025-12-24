@@ -10,6 +10,7 @@ import { ColDef, CellValueChangedEvent, GridReadyEvent, ITooltipParams } from 'a
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { useFieldConfig } from '../lib/useFieldConfig';
 
 // Custom tooltip component that supports line breaks
 const CustomTooltip = (params: ITooltipParams) => {
@@ -811,6 +812,9 @@ export function AssetTypes() {
     });
   }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes, assetTypes, dirtyAssetTypes]);
 
+  // Apply field configurations from database
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-types');
+
 
   async function downloadTemplate(format: 'excel' | 'csv' = 'excel') {
     // Headers - can be in any order, import will map by exact field name match
@@ -1529,9 +1533,9 @@ export function AssetTypes() {
               <AgGridReact
                 ref={gridRef}
                 rowData={assetTypes}
-                columnDefs={columnDefs}
+                columnDefs={configuredColumnDefs}
                 defaultColDef={{
-                  resizable: true,
+                  resizable: false, // Disabled - use field configurations instead
                   wrapHeaderText: true,
                   autoHeaderHeight: true,
                   wrapText: true,

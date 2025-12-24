@@ -1252,6 +1252,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             newMap.set(assetId, errorMap);
             return newMap;
           });
+          // Refresh the actions column to update invalid icon
+          event.api.refreshCells({ 
+            rowNodes: [node], 
+            columns: ['actions'],
+            force: true 
+          });
           event.api.refreshCells({ rowNodes: [node], force: true });
           return;
         }
@@ -1270,6 +1276,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             });
             newMap.set(assetId, errorMap);
             return newMap;
+          });
+          // Refresh the actions column to update invalid icon
+          event.api.refreshCells({ 
+            rowNodes: [node], 
+            columns: ['actions'],
+            force: true 
           });
           event.api.refreshCells({ rowNodes: [node], force: true });
         } else {
@@ -1292,6 +1304,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             }
             return newMap;
           });
+          // Refresh the actions column to update invalid icon if all errors cleared
+          event.api.refreshCells({ 
+            rowNodes: [node], 
+            columns: ['actions'],
+            force: true 
+          });
+          event.api.refreshCells({ rowNodes: [node], force: true });
         }
       }
 
@@ -1329,6 +1348,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               return newMap;
             });
             // Refresh the grid cells to clear validation styling
+            // Also refresh the actions column to update invalid icon
+            event.api.refreshCells({ 
+              rowNodes: [node], 
+              columns: ['actions', 'structure_drawing_url'],
+              force: true 
+            });
+            // Also refresh all cells for styling updates
             event.api.refreshCells({ rowNodes: [node], force: true });
           } else if (allErrors.length > 0) {
             // Validation failed - set errors for this asset
@@ -1343,6 +1369,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               return newMap;
             });
             // Refresh the grid cells to show validation styling
+            // Also refresh the actions column to update invalid icon
+            event.api.refreshCells({ 
+              rowNodes: [node], 
+              columns: ['actions', 'structure_drawing_url'],
+              force: true 
+            });
+            // Also refresh all cells for styling updates
             event.api.refreshCells({ rowNodes: [node], force: true });
           }
         } catch (error) {
@@ -2827,10 +2860,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             // Find the row node for this asset
             gridRef.current.api.forEachNode((node) => {
               if (node.data && node.data.id === latestRow.id) {
-                // Refresh the structure_drawing column where the invalid icon is shown
+                // Refresh the actions column where the invalid icon is shown
                 gridRef.current.api.refreshCells({ 
                   rowNodes: [node], 
-                  columns: ['structure_drawing_url'],
+                  columns: ['actions'],
                   force: true 
                 });
                 // Also refresh all cells in the row for styling updates

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Save, Loader2, Building } from 'lucide-react';
+import { X, Save, Loader2, Building, CheckCircle2 } from 'lucide-react';
 import { Asset, AssetType, api } from '../lib/api';
+import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
+import { AssetValidationHandler } from '../lib/assetValidationHandler';
 
 interface ChangeTaxRegionModalProps {
   isOpen: boolean;
@@ -24,6 +26,12 @@ export function ChangeTaxRegionModal({
   const [selectedTaxRegion, setSelectedTaxRegion] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationCompleted, setValidationCompleted] = useState(false);
+  const [validationResults, setValidationResults] = useState<BatchValidationResults | null>(null);
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
+  const [assetsToUpdate, setAssetsToUpdate] = useState<Asset[]>([]);
   
   // Get area descriptions for tax regions
   const taxRegionOptions = useMemo(() => {
@@ -42,9 +50,145 @@ export function ChangeTaxRegionModal({
     if (isOpen) {
       setSelectedTaxRegion(null);
       setError(null);
+      setValidationCompleted(false);
+      setValidationResults(null);
+      setValidationModalOpen(false);
+      setValidationProgress(null);
+      setAssetsToUpdate([]);
     }
   }, [isOpen]);
+
+  // Load assets when modal opens
+  useEffect(() => {
+    if (isOpen && selectedAssetIds.length > 0 && buildingNumber) {
+      loadAssets();
+    }
+  }, [isOpen, selectedAssetIds, buildingNumber]);
+
+  const loadAssets = async () => {
+    try {
+      const assetsData = await api.assets.getAll(buildingNumber);
+      const assets = assetsData.filter(asset => 
+        selectedAssetIds.includes(String(asset.asset_id))
+      );
+      setAssetsToUpdate(assets);
+    } catch (err) {
+      console.error('Error loading assets:', err);
+      setError('שגיאה בטעינת נכסים');
+    }
+  };
+
+  // Auto-validate when tax region is selected
+  useEffect(() => {
+    if (selectedTaxRegion && assetsToUpdate.length > 0) {
+      setValidationCompleted(false);
+      setValidationResults(null);
+    }
+  }, [selectedTaxRegion, assetsToUpdate.length]);
   
+  const handleValidate = async () => {
+    if (!selectedTaxRegion) {
+      setError('אנא בחר אזור מס');
+      return;
+    }
+    
+    if (assetsToUpdate.length === 0) {
+      setError('לא נמצאו נכסים לאימות');
+      return;
+    }
+    
+    setIsValidating(true);
+    setValidationProgress({ current: 0, total: assetsToUpdate.length });
+    setValidationResults(null);
+    setError(null);
+    
+    try {
+      // Load building for validation
+      const building = await api.buildings.getOne(buildingNumber);
+      
+      // Prepare assets with new tax region for validation
+      const assetsWithNewTaxRegion = assetsToUpdate.map(asset => ({
+        ...asset,
+        tax_region: selectedTaxRegion
+      }));
+      
+      const results: Array<{ assetId: string; buildingNumber: number; errors: string[]; matchedAssetTypeRecord?: string }> = [];
+      
+      for (let i = 0; i < assetsWithNewTaxRegion.length; i++) {
+        const asset = assetsWithNewTaxRegion[i];
+        setValidationProgress({ 
+          current: i, 
+          total: assetsWithNewTaxRegion.length,
+          currentAssetId: String(asset.asset_id)
+        });
+        
+        try {
+          // Validate asset with new tax region
+          const validationResult = await AssetValidationHandler.validateSingleAsset(
+            asset,
+            {
+              taxRegion: String(selectedTaxRegion),
+              cachedData: {
+                assetTypes: assetTypes,
+                building: building,
+                asset: asset
+              }
+            }
+          );
+          
+          const errors: string[] = [];
+          if (!validationResult.valid) {
+            if (validationResult.errors) {
+              errors.push(...validationResult.errors);
+            } else if (validationResult.error) {
+              errors.push(validationResult.error);
+            }
+          }
+          
+          results.push({
+            assetId: String(asset.asset_id),
+            buildingNumber: asset.building_number,
+            errors: errors,
+            matchedAssetTypeRecord: validationResult.matchedAssetTypeRecord
+          });
+        } catch (err) {
+          console.error(`Error validating asset ${asset.asset_id}:`, err);
+          results.push({
+            assetId: String(asset.asset_id),
+            buildingNumber: asset.building_number,
+            errors: [err instanceof Error ? err.message : 'שגיאה באימות נכס']
+          });
+        }
+      }
+      
+      // Build batch validation results
+      const validCount = results.filter(r => r.errors.length === 0).length;
+      const invalidCount = results.filter(r => r.errors.length > 0).length;
+      
+      const batchResults: BatchValidationResults = {
+        total: results.length,
+        valid: validCount,
+        invalid: invalidCount,
+        errors: results.filter(r => r.errors.length > 0).map(r => ({
+          assetId: r.assetId,
+          buildingNumber: r.buildingNumber,
+          errors: r.errors,
+          matchedAssetTypeRecord: r.matchedAssetTypeRecord
+        }))
+      };
+      
+      setValidationResults(batchResults);
+      setValidationCompleted(true);
+      setValidationModalOpen(true);
+    } catch (err) {
+      console.error('Error validating assets:', err);
+      setError(err instanceof Error ? err.message : 'שגיאה באימות נכסים');
+    } finally {
+      setIsValidating(false);
+      setValidationProgress(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedTaxRegion) {
       setError('אנא בחר אזור מס');
@@ -56,22 +200,28 @@ export function ChangeTaxRegionModal({
       return;
     }
     
+    // Validation must be completed before saving
+    if (!validationCompleted) {
+      setError('יש להריץ אימות לפני שמירה');
+      return;
+    }
+    
+    // Check if there are validation errors
+    if (validationResults && validationResults.invalid > 0) {
+      setError('יש לתקן את כל השגיאות לפני שמירה');
+      setValidationModalOpen(true);
+      return;
+    }
+    
+    if (assetsToUpdate.length === 0) {
+      setError('לא נמצאו נכסים לעדכון');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
-      // Fetch current assets for the building
-      const assetsData = await api.assets.getAll(buildingNumber);
-      const assetsToUpdate = assetsData.filter(asset => 
-        selectedAssetIds.includes(String(asset.asset_id))
-      );
-      
-      if (assetsToUpdate.length === 0) {
-        setError('לא נמצאו נכסים לעדכון');
-        setLoading(false);
-        return;
-      }
-      
       // Update tax region for each asset
       const assetsToSave = assetsToUpdate.map(asset => ({
         ...asset,
@@ -152,20 +302,58 @@ export function ChangeTaxRegionModal({
               <p className="text-sm text-red-800">{error}</p>
             </div>
           )}
+          
+          {validationCompleted && validationResults && (
+            <div className={`border rounded-lg p-3 ${
+              validationResults.invalid > 0 
+                ? 'bg-yellow-50 border-yellow-200' 
+                : 'bg-green-50 border-green-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                {validationResults.invalid > 0 ? (
+                  <>
+                    <X className="h-4 w-4 text-yellow-600" />
+                    <p className="text-sm text-yellow-800">
+                      נמצאו {validationResults.invalid} נכסים עם שגיאות מתוך {validationResults.total}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <p className="text-sm text-green-800">
+                      כל הנכסים תקינים ({validationResults.valid}/{validationResults.total})
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            disabled={loading}
+            disabled={loading || isValidating}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <X className="h-4 w-4" />
             ביטול
           </button>
           <button
+            onClick={handleValidate}
+            disabled={loading || isValidating || !selectedTaxRegion || assetsToUpdate.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isValidating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            {isValidating ? 'מאמת...' : 'אמת נכסים'}
+          </button>
+          <button
             onClick={handleSave}
-            disabled={loading || !selectedTaxRegion}
+            disabled={loading || isValidating || !selectedTaxRegion || !validationCompleted || (validationResults?.invalid ?? 0) > 0}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? (
@@ -177,6 +365,18 @@ export function ChangeTaxRegionModal({
           </button>
         </div>
       </div>
+      
+      <ValidationResultModal
+        isOpen={validationModalOpen}
+        onClose={() => setValidationModalOpen(false)}
+        isLoading={isValidating}
+        progress={validationProgress}
+        context="import"
+        batchResults={validationResults}
+        batchTitle={`תוצאות אימות - שינוי אזור מס ל-${selectedTaxRegion}`}
+        buildingNumber={buildingNumber}
+        taxRegion={selectedTaxRegion ? String(selectedTaxRegion) : undefined}
+      />
     </div>
   );
 }

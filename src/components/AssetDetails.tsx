@@ -3292,6 +3292,48 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return assetType?.business_residence === 'עסקים';
   }, [asset?.main_asset_type, assetTypes]);
 
+  // Helper function to get combined tooltip for asset type fields
+  const getAssetTypeTooltip = useCallback((params: any, assetTypes: AssetType[]) => {
+    const code = params.value;
+    if (!code || !params.data) return '';
+    
+    const assetTypeFields = [
+      { field: 'main_asset_type', label: 'סוג נכס ראשי' },
+      { field: 'sub_asset_type_1', label: 'סוג נכס משני 1' },
+      { field: 'sub_asset_type_2', label: 'סוג נכס משני 2' },
+      { field: 'sub_asset_type_3', label: 'סוג נכס משני 3' },
+      { field: 'sub_asset_type_4', label: 'סוג נכס משני 4' },
+      { field: 'sub_asset_type_5', label: 'סוג נכס משני 5' },
+      { field: 'sub_asset_type_6', label: 'סוג נכס משני 6' }
+    ];
+    
+    // Find all fields with the same asset type code
+    const matchingFields = assetTypeFields
+      .map(({ field, label }) => {
+        const fieldValue = params.data[field];
+        if (fieldValue === code) {
+          const assetType = assetTypes.find(at => at.name === code);
+          return { field, label, description: assetType?.description || code };
+        }
+        return null;
+      })
+      .filter((item): item is { field: string; label: string; description: string } => item !== null);
+    
+    if (matchingFields.length === 0) {
+      const assetType = assetTypes.find(at => at.name === code);
+      return assetType?.description || code;
+    }
+    
+    if (matchingFields.length === 1) {
+      return matchingFields[0].description;
+    }
+    
+    // Combine multiple tooltips with numbers
+    return matchingFields
+      .map((item, index) => `${index + 1}. ${item.label}: ${item.description}`)
+      .join('\n');
+  }, []);
+
   // Optimize columnDefs dependencies - only recreate when necessary
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [

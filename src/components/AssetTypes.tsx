@@ -701,69 +701,94 @@ export function AssetTypes() {
       tooltipValueGetter: (params: any) => {
         if (!params.data) return '';
         const assetType = params.data as AssetType;
-        const dirtyChanges = dirtyAssetTypes.get(assetType.id);
-        const currentAssetType = dirtyChanges ? { ...assetType, ...dirtyChanges } : assetType;
+        const currentName = assetType.name;
         
-        const fields: string[] = [];
+        // Find all asset types with the same name
+        const matchingAssetTypes = assetTypes
+          .map((at, index) => {
+            const dirtyChanges = dirtyAssetTypes.get(at.id);
+            const currentAssetType = dirtyChanges ? { ...at, ...dirtyChanges } : at;
+            return { assetType: currentAssetType, originalIndex: index };
+          })
+          .filter(({ assetType: at }) => at.name === currentName);
         
-        // Description
-        if (currentAssetType.description) {
-          fields.push(`תיאור: ${currentAssetType.description}`);
-        }
+        if (matchingAssetTypes.length === 0) return '';
         
-        // Tax region
-        if (currentAssetType.tax_region) {
-          fields.push(`אזור מיסים: ${currentAssetType.tax_region}`);
-        }
-        
-        // Area description for tab
-        if (currentAssetType.area_description_for_tab) {
-          fields.push(`תיאור אזור: ${currentAssetType.area_description_for_tab}`);
-        }
-        
-        // Business/residence
-        if (currentAssetType.business_residence) {
-          fields.push(`עסקים/מגורים: ${currentAssetType.business_residence}`);
-        }
-        
-        // Checkbox fields (show only if checked)
-        if (currentAssetType.elevator === 'כן') {
-          fields.push('מעלית: כן');
-        }
-        if (currentAssetType.single_double_family === 'כן') {
-          fields.push('בית פרטי: כן');
-        }
-        if (currentAssetType.penthouse === 'כן') {
-          fields.push('דירת גג: כן');
-        }
-        if (currentAssetType.condo === 'כן') {
-          fields.push('בית משותף: כן');
-        }
-        if (currentAssetType.townhouses === 'כן') {
-          fields.push('טוריים: כן');
-        }
-        if (currentAssetType.non_accountable_for_total_area === true) {
-          fields.push('לא נספר בחישוב שטח מבנה: כן');
-        }
-        if (currentAssetType.non_accountable_for_distribution === true) {
-          fields.push('לא נספר בפיזור: כן');
-        }
-        
-        // Size range
-        if (currentAssetType.min_size || currentAssetType.max_size) {
-          const minSize = currentAssetType.min_size ? currentAssetType.min_size.toLocaleString('he-IL') : '';
-          const maxSize = currentAssetType.max_size ? currentAssetType.max_size.toLocaleString('he-IL') : '';
-          if (minSize && maxSize) {
-            fields.push(`שטח: ${minSize} - ${maxSize}`);
-          } else if (minSize) {
-            fields.push(`שטח מינימלי: ${minSize}`);
-          } else if (maxSize) {
-            fields.push(`שטח מקסימלי: ${maxSize}`);
+        // Helper function to build tooltip text for a single asset type
+        const buildTooltipForAssetType = (at: AssetType): string[] => {
+          const fields: string[] = [];
+          
+          // Description
+          if (at.description) {
+            fields.push(`תיאור: ${at.description}`);
           }
-        }
+          
+          // Tax region
+          if (at.tax_region) {
+            fields.push(`אזור מיסים: ${at.tax_region}`);
+          }
+          
+          // Area description for tab
+          if (at.area_description_for_tab) {
+            fields.push(`תיאור אזור: ${at.area_description_for_tab}`);
+          }
+          
+          // Business/residence
+          if (at.business_residence) {
+            fields.push(`עסקים/מגורים: ${at.business_residence}`);
+          }
+          
+          // Checkbox fields (show only if checked)
+          if (at.elevator === 'כן') {
+            fields.push('מעלית: כן');
+          }
+          if (at.single_double_family === 'כן') {
+            fields.push('בית פרטי: כן');
+          }
+          if (at.penthouse === 'כן') {
+            fields.push('דירת גג: כן');
+          }
+          if (at.condo === 'כן') {
+            fields.push('בית משותף: כן');
+          }
+          if (at.townhouses === 'כן') {
+            fields.push('טוריים: כן');
+          }
+          if (at.non_accountable_for_total_area === true) {
+            fields.push('לא נספר בחישוב שטח מבנה: כן');
+          }
+          if (at.non_accountable_for_distribution === true) {
+            fields.push('לא נספר בפיזור: כן');
+          }
+          
+          // Size range
+          if (at.min_size || at.max_size) {
+            const minSize = at.min_size ? at.min_size.toLocaleString('he-IL') : '';
+            const maxSize = at.max_size ? at.max_size.toLocaleString('he-IL') : '';
+            if (minSize && maxSize) {
+              fields.push(`שטח: ${minSize} - ${maxSize}`);
+            } else if (minSize) {
+              fields.push(`שטח מינימלי: ${minSize}`);
+            } else if (maxSize) {
+              fields.push(`שטח מקסימלי: ${maxSize}`);
+            }
+          }
+          
+          return fields;
+        };
         
-        // Join with line breaks for proper row display
-        return fields.length > 0 ? fields.join('\n') : 'אין פרטים נוספים';
+        // Build combined tooltip with numbers
+        const allTooltips: string[] = [];
+        matchingAssetTypes.forEach(({ assetType: at, originalIndex }, index) => {
+          const tooltipFields = buildTooltipForAssetType(at);
+          if (tooltipFields.length > 0) {
+            allTooltips.push(`${index + 1}. ${tooltipFields.join(', ')}`);
+          } else {
+            allTooltips.push(`${index + 1}. אין פרטים נוספים`);
+          }
+        });
+        
+        return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';
       },
       tooltipComponent: CustomTooltip,
       cellStyle: (params: any) => {
@@ -784,7 +809,7 @@ export function AssetTypes() {
       }
       return colDef;
     });
-  }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes]);
+  }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes, assetTypes, dirtyAssetTypes]);
 
 
   async function downloadTemplate(format: 'excel' | 'csv' = 'excel') {

@@ -267,6 +267,10 @@ export function ChangeTaxRegionModal({
       
       if (result.success) {
         onSuccess();
+        // Open new tab with all selected assets in the new tax region
+        if (onOpenAssetsTab && selectedTaxRegion) {
+          onOpenAssetsTab(buildingNumber, String(selectedTaxRegion), selectedAssetIds);
+        }
         onClose();
       } else {
         setError(result.error || 'שגיאה בעדכון אזור המס');

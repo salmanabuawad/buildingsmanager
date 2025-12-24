@@ -405,6 +405,7 @@ export function ValidationRulesManager() {
     wrapText: true,
     autoHeight: true,
     headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+    cellStyle: { textAlign: 'right' },
     minWidth: 40
   }), []);
 

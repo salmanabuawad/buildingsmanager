@@ -775,6 +775,7 @@ export function AddressListComponent() {
               filter: true,
               headerClass: 'ag-right-aligned-header',
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+              cellStyle: { textAlign: 'right' },
               minWidth: 40
             }}
             gridOptions={{

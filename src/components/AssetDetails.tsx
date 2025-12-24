@@ -4494,6 +4494,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   autoHeight: false,
                   sortable: false,
                   headerClass: 'ag-right-aligned-header',
+                  cellStyle: { textAlign: 'right' },
                   minWidth: 40
                 }}
                 getRowId={(params) => {
@@ -4700,6 +4701,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         WebkitFontSmoothing: 'antialiased', 
                         MozOsxFontSmoothing: 'grayscale' 
                       },
+                      cellStyle: { textAlign: 'right' },
                       cellStyle: (params: any) => {
                         const baseStyle = {
                           padding: '4px 6px',

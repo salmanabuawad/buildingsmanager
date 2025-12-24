@@ -3534,6 +3534,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               autoHeight: false,
               headerClass: 'ag-right-aligned-header',
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+              cellStyle: { textAlign: 'right' },
               minWidth: 40
             }}
             gridOptions={{

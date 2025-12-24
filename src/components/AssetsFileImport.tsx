@@ -3368,6 +3368,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   autoHeight: false,
                   headerClass: 'ag-right-aligned-header',
                   headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
+                  cellStyle: { textAlign: 'right' },
                   minWidth: 40
                 }}
                 gridOptions={{

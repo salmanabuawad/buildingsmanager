@@ -145,6 +145,7 @@ export function applyFieldConfigToColumn(
     resizable: false, // Disable manual resizing
     cellStyle: {
       ...colDef.cellStyle,
+      textAlign: 'right', // Ensure all columns are right-aligned
       paddingLeft: `${fieldConfig.padding}px`,
       paddingRight: `${fieldConfig.padding}px`,
     },

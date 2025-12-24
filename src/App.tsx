@@ -335,22 +335,32 @@ function App() {
   }
 
   const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {
-    const assetTypes = getAssetTypes();
+    // Get asset types from cache (synchronous, no API call)
+    let assetTypes: AssetType[] = [];
+    try {
+      assetTypes = getAssetTypes();
+    } catch (err) {
+      // If validation module not available, continue without asset types
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[App] Could not get asset types from cache:', err);
+      }
+    }
+    
     const getAreaDescriptionForTaxRegion = (taxRegionNum: string | number | null | undefined): string => {
       if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
         return String(taxRegionNum || '');
       }
       
-      const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
-      if (isNaN(taxRegion)) {
+      const taxRegionParsed = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+      if (isNaN(taxRegionParsed)) {
         return String(taxRegionNum);
       }
       
       const matchingAssetType = assetTypes.find((at: AssetType) =>
-        at.tax_region === taxRegion && at.area_description_for_tab
+        at.tax_region === taxRegionParsed && at.area_description_for_tab
       );
       
-      return matchingAssetType?.area_description_for_tab || String(taxRegion);
+      return matchingAssetType?.area_description_for_tab || String(taxRegionParsed);
     };
     
     const assetsTabId = assetIds && assetIds.length > 0
@@ -370,7 +380,7 @@ function App() {
     };
     
     openTab(newTab);
-  }, [tabs, assetTypes]);
+  }, [tabs]);
 
   const handleSelectAsset = useCallback((assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
     const assetDetailsTabId = `asset-details-${assetDbId}`;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BuildingsList, BuildingsListRef } from './components/BuildingsList';
-import { AssetsList } from './components/AssetsList';
-import { AssetDetails } from './components/AssetDetails';
+import { AssetsList, AssetsListRef } from './components/AssetsList';
+import { AssetDetails, AssetDetailsRef } from './components/AssetDetails';
 import { AssetTypes } from './components/AssetTypes';
 import { AssetSearch } from './components/AssetSearch';
 import { ValidationRulesManager } from './components/ValidationRulesManager';

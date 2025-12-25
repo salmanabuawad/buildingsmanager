@@ -27,6 +27,7 @@ interface AssetsListProps {
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
   selectedAssetIds?: string[]; // Optional: filter to show only these asset IDs
   onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
+  onCloseTab?: () => void; // Optional: callback to close the current tab
   isErrorFixingMode?: boolean; // When true, hide all buttons except Validate, Save, Save as new, and Cancel
 }
 
@@ -34,7 +35,7 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, isErrorFixingMode = false }, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -3916,6 +3917,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // This will filter assets by current tab's taxRegion, so assets with new tax_region won't appear
           // but their dirty bits are already cleared above
           fetchData(false);
+          
+          // Close the current tab after successful tax region change
+          // The modal already opened a new tab with the assets in the new tax region
+          if (onCloseTab) {
+            // Use a small delay to ensure state updates complete before closing tab
+            setTimeout(() => {
+              onCloseTab();
+            }, 100);
+          }
         }}
       />
 

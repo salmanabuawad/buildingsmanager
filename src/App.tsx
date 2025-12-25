@@ -1251,6 +1251,10 @@ function App() {
                   onOpenNewAsset={handleOpenNewAsset}
                   selectedAssetIds={activeTab.selectedAssetIds}
                   onOpenAssetsTab={handleOpenAssetsTab}
+                  onCloseTab={activeTab?.id ? (() => {
+                    const currentTabId = activeTab.id;
+                    return () => handleCloseTab(currentTabId);
+                  })() : undefined}
                   isErrorFixingMode={activeTab.isErrorFixingMode}
                 />
               )}

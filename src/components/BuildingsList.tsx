@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef, useImperative
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
 import { supabase } from '../lib/supabase';
-import { buildingValidators } from '../lib/validation';
+import { buildingValidators, getAssetTypes } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
 import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, CheckCircle2, Download } from 'lucide-react';
@@ -1600,6 +1600,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   };
 
   // Helper function to get area_description_for_tab from tax region number
+  // Uses synchronous getAssetTypes() function from validation module
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
     if (!taxRegionNum) {
       return String(taxRegionNum || '');
@@ -1610,20 +1611,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return String(taxRegionNum);
     }
     
-    try {
-      // Use cached asset types from validation (synchronous, no API call)
-      const { getAssetTypes } = require('../lib/validation');
-      const cachedAssetTypes = getAssetTypes();
-      if (cachedAssetTypes && cachedAssetTypes.length > 0) {
-        const matchingAssetType = cachedAssetTypes.find((at: any) =>
-          at.tax_region === taxRegion && at.area_description_for_tab
-        );
-        if (matchingAssetType?.area_description_for_tab) {
-          return matchingAssetType.area_description_for_tab;
-        }
+    // Use cached asset types from validation (synchronous, no API call)
+    const cachedAssetTypes = getAssetTypes();
+    if (cachedAssetTypes && Array.isArray(cachedAssetTypes) && cachedAssetTypes.length > 0) {
+      const matchingAssetType = cachedAssetTypes.find((at: any) =>
+        at && at.tax_region === taxRegion && at.area_description_for_tab
+      );
+      if (matchingAssetType?.area_description_for_tab) {
+        return matchingAssetType.area_description_for_tab;
       }
-    } catch (err) {
-      // If validation module not available, fall back to tax region number
     }
     
     return String(taxRegion);
@@ -1788,6 +1784,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       headerTooltip: 'אזור מיסים',
       tooltipValueGetter: (params: any) => {
         if (params.value == null) return '';
+        // Handle comma-separated tax regions (multiple tax regions in a building)
+        if (typeof params.value === 'string' && params.value.includes(',')) {
+          const taxRegions = params.value.split(',').map((tr: string) => tr.trim()).filter((tr: string) => tr);
+          return taxRegions.map((tr: string) => getAreaDescriptionForTaxRegion(tr)).join(', ');
+        }
         return getAreaDescriptionForTaxRegion(params.value);
       },
       editable: true,

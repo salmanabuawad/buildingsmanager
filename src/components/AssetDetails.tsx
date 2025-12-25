@@ -3049,6 +3049,25 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     );
   }, [t, uploadingAssetId, uploadProgress, selectedDrawingUrl, handleFileUpload, handleViewDrawing]);
 
+  // Helper function to get area_description_for_tab from tax region number
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
+    if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+      return String(taxRegionNum || '');
+    }
+    
+    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+    if (isNaN(taxRegion)) {
+      return String(taxRegionNum);
+    }
+    
+    // Find first asset type with matching tax_region that has area_description_for_tab
+    const matchingAssetType = assetTypes.find(at =>
+      at.tax_region === taxRegion && at.area_description_for_tab
+    );
+    
+    return matchingAssetType?.area_description_for_tab || String(taxRegion);
+  }, [assetTypes]);
+
   // Building column definitions for audit details
   const buildingColumnDefs: ColDef<BuildingType>[] = useMemo(() => [
     {
@@ -3422,25 +3441,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       .map((item, index) => `${index + 1}. ${item.label}: ${item.description}`)
       .join('\n');
   }, []);
-
-  // Helper function to get area_description_for_tab from tax region number
-  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
-    if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
-      return String(taxRegionNum || '');
-    }
-    
-    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
-    if (isNaN(taxRegion)) {
-      return String(taxRegionNum);
-    }
-    
-    // Find first asset type with matching tax_region that has area_description_for_tab
-    const matchingAssetType = assetTypes.find(at =>
-      at.tax_region === taxRegion && at.area_description_for_tab
-    );
-    
-    return matchingAssetType?.area_description_for_tab || String(taxRegion);
-  }, [assetTypes]);
 
   // Optimize columnDefs dependencies - only recreate when necessary
   const columnDefs: ColDef<Asset>[] = useMemo(() => {

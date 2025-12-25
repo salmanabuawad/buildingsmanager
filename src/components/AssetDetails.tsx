@@ -2956,6 +2956,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
 
     const hasErrors = errors.length > 0;
+    const hasComment = asset.comment && asset.comment.trim() !== '';
 
     return (
       <div className="flex items-center justify-center gap-1 h-full">
@@ -2971,6 +2972,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           >
             <AlertCircle className="h-5 w-5" />
           </button>
+        )}
+        {hasComment && (
+          <MessageSquare 
+            size={16} 
+            style={{ color: '#2563eb', flexShrink: 0 }}
+            title={asset.comment}
+          />
         )}
       </div>
     );
@@ -3762,22 +3770,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       cellEditorPopupPosition: 'over',
       cellRenderer: (params: any) => {
         const hasValue = params.value && params.value.trim() !== '';
-        const handleClear = (e: React.MouseEvent) => {
-          e.stopPropagation(); // Prevent triggering cell edit
-          params.api.setValue(params.colDef?.field || 'comment', params.node, null);
-        };
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: hasValue ? 'flex-end' : 'center', gap: '4px', direction: 'rtl', width: '100%', paddingRight: hasValue ? '4px' : '0', cursor: 'pointer', height: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px', cursor: 'pointer', height: '100%' }}>
             {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
-            {hasValue && (
-              <X 
-                size={14} 
-                style={{ color: '#dc2626', flexShrink: 0, cursor: 'pointer' }}
-                onClick={handleClear}
-                onMouseDown={(e) => e.stopPropagation()}
-              />
-            )}
-            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
           </div>
         );
       },

@@ -2533,6 +2533,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         {
           field: 'tax_region',
           headerName: 'אזור מס',
+          headerTooltip: 'אזור מס',
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);

@@ -198,6 +198,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
     {
       field: 'tax_region',
       headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
       width: 100,
       sortable: true,
       filter: true,
@@ -348,6 +349,7 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
     {
       field: 'tax_region',
       headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
       width: 100,
       sortable: true,
       filter: true,

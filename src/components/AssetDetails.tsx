@@ -3065,6 +3065,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     {
       field: 'tax_region',
       headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
       width: 100,
       sortable: true,
       filter: true,
@@ -3221,6 +3222,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     {
       field: 'tax_region',
       headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
       width: 100,
       sortable: true,
       filter: true,
@@ -3574,6 +3576,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     {
       field: 'tax_region',
       headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

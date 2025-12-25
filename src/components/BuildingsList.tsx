@@ -1755,6 +1755,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'tax_region',
       headerName: 'אזור מיסים',
+      headerTooltip: 'אזור מיסים',
       editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

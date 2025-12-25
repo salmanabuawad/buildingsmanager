@@ -384,6 +384,7 @@ export function AssetTypes() {
     {
       field: 'tax_region',
       headerName: 'אזור מיסים',
+      headerTooltip: 'אזור מיסים',
       editable: true,
       valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;

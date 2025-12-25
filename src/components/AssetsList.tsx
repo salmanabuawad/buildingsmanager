@@ -1431,6 +1431,20 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             }
           }
           
+          // If this was a residence distribution, clear the residence distribution flag
+          // Clear the flag even if it was a clearing distribution (area = 0)
+          if (isDistributionSave && distributionType === 'residence' && building) {
+            try {
+              await api.buildings.markResidenceDistributionDone(building.building_number);
+              // Update local building state to reflect the cleared flag
+              setBuilding(prev => prev ? { ...prev, need_residence_distribution: false } : null);
+            } catch (flagClearError) {
+              console.warn('Failed to clear residence distribution flag:', flagClearError);
+              // Don't fail the entire save operation if flag clearing fails
+              // The backend might have already cleared it, or we can try again later
+            }
+          }
+          
           // Update distribution history counter after successful distribution save
           if (isDistributionSave && distributionType) {
             try {
@@ -3094,6 +3108,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     {
       field: 'tax_region',
       headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
       editable: (params) => isFieldEditable(params, 'tax_region'),
       type: 'numericColumn',
       valueParser: (params) => {

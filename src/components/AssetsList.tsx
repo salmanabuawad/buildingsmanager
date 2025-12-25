@@ -3169,6 +3169,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
     },
     {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      tooltipValueGetter: (params) => params.value || ''
+    },
+    {
       field: 'main_asset_type',
       ...processColumnHeader(t('mainAssetType')),
       editable: (params) => isFieldEditable(params, 'main_asset_type'),

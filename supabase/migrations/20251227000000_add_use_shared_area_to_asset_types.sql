@@ -22,3 +22,12 @@ VALUES
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = 4, padding = 2, updated_at = now();
 
+-- ============================================================================
+-- UPDATE SPECIFIC ASSET TYPES TO SET use_shared_area = true
+-- ============================================================================
+-- Set use_shared_area to true for asset types 251, 252, and 253
+
+UPDATE asset_types
+SET use_shared_area = true
+WHERE name IN ('251', '252', '253');
+

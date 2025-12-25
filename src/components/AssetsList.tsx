@@ -936,34 +936,39 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       // Mark invalid assets in the grid
       if (results.errors.length > 0) {
-        const newValidationErrors = new Map<string, Map<string, string>>();
+        const newValidationErrors = new Map<string, string>();
 
         // Mark each invalid asset using database ID if available, otherwise fall back to asset_id lookup
         for (const errorInfo of results.errors) {
-          let dbId = errorInfo.assetDbId;
-          
-          // If no database ID, try to find it by asset_id
-          if (!dbId) {
-            const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
-            if (asset) {
-              dbId = String(asset.asset_id);
+          // Only mark assets that have errors
+          if (errorInfo.errors && errorInfo.errors.length > 0) {
+            let dbId = errorInfo.assetDbId;
+            
+            // If no database ID, try to find it by asset_id
+            if (!dbId) {
+              const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
+              if (asset) {
+                dbId = String(asset.asset_id);
+              }
             }
-          }
-          
-          if (dbId) {
-            const fieldErrors = new Map<string, string>();
-            // Combine all errors into a general validation error
-            fieldErrors.set('_batchValidation', errorInfo.errors.join('; '));
-            newValidationErrors.set(dbId, fieldErrors);
+            
+            if (dbId) {
+              // Combine all errors into a single error message
+              newValidationErrors.set(dbId, errorInfo.errors.join('; '));
+            }
           }
         }
 
-
+        // Set validation errors in state
+        setValidationErrors(newValidationErrors);
 
         // Refresh grid to show the validation errors
         if (gridRef.current?.api) {
           gridRef.current.api.refreshCells({ force: true });
         }
+      } else {
+        // Clear validation errors if all assets are valid
+        setValidationErrors(new Map());
       }
     } catch (error) {
       console.error('Error during batch validation:', error);
@@ -981,6 +986,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setBatchValidationLoading(false);
     }
   }
+
+  // Auto-validate assets when loaded in error fixing mode
+  useEffect(() => {
+    if (isErrorFixingMode && assets.length > 0 && taxRegion && !loading && !batchValidationLoading) {
+      // Validate assets automatically when in error fixing mode
+      // Use a small delay to ensure assets are fully rendered
+      const timer = setTimeout(() => {
+        handleBatchValidateBuildingAssets();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isErrorFixingMode, assets.length, taxRegion, loading, batchValidationLoading]);
 
   const handleExportInvalidAssetsToFile = useCallback(() => {
     if (!batchValidationResults || batchValidationResults.errors.length === 0) {

@@ -413,38 +413,143 @@ BEGIN
     );
   ELSE
     -- UPDATE existing asset
+    -- UPDATE existing asset - allow NULL values if explicitly provided
+    -- Use CASE to check if key exists: if key exists, use value (even if NULL), otherwise keep existing
     UPDATE assets
     SET
       building_number = v_building_number,
-      payer_id = COALESCE((p_asset_data->>'payer_id')::TEXT, payer_id),
-      measurement_date = COALESCE((p_asset_data->>'measurement_date')::TEXT, measurement_date),
+      payer_id = CASE 
+        WHEN p_asset_data->'payer_id' IS NULL THEN payer_id
+        WHEN p_asset_data->'payer_id' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'payer_id'), '')::TEXT
+      END,
+      measurement_date = CASE 
+        WHEN p_asset_data->'measurement_date' IS NULL THEN measurement_date
+        WHEN p_asset_data->'measurement_date' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'measurement_date'), '')::TEXT
+      END,
       main_asset_type = COALESCE(v_new_main_asset_type, main_asset_type),
       asset_size = COALESCE(v_new_asset_size, asset_size),
-      tax_region = COALESCE((p_asset_data->>'tax_region')::BIGINT, tax_region),
-      sub_asset_type_1 = COALESCE((p_asset_data->>'sub_asset_type_1')::TEXT, sub_asset_type_1),
-      sub_asset_size_1 = COALESCE((p_asset_data->>'sub_asset_size_1')::NUMERIC, sub_asset_size_1),
-      sub_asset_type_2 = COALESCE((p_asset_data->>'sub_asset_type_2')::TEXT, sub_asset_type_2),
-      sub_asset_size_2 = COALESCE((p_asset_data->>'sub_asset_size_2')::NUMERIC, sub_asset_size_2),
-      sub_asset_type_3 = COALESCE((p_asset_data->>'sub_asset_type_3')::TEXT, sub_asset_type_3),
-      sub_asset_size_3 = COALESCE((p_asset_data->>'sub_asset_size_3')::NUMERIC, sub_asset_size_3),
-      sub_asset_type_4 = COALESCE((p_asset_data->>'sub_asset_type_4')::TEXT, sub_asset_type_4),
-      sub_asset_size_4 = COALESCE((p_asset_data->>'sub_asset_size_4')::NUMERIC, sub_asset_size_4),
-      sub_asset_type_5 = COALESCE((p_asset_data->>'sub_asset_type_5')::TEXT, sub_asset_type_5),
-      sub_asset_size_5 = COALESCE((p_asset_data->>'sub_asset_size_5')::NUMERIC, sub_asset_size_5),
-      sub_asset_type_6 = COALESCE((p_asset_data->>'sub_asset_type_6')::TEXT, sub_asset_type_6),
-      sub_asset_size_6 = COALESCE((p_asset_data->>'sub_asset_size_6')::NUMERIC, sub_asset_size_6),
-      elevator = COALESCE((p_asset_data->>'elevator')::TEXT, elevator),
-      single_double_family = COALESCE((p_asset_data->>'single_double_family')::TEXT, single_double_family),
-      condo = COALESCE((p_asset_data->>'condo')::TEXT, condo),
-      townhouses = COALESCE((p_asset_data->>'townhouses')::TEXT, townhouses),
-      penthouse = COALESCE((p_asset_data->>'penthouse')::TEXT, penthouse),
-      structure_drawing_url = COALESCE((p_asset_data->>'structure_drawing_url')::TEXT, structure_drawing_url),
-      floor = COALESCE((p_asset_data->>'floor')::BIGINT, floor),
-      discount_type = COALESCE((p_asset_data->>'discount_type')::TEXT, discount_type),
-      discount_date_from = COALESCE((p_asset_data->>'discount_date_from')::TEXT, discount_date_from),
-      discount_date_to = COALESCE((p_asset_data->>'discount_date_to')::TEXT, discount_date_to),
-      area_from_distribution = COALESCE((p_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
-      exported_to_automation = COALESCE((p_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
+      tax_region = CASE 
+        WHEN p_asset_data->'tax_region' IS NULL THEN tax_region
+        ELSE (p_asset_data->>'tax_region')::BIGINT
+      END,
+      sub_asset_type_1 = CASE 
+        WHEN p_asset_data->'sub_asset_type_1' IS NULL THEN sub_asset_type_1
+        WHEN p_asset_data->'sub_asset_type_1' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'sub_asset_type_1'), '')::TEXT
+      END,
+      sub_asset_size_1 = CASE 
+        WHEN p_asset_data->'sub_asset_size_1' IS NULL THEN sub_asset_size_1
+        ELSE COALESCE((p_asset_data->>'sub_asset_size_1')::NUMERIC, 0)
+      END,
+      sub_asset_type_2 = CASE 
+        WHEN p_asset_data->'sub_asset_type_2' IS NULL THEN sub_asset_type_2
+        WHEN p_asset_data->'sub_asset_type_2' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'sub_asset_type_2'), '')::TEXT
+      END,
+      sub_asset_size_2 = CASE 
+        WHEN p_asset_data->'sub_asset_size_2' IS NULL THEN sub_asset_size_2
+        ELSE COALESCE((p_asset_data->>'sub_asset_size_2')::NUMERIC, 0)
+      END,
+      sub_asset_type_3 = CASE 
+        WHEN p_asset_data->'sub_asset_type_3' IS NULL THEN sub_asset_type_3
+        WHEN p_asset_data->'sub_asset_type_3' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'sub_asset_type_3'), '')::TEXT
+      END,
+      sub_asset_size_3 = CASE 
+        WHEN p_asset_data->'sub_asset_size_3' IS NULL THEN sub_asset_size_3
+        ELSE COALESCE((p_asset_data->>'sub_asset_size_3')::NUMERIC, 0)
+      END,
+      sub_asset_type_4 = CASE 
+        WHEN p_asset_data->'sub_asset_type_4' IS NULL THEN sub_asset_type_4
+        WHEN p_asset_data->'sub_asset_type_4' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'sub_asset_type_4'), '')::TEXT
+      END,
+      sub_asset_size_4 = CASE 
+        WHEN p_asset_data->'sub_asset_size_4' IS NULL THEN sub_asset_size_4
+        ELSE COALESCE((p_asset_data->>'sub_asset_size_4')::NUMERIC, 0)
+      END,
+      sub_asset_type_5 = CASE 
+        WHEN p_asset_data->'sub_asset_type_5' IS NULL THEN sub_asset_type_5
+        WHEN p_asset_data->'sub_asset_type_5' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'sub_asset_type_5'), '')::TEXT
+      END,
+      sub_asset_size_5 = CASE 
+        WHEN p_asset_data->'sub_asset_size_5' IS NULL THEN sub_asset_size_5
+        ELSE COALESCE((p_asset_data->>'sub_asset_size_5')::NUMERIC, 0)
+      END,
+      sub_asset_type_6 = CASE 
+        WHEN p_asset_data->'sub_asset_type_6' IS NULL THEN sub_asset_type_6
+        WHEN p_asset_data->'sub_asset_type_6' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'sub_asset_type_6'), '')::TEXT
+      END,
+      sub_asset_size_6 = CASE 
+        WHEN p_asset_data->'sub_asset_size_6' IS NULL THEN sub_asset_size_6
+        ELSE COALESCE((p_asset_data->>'sub_asset_size_6')::NUMERIC, 0)
+      END,
+      elevator = CASE 
+        WHEN p_asset_data->'elevator' IS NULL THEN elevator
+        WHEN p_asset_data->'elevator' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'elevator'), '')::TEXT
+      END,
+      single_double_family = CASE 
+        WHEN p_asset_data->'single_double_family' IS NULL THEN single_double_family
+        WHEN p_asset_data->'single_double_family' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'single_double_family'), '')::TEXT
+      END,
+      condo = CASE 
+        WHEN p_asset_data->'condo' IS NULL THEN condo
+        WHEN p_asset_data->'condo' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'condo'), '')::TEXT
+      END,
+      townhouses = CASE 
+        WHEN p_asset_data->'townhouses' IS NULL THEN townhouses
+        WHEN p_asset_data->'townhouses' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'townhouses'), '')::TEXT
+      END,
+      penthouse = CASE 
+        WHEN p_asset_data->'penthouse' IS NULL THEN penthouse
+        WHEN p_asset_data->'penthouse' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'penthouse'), '')::TEXT
+      END,
+      structure_drawing_url = CASE 
+        WHEN p_asset_data->'structure_drawing_url' IS NULL THEN structure_drawing_url
+        WHEN p_asset_data->'structure_drawing_url' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'structure_drawing_url'), '')::TEXT
+      END,
+      floor = CASE 
+        WHEN p_asset_data->'floor' IS NULL THEN floor
+        ELSE (p_asset_data->>'floor')::BIGINT
+      END,
+      discount_type = CASE 
+        WHEN p_asset_data->'discount_type' IS NULL THEN discount_type
+        WHEN p_asset_data->'discount_type' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'discount_type'), '')::TEXT
+      END,
+      discount_date_from = CASE 
+        WHEN p_asset_data->'discount_date_from' IS NULL THEN discount_date_from
+        WHEN p_asset_data->'discount_date_from' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'discount_date_from'), '')::TEXT
+      END,
+      discount_date_to = CASE 
+        WHEN p_asset_data->'discount_date_to' IS NULL THEN discount_date_to
+        WHEN p_asset_data->'discount_date_to' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'discount_date_to'), '')::TEXT
+      END,
+      area_from_distribution = CASE 
+        WHEN p_asset_data->'area_from_distribution' IS NULL THEN area_from_distribution
+        ELSE COALESCE((p_asset_data->>'area_from_distribution')::NUMERIC, 0)
+      END,
+      exported_to_automation = CASE 
+        WHEN p_asset_data->'exported_to_automation' IS NULL THEN exported_to_automation
+        ELSE COALESCE((p_asset_data->>'exported_to_automation')::BOOLEAN, false)
+      END,
+      comment = CASE 
+        WHEN p_asset_data->'comment' IS NULL THEN comment
+        WHEN p_asset_data->'comment' = 'null'::jsonb THEN NULL
+        ELSE NULLIF((p_asset_data->>'comment'), '')::TEXT
+      END,
       updated_at = NOW()
     WHERE asset_id = v_asset_id;
   END IF;
@@ -837,40 +942,148 @@ BEGIN
         WHERE asset_id = v_asset_id;
       END IF;
       
-      -- UPDATE existing asset - only update fields that are provided
+      -- UPDATE existing asset - allow NULL values if explicitly provided
+      -- Use CASE to check if key exists: if key exists, use value (even if NULL), otherwise keep existing
+      -- For text fields: if key exists and value is null or empty string, set to NULL
+      -- For numeric fields: if key exists and value is null, set to 0 (as per business logic)
       UPDATE assets
       SET
         building_number = COALESCE(v_building_number, building_number),
-        payer_id = COALESCE((v_asset_data->>'payer_id')::TEXT, payer_id),
-        measurement_date = COALESCE((v_asset_data->>'measurement_date')::TEXT, measurement_date),
+        payer_id = CASE 
+          WHEN v_asset_data->'payer_id' IS NULL THEN payer_id
+          WHEN v_asset_data->'payer_id' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'payer_id'), '')::TEXT
+        END,
+        measurement_date = CASE 
+          WHEN v_asset_data->'measurement_date' IS NULL THEN measurement_date
+          WHEN v_asset_data->'measurement_date' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'measurement_date'), '')::TEXT
+        END,
         main_asset_type = COALESCE(v_new_main_asset_type, main_asset_type),
-        asset_size = COALESCE((v_asset_data->>'asset_size')::NUMERIC, asset_size),
-        tax_region = COALESCE((v_asset_data->>'tax_region')::BIGINT, tax_region),
-        sub_asset_type_1 = COALESCE((v_asset_data->>'sub_asset_type_1')::TEXT, sub_asset_type_1),
-        sub_asset_size_1 = COALESCE((v_asset_data->>'sub_asset_size_1')::NUMERIC, sub_asset_size_1),
-        sub_asset_type_2 = COALESCE((v_asset_data->>'sub_asset_type_2')::TEXT, sub_asset_type_2),
-        sub_asset_size_2 = COALESCE((v_asset_data->>'sub_asset_size_2')::NUMERIC, sub_asset_size_2),
-        sub_asset_type_3 = COALESCE((v_asset_data->>'sub_asset_type_3')::TEXT, sub_asset_type_3),
-        sub_asset_size_3 = COALESCE((v_asset_data->>'sub_asset_size_3')::NUMERIC, sub_asset_size_3),
-        sub_asset_type_4 = COALESCE((v_asset_data->>'sub_asset_type_4')::TEXT, sub_asset_type_4),
-        sub_asset_size_4 = COALESCE((v_asset_data->>'sub_asset_size_4')::NUMERIC, sub_asset_size_4),
-        sub_asset_type_5 = COALESCE((v_asset_data->>'sub_asset_type_5')::TEXT, sub_asset_type_5),
-        sub_asset_size_5 = COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, sub_asset_size_5),
-        sub_asset_type_6 = COALESCE((v_asset_data->>'sub_asset_type_6')::TEXT, sub_asset_type_6),
-        sub_asset_size_6 = COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, sub_asset_size_6),
-        elevator = COALESCE((v_asset_data->>'elevator')::TEXT, elevator),
-        single_double_family = COALESCE((v_asset_data->>'single_double_family')::TEXT, single_double_family),
-        condo = COALESCE((v_asset_data->>'condo')::TEXT, condo),
-        townhouses = COALESCE((v_asset_data->>'townhouses')::TEXT, townhouses),
-        penthouse = COALESCE((v_asset_data->>'penthouse')::TEXT, penthouse),
-        structure_drawing_url = COALESCE((v_asset_data->>'structure_drawing_url')::TEXT, structure_drawing_url),
-        floor = COALESCE((v_asset_data->>'floor')::BIGINT, floor),
-        discount_type = COALESCE((v_asset_data->>'discount_type')::TEXT, discount_type),
-        discount_date_from = COALESCE((v_asset_data->>'discount_date_from')::TEXT, discount_date_from),
-        discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
-        area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
-        exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
-        comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
+        asset_size = CASE 
+          WHEN v_asset_data->'asset_size' IS NULL THEN asset_size
+          ELSE COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0)
+        END,
+        tax_region = CASE 
+          WHEN v_asset_data->'tax_region' IS NULL THEN tax_region
+          ELSE (v_asset_data->>'tax_region')::BIGINT
+        END,
+        sub_asset_type_1 = CASE 
+          WHEN v_asset_data->'sub_asset_type_1' IS NULL THEN sub_asset_type_1
+          WHEN v_asset_data->'sub_asset_type_1' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'sub_asset_type_1'), '')::TEXT
+        END,
+        sub_asset_size_1 = CASE 
+          WHEN v_asset_data->'sub_asset_size_1' IS NULL THEN sub_asset_size_1
+          ELSE COALESCE((v_asset_data->>'sub_asset_size_1')::NUMERIC, 0)
+        END,
+        sub_asset_type_2 = CASE 
+          WHEN v_asset_data->'sub_asset_type_2' IS NULL THEN sub_asset_type_2
+          WHEN v_asset_data->'sub_asset_type_2' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'sub_asset_type_2'), '')::TEXT
+        END,
+        sub_asset_size_2 = CASE 
+          WHEN v_asset_data->'sub_asset_size_2' IS NULL THEN sub_asset_size_2
+          ELSE COALESCE((v_asset_data->>'sub_asset_size_2')::NUMERIC, 0)
+        END,
+        sub_asset_type_3 = CASE 
+          WHEN v_asset_data->'sub_asset_type_3' IS NULL THEN sub_asset_type_3
+          WHEN v_asset_data->'sub_asset_type_3' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'sub_asset_type_3'), '')::TEXT
+        END,
+        sub_asset_size_3 = CASE 
+          WHEN v_asset_data->'sub_asset_size_3' IS NULL THEN sub_asset_size_3
+          ELSE COALESCE((v_asset_data->>'sub_asset_size_3')::NUMERIC, 0)
+        END,
+        sub_asset_type_4 = CASE 
+          WHEN v_asset_data->'sub_asset_type_4' IS NULL THEN sub_asset_type_4
+          WHEN v_asset_data->'sub_asset_type_4' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'sub_asset_type_4'), '')::TEXT
+        END,
+        sub_asset_size_4 = CASE 
+          WHEN v_asset_data->'sub_asset_size_4' IS NULL THEN sub_asset_size_4
+          ELSE COALESCE((v_asset_data->>'sub_asset_size_4')::NUMERIC, 0)
+        END,
+        sub_asset_type_5 = CASE 
+          WHEN v_asset_data->'sub_asset_type_5' IS NULL THEN sub_asset_type_5
+          WHEN v_asset_data->'sub_asset_type_5' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'sub_asset_type_5'), '')::TEXT
+        END,
+        sub_asset_size_5 = CASE 
+          WHEN v_asset_data->'sub_asset_size_5' IS NULL THEN sub_asset_size_5
+          ELSE COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0)
+        END,
+        sub_asset_type_6 = CASE 
+          WHEN v_asset_data->'sub_asset_type_6' IS NULL THEN sub_asset_type_6
+          WHEN v_asset_data->'sub_asset_type_6' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'sub_asset_type_6'), '')::TEXT
+        END,
+        sub_asset_size_6 = CASE 
+          WHEN v_asset_data->'sub_asset_size_6' IS NULL THEN sub_asset_size_6
+          ELSE COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0)
+        END,
+        elevator = CASE 
+          WHEN v_asset_data->'elevator' IS NULL THEN elevator
+          WHEN v_asset_data->'elevator' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'elevator'), '')::TEXT
+        END,
+        single_double_family = CASE 
+          WHEN v_asset_data->'single_double_family' IS NULL THEN single_double_family
+          WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'single_double_family'), '')::TEXT
+        END,
+        condo = CASE 
+          WHEN v_asset_data->'condo' IS NULL THEN condo
+          WHEN v_asset_data->'condo' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'condo'), '')::TEXT
+        END,
+        townhouses = CASE 
+          WHEN v_asset_data->'townhouses' IS NULL THEN townhouses
+          WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'townhouses'), '')::TEXT
+        END,
+        penthouse = CASE 
+          WHEN v_asset_data->'penthouse' IS NULL THEN penthouse
+          WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'penthouse'), '')::TEXT
+        END,
+        structure_drawing_url = CASE 
+          WHEN v_asset_data->'structure_drawing_url' IS NULL THEN structure_drawing_url
+          WHEN v_asset_data->'structure_drawing_url' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'structure_drawing_url'), '')::TEXT
+        END,
+        floor = CASE 
+          WHEN v_asset_data->'floor' IS NULL THEN floor
+          ELSE (v_asset_data->>'floor')::BIGINT
+        END,
+        discount_type = CASE 
+          WHEN v_asset_data->'discount_type' IS NULL THEN discount_type
+          WHEN v_asset_data->'discount_type' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'discount_type'), '')::TEXT
+        END,
+        discount_date_from = CASE 
+          WHEN v_asset_data->'discount_date_from' IS NULL THEN discount_date_from
+          WHEN v_asset_data->'discount_date_from' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'discount_date_from'), '')::TEXT
+        END,
+        discount_date_to = CASE 
+          WHEN v_asset_data->'discount_date_to' IS NULL THEN discount_date_to
+          WHEN v_asset_data->'discount_date_to' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'discount_date_to'), '')::TEXT
+        END,
+        area_from_distribution = CASE 
+          WHEN v_asset_data->'area_from_distribution' IS NULL THEN area_from_distribution
+          ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0)
+        END,
+        exported_to_automation = CASE 
+          WHEN v_asset_data->'exported_to_automation' IS NULL THEN exported_to_automation
+          ELSE COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
+        END,
+        comment = CASE 
+          WHEN v_asset_data->'comment' IS NULL THEN comment
+          WHEN v_asset_data->'comment' = 'null'::jsonb THEN NULL
+          ELSE NULLIF((v_asset_data->>'comment'), '')::TEXT
+        END,
         is_new_measurement = false, -- Reset flag after copying to history
         updated_at = NOW()
       WHERE asset_id = v_asset_id;

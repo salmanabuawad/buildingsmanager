@@ -190,7 +190,7 @@ function App() {
         setTabs(prev => [buildingsTab, ...prev]);
       }
 
-    if (taxRegions && taxRegions.trim() !== '') {
+      if (taxRegions && taxRegions.trim() !== '') {
       const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
 
       if (regions.length === 1) {
@@ -284,7 +284,7 @@ function App() {
       setTimeout(() => {
         setActiveTabId(allAssetsTabId);
       }, 0);
-    }
+      }
     });
   }
 

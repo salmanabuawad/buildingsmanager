@@ -1004,25 +1004,62 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
   }
 
-  // Auto-validate assets when loaded in error fixing mode
+  // Track if we've already auto-validated for the current assets to prevent loops
+  const autoValidatedRef = useRef<string>('');
+  const isAutoValidatingRef = useRef<boolean>(false);
+  
+  // Memoize asset IDs key to prevent unnecessary re-renders
+  const assetIdsKey = useMemo(() => {
+    return assets.map(a => String(a.asset_id)).sort().join(',');
+  }, [assets]);
+  
+  // Auto-validate assets when loaded in error fixing mode (only once per asset set)
   useEffect(() => {
-    if (isErrorFixingMode && assets.length > 0 && taxRegion && !loading && !batchValidationLoading) {
-      console.log('[AssetsList] Auto-validating assets in error fixing mode:', {
-        isErrorFixingMode,
-        assetsCount: assets.length,
-        taxRegion,
-        loading,
-        batchValidationLoading
-      });
-      // Validate assets automatically when in error fixing mode
-      // Use a small delay to ensure assets are fully rendered
-      const timer = setTimeout(() => {
-        handleBatchValidateBuildingAssets();
-      }, 500);
-      return () => clearTimeout(timer);
+    // Don't run if already validating or if conditions aren't met
+    // Note: We check batchValidationLoading but don't include it in deps to prevent loops
+    if (!isErrorFixingMode || assets.length === 0 || !taxRegion || loading || batchValidationLoading || isAutoValidatingRef.current) {
+      return;
     }
+    
+    // Create a unique key for this validation run based on asset IDs and tax region
+    const validationKey = `${buildingNumber}-${taxRegion}-${assetIdsKey}`;
+    
+    // Only validate if we haven't already validated this exact set of assets
+    if (autoValidatedRef.current === validationKey) {
+      return; // Already validated this exact set
+    }
+    
+    console.log('[AssetsList] Auto-validating assets in error fixing mode:', {
+      isErrorFixingMode,
+      assetsCount: assets.length,
+      taxRegion,
+      validationKey
+    });
+    
+    // Mark that we're about to validate this set
+    autoValidatedRef.current = validationKey;
+    isAutoValidatingRef.current = true;
+    
+    // Validate assets automatically when in error fixing mode
+    // Use a small delay to ensure assets are fully rendered
+    const timer = setTimeout(async () => {
+      try {
+        await handleBatchValidateBuildingAssets();
+      } catch (error) {
+        console.error('[AssetsList] Error in auto-validation:', error);
+      } finally {
+        // Reset the flag after validation completes
+        isAutoValidatingRef.current = false;
+      }
+    }, 500);
+    
+    return () => {
+      clearTimeout(timer);
+      // Don't reset isAutoValidatingRef here - let it complete naturally
+    };
+    // Only depend on stable values - exclude batchValidationLoading to prevent loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isErrorFixingMode, assets.length, taxRegion, loading, batchValidationLoading]);
+  }, [isErrorFixingMode, taxRegion, loading, buildingNumber, assetIdsKey]);
 
   const handleExportInvalidAssetsToFile = useCallback(() => {
     if (!batchValidationResults || batchValidationResults.errors.length === 0) {

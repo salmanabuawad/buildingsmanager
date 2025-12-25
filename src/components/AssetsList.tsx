@@ -1953,7 +1953,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         );
 
         if (!sharedAreaAssetType) {
-          throw new Error(`לא נמצא סוג נכס עם אזור מס ${currentTaxRegion} וסימון "שימוש בשטח משותף" עבור נכס ${assetId}. יש לוודא שקיים סוג נכס עם use_shared_area=true עבור אזור המס הזה.`);
+          throw new Error(`לא נמצא סוג נכס עם אזור מס ${currentTaxRegion} וסימון "שימוש בשטח משותף" עבור נכס ${assetId}. יש לוודא שקיים סוג נכס עם use_shared_areause_shared_area=true עבור אזור המס הזה.`);
         }
 
         const isMainType199 = String(currentMainType).trim() === '199';

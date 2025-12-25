@@ -71,6 +71,7 @@ export function AssetTypes() {
     business_residence: '',
     non_accountable_for_total_area: false,
     non_accountable_for_distribution: false,
+    use_shared_area: false,
     min_size: '',
     max_size: '',
   });
@@ -114,6 +115,7 @@ export function AssetTypes() {
       business_residence: '', 
       non_accountable_for_total_area: false, 
       non_accountable_for_distribution: false, 
+      use_shared_area: false,
       min_size: '', 
       max_size: '' 
     });
@@ -151,6 +153,7 @@ export function AssetTypes() {
         business_residence: formData.business_residence || undefined,
         non_accountable_for_total_area: formData.non_accountable_for_total_area || undefined,
         non_accountable_for_distribution: formData.non_accountable_for_distribution || undefined,
+        use_shared_area: formData.use_shared_area || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
       };
@@ -586,6 +589,31 @@ export function AssetTypes() {
         if (!assetType) return null;
         const currentValue = getCurrentValue(assetType, 'non_accountable_for_distribution');
         const isDirty = isFieldDirty(assetType.id, 'non_accountable_for_distribution');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === true}
+              onChange={(e) => {
+                params.setValue(e.target.checked);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
+      field: 'use_shared_area',
+      headerName: 'שימוש בשטח משותף',
+      editable: true,
+      tooltipValueGetter: () => 'סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה',
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'use_shared_area');
+        const isDirty = isFieldDirty(assetType.id, 'use_shared_area');
         return (
           <div className="flex items-center justify-center h-full">
             <input
@@ -1469,6 +1497,17 @@ export function AssetTypes() {
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   לא נספר בפיזור
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה">
+                  <input
+                    type="checkbox"
+                    checked={formData.use_shared_area}
+                    onChange={(e) => setFormData({ ...formData, use_shared_area: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  שימוש בשטח משותף
                 </label>
               </div>
               <div>

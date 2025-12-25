@@ -2240,6 +2240,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         // Check if asset type is business
         if (!assetType.business_residence || assetType.business_residence.trim() !== 'עסקים') {
           notBusinessCount++;
+          // Log details for debugging (only first few to avoid spam)
+          if (notBusinessCount <= 5) {
+            console.log('[DistributeBusiness] Asset excluded - not business type:', {
+              assetId: asset.asset_id,
+              mainAssetType: asset.main_asset_type,
+              assetTypeName: assetType.name,
+              businessResidence: assetType.business_residence,
+              expected: 'עסקים'
+            });
+          }
           return false;
         }
         
@@ -2247,6 +2257,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         // This redundant check is removed since the helper function handles it
         
         return true;
+      });
+      
+      // Log summary for debugging
+      console.log('[DistributeBusiness] Asset filtering summary:', {
+        totalAssets: assets.length,
+        businessAssetsFound: businessAssets.length,
+        deletedCount,
+        notAccountableForDistributionCount,
+        noMainTypeCount,
+        assetTypeNotFoundCount,
+        notBusinessCount
       });
 
       if (businessAssets.length === 0) {

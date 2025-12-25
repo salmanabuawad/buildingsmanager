@@ -2655,7 +2655,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         
         // Show checkbox in multi-tax-region mode (all assets view) or single tax region tab
         // Checkbox should be hidden for new assets, same as view icon
-        const shouldShowCheckbox = !isNew && (
+        // Hide checkbox in error fixing mode
+        const shouldShowCheckbox = !isErrorFixingMode && !isNew && (
           (!taxRegion && hasMultipleTaxRegions) || // All assets view when building has multiple tax regions
           !!taxRegion // Specific tax region tab
         );
@@ -2713,7 +2714,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
-            {!isNew && (
+            {!isErrorFixingMode && !isNew && (
               <>
                 {taxRegion && (
                   <label

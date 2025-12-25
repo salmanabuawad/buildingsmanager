@@ -3874,28 +3874,48 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         assetTypes={assetTypes}
         onSuccess={() => {
           // Clear dirty bits for assets that were successfully saved via tax region change
-          // Since saveBulkTransactional saves the entire asset, all fields are synced, so remove entire entries
-          const assetIdsToClear = Array.from(selectedAssets);
+          // Capture the selected asset IDs that were passed to the modal to avoid stale closures
+          const savedAssetIds = Array.from(selectedAssets);
+          
+          console.log('[AssetsList] Clearing dirty bits after tax region change:', {
+            savedAssetIds,
+            dirtyAssetsSizeBefore: dirtyAssets.size,
+            dirtyAssetIdsBefore: Array.from(dirtyAssets.keys())
+          });
+          
           setDirtyAssets(prev => {
             const next = new Map(prev);
-            for (const assetId of assetIdsToClear) {
-              // Remove entire entry since the entire asset was saved
-              next.delete(String(assetId));
+            let clearedCount = 0;
+            for (const assetId of savedAssetIds) {
+              const assetIdStr = String(assetId);
+              if (next.delete(assetIdStr)) {
+                clearedCount++;
+              }
             }
+            console.log('[AssetsList] Cleared dirty bits:', { 
+              clearedCount, 
+              remainingSize: next.size,
+              remainingIds: Array.from(next.keys())
+            });
             return next;
           });
           
           // Also clear validation errors for these assets
           setValidationErrors(prev => {
             const next = new Map(prev);
-            for (const assetId of assetIdsToClear) {
+            for (const assetId of savedAssetIds) {
               next.delete(String(assetId));
             }
             return next;
           });
           
-          fetchData(); // Refresh assets after successful change
-          setSelectedAssets(new Set()); // Clear selection
+          // Clear selection first before fetchData to avoid issues
+          setSelectedAssets(new Set());
+          
+          // Refresh assets after successful change
+          // This will filter assets by current tab's taxRegion, so assets with new tax_region won't appear
+          // but their dirty bits are already cleared above
+          fetchData(false);
         }}
       />
 

@@ -414,8 +414,8 @@ export interface DistributionAudit {
   id: number;
   building_number: number;
   action_type: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution' | 'distribute_shared' | 'transfer_area';
-  affected_assets_before: Asset[]; // JSONB parsed to Asset array
-  affected_assets_after: Asset[]; // JSONB parsed to Asset array
+  before_data?: any; // JSONB containing assets and other data
+  after_data?: any; // JSONB containing assets and other data
   overload_ratio?: number;
   shared_area_size?: number;
   description?: string;
@@ -3025,13 +3025,16 @@ export const api = {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Parse JSONB arrays to Asset arrays
+      // Extract data with before_data and after_data
       return (data || []).map((record: any) => ({
         ...record,
-        affected_assets_before: record.affected_assets_before || [],
-        affected_assets_after: record.affected_assets_after || [],
+        before_data: record.before_data || null,
+        after_data: record.after_data || null,
       }));
     },
+    // saveCurrentState is deprecated - distribution operations are now logged
+    // automatically through save_assets_bulk_transactional which calls log_audit_entry
+    // This function is kept for backward compatibility but is no longer used
     saveCurrentState: async (
       buildingNumber: number,
       actionType: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution',
@@ -3039,61 +3042,9 @@ export const api = {
       sharedAreaSize?: number,
       overloadRatio?: number | null
     ): Promise<void> => {
-      // Delete any existing "current" records for this building and action type
-      // to avoid duplicates (we identify "current" by description 'פיזור נוכחי' or 'העברה נוכחית')
-      const currentDescription = actionType === 'transfer' ? 'העברה נוכחית' : 'פיזור נוכחי';
-      
-      await supabase
-        .from('audit')
-        .delete()
-        .eq('building_number', buildingNumber)
-        .eq('action_type', actionType)
-        .eq('description', currentDescription);
-      
-      // Fetch the most recent audit record (excluding current state records) to use as "before" data
-      // This creates a chain of states where each current state's "before" is the previous state's "after"
-      let affectedAssetsBefore: Asset[] = [];
-      try {
-        const { data: recentRecord, error: fetchError } = await supabase
-          .from('audit')
-          .select('affected_assets_after')
-          .eq('building_number', buildingNumber)
-          .eq('action_type', actionType)
-          .neq('description', currentDescription) // Exclude current state records
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(); // Use maybeSingle() instead of single() to handle case when no record exists
-        
-        if (!fetchError && recentRecord && recentRecord.affected_assets_after) {
-          // Parse JSONB array to Asset array (same as getByBuilding does)
-          const assetsData = recentRecord.affected_assets_after;
-          affectedAssetsBefore = Array.isArray(assetsData) ? assetsData : [];
-        }
-      } catch (err) {
-        // If no previous record exists or error fetching, use empty array
-        // This is fine for the first state record
-        console.log('No previous audit record found, using empty before data:', err);
-      }
-      
-      // Insert current state as new audit record
-      // The "before" data is the previous state's "after" data, creating a chain of states
-      // For transfer, shared_area_size and overload_ratio are not used
-      const { error } = await supabase.rpc('log_audit', {
-        p_building_number: buildingNumber,
-        p_action_type: actionType,
-        p_affected_assets_before: affectedAssetsBefore,
-        p_affected_assets_after: affectedAssetsAfter,
-        p_shared_area_size: (actionType === 'transfer' ? null : (sharedAreaSize || null)),
-        p_overload_ratio: (actionType === 'transfer' ? null : (overloadRatio || null)),
-        p_description: currentDescription,
-        p_user_id: null,
-        p_tax_region: null
-      });
-      
-      if (error) {
-        console.error('Error saving current state to audit:', error);
-        throw error;
-      }
+      console.warn('saveCurrentState is deprecated - distribution operations are now logged automatically');
+      // This function is no longer used - distribution operations are logged
+      // automatically through save_assets_bulk_transactional
     },
     getOne: async (id: number): Promise<DistributionAudit> => {
       const { data, error } = await supabase
@@ -3104,11 +3055,11 @@ export const api = {
       
       if (error) throw error;
       
-      // Parse JSONB arrays to Asset arrays
+      // Return data with before_data and after_data
       return {
         ...data,
-        affected_assets_before: data.affected_assets_before || [],
-        affected_assets_after: data.affected_assets_after || [],
+        before_data: data.before_data || null,
+        after_data: data.after_data || null,
       };
     },
     getByDateRange: async (
@@ -3132,11 +3083,11 @@ export const api = {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Parse JSONB arrays to Asset arrays
+      // Extract data with before_data and after_data
       return (data || []).map((record: any) => ({
         ...record,
-        affected_assets_before: record.affected_assets_before || [],
-        affected_assets_after: record.affected_assets_after || [],
+        before_data: record.before_data || null,
+        after_data: record.after_data || null,
       }));
     },
   },

@@ -1310,15 +1310,20 @@ BEGIN
   -- STEP 3c: CALL log_audit_entry FOR DISTRIBUTION OPERATIONS
   -- ========================================================================
   -- Call log_audit_entry for distribution operations to save before/after data
+  -- This must happen after all assets are saved and after_data is collected
+  -- Ensure both before and after data are available before logging
   IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') 
-     AND v_first_building_number IS NOT NULL THEN
+     AND v_first_building_number IS NOT NULL 
+     AND (v_before_data_collected IS NOT NULL OR v_after_data_collected IS NOT NULL) THEN
+    -- Log the distribution operation with before and after data
+    -- All operations happen in the same transaction, so this is atomic
     PERFORM log_audit_entry(
       p_action_type::audit_action_type,
       'bulk_asset',
       v_first_building_number::text,
       p_user_id,
-      v_before_data_collected,
-      v_after_data_collected,
+      COALESCE(v_before_data_collected, '{"assets":[]}'::jsonb),
+      COALESCE(v_after_data_collected, '{"assets":[]}'::jsonb),
       p_description
     );
   END IF;
@@ -1348,37 +1353,49 @@ BEGIN
       END IF;
     
       -- STEP 4b: If description didn't help, check asset data (only for legacy 'distribute_shared')
-    IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
-      -- Check if area_from_distribution is being updated (distribution)
-      FOREACH v_asset_data IN ARRAY p_assets_data
-      LOOP
-        -- Check if area_from_distribution is set and non-zero
-        BEGIN
-          IF (v_asset_data->>'area_from_distribution') IS NOT NULL THEN
-            v_business_dist_area := (v_asset_data->>'area_from_distribution')::NUMERIC;
-            IF v_business_dist_area IS NOT NULL AND v_business_dist_area > 0 THEN
-              -- Determine distribution type by checking asset type (business_residence)
-              -- For now, check description or asset type to determine if business or residence
-              -- This will be determined by the asset's business_residence type
-              v_distribution_type := 'business'; -- Default, will be refined by description check
-              EXIT; -- Found distribution, no need to check more
+      IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
+        -- Check if area_from_distribution is being updated (distribution)
+        FOREACH v_asset_data IN ARRAY p_assets_data
+        LOOP
+          -- Check if area_from_distribution is set and non-zero
+          BEGIN
+            IF (v_asset_data->>'area_from_distribution') IS NOT NULL THEN
+              v_business_dist_area := (v_asset_data->>'area_from_distribution')::NUMERIC;
+              IF v_business_dist_area IS NOT NULL AND v_business_dist_area > 0 THEN
+                -- Determine distribution type by checking asset type (business_residence)
+                -- For now, check description or asset type to determine if business or residence
+                -- This will be determined by the asset's business_residence type
+                v_distribution_type := 'business'; -- Default, will be refined by description check
+                EXIT; -- Found distribution, no need to check more
+              END IF;
+            END IF;
+          EXCEPTION WHEN OTHERS THEN
+            -- Ignore conversion errors, continue checking
+            NULL;
+          END;
+        END LOOP;
+        
+        -- If still not determined, check if main_asset_type is 199 (residence distribution)
+        IF v_distribution_type IS NULL THEN
+          v_asset_type_name := (p_assets_data[1]->>'main_asset_type');
+          -- Check both string and numeric comparison
+          IF v_asset_type_name IS NOT NULL THEN
+            IF v_asset_type_name = '199' THEN
+              v_distribution_type := 'residence';
+            ELSE
+              BEGIN
+                IF v_asset_type_name::BIGINT = 199 THEN
+                  v_distribution_type := 'residence';
+                END IF;
+              EXCEPTION WHEN OTHERS THEN
+                -- If cast fails, ignore and continue
+                NULL;
+              END;
             END IF;
           END IF;
-        EXCEPTION WHEN OTHERS THEN
-          -- Ignore conversion errors, continue checking
-          NULL;
-        END;
-      END LOOP;
-      
-      -- If still not determined, check if main_asset_type is 199 (residence distribution)
-      IF v_distribution_type IS NULL THEN
-        v_asset_type_name := (p_assets_data[1]->>'main_asset_type');
-        -- Check both string and numeric comparison
-        IF v_asset_type_name = '199' OR v_asset_type_name::BIGINT = 199 THEN
-          v_distribution_type := 'residence';
         END IF;
       END IF;
-    END IF;
+    END IF; -- Close the IF/ELSIF/ELSE structure (business_distribution/residence_distribution/legacy)
     
     -- STEP 4c: Remove the relevant flag only
     IF v_distribution_type = 'residence' THEN

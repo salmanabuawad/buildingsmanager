@@ -102,8 +102,10 @@ export function TransferHistoryModal({
   // Check if a value changed between before and after
   const isValueChanged = (assetId: number, field: string): boolean => {
     if (!selectedRecord) return false;
-    const beforeAsset = selectedRecord.affected_assets_before.find(a => a.asset_id === assetId);
-    const afterAsset = selectedRecord.affected_assets_after.find(a => a.asset_id === assetId);
+    const beforeAssets = selectedRecord.before_data?.assets || [];
+    const afterAssets = selectedRecord.after_data?.assets || [];
+    const beforeAsset = beforeAssets.find((a: Asset) => a.asset_id === assetId);
+    const afterAsset = afterAssets.find((a: Asset) => a.asset_id === assetId);
     if (!beforeAsset || !afterAsset) return false;
     
     const beforeValue = (beforeAsset as any)[field];
@@ -183,13 +185,16 @@ export function TransferHistoryModal({
   const rowData = useMemo(() => {
     if (!selectedRecord) return [];
     
+    const beforeAssets = selectedRecord.before_data?.assets || [];
+    const afterAssets = selectedRecord.after_data?.assets || [];
+    
     const beforeMap = new Map<number, Asset>();
-    selectedRecord.affected_assets_before.forEach(asset => {
+    beforeAssets.forEach((asset: Asset) => {
       beforeMap.set(asset.asset_id, asset);
     });
     
     const afterMap = new Map<number, Asset>();
-    selectedRecord.affected_assets_after.forEach(asset => {
+    afterAssets.forEach((asset: Asset) => {
       afterMap.set(asset.asset_id, asset);
     });
     
@@ -200,9 +205,10 @@ export function TransferHistoryModal({
     ])).sort((a, b) => a - b);
     
     // Check if this is a "current state" record (no before data or description indicates current state)
+    const beforeAssets = selectedRecord.before_data?.assets || [];
     const isCurrentState = selectedRecord.description === 'העברה נוכחית' || 
                           selectedRecord.description === 'פיזור נוכחי' ||
-                          selectedRecord.affected_assets_before.length === 0;
+                          beforeAssets.length === 0;
     
     // Filter to only include assets that have changed
     // For current state records, show all assets from after state

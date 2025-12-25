@@ -1471,6 +1471,18 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return next;
       });
       
+      // Clear validation errors for successfully saved/deleted assets
+      setValidationErrors(prev => {
+        const next = new Map(prev);
+        for (const assetId of successfullySaved) {
+          next.delete(String(assetId));
+        }
+        for (const assetId of successfullyDeleted) {
+          next.delete(String(assetId));
+        }
+        return next;
+      });
+      
       // Clear all pending validation timers before refreshing data
       // This prevents individual asset validations from running after save
       validationTimerRef.current.forEach(timer => clearTimeout(timer));

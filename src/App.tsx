@@ -317,55 +317,7 @@ function App() {
         setActiveTabId(allAssetsTabId);
       }
     });
-  }, [tabs, activeTabId, handleNavigation]); else {
-      const allAssetsTabId = `assets-${buildingNumber}-all`;
-      const existingTab = tabs.find(t => t.id === allAssetsTabId);
-      
-      if (existingTab) {
-        // Tab already exists, refresh it, close all other assets tabs and switch to it
-        setTabs(prev => {
-          // Close all assets tabs except the one we're switching to, and refresh it
-          const keepTabs = prev.filter(t => 
-            t.id === 'buildings' || 
-            t.type !== 'assets' || 
-            t.id === allAssetsTabId
-          ).map(tab => 
-            tab.id === allAssetsTabId 
-              ? { ...tab, refreshKey: Date.now() } 
-              : tab
-          );
-          return keepTabs;
-        });
-        setActiveTabId(allAssetsTabId);
-      } else {
-        // Remove all other assets tabs, then create new tab
-        const allAssetsTab: Tab = {
-          id: allAssetsTabId,
-          type: 'assets',
-          buildingNumber,
-          label: `מבנה ${buildingNumber} - כל הנכסים`,
-          refreshKey: Date.now()
-        };
-        setTabs(prev => {
-          // Check if tab already exists
-          const existingTab = prev.find(t => t.id === allAssetsTab.id);
-          if (existingTab) {
-            return prev;
-          }
-          // Close all assets tabs, then add new one
-          const keepTabs = prev.filter(t => 
-            t.id === 'buildings' || 
-            t.type !== 'assets'
-          );
-          // Ensure buildings tab exists
-          const hasBuildings = keepTabs.some(t => t.id === 'buildings');
-          return hasBuildings ? [...keepTabs, allAssetsTab] : [buildingsTab, ...keepTabs, allAssetsTab];
-        });
-        setActiveTabId(allAssetsTabId);
-      }
-    }
-    });
-  }
+  }, [activeTabId, handleNavigation]);
 
   const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {
     // Get asset types from cache (synchronous, no API call)

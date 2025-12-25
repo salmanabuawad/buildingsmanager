@@ -191,99 +191,100 @@ function App() {
       }
 
       if (taxRegions && taxRegions.trim() !== '') {
-      const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
+        const regions = taxRegions.split(',').map(r => r.trim()).filter(r => r);
 
-      if (regions.length === 1) {
-        const singleRegionTabId = `assets-${buildingNumber}-region-${regions[0]}`;
-        const existingTab = tabs.find(t => t.id === singleRegionTabId);
-        
-        if (existingTab) {
-          // Tab already exists, close all other assets tabs and switch to it
-          setTabs(prev => {
-            // Close all assets tabs except the one we're switching to
-            const keepTabs = prev.filter(t => 
-              t.id === 'buildings' || 
-              t.type !== 'assets' || 
-              t.id === singleRegionTabId
-            );
-            return keepTabs;
-          });
-          setActiveTabId(singleRegionTabId);
-        } else {
-          // Remove all other assets tabs, then create new tab
-          const singleRegionTab: Tab = {
-            id: singleRegionTabId,
+        if (regions.length === 1) {
+          const singleRegionTabId = `assets-${buildingNumber}-region-${regions[0]}`;
+          const existingTab = tabs.find(t => t.id === singleRegionTabId);
+          
+          if (existingTab) {
+            // Tab already exists, close all other assets tabs and switch to it
+            setTabs(prev => {
+              // Close all assets tabs except the one we're switching to
+              const keepTabs = prev.filter(t => 
+                t.id === 'buildings' || 
+                t.type !== 'assets' || 
+                t.id === singleRegionTabId
+              );
+              return keepTabs;
+            });
+            setActiveTabId(singleRegionTabId);
+          } else {
+            // Remove all other assets tabs, then create new tab
+            const singleRegionTab: Tab = {
+              id: singleRegionTabId,
+              type: 'assets',
+              buildingNumber,
+              taxRegion: regions[0],
+              label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(regions[0])}`
+            };
+            setTabs(prev => {
+              // Check if tab already exists
+              const existingTab = prev.find(t => t.id === singleRegionTab.id);
+              if (existingTab) {
+                return prev;
+              }
+              // Close all assets tabs, then add new one
+              const keepTabs = prev.filter(t => 
+                t.id === 'buildings' || 
+                t.type !== 'assets'
+              );
+              // Ensure buildings tab exists
+              const hasBuildings = keepTabs.some(t => t.id === 'buildings');
+              return hasBuildings ? [...keepTabs, singleRegionTab] : [buildingsTab, ...keepTabs, singleRegionTab];
+            });
+            setActiveTabId(singleRegionTabId);
+          }
+        } else if (regions.length > 1) {
+          // Multiple tax regions - always create exactly 3 tabs: "all assets" + first 2 tax regions
+          const allAssetsTabId = `assets-${buildingNumber}-all`;
+          const tabsToCreate: Tab[] = [];
+          
+          // 1. Always create tab for all assets (no tax region filter) - FIRST TAB
+          const allAssetsTab: Tab = {
+            id: allAssetsTabId,
             type: 'assets',
             buildingNumber,
-            taxRegion: regions[0],
-            label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(regions[0])}`
+            label: `מבנה ${buildingNumber} - כל הנכסים`,
+            path: `/buildings/${buildingNumber}/assets`,
+            refreshKey: Date.now()
           };
+          tabsToCreate.push(allAssetsTab);
+          
+          // 2. Create tabs for the first 2 tax regions only (tabs 2 and 3)
+          const regionsToShow = regions.slice(0, 2);
+          for (let i = 0; i < regionsToShow.length; i++) {
+            const region = regionsToShow[i];
+            const regionTabId = `assets-${buildingNumber}-region-${region}`;
+            const regionTab: Tab = {
+              id: regionTabId,
+              type: 'assets',
+              buildingNumber,
+              taxRegion: region,
+              label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`,
+              refreshKey: Date.now()
+            };
+            tabsToCreate.push(regionTab);
+          }
+          
+          // Activate the "all assets" tab (first tab)
+          // Update tabs: close all previous assets tabs, then add new tabs for this building
           setTabs(prev => {
-            // Check if tab already exists
-            const existingTab = prev.find(t => t.id === singleRegionTab.id);
-            if (existingTab) {
-              return prev;
-            }
-            // Close all assets tabs, then add new one
+            // Keep buildings tab and non-assets tabs, close all assets tabs
             const keepTabs = prev.filter(t => 
               t.id === 'buildings' || 
               t.type !== 'assets'
             );
-            // Ensure buildings tab exists
-            const hasBuildings = keepTabs.some(t => t.id === 'buildings');
-            return hasBuildings ? [...keepTabs, singleRegionTab] : [buildingsTab, ...keepTabs, singleRegionTab];
+            // Combine: keep tabs + all new tabs (this ensures we always have exactly 3 tabs for this building)
+            const newTabs = [...keepTabs, ...tabsToCreate];
+            return newTabs;
           });
-          setActiveTabId(singleRegionTabId);
+          
+          // Set active tab to "all assets" (first tab)
+          setTimeout(() => {
+            setActiveTabId(allAssetsTabId);
+          }, 0);
         }
-      } else if (regions.length > 1) {
-        // Multiple tax regions - always create exactly 3 tabs: "all assets" + first 2 tax regions
-        const allAssetsTabId = `assets-${buildingNumber}-all`;
-        const tabsToCreate: Tab[] = [];
-        
-        // 1. Always create tab for all assets (no tax region filter) - FIRST TAB
-        const allAssetsTab: Tab = {
-          id: allAssetsTabId,
-          type: 'assets',
-          buildingNumber,
-          label: `מבנה ${buildingNumber} - כל הנכסים`,
-          path: `/buildings/${buildingNumber}/assets`,
-          refreshKey: Date.now()
-        };
-        tabsToCreate.push(allAssetsTab);
-        
-        // 2. Create tabs for the first 2 tax regions only (tabs 2 and 3)
-        const regionsToShow = regions.slice(0, 2);
-        for (let i = 0; i < regionsToShow.length; i++) {
-          const region = regionsToShow[i];
-          const regionTabId = `assets-${buildingNumber}-region-${region}`;
-          const regionTab: Tab = {
-            id: regionTabId,
-            type: 'assets',
-            buildingNumber,
-            taxRegion: region,
-            label: `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(region)}`,
-            refreshKey: Date.now()
-          };
-          tabsToCreate.push(regionTab);
-        }
-        
-        // Activate the "all assets" tab (first tab)
-        // Update tabs: close all previous assets tabs, then add new tabs for this building
-        setTabs(prev => {
-          // Keep buildings tab and non-assets tabs, close all assets tabs
-          const keepTabs = prev.filter(t => 
-            t.id === 'buildings' || 
-            t.type !== 'assets'
-          );
-          // Combine: keep tabs + all new tabs (this ensures we always have exactly 3 tabs for this building)
-          const newTabs = [...keepTabs, ...tabsToCreate];
-        return newTabs;
-      });
-      
-      // Set active tab to "all assets" (first tab)
-      setTimeout(() => {
-        setActiveTabId(allAssetsTabId);
-      }, 0);
       }
     });
   }

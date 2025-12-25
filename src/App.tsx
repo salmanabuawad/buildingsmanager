@@ -285,6 +285,7 @@ function App() {
         setActiveTabId(allAssetsTabId);
       }, 0);
     }
+    });
   }
 
   const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {

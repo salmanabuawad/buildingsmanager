@@ -3873,24 +3873,27 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         availableTaxRegions={availableTaxRegions}
         assetTypes={assetTypes}
         onSuccess={() => {
-          // Clear tax_region from dirty bits for assets that were successfully saved
+          // Clear dirty bits for assets that were successfully saved via tax region change
+          // Since saveBulkTransactional saves the entire asset, all fields are synced, so remove entire entries
+          const assetIdsToClear = Array.from(selectedAssets);
           setDirtyAssets(prev => {
             const next = new Map(prev);
-            for (const assetId of selectedAssets) {
-              const dirtyChanges = next.get(assetId);
-              if (dirtyChanges) {
-                // Remove tax_region from dirty changes
-                const { tax_region, ...remainingChanges } = dirtyChanges;
-                // If no changes remain, remove the entry; otherwise update it
-                if (Object.keys(remainingChanges).length === 0) {
-                  next.delete(assetId);
-                } else {
-                  next.set(assetId, remainingChanges);
-                }
-              }
+            for (const assetId of assetIdsToClear) {
+              // Remove entire entry since the entire asset was saved
+              next.delete(String(assetId));
             }
             return next;
           });
+          
+          // Also clear validation errors for these assets
+          setValidationErrors(prev => {
+            const next = new Map(prev);
+            for (const assetId of assetIdsToClear) {
+              next.delete(String(assetId));
+            }
+            return next;
+          });
+          
           fetchData(); // Refresh assets after successful change
           setSelectedAssets(new Set()); // Clear selection
         }}

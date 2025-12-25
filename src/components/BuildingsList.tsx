@@ -1161,82 +1161,91 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return;
       }
 
-      // Define headers for asset export
+      // Define headers for asset export - matching export_automatiom_sample.xlsx format
       const headers = [
-        'מזהה מבנה',
-        'מזהה נכס',
-        'מזהה משלם',
-        'אזור מס',
-        'דירת גג',
-        'קומה',
-        'סוג הנחה',
-        'תאריך הנחה מ',
-        'תאריך הנחה עד',
-        'תאריך מדידה',
-        'סוג נכס ראשי',
+        'זיהוי משלם ',
+        'זיהוי נכס',
+        'תחילת שינוי ',
+        'סוף שינוי ',
+        'סוג נכס',
         'גודל נכס',
-        'סוג נכס משנה 1',
+        'נכס משנה 1',
         'גודל נכס משנה 1',
-        'סוג נכס משנה 2',
+        'נכס משנה 2',
         'גודל נכס משנה 2',
-        'סוג נכס משנה 3',
+        'נכס משנה 3',
         'גודל נכס משנה 3',
-        'סוג נכס משנה 4',
+        'נכס משנה 4',
         'גודל נכס משנה 4',
-        'סוג נכס משנה 5',
+        'נכס משנה 5',
         'גודל נכס משנה 5',
-        'סוג נכס משנה 6',
-        'גודל נכס משנה 6',
-        'גודל שטח משותף',
-        'הערה'
+        'סוג נכס משני 6',
+        'גודל נכסי משני 6',
+        'מנה',
+        'מקום גביה',
+        'מספר פקודה',
+        'שנת כספים',
+        'תאריך גביה',
+        'יום ערך'
       ];
 
-      // Helper function to format date
-      const formatDateToDDMMYYYY = (dateStr: string | null | undefined): string => {
+      // Helper function to format date to YYYY-MM-DD HH:MM:SS format (automation format)
+      const formatDateToAutomationFormat = (dateStr: string | null | undefined): string => {
         if (!dateStr) return '';
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-          return dateStr; // Already in DD/MM/YYYY format
+        try {
+          // Try to parse different date formats
+          let date: Date;
+          
+          // If it's already in DD/MM/YYYY format
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parseInt(parts[2], 10);
+            date = new Date(year, month, day);
+          } else {
+            // Try to parse as ISO date or other formats
+            date = new Date(dateStr);
+          }
+          
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day} 00:00:00`;
+          }
+        } catch (error) {
+          console.warn('Error formatting date:', dateStr, error);
         }
-        // Try to parse ISO date
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const year = date.getFullYear();
-          return `${day}/${month}/${year}`;
-        }
-        return dateStr;
+        return '';
       };
 
-      // Convert assets to rows
+      // Convert assets to rows - matching sample file format and column order
       const rows = exportedAssets.map(asset => [
-        asset.building_number || '',
-        asset.asset_id || '',
-        asset.payer_id || '',
-        asset.tax_region || '',
-        asset.penthouse || '',
-        asset.floor || '',
-        asset.discount_type || '',
-        formatDateToDDMMYYYY(asset.discount_date_from) || '',
-        formatDateToDDMMYYYY(asset.discount_date_to) || '',
-        formatDateToDDMMYYYY(asset.measurement_date) || '',
-        asset.main_asset_type || '',
-        asset.asset_size || '',
-        asset.sub_asset_type_1 || '',
-        asset.sub_asset_size_1 || '',
-        asset.sub_asset_type_2 || '',
-        asset.sub_asset_size_2 || '',
-        asset.sub_asset_type_3 || '',
-        asset.sub_asset_size_3 || '',
-        asset.sub_asset_type_4 || '',
-        asset.sub_asset_size_4 || '',
-        asset.sub_asset_type_5 || '',
-        asset.sub_asset_size_5 || '',
-        asset.sub_asset_type_6 || '',
-        asset.sub_asset_size_6 || '',
-        asset.area_from_distribution || '',
-        asset.comment || ''
+        asset.payer_id || '',                                    // זיהוי משלם
+        asset.asset_id || '',                                    // זיהוי נכס
+        formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
+        formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
+        asset.main_asset_type || '',                             // סוג נכס
+        asset.asset_size || '',                                  // גודל נכס
+        asset.sub_asset_type_1 || '',                            // נכס משנה 1
+        asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
+        asset.sub_asset_type_2 || '',                            // נכס משנה 2
+        asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
+        asset.sub_asset_type_3 || '',                            // נכס משנה 3
+        asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
+        asset.sub_asset_type_4 || '',                            // נכס משנה 4
+        asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
+        asset.sub_asset_type_5 || '',                            // נכס משנה 5
+        asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
+        asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
+        asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
+        '',                                                      // מנה (empty in sample)
+        '',                                                      // מקום גביה (empty in sample)
+        '',                                                      // מספר פקודה (empty in sample)
+        '',                                                      // שנת כספים (empty in sample)
+        '',                                                      // תאריך גביה (empty in sample)
+        ''                                                       // יום ערך (empty in sample)
       ]);
 
       // Create data array with headers and rows
@@ -1254,32 +1263,30 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         sheetName: 'נכסים',
         data,
         columnWidths: [
-          { wch: 12 }, // מזהה מבנה
-          { wch: 12 }, // מזהה נכס
-          { wch: 12 }, // מזהה משלם
-          { wch: 10 }, // אזור מס
-          { wch: 8 },  // דירת גג
-          { wch: 8 },  // קומה
-          { wch: 12 }, // סוג הנחה
-          { wch: 12 }, // תאריך הנחה מ
-          { wch: 12 }, // תאריך הנחה עד
-          { wch: 12 }, // תאריך מדידה
-          { wch: 12 }, // סוג נכס ראשי
+          { wch: 15 }, // זיהוי משלם
+          { wch: 15 }, // זיהוי נכס
+          { wch: 20 }, // תחילת שינוי
+          { wch: 20 }, // סוף שינוי
+          { wch: 12 }, // סוג נכס
           { wch: 12 }, // גודל נכס
-          { wch: 12 }, // סוג נכס משנה 1
-          { wch: 12 }, // גודל נכס משנה 1
-          { wch: 12 }, // סוג נכס משנה 2
-          { wch: 12 }, // גודל נכס משנה 2
-          { wch: 12 }, // סוג נכס משנה 3
-          { wch: 12 }, // גודל נכס משנה 3
-          { wch: 12 }, // סוג נכס משנה 4
-          { wch: 12 }, // גודל נכס משנה 4
-          { wch: 12 }, // סוג נכס משנה 5
-          { wch: 12 }, // גודל נכס משנה 5
-          { wch: 12 }, // סוג נכס משנה 6
-          { wch: 12 }, // גודל נכס משנה 6
-          { wch: 15 }, // גודל שטח משותף
-          { wch: 20 }  // הערה
+          { wch: 15 }, // נכס משנה 1
+          { wch: 15 }, // גודל נכס משנה 1
+          { wch: 15 }, // נכס משנה 2
+          { wch: 15 }, // גודל נכס משנה 2
+          { wch: 15 }, // נכס משנה 3
+          { wch: 15 }, // גודל נכס משנה 3
+          { wch: 15 }, // נכס משנה 4
+          { wch: 15 }, // גודל נכס משנה 4
+          { wch: 15 }, // נכס משנה 5
+          { wch: 15 }, // גודל נכס משנה 5
+          { wch: 15 }, // סוג נכס משני 6
+          { wch: 15 }, // גודל נכסי משני 6
+          { wch: 10 }, // מנה
+          { wch: 12 }, // מקום גביה
+          { wch: 12 }, // מספר פקודה
+          { wch: 12 }, // שנת כספים
+          { wch: 15 }, // תאריך גביה
+          { wch: 15 }  // יום ערך
         ]
       });
 

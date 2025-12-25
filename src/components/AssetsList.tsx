@@ -2647,10 +2647,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         
         // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
         // Delete button should be visible for all assets (new and existing), same as view asset button
+        // Hide delete button in error fixing mode
         const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
         // If building has multiple tax regions, only show delete button when a specific taxRegion is selected
         // If building has only one tax region, show delete button (taxRegion may or may not be set)
-        const shouldShowDeleteButton = !hasMultipleTaxRegions || taxRegion;
+        const shouldShowDeleteButton = !isErrorFixingMode && (!hasMultipleTaxRegions || taxRegion);
         
         // Show checkbox in multi-tax-region mode (all assets view) or single tax region tab
         // Checkbox should be hidden for new assets, same as view icon

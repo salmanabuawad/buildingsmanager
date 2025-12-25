@@ -2665,6 +2665,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     return allAreResidence;
   }, [taxRegion, assetTypes]);
 
+  // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or taxRegion itself contains comma)
+  const isMultiTaxRegion = useMemo(() => {
+    return !taxRegion || (taxRegion && taxRegion.includes(','));
+  }, [taxRegion]);
+
   const detailColumnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
     {
@@ -3577,11 +3582,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     
     return allResidence;
   }, [assets, assetTypes, deletedAssets]);
-
-  // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or taxRegion itself contains comma)
-  const isMultiTaxRegion = useMemo(() => {
-    return !taxRegion || (taxRegion && taxRegion.includes(','));
-  }, [taxRegion]);
 
   // Extract available tax regions from building
   const availableTaxRegions = useMemo(() => {

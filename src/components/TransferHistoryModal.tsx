@@ -205,7 +205,6 @@ export function TransferHistoryModal({
     ])).sort((a, b) => a - b);
     
     // Check if this is a "current state" record (no before data or description indicates current state)
-    const beforeAssets = selectedRecord.before_data?.assets || [];
     const isCurrentState = selectedRecord.description === 'העברה נוכחית' || 
                           selectedRecord.description === 'פיזור נוכחי' ||
                           beforeAssets.length === 0;

@@ -1388,7 +1388,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           savedCount = result.count || 0;
           for (const assetId of dirtyAssets.keys()) {
             if (!deletedAssets.has(assetId)) {
-              successfullySaved.add(assetId);
+              successfullySaved.add(String(assetId)); // Ensure string type
             }
           }
           
@@ -1447,10 +1447,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Only clear successfully processed assets from state
       // Keep failed assets in state so they remain visible on screen
       // Remove successfully saved/deleted assets from change tracking
+      // Use functional updates to ensure we're working with the latest state
       setDirtyAssets(prev => {
         const next = new Map(prev);
         for (const assetId of successfullySaved) {
-          next.delete(assetId);
+          next.delete(String(assetId)); // Ensure string comparison
         }
         return next;
       });
@@ -1458,7 +1459,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setDeletedAssets(prev => {
         const next = new Set(prev);
         for (const assetId of successfullyDeleted) {
-          next.delete(assetId);
+          next.delete(String(assetId)); // Ensure string comparison
         }
         return next;
       });
@@ -1466,7 +1467,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setNewAssets(prev => {
         const next = new Set(prev);
         for (const assetId of successfullySaved) {
-          next.delete(assetId);
+          next.delete(String(assetId)); // Ensure string comparison
         }
         return next;
       });

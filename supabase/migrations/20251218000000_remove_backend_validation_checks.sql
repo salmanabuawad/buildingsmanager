@@ -1075,10 +1075,7 @@ BEGIN
           WHEN v_asset_data->'area_from_distribution' IS NULL THEN area_from_distribution
           ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0)
         END,
-        exported_to_automation = CASE 
-          WHEN v_asset_data->'exported_to_automation' IS NULL THEN exported_to_automation
-          ELSE COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false)
-        END,
+        exported_to_automation = false, -- Always set to false when asset is updated (needs re-export)
         comment = CASE 
           WHEN v_asset_data->'comment' IS NULL THEN comment
           WHEN v_asset_data->'comment' = 'null'::jsonb THEN NULL

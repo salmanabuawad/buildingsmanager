@@ -2036,6 +2036,44 @@ export const api = {
     ): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> => {
       return validateAndSaveBulkAssets(assetsData, actionType, beforeData, afterData, description, isBusinessContext);
     },
+    exportToAutomation: async (): Promise<{ success: boolean; count: number; assetIds: number[]; error?: string }> => {
+      try {
+        // Fetch all assets where exported_to_automation is null or false
+        const { data: assetsToExport, error: fetchError } = await supabase
+          .from('assets')
+          .select('*')
+          .or('exported_to_automation.is.null,exported_to_automation.eq.false')
+          .order('asset_id');
+
+        if (fetchError) {
+          console.error('[api.assets.exportToAutomation] Error fetching assets:', fetchError);
+          return { success: false, count: 0, assetIds: [], error: fetchError.message };
+        }
+
+        if (!assetsToExport || assetsToExport.length === 0) {
+          return { success: true, count: 0, assetIds: [] };
+        }
+
+        // Get asset IDs for marking as exported
+        const assetIds = assetsToExport.map(a => a.asset_id);
+
+        // Mark all assets as exported
+        const { error: updateError } = await supabase
+          .from('assets')
+          .update({ exported_to_automation: true })
+          .in('asset_id', assetIds);
+
+        if (updateError) {
+          console.error('[api.assets.exportToAutomation] Error marking assets as exported:', updateError);
+          return { success: false, count: 0, assetIds: [], error: updateError.message };
+        }
+
+        return { success: true, count: assetsToExport.length, assetIds };
+      } catch (error: any) {
+        console.error('[api.assets.exportToAutomation] Unexpected error:', error);
+        return { success: false, count: 0, assetIds: [], error: error.message || 'Unknown error' };
+      }
+    },
   },
   measurements: {
     getAll: async (assetId: string): Promise<AssetMeasurement[]> => {

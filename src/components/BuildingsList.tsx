@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { buildingValidators } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
@@ -1112,6 +1113,186 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       setTimeout(() => setError(null), 3000);
     }
   }, [filteredBuildings, dirtyBuildings, buildingsToDelete, getBuildingKey, addressList]);
+
+  // Export assets to automation system
+  const handleExportToAutomation = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Call API to export assets and mark them as exported
+      const result = await api.assets.exportToAutomation();
+
+      if (!result.success) {
+        setError(result.error || 'שגיאה בייצוא נכסים לאוטומציה');
+        setTimeout(() => setError(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      if (result.count === 0) {
+        setSuccess('אין נכסים לייצוא - כל הנכסים כבר יוצאו לאוטומציה');
+        setTimeout(() => setSuccess(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch the exported assets to export them to Excel
+      const { data: exportedAssets, error: fetchError } = await supabase
+        .from('assets')
+        .select('*')
+        .in('asset_id', result.assetIds)
+        .order('building_number')
+        .order('asset_id');
+
+      if (fetchError) {
+        console.error('Error fetching exported assets:', fetchError);
+        setError('הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel');
+        setTimeout(() => setError(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      if (!exportedAssets || exportedAssets.length === 0) {
+        setSuccess(`סומנו ${result.count} נכסים כייצאו בהצלחה`);
+        setTimeout(() => setSuccess(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      // Define headers for asset export
+      const headers = [
+        'מזהה מבנה',
+        'מזהה נכס',
+        'מזהה משלם',
+        'אזור מס',
+        'דירת גג',
+        'קומה',
+        'סוג הנחה',
+        'תאריך הנחה מ',
+        'תאריך הנחה עד',
+        'תאריך מדידה',
+        'סוג נכס ראשי',
+        'גודל נכס',
+        'סוג נכס משנה 1',
+        'גודל נכס משנה 1',
+        'סוג נכס משנה 2',
+        'גודל נכס משנה 2',
+        'סוג נכס משנה 3',
+        'גודל נכס משנה 3',
+        'סוג נכס משנה 4',
+        'גודל נכס משנה 4',
+        'סוג נכס משנה 5',
+        'גודל נכס משנה 5',
+        'סוג נכס משנה 6',
+        'גודל נכס משנה 6',
+        'גודל שטח משותף',
+        'הערה'
+      ];
+
+      // Helper function to format date
+      const formatDateToDDMMYYYY = (dateStr: string | null | undefined): string => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          return dateStr; // Already in DD/MM/YYYY format
+        }
+        // Try to parse ISO date
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+      };
+
+      // Convert assets to rows
+      const rows = exportedAssets.map(asset => [
+        asset.building_number || '',
+        asset.asset_id || '',
+        asset.payer_id || '',
+        asset.tax_region || '',
+        asset.penthouse || '',
+        asset.floor || '',
+        asset.discount_type || '',
+        formatDateToDDMMYYYY(asset.discount_date_from) || '',
+        formatDateToDDMMYYYY(asset.discount_date_to) || '',
+        formatDateToDDMMYYYY(asset.measurement_date) || '',
+        asset.main_asset_type || '',
+        asset.asset_size || '',
+        asset.sub_asset_type_1 || '',
+        asset.sub_asset_size_1 || '',
+        asset.sub_asset_type_2 || '',
+        asset.sub_asset_size_2 || '',
+        asset.sub_asset_type_3 || '',
+        asset.sub_asset_size_3 || '',
+        asset.sub_asset_type_4 || '',
+        asset.sub_asset_size_4 || '',
+        asset.sub_asset_type_5 || '',
+        asset.sub_asset_size_5 || '',
+        asset.sub_asset_type_6 || '',
+        asset.sub_asset_size_6 || '',
+        asset.area_from_distribution || '',
+        asset.comment || ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `פריקת_נתונים_${dateStr}.xlsx`;
+
+      // Export to Excel
+      const { exportToExcel } = await import('../lib/excelExport');
+      exportToExcel({
+        filename,
+        sheetName: 'נכסים',
+        data,
+        columnWidths: [
+          { wch: 12 }, // מזהה מבנה
+          { wch: 12 }, // מזהה נכס
+          { wch: 12 }, // מזהה משלם
+          { wch: 10 }, // אזור מס
+          { wch: 8 },  // דירת גג
+          { wch: 8 },  // קומה
+          { wch: 12 }, // סוג הנחה
+          { wch: 12 }, // תאריך הנחה מ
+          { wch: 12 }, // תאריך הנחה עד
+          { wch: 12 }, // תאריך מדידה
+          { wch: 12 }, // סוג נכס ראשי
+          { wch: 12 }, // גודל נכס
+          { wch: 12 }, // סוג נכס משנה 1
+          { wch: 12 }, // גודל נכס משנה 1
+          { wch: 12 }, // סוג נכס משנה 2
+          { wch: 12 }, // גודל נכס משנה 2
+          { wch: 12 }, // סוג נכס משנה 3
+          { wch: 12 }, // גודל נכס משנה 3
+          { wch: 12 }, // סוג נכס משנה 4
+          { wch: 12 }, // גודל נכס משנה 4
+          { wch: 12 }, // סוג נכס משנה 5
+          { wch: 12 }, // גודל נכס משנה 5
+          { wch: 12 }, // סוג נכס משנה 6
+          { wch: 12 }, // גודל נכס משנה 6
+          { wch: 15 }, // גודל שטח משותף
+          { wch: 20 }  // הערה
+        ]
+      });
+
+      setSuccess(`יוצאו ${result.count} נכסים לאוטומציה בהצלחה`);
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (error: any) {
+      console.error('Error exporting to automation:', error);
+      setError(error.message || 'שגיאה בייצוא נכסים לאוטומציה');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Save all changes
   const handleSaveAll = async () => {
@@ -2370,6 +2551,19 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             >
               <Download className="h-4 w-4" />
               ייצא ל-Excel
+            </button>
+            <button
+              type="button"
+              onClick={handleExportToAutomation}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              פריקת נתונים
             </button>
           </div>
           <div className="flex gap-2">

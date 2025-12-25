@@ -2768,7 +2768,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 onMouseDown={(e) => e.stopPropagation()}
               />
             )}
-            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+            <MessageSquare size={16} />
           </div>
         );
       },
@@ -3265,7 +3265,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 onMouseDown={(e) => e.stopPropagation()}
               />
             )}
-            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+            <MessageSquare size={16} />
           </div>
         );
       },

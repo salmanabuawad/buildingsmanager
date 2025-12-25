@@ -502,7 +502,24 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = String(data.asset_id);
-      const newValue = event.newValue;
+      let newValue = event.newValue;
+
+      // Normalize empty values: set to null for strings, 0 for numbers
+      if (newValue === '' || newValue === null || newValue === undefined) {
+        // Check if this is a numeric field based on column type
+        const isNumericField = colDef.type === 'numericColumn' || 
+          field === 'asset_size' || 
+          field?.startsWith('sub_asset_size_') || 
+          field === 'floor' || 
+          field === 'tax_region';
+        
+        if (isNumericField) {
+          newValue = 0;
+        } else {
+          newValue = null;
+        }
+      }
+
       const updatedAsset = { ...data, [field]: newValue };
       
       // Update assets state without triggering validation
@@ -518,7 +535,23 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = String(data.asset_id);
-      const newValue = event.newValue;
+      let newValue = event.newValue;
+
+      // Normalize empty values: set to null for strings, 0 for numbers
+      if (newValue === '' || newValue === null || newValue === undefined) {
+        // Check if this is a numeric field based on column type
+        const isNumericField = colDef.type === 'numericColumn' || 
+          field === 'asset_size' || 
+          field?.startsWith('sub_asset_size_') || 
+          field === 'floor' || 
+          field === 'tax_region';
+        
+        if (isNumericField) {
+          newValue = 0;
+        } else {
+          newValue = null;
+        }
+      }
 
       // Create updated asset with new value
       let updatedAsset = { ...data, [field]: newValue };

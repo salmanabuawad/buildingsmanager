@@ -361,6 +361,35 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         console.log(`[AssetsList] Filtered to ${filteredAssets.length} assets with selected asset IDs`);
       }
       
+      // If in error fixing mode with selectedAssetIds and taxRegion, update assets' tax_region to match the tab's tax region
+      // This ensures assets are displayed with the new tax region before they're saved
+      if (isErrorFixingMode && selectedAssetIds && selectedAssetIds.length > 0 && taxRegion && taxRegion.trim() !== '') {
+        const newTaxRegion = parseInt(taxRegion.trim(), 10);
+        if (!isNaN(newTaxRegion)) {
+          filteredAssets = filteredAssets.map(asset => {
+            if (selectedAssetIdsSet && selectedAssetIdsSet.has(String(asset.asset_id))) {
+              const assetId = String(asset.asset_id);
+              const updatedAsset = {
+                ...asset,
+                tax_region: newTaxRegion
+              };
+              
+              // Track the tax_region change as a dirty change so it gets saved
+              setDirtyAssets(prev => {
+                const newMap = new Map(prev);
+                const existing = newMap.get(assetId) || {};
+                newMap.set(assetId, { ...existing, tax_region: newTaxRegion });
+                return newMap;
+              });
+              
+              return updatedAsset;
+            }
+            return asset;
+          });
+          console.log(`[AssetsList] Updated tax_region to ${newTaxRegion} for ${filteredAssets.length} assets in error fixing mode`);
+        }
+      }
+      
       // Ensure all assets have valid IDs
       const validFilteredAssets = (filteredAssets || []).filter(asset => {
         if (!asset) return false;

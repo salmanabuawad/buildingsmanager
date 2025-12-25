@@ -983,10 +983,6 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       cellRenderer: (params: any) => {
         const hasValue = params.value && params.value.trim() !== '';
         const isEditable = isFieldEditable(params, 'comment');
-        const handleClear = (e: React.MouseEvent) => {
-          e.stopPropagation(); // Prevent triggering cell edit
-          params.api.setValue(params.colDef?.field || 'comment', params.node, null);
-        };
         return (
           <div 
             style={{ 
@@ -1007,14 +1003,6 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
             }}
           >
             {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
-            {hasValue && isEditable && (
-              <X 
-                size={14} 
-                style={{ color: '#dc2626', flexShrink: 0, cursor: 'pointer' }}
-                onClick={handleClear}
-                onMouseDown={(e) => e.stopPropagation()}
-              />
-            )}
             <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
           </div>
         );

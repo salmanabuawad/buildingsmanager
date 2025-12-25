@@ -2638,8 +2638,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         const hasError = row._validationErrors && row._validationErrors.length > 0;
         const errorMessages = hasError && row._validationErrors ? row._validationErrors : [];
 
-        const hasComment = row.comment && row.comment.trim() !== '';
-        
         return (
           <div className="flex items-center gap-2 w-full px-2">
             {hasError && errorMessages.length > 0 && (
@@ -2660,13 +2658,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               >
                 <AlertCircle className="h-4 w-4" />
               </button>
-            )}
-            {hasComment && (
-              <MessageSquare 
-                size={16} 
-                style={{ color: '#2563eb', flexShrink: 0 }}
-                title={row.comment}
-              />
             )}
             <button
               type="button"
@@ -2953,9 +2944,22 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       cellEditorPopupPosition: 'over',
       cellRenderer: (params: any) => {
         const hasValue = params.value && params.value.trim() !== '';
+        const handleClear = (e: React.MouseEvent) => {
+          e.stopPropagation(); // Prevent triggering cell edit
+          params.api.setValue(params.colDef?.field || 'comment', params.node, null);
+        };
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px', cursor: 'pointer', height: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: hasValue ? 'flex-end' : 'center', gap: '4px', direction: 'rtl', width: '100%', paddingRight: hasValue ? '4px' : '0', cursor: 'pointer', height: '100%' }}>
             {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            {hasValue && (
+              <X 
+                size={14} 
+                style={{ color: '#dc2626', flexShrink: 0, cursor: 'pointer' }}
+                onClick={handleClear}
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+            )}
+            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
           </div>
         );
       },

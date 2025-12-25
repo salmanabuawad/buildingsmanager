@@ -1306,8 +1306,22 @@ BEGIN
     END IF;
   END IF;
   
-  -- Note: Audit entries are created by log_audit_for_asset function for individual assets
-  -- No need to update audit entries here since log_audit_for_asset handles it
+  -- ========================================================================
+  -- STEP 3c: CALL log_audit_entry FOR DISTRIBUTION OPERATIONS
+  -- ========================================================================
+  -- Call log_audit_entry for distribution operations to save before/after data
+  IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') 
+     AND v_first_building_number IS NOT NULL THEN
+    PERFORM log_audit_entry(
+      p_action_type::audit_action_type,
+      'bulk_asset',
+      v_first_building_number::text,
+      p_user_id,
+      v_before_data_collected,
+      v_after_data_collected,
+      p_description
+    );
+  END IF;
 
   -- ========================================================================
   -- STEP 4: REMOVE DISTRIBUTION FLAGS FOR DISTRIBUTION ACTIONS

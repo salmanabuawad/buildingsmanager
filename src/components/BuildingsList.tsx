@@ -1014,106 +1014,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   }, [buildings, dirtyBuildings, buildingsToDelete, getBuildingKey, isNewBuilding, totalChanges]);
 
   // Export buildings to Excel
-  const handleExportToExcel = useCallback(async () => {
-    if (!filteredBuildings || filteredBuildings.length === 0) {
-      setError('אין מבנים לייצוא');
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
-
-    try {
-      // Get all buildings with dirty changes applied, excluding deleted ones
-      const buildingsToExport = filteredBuildings
-        .filter(building => {
-          const buildingKey = getBuildingKey(building);
-          return !buildingsToDelete.has(buildingKey);
-        })
-        .map(building => {
-          const buildingKey = getBuildingKey(building);
-          const dirtyChanges = dirtyBuildings.get(buildingKey) || {};
-          return { ...building, ...dirtyChanges };
-        });
-
-      // Define headers matching the grid columns (excluding actions)
-      const headers = [
-        'מזהה מבנה',
-        'אזור מיסים',
-        'אחוז העמסה',
-        'שטח משותף מגורים',
-        'שטח משותף עסקים',
-        'ס"כ גודל',
-        'שטח לבקרה',
-        'כתובת',
-        'גוש',
-        'חלקה',
-        'מספר בניין ברחוב',
-        'מעלית',
-        'בית פרטי חד/דו משפחתי',
-        'בית משותף',
-        'טוריים'
-      ];
-
-      // Convert buildings to rows
-      const rows = buildingsToExport.map(building => [
-        building.building_number || '',
-        building.tax_region || '',
-        building.overload_ratio != null ? `${building.overload_ratio}%` : '',
-        building.residence_shared_area || '',
-        building.business_shared_area || '',
-        building.total_building_area || '',
-        building.area_for_control || '',
-        building.building_address ? (addressList.find(a => a.street_code === building.building_address)?.street_description || building.building_address) : '',
-        building.gosh || '',
-        building.helka || '',
-        building.building_number_in_street || '',
-        building.elevator || '',
-        building.single_double_family || '',
-        building.condo || '',
-        building.townhouses || ''
-      ]);
-
-      // Create data array with headers and rows
-      const data = [headers, ...rows];
-
-      // Generate filename with current date
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-      const filename = `מבנים_${dateStr}.xlsx`;
-
-      // Use improved export function to reduce antivirus false positives
-      const { exportToExcel } = await import('../lib/excelExport');
-      exportToExcel({
-        filename,
-        sheetName: 'מבנים',
-        data,
-        columnWidths: [
-          { wch: 12 }, // מזהה מבנה
-          { wch: 15 }, // אזור מיסים
-          { wch: 12 }, // אחוז העמסה
-          { wch: 18 }, // שטח משותף מגורים
-          { wch: 18 }, // שטח משותף עסקים
-          { wch: 12 }, // ס"כ גודל
-          { wch: 15 }, // שטח לבקרה
-          { wch: 30 }, // כתובת
-          { wch: 10 }, // גוש
-          { wch: 10 }, // חלקה
-          { wch: 18 }, // מספר בניין ברחוב
-          { wch: 10 }, // מעלית
-          { wch: 25 }, // בית פרטי חד/דו משפחתי
-          { wch: 12 }, // בית משותף
-          { wch: 12 }  // טוריים
-        ]
-      });
-      
-      setSuccess(`יוצאו ${rows.length} מבנים בהצלחה`);
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-      setError('שגיאה בייצוא לקובץ Excel');
-      setTimeout(() => setError(null), 3000);
-    }
-  }, [filteredBuildings, dirtyBuildings, buildingsToDelete, getBuildingKey, addressList]);
-
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {
     setLoading(true);
@@ -2550,14 +2450,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             >
               <CheckCircle2 className="h-4 w-4" />
               אמת הכל
-            </button>
-            <button
-              type="button"
-              onClick={handleExportToExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-            >
-              <Download className="h-4 w-4" />
-              ייצא ל-Excel
             </button>
             <button
               type="button"

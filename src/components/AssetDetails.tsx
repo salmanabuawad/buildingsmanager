@@ -81,7 +81,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const loadAuditDetailsRef = useRef<((actionId: number) => Promise<void>) | null>(null);
   const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
   const [selectedDateTab, setSelectedDateTab] = useState<{ actionId: number; measurementDate: string } | null>(null);
-  const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>>(new Map());
+  const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | 'business_distribution' | 'residence_distribution' | null>>(new Map());
   const [auditCreatedAtMap, setAuditCreatedAtMap] = useState<Map<number, string>>(new Map());
   const [additionalDistributionAssets, setAdditionalDistributionAssets] = useState<Asset[]>([]);
   const [additionalTransferAssets, setAdditionalTransferAssets] = useState<Asset[]>([]);
@@ -178,13 +178,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       try {
         
-        // Query for ALL distribute_shared actions (not just ones affecting this asset)
+        // Query for ALL distribution actions (business_distribution and residence_distribution)
         // We'll filter by building later when we process the audit data
         if (buildingNumber) {
           const { data: allDistributeActions, error: distributeError } = await supabase
             .from('audit')
             .select('action_id, action_type, entity_id, before_data, after_data')
-            .eq('action_type', 'distribute_shared')
+            .in('action_type', ['business_distribution', 'residence_distribution', 'distribute_shared'])
             .eq('entity_type', 'bulk_asset')
             .order('created_at', { ascending: false });
 
@@ -268,7 +268,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
         if (error) throw error;
 
-        const actionTypeMap = new Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | null>();
+        const actionTypeMap = new Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | 'business_distribution' | 'residence_distribution' | null>();
         const createdAtMap = new Map<number, string>();
         (data || []).forEach(audit => {
           actionTypeMap.set(audit.action_id, audit.action_type);
@@ -280,8 +280,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         setHistoryWithActionTypes(actionTypeMap);
         setAuditCreatedAtMap(createdAtMap);
         
-        // Also fetch asset records from assets_history, assets table, and audit after_data for distribute_shared and transfer_area
-        const distributeActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'distribute_shared');
+        // Also fetch asset records from assets_history, assets table, and audit after_data for distribution and transfer_area
+        const distributeActionIds = Array.from(actionIds).filter(id => {
+          const actionType = actionTypeMap.get(id);
+          return actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution';
+        });
         const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
         
         // Fetch distribution assets - use TWO approaches to ensure we get ALL distributions:
@@ -329,7 +332,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               });
             }
             
-            // APPROACH 2: Query audit table directly for distribute_shared actions
+            // APPROACH 2: Query audit table directly for distribution actions (business_distribution, residence_distribution, and legacy distribute_shared)
             // Then check if this asset is in before_data or after_data
             // This catches distributions even if action_id wasn't set on the asset
             // We can't filter by building_number directly, so we'll fetch and filter in memory
@@ -337,7 +340,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             const { data: allDistributeAuditsDirect, error: directAuditsErr } = await supabase
               .from('audit')
               .select('action_id, before_data, after_data, entity_id, created_at, action_type')
-              .eq('action_type', 'distribute_shared')
+              .in('action_type', ['business_distribution', 'residence_distribution', 'distribute_shared'])
               .eq('entity_type', 'bulk_asset')
               .order('created_at', { ascending: false })
               .limit(1000); // Limit to prevent performance issues
@@ -352,7 +355,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 .from('audit')
                 .select('action_id, before_data, after_data, entity_id, created_at, action_type')
                 .in('action_id', actionIdsArray)
-                .eq('action_type', 'distribute_shared')
+                .in('action_type', ['business_distribution', 'residence_distribution', 'distribute_shared'])
                 .order('created_at', { ascending: false });
               
               if (!auditsErr && auditsForActionIds) {
@@ -671,6 +674,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
              actionType === 'import_file' || 
              actionType === null ||
              actionType === 'distribute_shared' ||
+             actionType === 'business_distribution' ||
+             actionType === 'residence_distribution' ||
              actionType === 'transfer_area';
     });
     
@@ -709,7 +714,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
     });
     
-    // Also include history rows with distribute_shared action_type (for backward compatibility)
+    // Also include history rows with distribution action_type (for backward compatibility)
     // But these should be rare since distributions don't create history records
     historyRows.forEach(row => {
       const actionId = typeof row.action_id === 'number' ? row.action_id : 
@@ -717,13 +722,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       
       if (actionId != null && !isNaN(actionId)) {
         const actionType = historyWithActionTypes.get(actionId);
-        if (actionType === 'distribute_shared' && !grouped.has(actionId)) {
+        if ((actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') && !grouped.has(actionId)) {
           grouped.set(actionId, { ...row, action_id: actionId });
         }
       }
     });
     
-    // Also include current asset if it has distribute_shared action_type
+    // Also include current asset if it has distribution action_type
     // (for backward compatibility, but distributions should be in additionalDistributionAssets)
     if (latestMeasurement?.action_id != null) {
       const actionId = typeof latestMeasurement.action_id === 'number' ? latestMeasurement.action_id : 
@@ -731,7 +736,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       
       if (actionId != null && !isNaN(actionId)) {
         const actionType = historyWithActionTypes.get(actionId);
-        if (actionType === 'distribute_shared' && !grouped.has(actionId)) {
+        if ((actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') && !grouped.has(actionId)) {
           grouped.set(actionId, { ...latestMeasurement, is_latest: false, action_id: actionId } as Asset);
         }
       }
@@ -891,7 +896,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     historyRows.forEach(row => {
       if (row.action_id != null) {
         const actionType = historyWithActionTypes.get(row.action_id);
-        if (actionType === 'distribute_shared') {
+        if (actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') {
           allRows.push(row);
         }
       }
@@ -899,7 +904,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     allRows.push(...additionalDistributionAssets);
     if (latestMeasurement?.action_id != null) {
       const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
-      if (actionType === 'distribute_shared') {
+      if (actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') {
         allRows.push({ ...latestMeasurement, is_latest: false } as Asset);
       }
     }
@@ -1521,12 +1526,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       let beforeAssets = extractAssets(beforeParsed);
       let afterAssets = extractAssets(afterParsed);
       
-      // For distribution operations (distribute_shared), we need to get ALL affected assets
+      // For distribution operations (business_distribution, residence_distribution, or legacy distribute_shared), we need to get ALL affected assets
       // Simple structure:
       // - before_data.assets (array) - contains all affected assets before distribution
       // - after_data.assets (array) - contains all affected assets after distribution
       // - after_data.overload_ratio (number) - overload ratio for business distributions
-      if (audit.action_type === 'distribute_shared') {
+      if (audit.action_type === 'distribute_shared' || audit.action_type === 'business_distribution' || audit.action_type === 'residence_distribution') {
         // Get all assets from before_data.assets for "before" state
         if (beforeParsed && beforeParsed.assets && Array.isArray(beforeParsed.assets)) {
           beforeAssets = beforeParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));

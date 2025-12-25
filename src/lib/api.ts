@@ -413,7 +413,7 @@ export interface ChangeLog {
 export interface DistributionAudit {
   id: number;
   building_number: number;
-  action_type: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution';
+  action_type: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution' | 'distribute_shared' | 'transfer_area';
   affected_assets_before: Asset[]; // JSONB parsed to Asset array
   affected_assets_after: Asset[]; // JSONB parsed to Asset array
   overload_ratio?: number;
@@ -2988,13 +2988,20 @@ export const api = {
   },
   distributionAudit: {
     getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution' | 'distribute_shared' | 'transfer_area', taxRegion?: string): Promise<DistributionAudit[]> => {
-      // Map old enum values to new audit_action_type enum values
-      // The audit table now uses audit_action_type with values: 'manual_update', 'import_file', 'transfer_area', 'distribute_shared'
-      let mappedActionType: string | undefined = actionType;
-      if (actionType === 'business_distribution' || actionType === 'residence_distribution' || actionType === 'distribution') {
-        mappedActionType = 'distribute_shared';
+      // Map legacy enum values for backward compatibility
+      // 'distribution' -> 'business_distribution' (default for backward compatibility)
+      // 'transfer' -> 'transfer_area'
+      // 'distribute_shared' -> query both 'business_distribution' and 'residence_distribution'
+      let mappedActionTypes: string[] | undefined = undefined;
+      if (actionType === 'distribution' || actionType === 'distribute_shared') {
+        // For 'distribution' or 'distribute_shared', query both business and residence distributions
+        mappedActionTypes = ['business_distribution', 'residence_distribution'];
       } else if (actionType === 'transfer') {
-        mappedActionType = 'transfer_area';
+        mappedActionTypes = ['transfer_area'];
+      } else if (actionType === 'business_distribution' || actionType === 'residence_distribution') {
+        mappedActionTypes = [actionType];
+      } else if (actionType === 'transfer_area') {
+        mappedActionTypes = ['transfer_area'];
       }
       
       // Query audit table by building_number (primary key for distribution/transfer operations)
@@ -3005,8 +3012,12 @@ export const api = {
         .eq('building_number', buildingNumber)
         .order('created_at', { ascending: false });
       
-      if (mappedActionType) {
-        query = query.eq('action_type', mappedActionType);
+      if (mappedActionTypes && mappedActionTypes.length > 0) {
+        if (mappedActionTypes.length === 1) {
+          query = query.eq('action_type', mappedActionTypes[0]);
+        } else {
+          query = query.in('action_type', mappedActionTypes);
+        }
       }
       
       // taxRegion parameter is kept for backward compatibility but no longer used

@@ -741,7 +741,7 @@ BEGIN
      AND v_first_building_number IS NOT NULL THEN
     -- For distribution operations, collect ALL assets in the building
     -- For other operations, only collect affected assets
-    IF p_action_type = 'distribute_shared' THEN
+    IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') THEN
       -- Get ALL assets in the building before update
       -- Use explicit column list to avoid action_id
       FOR v_asset_record IN 
@@ -1160,7 +1160,7 @@ BEGIN
 
     -- For distribution operations, we use the bulk audit entry created at STEP 2b
     -- For other operations, create individual audit log for each asset
-    IF p_action_type != 'distribute_shared' THEN
+    IF p_action_type NOT IN ('distribute_shared', 'business_distribution', 'residence_distribution') THEN
       PERFORM log_audit_for_asset(
         v_asset_id,
         CASE WHEN v_existing_asset IS NULL THEN 'INSERT' ELSE 'UPDATE' END,
@@ -1182,7 +1182,7 @@ BEGIN
   IF v_first_building_number IS NOT NULL THEN
     -- For distribution operations, collect ALL assets in the building
     -- For other operations, only collect affected assets
-    IF p_action_type = 'distribute_shared' THEN
+    IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') THEN
       -- Get ALL assets in the building after update
       -- Use explicit column list to avoid action_id
       FOR v_asset_record IN 
@@ -1295,7 +1295,7 @@ BEGIN
     
     -- For distribution operations, entity_id should include ALL assets in the building
     -- For other operations, only include affected assets
-    IF p_action_type = 'distribute_shared' THEN
+    IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') THEN
       -- Get ALL asset IDs in the building
       SELECT array_agg(asset_id ORDER BY asset_id) INTO v_entity_asset_ids
       FROM assets
@@ -1310,24 +1310,30 @@ BEGIN
   -- No need to update audit entries here since log_audit_for_asset handles it
 
   -- ========================================================================
-  -- STEP 4: REMOVE DISTRIBUTION FLAGS FOR distribute_shared ACTIONS
+  -- STEP 4: REMOVE DISTRIBUTION FLAGS FOR DISTRIBUTION ACTIONS
   -- Only after successful save, and only the relevant flag
   -- ========================================================================
-  IF p_action_type = 'distribute_shared' AND v_building_num_for_flag IS NOT NULL THEN
-    -- Determine distribution type by checking description first (most reliable)
-    -- Then check asset data fields as fallback
-    v_distribution_type := NULL;
-    
-    -- STEP 4a: Check description (most reliable method)
-    IF p_description IS NOT NULL THEN
-      IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
-        v_distribution_type := 'residence';
-      ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
-        v_distribution_type := 'business';
+  IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') AND v_building_num_for_flag IS NOT NULL THEN
+    -- Determine distribution type from action_type first (most reliable for new action types)
+    -- Then fall back to description or asset data for legacy 'distribute_shared'
+    IF p_action_type = 'business_distribution' THEN
+      v_distribution_type := 'business';
+    ELSIF p_action_type = 'residence_distribution' THEN
+      v_distribution_type := 'residence';
+    ELSE
+      -- Legacy 'distribute_shared' - determine from description or asset data
+      v_distribution_type := NULL;
+      
+      -- STEP 4a: Check description (most reliable method for legacy)
+      IF p_description IS NOT NULL THEN
+        IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
+          v_distribution_type := 'residence';
+        ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
+          v_distribution_type := 'business';
+        END IF;
       END IF;
-    END IF;
     
-    -- STEP 4b: If description didn't help, check asset data
+      -- STEP 4b: If description didn't help, check asset data (only for legacy 'distribute_shared')
     IF v_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
       -- Check if area_from_distribution is being updated (distribution)
       FOREACH v_asset_data IN ARRAY p_assets_data

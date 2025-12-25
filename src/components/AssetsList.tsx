@@ -1356,8 +1356,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
       if (assetsToSave.length > 0) {
-        // Use 'distribute_shared' action type if this is a distribution save
-        const actionType = isDistributionSave ? 'distribute_shared' : 'manual_update';
+        // Use 'business_distribution' or 'residence_distribution' action type if this is a distribution save
+        let actionType: string = 'manual_update';
+        if (isDistributionSave && distributionType) {
+          actionType = distributionType === 'business' ? 'business_distribution' : 'residence_distribution';
+        }
         
         // Create description for distribution saves (include Hebrew keywords for database detection)
         let description: string | null = null;
@@ -1448,9 +1451,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // Update distribution history counter after successful distribution save
           if (isDistributionSave && distributionType) {
             try {
-              // Use 'distribute_shared' as the audit table now uses audit_action_type enum
-              // which maps all distribution types to 'distribute_shared'
-              const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, 'distribute_shared');
+              // Use the specific distribution type (business_distribution or residence_distribution)
+              const actionType = distributionType === 'business' ? 'business_distribution' : 'residence_distribution';
+              const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
               setDistributionHistoryCount(distributionHistory.length);
             } catch (error) {
               console.error('Error updating distribution history count:', error);

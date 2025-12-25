@@ -52,7 +52,7 @@ export function DistributionHistoryModal({
       // Determine action type based on isResident flag
       const actionType = isResident === true ? 'residence_distribution' : 
                         isResident === false ? 'business_distribution' : 
-                        'distribution'; // Show all if not specified
+                        'distribute_shared'; // Show all distributions (legacy) if not specified
       
       const [assetTypesData, historyData] = await Promise.all([
         api.assetTypes.getAll(),

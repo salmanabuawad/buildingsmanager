@@ -982,14 +982,32 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       cellEditorPopupPosition: 'over',
       cellRenderer: (params: any) => {
         const hasValue = params.value && params.value.trim() !== '';
+        const isEditable = isFieldEditable(params, 'comment');
         const handleClear = (e: React.MouseEvent) => {
           e.stopPropagation(); // Prevent triggering cell edit
           params.api.setValue(params.colDef?.field || 'comment', params.node, null);
         };
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: hasValue ? 'flex-end' : 'center', gap: '4px', direction: 'rtl', width: '100%', paddingRight: hasValue ? '4px' : '0', cursor: 'pointer', height: '100%' }}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: hasValue ? 'flex-end' : 'center', 
+              gap: '4px', 
+              direction: 'rtl', 
+              width: '100%', 
+              paddingRight: hasValue ? '4px' : '0', 
+              cursor: isEditable ? 'pointer' : 'default', 
+              height: '100%' 
+            }}
+            onClick={(e) => {
+              if (!isEditable) {
+                e.stopPropagation();
+              }
+            }}
+          >
             {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
-            {hasValue && (
+            {hasValue && isEditable && (
               <X 
                 size={14} 
                 style={{ color: '#dc2626', flexShrink: 0, cursor: 'pointer' }}

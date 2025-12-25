@@ -3555,9 +3555,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               if (validationErrors.has(assetId)) {
                 return { 
                   backgroundColor: '#fee2e2', 
-                  border: '2px solid #ef4444',
+                  border: '3px solid #ef4444',
                   borderRadius: '4px'
-                }; // Light red background with red border for validation errors
+                }; // Light red background with red border for validation errors (matches other components)
               }
               return null;
             }}

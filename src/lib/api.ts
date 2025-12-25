@@ -3003,12 +3003,14 @@ export const api = {
         mappedActionTypes = ['transfer_area'];
       }
       
-      // Query audit table by building_number (primary key for distribution/transfer operations)
-      // The log_audit function inserts records with building_number set
+      // Query audit table by entity_type and entity_id
+      // Distribution operations use entity_type='bulk_asset' and entity_id=building_number (as text)
+      // Transfer operations also use entity_type='bulk_asset' and entity_id=building_number (as text)
       let query = supabase
         .from('audit')
         .select('*')
-        .eq('building_number', buildingNumber)
+        .eq('entity_type', 'bulk_asset')
+        .eq('entity_id', String(buildingNumber))
         .order('created_at', { ascending: false });
       
       if (mappedActionTypes && mappedActionTypes.length > 0) {

@@ -256,7 +256,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       });
       
       // Filter by tax region according to tab's tax region
+      // If selectedAssetIds is provided (e.g., in error fixing mode), include those assets even if tax_region doesn't match
       let filteredAssets = assetsData || [];
+      const selectedAssetIdsSet = selectedAssetIds && selectedAssetIds.length > 0 
+        ? new Set(selectedAssetIds.map(id => String(id)))
+        : null;
+      
       if (taxRegion && taxRegion.trim() !== '') {
         const taxRegionNum = parseInt(taxRegion.trim());
         const taxRegionStr = taxRegion.trim();
@@ -265,16 +270,27 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           requestedTaxRegion: taxRegion,
           taxRegionNum,
           taxRegionStr,
-          totalAssetsBeforeFilter: (assetsData || []).length
+          totalAssetsBeforeFilter: (assetsData || []).length,
+          hasSelectedAssetIds: !!selectedAssetIdsSet
         });
         
         filteredAssets = [];
         let skippedNoTaxRegion = 0;
         let matched = 0;
+        let includedFromSelectedIds = 0;
         
         for (const asset of assetsData || []) {
           // Use asset.tax_region directly from the asset
           const assetTaxRegion = asset.tax_region;
+          const assetIdStr = String(asset.asset_id);
+          
+          // If this asset is in selectedAssetIds, include it even if tax_region doesn't match
+          // This is needed for error fixing mode when changing tax regions
+          if (selectedAssetIdsSet && selectedAssetIdsSet.has(assetIdStr)) {
+            filteredAssets.push(asset);
+            includedFromSelectedIds++;
+            continue;
+          }
           
           if (assetTaxRegion == null) {
             skippedNoTaxRegion++;
@@ -304,6 +320,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         console.log(`[AssetsList] Filtering results:`, {
           matched,
           skippedNoTaxRegion,
+          includedFromSelectedIds,
           filteredCount: filteredAssets.length,
           totalAssetsBeforeFilter: (assetsData || []).length,
           sampleMatched: filteredAssets[0] ? {
@@ -336,8 +353,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       
       // Additional filter: if selectedAssetIds is provided, filter to only show those assets
       // This is applied after tax region filtering (if any)
-      if (selectedAssetIds && selectedAssetIds.length > 0) {
-        const selectedAssetIdsSet = new Set(selectedAssetIds.map(id => String(id)));
+      // Note: Assets from selectedAssetIds are already included in tax region filtering above
+      if (selectedAssetIds && selectedAssetIds.length > 0 && selectedAssetIdsSet) {
         filteredAssets = filteredAssets.filter(asset => 
           selectedAssetIdsSet.has(String(asset.asset_id))
         );

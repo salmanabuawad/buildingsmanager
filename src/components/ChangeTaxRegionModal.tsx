@@ -144,15 +144,13 @@ export function ChangeTaxRegionModal({
           if (!validationResult.valid) {
             if (validationResult.errors) {
               errors.push(...validationResult.errors);
-            } else if (validationResult.error) {
-              errors.push(validationResult.error);
             }
           }
           
           // asset_id is the primary key, so use it as both assetId and assetDbId
           results.push({
             assetId: String(asset.asset_id),
-            assetDbId: asset.asset_id, // asset_id is the primary key
+            assetDbId: String(asset.asset_id), // Convert to string for BatchValidationError type
             buildingNumber: asset.building_number,
             errors: errors,
             matchedAssetTypeRecord: validationResult.matchedAssetTypeRecord
@@ -161,7 +159,7 @@ export function ChangeTaxRegionModal({
           console.error(`Error validating asset ${asset.asset_id}:`, err);
           results.push({
             assetId: String(asset.asset_id),
-            assetDbId: asset.asset_id, // asset_id is the primary key
+            assetDbId: String(asset.asset_id), // Convert to string for BatchValidationError type
             buildingNumber: asset.building_number,
             errors: [err instanceof Error ? err.message : 'שגיאה באימות נכס']
           });
@@ -178,7 +176,7 @@ export function ChangeTaxRegionModal({
         invalid: invalidCount,
         errors: results.filter(r => r.errors.length > 0).map(r => ({
           assetId: r.assetId,
-          assetDbId: r.assetDbId,
+          assetDbId: r.assetDbId ? String(r.assetDbId) : undefined, // Ensure it's a string
           buildingNumber: r.buildingNumber,
           errors: r.errors,
           matchedAssetTypeRecord: r.matchedAssetTypeRecord
@@ -189,10 +187,10 @@ export function ChangeTaxRegionModal({
       setValidationCompleted(true);
       setValidationModalOpen(true);
       
-      // If there are validation errors, open a new tab with the assets that have errors
-      if (batchResults.invalid > 0 && onOpenAssetsTab && selectedTaxRegion) {
-        const assetIdsWithErrors = batchResults.errors.map(e => e.assetId);
-        onOpenAssetsTab(buildingNumber, String(selectedTaxRegion), assetIdsWithErrors);
+      // Always open a new tab with all selected assets in the new tax region after validation
+      // This allows users to fix errors and see all assets that will be updated
+      if (onOpenAssetsTab && selectedTaxRegion) {
+        onOpenAssetsTab(buildingNumber, String(selectedTaxRegion), selectedAssetIds);
       }
     } catch (err) {
       console.error('Error validating assets:', err);
@@ -349,7 +347,7 @@ export function ChangeTaxRegionModal({
                         נמצאו {validationResults.invalid} נכסים עם שגיאות מתוך {validationResults.total}
                       </p>
                       <p className="text-xs text-yellow-700 mt-1">
-                        לא ניתן לשמור עד שכל השגיאות יתוקנו. תקן את השגיאות ולאחר מכן הרץ אימות מחדש.
+                        נפתחה כרטיסייה עם כל הנכסים הנבחרים. תקן את השגיאות בכרטיסייה ולאחר מכן חזור לכאן והרץ אימות מחדש.
                       </p>
                     </div>
                   </>

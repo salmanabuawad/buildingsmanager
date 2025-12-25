@@ -27,7 +27,6 @@ interface AssetsListProps {
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
   selectedAssetIds?: string[]; // Optional: filter to show only these asset IDs
   onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
-  onCloseTab?: () => void; // Optional: callback to close the current tab
   isErrorFixingMode?: boolean; // When true, hide all buttons except Validate, Save, Save as new, and Cancel
 }
 
@@ -35,7 +34,7 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTab, isErrorFixingMode = false }, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -68,6 +67,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
+  // Track assets that were just saved to prevent re-marking them as dirty in fetchData
+  const recentlySavedAssetsRef = useRef<Set<string>>(new Set());
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
@@ -364,6 +365,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       
       // If in error fixing mode with selectedAssetIds and taxRegion, update assets' tax_region to match the tab's tax region
       // This ensures assets are displayed with the new tax region before they're saved
+      // BUT: Don't re-mark as dirty if these assets were just saved (they're in recentlySavedAssetsRef)
       if (isErrorFixingMode && selectedAssetIds && selectedAssetIds.length > 0 && taxRegion && taxRegion.trim() !== '') {
         const newTaxRegion = parseInt(taxRegion.trim(), 10);
         if (!isNaN(newTaxRegion)) {
@@ -375,13 +377,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 tax_region: newTaxRegion
               };
               
-              // Track the tax_region change as a dirty change so it gets saved
-              setDirtyAssets(prev => {
-                const newMap = new Map(prev);
-                const existing = newMap.get(assetId) || {};
-                newMap.set(assetId, { ...existing, tax_region: newTaxRegion });
-                return newMap;
-              });
+              // Only track as dirty if this asset wasn't just saved
+              // This prevents re-marking assets as dirty after a successful save
+              if (!recentlySavedAssetsRef.current.has(assetId)) {
+                // Track the tax_region change as a dirty change so it gets saved
+                setDirtyAssets(prev => {
+                  const newMap = new Map(prev);
+                  const existing = newMap.get(assetId) || {};
+                  newMap.set(assetId, { ...existing, tax_region: newTaxRegion });
+                  return newMap;
+                });
+              } else {
+                console.log(`[AssetsList] Skipping dirty mark for asset ${assetId} - was just saved`);
+              }
               
               return updatedAsset;
             }
@@ -1490,6 +1498,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       validationTimerRef.current.forEach(timer => clearTimeout(timer));
       validationTimerRef.current.clear();
       
+      // Track which assets were just saved to prevent re-marking them as dirty in fetchData
+      // This is especially important in error fixing mode where fetchData would re-mark them
+      recentlySavedAssetsRef.current = new Set(successfullySaved);
+      
       // Set flag to prevent onCellValueChanged from triggering validations during refresh
       // Set this BEFORE fetchData to prevent any cell change events during the refresh
       isRefreshingAfterSaveRef.current = true;
@@ -1501,7 +1513,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // AG Grid may batch updates, so we need to wait for all re-renders to finish
       setTimeout(() => {
         isRefreshingAfterSaveRef.current = false;
-      }, 2000);
+        // Clear the recently saved assets after a delay to allow fetchData to complete
+        recentlySavedAssetsRef.current.clear();
+      }, 3000);
       
       // After fetchData completes and state is cleared, originalAssets should be updated in fetchData
       // But to be safe, explicitly update it here after all state clearing is done
@@ -3917,15 +3931,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // This will filter assets by current tab's taxRegion, so assets with new tax_region won't appear
           // but their dirty bits are already cleared above
           fetchData(false);
-          
-          // Close the current tab after successful tax region change
-          // The modal already opened a new tab with the assets in the new tax region
-          if (onCloseTab) {
-            // Use a small delay to ensure state updates complete before closing tab
-            setTimeout(() => {
-              onCloseTab();
-            }, 100);
-          }
         }}
       />
 

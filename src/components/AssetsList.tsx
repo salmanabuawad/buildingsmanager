@@ -942,11 +942,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         for (const errorInfo of results.errors) {
           // Only mark assets that have errors
           if (errorInfo.errors && errorInfo.errors.length > 0) {
-            let dbId = errorInfo.assetDbId;
+            let dbId = errorInfo.assetDbId ? String(errorInfo.assetDbId) : null;
             
             // If no database ID, try to find it by asset_id
             if (!dbId) {
-              const asset = assets.find(a => String(a.asset_id) === errorInfo.assetId);
+              const asset = assets.find(a => String(a.asset_id) === String(errorInfo.assetId));
               if (asset) {
                 dbId = String(asset.asset_id);
               }
@@ -954,20 +954,37 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             
             if (dbId) {
               // Combine all errors into a single error message
-              newValidationErrors.set(dbId, errorInfo.errors.join('; '));
+              const errorMessage = errorInfo.errors.join('; ');
+              newValidationErrors.set(dbId, errorMessage);
+              console.log(`[Batch Validation] Setting validation error for asset ${dbId}:`, errorMessage);
+            } else {
+              console.warn(`[Batch Validation] Could not find asset for error:`, errorInfo);
             }
           }
         }
 
+        console.log(`[Batch Validation] Setting ${newValidationErrors.size} validation errors:`, Array.from(newValidationErrors.keys()));
+        
         // Set validation errors in state
         setValidationErrors(newValidationErrors);
 
-        // Refresh grid to show the validation errors
+        // Refresh grid to show the validation errors - specifically refresh actions column and row styling
         if (gridRef.current?.api) {
-          gridRef.current.api.refreshCells({ force: true });
+          // Force refresh of all cells, especially actions column
+          gridRef.current.api.refreshCells({ 
+            columns: ['actions'],
+            force: true 
+          });
+          // Also refresh all cells to update row styling
+          setTimeout(() => {
+            if (gridRef.current?.api) {
+              gridRef.current.api.refreshCells({ force: true });
+            }
+          }, 100);
         }
       } else {
         // Clear validation errors if all assets are valid
+        console.log('[Batch Validation] All assets valid, clearing validation errors');
         setValidationErrors(new Map());
       }
     } catch (error) {
@@ -990,6 +1007,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   // Auto-validate assets when loaded in error fixing mode
   useEffect(() => {
     if (isErrorFixingMode && assets.length > 0 && taxRegion && !loading && !batchValidationLoading) {
+      console.log('[AssetsList] Auto-validating assets in error fixing mode:', {
+        isErrorFixingMode,
+        assetsCount: assets.length,
+        taxRegion,
+        loading,
+        batchValidationLoading
+      });
       // Validate assets automatically when in error fixing mode
       // Use a small delay to ensure assets are fully rendered
       const timer = setTimeout(() => {
@@ -2546,6 +2570,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const isDeleted = safeDeletedAssets.has(assetId);
         const hasValidationError = safeValidationErrors.has(assetId);
         
+        // Debug logging for validation errors
+        if (process.env.NODE_ENV === 'development' && hasValidationError) {
+          console.log('[Actions Cell] Validation error found for asset:', {
+            assetId,
+            error: safeValidationErrors.get(assetId),
+            validationErrorsKeys: Array.from(safeValidationErrors.keys())
+          });
+        }
+        
         // Show delete button only if a specific tax region is selected (same visibility logic as "Save All" and "Cancel" buttons)
         // Delete button should be visible for all assets (new and existing), same as view asset button
         const hasMultipleTaxRegions = building?.tax_region && building.tax_region.includes(',');
@@ -2583,16 +2616,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 title={!taxRegion && hasMultipleTaxRegions ? "בחר לשינוי אזור מס" : "בחר להעברת שטחים"}
               />
             )}
-            {hasValidationError && safeValidationErrors && (
+            {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const errorMsg = safeValidationErrors?.get(assetId) || 'שגיאת אימות';
+                  const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
                   setError(errorMsg);
                   setTimeout(() => setError(null), 5000);
                 }}
                 className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                title={safeValidationErrors?.get(assetId) || 'שגיאת אימות'}
+                title={safeValidationErrors.get(assetId) || 'שגיאת אימות'}
               >
                 <AlertCircle className="h-5 w-5" />
               </button>

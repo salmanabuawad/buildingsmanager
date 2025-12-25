@@ -1599,6 +1599,36 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   };
 
+  // Helper function to get area_description_for_tab from tax region number
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
+    if (!taxRegionNum) {
+      return String(taxRegionNum || '');
+    }
+    
+    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+    if (isNaN(taxRegion)) {
+      return String(taxRegionNum);
+    }
+    
+    try {
+      // Use cached asset types from validation (synchronous, no API call)
+      const { getAssetTypes } = require('../lib/validation');
+      const cachedAssetTypes = getAssetTypes();
+      if (cachedAssetTypes && cachedAssetTypes.length > 0) {
+        const matchingAssetType = cachedAssetTypes.find((at: any) =>
+          at.tax_region === taxRegion && at.area_description_for_tab
+        );
+        if (matchingAssetType?.area_description_for_tab) {
+          return matchingAssetType.area_description_for_tab;
+        }
+      }
+    } catch (err) {
+      // If validation module not available, fall back to tax region number
+    }
+    
+    return String(taxRegion);
+  }, []);
+
   // Column definitions
   const columnDefs: ColDef<Building>[] = useMemo(() => {
     const defs: ColDef<Building>[] = [
@@ -1756,6 +1786,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'tax_region',
       headerName: 'אזור מיסים',
       headerTooltip: 'אזור מיסים',
+      tooltipValueGetter: (params: any) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
+      },
       editable: true,
       cellRenderer: (params: any) => {
         const building = params.data as Building;

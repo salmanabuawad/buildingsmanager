@@ -3109,6 +3109,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
+      tooltipValueGetter: (params) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
+      },
       editable: (params) => isFieldEditable(params, 'tax_region'),
       type: 'numericColumn',
       valueParser: (params) => {

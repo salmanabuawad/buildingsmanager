@@ -2534,6 +2534,13 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           field: 'tax_region',
           headerName: 'אזור מס',
           headerTooltip: 'אזור מס',
+          tooltipValueGetter: (params) => {
+            if (params.value == null || !assetTypes || assetTypes.length === 0) return params.value != null ? String(params.value) : '';
+            const taxRegion = typeof params.value === 'string' ? parseInt(params.value.trim(), 10) : params.value;
+            if (isNaN(taxRegion)) return String(params.value);
+            const matchingAssetType = assetTypes.find(at => at.tax_region === taxRegion && at.area_description_for_tab);
+            return matchingAssetType?.area_description_for_tab || String(params.value);
+          },
           editable: (params) => {
             const fieldName = params.colDef?.field || '';
             return isFieldEditable(params, fieldName);

@@ -199,6 +199,27 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
+      tooltipValueGetter: (params: any) => {
+        if (params.value == null) return '';
+        try {
+          const { getAssetTypes } = require('../lib/validation');
+          const cachedAssetTypes = getAssetTypes();
+          if (cachedAssetTypes && cachedAssetTypes.length > 0) {
+            const taxRegion = typeof params.value === 'string' ? parseInt(params.value.trim(), 10) : params.value;
+            if (!isNaN(taxRegion)) {
+              const matchingAssetType = cachedAssetTypes.find((at: any) =>
+                at.tax_region === taxRegion && at.area_description_for_tab
+              );
+              if (matchingAssetType?.area_description_for_tab) {
+                return matchingAssetType.area_description_for_tab;
+              }
+            }
+          }
+        } catch (err) {
+          // Fall back to value
+        }
+        return String(params.value);
+      },
       width: 100,
       sortable: true,
       filter: true,
@@ -350,6 +371,27 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
+      tooltipValueGetter: (params: any) => {
+        if (params.value == null) return '';
+        try {
+          const { getAssetTypes } = require('../lib/validation');
+          const cachedAssetTypes = getAssetTypes();
+          if (cachedAssetTypes && cachedAssetTypes.length > 0) {
+            const taxRegion = typeof params.value === 'string' ? parseInt(params.value.trim(), 10) : params.value;
+            if (!isNaN(taxRegion)) {
+              const matchingAssetType = cachedAssetTypes.find((at: any) =>
+                at.tax_region === taxRegion && at.area_description_for_tab
+              );
+              if (matchingAssetType?.area_description_for_tab) {
+                return matchingAssetType.area_description_for_tab;
+              }
+            }
+          }
+        } catch (err) {
+          // Fall back to value
+        }
+        return String(params.value);
+      },
       width: 100,
       sortable: true,
       filter: true,

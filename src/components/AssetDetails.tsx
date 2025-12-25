@@ -3066,6 +3066,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
+      tooltipValueGetter: (params) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
+      },
       width: 100,
       sortable: true,
       filter: true,
@@ -3158,7 +3162,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     }
-  ], []);
+  ], [getAreaDescriptionForTaxRegion]);
 
   // Asset column definitions for audit details
   const assetColumnDefs: ColDef<Asset>[] = useMemo(() => [
@@ -3223,6 +3227,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
+      tooltipValueGetter: (params) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
+      },
       width: 100,
       sortable: true,
       filter: true,
@@ -3362,7 +3370,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     }
-  ], []);
+  ], [getAreaDescriptionForTaxRegion]);
 
   // Check if asset is business (to hide penthouse)
   const isBusinessAsset = useMemo(() => {
@@ -3414,6 +3422,25 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       .map((item, index) => `${index + 1}. ${item.label}: ${item.description}`)
       .join('\n');
   }, []);
+
+  // Helper function to get area_description_for_tab from tax region number
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
+    if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+      return String(taxRegionNum || '');
+    }
+    
+    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+    if (isNaN(taxRegion)) {
+      return String(taxRegionNum);
+    }
+    
+    // Find first asset type with matching tax_region that has area_description_for_tab
+    const matchingAssetType = assetTypes.find(at =>
+      at.tax_region === taxRegion && at.area_description_for_tab
+    );
+    
+    return matchingAssetType?.area_description_for_tab || String(taxRegion);
+  }, [assetTypes]);
 
   // Optimize columnDefs dependencies - only recreate when necessary
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
@@ -3577,6 +3604,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       field: 'tax_region',
       headerName: 'אזור מס',
       headerTooltip: 'אזור מס',
+      tooltipValueGetter: (params) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
+      },
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);

@@ -385,6 +385,11 @@ export function AssetTypes() {
       field: 'tax_region',
       headerName: 'אזור מיסים',
       headerTooltip: 'אזור מיסים',
+      tooltipValueGetter: (params: any) => {
+        if (!params.data || params.value == null) return '';
+        // For asset types grid, show area_description_for_tab from the same row
+        return params.data.area_description_for_tab || String(params.value);
+      },
       editable: true,
       valueParser: (params: any) => {
         if (!params.newValue || params.newValue === '') return null;

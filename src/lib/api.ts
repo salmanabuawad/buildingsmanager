@@ -2997,13 +2997,12 @@ export const api = {
         mappedActionType = 'transfer_area';
       }
       
-      // Query audit table - the table structure uses entity_type and entity_id for buildings
-      // building_number column may exist but might be nullable, so we query by entity_id/entity_type
+      // Query audit table by building_number (primary key for distribution/transfer operations)
+      // The log_audit function inserts records with building_number set
       let query = supabase
         .from('audit')
         .select('*')
-        .eq('entity_id', String(buildingNumber))
-        .in('entity_type', ['building', 'bulk_building'])
+        .eq('building_number', buildingNumber)
         .order('created_at', { ascending: false });
       
       if (mappedActionType) {

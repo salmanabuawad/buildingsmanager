@@ -14,6 +14,7 @@ interface ChangeTaxRegionModalProps {
   onSuccess: () => void;
   onSelectAsset?: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => void;
   onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
+  onCloseTabAndOpenMultiTax?: (buildingNumber: number) => void;
 }
 
 export function ChangeTaxRegionModal({
@@ -25,7 +26,8 @@ export function ChangeTaxRegionModal({
   assetTypes,
   onSuccess,
   onSelectAsset,
-  onOpenAssetsTab
+  onOpenAssetsTab,
+  onCloseTabAndOpenMultiTax
 }: ChangeTaxRegionModalProps) {
   const [selectedTaxRegion, setSelectedTaxRegion] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -265,8 +267,11 @@ export function ChangeTaxRegionModal({
       
       if (result.success) {
         onSuccess();
-        // Open new tab with all selected assets in the new tax region
-        if (onOpenAssetsTab && selectedTaxRegion) {
+        // Close current tab and open multi-tax tab (all assets tab)
+        if (onCloseTabAndOpenMultiTax) {
+          onCloseTabAndOpenMultiTax(buildingNumber);
+        } else if (onOpenAssetsTab && selectedTaxRegion) {
+          // Fallback: if onCloseTabAndOpenMultiTax is not provided, open new tab with new tax region
           onOpenAssetsTab(buildingNumber, String(selectedTaxRegion), selectedAssetIds);
         }
         onClose();

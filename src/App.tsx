@@ -277,15 +277,47 @@ function App() {
           );
           // Combine: keep tabs + all new tabs (this ensures we always have exactly 3 tabs for this building)
           const newTabs = [...keepTabs, ...tabsToCreate];
-          return newTabs;
-        });
+        return newTabs;
+      });
+      
+      // Set active tab to "all assets" (first tab)
+      setTimeout(() => {
+        setActiveTabId(allAssetsTabId);
+      }, 0);
+    }
+  }
+
+  // Function to close current tab and open multi-tax tab (all assets tab)
+  const handleCloseTabAndOpenMultiTax = useCallback((buildingNumber: number) => {
+    handleNavigation(() => {
+      const allAssetsTabId = `assets-${buildingNumber}-all`;
+      
+      // Find or create the "all assets" tab (multi-tax tab)
+      const existingTab = tabs.find(t => t.id === allAssetsTabId);
+      
+      if (existingTab) {
+        // Tab exists, close current tab and switch to it
+        setTabs(prev => prev.filter(t => t.id !== activeTabId || t.id === allAssetsTabId));
+        setActiveTabId(allAssetsTabId);
+      } else {
+        // Tab doesn't exist, create it and close current tab
+        const allAssetsTab: Tab = {
+          id: allAssetsTabId,
+          type: 'assets',
+          buildingNumber,
+          label: `מבנה ${buildingNumber} - כל הנכסים`,
+          path: `/buildings/${buildingNumber}/assets`,
+          refreshKey: Date.now()
+        };
         
-        // Set active tab to "all assets" (first tab)
-        setTimeout(() => {
-          setActiveTabId(allAssetsTabId);
-        }, 0);
+        setTabs(prev => {
+          const newTabs = prev.filter(t => t.id !== activeTabId);
+          return [...newTabs, allAssetsTab];
+        });
+        setActiveTabId(allAssetsTabId);
       }
-    } else {
+    });
+  }, [tabs, activeTabId, handleNavigation]); else {
       const allAssetsTabId = `assets-${buildingNumber}-all`;
       const existingTab = tabs.find(t => t.id === allAssetsTabId);
       
@@ -756,6 +788,39 @@ function App() {
       }
     });
   }
+
+  // Function to close current tab and open multi-tax tab (all assets tab)
+  const handleCloseTabAndOpenMultiTax = useCallback((buildingNumber: number) => {
+    handleNavigation(() => {
+      const allAssetsTabId = `assets-${buildingNumber}-all`;
+      
+      setTabs(prev => {
+        // Find or create the "all assets" tab (multi-tax tab)
+        const existingTab = prev.find(t => t.id === allAssetsTabId);
+        
+        if (existingTab) {
+          // Tab exists, close current tab and keep the multi-tax tab
+          const newTabs = prev.filter(t => t.id !== activeTabId || t.id === allAssetsTabId);
+          setActiveTabId(allAssetsTabId);
+          return newTabs;
+        } else {
+          // Tab doesn't exist, create it and close current tab
+          const allAssetsTab: Tab = {
+            id: allAssetsTabId,
+            type: 'assets',
+            buildingNumber,
+            label: `מבנה ${buildingNumber} - כל הנכסים`,
+            path: `/buildings/${buildingNumber}/assets`,
+            refreshKey: Date.now()
+          };
+          
+          const newTabs = prev.filter(t => t.id !== activeTabId);
+          setActiveTabId(allAssetsTabId);
+          return [...newTabs, allAssetsTab];
+        }
+      });
+    });
+  }, [activeTabId, handleNavigation]);
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
@@ -1251,6 +1316,7 @@ function App() {
                   onOpenNewAsset={handleOpenNewAsset}
                   selectedAssetIds={activeTab.selectedAssetIds}
                   onOpenAssetsTab={handleOpenAssetsTab}
+                  onCloseTabAndOpenMultiTax={handleCloseTabAndOpenMultiTax}
                   isErrorFixingMode={activeTab.isErrorFixingMode}
                 />
               )}

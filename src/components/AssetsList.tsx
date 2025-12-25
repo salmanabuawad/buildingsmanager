@@ -27,6 +27,7 @@ interface AssetsListProps {
   onOpenNewAsset?: (buildingNumber: number, taxRegion?: string) => void;
   selectedAssetIds?: string[]; // Optional: filter to show only these asset IDs
   onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
+  onCloseTabAndOpenMultiTax?: (buildingNumber: number) => void;
   isErrorFixingMode?: boolean; // When true, hide all buttons except Validate, Save, Save as new, and Cancel
 }
 
@@ -34,7 +35,7 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, isErrorFixingMode = false }, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -4195,6 +4196,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         onOpenAssetsTab={onOpenAssetsTab}
         availableTaxRegions={availableTaxRegions}
         assetTypes={assetTypes}
+        onCloseTabAndOpenMultiTax={onCloseTabAndOpenMultiTax}
         onSuccess={() => {
           // Clear dirty bits for assets that were successfully saved via tax region change
           // Capture the selected asset IDs that were passed to the modal to avoid stale closures

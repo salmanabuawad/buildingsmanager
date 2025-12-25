@@ -1920,6 +1920,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       // Calculate area per asset (simple division for residence distribution)
       const areaPerAsset = building.residence_shared_area! / residentialAssets.length;
+      const isClearing = areaPerAsset === 0;
       
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
@@ -1939,9 +1940,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const currentMainType = changes.main_asset_type !== undefined 
           ? changes.main_asset_type 
           : currentAsset.main_asset_type;
-        const currentAssetSize = changes.asset_size !== undefined 
-          ? changes.asset_size 
-          : currentAsset.asset_size;
         const currentTaxRegion = changes.tax_region !== undefined 
           ? changes.tax_region 
           : currentAsset.tax_region;
@@ -1952,76 +1950,161 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           at.use_shared_area === true
         );
 
-        if (!sharedAreaAssetType) {
-          throw new Error(`לא נמצא סוג נכס עם אזור מס ${currentTaxRegion} וסימון "שימוש בשטח משותף" עבור נכס ${assetId}. יש לוודא שקיים סוג נכס עם use_shared_areause_shared_area=true עבור אזור המס הזה.`);
+        if (!sharedAreaAssetType && !isClearing) {
+          throw new Error(`לא נמצא סוג נכס עם אזור מס ${currentTaxRegion} וסימון "שימוש בשטח משותף" עבור נכס ${assetId}. יש לוודא שקיים סוג נכס עם use_shared_area=true עבור אזור המס הזה.`);
         }
 
         const isMainType199 = String(currentMainType).trim() === '199';
-        
-        if (!isMainType199) {
-          // Move current type and size to subtype 1
-          // Get current subtype 1 values (prefer existing changes)
-          const currentSubType1 = changes.sub_asset_type_1 !== undefined 
-            ? changes.sub_asset_type_1 
-            : currentAsset.sub_asset_type_1;
-          const currentSubSize1 = changes.sub_asset_size_1 !== undefined 
-            ? changes.sub_asset_size_1 
-            : currentAsset.sub_asset_size_1 || 0;
 
-          // Only move if subtype 1 is empty
-          if (!currentSubType1 || currentSubType1 === '') {
-            changes.sub_asset_type_1 = currentMainType;
-            changes.sub_asset_size_1 = currentAssetSize || 0;
+        if (isClearing) {
+          // Clearing distribution: delete the shared area subtype and move back types
+          if (!isMainType199 || !sharedAreaAssetType) {
+            // Skip assets that aren't type 199 or don't have the shared area type defined
+            continue;
           }
 
-          // Set main type to 199
-          changes.main_asset_type = '199';
-        }
-
-        // Find first available subtype position (2-6 if converting to 199, 1-6 if already 199)
-        let targetSubTypeIndex = isMainType199 ? 1 : 2;
-        let targetSubTypeField: keyof Asset = 'sub_asset_type_1';
-        let targetSubSizeField: keyof Asset = 'sub_asset_size_1';
-
-        // Check available positions starting from the appropriate index
-        for (let i = (isMainType199 ? 1 : 2); i <= 6; i++) {
-          const subTypeField = `sub_asset_type_${i}` as keyof Asset;
-          const subSizeField = `sub_asset_size_${i}` as keyof Asset;
-          
-          const currentSubType = changes[subTypeField] !== undefined
-            ? changes[subTypeField]
-            : currentAsset[subTypeField];
-          
-          // If this position is empty, use it
-          if (!currentSubType || currentSubType === '' || currentSubType === null) {
-            targetSubTypeIndex = i;
-            targetSubTypeField = subTypeField;
-            targetSubSizeField = subSizeField;
-            break;
+          // Find the subtype with the shared area asset type
+          let sharedSubTypeIndex = -1;
+          for (let i = 1; i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const currentSubType = changes[subTypeField] !== undefined
+              ? changes[subTypeField]
+              : currentAsset[subTypeField];
+            
+            if (currentSubType && String(currentSubType).trim() === String(sharedAreaAssetType.name).trim()) {
+              sharedSubTypeIndex = i;
+              break;
+            }
           }
-        }
 
-        // If no available subtype position found, throw error
-        if (targetSubTypeIndex > 6) {
-          throw new Error(`לא נמצא מקום פנוי לנכס משנה עבור נכס ${assetId}. כל ששת המקומות תפוסים.`);
-        }
-
-        // Set the shared area subtype and size
-        (changes as any)[targetSubTypeField] = sharedAreaAssetType.name;
-        (changes as any)[targetSubSizeField] = areaPerAsset;
-
-        // Calculate asset_size as sum of all subtypes (required for type 199)
-        let totalSubSize = 0;
-        for (let i = 1; i <= 6; i++) {
-          const subSizeField = `sub_asset_size_${i}` as keyof Asset;
-          const subSize = changes[subSizeField] !== undefined
-            ? changes[subSizeField]
-            : currentAsset[subSizeField];
-          if (subSize != null && subSize !== '' && !isNaN(Number(subSize))) {
-            totalSubSize += Number(subSize);
+          if (sharedSubTypeIndex === -1) {
+            // No shared area subtype found, skip this asset
+            continue;
           }
+
+          // Delete the shared area subtype (set to null)
+          // No need to shift since shared area subtype is always the last one by definition
+          const sharedSubTypeField = `sub_asset_type_${sharedSubTypeIndex}` as keyof Asset;
+          const sharedSubSizeField = `sub_asset_size_${sharedSubTypeIndex}` as keyof Asset;
+          (changes as any)[sharedSubTypeField] = null;
+          (changes as any)[sharedSubSizeField] = null;
+
+          // Count remaining subtypes
+          let remainingSubTypeCount = 0;
+          let lastSubTypeIndex = -1;
+          let lastSubType: string | null = null;
+          let lastSubSize: number = 0;
+
+          for (let i = 1; i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+            const subType = changes[subTypeField] !== undefined
+              ? changes[subTypeField]
+              : currentAsset[subTypeField];
+            const subSize = changes[subSizeField] !== undefined
+              ? changes[subSizeField]
+              : currentAsset[subSizeField];
+
+            if (subType && subType !== '' && subType !== null) {
+              remainingSubTypeCount++;
+              lastSubTypeIndex = i;
+              lastSubType = subType as string;
+              lastSubSize = subSize ? Number(subSize) : 0;
+            }
+          }
+
+          // If only one subtype remains, move it back to main type
+          if (remainingSubTypeCount === 1 && lastSubTypeIndex > 0 && lastSubType) {
+            changes.main_asset_type = lastSubType;
+            changes.asset_size = lastSubSize;
+            // Clear all subtypes
+            for (let i = 1; i <= 6; i++) {
+              const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+              const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+              (changes as any)[subTypeField] = null;
+              (changes as any)[subSizeField] = null;
+            }
+          } else {
+            // Calculate asset_size as sum of remaining subtypes
+            let totalSubSize = 0;
+            for (let i = 1; i <= 6; i++) {
+              const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+              const subSize = changes[subSizeField] !== undefined
+                ? changes[subSizeField]
+                : currentAsset[subSizeField];
+              if (subSize != null && subSize !== '' && !isNaN(Number(subSize))) {
+                totalSubSize += Number(subSize);
+              }
+            }
+            changes.asset_size = totalSubSize;
+          }
+        } else {
+          // Adding distribution: add shared area as subtype
+          if (!isMainType199) {
+            // Move current type and size to subtype 1
+            // Get current subtype 1 values (prefer existing changes)
+            const currentSubType1 = changes.sub_asset_type_1 !== undefined 
+              ? changes.sub_asset_type_1 
+              : currentAsset.sub_asset_type_1;
+            const currentAssetSize = changes.asset_size !== undefined 
+              ? changes.asset_size 
+              : currentAsset.asset_size;
+
+            // Only move if subtype 1 is empty
+            if (!currentSubType1 || currentSubType1 === '') {
+              changes.sub_asset_type_1 = currentMainType;
+              changes.sub_asset_size_1 = currentAssetSize || 0;
+            }
+
+            // Set main type to 199
+            changes.main_asset_type = '199';
+          }
+
+          // Find first available subtype position (2-6 if converting to 199, 1-6 if already 199)
+          let targetSubTypeIndex = isMainType199 ? 1 : 2;
+          let targetSubTypeField: keyof Asset = 'sub_asset_type_1';
+          let targetSubSizeField: keyof Asset = 'sub_asset_size_1';
+
+          // Check available positions starting from the appropriate index
+          for (let i = (isMainType199 ? 1 : 2); i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+            
+            const currentSubType = changes[subTypeField] !== undefined
+              ? changes[subTypeField]
+              : currentAsset[subTypeField];
+            
+            // If this position is empty, use it
+            if (!currentSubType || currentSubType === '' || currentSubType === null) {
+              targetSubTypeIndex = i;
+              targetSubTypeField = subTypeField;
+              targetSubSizeField = subSizeField;
+              break;
+            }
+          }
+
+          // If no available subtype position found, throw error
+          if (targetSubTypeIndex > 6) {
+            throw new Error(`לא נמצא מקום פנוי לנכס משנה עבור נכס ${assetId}. כל ששת המקומות תפוסים.`);
+          }
+
+          // Set the shared area subtype and size
+          (changes as any)[targetSubTypeField] = sharedAreaAssetType.name;
+          (changes as any)[targetSubSizeField] = areaPerAsset;
+
+          // Calculate asset_size as sum of all subtypes (required for type 199)
+          let totalSubSize = 0;
+          for (let i = 1; i <= 6; i++) {
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+            const subSize = changes[subSizeField] !== undefined
+              ? changes[subSizeField]
+              : currentAsset[subSizeField];
+            if (subSize != null && subSize !== '' && !isNaN(Number(subSize))) {
+              totalSubSize += Number(subSize);
+            }
+          }
+          changes.asset_size = totalSubSize;
         }
-        changes.asset_size = totalSubSize;
 
         updatedDirtyAssets.set(assetId, changes);
 

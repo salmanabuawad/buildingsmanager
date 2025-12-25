@@ -2872,24 +2872,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
   // Switch to assets tab if transfer-history or distribution-history is active in residence tabs or multi-tax tabs
   useEffect(() => {
-    if (!building) return;
-    
-    // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
-    const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
-    
     if ((activeTab === 'transfer-history' && isResidentTaxRegion) || 
         ((activeTab === 'distribution-history' || activeTab === 'transfer-history') && isMultiTaxRegion)) {
       setActiveTab('assets');
     }
-  }, [isResidentTaxRegion, activeTab, taxRegion, building]);
+  }, [isResidentTaxRegion, activeTab, isMultiTaxRegion]);
 
   // Fetch distribution and transfer history counts (only for single tax region tabs, not multi-tax)
   useEffect(() => {
     const fetchHistoryCounts = async () => {
-      if (!buildingNumber || !building) return;
-      
-      // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
-      const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
+      if (!buildingNumber) return;
       
       // Only fetch history counts for single tax region tabs
       if (isMultiTaxRegion) {
@@ -2919,7 +2911,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     };
     
     fetchHistoryCounts();
-  }, [buildingNumber, isResidentTaxRegion, taxRegion, building]);
+  }, [buildingNumber, isResidentTaxRegion, isMultiTaxRegion]);
 
   const columnDefs: ColDef<Asset>[] = useMemo(() => {
     const defs: ColDef<Asset>[] = [
@@ -3973,11 +3965,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           </div>
           
           {/* Tab Navigation - hidden in error fixing mode */}
-          {!isErrorFixingMode && building && (() => {
-            // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
-            const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
-            
-            return (
+          {!isErrorFixingMode && building && (
               <div className="flex items-center gap-1 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-gray-100 rounded-t-lg shadow-sm mt-2">
                 <button
                   type="button"
@@ -4033,8 +4021,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   </>
                 )}
               </div>
-            );
-          })()}
+          )}
         </div>
         
         {/* Tab Content */}
@@ -4153,42 +4140,32 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         )}
         
         {/* Distribution and Transfer History tabs - only show for single tax region tabs (not multi-tax) */}
-        {(() => {
-          // Check if tax region is "multi" (multiple tax regions - when taxRegion is not set or building has multiple)
-          const isMultiTaxRegion = !taxRegion || (building?.tax_region && building.tax_region.includes(','));
-          
-          // Don't show these tabs in multi-tax region view
-          if (isMultiTaxRegion) {
-            return null;
-          }
-          
-          return (
-            <>
-              {activeTab === 'distribution-history' && (
-                <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
-                  <DistributionHistoryModal
-                    isOpen={true}
-                    onClose={() => setActiveTab('assets')}
-                    buildingNumber={buildingNumber}
-                    isResident={isResidentTaxRegion}
-                    inline={true}
-                  />
-                </div>
-              )}
-              
-              {activeTab === 'transfer-history' && !isResidentTaxRegion && (
-                <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
-                  <TransferHistoryModal
-                    isOpen={true}
-                    onClose={() => setActiveTab('assets')}
-                    buildingNumber={buildingNumber}
-                    inline={true}
-                  />
-                </div>
-              )}
-            </>
-          );
-        })()}
+        {!isMultiTaxRegion && (
+          <>
+            {activeTab === 'distribution-history' && (
+              <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+                <DistributionHistoryModal
+                  isOpen={true}
+                  onClose={() => setActiveTab('assets')}
+                  buildingNumber={buildingNumber}
+                  isResident={isResidentTaxRegion}
+                  inline={true}
+                />
+              </div>
+            )}
+            
+            {activeTab === 'transfer-history' && !isResidentTaxRegion && (
+              <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+                <TransferHistoryModal
+                  isOpen={true}
+                  onClose={() => setActiveTab('assets')}
+                  buildingNumber={buildingNumber}
+                  inline={true}
+                />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <ValidationResultModal

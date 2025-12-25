@@ -2948,24 +2948,31 @@ export const api = {
     },
   },
   distributionAudit: {
-    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution', taxRegion?: string): Promise<DistributionAudit[]> => {
+    getByBuilding: async (buildingNumber: number, actionType?: 'distribution' | 'transfer' | 'business_distribution' | 'residence_distribution' | 'distribute_shared' | 'transfer_area', taxRegion?: string): Promise<DistributionAudit[]> => {
+      // Map old enum values to new audit_action_type enum values
+      // The audit table now uses audit_action_type with values: 'manual_update', 'import_file', 'transfer_area', 'distribute_shared'
+      let mappedActionType: string | undefined = actionType;
+      if (actionType === 'business_distribution' || actionType === 'residence_distribution' || actionType === 'distribution') {
+        mappedActionType = 'distribute_shared';
+      } else if (actionType === 'transfer') {
+        mappedActionType = 'transfer_area';
+      }
+      
+      // Query audit table - the table structure uses entity_type and entity_id for buildings
+      // building_number column may exist but might be nullable, so we query by entity_id/entity_type
       let query = supabase
         .from('audit')
         .select('*')
-        .eq('building_number', buildingNumber)
+        .eq('entity_id', String(buildingNumber))
+        .in('entity_type', ['building', 'bulk_building'])
         .order('created_at', { ascending: false });
       
-      if (actionType) {
-        // For backward compatibility, map 'distribution' to both business and residence
-        if (actionType === 'distribution') {
-          query = query.in('action_type', ['business_distribution', 'residence_distribution', 'distribution']);
-        } else {
-          query = query.eq('action_type', actionType);
-        }
+      if (mappedActionType) {
+        query = query.eq('action_type', mappedActionType);
       }
       
       // taxRegion parameter is kept for backward compatibility but no longer used
-      // Filtering is now done by action_type ('business_distribution' or 'residence_distribution')
+      // Filtering is now done by action_type ('distribute_shared' or 'transfer_area')
       
       const { data, error } = await query;
       if (error) throw error;

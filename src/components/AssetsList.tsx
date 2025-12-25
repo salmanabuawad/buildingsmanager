@@ -1425,8 +1425,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // Update distribution history counter after successful distribution save
           if (isDistributionSave && distributionType) {
             try {
-              const actionType = distributionType === 'residence' ? 'residence_distribution' : 'business_distribution';
-              const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
+              // Use 'distribute_shared' as the audit table now uses audit_action_type enum
+              // which maps all distribution types to 'distribute_shared'
+              const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, 'distribute_shared');
               setDistributionHistoryCount(distributionHistory.length);
             } catch (error) {
               console.error('Error updating distribution history count:', error);

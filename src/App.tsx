@@ -287,38 +287,6 @@ function App() {
     }
   }
 
-  // Function to close current tab and open multi-tax tab (all assets tab)
-  const handleCloseTabAndOpenMultiTax = useCallback((buildingNumber: number) => {
-    handleNavigation(() => {
-      const allAssetsTabId = `assets-${buildingNumber}-all`;
-      
-      // Find or create the "all assets" tab (multi-tax tab)
-      const existingTab = tabs.find(t => t.id === allAssetsTabId);
-      
-      if (existingTab) {
-        // Tab exists, close current tab and switch to it
-        setTabs(prev => prev.filter(t => t.id !== activeTabId || t.id === allAssetsTabId));
-        setActiveTabId(allAssetsTabId);
-      } else {
-        // Tab doesn't exist, create it and close current tab
-        const allAssetsTab: Tab = {
-          id: allAssetsTabId,
-          type: 'assets',
-          buildingNumber,
-          label: `מבנה ${buildingNumber} - כל הנכסים`,
-          path: `/buildings/${buildingNumber}/assets`,
-          refreshKey: Date.now()
-        };
-        
-        setTabs(prev => {
-          const newTabs = prev.filter(t => t.id !== activeTabId);
-          return [...newTabs, allAssetsTab];
-        });
-        setActiveTabId(allAssetsTabId);
-      }
-    });
-  }, [activeTabId, handleNavigation]);
-
   const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {
     // Get asset types from cache (synchronous, no API call)
     let assetTypes: AssetType[] = [];

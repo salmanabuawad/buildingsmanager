@@ -3859,6 +3859,24 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         availableTaxRegions={availableTaxRegions}
         assetTypes={assetTypes}
         onSuccess={() => {
+          // Clear tax_region from dirty bits for assets that were successfully saved
+          setDirtyAssets(prev => {
+            const next = new Map(prev);
+            for (const assetId of selectedAssets) {
+              const dirtyChanges = next.get(assetId);
+              if (dirtyChanges) {
+                // Remove tax_region from dirty changes
+                const { tax_region, ...remainingChanges } = dirtyChanges;
+                // If no changes remain, remove the entry; otherwise update it
+                if (Object.keys(remainingChanges).length === 0) {
+                  next.delete(assetId);
+                } else {
+                  next.set(assetId, remainingChanges);
+                }
+              }
+            }
+            return next;
+          });
           fetchData(); // Refresh assets after successful change
           setSelectedAssets(new Set()); // Clear selection
         }}

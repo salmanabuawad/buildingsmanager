@@ -2586,6 +2586,9 @@ export const buildingValidators = {
       const taxRegionsByType = new Map<string, Set<number>>();
       taxRegionsByType.set('עסקים', new Set<number>());
       taxRegionsByType.set('מגורים', new Set<number>());
+      
+      // Also collect asset IDs by tax region and business type for error messages
+      const assetsByTaxRegionAndType = new Map<string, number[]>(); // Key: "businessType_taxRegion", Value: asset_id[]
 
       // Process each asset (skip non-accountable assets)
       for (const asset of assets) {
@@ -2654,6 +2657,12 @@ export const buildingValidators = {
             const businessType = assetType.business_residence;
             if (taxRegionsByType.has(businessType)) {
               taxRegionsByType.get(businessType)!.add(assetType.tax_region);
+              // Track asset ID for this tax region and business type
+              const key = `${businessType}_${assetType.tax_region}`;
+              if (!assetsByTaxRegionAndType.has(key)) {
+                assetsByTaxRegionAndType.set(key, []);
+              }
+              assetsByTaxRegionAndType.get(key)!.push(asset.asset_id);
             }
           }
         }
@@ -2667,6 +2676,12 @@ export const buildingValidators = {
               const businessType = assetType.business_residence;
               if (taxRegionsByType.has(businessType)) {
                 taxRegionsByType.get(businessType)!.add(assetType.tax_region);
+                // Track asset ID for this tax region and business type
+                const key = `${businessType}_${assetType.tax_region}`;
+                if (!assetsByTaxRegionAndType.has(key)) {
+                  assetsByTaxRegionAndType.set(key, []);
+                }
+                assetsByTaxRegionAndType.get(key)!.push(asset.asset_id);
               }
             }
           }
@@ -2678,14 +2693,62 @@ export const buildingValidators = {
       
       const businessTaxRegions = taxRegionsByType.get('עסקים');
       if (businessTaxRegions && businessTaxRegions.size > 1) {
-        const regions = Array.from(businessTaxRegions).sort((a, b) => a - b).join(', ');
-        errors.push(`בבניין זה יש יותר מאזור מס אחד עבור עסקים: ${regions}`);
+        const regions = Array.from(businessTaxRegions).sort((a, b) => a - b);
+        const regionsStr = regions.join(', ');
+        
+        // Collect asset IDs for each tax region
+        const assetIdsByRegion: { region: number; assetIds: number[] }[] = [];
+        for (const region of regions) {
+          const key = `עסקים_${region}`;
+          const assetIds = assetsByTaxRegionAndType.get(key) || [];
+          if (assetIds.length > 0) {
+            assetIdsByRegion.push({ region, assetIds });
+          }
+        }
+        
+        // Build error message with asset numbers
+        let errorMsg = `בבניין זה יש יותר מאזור מס אחד עבור עסקים: ${regionsStr}`;
+        if (assetIdsByRegion.length > 0) {
+          const assetDetails = assetIdsByRegion.map(({ region, assetIds }) => {
+            const uniqueAssetIds = Array.from(new Set(assetIds)).sort((a, b) => a - b);
+            const assetIdsStr = uniqueAssetIds.length <= 10 
+              ? uniqueAssetIds.join(', ')
+              : `${uniqueAssetIds.slice(0, 10).join(', ')}... (סה"כ ${uniqueAssetIds.length})`;
+            return `אזור ${region}: נכסים ${assetIdsStr}`;
+          }).join('; ');
+          errorMsg += `. ${assetDetails}`;
+        }
+        errors.push(errorMsg);
       }
 
       const privateTaxRegions = taxRegionsByType.get('מגורים');
       if (privateTaxRegions && privateTaxRegions.size > 1) {
-        const regions = Array.from(privateTaxRegions).sort((a, b) => a - b).join(', ');
-        errors.push(`בבניין זה יש יותר מאזור מס אחד עבור מגורים: ${regions}`);
+        const regions = Array.from(privateTaxRegions).sort((a, b) => a - b);
+        const regionsStr = regions.join(', ');
+        
+        // Collect asset IDs for each tax region
+        const assetIdsByRegion: { region: number; assetIds: number[] }[] = [];
+        for (const region of regions) {
+          const key = `מגורים_${region}`;
+          const assetIds = assetsByTaxRegionAndType.get(key) || [];
+          if (assetIds.length > 0) {
+            assetIdsByRegion.push({ region, assetIds });
+          }
+        }
+        
+        // Build error message with asset numbers
+        let errorMsg = `בבניין זה יש יותר מאזור מס אחד עבור מגורים: ${regionsStr}`;
+        if (assetIdsByRegion.length > 0) {
+          const assetDetails = assetIdsByRegion.map(({ region, assetIds }) => {
+            const uniqueAssetIds = Array.from(new Set(assetIds)).sort((a, b) => a - b);
+            const assetIdsStr = uniqueAssetIds.length <= 10 
+              ? uniqueAssetIds.join(', ')
+              : `${uniqueAssetIds.slice(0, 10).join(', ')}... (סה"כ ${uniqueAssetIds.length})`;
+            return `אזור ${region}: נכסים ${assetIdsStr}`;
+          }).join('; ');
+          errorMsg += `. ${assetDetails}`;
+        }
+        errors.push(errorMsg);
       }
 
       if (errors.length > 0) {

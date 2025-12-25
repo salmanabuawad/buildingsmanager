@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
-import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History } from 'lucide-react';
+import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, FileText, Edit, Square, Download, ChevronRight, ChevronDown, History, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
@@ -3751,6 +3751,21 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
+      },
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px' }}>
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#059669' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'comment'),

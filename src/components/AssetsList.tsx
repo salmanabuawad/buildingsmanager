@@ -5,7 +5,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -2725,6 +2725,21 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px' }}>
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#059669' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
+      },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       tooltipValueGetter: (params) => params.value || ''
@@ -3174,6 +3189,21 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
+      },
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px' }}>
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#059669' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),

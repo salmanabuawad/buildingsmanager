@@ -163,7 +163,8 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-inline-editing input[type="text"],
 .ag-theme-alpine .ag-cell-inline-editing input[type="number"],
 .ag-theme-alpine .ag-text-field-input,
-.ag-theme-alpine .ag-cell-editor input {
+.ag-theme-alpine .ag-cell-editor input,
+.ag-theme-alpine .ag-large-text textarea {
   direction: rtl !important;
   text-align: right !important;
 }

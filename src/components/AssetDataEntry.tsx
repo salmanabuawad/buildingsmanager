@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImper
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
-import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X, Download } from 'lucide-react';
+import { Save, Plus, Trash2, FileText, AlertCircle, Loader2, X, Download, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
@@ -971,6 +971,21 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
+      },
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px' }}>
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#059669' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params) => getCellStyle(params, 'comment', false),

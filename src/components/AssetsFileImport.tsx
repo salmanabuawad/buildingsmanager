@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw } from 'lucide-react';
+import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
@@ -2934,6 +2934,21 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       field: 'comment',
       headerName: 'הערה',
       editable: true,
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', direction: 'rtl', width: '100%', paddingRight: '4px' }}>
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#059669' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
+      },
       cellStyle: getCellStyle,
       tooltipValueGetter: (params) => params.value || ''
     }

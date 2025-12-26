@@ -211,10 +211,18 @@ export function TransferHistoryModal({
     
     // Filter to only include assets that have changed
     // For current state records, show all assets from after state
+    // For transfer operations, always show all assets (even if they appear unchanged individually,
+    // because transfer operations involve swapping data between assets)
+    const isTransferOperation = selectedRecord.action_type === 'transfer_area';
     const changedAssetIds = allAssetIds.filter(assetId => {
       if (isCurrentState) {
         // For current state, show all assets that exist in after state
         return afterMap.has(assetId);
+      }
+      if (isTransferOperation) {
+        // For transfer operations, show all assets that exist in either before or after
+        // This ensures we show assets even if they only appear to have swapped data
+        return beforeMap.has(assetId) || afterMap.has(assetId);
       }
       const beforeAsset = beforeMap.get(assetId);
       const afterAsset = afterMap.get(assetId);

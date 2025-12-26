@@ -1357,7 +1357,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
 
+      // Determine the new tax region from the assets that will be saved
+      // This will be used after successful save to open the correct tab
+      let newTaxRegionForTab = taxRegion || ''; // Default to current tax region
+      
       if (assetsToSave.length > 0) {
+        // Check if any asset has a tax_region in the saved data
+        const assetWithTaxRegion = assetsToSave.find(a => a.tax_region != null);
+        if (assetWithTaxRegion?.tax_region != null) {
+          newTaxRegionForTab = String(assetWithTaxRegion.tax_region);
+        }
+        
         // Use 'business_distribution' or 'residence_distribution' action type if this is a distribution save
         let actionType: string = 'manual_update';
         if (isDistributionSave && distributionType) {
@@ -1561,9 +1571,18 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         setSuccess(`✓ ${successMsg.join(', ')} בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
         
-        // Close the error fixing mode tab after successful save
-        if (isErrorFixingMode && onCloseTab) {
+        // Close the error fixing mode tab and open normal assets tab after successful save
+        if (isErrorFixingMode && onCloseTab && onOpenAssetsTab && newTaxRegionForTab) {
           // Use a small delay to allow the success message to be visible
+          setTimeout(() => {
+            // Close the error fixing tab
+            onCloseTab();
+            // Open a normal assets tab (not error fixing mode) with the new tax region
+            // Don't pass assetIds to avoid error fixing mode
+            onOpenAssetsTab(buildingNumber, newTaxRegionForTab);
+          }, 500);
+        } else if (isErrorFixingMode && onCloseTab) {
+          // Fallback: just close the tab if onOpenAssetsTab is not available
           setTimeout(() => {
             onCloseTab();
           }, 500);

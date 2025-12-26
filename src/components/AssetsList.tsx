@@ -3619,7 +3619,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params)
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: isResidentTaxRegion // Hide for residence assets (area_from_distribution is only for business distribution)
     },
     {
       field: 'extra_field',

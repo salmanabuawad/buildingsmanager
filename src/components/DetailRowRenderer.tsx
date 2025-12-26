@@ -309,12 +309,23 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return assetId || '';
   };
 
-  // Prepare columns: asset_id and _source first (right side in RTL), then area_from_distribution, then other allowed fields
+  // Prepare columns: asset_id and _source first (right side in RTL), then area_from_distribution (if not hidden), then other allowed fields
   // In RTL, items at the beginning of the array appear on the right
+  // Check if area_from_distribution is hidden in column definitions (e.g., for residence assets)
   const tableColumns = useMemo(() => {
     const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id' && f !== 'area_from_distribution');
-    return ['asset_id', '_source', 'area_from_distribution', ...fieldsWithoutAssetId];
-  }, [allowedFields]);
+    
+    // Check if area_from_distribution column is hidden in assetColumnDefs
+    const areaFromDistributionCol = params.assetColumnDefs.find((col: any) => col.field === 'area_from_distribution');
+    const isAreaFromDistributionHidden = areaFromDistributionCol?.hide === true;
+    
+    // Include area_from_distribution only if it's not hidden
+    if (isAreaFromDistributionHidden) {
+      return ['asset_id', '_source', ...fieldsWithoutAssetId];
+    } else {
+      return ['asset_id', '_source', 'area_from_distribution', ...fieldsWithoutAssetId];
+    }
+  }, [allowedFields, params.assetColumnDefs]);
 
   // Group rows by asset_id to apply same background color to before/after pairs
   // Create a map of unique asset_ids and their group index for alternating colors

@@ -3392,9 +3392,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       filter: true,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
-      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
+      valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
+      hide: !isBusinessContext // Hide for residence assets (area_from_distribution is only for business distribution)
     }
-  ], [getAreaDescriptionForTaxRegion]);
+  ], [getAreaDescriptionForTaxRegion, isBusinessContext]);
 
   // Check if asset is business (to hide penthouse)
   const isBusinessAsset = useMemo(() => {

@@ -757,7 +757,13 @@ DECLARE
   v_overload_ratio NUMERIC := NULL;
   v_type_changed BOOLEAN := FALSE;
   v_size_changed BOOLEAN := FALSE;
+  v_tax_region_changed BOOLEAN := FALSE;
   v_asset_found BOOLEAN := FALSE;
+  v_old_tax_region INTEGER;
+  v_new_tax_region INTEGER;
+  v_old_business_residence TEXT;
+  v_new_business_residence TEXT;
+  v_business_to_residence BOOLEAN := FALSE;
   -- New variables for building fields in audit
   v_building_record RECORD;
   v_shared_area_size NUMERIC := NULL;
@@ -950,9 +956,11 @@ BEGIN
     IF v_asset_found THEN
       v_old_main_asset_type := v_existing_asset.main_asset_type;
       v_old_asset_size := v_existing_asset.asset_size;
+      v_old_tax_region := v_existing_asset.tax_region;
     ELSE
       v_old_main_asset_type := NULL;
       v_old_asset_size := NULL;
+      v_old_tax_region := NULL;
     END IF;
 
     -- Save asset (INSERT or UPDATE)
@@ -1148,6 +1156,9 @@ BEGIN
           ELSE NULLIF((v_asset_data->>'discount_date_to'), '')::TEXT
         END,
         area_from_distribution = CASE 
+          -- If changing from business to residence (or vice versa), clear area_from_distribution
+          WHEN v_business_to_residence THEN 0
+          -- Otherwise, use provided value or keep existing
           WHEN v_asset_data->'area_from_distribution' IS NULL THEN area_from_distribution
           ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0)
         END,
@@ -1185,8 +1196,30 @@ BEGIN
         v_size_changed := FALSE;
       END IF;
       
-      -- If either type or size changed, set distribution flag
-      IF v_type_changed OR v_size_changed THEN
+      -- Determine if tax_region changed
+      v_new_tax_region := (v_asset_data->>'tax_region')::INTEGER;
+      v_tax_region_changed := (v_old_tax_region IS DISTINCT FROM v_new_tax_region);
+      
+      -- Check if changing from business to residence (or vice versa) - clear area_from_distribution
+      IF v_type_changed AND v_old_main_asset_type IS NOT NULL AND v_new_main_asset_type IS NOT NULL THEN
+        -- Get business_residence for old and new types
+        SELECT business_residence INTO v_old_business_residence
+        FROM asset_types
+        WHERE name = v_old_main_asset_type;
+        
+        SELECT business_residence INTO v_new_business_residence
+        FROM asset_types
+        WHERE name = v_new_main_asset_type;
+        
+        -- Check if changing from business to residence (or vice versa)
+        IF (v_old_business_residence = 'עסקים' AND v_new_business_residence = 'מגורים') OR
+           (v_old_business_residence = 'מגורים' AND v_new_business_residence = 'עסקים') THEN
+          v_business_to_residence := TRUE;
+        END IF;
+      END IF;
+      
+      -- If either type, size, or tax_region changed, set distribution flag
+      IF v_type_changed OR v_size_changed OR v_tax_region_changed THEN
         -- Use p_is_business_context if provided (from tab context)
         -- Otherwise, fall back to asset type's business_residence
         DECLARE

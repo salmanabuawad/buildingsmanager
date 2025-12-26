@@ -1968,11 +1968,48 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const areaPerAsset = building.residence_shared_area! / residentialAssets.length;
       const isClearing = areaPerAsset === 0;
       
+      // Also clear area_from_distribution for non-accountable assets
+      const nonAccountableAssets = assets.filter(asset => {
+        // Skip deleted assets
+        if (deletedAssets.has(String(asset.asset_id))) {
+          return false;
+        }
+        // Include assets with non_accountable_for_distribution === true
+        return isAssetNotAccountableForDistribution(asset);
+      });
+
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
       const updatedAssets = [...assets];
       let updatedCount = 0;
 
+      // First, clear area_from_distribution for non-accountable assets
+      for (const asset of nonAccountableAssets) {
+        const assetId = String(asset.asset_id);
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+        const currentAreaFromDistribution = existingChanges.area_from_distribution !== undefined
+          ? existingChanges.area_from_distribution
+          : (currentAsset?.area_from_distribution || 0);
+        
+        // Only clear if it's not already 0
+        if (currentAreaFromDistribution > 0) {
+          const changes: Partial<Asset> = { ...existingChanges };
+          changes.area_from_distribution = 0;
+          updatedDirtyAssets.set(assetId, changes);
+          
+          // Update local assets array for immediate UI update
+          const assetIndex = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
+          if (assetIndex !== -1) {
+            updatedAssets[assetIndex] = {
+              ...updatedAssets[assetIndex],
+              ...changes
+            } as Asset;
+          }
+        }
+      }
+
+      // Now distribute to accountable residential assets
       for (const asset of residentialAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
@@ -2364,11 +2401,48 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
       }
 
+      // Also clear area_from_distribution for non-accountable assets
+      const nonAccountableAssets = assets.filter(asset => {
+        // Skip deleted assets
+        if (deletedAssets.has(String(asset.asset_id))) {
+          return false;
+        }
+        // Include assets with non_accountable_for_distribution === true
+        return isAssetNotAccountableForDistribution(asset);
+      });
+
       // Track changes
       const updatedDirtyAssets = new Map(dirtyAssets);
       const updatedAssets = [...assets];
       let updatedCount = 0;
 
+      // First, clear area_from_distribution for non-accountable assets
+      for (const asset of nonAccountableAssets) {
+        const assetId = String(asset.asset_id);
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+        const currentAreaFromDistribution = existingChanges.area_from_distribution !== undefined
+          ? existingChanges.area_from_distribution
+          : (currentAsset?.area_from_distribution || 0);
+        
+        // Only clear if it's not already 0
+        if (currentAreaFromDistribution > 0) {
+          const changes: Partial<Asset> = { ...existingChanges };
+          changes.area_from_distribution = 0;
+          updatedDirtyAssets.set(assetId, changes);
+          
+          // Update local assets array for immediate UI update
+          const assetIndex = updatedAssets.findIndex(a => String(a.asset_id) === assetId);
+          if (assetIndex !== -1) {
+            updatedAssets[assetIndex] = {
+              ...updatedAssets[assetIndex],
+              ...changes
+            } as Asset;
+          }
+        }
+      }
+
+      // Now distribute to accountable business assets
       for (const asset of businessAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
@@ -3878,7 +3952,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 שנה אזור מס {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
               </button>
             )}
-            {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on, hidden in error fixing mode */}
+            {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
             {!isErrorFixingMode && building && isResidentTaxRegion && building.residence_shared_area != null && (
               <button
                 type="button"
@@ -3886,8 +3960,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 disabled={
                   loading || 
                   assets.length === 0 || 
-                  building.need_residence_distribution !== true ||
-                  (building.residence_shared_area! <= 0 && !hasPreviousResidenceDistribution)
+                  building.need_residence_distribution !== true
+                  // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 active:from-teal-700 active:to-teal-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-teal-700/20 disabled:border-gray-500/20"
                 title={building.need_residence_distribution === true 
@@ -3900,7 +3974,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 פזר שטח משותף מגורים
               </button>
             )}
-            {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on, hidden in error fixing mode */}
+            {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
             {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
               <button
                 type="button"
@@ -3908,8 +3982,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 disabled={
                   loading || 
                   assets.length === 0 || 
-                  building.need_business_distribution !== true ||
-                  (building.business_shared_area! <= 0 && !hasPreviousBusinessDistribution)
+                  building.need_business_distribution !== true
+                  // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 active:from-violet-700 active:to-violet-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-violet-700/20 disabled:border-gray-500/20"
                 title={building.need_business_distribution === true

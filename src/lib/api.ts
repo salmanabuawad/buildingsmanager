@@ -3071,11 +3071,34 @@ export const api = {
       
       if (error) throw error;
       
+      // Parse JSONB if it comes as a string (Supabase should auto-parse, but handle both cases)
+      let beforeData = data.before_data;
+      let afterData = data.after_data;
+      
+      if (typeof beforeData === 'string') {
+        try {
+          beforeData = JSON.parse(beforeData);
+        } catch (e) {
+          console.warn('Failed to parse before_data as JSON:', e);
+          beforeData = null;
+        }
+      }
+      
+      if (typeof afterData === 'string') {
+        try {
+          afterData = JSON.parse(afterData);
+        } catch (e) {
+          console.warn('Failed to parse after_data as JSON:', e);
+          afterData = null;
+        }
+      }
+      
       // Return data with before_data and after_data
       return {
         ...data,
-        before_data: data.before_data || null,
-        after_data: data.after_data || null,
+        building_number: data.building_number || (data.entity_id ? parseInt(data.entity_id, 10) : null),
+        before_data: beforeData || null,
+        after_data: afterData || null,
       };
     },
     getByDateRange: async (

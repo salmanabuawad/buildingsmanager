@@ -216,9 +216,40 @@ END $$;
 -- ENSURE log_audit_entry FUNCTION EXISTS
 -- ============================================================================
 
+-- Drop the old function signature first to avoid ambiguity with function overloading
+-- Need to drop all overloads since default parameters create ambiguity
+-- We'll drop all overloads of log_audit_entry, then recreate with the new signature
+DO $$
+DECLARE
+  v_func_oid oid;
+  v_func_sig text;
+BEGIN
+  -- Drop all overloads of log_audit_entry by finding them in pg_proc
+  FOR v_func_oid IN 
+    SELECT oid 
+    FROM pg_proc 
+    WHERE proname = 'log_audit_entry'
+      AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+  LOOP
+    BEGIN
+      -- Get the function signature
+      SELECT pg_get_function_identity_arguments(oid) INTO v_func_sig
+      FROM pg_proc
+      WHERE oid = v_func_oid;
+      
+      -- Drop the function with its signature
+      EXECUTE format('DROP FUNCTION IF EXISTS log_audit_entry(%s) CASCADE', v_func_sig);
+    EXCEPTION WHEN OTHERS THEN
+      -- Continue if drop fails
+      NULL;
+    END;
+  END LOOP;
+END $$;
+
 -- Ensure log_audit_entry function exists (it's used by log_audit_for_asset)
 -- This function should already exist from initial_schema.sql, but we ensure it here
 -- to avoid any dependency issues during migration execution
+-- Updated to include building_number, overload_ratio, and shared_area_size parameters
 CREATE OR REPLACE FUNCTION log_audit_entry(
   p_action_type audit_action_type,
   p_entity_type text,
@@ -226,7 +257,10 @@ CREATE OR REPLACE FUNCTION log_audit_entry(
   p_user_id text DEFAULT NULL, -- auth_user_id (UUID as text)
   p_before_data jsonb DEFAULT NULL,
   p_after_data jsonb DEFAULT NULL,
-  p_description text DEFAULT NULL
+  p_description text DEFAULT NULL,
+  p_building_number BIGINT DEFAULT NULL,
+  p_overload_ratio NUMERIC DEFAULT NULL,
+  p_shared_area_size NUMERIC DEFAULT NULL
 )
 RETURNS bigint AS $$
 DECLARE
@@ -265,24 +299,58 @@ BEGIN
     v_user_id_fk := v_default_user_id;
   END IF;
   
-  INSERT INTO audit (
-    user_id,
-    action_type,
-    entity_type,
-    entity_id,
-    before_data,
-    after_data,
-    description
-  ) VALUES (
-    v_user_id_fk,
-    p_action_type,
-    p_entity_type,
-    p_entity_id,
-    p_before_data,
-    p_after_data,
-    p_description
-  )
-  RETURNING id INTO v_audit_id;
+  -- Insert audit record with building_number, overload_ratio, and shared_area_size if provided
+  -- Check if building_number column exists in audit table (for backward compatibility)
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'audit' AND column_name = 'building_number'
+  ) THEN
+    -- Insert with building fields
+    INSERT INTO audit (
+      user_id,
+      action_type,
+      entity_type,
+      entity_id,
+      before_data,
+      after_data,
+      description,
+      building_number,
+      overload_ratio,
+      shared_area_size
+    ) VALUES (
+      v_user_id_fk,
+      p_action_type,
+      p_entity_type,
+      p_entity_id,
+      p_before_data,
+      p_after_data,
+      p_description,
+      p_building_number,
+      p_overload_ratio,
+      p_shared_area_size
+    )
+    RETURNING id INTO v_audit_id;
+  ELSE
+    -- Fallback: insert without building fields (if columns don't exist)
+    INSERT INTO audit (
+      user_id,
+      action_type,
+      entity_type,
+      entity_id,
+      before_data,
+      after_data,
+      description
+    ) VALUES (
+      v_user_id_fk,
+      p_action_type,
+      p_entity_type,
+      p_entity_id,
+      p_before_data,
+      p_after_data,
+      p_description
+    )
+    RETURNING id INTO v_audit_id;
+  END IF;
   
   RETURN v_audit_id;
 END;
@@ -690,6 +758,10 @@ DECLARE
   v_type_changed BOOLEAN := FALSE;
   v_size_changed BOOLEAN := FALSE;
   v_asset_found BOOLEAN := FALSE;
+  -- New variables for building fields in audit
+  v_building_record RECORD;
+  v_shared_area_size NUMERIC := NULL;
+  v_audit_distribution_type TEXT := NULL; -- For determining which shared area to use in audit
 BEGIN
   -- ========================================================================
   -- STEP 1: GET OR CREATE USER
@@ -1310,15 +1382,80 @@ BEGIN
   END IF;
   
   -- ========================================================================
-  -- STEP 3c: CALL log_audit_entry FOR DISTRIBUTION OPERATIONS
+  -- STEP 3c: CALL log_audit_entry FOR DISTRIBUTION AND TRANSFER OPERATIONS
   -- ========================================================================
-  -- Call log_audit_entry for distribution operations to save before/after data
+  -- Call log_audit_entry for distribution and transfer operations to save before/after data
   -- This must happen after all assets are saved and after_data is collected
   -- Ensure both before and after data are available before logging
-  IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') 
+  IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution', 'transfer_area') 
      AND v_first_building_number IS NOT NULL 
      AND (v_before_data_collected IS NOT NULL OR v_after_data_collected IS NOT NULL) THEN
-    -- Log the distribution operation with before and after data
+    
+    -- Determine distribution type for audit (only for distribution operations, not transfer)
+    IF p_action_type = 'transfer_area' THEN
+      -- Transfer operations don't have distribution type, shared area, or overload ratio
+      v_audit_distribution_type := NULL;
+      v_shared_area_size := NULL;
+      v_overload_ratio := NULL;
+    ELSIF p_action_type = 'business_distribution' THEN
+      v_audit_distribution_type := 'business';
+    ELSIF p_action_type = 'residence_distribution' THEN
+      v_audit_distribution_type := 'residence';
+    ELSE
+      -- Legacy 'distribute_shared' - determine from description
+      v_audit_distribution_type := NULL;
+      IF p_description IS NOT NULL THEN
+        IF LOWER(p_description) LIKE '%residence%' OR LOWER(p_description) LIKE '%מגורים%' THEN
+          v_audit_distribution_type := 'residence';
+        ELSIF LOWER(p_description) LIKE '%business%' OR LOWER(p_description) LIKE '%עסקים%' THEN
+          v_audit_distribution_type := 'business';
+        END IF;
+      END IF;
+      
+      -- If still not determined, check if main_asset_type is 199 (residence distribution)
+      IF v_audit_distribution_type IS NULL AND array_length(p_assets_data, 1) > 0 THEN
+        v_asset_type_name := (p_assets_data[1]->>'main_asset_type');
+        IF v_asset_type_name IS NOT NULL THEN
+          IF v_asset_type_name = '199' THEN
+            v_audit_distribution_type := 'residence';
+          ELSE
+            BEGIN
+              IF COALESCE(NULLIF(v_asset_type_name, '')::BIGINT, 0) = 199 THEN
+                v_audit_distribution_type := 'residence';
+              ELSE
+                -- Default to business if we can't determine
+                v_audit_distribution_type := 'business';
+              END IF;
+            EXCEPTION WHEN OTHERS THEN
+              v_audit_distribution_type := 'business'; -- Default fallback
+            END;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+    
+    -- Get building record to fetch shared_area_size and overload_ratio (only for distribution operations)
+    IF p_action_type != 'transfer_area' AND v_first_building_number IS NOT NULL THEN
+      SELECT * INTO v_building_record
+      FROM buildings
+      WHERE building_number = v_first_building_number;
+      
+      IF FOUND THEN
+        -- Set shared_area_size based on distribution type
+        IF v_audit_distribution_type = 'business' THEN
+          v_shared_area_size := v_building_record.business_shared_area;
+        ELSIF v_audit_distribution_type = 'residence' THEN
+          v_shared_area_size := v_building_record.residence_shared_area;
+        END IF;
+        
+        -- Overload ratio is already set from earlier logic, but ensure it's set for business distributions
+        IF v_overload_ratio IS NULL AND v_audit_distribution_type = 'business' THEN
+          v_overload_ratio := v_building_record.overload_ratio;
+        END IF;
+      END IF;
+    END IF;
+    
+    -- Log the operation (distribution or transfer) with before and after data, including building fields
     -- All operations happen in the same transaction, so this is atomic
     PERFORM log_audit_entry(
       p_action_type::audit_action_type,
@@ -1327,7 +1464,10 @@ BEGIN
       p_user_id,
       COALESCE(v_before_data_collected, '{"assets":[]}'::jsonb),
       COALESCE(v_after_data_collected, '{"assets":[]}'::jsonb),
-      p_description
+      p_description,
+      v_first_building_number, -- building_number (for both distribution and transfer)
+      v_overload_ratio, -- overload_ratio (NULL for transfer, set for business distribution)
+      v_shared_area_size -- shared_area_size (NULL for transfer, set for distribution)
     );
   END IF;
 

@@ -811,7 +811,8 @@ export function AssetTypes() {
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';
       },
       tooltipComponent: CustomTooltip,
-      tooltipHideDelay: 60000, // 1 minute (60000 milliseconds) before tooltip disappears
+      tooltipShowDelay: 100, // Show tooltip after 100ms
+      tooltipHideDelay: 60000, // Keep tooltip visible for 60 seconds (60000 milliseconds)
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 

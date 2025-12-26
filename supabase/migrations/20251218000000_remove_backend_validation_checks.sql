@@ -811,10 +811,12 @@ BEGIN
   END IF;
   
   -- Collect BEFORE data from database (if not provided)
-  IF (p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb) 
+  -- For transfer_area operations, ALWAYS collect from database to ensure accuracy (ignore p_before_data)
+  -- For other operations, collect from database only if p_before_data is not provided
+  IF ((p_before_data IS NULL OR p_before_data = 'null'::jsonb OR p_before_data = '{}'::jsonb) OR p_action_type = 'transfer_area')
      AND v_first_building_number IS NOT NULL THEN
     -- For distribution operations, collect ALL assets in the building
-    -- For other operations, only collect affected assets
+    -- For transfer_area and other operations, only collect affected assets
     IF p_action_type IN ('distribute_shared', 'business_distribution', 'residence_distribution') THEN
       -- Get ALL assets in the building before update
       -- Use explicit column list to avoid action_id

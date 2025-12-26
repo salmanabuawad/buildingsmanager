@@ -1014,7 +1014,123 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   }, [buildings, dirtyBuildings, buildingsToDelete, getBuildingKey, isNewBuilding, totalChanges]);
 
-  // Export buildings to Excel
+  // Export buildings list to Excel
+  const handleExportBuildingsToExcel = useCallback(async () => {
+    try {
+      if (!buildings || buildings.length === 0) {
+        setError('אין מבנים לייצוא');
+        setTimeout(() => setError(null), 3000);
+        return;
+      }
+
+      // Filter out deleted buildings and apply dirty changes
+      const buildingsToExport = buildings
+        .filter(building => {
+          const buildingKey = getBuildingKey(building);
+          return !buildingsToDelete.has(buildingKey);
+        })
+        .map(building => {
+          const buildingKey = getBuildingKey(building);
+          const dirtyChanges = dirtyBuildings.get(buildingKey) || {};
+          return { ...building, ...dirtyChanges };
+        });
+
+      // Define headers
+      const headers = [
+        'מזהה מבנה',
+        'אזור מיסים',
+        'אחוז העמסה',
+        'שטח משותף מגורים',
+        'שטח משותף עסקים',
+        'ס"כ גודל',
+        'שטח לבקרה',
+        'מעלית',
+        'בית פרטי חד משפחתי דו משפחתי',
+        'בית משותף',
+        'מבנים צמודי קרקע טוריים מעל 2 יחידות',
+        'כתובת',
+        'גוש',
+        'חלקה',
+        'מספר בניין'
+      ];
+
+      // Helper function to format tax region with descriptions
+      const formatTaxRegion = (taxRegion: string | null | undefined): string => {
+        if (!taxRegion) return '';
+        if (typeof taxRegion === 'string' && taxRegion.includes(',')) {
+          const taxRegions = taxRegion.split(',').map(tr => tr.trim()).filter(tr => tr);
+          return taxRegions.map(tr => getAreaDescriptionForTaxRegion(tr)).join(', ');
+        }
+        return getAreaDescriptionForTaxRegion(taxRegion);
+      };
+
+      // Helper function to get address description
+      const getAddressDescription = (streetCode: number | null | undefined): string => {
+        if (!streetCode) return '';
+        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
+        return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
+      };
+
+      // Convert buildings to rows
+      const rows = buildingsToExport.map(building => [
+        building.building_number || '',
+        formatTaxRegion(building.tax_region),
+        building.overload_ratio != null ? `${Number(building.overload_ratio).toFixed(2)}%` : '',
+        building.residence_shared_area != null && building.residence_shared_area !== 0 ? building.residence_shared_area : '',
+        building.business_shared_area != null && building.business_shared_area !== 0 ? building.business_shared_area : '',
+        building.total_building_area != null && building.total_building_area !== 0 ? building.total_building_area : '',
+        building.area_for_control != null && building.area_for_control !== 0 ? building.area_for_control : '',
+        building.elevator === 'כן' || building.elevator === true ? 'כן' : '',
+        building.single_double_family === 'כן' || building.single_double_family === true ? 'כן' : '',
+        building.condo === 'כן' || building.condo === true ? 'כן' : '',
+        building.townhouses === 'כן' || building.townhouses === true ? 'כן' : '',
+        getAddressDescription(building.building_address),
+        building.gosh != null ? building.gosh : '',
+        building.helka != null ? building.helka : '',
+        building.building_number_in_street != null ? building.building_number_in_street : ''
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const filename = `רשימת_מבנים_${dateStr}.xlsx`;
+
+      // Export to Excel
+      exportToExcel({
+        filename,
+        sheetName: 'מבנים',
+        data,
+        columnWidths: [
+          { wch: 12 }, // מזהה מבנה
+          { wch: 20 }, // אזור מיסים
+          { wch: 12 }, // אחוז העמסה
+          { wch: 18 }, // שטח משותף מגורים
+          { wch: 18 }, // שטח משותף עסקים
+          { wch: 12 }, // ס"כ גודל
+          { wch: 12 }, // שטח לבקרה
+          { wch: 8 },  // מעלית
+          { wch: 35 }, // בית פרטי חד משפחתי דו משפחתי
+          { wch: 12 }, // בית משותף
+          { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
+          { wch: 30 }, // כתובת
+          { wch: 10 }, // גוש
+          { wch: 10 }, // חלקה
+          { wch: 12 }  // מספר בניין
+        ]
+      });
+
+      setSuccess(`יוצאו ${buildingsToExport.length} מבנים בהצלחה`);
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (error: any) {
+      console.error('Error exporting buildings to Excel:', error);
+      setError(error.message || 'שגיאה בייצוא מבנים ל-Excel');
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [buildings, buildingsToDelete, dirtyBuildings, addressList, getBuildingKey, getAreaDescriptionForTaxRegion]);
+
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {
     setLoading(true);
@@ -2486,6 +2602,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             >
               <CheckCircle2 className="h-4 w-4" />
               אמת הכל
+            </button>
+            <button
+              type="button"
+              onClick={handleExportBuildingsToExcel}
+              disabled={loading || buildings.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              title="ייצא את כל המבנים לקובץ Excel"
+            >
+              <Download className="h-4 w-4" />
+              ייצא ל-Excel
             </button>
             <button
               type="button"

@@ -1201,6 +1201,7 @@ BEGIN
       v_tax_region_changed := (v_old_tax_region IS DISTINCT FROM v_new_tax_region);
       
       -- Check if changing from business to residence (or vice versa) - clear area_from_distribution
+      -- This applies when asset type changes OR when tax_region changes (which may change business_residence)
       IF v_type_changed AND v_old_main_asset_type IS NOT NULL AND v_new_main_asset_type IS NOT NULL THEN
         -- Get business_residence for old and new types
         SELECT business_residence INTO v_old_business_residence
@@ -1215,6 +1216,35 @@ BEGIN
         IF (v_old_business_residence = 'עסקים' AND v_new_business_residence = 'מגורים') OR
            (v_old_business_residence = 'מגורים' AND v_new_business_residence = 'עסקים') THEN
           v_business_to_residence := TRUE;
+        END IF;
+      ELSIF v_tax_region_changed AND v_new_main_asset_type IS NOT NULL AND v_old_tax_region IS NOT NULL AND v_new_tax_region IS NOT NULL THEN
+        -- Tax region changed: check if business_residence changed due to tax region change
+        -- Get business_residence for asset type in old tax_region
+        SELECT business_residence INTO v_old_business_residence
+        FROM asset_types
+        WHERE name = v_new_main_asset_type AND tax_region = v_old_tax_region
+        LIMIT 1;
+        
+        -- Get business_residence for asset type in new tax_region
+        SELECT business_residence INTO v_new_business_residence
+        FROM asset_types
+        WHERE name = v_new_main_asset_type AND tax_region = v_new_tax_region
+        LIMIT 1;
+        
+        -- If old business_residence not found, try to get it without tax_region filter (for backward compatibility)
+        IF v_old_business_residence IS NULL THEN
+          SELECT business_residence INTO v_old_business_residence
+          FROM asset_types
+          WHERE name = v_new_main_asset_type
+          LIMIT 1;
+        END IF;
+        
+        -- Check if changing from business to residence (or vice versa) due to tax_region change
+        IF v_old_business_residence IS NOT NULL AND v_new_business_residence IS NOT NULL THEN
+          IF (v_old_business_residence = 'עסקים' AND v_new_business_residence = 'מגורים') OR
+             (v_old_business_residence = 'מגורים' AND v_new_business_residence = 'עסקים') THEN
+            v_business_to_residence := TRUE;
+          END IF;
         END IF;
       END IF;
       
@@ -1232,10 +1262,29 @@ BEGIN
             v_is_residence_context := NOT p_is_business_context;
           ELSE
             -- Fall back to asset type's business_residence
+            -- If tax_region changed, use the business_residence for the new tax_region
             IF v_new_main_asset_type IS NOT NULL THEN
-              SELECT business_residence INTO v_business_residence
-              FROM asset_types
-              WHERE name = v_new_main_asset_type;
+              IF v_tax_region_changed AND v_new_tax_region IS NOT NULL THEN
+                -- Get business_residence for asset type in new tax_region
+                SELECT business_residence INTO v_business_residence
+                FROM asset_types
+                WHERE name = v_new_main_asset_type AND tax_region = v_new_tax_region
+                LIMIT 1;
+                
+                -- If not found, fall back to asset type without tax_region filter
+                IF v_business_residence IS NULL THEN
+                  SELECT business_residence INTO v_business_residence
+                  FROM asset_types
+                  WHERE name = v_new_main_asset_type
+                  LIMIT 1;
+                END IF;
+              ELSE
+                -- No tax_region change, use asset type's business_residence (any tax_region)
+                SELECT business_residence INTO v_business_residence
+                FROM asset_types
+                WHERE name = v_new_main_asset_type
+                LIMIT 1;
+              END IF;
               
               IF v_business_residence = 'עסקים' THEN
                 v_is_business_context := TRUE;
@@ -1245,21 +1294,39 @@ BEGIN
             END IF;
           END IF;
           
-          -- Set appropriate flag based on context
-          IF v_is_business_context THEN
-            -- Business: set flag only if building has business_shared_area > 0
+          -- If changing from business to residence (or vice versa), set BOTH flags
+          -- because the asset is moving from one distribution pool to another
+          IF v_business_to_residence THEN
+            -- Asset changed from business to residence or vice versa
+            -- Set both flags (if building has the relevant shared areas > 0)
             UPDATE buildings
-            SET need_business_distribution = true
+            SET need_business_distribution = CASE 
+                WHEN COALESCE(business_shared_area, 0) > 0 THEN true
+                ELSE need_business_distribution
+              END,
+              need_residence_distribution = CASE 
+                WHEN COALESCE(residence_shared_area, 0) > 0 THEN true
+                ELSE need_residence_distribution
+              END
             WHERE building_number = v_building_number
-              AND COALESCE(business_shared_area, 0) > 0;
-          END IF;
-          
-          IF v_is_residence_context THEN
-            -- Residence: set flag only if building has residence_shared_area > 0
-            UPDATE buildings
-            SET need_residence_distribution = true
-            WHERE building_number = v_building_number
-              AND COALESCE(residence_shared_area, 0) > 0;
+              AND (COALESCE(business_shared_area, 0) > 0 OR COALESCE(residence_shared_area, 0) > 0);
+          ELSE
+            -- Normal case: set flag based on context
+            IF v_is_business_context THEN
+              -- Business: set flag only if building has business_shared_area > 0
+              UPDATE buildings
+              SET need_business_distribution = true
+              WHERE building_number = v_building_number
+                AND COALESCE(business_shared_area, 0) > 0;
+            END IF;
+            
+            IF v_is_residence_context THEN
+              -- Residence: set flag only if building has residence_shared_area > 0
+              UPDATE buildings
+              SET need_residence_distribution = true
+              WHERE building_number = v_building_number
+                AND COALESCE(residence_shared_area, 0) > 0;
+            END IF;
           END IF;
         EXCEPTION WHEN OTHERS THEN
           -- Ignore errors

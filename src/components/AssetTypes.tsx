@@ -1239,7 +1239,7 @@ export function AssetTypes() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-3">
+    <div className="max-w-5xl mx-auto px-2 py-3">
       <div className="mb-3 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg shadow-lg p-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

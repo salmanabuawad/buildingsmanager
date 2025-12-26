@@ -11,6 +11,7 @@ import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -1360,7 +1361,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               const data = [headers, ...rows];
               const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
               const filename = `העברת_שטחים_מבנה_${buildingNumber}_${dateStr}.xlsx`;
-              const { exportToExcel } = await import('../lib/excelExport');
               exportToExcel({
                 filename,
                 sheetName: 'העברת שטחים',

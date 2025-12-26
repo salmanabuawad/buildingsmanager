@@ -8,6 +8,7 @@ import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 
 export function AddressListComponent() {
   const { t } = useTranslation();
@@ -69,7 +70,6 @@ export function AddressListComponent() {
       });
     } else {
       // Export as Excel
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename: 'תבנית_רשימת_כתובות.xlsx',
         sheetName: 'תבנית כתובות',
@@ -115,7 +115,6 @@ export function AddressListComponent() {
       const filename = `כתובות_${dateStr}.xlsx`;
 
       // Use improved export function to reduce antivirus false positives
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename,
         sheetName: 'כתובות',

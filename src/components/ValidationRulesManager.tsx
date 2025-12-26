@@ -9,6 +9,7 @@ import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 
 export function ValidationRulesManager() {
   const { t } = useTranslation();
@@ -121,7 +122,6 @@ export function ValidationRulesManager() {
       const filename = `כללי_תקינות_${dateStr}.xlsx`;
 
       // Use improved export function to reduce antivirus false positives
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename,
         sheetName: 'כללי תקינות',

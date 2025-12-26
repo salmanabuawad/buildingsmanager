@@ -12,6 +12,7 @@ import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 
 interface ImportAssetRow {
   id: string;
@@ -3035,7 +3036,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         data
       });
     } else {
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename: 'assets_template.xlsx',
         sheetName: 'נכסים',
@@ -3060,7 +3060,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         data
       });
     } else {
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename: 'assets_skeleton_template.xlsx',
         sheetName: 'נכסים',
@@ -3337,7 +3336,6 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       const data = [headers, ...rows];
                       const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
                       const filename = `${mode === 'regular' ? 'ייבוא_מלא' : 'ייבוא_שלד'}_${dateStr}.xlsx`;
-                      const { exportToExcel } = await import('../lib/excelExport');
                       exportToExcel({
                         filename,
                         sheetName: mode === 'regular' ? 'ייבוא מלא' : 'ייבוא שלד',

@@ -10,6 +10,7 @@ import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -1461,7 +1462,6 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                     const data = [headers, ...rows];
                     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
                     const filename = `הזנת_נתונים_${dateStr}.xlsx`;
-                    const { exportToExcel } = await import('../lib/excelExport');
                     exportToExcel({
                       filename,
                       sheetName: 'הזנת נתונים',

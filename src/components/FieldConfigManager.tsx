@@ -7,6 +7,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 
 export function FieldConfigManager() {
   const [configurations, setConfigurations] = useState<FieldConfiguration[]>([]);
@@ -175,7 +176,6 @@ export function FieldConfigManager() {
       const filename = `הגדרות_שדות${gridSuffix}_${dateStr}.xlsx`;
 
       // Use improved export function to reduce antivirus false positives
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename,
         sheetName: 'הגדרות שדות',

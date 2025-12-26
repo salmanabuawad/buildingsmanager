@@ -11,6 +11,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 
 // Custom cell editor for address dropdown with filtering
 interface AddressCellEditorParams extends ICellEditorParams {
@@ -1157,7 +1158,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const filename = `פריקת_נתונים_${dateStr}.xlsx`;
 
       // Export to Excel
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename,
         sheetName: 'נכסים',

@@ -19,6 +19,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { exportToExcel } from '../lib/excelExport';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -2592,7 +2593,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const filename = `נכסים_מבנה_${buildingNumber}${taxRegion ? `_אזור_${taxRegion}` : ''}_${dateStr}.xlsx`;
 
       // Use improved export function to reduce antivirus false positives
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename,
         sheetName: 'נכסים',

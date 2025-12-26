@@ -11,6 +11,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { exportToExcel } from '../lib/excelExport';
 
 // Custom tooltip component that supports line breaks
 const CustomTooltip = (params: ITooltipParams) => {
@@ -869,7 +870,6 @@ export function AssetTypes() {
       });
     } else {
       // Export as Excel
-      const { exportToExcel } = await import('../lib/excelExport');
       exportToExcel({
         filename: 'תבנית_סוגי_נכסים.xlsx',
         sheetName: 'סוגי נכסים',
@@ -945,7 +945,6 @@ export function AssetTypes() {
     const filename = `סוגי_נכסים_${dateStr}.xlsx`;
 
     // Use improved export function to reduce antivirus false positives
-    const { exportToExcel } = await import('../lib/excelExport');
     exportToExcel({
       filename,
       sheetName: 'סוגי נכסים',

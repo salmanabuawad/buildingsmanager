@@ -1,6 +1,12 @@
 /**
  * Excel Export Helper
  * Provides standardized Excel export functionality to reduce antivirus false positives
+ * 
+ * Additional measures to reduce McAfee and other antivirus false positives:
+ * - Uses explicit write options with standard compression
+ * - Sets comprehensive workbook metadata
+ * - Ensures proper file structure and cell formatting
+ * - Uses standard Excel file format specifications
  */
 
 import * as XLSX from 'xlsx';
@@ -16,10 +22,11 @@ export interface ExcelExportOptions {
  * Export data to Excel with options to reduce antivirus false positives
  * 
  * This function uses write options that create more standard Excel files:
- * - Sets comprehensive workbook properties (author, created date, company)
- * - Uses standard compression and write options
+ * - Sets comprehensive workbook properties (author, created date, company, keywords, comments)
+ * - Uses explicit write options with standard compression
  * - Sets proper cell types to avoid suspicious patterns
  * - Adds standard workbook structure
+ * - Uses proper dates and metadata to match typical Excel file patterns
  */
 export function exportToExcel(options: ExcelExportOptions): void {
   try {
@@ -41,25 +48,60 @@ export function exportToExcel(options: ExcelExportOptions): void {
     // Create workbook
     const workbook = XLSX.utils.book_new();
 
+    // Get current date for metadata
+    const now = new Date();
+
     // Set comprehensive workbook properties to make file look more standard
-    // This helps reduce antivirus false positives
+    // Extensive metadata helps reduce antivirus false positives by making the file
+    // look like it was created by a standard Excel application
     workbook.Props = {
       Title: sheetName,
-      Subject: 'Template Export',
+      Subject: 'Data Export',
       Author: 'Buildings Manager',
-      CreatedDate: new Date(),
-      ModifiedDate: new Date(),
+      CreatedDate: now,
+      ModifiedDate: now,
+      LastSavedBy: 'Buildings Manager',
       Company: 'Buildings Management System',
-      Category: 'Data Export'
+      Category: 'Data Export',
+      Keywords: 'export, data, buildings',
+      Comments: 'Exported from Buildings Management System'
     };
 
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-    // Write file using standard method
-    // The comprehensive workbook properties set above help make the file look more standard
-    // and reduce antivirus false positives
-    XLSX.writeFile(workbook, filename);
+    // Write file with explicit options to reduce false positives
+    // Using explicit write options ensures standard file format that antivirus software
+    // recognizes as legitimate Excel files
+    const writeOptions: XLSX.WritingOptions = {
+      bookType: 'xlsx',
+      bookSST: false, // Don't use shared string table - more standard format
+      type: 'array',
+      compression: true, // Use standard ZIP compression
+      cellDates: true // Proper date handling
+    };
+
+    // Generate the file as array buffer
+    const fileData = XLSX.write(workbook, writeOptions);
+    
+    // Create a Blob with proper MIME type
+    const blob = new Blob([fileData], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    
+    // Create download link and trigger download
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the URL object after a short delay
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   } catch (error) {
     console.error('Error exporting to Excel:', error);
     throw error;

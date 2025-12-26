@@ -23,6 +23,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { DetailRowRenderer } from './DetailRowRenderer';
 import { useFieldConfig } from '../lib/useFieldConfig';
+import { exportToExcel } from '../lib/excelExport';
 
 interface AssetDetailsProps {
   assetId?: number;
@@ -4620,7 +4621,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         const data = [headers, ...rows];
                         const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
                         const filename = `מדידה_אחרונה_${assetId || buildingNumber}_${dateStr}.xlsx`;
-                        const { exportToExcel } = await import('../lib/excelExport');
                         exportToExcel({
                           filename,
                           sheetName: 'מדידה אחרונה',

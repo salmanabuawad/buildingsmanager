@@ -758,11 +758,6 @@ export function AssetTypes() {
             fields.push(`תיאור: ${at.description}`);
           }
           
-          // Business/residence
-          if (at.business_residence) {
-            fields.push(`עסקים/מגורים: ${at.business_residence}`);
-          }
-          
           // Checkbox fields (show only if checked)
           if (at.elevator === 'כן') {
             fields.push('מעלית: כן');

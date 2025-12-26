@@ -28,6 +28,7 @@ interface AssetsListProps {
   selectedAssetIds?: string[]; // Optional: filter to show only these asset IDs
   onOpenAssetsTab?: (buildingNumber: number, taxRegion: string, assetIds?: string[]) => void;
   onCloseTabAndOpenMultiTax?: (buildingNumber: number) => void;
+  onCloseTab?: () => void;
   isErrorFixingMode?: boolean; // When true, hide all buttons except Validate, Save, Save as new, and Cancel
 }
 
@@ -35,7 +36,7 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, isErrorFixingMode = false }, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -1559,6 +1560,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} נכסים`);
         setSuccess(`✓ ${successMsg.join(', ')} בהצלחה`);
         setTimeout(() => setSuccess(null), 3000);
+        
+        // Close the error fixing mode tab after successful save
+        if (isErrorFixingMode && onCloseTab) {
+          // Use a small delay to allow the success message to be visible
+          setTimeout(() => {
+            onCloseTab();
+          }, 500);
+        }
       }
     } catch (err) {
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;

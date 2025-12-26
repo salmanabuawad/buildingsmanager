@@ -1239,6 +1239,7 @@ function App() {
                   selectedAssetIds={activeTab.selectedAssetIds}
                   onOpenAssetsTab={handleOpenAssetsTab}
                   onCloseTabAndOpenMultiTax={handleCloseTabAndOpenMultiTax}
+                  onCloseTab={() => handleCloseTab(activeTabId)}
                   isErrorFixingMode={activeTab.isErrorFixingMode}
                 />
               )}

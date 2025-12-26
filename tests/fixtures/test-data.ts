@@ -19,6 +19,7 @@ export const testAssetTypes: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>
     max_size: 150,
     elevator: 'כן',
     condo: 'כן',
+    business_residence: 'מגורים',
     active: 'כן',
   },
   {
@@ -29,6 +30,7 @@ export const testAssetTypes: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>
     max_size: 200,
     elevator: null,
     condo: 'כן',
+    business_residence: 'מגורים',
     active: 'כן',
   },
   {

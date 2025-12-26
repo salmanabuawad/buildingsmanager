@@ -1,9 +1,10 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const USE_LOCAL_DB = import.meta.env.VITE_USE_LOCAL_DB === 'true';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const localDbUrl = import.meta.env.VITE_LOCAL_DB_URL || 'postgresql://postgres:postgres@localhost:5432/buildings_manager';
+// Support both import.meta.env (Vite) and process.env (Node.js/test environments)
+const USE_LOCAL_DB = (import.meta.env?.VITE_USE_LOCAL_DB || process.env.VITE_USE_LOCAL_DB) === 'true';
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const localDbUrl = import.meta.env?.VITE_LOCAL_DB_URL || process.env.VITE_LOCAL_DB_URL || 'postgresql://postgres:postgres@localhost:5432/buildings_manager';
 
 let dbClient: SupabaseClient;
 

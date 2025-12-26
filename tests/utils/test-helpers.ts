@@ -22,19 +22,18 @@ export async function insertReferenceData(): Promise<void> {
   }
   
   // Insert asset types (asset_types - reference table)
+  // Delete existing and insert fresh to avoid conflicts
   for (const assetType of testAssetTypes) {
+    // Delete if exists (matching name and tax_region to avoid duplicates)
+    await pool.query(
+      `DELETE FROM asset_types WHERE name = $1 AND tax_region = $2`,
+      [assetType.name, assetType.tax_region]
+    );
+    
+    // Insert new record
     await pool.query(
       `INSERT INTO asset_types (name, description, tax_region, min_size, max_size, elevator, condo, business_residence, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (name) DO UPDATE SET
-         description = EXCLUDED.description,
-         tax_region = EXCLUDED.tax_region,
-         min_size = EXCLUDED.min_size,
-         max_size = EXCLUDED.max_size,
-         elevator = EXCLUDED.elevator,
-         condo = EXCLUDED.condo,
-         business_residence = EXCLUDED.business_residence,
-         active = EXCLUDED.active`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         assetType.name,
         assetType.description,

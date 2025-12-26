@@ -186,21 +186,25 @@ psql -U postgres -d buildings_manager
 
 ## 🔧 Configuration
 
+### Application URL
+
+The application is deployed at: **https://buildingmanager.bolt.host/**
+
 ### Environment Variables
 
 Create a `.env` file in the project root:
 
-**Local PostgreSQL:**
+**Supabase (Production):**
+```env
+VITE_USE_LOCAL_DB=false
+VITE_SUPABASE_URL=https://oqfcdzagpftajmpxuajl.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+**Local PostgreSQL (Development):**
 ```env
 VITE_USE_LOCAL_DB=true
 VITE_LOCAL_DB_URL=postgresql://postgres:password@localhost:5432/buildings_manager
-```
-
-**Supabase:**
-```env
-VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ### PostgREST (Optional)

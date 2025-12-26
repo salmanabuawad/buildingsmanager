@@ -758,16 +758,6 @@ export function AssetTypes() {
             fields.push(`תיאור: ${at.description}`);
           }
           
-          // Tax region
-          if (at.tax_region) {
-            fields.push(`אזור מיסים: ${at.tax_region}`);
-          }
-          
-          // Area description for tab
-          if (at.area_description_for_tab) {
-            fields.push(`תיאור אזור: ${at.area_description_for_tab}`);
-          }
-          
           // Business/residence
           if (at.business_residence) {
             fields.push(`עסקים/מגורים: ${at.business_residence}`);
@@ -826,6 +816,7 @@ export function AssetTypes() {
         return allTooltips.length > 0 ? allTooltips.join('\n') : 'אין פרטים נוספים';
       },
       tooltipComponent: CustomTooltip,
+      tooltipHideDelay: 60000, // 1 minute (60000 milliseconds) before tooltip disappears
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'name');
         return { 

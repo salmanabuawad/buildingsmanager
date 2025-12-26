@@ -139,10 +139,10 @@ async function resetDistributionFlagsIfNeeded(
   if (!buildingNumber) return;
 
   try {
-    // Get current building data to check if flags need to be reset
+    // Get current building data to check if flags need to be reset and if shared area is > 0
     const { data: building, error: buildingError } = await supabase
       .from('buildings')
-      .select('need_business_distribution, need_residence_distribution')
+      .select('need_business_distribution, need_residence_distribution, business_shared_area, residence_shared_area')
       .eq('building_number', buildingNumber)
       .maybeSingle();
 
@@ -153,18 +153,30 @@ async function resetDistributionFlagsIfNeeded(
     const updates: Partial<Building> = {};
 
     // For residence: set need_residence_distribution to true on create, delete, or type change
+    // BUT only if building has residence_shared_area > 0
     // (true = needs distribution, false = already distributed)
     if (assetType === 'residence' && (changeType === 'create' || changeType === 'delete' || assetTypeChanged)) {
-      updates.need_residence_distribution = true;
-      console.log(`[resetDistributionFlagsIfNeeded] Setting need_residence_distribution=true for building ${buildingNumber} (residence asset, ${changeType})`);
+      const residenceSharedArea = building.residence_shared_area ?? 0;
+      if (residenceSharedArea > 0) {
+        updates.need_residence_distribution = true;
+        console.log(`[resetDistributionFlagsIfNeeded] Setting need_residence_distribution=true for building ${buildingNumber} (residence asset, ${changeType})`);
+      } else {
+        console.log(`[resetDistributionFlagsIfNeeded] Skipping need_residence_distribution for building ${buildingNumber} (residence_shared_area is ${residenceSharedArea})`);
+      }
     }
 
     // For business: set need_business_distribution to true on create, delete, asset_size change, or type change
+    // BUT only if building has business_shared_area > 0
     // (true = needs distribution, false = already distributed)
     if (assetType === 'business') {
       if (changeType === 'create' || changeType === 'delete' || assetSizeChanged || assetTypeChanged) {
-        updates.need_business_distribution = true;
-        console.log(`[resetDistributionFlagsIfNeeded] Setting need_business_distribution=true for building ${buildingNumber} (business asset, ${changeType}${assetSizeChanged ? ', size changed' : ''}${assetTypeChanged ? ', type changed' : ''})`);
+        const businessSharedArea = building.business_shared_area ?? 0;
+        if (businessSharedArea > 0) {
+          updates.need_business_distribution = true;
+          console.log(`[resetDistributionFlagsIfNeeded] Setting need_business_distribution=true for building ${buildingNumber} (business asset, ${changeType}${assetSizeChanged ? ', size changed' : ''}${assetTypeChanged ? ', type changed' : ''})`);
+        } else {
+          console.log(`[resetDistributionFlagsIfNeeded] Skipping need_business_distribution for building ${buildingNumber} (business_shared_area is ${businessSharedArea})`);
+        }
       }
     }
 

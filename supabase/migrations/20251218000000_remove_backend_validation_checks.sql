@@ -591,9 +591,11 @@ BEGIN
       
     ELSIF v_business_residence = 'מגורים' THEN
       -- Residence asset size changed → set residence distribution flag only
+      -- BUT only if building has residence_shared_area > 0
       UPDATE buildings
       SET need_residence_distribution = true
-      WHERE building_number = v_building_number;
+      WHERE building_number = v_building_number
+        AND COALESCE(residence_shared_area, 0) > 0;
     END IF;
   END IF;
 
@@ -1146,10 +1148,11 @@ BEGIN
           END IF;
           
           IF v_is_residence_context THEN
-            -- Residence: always set flag
+            -- Residence: set flag only if building has residence_shared_area > 0
             UPDATE buildings
             SET need_residence_distribution = true
-            WHERE building_number = v_building_number;
+            WHERE building_number = v_building_number
+              AND COALESCE(residence_shared_area, 0) > 0;
           END IF;
         EXCEPTION WHEN OTHERS THEN
           -- Ignore errors

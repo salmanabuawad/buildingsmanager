@@ -845,9 +845,11 @@ export const api = {
         Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
       );
       
-      // New buildings start with distribution flags set to false (no distribution needed by default)
+      // New buildings always start with distribution flags set to false (no distribution needed by default)
       // Flags will be set to true automatically when shared areas are set via update_buildings_bulk_with_distribution_flags
-      // Don't explicitly set them, let the database defaults handle it (which are now false)
+      // Explicitly set to false to ensure they're never true on creation, even if passed in input
+      cleanedInput.need_residence_distribution = false;
+      cleanedInput.need_business_distribution = false;
       
       const { data, error } = await supabase
         .from('buildings')

@@ -2709,11 +2709,7 @@ export const buildingValidators = {
         errors.tax_region = taxRegionsByTypeResult.error || 'Invalid tax regions by business type';
       }
 
-      // Validate that all assets in the building have properly distributed areas
-      const areaDistributionResult = await buildingValidators.validateAssetAreaDistribution(building.building_number);
-      if (!areaDistributionResult.valid) {
-        errors.assets_area_distribution = areaDistributionResult.error || 'Invalid asset area distribution';
-      }
+      // Note: Asset area distribution validation removed - building validation only checks area_for_control vs total_building_area
     }
 
     // Validate area_for_control (should be positive number if provided)
@@ -2737,12 +2733,13 @@ export const buildingValidators = {
       }
     }
 
-    // Validate area_for_control matches total_building_area if both exist
+    // Validate area_for_control matches total_building_area if both exist and area_for_control is not 0 or null
     if (building.area_for_control != null && building.total_building_area != null) {
       const controlArea = Number(building.area_for_control);
       const totalArea = Number(building.total_building_area);
 
-      if (!isNaN(controlArea) && !isNaN(totalArea) && controlArea !== totalArea) {
+      // Only validate if area_for_control is not 0 or null
+      if (!isNaN(controlArea) && controlArea !== 0 && !isNaN(totalArea) && controlArea !== totalArea) {
         errors.area_for_control = 'שטח לבקרה חייב להיות שווה לשטח הכולל';
       }
     }

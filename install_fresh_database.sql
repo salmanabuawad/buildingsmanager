@@ -45,10 +45,10 @@
 
 -- ============================================================================
 -- STEP 3: Apply any migrations that came after the consolidated schema
--- (Currently none, but this is where they would go)
 -- ============================================================================
 
--- No migrations exist after the consolidated schema as of 2026-01-01
+\i supabase/migrations/20260102000000_update_building_total_area_with_shared.sql
+\i supabase/migrations/20260102000001_recalculate_total_area_on_shared_area_change.sql
 
 -- ============================================================================
 -- VERIFICATION QUERIES (Optional - run these to verify installation)

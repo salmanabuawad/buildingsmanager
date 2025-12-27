@@ -1263,6 +1263,46 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return '';
       };
 
+      // Get asset types to determine business/residence type
+      const assetTypes = getAssetTypes();
+      
+      // Helper function to calculate export asset size (asset_size + area_from_distribution for business assets)
+      const getExportAssetSize = (asset: any): number | string => {
+        const assetSize = asset.asset_size || 0;
+        
+        // Check if this is a business asset
+        if (asset.main_asset_type && assetTypes.length > 0) {
+          const assetTypeName = String(asset.main_asset_type).trim();
+          
+          // Try string lookup first
+          let assetType = assetTypes.find((at: any) => {
+            const atName = String(at.name || '').trim();
+            return atName === assetTypeName;
+          });
+          
+          // If not found, try numeric comparison
+          if (!assetType) {
+            const assetTypeNum = parseInt(assetTypeName, 10);
+            if (!isNaN(assetTypeNum)) {
+              assetType = assetTypes.find((at: any) => {
+                const atName = String(at.name || '').trim();
+                const atNameNum = parseInt(atName, 10);
+                return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+              });
+            }
+          }
+          
+          // If it's a business asset, add area_from_distribution to asset_size
+          if (assetType?.business_residence === 'עסקים') {
+            const areaFromDistribution = asset.area_from_distribution || 0;
+            return assetSize + areaFromDistribution;
+          }
+        }
+        
+        // For non-business assets, return asset_size as is
+        return assetSize || '';
+      };
+
       // Convert assets to rows - matching sample file format and column order
       const rows = exportedAssets.map(asset => [
         asset.payer_id || '',                                    // זיהוי משלם
@@ -1270,7 +1310,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
         formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
         asset.main_asset_type || '',                             // סוג נכס
-        asset.asset_size || '',                                  // גודל נכס
+        getExportAssetSize(asset),                               // גודל נכס (asset_size + area_from_distribution for business)
         asset.sub_asset_type_1 || '',                            // נכס משנה 1
         asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
         asset.sub_asset_type_2 || '',                            // נכס משנה 2

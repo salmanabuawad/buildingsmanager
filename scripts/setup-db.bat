@@ -86,11 +86,15 @@ if %errorlevel% equ 0 (
 
 REM Run setup script
 echo Running database setup script...
-if exist "setup-local-db.sql" (
+if exist "install_fresh_database.sql" (
+    psql -h %DB_HOST% -p %DB_PORT% -U %DB_USER% -d %DB_NAME% -f install_fresh_database.sql
+    echo [OK] Database schema created
+) else if exist "setup-local-db.sql" (
+    echo Warning: Using legacy setup-local-db.sql (consider migrating to install_fresh_database.sql)
     psql -h %DB_HOST% -p %DB_PORT% -U %DB_USER% -d %DB_NAME% -f setup-local-db.sql
     echo [OK] Database schema created
 ) else (
-    echo Error: setup-local-db.sql not found
+    echo Error: install_fresh_database.sql or setup-local-db.sql not found
     pause
     exit /b 1
 )

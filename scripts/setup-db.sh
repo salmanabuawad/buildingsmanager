@@ -97,11 +97,15 @@ fi
 
 # Run setup script
 echo "Running database setup script..."
-if [ -f "setup-local-db.sql" ]; then
+if [ -f "install_fresh_database.sql" ]; then
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f install_fresh_database.sql
+    echo -e "${GREEN}✓ Database schema created${NC}"
+elif [ -f "setup-local-db.sql" ]; then
+    echo -e "${YELLOW}⚠ Using legacy setup-local-db.sql (consider migrating to install_fresh_database.sql)${NC}"
     psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f setup-local-db.sql
     echo -e "${GREEN}✓ Database schema created${NC}"
 else
-    echo -e "${RED}Error: setup-local-db.sql not found${NC}"
+    echo -e "${RED}Error: install_fresh_database.sql or setup-local-db.sql not found${NC}"
     exit 1
 fi
 

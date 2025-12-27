@@ -116,7 +116,8 @@ buildings-manager/
 ├── scripts/
 │   ├── setup-db.sh          # Mac/Linux setup script
 │   └── setup-db.bat         # Windows setup script
-├── setup-local-db.sql       # Complete database schema
+├── install_fresh_database.sql  # Fresh database installation (RECOMMENDED)
+├── setup-local-db.sql          # Legacy database setup (deprecated)
 ├── postgrest.conf           # PostgREST configuration
 └── package.json             # Dependencies
 ```
@@ -320,7 +321,7 @@ psql -U postgres -d buildings_manager
 ### Using Self-Hosted PostgreSQL
 
 1. Set up PostgreSQL on your server
-2. Run `setup-local-db.sql` to create schema
+2. Run `install_fresh_database.sql` to create schema (or use `./scripts/setup-db.sh`)
 3. Configure environment variables with production credentials
 4. Use PostgREST for REST API layer
 5. Deploy with proper CORS and security settings

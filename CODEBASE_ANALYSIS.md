@@ -484,30 +484,32 @@ assets (1) ──→ (many) assets_history (via triggers)
 
 ### 5.1 Test Framework
 
-**Vitest** - Vite-native test runner
-- Configuration: `vitest.config.ts`
-- Test setup: `tests/setup.ts`
-- UI support: `@vitest/ui`
+**Playwright** - End-to-end testing framework
+- Configuration: `playwright.config.ts`
+- Test directory: `tests/e2e/`
+- Test utilities: `tests/e2e/utils/`
 
 ### 5.2 Test Coverage
 
 **Current Tests:**
-- `tests/regression.test.ts` - Regression tests
-- Test utilities in `tests/utils/`
-- Test fixtures in `tests/fixtures/`
+- `tests/e2e/integration.spec.ts` - Basic application functionality
+- `tests/e2e/buildings-import.spec.ts` - Buildings import tests
+- `tests/e2e/assets-import.spec.ts` - Assets import tests
+- `tests/e2e/business-distribution.spec.ts` - Business distribution tests
 
 **Test Infrastructure:**
-- Database setup utilities
-- Test helpers for common operations
-- Test data fixtures
+- File helpers for test data
+- Centralized selectors
+- Test data from `data_for_test/` folder
 
 ### 5.3 Test Commands
 
 ```bash
-npm test              # Run tests in watch mode
-npm run test:run      # Run tests once
-npm run test:ui       # Run tests with UI
-npm run test:coverage # Run with coverage report
+npm run test:e2e           # Run all E2E tests
+npm run test:e2e:ui        # Run tests with interactive UI
+npm run test:e2e:headed    # Run tests with visible browser
+npm run test:e2e:debug     # Run tests in debug mode
+npm run test:e2e:report    # View HTML test report
 ```
 
 ---

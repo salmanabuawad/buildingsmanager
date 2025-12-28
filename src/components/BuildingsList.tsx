@@ -59,14 +59,14 @@ const ValidationTooltipIcon = ({ message }: { message: string }) => {
           <div style={{
             backgroundColor: '#f9fafb',
             color: '#1f2937',
-            padding: '16px 20px',
+            padding: '12px 16px',
             borderRadius: '6px',
-            fontSize: '36px',
+            fontSize: '14px',
             maxWidth: '500px',
             minWidth: '300px',
             direction: 'rtl',
             textAlign: 'right',
-            lineHeight: '1.8',
+            lineHeight: '1.6',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
             border: '2px solid #ef4444',
             whiteSpace: 'pre-line'

@@ -509,11 +509,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return newBuildingsCount + editedExistingBuildings + deletedCount;
   }, [newBuildings, dirtyBuildings, buildingsToDelete]);
 
-  // Expose hasUnsavedChanges and refreshExportCount via ref
-  useImperativeHandle(ref, () => ({
-    hasUnsavedChanges: () => totalChanges > 0,
-    refreshExportCount: fetchExportToAutomationCount
-  }), [totalChanges, fetchExportToAutomationCount]);
+  // Expose hasUnsavedChanges via ref (will be updated after fetchExportToAutomationCount is defined)
 
   // Check if there are any validation errors
   const hasValidationErrors = useMemo(() => {
@@ -563,6 +559,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       console.error('Error fetching export to automation count:', err);
     }
   }, []);
+
+  // Expose hasUnsavedChanges and refreshExportCount via ref (after fetchExportToAutomationCount is defined)
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => totalChanges > 0,
+    refreshExportCount: fetchExportToAutomationCount
+  }), [totalChanges, fetchExportToAutomationCount]);
 
   useEffect(() => {
     fetchBuildings(true);

@@ -481,6 +481,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [validationErrors, setValidationErrors] = useState<Map<string | number, Record<string, string>>>(new Map());
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<string | number>>(new Set());
   const [newBuildings, setNewBuildings] = useState<Set<string | number>>(new Set());
+  const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
   
   // Grid reference
   const gridRef = useRef<AgGridReact<Building>>(null);
@@ -549,6 +550,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   };
 
+  // Fetch count of assets to export
+  const fetchExportToAutomationCount = useCallback(async () => {
+    try {
+      const result = await api.assets.getExportToAutomationCount();
+      if (result.success) {
+        setExportToAutomationCount(result.count);
+      }
+    } catch (err) {
+      console.error('Error fetching export to automation count:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchBuildings(true);
     // Load address list for building address dropdown
@@ -561,6 +574,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     };
     loadAddressList();
+    // Fetch export count
+    fetchExportToAutomationCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1245,6 +1260,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         setSuccess('אין נכסים לייצוא - כל הנכסים כבר יוצאו לאוטומציה');
         setTimeout(() => setSuccess(null), 5000);
         setLoading(false);
+        setExportToAutomationCount(0);
         return;
       }
 
@@ -1268,6 +1284,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         setSuccess(`סומנו ${result.count} נכסים כייצאו בהצלחה`);
         setTimeout(() => setSuccess(null), 5000);
         setLoading(false);
+        setExportToAutomationCount(0);
         return;
       }
 
@@ -1441,6 +1458,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
       setSuccess(`יוצאו ${result.count} נכסים לאוטומציה בהצלחה`);
       setTimeout(() => setSuccess(null), 5000);
+      // Refresh the count after export
+      await fetchExportToAutomationCount();
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
       setError(error.message || 'שגיאה בייצוא נכסים לאוטומציה');
@@ -1448,7 +1467,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchExportToAutomationCount]);
 
   // Save all changes
   const handleSaveAll = async () => {
@@ -2924,7 +2943,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              פריקת נתונים
+              פריקת נתונים{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
             </button>
           </div>
           <div className="flex gap-2">

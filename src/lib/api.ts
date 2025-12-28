@@ -2050,6 +2050,25 @@ export const api = {
     ): Promise<{ success: boolean; action_id?: number; affected_asset_ids?: number[]; count?: number; error?: string; validationErrors?: string[] }> => {
       return validateAndSaveBulkAssets(assetsData, actionType, beforeData, afterData, description, isBusinessContext);
     },
+    getExportToAutomationCount: async (): Promise<{ success: boolean; count: number; error?: string }> => {
+      try {
+        // Count assets where exported_to_automation is null or false
+        const { count, error: countError } = await supabase
+          .from('assets')
+          .select('asset_id', { count: 'exact', head: true })
+          .or('exported_to_automation.is.null,exported_to_automation.eq.false');
+
+        if (countError) {
+          console.error('[api.assets.getExportToAutomationCount] Error counting assets:', countError);
+          return { success: false, count: 0, error: countError.message };
+        }
+
+        return { success: true, count: count || 0 };
+      } catch (error: any) {
+        console.error('[api.assets.getExportToAutomationCount] Unexpected error:', error);
+        return { success: false, count: 0, error: error.message || 'Unknown error' };
+      }
+    },
     exportToAutomation: async (): Promise<{ success: boolean; count: number; assetIds: number[]; error?: string }> => {
       try {
         // Fetch all assets where exported_to_automation is null or false

@@ -601,16 +601,16 @@ function App() {
         return;
       }
 
+      // Refresh the export count immediately after successful reset (before showing result modal)
+      if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
+        await buildingsListRef.current.refreshExportCount();
+      }
+
       setResetExportResult({
         success: true,
         message: `אופס בהצלחה ${result.count} נכסים. כעת ניתן לייצא אותם מחדש באמצעות כפתור "פריקת נתונים".`
       });
       setShowResetExportResultModal(true);
-      
-      // Refresh the export count in buildings list if it's open
-      if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
-        await buildingsListRef.current.refreshExportCount();
-      }
     } catch (error) {
       console.error('Error resetting export to automation:', error);
       setResetExportResult({
@@ -626,6 +626,11 @@ function App() {
   function closeResetExportResultModal() {
     setShowResetExportResultModal(false);
     setResetExportResult(null);
+    
+    // Refresh the export count when closing the result modal to ensure button counter is updated
+    if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
+      buildingsListRef.current.refreshExportCount();
+    }
   }
 
   function openAddressList() {

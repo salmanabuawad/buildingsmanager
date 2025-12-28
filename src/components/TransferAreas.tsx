@@ -12,6 +12,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
+import { useFieldConfig } from '../lib/useFieldConfig';
 
 interface TransferAreasProps {
   buildingNumber: number;
@@ -1299,6 +1300,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     });
   }, [t, validationErrors, getCellStyle]);
 
+  // Apply field configurations from database
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'transfer-areas');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1408,7 +1412,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={assets}
-              columnDefs={columnDefs}
+              columnDefs={configuredColumnDefs}
               defaultColDef={{
                 resizable: true,
                 wrapHeaderText: true,

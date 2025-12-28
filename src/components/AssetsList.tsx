@@ -3172,37 +3172,18 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               />
             )}
             {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (
-              <div className="relative group">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
-                    setError(errorMsg);
-                    setTimeout(() => setError(null), 5000);
-                  }}
-                  className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                >
-                  <AlertCircle className="h-4 w-4" />
-                </button>
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '12px 16px',
-                    borderRadius: '6px',
-                    fontSize: '30px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {safeValidationErrors.get(assetId) || 'שגיאת אימות'}
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
+                  setError(errorMsg);
+                  setTimeout(() => setError(null), 5000);
+                }}
+                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                title={safeValidationErrors.get(assetId) || 'שגיאת אימות'}
+              >
+                <AlertCircle className="h-5 w-5" />
+              </button>
             )}
             {shouldShowDeleteButton && (
               <button

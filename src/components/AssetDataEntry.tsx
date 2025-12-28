@@ -837,7 +837,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                     color: '#1f2937',
                     padding: '12px 16px',
                     borderRadius: '6px',
-                    fontSize: '30px',
+                    fontSize: '26px',
                     maxWidth: '500px',
                     minWidth: '300px',
                     direction: 'rtl',

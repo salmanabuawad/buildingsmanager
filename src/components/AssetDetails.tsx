@@ -5087,19 +5087,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         }
                       }
                     }}
-                    onCellMouseOver={(params: any) => {
-                      if (!params.data?._isDetailRow && params.node) {
-                        const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord || params.data?.action_id != null;
-                        if (isClickable) {
-                          params.node.setRowHighlight(true);
-                        }
-                      }
-                    }}
-                    onCellMouseOut={(params: any) => {
-                      if (params.node) {
-                        params.node.setRowHighlight(false);
-                      }
-                    }}
                     suppressRowClickSelection={false}
                     stopEditingWhenCellsLoseFocus={true}
                     enableRtl={true}

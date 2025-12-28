@@ -2075,37 +2075,36 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const isMainType199 = String(currentMainType).trim() === '199';
 
         if (isClearing) {
-          // Clearing distribution: delete the shared area subtype and move back types
+          // Clearing distribution: delete ALL occurrences of the shared area subtype and move back types
           if (!isMainType199 || !sharedAreaAssetType) {
             // Skip assets that aren't type 199 or don't have the shared area type defined
             continue;
           }
 
-          // Find the subtype with the shared area asset type
-          let sharedSubTypeIndex = -1;
+          // Remove ALL occurrences of the shared area asset type subtype
+          const sharedAreaTypeName = String(sharedAreaAssetType.name).trim();
+          let foundAny = false;
+          
           for (let i = 1; i <= 6; i++) {
             const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
             const currentSubType = changes[subTypeField] !== undefined
               ? changes[subTypeField]
               : currentAsset[subTypeField];
             
-            if (currentSubType && String(currentSubType).trim() === String(sharedAreaAssetType.name).trim()) {
-              sharedSubTypeIndex = i;
-              break;
+            // Check if this subtype matches the shared area asset type
+            if (currentSubType && String(currentSubType).trim() === sharedAreaTypeName) {
+              // Delete this shared area subtype (set to null)
+              (changes as any)[subTypeField] = null;
+              (changes as any)[subSizeField] = null;
+              foundAny = true;
             }
           }
 
-          if (sharedSubTypeIndex === -1) {
+          if (!foundAny) {
             // No shared area subtype found, skip this asset
             continue;
           }
-
-          // Delete the shared area subtype (set to null)
-          // No need to shift since shared area subtype is always the last one by definition
-          const sharedSubTypeField = `sub_asset_type_${sharedSubTypeIndex}` as keyof Asset;
-          const sharedSubSizeField = `sub_asset_size_${sharedSubTypeIndex}` as keyof Asset;
-          (changes as any)[sharedSubTypeField] = null;
-          (changes as any)[sharedSubSizeField] = null;
 
           // Count remaining subtypes
           let remainingSubTypeCount = 0;

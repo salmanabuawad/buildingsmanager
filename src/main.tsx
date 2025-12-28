@@ -11,10 +11,12 @@ import { PreferencesProvider } from './contexts/PreferencesContext';
 window.addEventListener('error', (event) => {
   const filename = event.filename || event.message || '';
   const errorString = String(event.error || event.message || '');
+  const stack = event.error?.stack || '';
   
   if (filename.includes('chmln.js') || filename.includes('messo.min.js') ||
       errorString.includes('chmln') || errorString.includes('messo') ||
-      (event.error && event.error.stack && event.error.stack.includes('chmln'))) {
+      stack.includes('chmln') || stack.includes('messo') ||
+      (event.error?.message && (event.error.message.includes('chmln') || event.error.message.includes('messo')))) {
     event.preventDefault();
     event.stopPropagation();
     return true;
@@ -27,8 +29,10 @@ window.addEventListener('unhandledrejection', (event) => {
   const reasonString = reason && typeof reason === 'object' 
     ? (reason.message || reason.stack || JSON.stringify(reason))
     : String(reason || '');
+  const stack = reason?.stack || '';
   
-  if (reasonString.includes('chmln') || reasonString.includes('messo')) {
+  if (reasonString.includes('chmln') || reasonString.includes('messo') ||
+      stack.includes('chmln') || stack.includes('messo')) {
     event.preventDefault();
     event.stopPropagation();
   }

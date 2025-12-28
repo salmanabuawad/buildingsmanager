@@ -215,7 +215,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }, [asset?.main_asset_type, assetTypes]);
 
   const getRowStyle = useCallback((params: any) => {
-    const assetId = params.data?.id;
+    // Use asset_id as key since only latest measurement is editable
+    const assetId = params.data?.asset_id;
     if (!assetId) return undefined;
     const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
     if (isNaN(assetIdNum)) return undefined;
@@ -242,12 +243,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         ...baseStyle,
         border: '3px solid #ef4444',
         borderRadius: '4px',
-        backgroundColor: '#fee2e2'
+        background: '#fee2e2'
       };
     }
 
     if (!isLatest) {
-      baseStyle.backgroundColor = '#f9fafb';
+      baseStyle.background = '#f9fafb';
       baseStyle.borderLeft = '3px solid #d1d5db';
     }
 
@@ -299,7 +300,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     try {
       const { data, colDef, node } = event;
       const field = colDef.field;
-      const assetId = data.id;
+      // Use asset_id as key since only latest measurement is editable
+      const assetId = data.asset_id;
       
       // Only allow editing for latest records
       if (data.is_latest !== true) {
@@ -597,7 +599,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
     if (!selectedRowForEdit) return;
 
-    const assetId = selectedRowForEdit.id;
+    const assetId = selectedRowForEdit.asset_id;
     
     try {
       // Update allMeasurements state with changes
@@ -762,7 +764,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           
           // Use AG-Grid's transaction API for proper row updates
           gridApi.forEachNode((node: any) => {
-            if (node.data && node.data.id === assetId) {
+            if (node.data && node.data.asset_id === assetId) {
               // Update the entire node data with the merged updated asset
               const mergedData = { ...node.data, ...updatedAsset };
               
@@ -1769,8 +1771,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const actionsCellRenderer = useCallback((params: any) => {
     if (!params.data) return null;
     
-    // Use database id (same as validationErrors Map key and getRowStyle)
-    const assetId = params.data.id;
+    // Use asset_id as key since only latest measurement is editable (same as validationErrors Map key and getRowStyle)
+    const assetId = params.data.asset_id;
     if (!assetId) return null;
     
     // Convert to number for consistency with validationErrors Map key type
@@ -2481,7 +2483,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   params.node.setDataValue('penthouse', newValue);
                   
                   // Manually track the change in dirtyAssets
-                  const assetId = params.data.id;
+                  const assetId = params.data.asset_id;
                   setDirtyAssets(prev => {
                     const newMap = new Map(prev);
                     const existing = newMap.get(assetId) || {};

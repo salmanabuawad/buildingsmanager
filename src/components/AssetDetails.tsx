@@ -247,7 +247,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
 
     if (!isLatest) {
-      baseStyle.background = '#f9fafb';
+      baseStyle.backgroundColor = '#f9fafb';
       baseStyle.borderLeft = '3px solid #d1d5db';
     }
 
@@ -1767,11 +1767,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
   // Memoize the actions cell renderer - shows invalid validation icon
   const actionsCellRenderer = useCallback((params: any) => {
-    const asset = params.data as Asset;
-    if (!asset) return null;
+    if (!params.data) return null;
     
-    // Use asset_id (same as validationErrors) or fallback to id
-    const assetId = asset.asset_id || asset.id;
+    // Use database id (same as validationErrors Map key and getRowStyle)
+    const assetId = params.data.id;
     if (!assetId) return null;
     
     // Convert to number for consistency with validationErrors Map key type

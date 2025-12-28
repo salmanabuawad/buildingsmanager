@@ -553,6 +553,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     try {
       const result = await api.assets.getExportToAutomationCount();
       if (result.success) {
+        console.log('[BuildingsList] Refreshed export count:', result.count);
         setExportToAutomationCount(result.count);
       }
     } catch (err) {

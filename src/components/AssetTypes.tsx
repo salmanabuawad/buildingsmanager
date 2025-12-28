@@ -798,16 +798,18 @@ export function AssetTypes() {
           return fields;
         };
         
-        // Build combined tooltip with numbers
+        // Build combined tooltip with name at the top
         const allTooltips: string[] = [];
+        // Put name once at the top
+        allTooltips.push(`סוג: ${currentName}`);
+        
+        // Then list each matching asset type's details
         matchingAssetTypes.forEach(({ assetType: at, originalIndex }, index) => {
           const tooltipFields = buildTooltipForAssetType(at);
-          // Start with סוג: name at the top
-          const nameField = `סוג: ${at.name}`;
           if (tooltipFields.length > 0) {
-            allTooltips.push(`${index + 1}. ${nameField}, ${tooltipFields.join(', ')}`);
+            allTooltips.push(`${index + 1}. ${tooltipFields.join(', ')}`);
           } else {
-            allTooltips.push(`${index + 1}. ${nameField}, אין פרטים נוספים`);
+            allTooltips.push(`${index + 1}. אין פרטים נוספים`);
           }
         });
         

@@ -263,7 +263,7 @@ export function DistributionHistoryModal({
                       <span className="flex-shrink-0">{record.shared_area_size.toLocaleString('he-IL')}</span>
                     </>
                   )}
-                  {record.overload_ratio != null && (
+                  {!isResident && record.overload_ratio != null && (
                     <>
                       <span className="text-gray-400 flex-shrink-0">•</span>
                       <span className="flex-shrink-0">{typeof record.overload_ratio === 'number' ? record.overload_ratio.toFixed(2) : record.overload_ratio}%</span>

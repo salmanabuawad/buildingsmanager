@@ -2158,6 +2158,31 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           }
         } else {
           // Adding distribution: add shared area as subtype
+          // First, remove any existing shared area subtypes (duplicates) and keep only one
+          let existingSharedAreaIndex = -1;
+          const sharedAreaTypeName = String(sharedAreaAssetType.name).trim();
+          
+          // Remove all existing shared area subtypes (duplicates)
+          for (let i = 1; i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+            
+            const currentSubType = changes[subTypeField] !== undefined
+              ? changes[subTypeField]
+              : currentAsset[subTypeField];
+            
+            // Check if this subtype matches the shared area asset type
+            if (currentSubType && String(currentSubType).trim() === sharedAreaTypeName) {
+              // Remember the first index found (we'll use this position for the new one)
+              if (existingSharedAreaIndex === -1) {
+                existingSharedAreaIndex = i;
+              }
+              // Remove all shared area subtypes (we'll add a single one below)
+              (changes as any)[subTypeField] = null;
+              (changes as any)[subSizeField] = null;
+            }
+          }
+
           if (!isMainType199) {
             // Move current type and size to subtype 1
             // Get current subtype 1 values (prefer existing changes)
@@ -2178,35 +2203,47 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             changes.main_asset_type = '199';
           }
 
-          // Find first available subtype position (2-6 if converting to 199, 1-6 if already 199)
-          let targetSubTypeIndex = isMainType199 ? 1 : 2;
+          // Determine target position for shared area subtype
+          let targetSubTypeIndex = -1;
           let targetSubTypeField: keyof Asset = 'sub_asset_type_1';
           let targetSubSizeField: keyof Asset = 'sub_asset_size_1';
 
-          // Check available positions starting from the appropriate index
-          for (let i = (isMainType199 ? 1 : 2); i <= 6; i++) {
-            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
-            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
-            
-            const currentSubType = changes[subTypeField] !== undefined
-              ? changes[subTypeField]
-              : currentAsset[subTypeField];
-            
-            // If this position is empty, use it
-            if (!currentSubType || currentSubType === '' || currentSubType === null) {
-              targetSubTypeIndex = i;
-              targetSubTypeField = subTypeField;
-              targetSubSizeField = subSizeField;
-              break;
+          // If we found an existing shared area subtype position, reuse it (it's now cleared)
+          if (existingSharedAreaIndex > 0) {
+            targetSubTypeIndex = existingSharedAreaIndex;
+            targetSubTypeField = `sub_asset_type_${existingSharedAreaIndex}` as keyof Asset;
+            targetSubSizeField = `sub_asset_size_${existingSharedAreaIndex}` as keyof Asset;
+          } else {
+            // Find first available subtype position (2-6 if converting to 199, 1-6 if already 199)
+            targetSubTypeIndex = isMainType199 ? 1 : 2;
+            targetSubTypeField = 'sub_asset_type_1';
+            targetSubSizeField = 'sub_asset_size_1';
+
+            // Check available positions starting from the appropriate index
+            for (let i = (isMainType199 ? 1 : 2); i <= 6; i++) {
+              const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+              const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+              
+              const currentSubType = changes[subTypeField] !== undefined
+                ? changes[subTypeField]
+                : currentAsset[subTypeField];
+              
+              // If this position is empty, use it
+              if (!currentSubType || currentSubType === '' || currentSubType === null) {
+                targetSubTypeIndex = i;
+                targetSubTypeField = subTypeField;
+                targetSubSizeField = subSizeField;
+                break;
+              }
             }
           }
 
           // If no available subtype position found, throw error
-          if (targetSubTypeIndex > 6) {
+          if (targetSubTypeIndex > 6 || targetSubTypeIndex < 1) {
             throw new Error(`לא נמצא מקום פנוי לנכס משנה עבור נכס ${assetId}. כל ששת המקומות תפוסים.`);
           }
 
-          // Set the shared area subtype and size
+          // Set the shared area subtype and size (replace all duplicates with single entry)
           (changes as any)[targetSubTypeField] = sharedAreaAssetType.name;
           (changes as any)[targetSubSizeField] = areaPerAsset;
 

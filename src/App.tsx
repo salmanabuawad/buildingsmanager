@@ -607,13 +607,21 @@ function App() {
       });
       setShowResetExportResultModal(true);
       
-      // Refresh the export count immediately after successful reset
-      // The API call ensures the database transaction is complete
-      if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
-        buildingsListRef.current.refreshExportCount().catch(err => {
-          console.error('Error refreshing export count:', err);
-        });
-      }
+      // Refresh the export count - use setTimeout to ensure state updates are processed
+      // Also refresh when modal closes as backup
+      setTimeout(() => {
+        console.log('[App] Attempting to refresh export count after reset');
+        console.log('[App] activeTabId:', activeTabId);
+        console.log('[App] buildingsListRef.current:', buildingsListRef.current);
+        if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
+          console.log('[App] Calling refreshExportCount after reset');
+          buildingsListRef.current.refreshExportCount().catch(err => {
+            console.error('[App] Error refreshing export count:', err);
+          });
+        } else {
+          console.warn('[App] Cannot refresh - activeTabId:', activeTabId, 'ref available:', !!buildingsListRef.current, 'method available:', !!buildingsListRef.current?.refreshExportCount);
+        }
+      }, 200);
     } catch (error) {
       console.error('Error resetting export to automation:', error);
       setResetExportResult({
@@ -631,9 +639,16 @@ function App() {
     setResetExportResult(null);
     
     // Refresh the export count when closing the result modal to ensure button counter is updated
-    if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
-      await buildingsListRef.current.refreshExportCount();
-    }
+    setTimeout(async () => {
+      if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
+        console.log('[App] Calling refreshExportCount when closing modal');
+        try {
+          await buildingsListRef.current.refreshExportCount();
+        } catch (err) {
+          console.error('[App] Error refreshing export count:', err);
+        }
+      }
+    }, 100);
   }
 
   function openAddressList() {
@@ -1296,6 +1311,7 @@ function App() {
           <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50/50 to-white">
             {activeTab?.type === 'buildings' && (
               <BuildingsList
+                ref={buildingsListRef}
                 key={activeTab.refreshKey}
                 onSelectBuilding={handleSelectBuilding}
                 onOpenAssetTypes={openAssetTypes}

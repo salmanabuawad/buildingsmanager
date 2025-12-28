@@ -3047,7 +3047,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         {currentValue === 'כן' ? '✓' : ''}
       </div>
     );
-  }, [newAssets, dirtyAssets]);
+  }, [newAssets, dirtyAssets, setDirtyAssets, setAssets, gridRef]);
 
   // Switch to assets tab if transfer-history or distribution-history is active in residence tabs or multi-tax tabs
   useEffect(() => {
@@ -3445,6 +3445,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       editable: (params) => isFieldEditable(params, 'penthouse'),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
+      cellRenderer: penthouseCellRenderer,
       hide: !isResidentTaxRegion // Hide penthouse for business assets (only show for residence)
     },
     {
@@ -3796,7 +3797,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseCellRenderer]);
 
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');

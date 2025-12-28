@@ -284,7 +284,7 @@ export function BuildingListImport() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 "
           >
             {isImporting ? (
               <Loader2 className="h-5 w-5 animate-spin" />

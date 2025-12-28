@@ -843,7 +843,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
               disabled={loading}
               className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
                 loading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  ? 'bg-gray-300 text-gray-500 '
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
               title="הוסף מדידה חדשה"
@@ -1436,7 +1436,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                   showToast('השינויים בוטלו', 'info');
                 }}
                 disabled={loading}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled: disabled:shadow-none font-semibold"
               >
                 <X className="h-3.5 w-3.5" />
                 {t('cancel')}
@@ -1483,7 +1483,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
               <button
                 onClick={handleSaveAll}
                 disabled={loading}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
+                className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled: disabled:shadow-none font-semibold"
               >
                 {loading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

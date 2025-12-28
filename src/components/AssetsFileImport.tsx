@@ -12,6 +12,7 @@ import { ColDef, CellValueChangedEvent } from 'ag-grid-community';
 import * as XLSX from 'xlsx';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
+import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 
 interface ImportAssetRow {
@@ -2985,6 +2986,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
     });
   }, [t, assetTypes, handleDeleteRow, mode]);
 
+  // Apply field configurations from database
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-file-import');
+
   const getRowStyle = (params: any) => {
     const row = params.data as ImportAssetRow;
     const hasValidationError = row._validationErrors && row._validationErrors.length > 0;
@@ -3121,7 +3125,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isParsing}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 text-sm font-medium"
               >
                 {isParsing ? (
                   <>
@@ -3203,7 +3207,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 type="button"
                 onClick={() => skeletonFileInputRef.current?.click()}
                 disabled={isParsing || isSaving}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 text-sm font-medium"
               >
                 {isParsing || isSaving ? (
                   <>
@@ -3257,7 +3261,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   type="button"
                   onClick={handleValidate}
                   disabled={isValidating || isSaving}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
                 >
                   {isValidating ? (
                     <>
@@ -3275,7 +3279,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   type="button"
                   onClick={handleCancelChanges}
                   disabled={isValidating || isSaving || originalImportedAssets.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 text-sm font-medium"
                   title="בטל שינויים והחזר למצב המקורי"
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -3291,7 +3295,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     !validationCompleted || 
                     !allAssetsValid
                   }
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm font-medium"
                   title={
                     importedAssets.length === 0 
                       ? 'יש לטעון קובץ לפני שמירה' 
@@ -3351,7 +3355,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     }
                   }}
                   disabled={importedAssets.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 text-sm font-medium"
                   title="ייצא ל-Excel"
                 >
                   <Download className="h-4 w-4" />
@@ -3368,7 +3372,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     !validationCompleted || 
                     !allAssetsValid
                   }
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-sm font-medium"
                   title={
                     importedAssets.length === 0 
                       ? 'יש לטעון קובץ לפני שמירה' 
@@ -3399,7 +3403,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <AgGridReact
                 ref={gridRef}
                 rowData={importedAssets}
-                columnDefs={columnDefs}
+                columnDefs={configuredColumnDefs}
                 getRowStyle={getRowStyle}
                 defaultColDef={{
                   resizable: true,
@@ -3810,7 +3814,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="number"
                       value={pendingBuildingNumber || ''}
                       readOnly
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                     />
                   </div>
 
@@ -3822,7 +3826,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       type="text"
                       value={buildingCreateData.tax_region || ''}
                       readOnly
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                       placeholder={buildingCreateData.tax_region ? '' : 'יועבר מהנכסים המיובאים'}
                     />
                     {buildingValidationErrors.tax_region && (
@@ -3892,7 +3896,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       step="0.01"
                       value={buildingCreateData.total_building_area || ''}
                       readOnly
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
                       disabled={true}
                     />
                   </div>
@@ -4130,7 +4134,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <button
                 onClick={() => pendingBuildingNumber && handleCreateBuildingAndContinue(pendingBuildingNumber)}
                 disabled={isCreatingBuilding || !pendingBuildingNumber || Object.keys(buildingValidationErrors).length > 0}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {isCreatingBuilding ? (
                   <>

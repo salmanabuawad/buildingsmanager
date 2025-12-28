@@ -72,7 +72,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
           <button
             onClick={zoomOut}
             disabled={scale <= 0.5}
-            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 "
             title="Zoom Out"
           >
             <ZoomOut className="h-5 w-5" />
@@ -83,7 +83,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
           <button
             onClick={zoomIn}
             disabled={scale >= 3.0}
-            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 "
             title="Zoom In"
           >
             <ZoomIn className="h-5 w-5" />
@@ -103,7 +103,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
               <button
                 onClick={previousPage}
                 disabled={pageNumber <= 1}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
               >
                 <ChevronRight className="h-4 w-4 text-black" />
                 Previous
@@ -114,7 +114,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
               <button
                 onClick={nextPage}
                 disabled={pageNumber >= numPages}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
               >
                 Next
                 <ChevronLeft className="h-4 w-4 text-black" />

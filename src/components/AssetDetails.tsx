@@ -21,7 +21,6 @@ import { formatNumberToTwoDecimals } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
-import { DetailRowRenderer } from './DetailRowRenderer';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 
@@ -69,23 +68,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
-  const [expandedHistoryRows, setExpandedHistoryRows] = useState<Set<string>>(new Set());
-  const [auditDataCache, setAuditDataCache] = useState<Map<number, {
-    auditLog: AuditLog | null;
-    loading: boolean;
-    error: string | null;
-    beforeAssets: Asset[];
-    afterAssets: Asset[];
-    relatedAssets: Asset[];
-  }>>(new Map());
-  const [detailRowRefreshKey, setDetailRowRefreshKey] = useState(0); // Force re-render of detail rows when data loads
-  const loadAuditDetailsRef = useRef<((actionId: number) => Promise<void>) | null>(null);
-  const [activeHistoryTab, setActiveHistoryTab] = useState<'history' | 'distribution' | 'transfer'>('history');
-  const [selectedDateTab, setSelectedDateTab] = useState<{ actionId: number; measurementDate: string } | null>(null);
-  const [historyWithActionTypes, setHistoryWithActionTypes] = useState<Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | 'business_distribution' | 'residence_distribution' | null>>(new Map());
-  const [auditCreatedAtMap, setAuditCreatedAtMap] = useState<Map<number, string>>(new Map());
-  const [additionalDistributionAssets, setAdditionalDistributionAssets] = useState<Asset[]>([]);
-  const [additionalTransferAssets, setAdditionalTransferAssets] = useState<Asset[]>([]);
   
   // Refs for audit detail grid (unified grid for all assets)
   const gridRef = useRef<AgGridReact<Asset>>(null);
@@ -156,813 +138,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return allMeasurements.filter(m => m.is_latest !== true);
   }, [allMeasurements]);
 
-  // Load distribution and transfer assets from audit table
-  // Query audit table directly by building_number and filter by asset_id in JSON data
-  const currentAssetIdRef = useRef<number | undefined>(asset?.asset_id);
-  useEffect(() => {
-    currentAssetIdRef.current = asset?.asset_id;
-  }, [asset?.asset_id]);
-
-  useEffect(() => {
-    const loadDistributionAndTransferAssets = async () => {
-      // Early return if no asset_id or building_number
-      if (!currentAssetIdRef.current || !buildingNumber) {
-        setHistoryWithActionTypes(new Map());
-        setAuditCreatedAtMap(new Map());
-        setAdditionalDistributionAssets([]);
-        setAdditionalTransferAssets([]);
-        return;
-      }
-
-      const assetId = currentAssetIdRef.current;
-      const assetIdStr = String(assetId);
-
-      try {
-        
-        // Query for ALL distribution actions (business_distribution and residence_distribution)
-        // We'll filter by building later when we process the audit data
-        if (buildingNumber) {
-          const { data: allDistributeActions, error: distributeError } = await supabase
-            .from('audit')
-            .select('action_id, action_type, entity_id, before_data, after_data')
-            .in('action_type', ['business_distribution', 'residence_distribution', 'distribute_shared'])
-            .eq('entity_type', 'bulk_asset')
-            .order('created_at', { ascending: false });
-
-          if (!distributeError && allDistributeActions) {
-            allDistributeActions.forEach(audit => {
-              // Check if this asset is affected by this distribution
-              const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
-              let isAffected = entityIds.includes(assetIdStr);
-              
-              // If not in entity_id, check JSON data
-              if (!isAffected) {
-                try {
-                  const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                  const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
-                  const afterAssets = afterData?.assets || [];
-                  const beforeAssets = beforeData?.assets || [];
-                  const allAssets = [...beforeAssets, ...afterAssets];
-                  // Check if any asset in this distribution belongs to the same building
-                  const assetInBuilding = allAssets.some((a: any) => 
-                    a.building_number === buildingNumber
-                  );
-                  if (assetInBuilding) {
-                    // If any asset in this distribution is in the same building, include it
-                    // This ensures we show all distributions for the building
-                    actionIds.add(audit.action_id);
-                  }
-                } catch (e) {
-                  // Ignore JSON parse errors
-                }
-              } else {
-                actionIds.add(audit.action_id);
-              }
-            });
-          }
-        }
-        
-        // Query for transfer_area actions affecting this asset
-        const { data: transferActions, error: transferError } = await supabase
-          .from('audit')
-          .select('action_id, action_type, entity_id, before_data, after_data')
-          .eq('action_type', 'transfer_area')
-          .eq('entity_type', 'bulk_asset')
-          .or(`entity_id.ilike.%${assetIdStr}%,entity_id.eq.${assetIdStr}`);
-
-        if (!transferError && transferActions) {
-          transferActions.forEach(audit => {
-            const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
-            if (entityIds.includes(assetIdStr)) {
-              actionIds.add(audit.action_id);
-            } else {
-              try {
-                const beforeAssets = audit.before_data?.assets || [];
-                const afterAssets = audit.after_data?.assets || [];
-                const allAssets = [...beforeAssets, ...afterAssets];
-                if (allAssets.some((a: any) => String(a.asset_id) === assetIdStr)) {
-                  actionIds.add(audit.action_id);
-                }
-              } catch (e) {
-                // Ignore JSON parse errors
-              }
-            }
-          });
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[AssetDetails] Error loading distribute/transfer actions:', err);
-        }
-      }
-
-      if (actionIds.size === 0) {
-        setHistoryWithActionTypes(new Map());
-        setAuditCreatedAtMap(new Map());
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('audit')
-          .select('action_id, action_type, created_at')
-          .in('action_id', Array.from(actionIds));
-
-        if (error) throw error;
-
-        const actionTypeMap = new Map<number, 'manual_update' | 'import_file' | 'transfer_area' | 'distribute_shared' | 'business_distribution' | 'residence_distribution' | null>();
-        const createdAtMap = new Map<number, string>();
-        (data || []).forEach(audit => {
-          actionTypeMap.set(audit.action_id, audit.action_type);
-          if (audit.created_at) {
-            createdAtMap.set(audit.action_id, audit.created_at);
-          }
-        });
-
-        setHistoryWithActionTypes(actionTypeMap);
-        setAuditCreatedAtMap(createdAtMap);
-        
-        // Also fetch asset records from assets_history, assets table, and audit after_data for distribution and transfer_area
-        const distributeActionIds = Array.from(actionIds).filter(id => {
-          const actionType = actionTypeMap.get(id);
-          return actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution';
-        });
-        const transferActionIds = Array.from(actionIds).filter(id => actionTypeMap.get(id) === 'transfer_area');
-        
-        // Fetch distribution assets - use TWO approaches to ensure we get ALL distributions:
-        // 1. Get action_ids from assets and assets_history tables
-        // 2. Query audit table directly for all distribute_shared actions and check if asset is involved
-        if (asset?.asset_id && buildingNumber) {
-          try {
-            const allDistributeAssets: Asset[] = [];
-            const foundActionIds = new Set<number>();
-            
-            // APPROACH 1: Get action_ids from assets and assets_history tables
-            const { data: assetsWithActionId, error: assetsErr } = await supabase
-              .from('assets')
-              .select('action_id')
-              .eq('asset_id', asset.asset_id)
-              .not('action_id', 'is', null);
-            
-            const { data: historyWithActionId, error: historyErr } = await supabase
-              .from('assets_history')
-              .select('action_id')
-              .eq('asset_id', asset.asset_id)
-              .not('action_id', 'is', null);
-            
-            const actionIdsFromTables = new Set<number>();
-            if (!assetsErr && assetsWithActionId) {
-              assetsWithActionId.forEach(a => {
-                if (a.action_id) {
-                  const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
-                  if (!isNaN(id)) {
-                    actionIdsFromTables.add(id);
-                    foundActionIds.add(id);
-                  }
-                }
-              });
-            }
-            if (!historyErr && historyWithActionId) {
-              historyWithActionId.forEach(a => {
-                if (a.action_id) {
-                  const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
-                  if (!isNaN(id)) {
-                    actionIdsFromTables.add(id);
-                    foundActionIds.add(id);
-                  }
-                }
-              });
-            }
-            
-            // APPROACH 2: Query audit table directly for distribution actions (business_distribution, residence_distribution, and legacy distribute_shared)
-            // Then check if this asset is in before_data or after_data
-            // This catches distributions even if action_id wasn't set on the asset
-            // We can't filter by building_number directly, so we'll fetch and filter in memory
-            // For efficiency, we could limit to recent distributions, but for now we'll get all
-            const { data: allDistributeAuditsDirect, error: directAuditsErr } = await supabase
-              .from('audit')
-              .select('action_id, before_data, after_data, entity_id, created_at, action_type')
-              .in('action_type', ['business_distribution', 'residence_distribution', 'distribute_shared'])
-              .eq('entity_type', 'bulk_asset')
-              .order('created_at', { ascending: false })
-              .limit(1000); // Limit to prevent performance issues
-            
-            // Combine both approaches: use action_ids from tables, plus any from direct audit query
-            const allDistributeAudits: any[] = [];
-            
-            // First, get audits for action_ids from tables
-            if (actionIdsFromTables.size > 0) {
-              const actionIdsArray = Array.from(actionIdsFromTables);
-              const { data: auditsForActionIds, error: auditsErr } = await supabase
-                .from('audit')
-                .select('action_id, before_data, after_data, entity_id, created_at, action_type')
-                .in('action_id', actionIdsArray)
-                .in('action_type', ['business_distribution', 'residence_distribution', 'distribute_shared'])
-                .order('created_at', { ascending: false });
-              
-              if (!auditsErr && auditsForActionIds) {
-                allDistributeAudits.push(...auditsForActionIds);
-              }
-            }
-            
-            // Second, check direct audit query results to find any distributions involving this asset
-            if (!directAuditsErr && allDistributeAuditsDirect) {
-              allDistributeAuditsDirect.forEach(audit => {
-                // Only add if we haven't already found this action_id
-                const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
-                if (!isNaN(auditActionId) && !foundActionIds.has(auditActionId)) {
-                  try {
-                    const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                    const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
-                    const afterAssets = afterData?.assets || [];
-                    const beforeAssets = beforeData?.assets || [];
-                    
-                    // Check if this asset is involved in this distribution
-                    const assetInAfter = afterAssets.some((a: any) => a.asset_id === asset.asset_id);
-                    const assetInBefore = beforeAssets.some((a: any) => a.asset_id === asset.asset_id);
-                    
-                    if (assetInAfter || assetInBefore) {
-                      allDistributeAudits.push(audit);
-                      foundActionIds.add(auditActionId);
-                    }
-                  } catch (e) {
-                    // Skip if parsing fails
-                  }
-                }
-              });
-            }
-            
-            // Remove duplicates (same action_id)
-            const uniqueAudits = new Map<number, any>();
-            allDistributeAudits.forEach(audit => {
-              const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
-              if (!isNaN(auditActionId) && !uniqueAudits.has(auditActionId)) {
-                uniqueAudits.set(auditActionId, audit);
-              }
-            });
-            
-            const allDistributeAuditsUnique = Array.from(uniqueAudits.values());
-            
-            if (allDistributeAuditsUnique.length > 0) {
-              // Create a map of asset types with non_accountable_for_distribution = true
-              const nonAccountableForDistributionTypes = new Set<string>();
-              assetTypes.forEach(at => {
-                if (at.non_accountable_for_distribution === true && at.name) {
-                  nonAccountableForDistributionTypes.add(String(at.name).trim());
-                  const nameNum = parseInt(String(at.name).trim(), 10);
-                  if (!isNaN(nameNum)) {
-                    nonAccountableForDistributionTypes.add(String(nameNum));
-                  }
-                }
-              });
-              
-              // Step 6: For each distribution audit, get the current asset from after_data
-              // This ensures we have one record per distribution action_id
-              // Each audit.action_id represents a unique distribution operation
-              allDistributeAuditsUnique.forEach(audit => {
-                try {
-                  const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                  const beforeData = typeof audit.before_data === 'string' ? JSON.parse(audit.before_data) : audit.before_data;
-                  const afterAssets = afterData?.assets || [];
-                  const beforeAssets = beforeData?.assets || [];
-                  
-                  // Normalize audit.action_id to number for comparison
-                  const auditActionId = typeof audit.action_id === 'number' ? audit.action_id : parseInt(String(audit.action_id), 10);
-                  if (isNaN(auditActionId)) {
-                    return; // Skip if action_id is invalid
-                  }
-                  
-                  // Check if we already have an asset with this action_id (should only be one per action_id)
-                  const alreadyExists = allDistributeAssets.some(a => {
-                    const aId = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
-                    return !isNaN(aId) && aId === auditActionId;
-                  });
-                  
-                  if (alreadyExists) {
-                    return; // Skip if we already have this distribution
-                  }
-                  
-                  // Find the current asset in after_data (state after this distribution)
-                  const currentAssetInAfter = afterAssets.find((a: any) => 
-                    a.asset_id === asset.asset_id && 
-                    a.building_number === buildingNumber
-                  );
-                  if (currentAssetInAfter) {
-                    // CRITICAL: Set action_id from audit.action_id to ensure each distribution has unique action_id
-                    allDistributeAssets.push({
-                      ...currentAssetInAfter,
-                      is_latest: false,
-                      action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
-                      history_created_at: audit.created_at
-                    } as Asset);
-                  } else {
-                    // If not in after_data, check before_data (for non-accountable assets)
-                    const currentAssetInBefore = beforeAssets.find((a: any) => 
-                      a.asset_id === asset.asset_id && 
-                      a.building_number === buildingNumber
-                    );
-                    if (currentAssetInBefore) {
-                      const mainTypeStr = String(currentAssetInBefore.main_asset_type || '').trim();
-                      const mainTypeNum = parseInt(mainTypeStr, 10);
-                      const isNonAccountableForDistribution = 
-                        nonAccountableForDistributionTypes.has(mainTypeStr) ||
-                        (!isNaN(mainTypeNum) && nonAccountableForDistributionTypes.has(String(mainTypeNum)));
-                      
-                      if (isNonAccountableForDistribution) {
-                        allDistributeAssets.push({
-                          ...currentAssetInBefore,
-                          is_latest: false,
-                          action_id: auditActionId, // Use normalized audit.action_id (unique per distribution)
-                          history_created_at: audit.created_at
-                        } as Asset);
-                      }
-                    }
-                  }
-                } catch (e) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('[AssetDetails] Error parsing audit before_data/after_data:', e);
-                  }
-                }
-              });
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log('[AssetDetails] Distribution assets loaded from audit records:', {
-                  actionIdsFromTables: Array.from(actionIdsFromTables),
-                  totalUniqueAudits: allDistributeAuditsUnique.length,
-                  distributionActionIds: allDistributeAuditsUnique.map(a => {
-                    const id = typeof a.action_id === 'number' ? a.action_id : parseInt(String(a.action_id), 10);
-                    return id;
-                  }),
-                  auditCount: allDistributeAuditsUnique.length,
-                  assetCount: allDistributeAssets.length,
-                  assets: allDistributeAssets.map(a => ({
-                    asset_id: a.asset_id,
-                    action_id: a.action_id,
-                    action_id_type: typeof a.action_id,
-                    measurement_date: a.measurement_date
-                  }))
-                });
-              }
-            }
-            
-            setAdditionalDistributionAssets(allDistributeAssets);
-            
-            if (process.env.NODE_ENV === 'development') {
-              const uniqueActionIds = [...new Set(allDistributeAssets.map(a => a.action_id).filter(id => id != null))];
-              console.log('[AssetDetails] Distribution assets loaded:', {
-                totalAssetsLoaded: allDistributeAssets.length,
-                uniqueActionIds: uniqueActionIds,
-                uniqueActionIdsCount: uniqueActionIds.length,
-                currentAssetId: asset.asset_id,
-                assets: allDistributeAssets.map(a => ({
-                  asset_id: a.asset_id,
-                  action_id: a.action_id,
-                  asset_size: a.asset_size,
-                  measurement_date: a.measurement_date
-                }))
-              });
-            }
-          } catch (err) {
-            if (process.env.NODE_ENV === 'development') {
-              console.error('[AssetDetails] Error loading distribution assets:', err);
-            }
-          }
-        } else {
-          setAdditionalDistributionAssets([]);
-        }
-        
-        // Fetch transfer assets
-        if (transferActionIds.length > 0 && asset?.asset_id) {
-          try {
-            const allTransferAssets: Asset[] = [];
-            
-            // 1. Fetch from assets_history
-            const { data: transferHistoryAssets, error: transferHistoryErr } = await supabase
-              .from('assets_history')
-              .select('*')
-              .eq('asset_id', asset.asset_id)
-              .in('action_id', transferActionIds);
-            
-            if (!transferHistoryErr && transferHistoryAssets) {
-              allTransferAssets.push(...transferHistoryAssets.map(a => ({ ...a, is_latest: false } as Asset)));
-            }
-            
-            // 2. Fetch from assets table
-            const { data: transferCurrentAssets, error: transferCurrentErr } = await supabase
-              .from('assets')
-              .select('*')
-              .eq('asset_id', asset.asset_id)
-              .in('action_id', transferActionIds);
-            
-            if (!transferCurrentErr && transferCurrentAssets) {
-              allTransferAssets.push(...transferCurrentAssets.map(a => ({ ...a, is_latest: false } as Asset)));
-            }
-            
-            // 3. Check audit after_data for transfer operations (only if we have action_ids)
-            // Only fetch audits we don't already have data for
-            const missingTransferActionIds = transferActionIds.filter(id => 
-              !allTransferAssets.some(a => a.action_id === id)
-            );
-            
-            if (missingTransferActionIds.length > 0) {
-              const { data: transferAudits, error: transferAuditErr } = await supabase
-                .from('audit')
-                .select('action_id, after_data, entity_id, created_at')
-                .in('action_id', missingTransferActionIds);
-              
-              if (!transferAuditErr && transferAudits) {
-                transferAudits.forEach(audit => {
-                  try {
-                    // Check if current asset is affected by this transfer operation
-                    const entityIds = audit.entity_id ? audit.entity_id.split(',').map((id: string) => id.trim()) : [];
-                    const isCurrentAssetAffected = entityIds.includes(String(asset.asset_id));
-                    
-                    if (isCurrentAssetAffected) {
-                      const afterData = typeof audit.after_data === 'string' ? JSON.parse(audit.after_data) : audit.after_data;
-                      const assets = afterData?.assets || [];
-                      
-                      // Add ALL affected assets from this transfer operation
-                      assets.forEach((assetData: any) => {
-                        // Check if we already have this asset (avoid duplicates)
-                        const alreadyExists = allTransferAssets.some(a => 
-                          a.asset_id === assetData.asset_id && 
-                          a.action_id === audit.action_id &&
-                          a.measurement_date === assetData.measurement_date
-                        );
-                        if (!alreadyExists) {
-                          allTransferAssets.push({
-                            ...assetData,
-                            is_latest: false,
-                            action_id: audit.action_id,
-                            history_created_at: audit.created_at
-                          } as Asset);
-                        }
-                      });
-                    }
-                  } catch (e) {
-                    if (process.env.NODE_ENV === 'development') {
-                      console.error('[AssetDetails] Error parsing audit after_data:', e);
-                    }
-                  }
-                });
-              }
-            }
-            
-            setAdditionalTransferAssets(allTransferAssets);
-          } catch (err) {
-            if (process.env.NODE_ENV === 'development') {
-              console.error('[AssetDetails] Error loading transfer assets:', err);
-            }
-          }
-        } else {
-          setAdditionalTransferAssets([]);
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[AssetDetails] Error loading distribution and transfer assets:', err);
-        }
-      }
-    };
-
-    loadDistributionAndTransferAssets();
-  }, [
-    asset?.asset_id,
-    buildingNumber,
-    activeHistoryTab,
-    assetTypes // Include assetTypes to check for non_accountable_for_distribution assets
-  ]);
-  
-  // Clear state when switching between history, distribution, and transfer tabs
-  useEffect(() => {
-    // Clear expanded rows and selected date tab when switching between any tabs
-    setExpandedHistoryRows(new Set());
-    setSelectedDateTab(null);
-    
-    // Clear audit cache when switching tabs to force refresh
-    setAuditDataCache(new Map());
-    setAuditCreatedAtMap(new Map());
-    
-    // Reset grid row heights to clear any expanded detail rows
-    // Use requestAnimationFrame to ensure this happens after render
-    requestAnimationFrame(() => {
-      if (historyGridRef.current?.api) {
-        historyGridRef.current.api.resetRowHeights();
-      }
-    });
-  }, [activeHistoryTab]);
-
-  // Filter history rows by action_type
-  // IMPORTANT: All history records from assets_history should show in regular history tab
-  // because they represent previous states/measurements of the asset
-  // The action_id on a history record represents the action that moved it to history
-  // (i.e., the action that created the NEXT state), but the history record itself
-  // should be visible in regular history as it's a previous measurement
+  // All history records from assets_history - show all previous states/measurements
   const regularHistoryRows = useMemo(() => {
-    // Show ALL history rows in regular history, regardless of action_id
-    // History records represent previous states and should all be visible
-    // Distribution and transfer tabs show the operations, but regular history shows all previous states
-    const filtered = historyRows.filter(row => {
-      // Records without action_id are always regular history
-      if (row.action_id == null) return true;
-      
-      // For records with action_id, check the action type
-      const actionType = historyWithActionTypes.get(row.action_id);
-      
-      // Show manual updates, imports, and null/unknown in regular history
-      // Also show distribution/transfer history records in regular history
-      // because they represent previous states before those operations
-      // (The distribution/transfer tabs show the operations themselves, not the history records)
-      return actionType === 'manual_update' || 
-             actionType === 'import_file' || 
-             actionType === null ||
-             actionType === 'distribute_shared' ||
-             actionType === 'business_distribution' ||
-             actionType === 'residence_distribution' ||
-             actionType === 'transfer_area';
-    });
-    
-    // Group by action_id and return only one master record per action_id
-    const grouped = new Map<number | null, Asset>();
-    filtered.forEach(row => {
-      const key = row.action_id ?? null;
-      if (!grouped.has(key)) {
-        grouped.set(key, row);
-      }
-    });
-    
-    return Array.from(grouped.values());
-  }, [historyRows, historyWithActionTypes]);
+    // Return all history rows (no grouping or filtering needed)
+    return historyRows;
+  }, [historyRows]);
 
-  const distributionHistoryRows = useMemo(() => {
-    // For distributions, rely ENTIRELY on audit table data (additionalDistributionAssets)
-    // Distributions don't create history records - they update assets in place
-    // So we get all distribution data from audit.before_data and audit.after_data
-    
-    // Group by action_id to get unique distribution operations
-    // Each action_id represents one distribution operation
-    const grouped = new Map<number, Asset>();
-    
-    // Add from additionalDistributionAssets (primary source)
-    additionalDistributionAssets.forEach(row => {
-      // Ensure action_id is a number and not null/undefined
-      const actionId = typeof row.action_id === 'number' ? row.action_id : 
-                      (typeof row.action_id === 'string' ? parseInt(row.action_id, 10) : null);
-      
-      if (actionId != null && !isNaN(actionId)) {
-        // Use the first occurrence of each action_id (they should all have the same action_id for a distribution)
-        if (!grouped.has(actionId)) {
-          grouped.set(actionId, { ...row, action_id: actionId });
-        }
-      }
-    });
-    
-    // Also include history rows with distribution action_type (for backward compatibility)
-    // But these should be rare since distributions don't create history records
-    historyRows.forEach(row => {
-      const actionId = typeof row.action_id === 'number' ? row.action_id : 
-                      (typeof row.action_id === 'string' ? parseInt(row.action_id, 10) : null);
-      
-      if (actionId != null && !isNaN(actionId)) {
-        const actionType = historyWithActionTypes.get(actionId);
-        if ((actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') && !grouped.has(actionId)) {
-          grouped.set(actionId, { ...row, action_id: actionId });
-        }
-      }
-    });
-    
-    // Also include current asset if it has distribution action_type
-    // (for backward compatibility, but distributions should be in additionalDistributionAssets)
-    if (latestMeasurement?.action_id != null) {
-      const actionId = typeof latestMeasurement.action_id === 'number' ? latestMeasurement.action_id : 
-                      (typeof latestMeasurement.action_id === 'string' ? parseInt(latestMeasurement.action_id, 10) : null);
-      
-      if (actionId != null && !isNaN(actionId)) {
-        const actionType = historyWithActionTypes.get(actionId);
-        if ((actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') && !grouped.has(actionId)) {
-          grouped.set(actionId, { ...latestMeasurement, is_latest: false, action_id: actionId } as Asset);
-        }
-      }
-    }
-    
-    const result = Array.from(grouped.values());
-    
-    if (process.env.NODE_ENV === 'development') {
-      const uniqueActionIds = Array.from(grouped.keys());
-      const uniqueActionIdsFromAdditional = [...new Set(additionalDistributionAssets.map(a => {
-        const id = typeof a.action_id === 'number' ? a.action_id : 
-                   (typeof a.action_id === 'string' ? parseInt(a.action_id, 10) : null);
-        return id;
-      }).filter(id => id != null && !isNaN(id)))];
-      
-      console.log('[AssetDetails] distributionHistoryRows (FINAL):', {
-        finalCount: result.length,
-        uniqueActionIds: uniqueActionIds,
-        uniqueActionIdsFromAdditional: uniqueActionIdsFromAdditional,
-        additionalDistributionAssetsCount: additionalDistributionAssets.length,
-        additionalDistributionAssetsRaw: additionalDistributionAssets.map(a => ({
-          asset_id: a.asset_id,
-          action_id: a.action_id,
-          action_id_type: typeof a.action_id,
-          measurement_date: a.measurement_date
-        })),
-        latestMeasurementActionId: latestMeasurement?.action_id,
-        latestMeasurementActionType: latestMeasurement?.action_id ? historyWithActionTypes.get(
-          typeof latestMeasurement.action_id === 'number' ? latestMeasurement.action_id : 
-          parseInt(String(latestMeasurement.action_id), 10)
-        ) : null,
-        rows: result.map(r => ({ 
-          asset_id: r.asset_id, 
-          action_id: r.action_id, 
-          action_id_type: typeof r.action_id,
-          measurement_date: r.measurement_date 
-        }))
-      });
-    }
-    
-    return result;
-  }, [historyRows, historyWithActionTypes, latestMeasurement, additionalDistributionAssets]);
 
-  const transferHistoryRows = useMemo(() => {
-    const rows: Asset[] = [];
-    
-    // Include history rows with transfer_area action_type
-    historyRows.forEach(row => {
-      if (row.action_id != null) {
-        const actionType = historyWithActionTypes.get(row.action_id);
-        if (actionType === 'transfer_area') {
-          rows.push(row);
-        }
-      }
-    });
-    
-    // Include additional transfer assets from assets_history
-    rows.push(...additionalTransferAssets);
-    
-    // Also include current asset if it has transfer_area action_type
-    if (latestMeasurement?.action_id != null) {
-      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
-      if (actionType === 'transfer_area') {
-        // Add current asset but mark it so it appears in history grid
-        // Check if not already added to avoid duplicates
-        const alreadyExists = rows.some(r => 
-          r.asset_id === latestMeasurement.asset_id && 
-          r.measurement_date === latestMeasurement.measurement_date &&
-          r.action_id === latestMeasurement.action_id
-        );
-        if (!alreadyExists) {
-          rows.push({ ...latestMeasurement, is_latest: false } as Asset);
-        }
-      }
-    }
-    
-    // Remove duplicates based on asset_id, action_id, and measurement_date
-    const uniqueRows = rows.filter((row, index, self) => 
-      index === self.findIndex(r => 
-        r.asset_id === row.asset_id && 
-        r.action_id === row.action_id && 
-        r.measurement_date === row.measurement_date
-      )
-    );
-    
-    // Group by action_id and return only one master record per action_id
-    const grouped = new Map<number, Asset>();
-    uniqueRows.forEach(row => {
-      if (row.action_id != null) {
-        if (!grouped.has(row.action_id)) {
-          grouped.set(row.action_id, row);
-        }
-      }
-    });
-    
-    return Array.from(grouped.values());
-  }, [historyRows, historyWithActionTypes, latestMeasurement, additionalTransferAssets]);
-
-  // Get active history rows based on selected tab (master records only)
-  const activeHistoryRows = useMemo(() => {
-    switch (activeHistoryTab) {
-      case 'distribution':
-        return distributionHistoryRows;
-      case 'transfer':
-        return transferHistoryRows;
-      default:
-        return regularHistoryRows;
-    }
-  }, [activeHistoryTab, regularHistoryRows, distributionHistoryRows, transferHistoryRows]);
-
-  // Extract date tabs for distribution and transfer (one per action_id)
-  const dateTabs = useMemo(() => {
-    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
-      return [];
-    }
-    
-    const rows = activeHistoryTab === 'distribution' ? distributionHistoryRows : transferHistoryRows;
-    return rows
-      .filter(row => row.action_id != null)
-      .map(row => {
-        const actionId = row.action_id!;
-        const createdAt = auditCreatedAtMap.get(actionId);
-        const formattedDateTime = createdAt ? formatDateTimeToDDMMYYYYHHMM(createdAt) : '';
-        const formattedDate = createdAt ? formatDateToDDMMYYYY(createdAt) : '';
-        
-        return {
-          actionId: actionId,
-          measurementDate: createdAt || '', // Keep measurementDate for backward compatibility, but use created_at
-          formattedDate: formattedDate || '',
-          formattedDateTime: formattedDateTime || ''
-        };
-      })
-      .filter(tab => tab.formattedDateTime !== '') // Only include tabs with valid dates
-      .sort((a, b) => {
-        // Sort by action_id descending (highest first)
-        return b.actionId - a.actionId;
-      });
-  }, [activeHistoryTab, distributionHistoryRows, transferHistoryRows, auditCreatedAtMap]);
-
-  // Store all records grouped by action_id for expansion
-  const allHistoryRowsByActionId = useMemo(() => {
-    const grouped = new Map<number, Asset[]>();
-    
-    // Collect all records from all tabs
-    const allRows: Asset[] = [];
-    
-    // Regular history rows
-    historyRows.forEach(row => {
-      if (row.action_id == null) return;
-      const actionType = historyWithActionTypes.get(row.action_id);
-      if (actionType === 'manual_update' || actionType === 'import_file' || actionType === null) {
-        allRows.push(row);
-      }
-    });
-    
-    // Distribution rows
-    historyRows.forEach(row => {
-      if (row.action_id != null) {
-        const actionType = historyWithActionTypes.get(row.action_id);
-        if (actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') {
-          allRows.push(row);
-        }
-      }
-    });
-    allRows.push(...additionalDistributionAssets);
-    if (latestMeasurement?.action_id != null) {
-      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
-      if (actionType === 'distribute_shared' || actionType === 'business_distribution' || actionType === 'residence_distribution') {
-        allRows.push({ ...latestMeasurement, is_latest: false } as Asset);
-      }
-    }
-    
-    // Transfer rows
-    historyRows.forEach(row => {
-      if (row.action_id != null) {
-        const actionType = historyWithActionTypes.get(row.action_id);
-        if (actionType === 'transfer_area') {
-          allRows.push(row);
-        }
-      }
-    });
-    allRows.push(...additionalTransferAssets);
-    if (latestMeasurement?.action_id != null) {
-      const actionType = historyWithActionTypes.get(latestMeasurement.action_id);
-      if (actionType === 'transfer_area') {
-        allRows.push({ ...latestMeasurement, is_latest: false } as Asset);
-      }
-    }
-    
-    // Group by action_id
-    allRows.forEach(row => {
-      if (row.action_id != null) {
-        if (!grouped.has(row.action_id)) {
-          grouped.set(row.action_id, []);
-        }
-        grouped.get(row.action_id)!.push(row);
-      }
-    });
-    
-    return grouped;
-  }, [historyRows, historyWithActionTypes, additionalDistributionAssets, additionalTransferAssets, latestMeasurement]);
-
-  // Prepare history rows with detail rows inserted (for active tab)
-  // When expanded, show all records with the same action_id
+  // Prepare history rows - just return all history rows (no detail rows needed)
   const historyRowsWithDetails = useMemo(() => {
-    const rows: any[] = [];
-    activeHistoryRows.forEach((row) => {
-      rows.push(row);
-      // Use action_id as the key for expansion
-      const actionIdKey = row.action_id != null ? `action_${row.action_id}` : null;
-      
-      if (actionIdKey && expandedHistoryRows.has(actionIdKey) && row.action_id != null) {
-        // Only add the audit detail row (full-width row showing inner table)
-        // Do NOT add individual detail record rows - only show the inner table
-        rows.push({
-          _isDetailRow: true,
-          _parentActionId: row.action_id,
-          _actionId: row.action_id,
-          _assetId: row.asset_id,
-          _measurementDate: row.measurement_date
-        });
-      }
-    });
-    return rows;
-  }, [activeHistoryRows, expandedHistoryRows, allHistoryRowsByActionId, activeHistoryTab]);
+    return regularHistoryRows;
+  }, [regularHistoryRows]);
 
   // Always use asset.tax_region as the source of truth
   // This ensures consistency between what's shown and what's stored in the asset record
@@ -1028,15 +214,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   }, [asset?.main_asset_type, assetTypes]);
 
   const getRowStyle = useCallback((params: any) => {
-    const assetId = params.data?.asset_id;
+    const assetId = params.data?.id;
     if (!assetId) return undefined;
+    const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
+    if (isNaN(assetIdNum)) return undefined;
 
-    const assetErrors = validationErrors.get(assetId);
+    const assetErrors = validationErrors.get(assetIdNum);
     const hasErrors = assetErrors && assetErrors.size > 0;
-    
-    // Make history rows clickable with visual feedback
-    const isHistoryRow = params.data?.is_latest === false;
-    const hasActionId = isHistoryRow && params.data?.action_id != null;
 
     const asset = params.data as Asset;
     const numericRegex = /^[0-9]+$/;
@@ -1066,25 +250,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       baseStyle.borderLeft = '3px solid #d1d5db';
     }
 
-    // Make history rows with action_id clickable
-    if (hasActionId) {
-      baseStyle.cursor = 'pointer';
-    }
-
     return baseStyle;
   }, [validationErrors]);
-
-  // Add row class for clickable history rows
-  const getRowClass = useCallback((params: any) => {
-    const isHistoryRow = params.data?.is_latest === false;
-    const hasActionId = isHistoryRow && params.data?.action_id != null;
-    
-    // Only make clickable for distribution/transfer tabs, not for regular history tab
-    if (hasActionId && activeHistoryTab !== 'history') {
-      return 'clickable-history-row';
-    }
-    return '';
-  }, [activeHistoryTab]);
 
   // Helper function to validate discount dates
   const validateDiscountDates = useCallback((asset: Asset): string[] => {
@@ -1424,420 +591,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   // Track last click to prevent double-click interference
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Parse audit data
-  const parseAuditData = useCallback((jsonData: any): { asset?: any; building?: any; assets?: any[] } | null => {
-    if (!jsonData) return null;
-    try {
-      if (typeof jsonData === 'string') {
-        return JSON.parse(jsonData);
-      }
-      return jsonData;
-    } catch (err) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error parsing audit data:', err);
-      }
-      return null;
-    }
-  }, []);
-
-  // Extract buildings and assets from parsed data
-  const extractBuildings = useCallback((data: { asset?: any; building?: any; assets?: any[] } | null): BuildingType[] => {
-    if (!data) return [];
-    const buildings: BuildingType[] = [];
-    if (data.building) {
-      if (Array.isArray(data.building)) {
-        buildings.push(...data.building);
-      } else {
-        buildings.push(data.building);
-      }
-    }
-    return buildings;
-  }, []);
-
-  const extractAssets = useCallback((data: { asset?: any; building?: any; assets?: any[] } | null): Asset[] => {
-    if (!data) return [];
-    const assets: Asset[] = [];
-    if (data.assets && Array.isArray(data.assets)) {
-      assets.push(...data.assets);
-    }
-    if (data.asset) {
-      if (Array.isArray(data.asset)) {
-        assets.push(...data.asset);
-      } else {
-        assets.push(data.asset);
-      }
-    }
-    return assets;
-  }, []);
-
-  // Load audit details when a row is expanded
-  const loadAuditDetails = useCallback(async (actionId: number) => {
-    // Check if already loaded (but allow reload if data is incomplete)
-    const existingData = auditDataCache.get(actionId);
-    if (existingData && !existingData.loading && existingData.auditLog && 
-        (existingData.beforeAssets.length > 0 || existingData.afterAssets.length > 0)) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetDetails] Audit data already loaded for actionId:', actionId);
-      }
-      return;
-    }
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AssetDetails] Loading audit details for actionId:', actionId);
-    }
-    
-    // Set loading state
-    setAuditDataCache(prev => new Map(prev).set(actionId, {
-      auditLog: null,
-      loading: true,
-      error: null,
-      beforeAssets: [],
-      afterAssets: [],
-      relatedAssets: []
-    }));
-    
-    try {
-      // Load audit log entry
-      const audit = await api.auditLog.getOne(actionId);
-      
-      // Load related assets from database (assets and assets_history with this action_id)
-      const { data, error: assetsError } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('action_id', actionId);
-      
-      if (assetsError) throw assetsError;
-      
-      const { data: historyData, error: historyError } = await supabase
-        .from('assets_history')
-        .select('*')
-        .eq('action_id', actionId);
-      
-      if (historyError) throw historyError;
-      
-      const currentAssets = (data || []).map((a: any) => ({ ...a, is_latest: true }));
-      const historyAssets = (historyData || []).map((a: any) => ({ ...a, is_latest: false }));
-      const allAssets = [...currentAssets, ...historyAssets];
-      
-      // Parse before and after data from audit JSON (same for transfer and distribute)
-      // Both transfer_area and distribute_shared store complete asset details in before_data/after_data JSON
-      const beforeParsed = parseAuditData(audit.before_data);
-      const afterParsed = parseAuditData(audit.after_data);
-      
-      let beforeAssets = extractAssets(beforeParsed);
-      let afterAssets = extractAssets(afterParsed);
-      
-      // For distribution operations (business_distribution, residence_distribution, or legacy distribute_shared), we need to get ALL affected assets
-      // Simple structure:
-      // - before_data.assets (array) - contains all affected assets before distribution
-      // - after_data.assets (array) - contains all affected assets after distribution
-      // - after_data.overload_ratio (number) - overload ratio for business distributions
-      if (audit.action_type === 'distribute_shared' || audit.action_type === 'business_distribution' || audit.action_type === 'residence_distribution') {
-        // Get all assets from before_data.assets for "before" state
-        if (beforeParsed && beforeParsed.assets && Array.isArray(beforeParsed.assets)) {
-          beforeAssets = beforeParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
-        }
-        
-        // Get all assets from after_data.assets for "after" state
-        if (afterParsed && afterParsed.assets && Array.isArray(afterParsed.assets)) {
-          afterAssets = afterParsed.assets.map((a: any) => ({ ...a, is_latest: false } as Asset));
-        }
-        // Fallback: if after_data.asset exists (single asset), use it
-        else if (afterParsed && afterParsed.asset && beforeAssets.length > 0) {
-          const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
-          const afterAssetId = afterAsset?.asset_id;
-          
-          // Start with before assets and update the one that matches
-          afterAssets = beforeAssets.map((a: any) => {
-            if (a.asset_id === afterAssetId) {
-              return { ...a, ...afterAsset, is_latest: false } as Asset;
-            }
-            return { ...a, is_latest: false } as Asset;
-          });
-        }
-        // Fallback: if we have after_data.asset but no before assets, use it
-        else if (afterParsed && afterParsed.asset) {
-          const afterAsset = Array.isArray(afterParsed.asset) ? afterParsed.asset[0] : afterParsed.asset;
-          afterAssets = [{ ...afterAsset, is_latest: false } as Asset];
-        }
-        
-        // If we still don't have after assets but have before assets, use before assets as after
-        // (this handles cases where after_data is incomplete)
-        if (afterAssets.length === 0 && beforeAssets.length > 0) {
-          afterAssets = beforeAssets.map((a: any) => ({ ...a, is_latest: false } as Asset));
-        }
-      } else {
-        // For other operations (transfer_area, manual_update, etc.), fall back to database records
-        if (beforeAssets.length === 0 && historyAssets.length > 0) {
-          beforeAssets = historyAssets;
-        }
-        if (afterAssets.length === 0 && currentAssets.length > 0) {
-          afterAssets = currentAssets;
-        }
-      }
-      
-      // Update cache with loaded data (no buildings)
-      setAuditDataCache(prev => {
-        const newCache = new Map(prev);
-        newCache.set(actionId, {
-          auditLog: audit,
-          loading: false,
-          error: null,
-          beforeAssets,
-          afterAssets,
-          relatedAssets: allAssets
-        });
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AssetDetails] Cached audit data for actionId:', actionId, {
-            beforeAssetsCount: beforeAssets.length,
-            afterAssetsCount: afterAssets.length,
-            auditActionType: audit.action_type
-          });
-        }
-        return newCache;
-      });
-      
-      // Increment refresh key to force DetailRowRenderer to re-render with new data
-      setDetailRowRefreshKey(prev => prev + 1);
-      
-      // Refresh grid to ensure the detail row is visible and updated
-      // Use requestAnimationFrame to ensure state has updated
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (historyGridRef.current?.api) {
-            const api = historyGridRef.current.api;
-            // Refresh all cells - the refreshKey in DetailRowRenderer will ensure it re-renders with new data
-            // Don't call redrawRows() as it causes full-width rows to unmount/remount
-            api.refreshCells({ force: true });
-            api.resetRowHeights();
-          }
-        }, 100);
-      });
-    } catch (err) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[AssetDetails] Error loading audit details:', err);
-      }
-      setAuditDataCache(prev => new Map(prev).set(actionId, {
-        auditLog: null,
-        loading: false,
-        error: err instanceof Error ? err.message : 'Failed to load audit details',
-        beforeAssets: [],
-        afterAssets: [],
-        relatedAssets: []
-      }));
-    }
-  }, [auditDataCache, parseAuditData, extractAssets, activeHistoryTab]);
-
-  const handleHistoryRowClick = useCallback((event: any) => {
-    const rowData = event.data as Asset;
-    
-    // Don't handle clicks on detail rows, latest rows, or regular history records
-    // Only handle clicks for distribution/transfer tabs (where we want expansion)
-    if (!rowData || rowData.is_latest === true || (rowData as any)._isDetailRecord === true || activeHistoryTab === 'history') {
-      return;
-    }
-    
-    // Check if the row has an action_id (from history records)
-    const actionId = rowData?.action_id ?? (rowData as any)?.action_id;
-    const actionIdNum = typeof actionId === 'string' ? parseInt(actionId, 10) : actionId;
-    
-    // Check if we have a valid action_id
-    if (rowData && actionIdNum != null && !isNaN(actionIdNum)) {
-      // Use action_id as the key for expansion
-      const actionIdKey = `action_${actionIdNum}`;
-      
-      // Toggle expanded state
-      setExpandedHistoryRows(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(actionIdKey)) {
-          // Collapsing
-          newSet.delete(actionIdKey);
-        } else {
-          // Expanding
-          newSet.add(actionIdKey);
-          // Load audit data if not already loaded
-          if (!auditDataCache.has(actionIdNum)) {
-            loadAuditDetails(actionIdNum);
-          }
-        }
-        return newSet;
-      });
-      
-      // Note: Grid refresh is now handled by useEffect watching expandedHistoryRows
-      // This ensures reliable refresh even if state update is delayed
-    } else if (process.env.NODE_ENV === 'development') {
-      console.warn('[AssetDetails] No valid action_id found for history row');
-      setToast({ 
-        message: 'לא נמצא מזהה פעולה עבור רשומה זו. ייתכן שהרשומה נוצרה לפני הוספת מערכת הביקורת.', 
-        type: 'info' 
-      });
-    }
-  }, [auditDataCache, loadAuditDetails]);
-
-  // Update ref when loadAuditDetails changes
-  useEffect(() => {
-    loadAuditDetailsRef.current = loadAuditDetails;
-  }, [loadAuditDetails]);
-
-  // Refresh grid when expandedHistoryRows changes to ensure inner grids are shown
-  useEffect(() => {
-    // Use a small delay to ensure state has propagated and row data has updated
-    const timeoutId = setTimeout(() => {
-      if (historyGridRef.current?.api && expandedHistoryRows.size > 0) {
-        // Refresh cells to recognize new full-width rows
-        historyGridRef.current.api.refreshCells({ force: true });
-        historyGridRef.current.api.resetRowHeights();
-        // Don't call redrawRows() as it causes full-width rows to unmount/remount
-      }
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [expandedHistoryRows]);
-
-  // Convert auditDataCache Map to a serializable key for reliable change detection
-  const auditDataCacheKey = useMemo(() => {
-    return Array.from(auditDataCache.entries())
-      .map(([id, data]) => `${id}:${data.loading ? 'loading' : data.auditLog ? 'loaded' : data.error ? 'error' : 'empty'}`)
-      .sort()
-      .join('|');
-  }, [auditDataCache]);
-
-  // Refresh grid when audit data finishes loading to show inner grid data
-  useEffect(() => {
-    if (expandedHistoryRows.size === 0) return;
-    
-    // Check if audit data for any expanded row has finished loading
-    let hasLoadedData = false;
-    for (const actionIdKey of expandedHistoryRows) {
-      // Extract action ID from key (format: "action_123")
-      const actionId = parseInt(actionIdKey.replace('action_', ''), 10);
-      if (!isNaN(actionId)) {
-        const auditData = auditDataCache.get(actionId);
-        // If data exists and has finished loading (not loading, has data or error)
-        if (auditData && !auditData.loading && (auditData.auditLog !== null || auditData.error !== null)) {
-          hasLoadedData = true;
-          break;
-        }
-      }
-    }
-    
-    if (hasLoadedData) {
-      // Use a delay to ensure state has propagated and DOM is ready
-      const timeoutId = setTimeout(() => {
-        if (historyGridRef.current?.api) {
-          // Refresh cells to show the loaded audit data
-          // The refreshKey in DetailRowRenderer will ensure it re-renders with new data
-          // Don't call redrawRows() as it causes full-width rows to unmount/remount
-          historyGridRef.current.api.refreshCells({ force: true });
-          historyGridRef.current.api.resetRowHeights();
-        }
-      }, 150);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [auditDataCacheKey, expandedHistoryRows, auditDataCache]);
-
-  // Pre-load all audit data when switching to distribution or transfer tabs
-  useEffect(() => {
-    // Only pre-load for distribution and transfer tabs
-    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
-      return;
-    }
-    
-    // Skip if dateTabs is empty (data not loaded yet)
-    if (dateTabs.length === 0) {
-      return;
-    }
-    
-    // Get all action IDs from dateTabs that haven't been loaded yet
-    const actionIdsToLoad = dateTabs
-      .map(tab => tab.actionId)
-      .filter(actionId => !auditDataCache.has(actionId));
-    
-    // Load audit data for all action IDs
-    if (actionIdsToLoad.length > 0 && loadAuditDetailsRef.current) {
-      // Load all in parallel
-      Promise.all(
-        actionIdsToLoad.map(actionId => 
-          loadAuditDetailsRef.current!(actionId).catch(err => {
-            console.error(`[AssetDetails] Error pre-loading audit data for action ${actionId}:`, err);
-          })
-        )
-      ).then(() => {
-        // Increment refresh key after all data loads to trigger re-render
-        setDetailRowRefreshKey(prev => prev + 1);
-      });
-    }
-  }, [activeHistoryTab, dateTabs, auditDataCache]);
-
-  // Auto-select and auto-expand if there's only one date/entry
-  useEffect(() => {
-    // Only auto-select/expand for distribution and transfer tabs
-    if (activeHistoryTab !== 'distribution' && activeHistoryTab !== 'transfer') {
-      return;
-    }
-    
-    // Skip if dateTabs is empty (data not loaded yet)
-    if (dateTabs.length === 0) {
-      return;
-    }
-    
-    // If there's only one date tab, auto-select it and auto-expand it
-    if (dateTabs.length === 1) {
-      const singleDateTab = dateTabs[0];
-      const singleActionId = singleDateTab.actionId;
-      const actionIdKey = `action_${singleActionId}`;
-      
-      // Auto-select the date tab (use functional update to avoid dependency on selectedDateTab)
-      setSelectedDateTab(prev => {
-        // Only update if different to avoid unnecessary re-renders
-        if (!prev || prev.actionId !== singleActionId) {
-          return { 
-            actionId: singleActionId, 
-            measurementDate: singleDateTab.measurementDate 
-          };
-        }
-        return prev;
-      });
-      
-      // Auto-expand the inner grid (use functional update)
-      setExpandedHistoryRows(prev => {
-        // Only update if not already expanded
-        if (!prev.has(actionIdKey)) {
-          const newSet = new Set(prev);
-          newSet.add(actionIdKey);
-          
-          // Load audit data asynchronously to avoid blocking
-          if (loadAuditDetailsRef.current) {
-            // Use requestAnimationFrame to ensure DOM is ready
-            requestAnimationFrame(() => {
-              if (loadAuditDetailsRef.current) {
-                loadAuditDetailsRef.current(singleActionId).catch(console.error);
-              }
-            });
-          }
-          
-          return newSet;
-        }
-        return prev;
-      });
-    } else if (dateTabs.length > 1) {
-      // If there are multiple date tabs, preserve selection if it's still valid
-      // Only clear if the selected tab no longer exists in dateTabs
-      // This prevents the detail row from disappearing when additionalTransferAssets loads
-      setSelectedDateTab(prev => {
-        if (!prev) return prev;
-        // Check if the currently selected tab still exists in dateTabs
-        const stillExists = dateTabs.some(tab => tab.actionId === prev.actionId);
-        if (stillExists) {
-          // Keep the selection - don't clear it, even if dateTabs array was recreated
-          return prev;
-        }
-        // Clear only if the selected tab no longer exists
-        return null;
-      });
-    }
-  }, [dateTabs, activeHistoryTab]); // Only depend on dateTabs and activeHistoryTab
 
   // Handler for saving changes from modal
   const handleSaveFromModal = useCallback(async (changes: Partial<Asset>) => {
@@ -2930,7 +1683,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       fontWeight: isDirty ? 'bold' : 'normal',
       backgroundColor: isLatest ? undefined : '#f3f4f6',
       color: isLatest ? undefined : '#6b7280',
-      cursor: isLatest ? 'text' : 'default',
+      cursor: 'default',
       textAlign: 'right'
     };
   }, [dirtyAssets, validationErrors]);
@@ -2962,21 +1715,44 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
 
     const hasErrors = errors.length > 0;
+    const errorMessage = errors.join('\n');
 
     return (
-      <div className="flex items-center justify-center gap-1 h-full">
+      <div className="flex items-center justify-center gap-1 h-full relative group">
         {hasErrors && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const errorMsg = errors.join('\n');
-              setToast({ message: errorMsg, type: 'error' });
-            }}
-            className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-            title={errors.join('\n')}
-          >
-            <AlertCircle className="h-5 w-5" />
-          </button>
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setToast({ message: errorMessage, type: 'error' });
+              }}
+              className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+            >
+              <AlertCircle className="h-5 w-5" />
+            </button>
+            <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+              <div style={{
+                backgroundColor: '#f9fafb',
+                color: '#1f2937',
+                padding: '12px 16px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                maxWidth: '500px',
+                minWidth: '300px',
+                direction: 'rtl',
+                textAlign: 'right',
+                lineHeight: '1.8',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                border: '2px solid #ef4444'
+              }}>
+                {errors.map((error, index) => (
+                  <div key={index} style={{ marginBottom: index < errors.length - 1 ? '8px' : '0' }}>
+                    {error}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </div>
     );
@@ -3047,7 +1823,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             <FileText className="h-5 w-5" />
           </button>
         ) : (
-          <div className="flex items-center justify-center p-1 text-gray-400 cursor-not-allowed" title={t('noFile') || 'אין קובץ'}>
+          <div className="flex items-center justify-center p-1 text-gray-400" title={t('noFile') || 'אין קובץ'}>
             <FileText className="h-5 w-5" />
           </div>
         )}
@@ -4041,13 +2817,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       setAsset(null);
       setAllMeasurements([]);
       setOriginalMeasurements([]);
-      setExpandedHistoryRows(new Set());
-      setAuditDataCache(new Map());
-      setHistoryWithActionTypes(new Map());
-      setAdditionalDistributionAssets([]);
-      setAdditionalTransferAssets([]);
-      setSelectedDateTab(null);
-      setActiveHistoryTab('history');
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
       validationErrorsRef.current = new Map();
@@ -4483,7 +3252,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <button
                 onClick={handleSaveAsNewMeasurement}
                 disabled={isSaving}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:shadow-none"
               >
                 {isSaving ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -4642,7 +3411,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
@@ -4655,7 +3424,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
@@ -4668,7 +3437,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleSaveChanges}
                     disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
                   >
                     {isSaving ? (
@@ -4681,7 +3450,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-500 hover:bg-gray-600 active:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-500 hover:bg-gray-600 active:bg-gray-700 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
                   >
                     <X className="h-2.5 w-2.5" />
                     <span className="text-[10px]">{t('cancel')}</span>
@@ -4854,52 +3623,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       ref={historyGridRef}
                       rowData={historyRowsWithDetails}
                       columnDefs={configuredHistoryColumnDefs}
-                    isFullWidthRow={(params: any) => params.rowNode.data?._isDetailRow === true}
-                    fullWidthCellRenderer={DetailRowRenderer}
-                    fullWidthCellRendererParams={(params: any) => {
-                      // CRITICAL: Get the row data directly from rowNode.data to avoid closure issues
-                      // AG Grid may reuse params object, so we must read from rowNode.data which is always current
-                      const rowNode = params.node || params.rowNode;
-                      const rowData = rowNode?.data || params.data;
-                      
-                      // Get actionId from the row data - this is the key to looking up the correct audit data
-                      const actionId = rowData?._actionId || rowData?._parentActionId || rowData?.action_id;
-                      
-                      if (process.env.NODE_ENV === 'development' && rowData?._isDetailRow) {
-                        console.log('[AssetDetails] fullWidthCellRendererParams for detail row:', {
-                          actionId: actionId,
-                          _actionId: rowData._actionId,
-                          _parentActionId: rowData._parentActionId,
-                          action_id: rowData.action_id,
-                          rowNodeId: rowNode?.id,
-                          availableCacheKeys: Array.from(auditDataCache.keys()),
-                          hasCacheData: auditDataCache.has(actionId)
-                        });
-                      }
-                      
-                      // Create a new data object with the correct actionId to ensure DetailRowRenderer uses it
-                      const detailRowData = {
-                        ...rowData,
-                        _isDetailRow: true,
-                        _actionId: actionId, // Explicitly set _actionId from row data
-                        _parentActionId: rowData?._parentActionId || actionId
-                      };
-                      
-                      return {
-                        data: detailRowData, // Pass the data object with correct _actionId
-                        expandedRows: expandedHistoryRows,
-                        auditDataCache,
-                        assetColumnDefs,
-                        currentTabAssetId: asset?.asset_id,
-                        refreshKey: detailRowRefreshKey, // Force re-render when this changes
-                        onSelectAsset: (assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
-                          // Navigate to asset view - dispatch custom event that App.tsx can listen to
-                          window.dispatchEvent(new CustomEvent('openAssetView', {
-                            detail: { assetDbId, assetId, buildingNumber, taxRegion }
-                          }));
-                        }
-                      };
-                    }}
                     defaultColDef={{
                       resizable: true,
                       wrapHeaderText: true,
@@ -4949,51 +3672,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     }}
                     suppressHorizontalScroll={false}
                     getRowId={(params) => {
-                      if (params.data?._isDetailRow) {
-                        // Use _parentActionId (which matches what we set in historyRowsWithDetails)
-                        // This ensures AG Grid recognizes the same row and doesn't unmount/remount it
-                        return `detail-${params.data._parentActionId || params.data._actionId}`;
-                      }
                       const isLatest = params.data.is_latest ? 'latest' : 'history';
                       const historyCreatedAt = params.data.history_created_at ? `-${params.data.history_created_at}` : '';
                       return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                     }}
-                    getRowHeight={(params) => {
-                      if (params.data?._isDetailRow) {
-                        return 250; // Fixed height for detail rows (reduced from 600)
-                      }
-                      return undefined; // Use default row height
-                    }}
                     getRowStyle={(params) => {
-                      if (params.data?._isDetailRow) {
-                        return { padding: 0, backgroundColor: '#f8fafc' };
-                      }
                       const baseStyle = getRowStyle(params);
-                      const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord;
-                      
                       return {
                         ...baseStyle,
-                        cursor: isClickable ? 'pointer' : 'default',
                         transition: 'background-color 0.2s ease',
                         borderBottom: '1px solid #e5e7eb'
                       };
-                    }}
-                    getRowClass={(params) => {
-                      if (params.data?._isDetailRow) {
-                        return 'detail-row-expanded';
-                      }
-                      const classes = getRowClass(params);
-                      const isClickable = activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord;
-                      return `${classes} ${isClickable ? 'hover:bg-blue-50' : ''}`;
-                    }}
-                    rowClassRules={{
-                      'history-row-clickable': (params: any) => {
-                        if (params.data?._isDetailRow) return false;
-                        return activeHistoryTab !== 'history' || params.data?.is_latest === true || params.data?._isDetailRecord;
-                      },
-                      'history-row-master': (params: any) => {
-                        return !params.data?._isDetailRow && params.data?.action_id != null;
-                      }
                     }}
                     onGridReady={async (params) => {
                       // Load saved column state first
@@ -5073,19 +3762,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                     }}
                     onRowClicked={(event: any) => {
                       // Handle single click for audit details
-                      // Only process if it's a history row (not latest) and clickable
-                      // Skip if the click was on an asset_id button (which should open asset view)
-                      if (event.event?.target && (event.event.target as HTMLElement).closest('button')) {
-                        return; // Let the button's onClick handle it
-                      }
-                      
-                      if (event.data && event.data.is_latest !== true) {
-                        // Check if row is clickable (not regular history tab or has action_id)
-                        const isClickable = activeHistoryTab !== 'history' || event.data?._isDetailRecord || event.data?.action_id != null;
-                        if (isClickable) {
-                          handleHistoryRowClick(event);
-                        }
-                      }
                     }}
                     suppressRowClickSelection={false}
                     stopEditingWhenCellsLoseFocus={true}

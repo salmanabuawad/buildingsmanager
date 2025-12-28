@@ -1966,7 +1966,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const displayErrorMsg = errorMsg || 'לא ניתן להסיר אזור מס זה - קיימים נכסים באזור מס זה';
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={displayErrorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={displayErrorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2010,7 +2010,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2052,7 +2052,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2094,7 +2094,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2126,7 +2126,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (hasAreaMismatch) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={hasAreaMismatch} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={hasAreaMismatch} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2181,7 +2181,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2206,7 +2206,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
             {errorMsg && (
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
             )}
@@ -2219,7 +2219,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 params.node.setDataValue('elevator', newValue);
                 handleCheckboxChange(building, 'elevator', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -2259,7 +2259,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 params.node.setDataValue('single_double_family', newValue);
                 handleCheckboxChange(building, 'single_double_family', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -2291,7 +2291,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 params.node.setDataValue('condo', newValue);
                 handleCheckboxChange(building, 'condo', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -2323,7 +2323,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 params.node.setDataValue('townhouses', newValue);
                 handleCheckboxChange(building, 'townhouses', newValue);
               }}
-              className={`w-3.5 h-3.5 ${markedForDeletion ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              className={`w-3.5 h-3.5 ${markedForDeletion ? ' opacity-50' : 'cursor-pointer'}`}
             />
           </div>
         );
@@ -2381,7 +2381,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{displayValue}</span>
@@ -2422,7 +2422,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2458,7 +2458,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2494,7 +2494,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'help' }}>
+              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
               </span>
               <span>{value}</span>
@@ -2647,7 +2647,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleExportBuildingsToExcel}
               disabled={loading || buildings.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:"
               title="ייצא את כל המבנים לקובץ Excel"
             >
               <Download className="h-4 w-4" />
@@ -2657,7 +2657,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleExportToAutomation}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -2672,7 +2672,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleCancelAll}
               disabled={loading || totalChanges === 0}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled: disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               <X className="h-4 w-4" />
               {t('cancel')}
@@ -2681,7 +2681,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleSaveAll}
               disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled: disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

@@ -740,7 +740,7 @@ export function AddressListComponent() {
           <button
             onClick={handleCancelAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none font-semibold w-full sm:w-auto"
           >
             <X className="h-4 w-4" />
             {t('cancel')}
@@ -748,7 +748,7 @@ export function AddressListComponent() {
           <button
             onClick={handleSaveAll}
             disabled={isSaving || (dirtyAddresses.size === 0 && deletedAddresses.size === 0)}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50  disabled:shadow-none font-semibold w-full sm:w-auto"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />

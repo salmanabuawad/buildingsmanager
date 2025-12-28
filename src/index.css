@@ -279,7 +279,7 @@ input[type="number"] {
 /* Style for validation error tooltips - note: native title tooltips cannot be styled */
 /* This rule helps if AG-Grid tooltips are used for validation errors */
 [title] {
-  cursor: help;
+  cursor: pointer;
 }
 
 /* Attempt to style tooltips via data attribute if using custom tooltip library */

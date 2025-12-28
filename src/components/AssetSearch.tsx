@@ -96,7 +96,7 @@ export function AssetSearch({ onSelectAsset }: AssetSearchProps) {
             <button
               type="submit"
               disabled={loading || !fromNumber || !toNumber}
-              className="flex items-center gap-2 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 "
             >
               <Search className="h-5 w-5" />
               {loading ? (t('loading') || 'Loading...') : (t('search') || 'Search')}

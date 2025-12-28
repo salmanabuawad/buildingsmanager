@@ -121,7 +121,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                   <button
                     onClick={previousPage}
                     disabled={pageNumber <= 1}
-                    className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
                   >
                     <ChevronRight className="h-4 w-4 text-black" />
                     Previous
@@ -132,7 +132,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                   <button
                     onClick={nextPage}
                     disabled={pageNumber >= numPages}
-                    className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50  text-sm"
                   >
                     Next
                     <ChevronLeft className="h-4 w-4 text-black" />

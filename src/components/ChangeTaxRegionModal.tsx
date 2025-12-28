@@ -373,7 +373,7 @@ export function ChangeTaxRegionModal({
           <button
             onClick={onClose}
             disabled={loading || isValidating}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50  transition-colors"
           >
             <X className="h-4 w-4" />
             ביטול
@@ -381,7 +381,7 @@ export function ChangeTaxRegionModal({
           <button
             onClick={handleValidate}
             disabled={loading || isValidating || !selectedTaxRegion || assetsToUpdate.length === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50  transition-colors"
           >
             {isValidating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -393,7 +393,7 @@ export function ChangeTaxRegionModal({
           <button
             onClick={handleSave}
             disabled={loading || isValidating || !selectedTaxRegion || !validationCompleted || (validationResults?.invalid ?? 0) > 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50  transition-colors"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

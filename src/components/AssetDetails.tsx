@@ -1778,11 +1778,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : assetId;
     if (isNaN(assetIdNum)) return null;
 
-    // Use ref to get the latest validationErrors to avoid stale closure issues
-    const currentValidationErrors = validationErrorsRef.current;
+    // Use validationErrors state directly (dependency ensures it's up to date)
     const errors: string[] = [];
-    if (currentValidationErrors.has(assetIdNum)) {
-      const fieldErrors = currentValidationErrors.get(assetIdNum);
+    if (validationErrors.has(assetIdNum)) {
+      const fieldErrors = validationErrors.get(assetIdNum);
       if (fieldErrors && fieldErrors.size > 0) {
         fieldErrors.forEach((errorMsg) => {
           errors.push(errorMsg);
@@ -1804,7 +1803,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         )}
       </div>
     );
-  }, [setToast]);
+  }, [setToast, validationErrors]);
 
   // Memoize the structure_drawing_url cell renderer to prevent recreation
   const structureDrawingCellRenderer = useCallback((params: any) => {
@@ -2953,7 +2952,12 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           if (nodesToRefresh.length > 0) {
             gridApi.refreshCells({ 
               rowNodes: nodesToRefresh, 
-              columns: ['structure_drawing_url'],
+              columns: ['actions', 'structure_drawing_url'],
+              force: true 
+            });
+            // Also refresh all cells for row styling updates
+            gridApi.refreshCells({ 
+              rowNodes: nodesToRefresh, 
               force: true 
             });
           }

@@ -1736,7 +1736,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 color: '#1f2937',
                 padding: '12px 16px',
                 borderRadius: '6px',
-                fontSize: '26px',
+                fontSize: '30px',
                 maxWidth: '500px',
                 minWidth: '300px',
                 direction: 'rtl',

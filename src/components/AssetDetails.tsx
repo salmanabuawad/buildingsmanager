@@ -255,6 +255,26 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     return baseStyle;
   }, [validationErrors]);
 
+  // Row style for history grid - no validation checks
+  const getHistoryRowStyle = useCallback((params: any) => {
+    const asset = params.data as Asset;
+    const isLatest = asset.is_latest === true;
+
+    const baseStyle: any = {
+      opacity: isLatest ? 1 : 0.7,
+      fontSize: isLatest ? '1.2em' : undefined,
+      fontWeight: isLatest ? '600' : undefined,
+      fontStyle: isLatest ? 'normal' : 'italic'
+    };
+
+    if (!isLatest) {
+      baseStyle.background = '#f9fafb';
+      baseStyle.borderLeft = '3px solid #d1d5db';
+    }
+
+    return baseStyle;
+  }, []);
+
   // Helper function to validate discount dates
   const validateDiscountDates = useCallback((asset: Asset): string[] => {
     const errors: string[] = [];
@@ -1806,6 +1826,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     );
   }, [setToast, validationErrors]);
 
+  // Actions cell renderer for history grid - no validation icon
+  const historyActionsCellRenderer = useCallback(() => {
+    return null;
+  }, []);
+
   // Memoize the structure_drawing_url cell renderer to prevent recreation
   const structureDrawingCellRenderer = useCallback((params: any) => {
     const asset = params.data as Asset;
@@ -2856,8 +2881,22 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   // Apply field configurations to column definitions for main grid
   const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-details-main');
 
+  // Column definitions for history grid - no validation
+  const historyColumnDefs: ColDef<Asset>[] = useMemo(() => {
+    return columnDefs.map(colDef => {
+      // Replace actions cell renderer with null renderer for history grid
+      if (colDef.colId === 'actions') {
+        return {
+          ...colDef,
+          cellRenderer: historyActionsCellRenderer
+        };
+      }
+      return colDef;
+    });
+  }, [columnDefs, historyActionsCellRenderer]);
+
   // Apply field configurations to column definitions for history grid
-  const configuredHistoryColumnDefs = useFieldConfig(columnDefs, 'asset-details-history');
+  const configuredHistoryColumnDefs = useFieldConfig(historyColumnDefs, 'asset-details-history');
 
   useEffect(() => {
     // Reset state when assetId changes to ensure fresh data is loaded
@@ -3630,7 +3669,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
             {/* History Records Grid */}
             {historyRows.length > 0 && (
-              <div className="mt-2">
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ direction: 'rtl', textAlign: 'right' }}>
+                  היסטוריית מדידות
+                </h3>
                 <div className="ag-theme-alpine rounded-xl shadow-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50" style={{ height: '300px', width: '100%', overflowX: 'auto' }}>
                     <style>{`
                       .ag-theme-alpine .ag-header {
@@ -3695,9 +3737,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         WebkitFontSmoothing: 'antialiased', 
                         MozOsxFontSmoothing: 'grayscale' 
                       },
-                      cellStyle: { textAlign: 'right' },
                       cellStyle: (params: any) => {
                         const baseStyle = {
+                          textAlign: 'right',
                           padding: '4px 6px',
                           fontSize: '10px',
                           borderRight: '1px solid #f3f4f6',
@@ -3730,7 +3772,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       return `${params.data.asset_id}-${params.data.measurement_date}-${isLatest}${historyCreatedAt}`;
                     }}
                     getRowStyle={(params) => {
-                      const baseStyle = getRowStyle(params);
+                      const baseStyle = getHistoryRowStyle(params);
                       return {
                         ...baseStyle,
                         transition: 'background-color 0.2s ease',

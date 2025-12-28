@@ -1810,13 +1810,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return (
           <div className="flex items-center justify-center gap-1 h-full">
             {(hasValidationError || hasTaxRegionError) && (
-              <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-                <span 
-                  title={hasValidationError ? allErrorMessages : (hasTaxRegionError ? t('invalidTaxRegion') : '')} 
-                  className="flex items-center justify-center"
-                >
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                </span>
+              <div className="w-4 h-4 flex items-center justify-center flex-shrink-0 relative group">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {hasValidationError ? allErrorMessages : (hasTaxRegionError ? t('invalidTaxRegion') : '')}
+                  </div>
+                </div>
               </div>
             )}
             <button
@@ -1966,8 +1979,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const displayErrorMsg = errorMsg || 'לא ניתן להסיר אזור מס זה - קיימים נכסים באזור מס זה';
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={displayErrorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {displayErrorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2010,8 +2041,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2052,8 +2101,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2094,8 +2161,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2126,8 +2211,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (hasAreaMismatch) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={hasAreaMismatch} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {hasAreaMismatch}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2181,8 +2284,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2206,8 +2327,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
             {errorMsg && (
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
             )}
             <input
@@ -2381,8 +2520,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{displayValue}</span>
             </div>
@@ -2422,8 +2579,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2458,8 +2633,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>
@@ -2494,8 +2687,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (errorMsg) {
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span title={errorMsg} style={{ color: '#dc2626', cursor: 'pointer' }}>
+              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
                 <AlertCircle size={16} />
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '16px 20px',
+                    borderRadius: '6px',
+                    fontSize: '36px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMsg}
+                  </div>
+                </div>
               </span>
               <span>{value}</span>
             </div>

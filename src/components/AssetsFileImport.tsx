@@ -2664,9 +2664,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                   <div style={{
                     backgroundColor: '#f9fafb',
                     color: '#1f2937',
-                    padding: '12px 16px',
+                    padding: '16px 20px',
                     borderRadius: '6px',
-                    fontSize: '26px',
+                    fontSize: '36px',
                     maxWidth: '500px',
                     minWidth: '300px',
                     direction: 'rtl',

@@ -2107,6 +2107,31 @@ export const api = {
         return { success: false, count: 0, assetIds: [], error: error.message || 'Unknown error' };
       }
     },
+    resetExportToAutomation: async (): Promise<{ success: boolean; count: number; error?: string }> => {
+      try {
+        // First, count how many assets are marked as exported
+        const { count: exportedCount } = await supabase
+          .from('assets')
+          .select('asset_id', { count: 'exact', head: true })
+          .eq('exported_to_automation', true);
+
+        // Reset exported_to_automation flag for all assets that are exported
+        const { error: updateError } = await supabase
+          .from('assets')
+          .update({ exported_to_automation: false })
+          .eq('exported_to_automation', true);
+
+        if (updateError) {
+          console.error('[api.assets.resetExportToAutomation] Error resetting export flag:', updateError);
+          return { success: false, count: 0, error: updateError.message };
+        }
+
+        return { success: true, count: exportedCount || 0 };
+      } catch (error: any) {
+        console.error('[api.assets.resetExportToAutomation] Unexpected error:', error);
+        return { success: false, count: 0, error: error.message || 'Unknown error' };
+      }
+    },
   },
   measurements: {
     getAll: async (assetId: string): Promise<AssetMeasurement[]> => {

@@ -12,7 +12,7 @@ import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
 import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity, getAssetTypes } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
@@ -567,6 +567,34 @@ function App() {
     } catch (error) {
       console.error('Error exporting schema:', error);
       alert('שגיאה בייצוא סכמת מסד הנתונים. אנא נסה שוב.');
+    }
+  }
+
+  async function handleResetExportToAutomation() {
+    if (!confirm('האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לכל הנכסים? פעולה זו תאפשר לייצא אותם מחדש.')) {
+      return;
+    }
+
+    try {
+      const result = await api.assets.resetExportToAutomation();
+      
+      if (!result.success) {
+        alert(`שגיאה באיפוס סימן פריקת הנתונים: ${result.error || 'שגיאה לא ידועה'}`);
+        return;
+      }
+
+      alert(`אופס בהצלחה ${result.count} נכסים. כעת ניתן לייצא אותם מחדש באמצעות כפתור "פריקת נתונים".`);
+      
+      // Refresh the buildings list if it's open to update the count
+      if (activeTabId === 'buildings' && buildingsListRef.current) {
+        // Trigger a refresh by updating the tab's refreshKey
+        setTabs(prev => prev.map(tab => 
+          tab.id === 'buildings' ? { ...tab, refreshKey: Date.now() } : tab
+        ));
+      }
+    } catch (error) {
+      console.error('Error resetting export to automation:', error);
+      alert('שגיאה באיפוס סימן פריקת הנתונים. אנא נסה שוב.');
     }
   }
 
@@ -1132,6 +1160,13 @@ function App() {
                 >
                   <span className="font-medium text-slate-700">ייצוא סכמת DB</span>
                   <Database className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
+                  onClick={handleResetExportToAutomation}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">איפוס פריקת נתונים</span>
+                  <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
                 </button>
               </div>
             )}

@@ -67,6 +67,12 @@ function App() {
   // Confirmation modal state
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  
+  // Reset export to automation modal state
+  const [showResetExportModal, setShowResetExportModal] = useState(false);
+  const [showResetExportResultModal, setShowResetExportResultModal] = useState(false);
+  const [resetExportResult, setResetExportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [resetExportLoading, setResetExportLoading] = useState(false);
   // Helper function to get area_description_for_tab from tax region number(s)
   // Uses cached asset types from ValidationContext (no API call needed)
   const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
@@ -570,20 +576,36 @@ function App() {
     }
   }
 
-  async function handleResetExportToAutomation() {
-    if (!confirm('האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לכל הנכסים? פעולה זו תאפשר לייצא אותם מחדש.')) {
-      return;
-    }
+  function openResetExportModal() {
+    setShowResetExportModal(true);
+  }
+
+  function closeResetExportModal() {
+    setShowResetExportModal(false);
+  }
+
+  async function handleConfirmResetExport() {
+    setResetExportLoading(true);
+    setShowResetExportModal(false);
 
     try {
       const result = await api.assets.resetExportToAutomation();
       
       if (!result.success) {
-        alert(`שגיאה באיפוס סימן פריקת הנתונים: ${result.error || 'שגיאה לא ידועה'}`);
+        setResetExportResult({
+          success: false,
+          message: `שגיאה באיפוס סימן פריקת הנתונים: ${result.error || 'שגיאה לא ידועה'}`
+        });
+        setShowResetExportResultModal(true);
+        setResetExportLoading(false);
         return;
       }
 
-      alert(`אופס בהצלחה ${result.count} נכסים. כעת ניתן לייצא אותם מחדש באמצעות כפתור "פריקת נתונים".`);
+      setResetExportResult({
+        success: true,
+        message: `אופס בהצלחה ${result.count} נכסים. כעת ניתן לייצא אותם מחדש באמצעות כפתור "פריקת נתונים".`
+      });
+      setShowResetExportResultModal(true);
       
       // Refresh the buildings list if it's open to update the count
       if (activeTabId === 'buildings' && buildingsListRef.current) {
@@ -594,8 +616,19 @@ function App() {
       }
     } catch (error) {
       console.error('Error resetting export to automation:', error);
-      alert('שגיאה באיפוס סימן פריקת הנתונים. אנא נסה שוב.');
+      setResetExportResult({
+        success: false,
+        message: 'שגיאה באיפוס סימן פריקת הנתונים. אנא נסה שוב.'
+      });
+      setShowResetExportResultModal(true);
+    } finally {
+      setResetExportLoading(false);
     }
+  }
+
+  function closeResetExportResultModal() {
+    setShowResetExportResultModal(false);
+    setResetExportResult(null);
   }
 
   function openAddressList() {
@@ -1162,11 +1195,16 @@ function App() {
                   <Database className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
-                  onClick={handleResetExportToAutomation}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  onClick={openResetExportModal}
+                  disabled={resetExportLoading}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="font-medium text-slate-700">איפוס פריקת נתונים</span>
-                  <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
+                  {resetExportLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
+                  )}
                 </button>
               </div>
             )}
@@ -1502,6 +1540,95 @@ function App() {
                 className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
               >
                 עזוב ללא שמירה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Export to Automation Confirmation Modal */}
+      {showResetExportModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          dir="rtl"
+          onClick={closeResetExportModal}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
+              <h3 className="text-lg font-bold text-slate-900">איפוס פריקת נתונים</h3>
+            </div>
+            
+            <p className="text-slate-600 mb-6">
+              האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לכל הנכסים? פעולה זו תאפשר לייצא אותם מחדש.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeResetExportModal}
+                disabled={resetExportLoading}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleConfirmResetExport}
+                disabled={resetExportLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {resetExportLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    מאפס...
+                  </>
+                ) : (
+                  'אפס'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Export Result Modal */}
+      {showResetExportResultModal && resetExportResult && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          dir="rtl"
+          onClick={closeResetExportResultModal}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              {resetExportResult.success ? (
+                <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+              )}
+              <h3 className={`text-lg font-bold ${resetExportResult.success ? 'text-green-900' : 'text-red-900'}`}>
+                {resetExportResult.success ? 'הפעולה הושלמה בהצלחה' : 'שגיאה'}
+              </h3>
+            </div>
+            
+            <p className={`mb-6 ${resetExportResult.success ? 'text-slate-600' : 'text-red-600'}`}>
+              {resetExportResult.message}
+            </p>
+
+            <div className="flex justify-end">
+              <button
+                onClick={closeResetExportResultModal}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                  resetExportResult.success 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                סגור
               </button>
             </div>
           </div>

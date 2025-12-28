@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { ValidationTooltipIcon } from './ValidationTooltipIcon';
 import { useTranslation } from 'react-i18next';
 import { api, Asset, Building, AssetType } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
@@ -829,31 +830,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         return (
           <div className="flex items-center gap-2 w-full px-2">
             {hasError && (
-              <div className="flex items-center justify-center relative group">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {errorMessages.map((error, index) => (
-                      <div key={index} style={{ marginBottom: index < errorMessages.length - 1 ? '8px' : '0' }}>
-                        {error}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <ValidationTooltipIcon message={errorMessages} />
             )}
             <button
               type="button"

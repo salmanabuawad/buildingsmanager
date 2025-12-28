@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
@@ -3171,20 +3172,89 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 title={!taxRegion && hasMultipleTaxRegions ? "בחר לשינוי אזור מס" : "בחר להעברת שטחים"}
               />
             )}
-            {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
-                  setError(errorMsg);
-                  setTimeout(() => setError(null), 5000);
-                }}
-                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                title={safeValidationErrors.get(assetId) || 'שגיאת אימות'}
-              >
-                <AlertCircle className="h-5 w-5" />
-              </button>
-            )}
+            {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (() => {
+              // Validation tooltip component
+              const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
+                const [isHovered, setIsHovered] = useState(false);
+                const [position, setPosition] = useState({ top: 0, right: 0 });
+                const buttonRef = useRef<HTMLButtonElement>(null);
+
+                const handleMouseEnter = () => {
+                  if (buttonRef.current) {
+                    const rect = buttonRef.current.getBoundingClientRect();
+                    setPosition({
+                      top: rect.top + rect.height / 2,
+                      right: window.innerWidth - rect.left
+                    });
+                    setIsHovered(true);
+                  }
+                };
+
+                const handleMouseLeave = () => {
+                  setIsHovered(false);
+                };
+
+                const tooltipContent = isHovered ? (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: `${position.top}px`,
+                      right: `${position.right + 8}px`,
+                      transform: 'translateY(-50%)',
+                      zIndex: 9999,
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    <div style={{
+                      backgroundColor: '#f9fafb',
+                      color: '#1f2937',
+                      padding: '12px 16px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      maxWidth: '500px',
+                      minWidth: '300px',
+                      direction: 'rtl',
+                      textAlign: 'right',
+                      lineHeight: '1.6',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      border: '2px solid #ef4444',
+                      whiteSpace: 'pre-line'
+                    }}>
+                      {errorMessage}
+                    </div>
+                  </div>
+                ) : null;
+
+                return (
+                  <>
+                    <button
+                      ref={buttonRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onErrorClick();
+                      }}
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
+                      className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                    >
+                      <AlertCircle className="h-5 w-5" />
+                    </button>
+                    {tooltipContent && createPortal(tooltipContent, document.body)}
+                  </>
+                );
+              };
+
+              const errorMsg = safeValidationErrors.get(assetId) || 'שגיאת אימות';
+              return (
+                <ValidationTooltipButton
+                  errorMessage={errorMsg}
+                  onErrorClick={() => {
+                    setError(errorMsg);
+                    setTimeout(() => setError(null), 5000);
+                  }}
+                />
+              );
+            })()}
             {shouldShowDeleteButton && (
               <button
                 onClick={(e) => {

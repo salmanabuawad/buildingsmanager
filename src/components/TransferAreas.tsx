@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { assetValidators, validateAll, inputValidators } from '../lib/validation';
@@ -1046,39 +1047,87 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         
         const errorMsg = hasValidationError ? (validationErrors.get(assetId) || 'שגיאת אימות') : '';
         
+        // Validation tooltip component
+        const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
+          const [isHovered, setIsHovered] = useState(false);
+          const [position, setPosition] = useState({ top: 0, right: 0 });
+          const buttonRef = useRef<HTMLButtonElement>(null);
+
+          const handleMouseEnter = () => {
+            if (buttonRef.current) {
+              const rect = buttonRef.current.getBoundingClientRect();
+              setPosition({
+                top: rect.top + rect.height / 2,
+                right: window.innerWidth - rect.left
+              });
+              setIsHovered(true);
+            }
+          };
+
+          const handleMouseLeave = () => {
+            setIsHovered(false);
+          };
+
+          const tooltipContent = isHovered ? (
+            <div
+              style={{
+                position: 'fixed',
+                top: `${position.top}px`,
+                right: `${position.right + 8}px`,
+                transform: 'translateY(-50%)',
+                zIndex: 9999,
+                pointerEvents: 'none'
+              }}
+            >
+              <div style={{
+                backgroundColor: '#f9fafb',
+                color: '#1f2937',
+                padding: '12px 16px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                maxWidth: '500px',
+                minWidth: '300px',
+                direction: 'rtl',
+                textAlign: 'right',
+                lineHeight: '1.6',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                border: '2px solid #ef4444',
+                whiteSpace: 'pre-line'
+              }}>
+                {errorMessage}
+              </div>
+            </div>
+          ) : null;
+
+          return (
+            <>
+              <button
+                ref={buttonRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onErrorClick();
+                }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+              >
+                <AlertCircle className="h-4 w-4" />
+              </button>
+              {tooltipContent && createPortal(tooltipContent, document.body)}
+            </>
+          );
+        };
+        
         return (
-          <div className="flex items-center justify-center gap-1 h-full relative group">
+          <div className="flex items-center justify-center gap-1 h-full">
             {hasValidationError && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setError(errorMsg);
-                    setTimeout(() => setError(null), 5000);
-                  }}
-                  className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                >
-                  <AlertCircle className="h-4 w-4" />
-                </button>
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {errorMsg}
-                  </div>
-                </div>
-              </>
+              <ValidationTooltipButton
+                errorMessage={errorMsg}
+                onErrorClick={() => {
+                  setError(errorMsg);
+                  setTimeout(() => setError(null), 5000);
+                }}
+              />
             )}
           </div>
         );

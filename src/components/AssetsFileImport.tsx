@@ -2643,23 +2643,46 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         return (
           <div className="flex items-center gap-2 w-full px-2">
             {hasError && errorMessages.length > 0 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Show error messages in a tooltip/alert format
-                  setErrorModal({ 
-                    isOpen: true, 
-                    message: errorMessages.join('\n'),
-                    title: 'שגיאות אימות'
-                  });
-                }}
-                className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
-                title={errorMessages.join('\n')}
-              >
-                <AlertCircle className="h-4 w-4" />
-              </button>
+              <div className="relative group">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Show error messages in a tooltip/alert format
+                    setErrorModal({ 
+                      isOpen: true, 
+                      message: errorMessages.join('\n'),
+                      title: 'שגיאות אימות'
+                    });
+                  }}
+                  className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                </button>
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    color: '#1f2937',
+                    padding: '12px 16px',
+                    borderRadius: '6px',
+                    fontSize: '22px',
+                    maxWidth: '500px',
+                    minWidth: '300px',
+                    direction: 'rtl',
+                    textAlign: 'right',
+                    lineHeight: '1.8',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    border: '2px solid #ef4444'
+                  }}>
+                    {errorMessages.map((error, index) => (
+                      <div key={index} style={{ marginBottom: index < errorMessages.length - 1 ? '8px' : '0' }}>
+                        {error}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
             <button
               type="button"

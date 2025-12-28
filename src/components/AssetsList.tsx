@@ -2010,7 +2010,54 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
 
-      // Now distribute to accountable residential assets
+      // Find a single shared area asset type to use for all distributions (remove duplicates)
+      // Collect all unique tax regions from residential assets
+      const uniqueTaxRegions = new Set<string>();
+      for (const asset of residentialAssets) {
+        const assetId = String(asset.asset_id);
+        const existingChanges = updatedDirtyAssets.get(assetId) || {};
+        const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+        if (!currentAsset) continue;
+        
+        const currentTaxRegion = existingChanges.tax_region !== undefined 
+          ? existingChanges.tax_region 
+          : currentAsset.tax_region;
+        if (currentTaxRegion != null) {
+          uniqueTaxRegions.add(String(currentTaxRegion));
+        }
+      }
+
+      // Find the first matching shared area asset type (use same one for all)
+      // Prefer the tax region from the current tab, otherwise use the first available
+      let sharedAreaAssetType = null;
+      if (taxRegion) {
+        // Try to find one matching the current tab's tax region first
+        sharedAreaAssetType = currentAssetTypes.find(at => 
+          at.tax_region === taxRegion && 
+          at.use_shared_area === true
+        );
+      }
+      // If not found, try any tax region from the assets
+      if (!sharedAreaAssetType && uniqueTaxRegions.size > 0) {
+        for (const tr of uniqueTaxRegions) {
+          sharedAreaAssetType = currentAssetTypes.find(at => 
+            at.tax_region === tr && 
+            at.use_shared_area === true
+          );
+          if (sharedAreaAssetType) break;
+        }
+      }
+      // If still not found, find any asset type with use_shared_area = true
+      if (!sharedAreaAssetType) {
+        sharedAreaAssetType = currentAssetTypes.find(at => at.use_shared_area === true);
+      }
+
+      if (!sharedAreaAssetType && !isClearing) {
+        const taxRegionList = Array.from(uniqueTaxRegions).join(', ') || taxRegion || 'לא ידוע';
+        throw new Error(`לא נמצא סוג נכס עם סימון "שימוש בשטח משותף" עבור אזורי המס: ${taxRegionList}. יש לוודא שקיים סוג נכס עם use_shared_area=true.`);
+      }
+
+      // Now distribute to accountable residential assets using the same asset type for all
       for (const asset of residentialAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
@@ -2024,19 +2071,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const currentMainType = changes.main_asset_type !== undefined 
           ? changes.main_asset_type 
           : currentAsset.main_asset_type;
-        const currentTaxRegion = changes.tax_region !== undefined 
-          ? changes.tax_region 
-          : currentAsset.tax_region;
-
-        // Find asset type with same tax_region and use_shared_area = true
-        const sharedAreaAssetType = currentAssetTypes.find(at => 
-          at.tax_region === currentTaxRegion && 
-          at.use_shared_area === true
-        );
-
-        if (!sharedAreaAssetType && !isClearing) {
-          throw new Error(`לא נמצא סוג נכס עם אזור מס ${currentTaxRegion} וסימון "שימוש בשטח משותף" עבור נכס ${assetId}. יש לוודא שקיים סוג נכס עם use_shared_area=true עבור אזור המס הזה.`);
-        }
 
         const isMainType199 = String(currentMainType).trim() === '199';
 

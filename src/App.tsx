@@ -607,12 +607,9 @@ function App() {
       });
       setShowResetExportResultModal(true);
       
-      // Refresh the buildings list if it's open to update the count
-      if (activeTabId === 'buildings' && buildingsListRef.current) {
-        // Trigger a refresh by updating the tab's refreshKey
-        setTabs(prev => prev.map(tab => 
-          tab.id === 'buildings' ? { ...tab, refreshKey: Date.now() } : tab
-        ));
+      // Refresh the export count in buildings list if it's open
+      if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
+        await buildingsListRef.current.refreshExportCount();
       }
     } catch (error) {
       console.error('Error resetting export to automation:', error);

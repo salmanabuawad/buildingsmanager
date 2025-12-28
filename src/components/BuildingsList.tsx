@@ -428,6 +428,7 @@ interface BuildingsListProps {
 
 export interface BuildingsListRef {
   hasUnsavedChanges: () => boolean;
+  refreshExportCount: () => Promise<void>;
 }
 
 export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({ 
@@ -508,10 +509,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return newBuildingsCount + editedExistingBuildings + deletedCount;
   }, [newBuildings, dirtyBuildings, buildingsToDelete]);
 
-  // Expose hasUnsavedChanges via ref
+  // Expose hasUnsavedChanges and refreshExportCount via ref
   useImperativeHandle(ref, () => ({
-    hasUnsavedChanges: () => totalChanges > 0
-  }), [totalChanges]);
+    hasUnsavedChanges: () => totalChanges > 0,
+    refreshExportCount: fetchExportToAutomationCount
+  }), [totalChanges, fetchExportToAutomationCount]);
 
   // Check if there are any validation errors
   const hasValidationErrors = useMemo(() => {

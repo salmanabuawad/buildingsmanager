@@ -242,7 +242,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         ...baseStyle,
         border: '3px solid #ef4444',
         borderRadius: '4px',
-        background: '#fee2e2'
+        backgroundColor: '#fee2e2'
       };
     }
 
@@ -1758,7 +1758,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           onMouseLeave={handleMouseLeave}
           className="p-1 text-red-600 hover:text-red-700 transition-colors hover:scale-110"
         >
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-5 w-5" />
         </button>
         {tooltipContent && createPortal(tooltipContent, document.body)}
       </>

@@ -4148,7 +4148,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 type="button"
                 onClick={() => setChangeTaxRegionModalOpen(true)}
                 disabled={loading || selectedAssets.size === 0}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 active:from-purple-700 active:to-purple-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-purple-700/20 disabled:border-gray-500/20"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 active:from-purple-700 active:to-purple-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-purple-700/20 disabled:border-gray-500/20"
                 title={selectedAssets.size > 0 ? `שנה אזור מס ל-${selectedAssets.size} נכסים נבחרים` : 'בחר נכסים לשינוי אזור מס'}
               >
                 <MapPin className="h-4 w-4" />
@@ -4166,7 +4166,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   building.need_residence_distribution !== true
                   // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 active:from-teal-700 active:to-teal-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-teal-700/20 disabled:border-gray-500/20"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 active:from-teal-700 active:to-teal-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-teal-700/20 disabled:border-gray-500/20"
                 title={building.need_residence_distribution === true 
                   ? building.residence_shared_area! > 0
                     ? `פזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין כל נכסי המגורים`
@@ -4188,7 +4188,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   building.need_business_distribution !== true
                   // Note: Allow distribution even if area is 0, as long as flag is true (blinking alert is on)
                 }
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 active:from-violet-700 active:to-violet-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-violet-700/20 disabled:border-gray-500/20"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 active:from-violet-700 active:to-violet-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-violet-700/20 disabled:border-gray-500/20"
                 title={building.need_business_distribution === true
                   ? building.business_shared_area! > 0
                     ? `פזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין כל נכסי העסקים`
@@ -4234,7 +4234,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                         }
                       }}
                       disabled={!canTransferAreas}
-                      className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
+                      className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
                       title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                     >
                       <ArrowRightLeft className="h-4 w-4" />

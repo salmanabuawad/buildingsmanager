@@ -231,7 +231,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading && uploadingFor === 'new'}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="h-4 w-4" />
                   {isUploading && uploadingFor === 'new' ? t('loading') : t('uploadDwgFile')}
@@ -241,7 +241,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading && uploadingFor === 'new'}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-4 w-4" />
                     {t('changeFile')}
@@ -249,7 +249,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                   <button
                     onClick={() => handleFileRemove('new', newMeasurement.drawing_file_url!)}
                     disabled={isUploading && uploadingFor === 'new'}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="h-4 w-4" />
                     {t('removeFile')}
@@ -406,7 +406,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                         <button
                           onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
                           disabled={isUploading && uploadingFor === measurement.id}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Upload className="h-4 w-4" />
                           {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}
@@ -416,7 +416,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => document.getElementById(`file-edit-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Upload className="h-4 w-4" />
                             {t('changeFile')}
@@ -424,7 +424,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => handleFileRemove(measurement.id, editValues.drawing_file_url!)}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="h-4 w-4" />
                             {t('removeFile')}
@@ -636,7 +636,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50"
+                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Upload className="h-3 w-3" />
                             {t('changeFile')}
@@ -644,7 +644,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                           <button
                             onClick={() => handleFileRemove(measurement.id, measurement.drawing_file_url!)}
                             disabled={isUploading && uploadingFor === measurement.id}
-                            className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs disabled:opacity-50"
+                            className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="h-3 w-3" />
                             {t('removeFile')}
@@ -667,7 +667,7 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
                       <button
                         onClick={() => document.getElementById(`file-view-${measurement.id}`)?.click()}
                         disabled={isUploading && uploadingFor === measurement.id}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 w-full justify-center"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
                       >
                         <Upload className="h-4 w-4" />
                         {isUploading && uploadingFor === measurement.id ? t('loading') : t('uploadDwgFile')}

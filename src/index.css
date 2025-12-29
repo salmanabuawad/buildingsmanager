@@ -484,6 +484,14 @@ input:focus, textarea:focus, select:focus {
   @apply flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold;
 }
 
+/* Global disabled button cursor */
+button:disabled,
+button[disabled],
+input[type="button"]:disabled,
+input[type="submit"]:disabled {
+  cursor: not-allowed !important;
+}
+
 /* Button sizes */
 .btn-sm {
   @apply px-2 py-1 text-xs;

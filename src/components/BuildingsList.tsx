@@ -2931,7 +2931,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleExportBuildingsToExcel}
               disabled={loading || buildings.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
               title="ייצא את כל המבנים לקובץ Excel"
             >
               <Download className="h-4 w-4" />
@@ -2941,7 +2941,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleExportToAutomation}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -2956,7 +2956,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleCancelAll}
               disabled={loading || totalChanges === 0}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled: disabled:shadow-none font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               <X className="h-4 w-4" />
               {t('cancel')}
@@ -2965,7 +2965,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               type="button"
               onClick={handleSaveAll}
               disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled: disabled:shadow-none font-semibold w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

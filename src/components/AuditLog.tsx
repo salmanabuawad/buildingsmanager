@@ -125,7 +125,7 @@ export function AuditLog() {
       const flattened = flattenData(parsed);
       flattened.forEach(row => {
         Object.keys(row).forEach(key => {
-          if (key !== '_type') {
+          if (key !== '_type' && key !== '_index') {
             allPossibleKeys.add(key);
           }
         });
@@ -172,13 +172,13 @@ export function AuditLog() {
     const allAfterDataKeys = new Set<string>();
     masterData.forEach(row => {
       Object.keys(row).forEach(key => {
-        if (!['id', 'action_id', 'user_name', 'action_type', 'entity_type', 'entity_id', 'description', 'created_at', 'before_data', 'after_data', '_has_before_data', '_after_data_parsed'].includes(key)) {
+        if (!['id', 'action_id', 'user_name', 'action_type', 'entity_type', 'entity_id', 'description', 'created_at', 'before_data', 'after_data', '_has_before_data', '_after_data_parsed', '_type', '_index'].includes(key)) {
           allAfterDataKeys.add(key);
         }
       });
     });
     return Array.from(allAfterDataKeys).sort().slice(0, 50);
-  }, [auditLogs.length]); // Only recalculate when number of logs changes
+  }, [masterData]); // Recalculate when masterData changes
 
   // Master grid column definitions (showing audit log metadata + after_data fields)
   // Memoize based on column keys to avoid recalculation

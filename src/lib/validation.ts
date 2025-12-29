@@ -2665,7 +2665,7 @@ export const buildingValidators = {
         if (!isNaN(expectedAreaNum) && Math.abs(totalAssetArea - expectedAreaWithoutShared) > 0.01) {
           return {
             valid: false,
-            error: `סכום שטחי הנכסים ללא שטחים משותפים (${totalAssetArea.toLocaleString('he-IL')}) אינו תואם לשטח הכולל של המבנה ללא שטחים משותפים (${expectedAreaWithoutShared.toLocaleString('he-IL')})`
+            error: `סכום שטחי הנכסים ללא שטחים משותפים (${totalAssetArea.toLocaleString('he-IL')}) אינו תואם לשטח הכולל של המבנה ללא שטחים משותפים (${expectedAreaWithoutShared.toLocaleString('he-IL')})`.replace(/area_for_control/g, '')
           };
         }
       }

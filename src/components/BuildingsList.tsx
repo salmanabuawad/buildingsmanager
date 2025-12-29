@@ -483,6 +483,65 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<string | number>>(new Set());
   const [newBuildings, setNewBuildings] = useState<Set<string | number>>(new Set());
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
+
+  // Translate field names from English to Hebrew for error messages
+  const translateFieldName = useCallback((fieldName: string): string => {
+    const fieldTranslations: Record<string, string> = {
+      'building_number': 'מזהה מבנה',
+      'tax_region': 'אזור מיסים',
+      'residence_shared_area': 'שטח משותף מגורים',
+      'business_shared_area': 'שטח משותף עסקים',
+      'total_building_area': 'סה"כ שטח',
+      'area_for_control': 'שטח לבקרה',
+      'overload_ratio': 'אחוז העמסה',
+      'elevator': 'מעלית',
+      'single_double_family': 'בית פרטי',
+      'condo': 'בית משותף',
+      'townhouses': 'טוריים',
+      'building_address': 'כתובת',
+      'gosh': 'גוש',
+      'helka': 'חלקה',
+      'parcel': 'מגרש'
+    };
+    return fieldTranslations[fieldName] || fieldName;
+  }, []);
+
+  // Translate error message by replacing English field names with Hebrew
+  const translateErrorMessage = useCallback((errorMsg: string): string => {
+    if (!errorMsg) return errorMsg;
+    let translated = String(errorMsg);
+    
+    // Replace field names with Hebrew translations
+    const fieldTranslations: Record<string, string> = {
+      'building_number': 'מזהה מבנה',
+      'tax_region': 'אזור מיסים',
+      'residence_shared_area': 'שטח משותף מגורים',
+      'business_shared_area': 'שטח משותף עסקים',
+      'total_building_area': 'סה"כ שטח',
+      'area_for_control': 'שטח לבקרה',
+      'overload_ratio': 'אחוז העמסה',
+      'elevator': 'מעלית',
+      'single_double_family': 'בית פרטי',
+      'condo': 'בית משותף',
+      'townhouses': 'טוריים',
+      'building_address': 'כתובת',
+      'gosh': 'גוש',
+      'helka': 'חלקה',
+      'parcel': 'מגרש'
+    };
+
+    // Replace each field name with its Hebrew translation
+    Object.entries(fieldTranslations).forEach(([en, he]) => {
+      // Replace field name in various contexts (with spaces, underscores, etc.)
+      const regex = new RegExp(`\\b${en}\\b`, 'gi');
+      translated = translated.replace(regex, he);
+    });
+
+    // Remove "area_for_control" text if it appears
+    translated = translated.replace(/area_for_control/g, '');
+    
+    return translated;
+  }, []);
   
   // Grid reference
   const gridRef = useRef<AgGridReact<Building>>(null);
@@ -2050,6 +2109,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         
         if (errorMsg || hasInvalidTaxRegion) {
           const displayErrorMsg = errorMsg || 'לא ניתן להסיר אזור מס זה - קיימים נכסים באזור מס זה';
+          const translatedErrorMsg = translateErrorMessage(displayErrorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2069,7 +2129,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {displayErrorMsg}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>
@@ -2112,6 +2172,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         const value = params.value != null ? `${Number(params.value).toFixed(2)}%` : '';
         if (errorMsg) {
+          const translatedErrorMsg = translateErrorMessage(errorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2131,7 +2192,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {errorMsg}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>
@@ -2172,6 +2233,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
+          const translatedErrorMsg = translateErrorMessage(errorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2191,7 +2253,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {errorMsg}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>
@@ -2232,6 +2294,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
+          const translatedErrorMsg = translateErrorMessage(errorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2251,7 +2314,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {errorMsg}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>
@@ -2279,9 +2342,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return '0';
         const buildingKey = getBuildingKey(building);
         const errors = validationErrors.get(buildingKey);
-        const hasAreaMismatch = errors && errors['area_for_control'];
+        const errorMsg = errors && errors['area_for_control'];
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
-        if (hasAreaMismatch) {
+        if (errorMsg) {
+          const translatedErrorMsg = translateErrorMessage(errorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2301,7 +2365,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {hasAreaMismatch}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>
@@ -2355,8 +2419,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
-          // Remove "area_for_control" text from error message
-          const cleanErrorMsg = String(errorMsg).replace(/area_for_control/g, '');
+          const translatedErrorMsg = translateErrorMessage(errorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2376,7 +2439,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {cleanErrorMsg}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>
@@ -2419,7 +2482,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {errorMsg}
+                    {translateErrorMessage(errorMsg)}
                   </div>
                 </div>
               </span>
@@ -2593,6 +2656,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         
         if (errorMsg) {
+          const translatedErrorMsg = translateErrorMessage(errorMsg);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2612,7 +2676,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {errorMsg}
+                    {translatedErrorMsg}
                   </div>
                 </div>
               </span>

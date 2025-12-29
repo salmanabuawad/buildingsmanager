@@ -507,38 +507,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   }, []);
 
   // Translate error message by replacing English field names with Hebrew
+  // Uses the same Hebrew names as shown in the grid column headers
   const translateErrorMessage = useCallback((errorMsg: string): string => {
     if (!errorMsg) return errorMsg;
     let translated = String(errorMsg);
     
-    // Replace common phrases that contain field names (longer phrases first)
-    const phraseTranslations: Array<[string, string]> = [
-      ['Area for control must be a positive number', 'שטח לבקרה חייב להיות מספר חיובי'],
-      ['Residence shared area must be a positive number', 'שטח משותף מגורים חייב להיות מספר חיובי'],
-      ['Business shared area must be a positive number', 'שטח משותף עסקים חייב להיות מספר חיובי'],
-      ['Building number is invalid', 'מזהה מבנה אינו תקף'],
-      ['Tax region is invalid', 'אזור מיסים אינו תקף'],
-      ['Invalid tax regions by business type', 'אזורי מס לא תקפים לפי סוג עסק'],
-      ['Area for control', 'שטח לבקרה'],
-      ['area for control', 'שטח לבקרה'],
-      ['Residence shared area', 'שטח משותף מגורים'],
-      ['residence shared area', 'שטח משותף מגורים'],
-      ['Business shared area', 'שטח משותף עסקים'],
-      ['business shared area', 'שטח משותף עסקים'],
-      ['Building number', 'מזהה מבנה'],
-      ['building number', 'מזהה מבנה'],
-      ['Tax region', 'אזור מיסים'],
-      ['tax region', 'אזור מיסים'],
-    ];
-
-    // Replace phrases first
-    phraseTranslations.forEach(([en, he]) => {
-      const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      translated = translated.replace(new RegExp(escaped, 'gi'), he);
-    });
-
-    // Then replace individual field names with underscores
+    // Field name translations matching the grid column headers (headerName)
     const fieldTranslations: Record<string, string> = {
+      // Match exact English field names to Hebrew (as shown in grid headers)
       'area_for_control': 'שטח לבקרה',
       'building_number': 'מזהה מבנה',
       'tax_region': 'אזור מיסים',
@@ -557,14 +533,51 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       'parcel': 'מגרש'
     };
 
+    // Complete error message translations (exact matches)
+    const completeMessageTranslations: Array<[string, string]> = [
+      ['Area for control must be a positive number', 'שטח לבקרה חייב להיות מספר חיובי'],
+      ['Residence shared area must be a positive number', 'שטח משותף מגורים חייב להיות מספר חיובי'],
+      ['Business shared area must be a positive number', 'שטח משותף עסקים חייב להיות מספר חיובי'],
+      ['Building number is invalid', 'מזהה מבנה אינו תקף'],
+      ['Tax region is invalid', 'אזור מיסים אינו תקף'],
+      ['Invalid tax regions by business type', 'אזורי מס לא תקפים לפי סוג עסק'],
+    ];
+
+    // First, replace complete messages (exact matches)
+    completeMessageTranslations.forEach(([en, he]) => {
+      translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), he);
+    });
+
+    // Then replace field name phrases (space-separated)
+    const phraseTranslations: Array<[string, string]> = [
+      ['Area for control', 'שטח לבקרה'],
+      ['area for control', 'שטח לבקרה'],
+      ['Residence shared area', 'שטח משותף מגורים'],
+      ['residence shared area', 'שטח משותף מגורים'],
+      ['Business shared area', 'שטח משותף עסקים'],
+      ['business shared area', 'שטח משותף עסקים'],
+      ['Building number', 'מזהה מבנה'],
+      ['building number', 'מזהה מבנה'],
+      ['Tax region', 'אזור מיסים'],
+      ['tax region', 'אזור מיסים'],
+      ['Total building area', 'סה"כ שטח'],
+      ['total building area', 'סה"כ שטח'],
+    ];
+
+    phraseTranslations.forEach(([en, he]) => {
+      translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), he);
+    });
+
+    // Finally, replace underscored field names (simple replace, no word boundaries for underscores)
     Object.entries(fieldTranslations).forEach(([en, he]) => {
-      // Replace with word boundaries for single words, and simple replace for underscored names
+      // For names with underscores, replace directly without word boundaries
+      // For single words, use word boundaries
       if (en.includes('_')) {
-        // For names with underscores, replace directly
-        translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), he);
+        const regex = new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        translated = translated.replace(regex, he);
       } else {
-        // For single words, use word boundaries
-        translated = translated.replace(new RegExp(`\\b${en}\\b`, 'gi'), he);
+        const regex = new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        translated = translated.replace(regex, he);
       }
     });
     

@@ -2688,7 +2688,7 @@ export const buildingValidators = {
       const results = await validateField('building', 'building_number', building.building_number);
       for (const result of results) {
         if (!result.valid) {
-          errors.building_number = result.error || 'Building number is invalid';
+          errors.building_number = result.error || 'מזהה מבנה אינו תקף';
           break;
         }
       }
@@ -2698,7 +2698,7 @@ export const buildingValidators = {
     if (building.tax_region != null) {
       const taxRegionResult = await buildingValidators.validateTaxRegion(building.tax_region, false);
       if (!taxRegionResult.valid) {
-        errors.tax_region = taxRegionResult.error || 'Tax region is invalid';
+        errors.tax_region = taxRegionResult.error || 'אזור מיסים אינו תקף';
       }
     }
 
@@ -2706,7 +2706,7 @@ export const buildingValidators = {
     if (building.building_number != null) {
       const taxRegionsByTypeResult = await buildingValidators.validateTaxRegionsByBusinessType(building.building_number, building.tax_region);
       if (!taxRegionsByTypeResult.valid) {
-        errors.tax_region = taxRegionsByTypeResult.error || 'Invalid tax regions by business type';
+        errors.tax_region = taxRegionsByTypeResult.error || 'אזורי מס לא תקפים לפי סוג עסק';
       }
 
       // Note: Asset area distribution validation removed - building validation only checks area_for_control vs total_building_area
@@ -2715,21 +2715,21 @@ export const buildingValidators = {
     // Validate area_for_control (should be positive number if provided)
     if (building.area_for_control != null) {
       if (isNaN(Number(building.area_for_control)) || Number(building.area_for_control) < 0) {
-        errors.area_for_control = 'Area for control must be a positive number';
+        errors.area_for_control = 'שטח לבקרה חייב להיות מספר חיובי';
       }
     }
 
     // Validate residence_shared_area (should be positive number if provided)
     if (building.residence_shared_area != null) {
       if (isNaN(Number(building.residence_shared_area)) || Number(building.residence_shared_area) < 0) {
-        errors.residence_shared_area = 'Residence shared area must be a positive number';
+        errors.residence_shared_area = 'שטח משותף מגורים חייב להיות מספר חיובי';
       }
     }
     
     // Validate business_shared_area (should be positive number if provided)
     if (building.business_shared_area != null) {
       if (isNaN(Number(building.business_shared_area)) || Number(building.business_shared_area) < 0) {
-        errors.business_shared_area = 'Business shared area must be a positive number';
+        errors.business_shared_area = 'שטח משותף עסקים חייב להיות מספר חיובי';
       }
     }
 

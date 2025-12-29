@@ -13,26 +13,17 @@ import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/te
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
 
-// Custom tooltip component that supports line breaks
+// Custom tooltip component that supports line breaks - uses standardized tooltip styles
 const CustomTooltip = (params: ITooltipParams) => {
   if (!params.value) return null;
   // Split by <br/> or \n to create lines
   const lines = String(params.value).split(/<br\/>|\n/);
   return (
-    <div style={{ 
-      backgroundColor: '#333', 
-      color: '#fff', 
-      padding: '10px 14px', 
-      borderRadius: '4px',
-      fontSize: '14px',
-      whiteSpace: 'pre-line',
-      maxWidth: '400px',
-      direction: 'rtl',
-      textAlign: 'right',
-      lineHeight: '1.6'
-    }}>
+    <div className="tooltip-content">
       {lines.map((line, index) => (
-        <div key={index}>{line}</div>
+        <div key={index} className={index < lines.length - 1 ? 'tooltip-message-item' : ''}>
+          {line}
+        </div>
       ))}
     </div>
   );

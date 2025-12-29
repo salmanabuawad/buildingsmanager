@@ -31,33 +31,17 @@ export const ValidationTooltipIcon: React.FC<ValidationTooltipIconProps> = ({ me
 
   const tooltipContent = isHovered ? (
     <div
+      className="tooltip-container"
       style={{
-        position: 'fixed',
         top: `${position.top}px`,
         right: `${position.right + 8}px`,
-        transform: 'translateY(-50%)',
-        zIndex: 9999,
-        pointerEvents: 'none'
+        transform: 'translateY(-50%)'
       }}
     >
-      <div style={{
-        backgroundColor: '#f9fafb',
-        color: '#1f2937',
-        padding: '12px 16px',
-        borderRadius: '6px',
-        fontSize: '14px',
-        maxWidth: '500px',
-        minWidth: '300px',
-        direction: 'rtl',
-        textAlign: 'right',
-        lineHeight: '1.6',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        border: '2px solid #ef4444',
-        whiteSpace: 'pre-line'
-      }}>
+      <div className="tooltip-content">
         {Array.isArray(displayMessage) ? (
           displayMessage.map((msg, index) => (
-            <div key={index} style={{ marginBottom: index < displayMessage.length - 1 ? '8px' : '0' }}>
+            <div key={index} className="tooltip-message-item">
               {msg}
             </div>
           ))

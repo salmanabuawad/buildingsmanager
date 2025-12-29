@@ -3280,7 +3280,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                     className="tooltip-container"
                     style={{
                       top: `${position.top}px`,
-                      right: `${position.right + 8}px`
+                      right: `${position.right + 8}px`,
+                      transform: 'translateY(-50%)'
                     }}
                   >
                     <div className="tooltip-content">

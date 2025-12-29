@@ -1995,7 +1995,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const errors = validationErrors.get(buildingKey);
         const hasValidationError = errors && Object.keys(errors).length > 0;
         const allErrorMessages = hasValidationError 
-          ? Object.entries(errors || {}).map(([field, msg]) => translateErrorMessage(String(msg))).join('\n')
+          ? Object.values(errors || {}).map((msg) => translateErrorMessage(String(msg))).join('\n')
           : '';
 
         return (
@@ -2138,46 +2138,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['tax_region'];
-        const hasInvalidTaxRegion = invalidTaxRegionBuildings.has(buildingKey);
         
         if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
           return '';
         }
         const value = params.value != null ? params.value : '';
-        
-        if (errorMsg || hasInvalidTaxRegion) {
-          const displayErrorMsg = errorMsg || 'לא ניתן להסיר אזור מס זה - קיימים נכסים באזור מס זה';
-          const translatedErrorMsg = translateErrorMessage(displayErrorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'tax_region')
@@ -2205,42 +2170,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['overload_ratio'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value != null ? `${Number(params.value).toFixed(2)}%` : '';
-        if (errorMsg) {
-          const translatedErrorMsg = translateErrorMessage(errorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'overload_ratio')
@@ -2266,42 +2199,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['residence_shared_area'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
-        if (errorMsg) {
-          const translatedErrorMsg = translateErrorMessage(errorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'residence_shared_area')
@@ -2327,42 +2228,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['business_shared_area'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
-        if (errorMsg) {
-          const translatedErrorMsg = translateErrorMessage(errorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'business_shared_area')
@@ -2381,39 +2250,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '0';
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['area_for_control'];
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
-        if (errorMsg) {
-          const translatedErrorMsg = translateErrorMessage(errorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => {
@@ -2452,42 +2289,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['area_for_control'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
-        if (errorMsg) {
-          const translatedErrorMsg = translateErrorMessage(errorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'area_for_control')
@@ -2501,33 +2306,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return null;
         const buildingKey = getBuildingKey(building);
         const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['elevator'];
         const markedForDeletion = buildingsToDelete.has(buildingKey);
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
-            {errorMsg && (
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translateErrorMessage(errorMsg)}
-                  </div>
-                </div>
-              </span>
-            )}
             <input
               type="checkbox"
               checked={params.value === 'כן' || params.value === true}
@@ -2684,9 +2465,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!streetCode) return '';
         
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['building_address'];
         
         // Find the address description - ensure type consistency (compare as numbers)
         const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
@@ -2696,35 +2474,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           return '';
         }
         
-        if (errorMsg) {
-          const translatedErrorMsg = translateErrorMessage(errorMsg);
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {translatedErrorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{displayValue}</span>
-            </div>
-          );
-        }
         
         return displayValue;
       },
@@ -2749,41 +2498,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['gosh'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value != null ? String(params.value) : '';
-        if (errorMsg) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {errorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'gosh')
@@ -2803,41 +2521,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['helka'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value != null ? String(params.value) : '';
-        if (errorMsg) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {errorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'helka')
@@ -2857,41 +2544,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const building = params.data as Building;
         if (!building) return '';
         const isNew = isNewBuilding(building);
-        const buildingKey = getBuildingKey(building);
-        const errors = validationErrors.get(buildingKey);
-        const errorMsg = errors && errors['building_number_in_street'];
         if (isNew && (params.value === null || params.value === undefined)) {
           return '';
         }
         const value = params.value != null ? String(params.value) : '';
-        if (errorMsg) {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
-              <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
-                <AlertCircle size={16} />
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity pointer-events-none">
-                  <div style={{
-                    backgroundColor: '#f9fafb',
-                    color: '#1f2937',
-                    padding: '16px 20px',
-                    borderRadius: '6px',
-                    fontSize: '36px',
-                    maxWidth: '500px',
-                    minWidth: '300px',
-                    direction: 'rtl',
-                    textAlign: 'right',
-                    lineHeight: '1.8',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '2px solid #ef4444'
-                  }}>
-                    {errorMsg}
-                  </div>
-                </div>
-              </span>
-              <span>{value}</span>
-            </div>
-          );
-        }
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'building_number_in_street')

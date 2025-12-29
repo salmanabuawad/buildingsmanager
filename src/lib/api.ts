@@ -433,8 +433,15 @@ export interface DistributionAudit {
   description?: string;
   user_id?: number;
   tax_region?: string; // Tax region for filtering (business or residence)
+  entity_type?: string; // Entity type (e.g., 'bulk_asset')
+  entity_id?: string; // Entity ID (e.g., building number as string)
   created_at: string;
+  action_id?: number; // Alias for id
+  user_name?: string; // User name
 }
+
+// Type alias for backward compatibility
+export type AuditLog = DistributionAudit;
 
 
 /**
@@ -3040,6 +3047,89 @@ export const api = {
       return {
         affected_asset_ids: result.affected_asset_ids || [],
         count: result.count || 0
+      };
+    },
+    getAll: async (filters?: { limit?: number }): Promise<DistributionAudit[]> => {
+      let query = supabase
+        .from('audit')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (filters?.limit) {
+        query = query.limit(filters.limit);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Parse JSONB if needed and return data
+      return (data || []).map((record: any) => {
+        let beforeData = record.before_data;
+        let afterData = record.after_data;
+        
+        if (typeof beforeData === 'string') {
+          try {
+            beforeData = JSON.parse(beforeData);
+          } catch (e) {
+            console.warn('Failed to parse before_data as JSON:', e);
+            beforeData = null;
+          }
+        }
+        
+        if (typeof afterData === 'string') {
+          try {
+            afterData = JSON.parse(afterData);
+          } catch (e) {
+            console.warn('Failed to parse after_data as JSON:', e);
+            afterData = null;
+          }
+        }
+        
+        return {
+          ...record,
+          building_number: record.building_number || (record.entity_id ? parseInt(record.entity_id, 10) : null),
+          before_data: beforeData || null,
+          after_data: afterData || null,
+        };
+      });
+    },
+    getOne: async (id: number): Promise<DistributionAudit> => {
+      const { data, error } = await supabase
+        .from('audit')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      
+      // Parse JSONB if it comes as a string (Supabase should auto-parse, but handle both cases)
+      let beforeData = data.before_data;
+      let afterData = data.after_data;
+      
+      if (typeof beforeData === 'string') {
+        try {
+          beforeData = JSON.parse(beforeData);
+        } catch (e) {
+          console.warn('Failed to parse before_data as JSON:', e);
+          beforeData = null;
+        }
+      }
+      
+      if (typeof afterData === 'string') {
+        try {
+          afterData = JSON.parse(afterData);
+        } catch (e) {
+          console.warn('Failed to parse after_data as JSON:', e);
+          afterData = null;
+        }
+      }
+      
+      // Return data with before_data and after_data
+      return {
+        ...data,
+        building_number: data.building_number || (data.entity_id ? parseInt(data.entity_id, 10) : null),
+        before_data: beforeData || null,
+        after_data: afterData || null,
       };
     },
   },

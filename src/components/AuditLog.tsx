@@ -9,6 +9,7 @@ import { RefreshCw, Loader2 } from 'lucide-react';
 interface ParsedAuditData {
   asset?: any;
   building?: any;
+  assets?: any[]; // Array of assets (for bulk operations)
 }
 
 export function AuditLog() {
@@ -73,7 +74,18 @@ export function AuditLog() {
     
     const rows: any[] = [];
     
-    // Add asset data if present
+    // Add assets array if present (for bulk operations like business_distribution)
+    if (data.assets && Array.isArray(data.assets)) {
+      data.assets.forEach((asset, index) => {
+        rows.push({
+          _type: 'asset',
+          _index: index,
+          ...asset
+        });
+      });
+    }
+    
+    // Add single asset data if present
     if (data.asset) {
       rows.push({
         _type: 'asset',
@@ -136,14 +148,19 @@ export function AuditLog() {
         const parsed = parseAuditData(log.after_data);
         const flattened = flattenData(parsed);
         
-        // Only add common fields to avoid too many columns
-        flattened.forEach(row => {
+        // If we have multiple rows (e.g., multiple assets), merge them into one row
+        // by taking the first non-undefined value for each key
+        if (flattened.length > 0) {
           commonKeys.forEach(key => {
-            if (row[key] !== undefined && masterRow[key] === undefined) {
-              masterRow[key] = row[key];
+            // Find the first row that has this key defined
+            for (const row of flattened) {
+              if (row[key] !== undefined && masterRow[key] === undefined) {
+                masterRow[key] = row[key];
+                break; // Take first value found
+              }
             }
           });
-        });
+        }
       }
       
       return masterRow;
@@ -155,7 +172,7 @@ export function AuditLog() {
     const allAfterDataKeys = new Set<string>();
     masterData.forEach(row => {
       Object.keys(row).forEach(key => {
-        if (!['action_id', 'user_name', 'action_type', 'entity_type', 'entity_id', 'description', 'created_at', 'before_data', 'after_data', '_has_before_data', '_after_data_parsed'].includes(key)) {
+        if (!['id', 'action_id', 'user_name', 'action_type', 'entity_type', 'entity_id', 'description', 'created_at', 'before_data', 'after_data', '_has_before_data', '_after_data_parsed'].includes(key)) {
           allAfterDataKeys.add(key);
         }
       });
@@ -169,7 +186,7 @@ export function AuditLog() {
     // Base columns for audit log metadata
     const baseColumns: ColDef<any>[] = [
       {
-        field: 'action_id',
+        field: 'id',
         headerName: 'מזהה פעולה',
         width: 120,
         pinned: 'left',
@@ -177,7 +194,8 @@ export function AuditLog() {
         sortable: true,
         filter: true,
         headerClass: 'ag-right-aligned-header',
-        cellStyle: { textAlign: 'right' }
+        cellStyle: { textAlign: 'right' },
+        valueGetter: (params: any) => params.data?.id || params.data?.action_id || ''
       },
       {
         field: 'created_at',
@@ -392,7 +410,7 @@ export function AuditLog() {
             }}
             rowSelection="single"
             onRowClicked={onMasterRowSelected}
-            getRowId={(params) => String(params.data.action_id)}
+            getRowId={(params) => String(params.data?.id || params.data?.action_id || params.rowIndex)}
             gridOptions={{
               suppressColumnVirtualisation: true, // Disable column virtualization for better performance with many columns
               alwaysShowHorizontalScroll: true,

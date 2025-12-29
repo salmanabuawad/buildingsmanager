@@ -3494,62 +3494,62 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                         setToast({ message: 'שגיאה בייצוא לקובץ Excel', type: 'error' });
                       }
                     }}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                    className="btn btn-export btn-lg"
                     title="ייצא ל-Excel"
                   >
-                    <Download className="h-3 w-3" />
-                    <span className="text-[10px]">ייצא</span>
+                    <Download className="h-5 w-5" />
+                    <span>ייצא</span>
                   </button>
                   <button
                     onClick={handleValidateLatestRow}
                     disabled={isSaving || isValidating || !latestMeasurement}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="btn btn-secondary btn-lg"
                     title="אמת את הנכס"
                   >
                     {isValidating ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <CheckCircle2 className="h-3 w-3" />
+                      <CheckCircle2 className="h-5 w-5" />
                     )}
-                    <span className="text-[10px]">{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
+                    <span>{isValidating ? 'מאמת...' : 'אמת נכס'}</span>
                   </button>
                   <button
                     onClick={handleOpenSaveAsNewMeasurementModal}
                     disabled={isSaving || isValidating || !latestMeasurement || !hasChanges || validationErrors.size > 0}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="btn btn-primary btn-lg"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידה חדשה'}
                   >
                     {isSaving ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-5 w-5" />
                     )}
-                    <span className="text-[10px]">שמור כמדידה חדשה</span>
+                    <span>שמור כמדידה חדשה</span>
                   </button>
                   <button
                     onClick={handleSaveChanges}
                     disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="btn btn-primary btn-lg"
                     title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
                   >
                     {isSaving ? (
-                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <Save className="h-2.5 w-2.5" />
+                      <Save className="h-5 w-5" />
                     )}
-                    <span className="text-[10px]">{t('save')}</span>
+                    <span>{t('save')}</span>
                   </button>
                   <button
                     onClick={handleCancelChanges}
                     disabled={isSaving || !hasChanges}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-gray-500 hover:bg-gray-600 active:bg-gray-700 disabled:bg-gray-400 text-white rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:shadow-none"
+                    className="btn btn-cancel btn-lg"
                   >
-                    <X className="h-2.5 w-2.5" />
-                    <span className="text-[10px]">{t('cancel')}</span>
+                    <X className="h-5 w-5" />
+                    <span>{t('cancel')}</span>
                   </button>
                 </div>
               </div>
-              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '70px', width: '100%', overflowX: 'auto' }}>
+              <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100 asset-details-pinned-grid" style={{ height: '85px', width: '100%', overflowX: 'auto' }}>
                 <style>{`
                   .asset-details-pinned-grid .ag-header-cell-label,
                   .asset-details-pinned-grid .ag-header-cell-text,

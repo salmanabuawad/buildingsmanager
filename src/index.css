@@ -443,3 +443,95 @@ input:focus, textarea:focus, select:focus {
     min-width: 44px;
   }
 }
+
+/* Button styles */
+.btn {
+  @apply flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold;
+}
+
+/* Button sizes */
+.btn-sm {
+  @apply px-2 py-1 text-xs;
+}
+.btn-md {
+  @apply px-3 py-1.5 text-sm;
+}
+.btn-lg {
+  @apply px-5 py-2.5 text-base;
+}
+
+/* Primary button (e.g., Save, Add, Create) */
+.btn-primary {
+  @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+}
+
+/* Secondary button (e.g., Edit, Validate) */
+.btn-secondary {
+  @apply bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white border border-cyan-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+}
+
+/* Danger button (e.g., Delete, Remove) */
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white border border-red-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+}
+
+/* Cancel button */
+.btn-cancel {
+  @apply bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white border border-gray-600/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+}
+
+/* Export button */
+.btn-export {
+  @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white border border-blue-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
+}
+
+/* Icon buttons (small, no text) */
+.btn-icon {
+  @apply p-1 rounded-md transition-colors hover:scale-110 active:scale-100;
+}
+
+.btn-icon-danger {
+  @apply p-1 rounded-md transition-colors text-red-600 hover:text-red-700 hover:bg-red-100 active:bg-red-200;
+}
+
+/* Menu buttons (sidebar main items) */
+.btn-menu {
+  @apply w-full flex items-center justify-between px-4 py-2.5 text-right bg-white rounded-lg transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md group;
+}
+.btn-menu:hover {
+  @apply bg-purple-50 hover:border-purple-300;
+}
+.btn-menu:active {
+  @apply bg-purple-100;
+}
+.btn-menu span {
+  @apply font-medium text-sm text-slate-700 group-hover:text-purple-900;
+}
+.btn-menu svg {
+  @apply text-purple-600 group-hover:text-purple-700;
+}
+
+/* Menu item buttons (sidebar sub-items) */
+.btn-menu-item {
+  @apply w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50 hover:bg-purple-100 hover:scale-[1.02] active:bg-purple-200 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md;
+}
+.btn-menu-item span {
+  @apply font-medium text-slate-700;
+}
+.btn-menu-item svg {
+  @apply text-purple-600;
+}
+/* Specific color for primary menu item */
+.btn-menu-item.btn-primary {
+  @apply bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200;
+}
+.btn-menu-item.btn-primary svg {
+  @apply text-emerald-600;
+}
+/* Specific color for export menu item */
+.btn-menu-item.btn-export {
+  @apply bg-blue-50 hover:bg-blue-100 active:bg-blue-200;
+}
+.btn-menu-item.btn-export svg {
+  @apply text-blue-600;
+}

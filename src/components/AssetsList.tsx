@@ -21,6 +21,7 @@ import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
+import { Toast } from './Toast';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -47,7 +48,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [buildingAddress, setBuildingAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
   const [newAssets, setNewAssets] = useState<Set<string>>(new Set());
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
@@ -1242,7 +1243,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
     setLoading(true);
     setError(null);
-    setSuccess(null);
+    setToast(null);
 
     try {
       let savedCount = 0;
@@ -1650,8 +1651,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const successMsg = [];
         if (savedCount > 0) successMsg.push(`נשמרו ${savedCount} נכסים`);
         if (deletedCount > 0) successMsg.push(`נמחקו ${deletedCount} נכסים`);
-        setSuccess(`✓ ${successMsg.join(', ')} בהצלחה`);
-        setTimeout(() => setSuccess(null), 3000);
+        setToast({ message: `✓ ${successMsg.join(', ')} בהצלחה`, type: 'success' });
+        setTimeout(() => setToast(null), 3000);
         
         // Close the error fixing mode tab and open normal assets tab after successful save
         if (isErrorFixingMode && onCloseTab && onOpenAssetsTab && newTaxRegionForTab) {
@@ -1802,8 +1803,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     setNewAssets(new Set());
     setValidationErrors(new Map());
     setError(null);
-    setSuccess('השינויים בוטלו');
-    setTimeout(() => setSuccess(null), 3000);
+    setToast({ message: 'השינויים בוטלו', type: 'info' });
+    setTimeout(() => setToast(null), 3000);
 
     // Refresh the grid to show restored values
     setTimeout(() => {
@@ -1845,7 +1846,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
     setLoading(true);
     setError(null);
-    setSuccess(null);
+    setToast(null);
 
     try {
       // Refresh asset types to ensure we have latest data (in case cache is stale)
@@ -2401,7 +2402,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
     setLoading(true);
     setError(null);
-    setSuccess(null);
+    setToast(null);
 
     try {
       // Create asset type map for quick lookup
@@ -2776,8 +2777,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         ]
       });
       
-      setSuccess(`יוצאו ${rows.length} נכסים בהצלחה`);
-      setTimeout(() => setSuccess(null), 3000);
+      setToast({ message: `יוצאו ${rows.length} נכסים בהצלחה`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       setError('שגיאה בייצוא לקובץ Excel');
@@ -2880,8 +2881,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const sizeReduction = compressedSizeKB !== originalSizeKB 
         ? ` (${originalSizeKB}KB → ${compressedSizeKB}KB)`
         : '';
-      setSuccess(`הקובץ הועלה בהצלחה${sizeReduction}`);
-      setTimeout(() => setSuccess(null), 5000);
+      setToast({ message: `הקובץ הועלה בהצלחה${sizeReduction}`, type: 'success' });
+      setTimeout(() => setToast(null), 5000);
       
       // Refresh data
       await fetchData(false);
@@ -4083,11 +4084,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             </div>
           </div>
         </div>
-        {success && (
-          <div className="mb-2 bg-green-50 border-l-4 border-green-500 rounded-lg p-2">
-            <p className="text-green-800 text-sm font-medium">{success}</p>
-          </div>
-        )}
         <div className="mb-3">
           {/* All Action Buttons in One Row */}
           <div className="flex flex-wrap items-center gap-2">
@@ -4580,6 +4576,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             </div>
           </div>
         </div>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
 
     </>

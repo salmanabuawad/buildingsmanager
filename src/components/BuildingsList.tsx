@@ -511,34 +511,62 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (!errorMsg) return errorMsg;
     let translated = String(errorMsg);
     
-    // Replace field names with Hebrew translations
+    // Replace common phrases that contain field names (longer phrases first)
+    const phraseTranslations: Array<[string, string]> = [
+      ['Area for control must be a positive number', 'שטח לבקרה חייב להיות מספר חיובי'],
+      ['Residence shared area must be a positive number', 'שטח משותף מגורים חייב להיות מספר חיובי'],
+      ['Business shared area must be a positive number', 'שטח משותף עסקים חייב להיות מספר חיובי'],
+      ['Building number is invalid', 'מזהה מבנה אינו תקף'],
+      ['Tax region is invalid', 'אזור מיסים אינו תקף'],
+      ['Invalid tax regions by business type', 'אזורי מס לא תקפים לפי סוג עסק'],
+      ['Area for control', 'שטח לבקרה'],
+      ['area for control', 'שטח לבקרה'],
+      ['Residence shared area', 'שטח משותף מגורים'],
+      ['residence shared area', 'שטח משותף מגורים'],
+      ['Business shared area', 'שטח משותף עסקים'],
+      ['business shared area', 'שטח משותף עסקים'],
+      ['Building number', 'מזהה מבנה'],
+      ['building number', 'מזהה מבנה'],
+      ['Tax region', 'אזור מיסים'],
+      ['tax region', 'אזור מיסים'],
+    ];
+
+    // Replace phrases first
+    phraseTranslations.forEach(([en, he]) => {
+      const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      translated = translated.replace(new RegExp(escaped, 'gi'), he);
+    });
+
+    // Then replace individual field names with underscores
     const fieldTranslations: Record<string, string> = {
+      'area_for_control': 'שטח לבקרה',
       'building_number': 'מזהה מבנה',
       'tax_region': 'אזור מיסים',
       'residence_shared_area': 'שטח משותף מגורים',
       'business_shared_area': 'שטח משותף עסקים',
       'total_building_area': 'סה"כ שטח',
-      'area_for_control': 'שטח לבקרה',
       'overload_ratio': 'אחוז העמסה',
-      'elevator': 'מעלית',
       'single_double_family': 'בית פרטי',
+      'building_address': 'כתובת',
+      'building_number_in_street': 'מספר מבנה ברחוב',
+      'elevator': 'מעלית',
       'condo': 'בית משותף',
       'townhouses': 'טוריים',
-      'building_address': 'כתובת',
       'gosh': 'גוש',
       'helka': 'חלקה',
       'parcel': 'מגרש'
     };
 
-    // Replace each field name with its Hebrew translation
     Object.entries(fieldTranslations).forEach(([en, he]) => {
-      // Replace field name in various contexts (with spaces, underscores, etc.)
-      const regex = new RegExp(`\\b${en}\\b`, 'gi');
-      translated = translated.replace(regex, he);
+      // Replace with word boundaries for single words, and simple replace for underscored names
+      if (en.includes('_')) {
+        // For names with underscores, replace directly
+        translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), he);
+      } else {
+        // For single words, use word boundaries
+        translated = translated.replace(new RegExp(`\\b${en}\\b`, 'gi'), he);
+      }
     });
-
-    // Remove "area_for_control" text if it appears
-    translated = translated.replace(/area_for_control/g, '');
     
     return translated;
   }, []);

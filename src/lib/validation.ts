@@ -2740,7 +2740,7 @@ export const buildingValidators = {
 
       // Only validate if area_for_control is not 0 or null
       if (!isNaN(controlArea) && controlArea !== 0 && !isNaN(totalArea) && controlArea !== totalArea) {
-        errors.area_for_control = 'שטח לבקרה חייב להיות שווה לשטח הכולל';
+        errors.area_for_control = 'שטח לבקרה חייב להיות שווה לשטח הכולל'.replace(/area_for_control/g, '');
       }
     }
 

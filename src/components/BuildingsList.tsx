@@ -1995,7 +1995,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         const errors = validationErrors.get(buildingKey);
         const hasValidationError = errors && Object.keys(errors).length > 0;
         const allErrorMessages = hasValidationError 
-          ? Object.entries(errors || {}).map(([field, msg]) => translateErrorMessage(String(msg))).join('; ')
+          ? Object.entries(errors || {}).map(([field, msg]) => translateErrorMessage(String(msg))).join('\n')
           : '';
 
         return (

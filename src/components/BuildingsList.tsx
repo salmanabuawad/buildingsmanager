@@ -2355,6 +2355,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
         if (errorMsg) {
+          // Remove "area_for_control" text from error message
+          const cleanErrorMsg = String(errorMsg).replace(/area_for_control/g, '');
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'rtl' }}>
               <span className="relative group" style={{ color: '#dc2626', cursor: 'pointer' }}>
@@ -2374,7 +2376,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     border: '2px solid #ef4444'
                   }}>
-                    {errorMsg}
+                    {cleanErrorMsg}
                   </div>
                 </div>
               </span>

@@ -432,8 +432,45 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         } : null
       });
       
-      // Update assets state - this will trigger AG Grid to update row data
-      // The isRefreshingAfterSaveRef flag should prevent onCellValueChanged from firing
+      // Update assets state - use AG Grid transaction API for smoother updates when refreshing after save
+      // This preserves scroll position and selection better than full rowData replacement
+      if (gridRef.current?.api && isRefreshingAfterSaveRef.current && assets.length > 0) {
+        // Use transaction API for incremental updates after save
+        // This is smoother and preserves UI state better
+        const currentAssetIds = new Set(assets.map(a => String(a.asset_id)));
+        const newAssetIds = new Set(mergedAssets.map(a => String(a.asset_id)));
+        
+        // Find added, updated, and removed assets
+        const toAdd = mergedAssets.filter(a => !currentAssetIds.has(String(a.asset_id)));
+        const toUpdate = mergedAssets.filter(a => {
+          const existing = assets.find(ca => String(ca.asset_id) === String(a.asset_id));
+          return existing && JSON.stringify(existing) !== JSON.stringify(a);
+        });
+        const toRemove = assets.filter(a => !newAssetIds.has(String(a.asset_id)));
+        
+        // Apply transaction for smoother update (only if there are actual changes)
+        if (toAdd.length > 0 || toUpdate.length > 0 || toRemove.length > 0) {
+          try {
+            gridRef.current.api.applyTransaction({
+              add: toAdd,
+              update: toUpdate,
+              remove: toRemove
+            });
+            // Still update state for consistency
+            setAssets(mergedAssets);
+            return; // Early return to skip the setAssets call below
+          } catch (err) {
+            console.warn('[AssetsList] Transaction API failed, falling back to full update:', err);
+            // Fall through to regular setAssets
+          }
+        } else {
+          // No changes detected, just update state
+          setAssets(mergedAssets);
+          return;
+        }
+      }
+      
+      // Regular update for initial load or when transaction API isn't available
       setAssets(mergedAssets);
       
       // Store original assets for cancel functionality
@@ -534,6 +571,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
       const updatedAsset = { ...data, [field]: newValue };
+      
+      // Even during refresh, if user manually changes a field, mark it as dirty
+      // This ensures user edits are not lost during refresh
+      setDirtyAssets(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(assetId) || {};
+        const changesToStore = { ...existing, [field]: newValue };
+        newMap.set(assetId, changesToStore);
+        return newMap;
+      });
       
       // Update assets state without triggering validation
       setAssets(prevAssets =>
@@ -1537,8 +1584,41 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Set this BEFORE fetchData to prevent any cell change events during the refresh
       isRefreshingAfterSaveRef.current = true;
       
+      // Preserve scroll position and selection before refresh
+      let scrollPosition = { top: 0, left: 0 };
+      let selectedRows: any[] = [];
+      if (gridRef.current?.api) {
+        const scrollInfo = gridRef.current.api.getVerticalPixelRange();
+        scrollPosition = {
+          top: scrollInfo.top || 0,
+          left: gridRef.current.api.getHorizontalPixelRange()?.left || 0
+        };
+        selectedRows = gridRef.current.api.getSelectedRows();
+      }
+      
       // Refresh data from server to update grid after successful deletions and saves
       await fetchData(false);
+      
+      // Restore scroll position and selection after a brief delay to allow grid to update
+      if (gridRef.current?.api && (scrollPosition.top > 0 || selectedRows.length > 0)) {
+        setTimeout(() => {
+          if (gridRef.current?.api) {
+            // Restore scroll position
+            gridRef.current.api.ensureIndexVisible(
+              Math.floor(scrollPosition.top / 24) // Approximate row index (24px per row)
+            );
+            // Restore selection if possible
+            if (selectedRows.length > 0) {
+              const assetIds = selectedRows.map(r => String(r.asset_id)).filter(Boolean);
+              gridRef.current.api.forEachNode(node => {
+                if (assetIds.includes(String(node.data?.asset_id))) {
+                  node.setSelected(true);
+                }
+              });
+            }
+          }
+        }, 100);
+      }
       
       // Keep the flag set for a longer period to ensure all grid updates complete
       // AG Grid may batch updates, so we need to wait for all re-renders to finish
@@ -3197,30 +3277,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
                 const tooltipContent = isHovered ? (
                   <div
+                    className="tooltip-container"
                     style={{
-                      position: 'fixed',
                       top: `${position.top}px`,
-                      right: `${position.right + 8}px`,
-                      transform: 'translateY(-50%)',
-                      zIndex: 9999,
-                      pointerEvents: 'none'
+                      right: `${position.right + 8}px`
                     }}
                   >
-                    <div style={{
-                      backgroundColor: '#f9fafb',
-                      color: '#1f2937',
-                      padding: '12px 16px',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      maxWidth: '500px',
-                      minWidth: '300px',
-                      direction: 'rtl',
-                      textAlign: 'right',
-                      lineHeight: '1.6',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                      border: '2px solid #ef4444',
-                      whiteSpace: 'pre-line'
-                    }}>
+                    <div className="tooltip-content">
                       {errorMessage}
                     </div>
                   </div>
@@ -4054,7 +4117,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                       addEmptyRow();
                     }
                   }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:from-emerald-700 active:to-emerald-800 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold border border-emerald-700/20"
+                  className="btn btn-primary btn-md"
                 >
                   <Plus className="h-4 w-4" />
                   הוסף נכס
@@ -4064,7 +4127,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             <button
               type="button"
               onClick={handleBatchValidateBuildingAssets}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 active:from-cyan-700 active:to-cyan-800 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold border border-cyan-700/20"
+              className="btn btn-secondary btn-md"
               title={selectedAssets.size > 0 ? `אמת ${selectedAssets.size} נכסים נבחרים` : 'אמת את כל הנכסים'}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -4075,7 +4138,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 type="button"
                 onClick={handleExportToExcel}
                 disabled={loading || assets.length === 0}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-blue-700/20 disabled:border-gray-500/20"
+                className="btn btn-export btn-md"
                 title="ייצא את כל הנכסים לקובץ Excel"
               >
                 <FileSpreadsheet className="h-4 w-4" />

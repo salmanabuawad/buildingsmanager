@@ -81,7 +81,7 @@ VALUES
   ('assets-list', 'sub_asset_size_6', 6, 2, 'גודל נכס משני 6', false, null, true, NULL),
   ('assets-list', 'comment', 6, 2, 'הערה', false, null, true, NULL),
   ('assets-list', 'area_from_distribution', 6, 2, 'שטח מפיזור', false, null, true, NULL),
-  ('assets-list', 'structure_drawing_url', 6, 2, 'קישור לשרטוט', false, null, true, NULL),
+  ('assets-list', 'structure_drawing_url', 6, 2, 'שרטוט מבנה', true, 'right', true, NULL),
   ('assets-list', 'elevator', 4, 2, 'מעלית', false, null, true, NULL),
   ('assets-list', 'single_double_family', 4, 2, 'בית פרטי', false, null, true, NULL),
   ('assets-list', 'condo', 4, 2, 'בית משותף', false, null, true, NULL),
@@ -89,8 +89,8 @@ VALUES
   ('assets-list', 'exported_to_automation', 4, 2, 'יוצא לאוטומציה', false, null, true, NULL)
 ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, padding = EXCLUDED.padding, 
-    pinned = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'actions') THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'actions') THEN 'right' WHEN field_configurations.pinned = true THEN 'right' ELSE field_configurations.pin_side END,
+    pinned = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'actions', 'structure_drawing_url') THEN true ELSE field_configurations.pinned END,
+    pin_side = CASE WHEN EXCLUDED.field_name IN ('asset_id', 'actions', 'structure_drawing_url') THEN 'right' WHEN field_configurations.pinned = true THEN 'right' ELSE field_configurations.pin_side END,
     updated_at = now();
 
 -- ============================================================================

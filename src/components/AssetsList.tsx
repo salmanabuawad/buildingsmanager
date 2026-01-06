@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -22,6 +22,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 import { Toast } from './Toast';
+import { FileViewer } from './FileViewer';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -70,6 +71,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [batchValidationResults, setBatchValidationResults] = useState<BatchValidationResults | null>(null);
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
+  const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [fileViewerClosing, setFileViewerClosing] = useState(false);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
@@ -128,6 +132,39 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
     return isAssetTypeNotAccountableForDistribution(asset.main_asset_type);
   }, [isAssetTypeNotAccountableForDistribution]);
+
+  // Helper function to check if an asset has at least one type (main or subtype) that is accountable for distribution
+  // An asset is valid for distribution if it has at least one type where non_accountable_for_distribution === false
+  const hasAtLeastOneAccountableTypeForDistribution = useCallback((asset: Asset): boolean => {
+    if (!asset || !assetTypes || assetTypes.length === 0) {
+      return false;
+    }
+
+    // Check main asset type
+    if (asset.main_asset_type) {
+      const mainTypeStr = String(asset.main_asset_type).trim();
+      const mainAssetType = assetTypes.find(at => String(at.name).trim() === mainTypeStr);
+      if (mainAssetType && mainAssetType.non_accountable_for_distribution !== true) {
+        return true; // Main type is accountable
+      }
+    }
+
+    // Check all subtypes (1-6)
+    for (let i = 1; i <= 6; i++) {
+      const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+      const subType = asset[subTypeField] as string | undefined;
+      if (subType && subType.trim() !== '') {
+        const subTypeStr = String(subType).trim();
+        const subAssetType = assetTypes.find(at => String(at.name).trim() === subTypeStr);
+        if (subAssetType && subAssetType.non_accountable_for_distribution !== true) {
+          return true; // At least one subtype is accountable
+        }
+      }
+    }
+
+    // No accountable types found
+    return false;
+  }, [assetTypes]);
 
   // Helper function to check if a field should be editable
   // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
@@ -1928,8 +1965,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           return false;
         }
         
-        // Exclude non-accountable assets for distribution using the helper function
-        if (isAssetNotAccountableForDistribution(asset)) {
+        // Include only assets that have at least one accountable type (main or subtype) for distribution
+        if (!hasAtLeastOneAccountableTypeForDistribution(asset)) {
           notAccountableForDistributionCount++;
           debugInfo.reason = 'not_accountable_for_distribution';
           if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
@@ -1941,13 +1978,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           noMainTypeCount++;
           debugInfo.reason = 'no_main_type';
           if (index < 3) console.log('[DistributeResidence] Asset filtered:', debugInfo);
-          return false;
-        }
-        
-        // Exclude residence assets where asset_id mod 1000 equals zero
-        if (asset.asset_id % 1000 === 0) {
-          debugInfo.reason = 'asset_id_mod_1000_zero';
-          if (index < 3) console.log('[DistributeResidence] Asset filtered (asset_id mod 1000 = 0):', debugInfo);
           return false;
         }
         
@@ -2052,13 +2082,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const isClearing = areaPerAsset === 0;
       
       // Also clear area_from_distribution for non-accountable assets
+      // (assets that don't have at least one accountable type for distribution)
       const nonAccountableAssets = assets.filter(asset => {
         // Skip deleted assets
         if (deletedAssets.has(String(asset.asset_id))) {
           return false;
         }
-        // Include assets with non_accountable_for_distribution === true
-        return isAssetNotAccountableForDistribution(asset);
+        // Include assets that don't have at least one accountable type
+        return !hasAtLeastOneAccountableTypeForDistribution(asset);
       });
 
       // Track changes
@@ -2377,7 +2408,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     } finally {
       setLoading(false);
     }
-  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, isAssetNotAccountableForDistribution]);
+  }, [building, assets, assetTypes, dirtyAssets, deletedAssets, hasAtLeastOneAccountableTypeForDistribution]);
 
   const handleDistributeBusinessSharedArea = useCallback(async () => {
     // Allow distribution if flag is set, even if current area is 0 (to clear previous distribution)
@@ -2895,6 +2926,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
   }
 
+  const handleViewDrawing = useCallback((url: string, fileName?: string) => {
+    setSelectedDrawingUrl(url);
+    setSelectedFileName(fileName || null);
+  }, []);
+
   // Check if tax region is "resident" (מגורים)
   // Find asset types with this tax region and check if they are all "מגורים"
   const isResidentTaxRegion = useMemo(() => {
@@ -3371,6 +3407,84 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   </label>
                 )}
               </>
+            )}
+          </div>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
+      headerName: t('structureDrawing') || 'שרטוט מבנה',
+      field: 'structure_drawing_url',
+      pinned: 'right',
+      sortable: false,
+      filter: false,
+      editable: false,
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      headerClass: 'ag-right-aligned-header',
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        if (!asset) return null;
+        
+        const assetId = String(asset.asset_id);
+        const hasDrawing = !!asset.structure_drawing_url;
+        const isNew = newAssets.has(assetId);
+        const isUploading = uploadingAssetId === asset.asset_id;
+        
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            {!isErrorFixingMode && !isNew && taxRegion && (
+              <label
+                className="flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer"
+                title={t('upload') || 'העלה קובץ'}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {isUploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Upload className="h-5 w-5" />
+                )}
+                <input
+                  type="file"
+                  ref={(el) => {
+                    if (el) fileInputRefs.current.set(assetId, el);
+                  }}
+                  className="hidden"
+                  accept="image/*,.pdf,.dwg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleFileUpload(asset.asset_id, file);
+                    }
+                    // Reset input
+                    if (fileInputRefs.current.has(assetId)) {
+                      fileInputRefs.current.get(assetId)!.value = '';
+                    }
+                  }}
+                />
+              </label>
+            )}
+            {hasDrawing && asset.structure_drawing_url ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Extract filename from URL if possible
+                  const urlParts = asset.structure_drawing_url.split('/');
+                  const fileName = urlParts[urlParts.length - 1].split('?')[0];
+                  handleViewDrawing(asset.structure_drawing_url, fileName);
+                }}
+                className="p-1 text-green-600 hover:text-green-700 transition-colors hover:scale-110"
+                title={selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') || 'צופה' : t('view') || 'צפה בקובץ'}
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+            ) : (
+              <div className="flex items-center justify-center p-1 text-gray-400" title={t('noFile') || 'אין קובץ'}>
+                <FileText className="h-5 w-5" />
+              </div>
             )}
           </div>
         );
@@ -4584,6 +4698,55 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {/* File Viewer Modal */}
+      {selectedDrawingUrl && (
+        <div 
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+            fileViewerClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => {
+            setFileViewerClosing(true);
+            setTimeout(() => {
+              setSelectedDrawingUrl(null);
+              setSelectedFileName(null);
+              setFileViewerClosing(false);
+            }, 300);
+          }}
+        >
+          <div 
+            className={`bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col transition-all duration-300 ${
+              fileViewerClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-slate-800">{t('structureDrawing') || 'שרטוט מבנה'}</h3>
+              <button
+                onClick={() => {
+                  setFileViewerClosing(true);
+                  setTimeout(() => {
+                    setSelectedDrawingUrl(null);
+                    setSelectedFileName(null);
+                    setFileViewerClosing(false);
+                  }, 300);
+                }}
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors font-bold"
+              >
+                <X className="h-4 w-4" />
+                <span>{t('closeViewer') || 'סגור'}</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <FileViewer
+                fileUrl={selectedDrawingUrl}
+                fileName={selectedFileName || `structure-drawing-${buildingNumber}`}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
     </>

@@ -3387,41 +3387,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
-            {!isErrorFixingMode && !isNew && (
-              <>
-                {taxRegion && (
-                  <label
-                    className="p-1 text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 cursor-pointer"
-                    title="העלה קובץ"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {uploadingAssetId === asset.asset_id ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Upload className="h-5 w-5" />
-                    )}
-                    <input
-                      type="file"
-                      ref={(el) => {
-                        if (el) fileInputRefs.current.set(assetId, el);
-                      }}
-                      className="hidden"
-                      accept="image/*,.pdf,.dwg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileUpload(asset.asset_id, file);
-                        }
-                        // Reset input
-                        if (fileInputRefs.current.has(assetId)) {
-                          fileInputRefs.current.get(assetId)!.value = '';
-                        }
-                      }}
-                    />
-                  </label>
-                )}
-              </>
-            )}
           </div>
         );
       },

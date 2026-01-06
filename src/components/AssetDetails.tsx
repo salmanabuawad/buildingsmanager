@@ -6,6 +6,7 @@ import { Home, Loader2, Save, X, AlertCircle, Upload, Eye, CheckCircle2, Copy, F
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
+import { AssetFilesModal, AssetFilesModalRef } from './AssetFilesModal';
 import { compressFile } from '../lib/fileCompression';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, CellClassParams } from 'ag-grid-community';
@@ -69,6 +70,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
+  const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
+  const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
+  const assetFilesModalRef = useRef<AssetFilesModalRef>(null);
   
   // Refs for audit detail grid (unified grid for all assets)
   const gridRef = useRef<AgGridReact<Asset>>(null);
@@ -1474,8 +1478,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       // Step 2: Prepare file for upload
       const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
-      const fileName = `${assetId}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${assetId}/${Date.now()}_${file.name}`;
+      const filePath = fileName;
 
       // Step 3: Upload with simulated progress tracking
       // Simulate upload progress (Supabase doesn't provide real-time progress)
@@ -1491,9 +1495,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       const { error: uploadError } = await supabase.storage
         .from('structure-drawings')
-        .upload(filePath, compressedFile, { 
-          upsert: true
-        });
+        .upload(filePath, compressedFile);
 
       clearInterval(progressInterval);
 
@@ -1508,11 +1510,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
-      const result = await api.assets.saveBulkTransactional([{ asset_id: assetId, structure_drawing_url: publicUrl }], 'manual_update', undefined, undefined, undefined, isBusinessContext);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update structure drawing URL');
-      }
+      // Step 5: Add file to asset_files table (instead of updating structure_drawing_url)
+      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 
@@ -1525,6 +1524,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         type: 'success' 
       });
       
+      // Refresh files modal if it's open for this asset
+      if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
+        assetFilesModalRef.current?.refreshFiles();
+      }
+      
       await fetchData();
     } catch (err) {
       setToast({
@@ -1535,11 +1539,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       setUploadProgress(null);
       setUploadingAssetId(null);
     }
-  }, [t]);
+  }, [t, assetFilesModalOpen, selectedAssetIdForFiles]);
 
-  const handleViewDrawing = useCallback((url: string, fileName?: string) => {
-    setSelectedDrawingUrl(url);
-    setSelectedFileName(fileName || null);
+  const handleViewDrawing = useCallback((assetId: number) => {
+    setSelectedAssetIdForFiles(assetId);
+    setAssetFilesModalOpen(true);
   }, []);
 
   function handleCancelChanges() {
@@ -1875,32 +1879,19 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             )}
           </div>
         ) : null}
-        {hasDrawing && asset.structure_drawing_url ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              // Extract filename from URL if possible
-              const urlParts = asset.structure_drawing_url.split('/');
-              const fileName = urlParts[urlParts.length - 1].split('?')[0];
-              handleViewDrawing(asset.structure_drawing_url, fileName);
-            }}
-            className={`p-1 transition-colors hover:scale-110 ${
-              selectedDrawingUrl === asset.structure_drawing_url
-                ? 'text-green-600 hover:text-green-700'
-                : 'text-green-600 hover:text-green-700'
-            }`}
-            title={selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') || 'צופה' : t('view') || 'צפה בקובץ'}
-          >
-            <FileText className="h-5 w-5" />
-          </button>
-        ) : (
-          <div className="flex items-center justify-center p-1 text-gray-400" title={t('noFile') || 'אין קובץ'}>
-            <FileText className="h-5 w-5" />
-          </div>
-        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewDrawing(asset.asset_id);
+          }}
+          className="p-1 text-green-600 hover:text-green-700 transition-colors hover:scale-110"
+          title={t('viewFiles') || 'צפה בקבצים'}
+        >
+          <FileText className="h-5 w-5" />
+        </button>
       </div>
     );
-  }, [t, uploadingAssetId, uploadProgress, selectedDrawingUrl, handleFileUpload, handleViewDrawing]);
+  }, [t, uploadingAssetId, uploadProgress, assetFilesModalOpen, selectedAssetIdForFiles, handleFileUpload, handleViewDrawing]);
 
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
@@ -3928,6 +3919,19 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             )}
           </div>
         </div>
+      )}
+
+      {/* Asset Files Modal */}
+      {assetFilesModalOpen && selectedAssetIdForFiles && (
+        <AssetFilesModal
+          ref={assetFilesModalRef}
+          isOpen={assetFilesModalOpen}
+          onClose={() => {
+            setAssetFilesModalOpen(false);
+            setSelectedAssetIdForFiles(null);
+          }}
+          assetId={selectedAssetIdForFiles}
+        />
       )}
     </div>
     </>

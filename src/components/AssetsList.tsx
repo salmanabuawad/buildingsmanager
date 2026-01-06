@@ -23,6 +23,7 @@ import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/te
 import { exportToExcel } from '../lib/excelExport';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
+import { AssetFilesModal } from './AssetFilesModal';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -74,6 +75,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
+  const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
+  const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
+  const [assetFilesModalKey, setAssetFilesModalKey] = useState(0); // Key to force refresh
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
@@ -2219,12 +2223,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             continue;
           }
 
-          // Count remaining subtypes
-          let remainingSubTypeCount = 0;
-          let lastSubTypeIndex = -1;
-          let lastSubType: string | null = null;
-          let lastSubSize: number = 0;
-
+          // Compact subtypes: shift remaining subtypes to fill holes
+          // Collect all remaining non-null subtypes and sizes
+          const remainingSubtypes: Array<{ type: string | number; size: number }> = [];
           for (let i = 1; i <= 6; i++) {
             const subTypeField = `sub_asset_type_${i}` as keyof Asset;
             const subSizeField = `sub_asset_size_${i}` as keyof Asset;
@@ -2236,15 +2237,36 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               : currentAsset[subSizeField];
 
             if (subType && subType !== '' && subType !== null) {
-              remainingSubTypeCount++;
-              lastSubTypeIndex = i;
-              lastSubType = subType as string;
-              lastSubSize = subSize ? Number(subSize) : 0;
+              remainingSubtypes.push({
+                type: subType,
+                size: subSize ? Number(subSize) : 0
+              });
             }
           }
 
+          // Clear all subtype positions
+          for (let i = 1; i <= 6; i++) {
+            const subTypeField = `sub_asset_type_${i}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i}` as keyof Asset;
+            (changes as any)[subTypeField] = null;
+            (changes as any)[subSizeField] = null;
+          }
+
+          // Shift remaining subtypes to fill holes (compact to positions 1, 2, 3, etc.)
+          for (let i = 0; i < remainingSubtypes.length; i++) {
+            const subTypeField = `sub_asset_type_${i + 1}` as keyof Asset;
+            const subSizeField = `sub_asset_size_${i + 1}` as keyof Asset;
+            (changes as any)[subTypeField] = remainingSubtypes[i].type;
+            (changes as any)[subSizeField] = remainingSubtypes[i].size;
+          }
+
+          // Count remaining subtypes (after compaction)
+          const remainingSubTypeCount = remainingSubtypes.length;
+          const lastSubType = remainingSubtypes.length > 0 ? remainingSubtypes[remainingSubtypes.length - 1].type : null;
+          const lastSubSize = remainingSubtypes.length > 0 ? remainingSubtypes[remainingSubtypes.length - 1].size : 0;
+
           // If only one subtype remains, move it back to main type
-          if (remainingSubTypeCount === 1 && lastSubTypeIndex > 0 && lastSubType) {
+          if (remainingSubTypeCount === 1 && lastSubType) {
             changes.main_asset_type = lastSubType;
             changes.asset_size = lastSubSize;
             // Clear all subtypes
@@ -2255,16 +2277,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               (changes as any)[subSizeField] = null;
             }
           } else {
-            // Calculate asset_size as sum of remaining subtypes
+            // Calculate asset_size as sum of remaining subtypes (already compacted)
             let totalSubSize = 0;
-            for (let i = 1; i <= 6; i++) {
-              const subSizeField = `sub_asset_size_${i}` as keyof Asset;
-              const subSize = changes[subSizeField] !== undefined
-                ? changes[subSizeField]
-                : currentAsset[subSizeField];
-              if (subSize != null && subSize !== '' && !isNaN(Number(subSize))) {
-                totalSubSize += Number(subSize);
-              }
+            for (let i = 0; i < remainingSubtypes.length; i++) {
+              totalSubSize += remainingSubtypes[i].size;
             }
             changes.asset_size = totalSubSize;
           }
@@ -2879,12 +2895,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       setUploadProgress({ assetId, progress: 30, fileName: file.name });
 
-      // Step 2: Prepare file for upload
+      // Step 2: Prepare file for upload (use asset_id folder and timestamp to avoid overwriting)
       const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
-      const fileName = `${assetId}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const timestamp = Date.now();
+      const fileName = `${assetId}_${timestamp}.${fileExt}`;
+      const filePath = `${assetId}/${fileName}`;
 
-      // Step 3: Upload with simulated progress tracking
+      // Step 3: Upload with simulated progress tracking (no upsert - add new file)
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (!prev || prev.assetId !== assetId) return prev;
@@ -2897,9 +2914,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       const { error: uploadError } = await supabase.storage
         .from('structure-drawings')
-        .upload(filePath, compressedFile, { 
-          upsert: true
-        });
+        .upload(filePath, compressedFile);
 
       clearInterval(progressInterval);
 
@@ -2914,11 +2929,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
-      const result = await api.assets.saveBulkTransactional([{ asset_id: assetId, structure_drawing_url: publicUrl }], 'manual_update');
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update structure drawing URL');
-      }
+      // Step 5: Add file to asset_files table (instead of updating structure_drawing_url)
+      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 
@@ -2928,6 +2940,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         : '';
       setToast({ message: `הקובץ הועלה בהצלחה${sizeReduction}`, type: 'success' });
       setTimeout(() => setToast(null), 5000);
+      
+      // Refresh files modal if it's open for this asset
+      if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
+        // Force modal refresh by updating key
+        setAssetFilesModalKey(prev => prev + 1);
+      }
       
       // Refresh data
       await fetchData(false);
@@ -3409,7 +3427,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         if (!asset) return null;
         
         const assetId = String(asset.asset_id);
-        const hasDrawing = !!asset.structure_drawing_url;
         const isNew = newAssets.has(assetId);
         const isUploading = uploadingAssetId === asset.asset_id;
         
@@ -3446,25 +3463,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 />
               </label>
             )}
-            {hasDrawing && asset.structure_drawing_url ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Extract filename from URL if possible
-                  const urlParts = asset.structure_drawing_url.split('/');
-                  const fileName = urlParts[urlParts.length - 1].split('?')[0];
-                  handleViewDrawing(asset.structure_drawing_url, fileName);
-                }}
-                className="p-1 text-green-600 hover:text-green-700 transition-colors hover:scale-110"
-                title={selectedDrawingUrl === asset.structure_drawing_url ? t('viewing') || 'צופה' : t('view') || 'צפה בקובץ'}
-              >
-                <FileText className="h-5 w-5" />
-              </button>
-            ) : (
-              <div className="flex items-center justify-center p-1 text-gray-400" title={t('noFile') || 'אין קובץ'}>
-                <FileText className="h-5 w-5" />
-              </div>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedAssetIdForFiles(asset.asset_id);
+                setAssetFilesModalOpen(true);
+              }}
+              className="p-1 text-green-600 hover:text-green-700 transition-colors hover:scale-110"
+              title={t('view') || 'צפה בקבצים'}
+            >
+              <FileText className="h-5 w-5" />
+            </button>
           </div>
         );
       },
@@ -4741,6 +4750,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             </div>
           </div>
         </div>
+      )}
+
+      {/* Asset Files Modal */}
+      {assetFilesModalOpen && selectedAssetIdForFiles && (
+        <AssetFilesModal
+          key={assetFilesModalKey}
+          isOpen={assetFilesModalOpen}
+          onClose={() => {
+            setAssetFilesModalOpen(false);
+            setSelectedAssetIdForFiles(null);
+          }}
+          assetId={selectedAssetIdForFiles}
+        />
       )}
 
     </>

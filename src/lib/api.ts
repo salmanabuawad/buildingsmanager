@@ -327,6 +327,17 @@ export interface Asset {
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
 }
 
+export interface AssetFile {
+  id: number;
+  asset_id: number;
+  file_url: string;
+  file_name?: string;
+  file_size?: number;
+  file_type?: string;
+  uploaded_at: string;
+  uploaded_by?: string;
+}
+
 export interface AssetMeasurement {
   id: string;
   asset_id: string;
@@ -2138,6 +2149,72 @@ export const api = {
       } catch (error: any) {
         console.error('[api.assets.resetExportToAutomation] Unexpected error:', error);
         return { success: false, count: 0, error: error.message || 'Unknown error' };
+      }
+    },
+    files: {
+      getAll: async (assetId: number): Promise<AssetFile[]> => {
+        const { data, error } = await supabase
+          .from('asset_files')
+          .select('*')
+          .eq('asset_id', assetId)
+          .order('uploaded_at', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
+      },
+      add: async (assetId: number, fileUrl: string, fileName?: string, fileSize?: number, fileType?: string): Promise<AssetFile> => {
+        const userInfo = await getCurrentUserInfo();
+        const { data, error } = await supabase
+          .from('asset_files')
+          .insert({
+            asset_id: assetId,
+            file_url: fileUrl,
+            file_name: fileName,
+            file_size: fileSize,
+            file_type: fileType,
+            uploaded_by: userInfo.user_name
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      },
+      delete: async (fileIds: number[]): Promise<{ success: boolean; error?: string }> => {
+        const { error } = await supabase
+          .from('asset_files')
+          .delete()
+          .in('id', fileIds);
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+        return { success: true };
+      },
+      deleteByUrl: async (fileUrl: string): Promise<{ success: boolean; error?: string }> => {
+        // Extract file path from URL to delete from storage
+        const urlParts = fileUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1].split('?')[0];
+        
+        // Delete from storage
+        const { error: storageError } = await supabase.storage
+          .from('structure-drawings')
+          .remove([fileName]);
+
+        if (storageError) {
+          console.warn('Error deleting file from storage:', storageError);
+        }
+
+        // Delete from database
+        const { error } = await supabase
+          .from('asset_files')
+          .delete()
+          .eq('file_url', fileUrl);
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+        return { success: true };
       }
     },
   },

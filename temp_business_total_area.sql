@@ -27,11 +27,6 @@ SELECT grid_name, field_name, hebrew_name, width_chars, padding, visible, pinned
 FROM field_configurations
 WHERE field_name = 'business_total_area';
 
--- Verify it was removed from buildings-list
-SELECT COUNT(*) as buildings_list_count
-FROM field_configurations
-WHERE grid_name = 'buildings-list' AND field_name = 'business_total_area';
--- Should return 0
 
 -- Verify it was added to assets-list
 SELECT COUNT(*) as assets_list_count

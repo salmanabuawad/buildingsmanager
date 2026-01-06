@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Trash2, Eye, FileText, Image as ImageIcon, File } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Trash2, Eye, FileText, Image as ImageIcon, File, AlertTriangle } from 'lucide-react';
 import { api, AssetFile } from '../lib/api';
 import { FileViewer } from './FileViewer';
 
@@ -15,6 +16,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId }: AssetFilesModalPro
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const [viewingFile, setViewingFile] = useState<AssetFile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (isOpen && assetId) {
@@ -60,13 +62,15 @@ export function AssetFilesModal({ isOpen, onClose, assetId }: AssetFilesModalPro
     }
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteClick = () => {
+    if (selectedFiles.size === 0) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (selectedFiles.size === 0) return;
     
-    if (!confirm(`האם אתה בטוח שברצונך למחוק ${selectedFiles.size} קבצים?`)) {
-      return;
-    }
-
+    setShowDeleteConfirm(false);
     setDeleting(true);
     try {
       const result = await api.assets.files.delete(Array.from(selectedFiles));
@@ -125,7 +129,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId }: AssetFilesModalPro
             <div className="flex items-center gap-2">
               {selectedFiles.size > 0 && (
                 <button
-                  onClick={handleDeleteSelected}
+                  onClick={handleDeleteClick}
                   disabled={deleting}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50"
                 >
@@ -261,6 +265,46 @@ export function AssetFilesModal({ isOpen, onClose, assetId }: AssetFilesModalPro
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && createPortal(
+        <div 
+          className="fixed inset-0 z-[70] flex items-center justify-center transition-opacity duration-300 opacity-100"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0" />
+              <h3 className="text-lg font-bold text-slate-900">מחיקת קבצים</h3>
+            </div>
+            
+            <p className="text-slate-600 mb-6">
+              האם אתה בטוח שברצונך למחוק {selectedFiles.size} {selectedFiles.size === 1 ? 'קובץ' : 'קבצים'}? פעולה זו לא ניתנת לביטול.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'מוחק...' : 'מחק'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

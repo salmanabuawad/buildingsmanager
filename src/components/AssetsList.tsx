@@ -3923,6 +3923,21 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       hide: isResidentTaxRegion // Hide for residence assets (area_from_distribution is only for business distribution)
     },
     {
+      field: 'business_total_area',
+      headerName: 'סה"כ שטח עסקים',
+      editable: false, // Always readonly - calculated field
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params),
+      hide: isResidentTaxRegion // Hide for residence assets (business_total_area is only for business assets)
+    },
+    {
       field: 'extra_field',
       headerName: '',
       editable: (params) => {

@@ -2237,33 +2237,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellStyle: (params) => getCellStyle(params, 'business_shared_area')
     },
     {
-      field: 'business_total_area',
-      headerName: 'סה"כ שטח עסקים',
-      editable: false,
-      valueParser: (params: any) => {
-        if (!params) return null;
-        const newValue = params.newValue;
-        if (newValue === null || newValue === undefined || newValue === '') return null;
-        const numValue = Number(newValue);
-        return isNaN(numValue) ? null : numValue;
-      },
-      cellRenderer: (params: any) => {
-        const building = params.data as Building;
-        if (!building) return '';
-        const value = params.value && params.value !== 0 ? params.value.toLocaleString() : '';
-        return value;
-      },
-      cellStyle: (params) => {
-        const building = params.data as Building;
-        if (!building) return { textAlign: 'right', backgroundColor: '#f0f9ff', fontWeight: '600' };
-        return {
-          textAlign: 'right',
-          backgroundColor: '#f0f9ff',
-          fontWeight: '600'
-        };
-      }
-    },
-    {
       field: 'total_building_area',
       headerName: 'ס"כ גודל',
       editable: false,

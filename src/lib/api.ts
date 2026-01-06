@@ -268,7 +268,6 @@ export interface Building {
   tax_region?: string;
   residence_shared_area?: number;
   business_shared_area?: number;
-  business_total_area?: number; // Total business area = business_shared_area + sum(asset_size + area_from_distribution) for all business assets
   elevator?: string;
   area_for_control?: number;
   created_at: string;
@@ -323,6 +322,7 @@ export interface Asset {
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
   area_from_distribution?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
+  business_total_area?: number; // Total business area for this asset = asset_size + area_from_distribution (only for business assets, 0 for non-business assets)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
 }
@@ -531,10 +531,6 @@ function sanitizeBuildingInput(input: any): any {
   // Database column is 'business_shared_area' (matching the interface)
   if (input.business_shared_area != null) {
     sanitized.business_shared_area = sanitizeNumber(input.business_shared_area);
-  }
-  // Database column is 'business_total_area' (matching the interface)
-  if (input.business_total_area != null) {
-    sanitized.business_total_area = sanitizeNumber(input.business_total_area);
   }
   // Database column is 'area_for_control' (matching the interface)
   if (input.area_for_control != null) {

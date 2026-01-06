@@ -2857,11 +2857,25 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setUploadingAssetId(assetId);
       setUploadProgress({ assetId, progress: 0, fileName: file.name });
 
-      // Step 1: Compress file (10% progress)
-      setUploadProgress({ assetId, progress: 10, fileName: file.name });
-      const compressedFile = await compressFile(file);
-      const originalSizeKB = (file.size / 1024).toFixed(2);
-      const compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
+      // Step 1: Compress file (skip compression for PDF files)
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      let compressedFile: File;
+      let originalSizeKB: string;
+      let compressedSizeKB: string;
+      
+      if (isPdf) {
+        // Skip compression for PDF files
+        setUploadProgress({ assetId, progress: 10, fileName: file.name });
+        compressedFile = file;
+        originalSizeKB = (file.size / 1024).toFixed(2);
+        compressedSizeKB = originalSizeKB;
+      } else {
+        // Compress other file types
+        setUploadProgress({ assetId, progress: 10, fileName: file.name });
+        compressedFile = await compressFile(file);
+        originalSizeKB = (file.size / 1024).toFixed(2);
+        compressedSizeKB = (compressedFile.size / 1024).toFixed(2);
+      }
 
       setUploadProgress({ assetId, progress: 30, fileName: file.name });
 

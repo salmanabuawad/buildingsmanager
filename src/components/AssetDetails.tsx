@@ -1479,8 +1479,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       // Step 2: Prepare file for upload
       const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
-      const fileName = `${assetId}/${Date.now()}_${file.name}`;
-      const filePath = fileName;
+      const timestamp = Date.now();
+      // Use sanitized filename for storage path (no Hebrew or special chars)
+      const sanitizedName = `${timestamp}.${fileExt}`;
+      const filePath = `${assetId}/${sanitizedName}`;
 
       // Step 3: Upload with simulated progress tracking
       // Simulate upload progress (Supabase doesn't provide real-time progress)

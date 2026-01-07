@@ -2973,8 +2973,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Step 2: Prepare file for upload (use asset_id folder and timestamp to avoid overwriting)
       const fileExt = compressedFile.name.split('.').pop() || file.name.split('.').pop();
       const timestamp = Date.now();
-      const fileName = `${assetId}_${timestamp}.${fileExt}`;
-      const filePath = `${assetId}/${fileName}`;
+      // Use sanitized filename for storage path (no Hebrew or special chars)
+      const sanitizedName = `${timestamp}.${fileExt}`;
+      const filePath = `${assetId}/${sanitizedName}`;
 
       // Step 3: Upload with simulated progress tracking (no upsert - add new file)
       const progressInterval = setInterval(() => {

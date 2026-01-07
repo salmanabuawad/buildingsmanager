@@ -78,6 +78,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
   const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
   const [assetFilesModalKey, setAssetFilesModalKey] = useState(0); // Key to force refresh
+  const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
@@ -500,6 +501,31 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             });
             // Still update state for consistency
             setAssets(mergedAssets);
+            
+            // Check which assets have files
+            if (mergedAssets.length > 0) {
+              const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null);
+              const filesMap = new Set<number>();
+              
+              // Check files for all assets in parallel
+              await Promise.all(
+                assetIds.map(async (assetId) => {
+                  try {
+                    const files = await api.assets.files.getAll(assetId);
+                    if (files && files.length > 0) {
+                      filesMap.add(assetId);
+                    }
+                  } catch (err) {
+                    // Ignore errors - asset might not have files
+                  }
+                })
+              );
+              
+              setAssetsWithFiles(filesMap);
+            } else {
+              setAssetsWithFiles(new Set());
+            }
+            
             return; // Early return to skip the setAssets call below
           } catch (err) {
             console.warn('[AssetsList] Transaction API failed, falling back to full update:', err);
@@ -508,12 +534,61 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         } else {
           // No changes detected, just update state
           setAssets(mergedAssets);
+          
+          // Check which assets have files
+          if (mergedAssets.length > 0) {
+            const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null);
+            const filesMap = new Set<number>();
+            
+            // Check files for all assets in parallel
+            await Promise.all(
+              assetIds.map(async (assetId) => {
+                try {
+                  const files = await api.assets.files.getAll(assetId);
+                  if (files && files.length > 0) {
+                    filesMap.add(assetId);
+                  }
+                } catch (err) {
+                  // Ignore errors - asset might not have files
+                }
+              })
+            );
+            
+            setAssetsWithFiles(filesMap);
+          } else {
+            setAssetsWithFiles(new Set());
+          }
+          
           return;
         }
       }
       
       // Regular update for initial load or when transaction API isn't available
       setAssets(mergedAssets);
+      
+      // Check which assets have files
+      if (mergedAssets.length > 0) {
+        const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null);
+        const filesMap = new Set<number>();
+        
+        // Check files for all assets in parallel
+        await Promise.all(
+          assetIds.map(async (assetId) => {
+            try {
+              const files = await api.assets.files.getAll(assetId);
+              if (files && files.length > 0) {
+                filesMap.add(assetId);
+              }
+            } catch (err) {
+              // Ignore errors - asset might not have files
+            }
+          })
+        );
+        
+        setAssetsWithFiles(filesMap);
+      } else {
+        setAssetsWithFiles(new Set());
+      }
       
       // Store original assets for cancel functionality
       // Update originalAssets whenever we load fresh data and there are no pending changes
@@ -2941,6 +3016,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setToast({ message: `הקובץ הועלה בהצלחה${sizeReduction}`, type: 'success' });
       setTimeout(() => setToast(null), 5000);
       
+      // Update assetsWithFiles to include this asset
+      setAssetsWithFiles(prev => new Set(prev).add(assetId));
+      
       // Refresh files modal if it's open for this asset
       if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
         // Force modal refresh by updating key
@@ -3466,11 +3544,18 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedAssetIdForFiles(asset.asset_id);
-                setAssetFilesModalOpen(true);
+                if (assetsWithFiles.has(asset.asset_id)) {
+                  setSelectedAssetIdForFiles(asset.asset_id);
+                  setAssetFilesModalOpen(true);
+                }
               }}
-              className="p-1 text-green-600 hover:text-green-700 transition-colors hover:scale-110"
-              title={t('view') || 'צפה בקבצים'}
+              disabled={!assetsWithFiles.has(asset.asset_id)}
+              className={`p-1 transition-colors hover:scale-110 ${
+                assetsWithFiles.has(asset.asset_id)
+                  ? 'text-green-600 hover:text-green-700 cursor-pointer'
+                  : 'text-gray-300 cursor-not-allowed opacity-50'
+              }`}
+              title={assetsWithFiles.has(asset.asset_id) ? (t('view') || 'צפה בקבצים') : (t('noFiles') || 'אין קבצים')}
             >
               <FileText className="h-5 w-5" />
             </button>
@@ -4762,6 +4847,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             setSelectedAssetIdForFiles(null);
           }}
           assetId={selectedAssetIdForFiles}
+          onFilesDeleted={(assetId, hasFiles) => {
+            if (hasFiles) {
+              setAssetsWithFiles(prev => new Set(prev).add(assetId));
+            } else {
+              setAssetsWithFiles(prev => {
+                const next = new Set(prev);
+                next.delete(assetId);
+                return next;
+              });
+            }
+          }}
         />
       )}
 

@@ -73,6 +73,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
   const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
   const assetFilesModalRef = useRef<AssetFilesModalRef>(null);
+  const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
   
   // Refs for audit detail grid (unified grid for all assets)
   const gridRef = useRef<AgGridReact<Asset>>(null);
@@ -1462,7 +1463,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       
       if (isPdf) {
         // Skip compression for PDF files
-        setUploadProgress({ assetId, progress: 10, fileName: file.name });
+      setUploadProgress({ assetId, progress: 10, fileName: file.name });
         compressedFile = file;
         originalSizeKB = (file.size / 1024).toFixed(2);
         compressedSizeKB = originalSizeKB;
@@ -1523,6 +1524,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         message: `${t('drawingUploadedSuccessfully')}${sizeReduction}`, 
         type: 'success' 
       });
+      
+      // Update assetsWithFiles to include this asset
+      setAssetsWithFiles(prev => new Set(prev).add(assetId));
       
       // Refresh files modal if it's open for this asset
       if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
@@ -1879,19 +1883,26 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             )}
           </div>
         ) : null}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewDrawing(asset.asset_id);
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+            if (assetsWithFiles.has(asset.asset_id)) {
+              handleViewDrawing(asset.asset_id);
+            }
           }}
-          className="p-1 text-green-600 hover:text-green-700 transition-colors hover:scale-110"
-          title={t('viewFiles') || 'צפה בקבצים'}
-        >
-          <FileText className="h-5 w-5" />
-        </button>
+          disabled={!assetsWithFiles.has(asset.asset_id)}
+            className={`p-1 transition-colors hover:scale-110 ${
+            assetsWithFiles.has(asset.asset_id)
+              ? 'text-green-600 hover:text-green-700 cursor-pointer'
+              : 'text-gray-300 cursor-not-allowed opacity-50'
+          }`}
+          title={assetsWithFiles.has(asset.asset_id) ? (t('viewFiles') || 'צפה בקבצים') : (t('noFiles') || 'אין קבצים')}
+          >
+            <FileText className="h-5 w-5" />
+          </button>
       </div>
     );
-  }, [t, uploadingAssetId, uploadProgress, assetFilesModalOpen, selectedAssetIdForFiles, handleFileUpload, handleViewDrawing]);
+  }, [t, uploadingAssetId, uploadProgress, assetFilesModalOpen, selectedAssetIdForFiles, assetsWithFiles, handleFileUpload, handleViewDrawing]);
 
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
@@ -3179,6 +3190,30 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       if (dirtyAssets.size === 0) {
         setOriginalMeasurements(allAssetMeasurements.map(asset => ({ ...asset })));
       }
+      
+      // Check which assets have files
+      if (allAssetMeasurements.length > 0) {
+        const assetIds = allAssetMeasurements.map(a => a.asset_id).filter(id => id != null);
+        const filesMap = new Set<number>();
+        
+        // Check files for all assets in parallel
+        await Promise.all(
+          assetIds.map(async (assetId) => {
+            try {
+              const files = await api.assets.files.getAll(assetId);
+              if (files && files.length > 0) {
+                filesMap.add(assetId);
+              }
+            } catch (err) {
+              // Ignore errors - asset might not have files
+            }
+          })
+        );
+        
+        setAssetsWithFiles(filesMap);
+      } else {
+        setAssetsWithFiles(new Set());
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load asset details');
@@ -3931,6 +3966,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             setSelectedAssetIdForFiles(null);
           }}
           assetId={selectedAssetIdForFiles}
+          onFilesDeleted={(assetId, hasFiles) => {
+            if (hasFiles) {
+              setAssetsWithFiles(prev => new Set(prev).add(assetId));
+            } else {
+              setAssetsWithFiles(prev => {
+                const next = new Set(prev);
+                next.delete(assetId);
+                return next;
+              });
+            }
+          }}
         />
       )}
     </div>

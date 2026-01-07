@@ -8,9 +8,10 @@ interface AssetFilesModalProps {
   isOpen: boolean;
   onClose: () => void;
   assetId: number;
+  onFilesDeleted?: (assetId: number, hasFiles: boolean) => void;
 }
 
-export function AssetFilesModal({ isOpen, onClose, assetId }: AssetFilesModalProps) {
+export function AssetFilesModal({ isOpen, onClose, assetId, onFilesDeleted }: AssetFilesModalProps) {
   const [files, setFiles] = useState<AssetFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -77,6 +78,13 @@ export function AssetFilesModal({ isOpen, onClose, assetId }: AssetFilesModalPro
       if (result.success) {
         await fetchFiles();
         setSelectedFiles(new Set());
+        
+        // Notify parent if callback is provided - check files after fetch
+        if (onFilesDeleted) {
+          // Re-fetch to get updated file count
+          const updatedFiles = await api.assets.files.getAll(assetId);
+          onFilesDeleted(assetId, updatedFiles.length > 0);
+        }
       } else {
         alert(`שגיאה במחיקה: ${result.error}`);
       }

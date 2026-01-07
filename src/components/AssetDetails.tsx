@@ -1532,8 +1532,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       if (assetFilesModalOpen && selectedAssetIdForFiles === assetId) {
         assetFilesModalRef.current?.refreshFiles();
       }
-      
-      await fetchData();
     } catch (err) {
       setToast({
         message: err instanceof Error ? err.message : t('failedToUploadDrawing'),

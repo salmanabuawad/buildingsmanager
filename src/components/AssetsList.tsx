@@ -3024,9 +3024,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         // Force modal refresh by updating key
         setAssetFilesModalKey(prev => prev + 1);
       }
-      
-      // Refresh data
-      await fetchData(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'נכשל בהעלאת הקובץ');
       setTimeout(() => setError(null), 5000);

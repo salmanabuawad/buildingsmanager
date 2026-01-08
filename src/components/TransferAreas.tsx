@@ -1090,6 +1090,30 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       return;
     }
 
+    // Validate asset ID is a valid number
+    const assetIdTrimmed = new999AssetId.trim();
+    if (!assetIdTrimmed) {
+      setToast({ message: 'מזהה נכס לא יכול להיות ריק', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    // Check if asset ID is numeric (allows integers)
+    const numericRegex = /^[0-9]+$/;
+    if (!numericRegex.test(assetIdTrimmed)) {
+      setToast({ message: 'מזהה נכס חייב להיות מספר שלם', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    // Convert to number for consistency
+    const assetIdNum = parseInt(assetIdTrimmed, 10);
+    if (isNaN(assetIdNum)) {
+      setToast({ message: 'מזהה נכס לא תקין', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
     const assetSize = parseFloat(new999AssetSize);
     if (isNaN(assetSize) || assetSize <= 0) {
       setToast({ message: 'גודל נכס חייב להיות מספר חיובי', type: 'error' });
@@ -1103,12 +1127,12 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     
     // Use user-entered asset ID for tracking (prefixed with temp- to indicate it's new)
-    const trackingId = `temp-${new999AssetId}`;
+    const trackingId = `temp-${assetIdNum}`;
 
-    // Create new asset with type 999 - use user-entered asset ID
+    // Create new asset with type 999 - use user-entered asset ID (as number)
     const newAsset: Asset = {
       id: trackingId,
-      asset_id: new999AssetId, // User-entered asset ID from modal
+      asset_id: assetIdNum, // User-entered asset ID from modal (converted to number)
       building_number: building.building_number,
       payer_id: firstAsset?.payer_id || '',
       measurement_date: firstAsset?.measurement_date || dateStr,
@@ -1152,7 +1176,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       
       // Add the new asset to dirtyAssets map - use user-entered asset ID as key
       updatedDirtyAssets.set(trackingId, {
-        asset_id: new999AssetId,
+        asset_id: assetIdNum,
         asset_size: assetSize,
         comment: new999AssetComment || undefined
       });
@@ -1176,7 +1200,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
         newMap.set(trackingId, {
-          asset_id: new999AssetId,
+          asset_id: assetIdNum,
           asset_size: assetSize,
           comment: new999AssetComment || undefined
         });

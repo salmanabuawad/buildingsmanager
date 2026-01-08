@@ -1102,12 +1102,13 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     
-    const newAssetId = `temp-${Date.now()}`;
+    // Use user-entered asset ID for tracking (prefixed with temp- to indicate it's new)
+    const trackingId = `temp-${new999AssetId}`;
 
-    // Create new asset with type 999
+    // Create new asset with type 999 - use user-entered asset ID
     const newAsset: Asset = {
-      id: newAssetId,
-      asset_id: new999AssetId, // User-entered asset ID
+      id: trackingId,
+      asset_id: new999AssetId, // User-entered asset ID from modal
       building_number: building.building_number,
       payer_id: firstAsset?.payer_id || '',
       measurement_date: firstAsset?.measurement_date || dateStr,
@@ -1149,8 +1150,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         updatedDirtyAssets.set(assetId, { ...existing, comment: newComment });
       });
       
-      // Add the new asset to dirtyAssets map
-      updatedDirtyAssets.set(newAssetId, {
+      // Add the new asset to dirtyAssets map - use user-entered asset ID as key
+      updatedDirtyAssets.set(trackingId, {
         asset_id: new999AssetId,
         asset_size: assetSize,
         comment: new999AssetComment || undefined
@@ -1171,10 +1172,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // No comment to add, just add the new asset
       setAssets(prev => [...prev, newAsset]);
       
-      // Mark as new asset
+      // Mark as new asset - use user-entered asset ID as key
       setDirtyAssets(prev => {
         const newMap = new Map(prev);
-        newMap.set(newAssetId, {
+        newMap.set(trackingId, {
           asset_id: new999AssetId,
           asset_size: assetSize,
           comment: new999AssetComment || undefined

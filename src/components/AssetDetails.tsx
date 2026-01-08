@@ -68,6 +68,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
+
+  // Set busy cursor during file upload
+  useEffect(() => {
+    if (uploadProgress) {
+      document.body.style.cursor = 'wait';
+      return () => {
+        document.body.style.cursor = '';
+      };
+    }
+  }, [uploadProgress]);
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);

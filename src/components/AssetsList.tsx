@@ -73,6 +73,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
+
+  // Set busy cursor during file upload
+  useEffect(() => {
+    if (uploadProgress) {
+      document.body.style.cursor = 'wait';
+      return () => {
+        document.body.style.cursor = '';
+      };
+    }
+  }, [uploadProgress]);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);

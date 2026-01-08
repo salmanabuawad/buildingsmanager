@@ -8,10 +8,11 @@ interface AssetFilesModalProps {
   isOpen: boolean;
   onClose: () => void;
   assetId: number;
+  measurementDate?: string | null; // If provided, show only files for this measurement; if null, show shared files; if undefined, show all files
   onFilesDeleted?: (assetId: number, hasFiles: boolean) => void;
 }
 
-export function AssetFilesModal({ isOpen, onClose, assetId, onFilesDeleted }: AssetFilesModalProps) {
+export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onFilesDeleted }: AssetFilesModalProps) {
   const [files, setFiles] = useState<AssetFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -28,13 +29,13 @@ export function AssetFilesModal({ isOpen, onClose, assetId, onFilesDeleted }: As
       setViewingFile(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, assetId]);
+  }, [isOpen, assetId, measurementDate]);
 
   const fetchFiles = async () => {
     if (!assetId) return;
     setLoading(true);
     try {
-      const assetFiles = await api.assets.files.getAll(assetId);
+      const assetFiles = await api.assets.files.getAll(assetId, measurementDate);
       setFiles(assetFiles);
     } catch (error) {
       console.error('Error fetching files:', error);
@@ -82,7 +83,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, onFilesDeleted }: As
         // Notify parent if callback is provided - check files after fetch
         if (onFilesDeleted) {
           // Re-fetch to get updated file count
-          const updatedFiles = await api.assets.files.getAll(assetId);
+          const updatedFiles = await api.assets.files.getAll(assetId, measurementDate);
           onFilesDeleted(assetId, updatedFiles.length > 0);
         }
       } else {

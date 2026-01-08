@@ -336,6 +336,7 @@ export interface AssetFile {
   file_type?: string;
   uploaded_at: string;
   uploaded_by?: string;
+  measurement_date?: string | null; // Measurement date this file belongs to (NULL = belongs to all measurements)
 }
 
 export interface AssetMeasurement {
@@ -2162,7 +2163,7 @@ export const api = {
         if (error) throw error;
         return data || [];
       },
-      add: async (assetId: number, fileUrl: string, fileName?: string, fileSize?: number, fileType?: string): Promise<AssetFile> => {
+      add: async (assetId: number, fileUrl: string, fileName?: string, fileSize?: number, fileType?: string, measurementDate?: string | null): Promise<AssetFile> => {
         const userInfo = await getCurrentUserInfo();
         const { data, error } = await supabase
           .from('asset_files')
@@ -2172,13 +2173,109 @@ export const api = {
             file_name: fileName,
             file_size: fileSize,
             file_type: fileType,
-            uploaded_by: userInfo.user_name
+            uploaded_by: userInfo.user_name,
+            measurement_date: measurementDate !== undefined ? measurementDate : null
           })
           .select()
           .single();
 
         if (error) throw error;
         return data;
+      },
+      clone: async (assetId: number, sourceMeasurementDate: string | null, targetMeasurementDate: string): Promise<AssetFile[]> => {
+        // Get all files for the source measurement (or shared files if sourceMeasurementDate is null)
+        let query = supabase
+          .from('asset_files')
+          .select('*')
+          .eq('asset_id', assetId);
+        
+        // If sourceMeasurementDate is provided, get files for that measurement OR shared files
+        if (sourceMeasurementDate !== null) {
+          query = query.or(`measurement_date.eq.${sourceMeasurementDate},measurement_date.is.null`);
+        } else {
+          // If null, get only shared files
+          query = query.is('measurement_date', null);
+        }
+        
+        query = query.order('uploaded_at', { ascending: false });
+        
+        const { data: sourceFiles, error: fetchError } = await query;
+        
+        if (fetchError || !sourceFiles || sourceFiles.length === 0) {
+          return [];
+        }
+        
+        const clonedFiles: AssetFile[] = [];
+        
+        // Clone each file
+        for (const file of sourceFiles) {
+          try {
+            // Extract file path from URL
+            const urlParts = file.file_url.split('/');
+            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            const filePath = file.file_url.includes(`${assetId}/`) 
+              ? file.file_url.substring(file.file_url.indexOf(`${assetId}/`))
+              : `${assetId}/${fileName}`;
+            
+            // Download the file from storage
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from('structure-drawings')
+              .download(filePath);
+            
+            if (downloadError || !fileData) {
+              console.error(`Error downloading file ${filePath}:`, downloadError);
+              continue;
+            }
+            
+            // Create new file path with timestamp to avoid conflicts
+            const timestamp = Date.now();
+            const fileExt = fileName.split('.').pop() || 'bin';
+            const newFileName = `${timestamp}.${fileExt}`;
+            const newFilePath = `${assetId}/${newFileName}`;
+            
+            // Upload to new path
+            const { error: uploadError } = await supabase.storage
+              .from('structure-drawings')
+              .upload(newFilePath, fileData);
+            
+            if (uploadError) {
+              console.error(`Error uploading cloned file:`, uploadError);
+              continue;
+            }
+            
+            // Get public URL for new file
+            const { data: { publicUrl } } = supabase.storage
+              .from('structure-drawings')
+              .getPublicUrl(newFilePath);
+            
+            // Create new file record with target measurement_date
+            const userInfo = await getCurrentUserInfo();
+            const { data: clonedFile, error: insertError } = await supabase
+              .from('asset_files')
+              .insert({
+                asset_id: assetId,
+                file_url: publicUrl,
+                file_name: file.file_name,
+                file_size: file.file_size,
+                file_type: file.file_type,
+                uploaded_by: userInfo.user_name,
+                measurement_date: targetMeasurementDate
+              })
+              .select()
+              .single();
+            
+            if (insertError || !clonedFile) {
+              console.error(`Error creating cloned file record:`, insertError);
+              continue;
+            }
+            
+            clonedFiles.push(clonedFile);
+          } catch (err) {
+            console.error(`Error cloning file ${file.id}:`, err);
+          }
+        }
+        
+        return clonedFiles;
       },
       delete: async (fileIds: number[]): Promise<{ success: boolean; error?: string }> => {
         const { error } = await supabase

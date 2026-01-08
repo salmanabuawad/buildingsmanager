@@ -72,6 +72,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
   const [selectedAssetIdForFiles, setSelectedAssetIdForFiles] = useState<number | null>(null);
+  const [selectedMeasurementDateForFiles, setSelectedMeasurementDateForFiles] = useState<string | null | undefined>(undefined);
   const assetFilesModalRef = useRef<AssetFilesModalRef>(null);
   const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
   
@@ -1381,6 +1382,18 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         throw new Error(result.error || 'Failed to save new measurement');
       }
 
+      // Clone files from current measurement to new measurement
+      try {
+        const currentMeasurementDate = latestMeasurement.measurement_date;
+        await api.assets.files.clone(oldAssetId, currentMeasurementDate, finalMeasurementDate);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[AssetDetails] Cloned files from measurement ${currentMeasurementDate} to ${finalMeasurementDate}`);
+        }
+      } catch (fileCloneError) {
+        console.error('[AssetDetails] Error cloning files for new measurement:', fileCloneError);
+        // Don't fail the entire save if file cloning fails - just log it
+      }
+
       setToast({ message: 'נשמרה מדידה חדשה בהצלחה', type: 'success' });
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
@@ -1514,7 +1527,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
       // Step 5: Add file to asset_files table (instead of updating structure_drawing_url)
-      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type);
+      // Get the current measurement_date from the asset
+      const currentAsset = allMeasurements.find(a => a.asset_id === assetId && a.is_latest === true);
+      const measurementDate = currentAsset?.measurement_date || null;
+      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 
@@ -1545,9 +1561,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
   }, [t, assetFilesModalOpen, selectedAssetIdForFiles]);
 
-  const handleViewDrawing = useCallback((assetId: number) => {
+  const handleViewDrawing = useCallback((assetId: number, measurementDate?: string | null) => {
     setSelectedAssetIdForFiles(assetId);
     setAssetFilesModalOpen(true);
+    // Store measurement_date for the modal
+    if (measurementDate !== undefined) {
+      setSelectedMeasurementDateForFiles(measurementDate);
+    }
   }, []);
 
   function handleCancelChanges() {
@@ -1883,11 +1903,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             )}
           </div>
         ) : null}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
             if (assetsWithFiles.has(asset.asset_id)) {
-              handleViewDrawing(asset.asset_id);
+              // Pass measurement_date if this is a history record
+              const measurementDate = asset.is_latest ? undefined : asset.measurement_date;
+              handleViewDrawing(asset.asset_id, measurementDate);
             }
           }}
           disabled={!assetsWithFiles.has(asset.asset_id)}
@@ -3966,6 +3988,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             setSelectedAssetIdForFiles(null);
           }}
           assetId={selectedAssetIdForFiles}
+          measurementDate={selectedMeasurementDateForFiles}
           onFilesDeleted={(assetId, hasFiles) => {
             if (hasFiles) {
               setAssetsWithFiles(prev => new Set(prev).add(assetId));

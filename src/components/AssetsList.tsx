@@ -544,6 +544,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             await Promise.all(
               assetIds.map(async (assetId) => {
                 try {
+                  // Check for files - show all files (undefined means show all including shared)
                   const files = await api.assets.files.getAll(assetId);
                   if (files && files.length > 0) {
                     filesMap.add(assetId);
@@ -3006,7 +3007,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setUploadProgress({ assetId, progress: 95, fileName: file.name });
 
       // Step 5: Add file to asset_files table (instead of updating structure_drawing_url)
-      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type);
+      // For AssetsList, we always add to the latest measurement (undefined = no measurement_date filter, shows all)
+      // But we want to associate files with the latest measurement, so we get the asset's measurement_date
+      const asset = assets.find(a => a.asset_id === assetId);
+      const measurementDate = asset?.measurement_date || null;
+      await api.assets.files.add(assetId, publicUrl, file.name, file.size, file.type, measurementDate);
 
       setUploadProgress({ assetId, progress: 100, fileName: file.name });
 

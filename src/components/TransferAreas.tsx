@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download } from 'lucide-react';
+import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
@@ -685,14 +685,22 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // First pass: validate all assets and prepare data
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
+          // Check if this is a new asset (temp ID) or an existing asset
+          const isNewAsset = assetId.startsWith('temp-');
+          
           // Get the full asset data with changes (assetId is asset_id)
           const originalAsset = assets.find(a => String(a.asset_id) === assetId);
+          
+          // For new assets, use the asset from assets array (which has the temp asset)
+          // For existing assets, find the original
           if (!originalAsset) {
             errors.push(`נכס ${assetId}: לא נמצא`);
             continue;
           }
 
-          const updatedData = { ...originalAsset, ...changes };
+          const updatedData = isNewAsset 
+            ? { ...originalAsset, ...changes } // New asset: merge with changes
+            : { ...originalAsset, ...changes }; // Existing asset: merge with changes
 
           // For transfer areas tab: combine asset's tax_region with tab's taxRegion
           // This allows validation against both the original asset tax region and the transferred tax region
@@ -716,10 +724,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           const assetForValidation = { ...updatedData, tax_region: combinedTaxRegion };
 
           // Validate before saving
+          // For new assets, skip asset_id validation (it's a temp ID)
           const shouldValidateSubAssets = updatedData.main_asset_type === '199' || updatedData.main_asset_type === '299';
           const validations = [
             assetValidators.validateBuildingNumber(updatedData.building_number),
-            assetValidators.validateAssetId(updatedData.asset_id),
+            ...(isNewAsset ? [] : [assetValidators.validateAssetId(updatedData.asset_id)]), // Skip asset_id validation for new assets
             assetValidators.validatePayerId(updatedData.payer_id),
             assetValidators.validateAssetType(updatedData.main_asset_type, 'main_asset_type'),
             assetValidators.validateMainAssetTypeComplete(updatedData.building_number, updatedData.main_asset_type, updatedData.asset_size, assetForValidation, combinedTaxRegion),
@@ -817,8 +826,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             continue;
           }
 
-          // Store original asset for before data (for p_old_assets parameter)
-          originalAssets.push({ ...originalAsset });
+          // For new assets, don't add to originalAssets (no history needed)
+          // For existing assets, store original asset for before data
+          if (!isNewAsset) {
+            originalAssets.push({ ...originalAsset });
+          }
           
           // Prepare new asset data with updated measurement date (for database insertion)
           const newAssetData: Partial<Asset> = {
@@ -833,6 +845,15 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           delete (newAssetData as any).history_created_at;
           delete (newAssetData as any).is_new_measurement;
           
+          // For new assets, remove asset_id so database can assign it
+          // For existing assets, set is_new_measurement to create history
+          if (isNewAsset) {
+            delete (newAssetData as any).asset_id;
+            delete (newAssetData as any).id;
+          } else {
+            (newAssetData as any).is_new_measurement = true;
+          }
+          
           newAssetsData.push(newAssetData);
         } catch (err) {
           const originalAsset = assets.find(a => String(a.asset_id) === assetId);
@@ -842,22 +863,33 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         }
       }
 
+      // Separate new assets from existing assets
+      const newAssets = newAssetsData.filter(asset => !asset.asset_id);
+      const existingAssetsForSave = newAssetsData.filter(asset => asset.asset_id);
+
       // If validation errors, stop here
-      if (errors.length > 0 && originalAssets.length === 0) {
+      if (errors.length > 0 && originalAssets.length === 0 && newAssets.length === 0) {
         setError(errors.slice(0, 5).join('\n') + (errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''));
         setLoading(false);
         return;
       }
 
       // Save all assets in bulk with single audit entry (same as distribute)
-      if (originalAssets.length > 0) {
+      if (originalAssets.length > 0 || newAssets.length > 0) {
         try {
-          // Prepare assets with is_new_measurement flag set to true
-          // This will cause save_assets_bulk_transactional to copy existing assets to history before updating
-          const assetsToSave = newAssetsData.map(asset => ({
-            ...asset,
-            is_new_measurement: true, // This flag tells the function to copy to history before updating
-          }));
+          // Prepare assets - for existing assets, set is_new_measurement to create history
+          // For new assets, they're already new so no history needed
+          const assetsToSave = newAssetsData.map(asset => {
+            // If asset has asset_id, it's an existing asset being updated
+            if (asset.asset_id) {
+              return {
+                ...asset,
+                is_new_measurement: true, // This flag tells the function to copy to history before updating
+              };
+            }
+            // New asset - no is_new_measurement flag needed
+            return asset;
+          });
           
           // Prepare before_data from originalAssets for audit logging
           // Include all asset fields to ensure complete audit trail including asset types and sub asset types
@@ -898,13 +930,39 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           
           // Update asset identifiers for all affected assets
           const newIdentifiers = new Map<string, { asset_id: number; building_number: number }>();
+          
+          // For existing assets, the asset_id remains the same
           for (const originalAsset of originalAssets) {
-            // The asset_id remains the same, just the measurement_date changes
             newIdentifiers.set(String(originalAsset.asset_id), {
               asset_id: originalAsset.asset_id,
               building_number: originalAsset.building_number
             });
           }
+          
+          // For new assets, map temp IDs to new asset_ids from result
+          // The result.affected_asset_ids array contains IDs in the same order as assetsToSave
+          // First come existing assets (originalAssets.length), then new assets
+          if (result.affected_asset_ids && result.affected_asset_ids.length > 0 && newAssets.length > 0) {
+            // Get temp IDs for new assets from dirtyAssets
+            const tempIds = Array.from(dirtyAssets.keys()).filter(id => id.startsWith('temp-'));
+            
+            // Map temp IDs to new asset IDs
+            // The new asset IDs start at index originalAssets.length in the result array
+            tempIds.forEach((tempId, index) => {
+              const newAssetIndex = originalAssets.length + index;
+              if (newAssetIndex < result.affected_asset_ids!.length) {
+                const newAssetId = result.affected_asset_ids![newAssetIndex];
+                const originalAsset = assets.find(a => String(a.asset_id) === tempId);
+                if (originalAsset && newAssetId) {
+                  newIdentifiers.set(tempId, {
+                    asset_id: newAssetId,
+                    building_number: originalAsset.building_number
+                  });
+                }
+              }
+            });
+          }
+          
           setAssetIdentifiers(prev => {
             const next = new Map(prev);
             for (const [key, value] of newIdentifiers.entries()) {
@@ -929,10 +987,17 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       }
 
       if (errors.length > 0) {
-        const successMsg = originalAssets.length > 0 ? `נשמרו ${originalAssets.length} נכסים כמדידות חדשות. ` : '';
+        const totalSaved = originalAssets.length + newAssets.length;
+        const successMsg = totalSaved > 0 ? `נשמרו ${totalSaved} נכסים${originalAssets.length > 0 ? ' כמדידות חדשות' : ''}. ` : '';
         setError(`${successMsg}${errors.length} שגיאות:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''}`);
-      } else if (originalAssets.length > 0) {
-        setSuccess(`✓ נשמרו ${originalAssets.length} נכסים כמדידות חדשות בהצלחה`);
+      } else if (originalAssets.length > 0 || newAssets.length > 0) {
+        const totalSaved = originalAssets.length + newAssets.length;
+        const msg = originalAssets.length > 0 && newAssets.length > 0
+          ? `✓ נשמרו ${originalAssets.length} נכסים כמדידות חדשות ו-${newAssets.length} נכסים חדשים בהצלחה`
+          : originalAssets.length > 0
+          ? `✓ נשמרו ${originalAssets.length} נכסים כמדידות חדשות בהצלחה`
+          : `✓ נשמרו ${newAssets.length} נכסים חדשים בהצלחה`;
+        setSuccess(msg);
         setTimeout(() => setSuccess(null), 3000);
       }
 
@@ -995,6 +1060,86 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   
   // Display total area - always show initial value (calculated once and not changeable)
   const displayTotalArea = initialTotalArea !== null ? initialTotalArea : currentTotalArea;
+
+  // Calculate missing size (when current sum is less than required)
+  const missingSize = useMemo(() => {
+    if (initialTotalArea === null) return 0;
+    const missing = initialTotalArea - currentTotalArea;
+    return missing > 0.01 ? missing : 0; // Only show if missing is significant (>0.01)
+  }, [initialTotalArea, currentTotalArea]);
+
+  // Function to add new asset with type 999 and missing size
+  const handleAddMissingAsset = useCallback(() => {
+    if (missingSize <= 0 || !building || !assetTypes.length) return;
+
+    // Get the first asset to copy some default values (payer_id, measurement_date, etc.)
+    const firstAsset = assets[0];
+    const today = new Date();
+    const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+    // Find max asset_id and create a new temporary one
+    const maxAssetId = assets.reduce((max, asset) => {
+      const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : (asset.asset_id || 0);
+      return Math.max(max, isNaN(assetIdNum) ? 0 : assetIdNum);
+    }, 0);
+    
+    const newAssetId = `temp-${Date.now()}`;
+
+    // Create new asset with type 999
+    const newAsset: Asset = {
+      id: newAssetId,
+      asset_id: newAssetId, // Will be assigned by database when saved
+      building_number: building.building_number,
+      payer_id: firstAsset?.payer_id || '',
+      measurement_date: firstAsset?.measurement_date || dateStr,
+      main_asset_type: '999',
+      asset_size: missingSize,
+      sub_asset_type_1: '',
+      sub_asset_size_1: 0,
+      sub_asset_type_2: '',
+      sub_asset_size_2: 0,
+      sub_asset_type_3: '',
+      sub_asset_size_3: 0,
+      sub_asset_type_4: '',
+      sub_asset_size_4: 0,
+      sub_asset_type_5: '',
+      sub_asset_size_5: 0,
+      sub_asset_type_6: '',
+      sub_asset_size_6: 0,
+      penthouse: null,
+      floor: undefined,
+      discount_type: undefined,
+      discount_date_from: undefined,
+      discount_date_to: undefined,
+      comment: undefined,
+      tax_region: firstAsset?.tax_region || building.tax_region || undefined,
+      is_latest: true,
+      area_from_distribution: 0
+    };
+
+    // Add to assets list
+    setAssets(prev => [...prev, newAsset]);
+    
+    // Mark as new asset
+    setDirtyAssets(prev => {
+      const newMap = new Map(prev);
+      // Initialize with asset_size change
+      newMap.set(newAssetId, { asset_size: missingSize });
+      return newMap;
+    });
+
+    // Scroll to the new asset in the grid
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        const rowIndex = assets.length; // New row will be at the end
+        gridRef.current.api.ensureIndexVisible(rowIndex, 'middle');
+        gridRef.current.api.setFocusedCell(rowIndex, 'asset_size');
+      }
+    }, 100);
+
+    setToast({ message: `נוסף נכס חדש מסוג 999 עם גודל ${missingSize.toFixed(2)}`, type: 'success' });
+    setTimeout(() => setToast(null), 3000);
+  }, [missingSize, building, assets, assetTypes]);
 
   // Helper function to get cell style for dirty fields and validation errors
   const getCellStyle = useCallback((params: any, fieldName: string) => {
@@ -1344,6 +1489,16 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       cellStyle: (params: any) => getCellStyle(params, 'sub_asset_size_6')
     },
     {
+      field: 'comment',
+      headerName: t('comment') || 'הערה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params, 'comment')
+    },
+    {
       field: 'extra_field_1',
       headerName: '',
       editable: false,
@@ -1535,7 +1690,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       </div>
 
       {/* Total Area Display - Calculated once and not changeable */}
-      <div className="mt-2 flex items-center justify-end gap-4">
+      <div className="mt-2 flex items-center justify-end gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <label className="text-sm font-semibold text-slate-700">שטח כולל של הנכסים המקושרים:</label>
           <input
@@ -1556,6 +1711,21 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             </span>
           )}
         </div>
+        {missingSize > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-amber-600 font-medium">
+              חסר: {missingSize.toFixed(2)} מ"ר
+            </span>
+            <button
+              onClick={handleAddMissingAsset}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              title="הוסף נכס חדש מסוג 999 עם הגודל החסר"
+            >
+              <Plus className="h-4 w-4" />
+              הוסף נכס מסוג 999
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Measurement Date Input Modal */}

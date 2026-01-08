@@ -1162,6 +1162,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     };
 
     // Add comment to all affected assets (all assets in the transfer) and add new asset
+    let finalAssets: Asset[];
+    let finalDirtyAssets: Map<string, Partial<Asset>>;
+    
     if (new999AssetComment && new999AssetComment.trim()) {
       const updatedDirtyAssets = new Map(dirtyAssets);
       assets.forEach(asset => {
@@ -1181,32 +1184,50 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         comment: new999AssetComment || undefined
       });
       
-      setDirtyAssets(updatedDirtyAssets);
+      finalDirtyAssets = updatedDirtyAssets;
 
       // Update assets array with comments and add new asset
-      setAssets(prev => {
-        const updated = prev.map(asset => {
-          const assetId = String(asset.asset_id);
-          const dirtyChanges = updatedDirtyAssets.get(assetId) || {};
-          return { ...asset, ...dirtyChanges };
-        });
-        return [...updated, newAsset];
+      finalAssets = assets.map(asset => {
+        const assetId = String(asset.asset_id);
+        const dirtyChanges = updatedDirtyAssets.get(assetId) || {};
+        return { ...asset, ...dirtyChanges };
       });
+      finalAssets.push(newAsset);
+      
+      setDirtyAssets(updatedDirtyAssets);
+      setAssets(finalAssets);
     } else {
       // No comment to add, just add the new asset
-      setAssets(prev => [...prev, newAsset]);
+      finalAssets = [...assets, newAsset];
       
       // Mark as new asset - use user-entered asset ID as key
-      setDirtyAssets(prev => {
-        const newMap = new Map(prev);
-        newMap.set(trackingId, {
-          asset_id: assetIdNum,
-          asset_size: assetSize,
-          comment: new999AssetComment || undefined
-        });
-        return newMap;
+      const updatedDirtyAssets = new Map(dirtyAssets);
+      updatedDirtyAssets.set(trackingId, {
+        asset_id: assetIdNum,
+        asset_size: assetSize,
+        comment: new999AssetComment || undefined
       });
+      finalDirtyAssets = updatedDirtyAssets;
+      
+      setAssets(finalAssets);
+      setDirtyAssets(updatedDirtyAssets);
     }
+
+    // Revalidate all assets after addition
+    setTimeout(async () => {
+      const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, initialTotalArea);
+      setValidationErrors(newValidationErrors);
+      
+      // Show validation result
+      if (newValidationErrors.size > 0) {
+        const errorCount = newValidationErrors.size;
+        setToast({ 
+          message: `נכס נוסף. נמצאו ${errorCount} שגיאות אימות`, 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 5000);
+      }
+    }, 100);
 
     // Close modal
     setAdd999AssetModalClosing(true);

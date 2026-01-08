@@ -39,6 +39,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
   const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
+  const [add999AssetModalOpen, setAdd999AssetModalOpen] = useState(false);
+  const [add999AssetModalClosing, setAdd999AssetModalClosing] = useState(false);
+  const [new999AssetId, setNew999AssetId] = useState<string>('');
+  const [new999AssetSize, setNew999AssetSize] = useState<string>('');
+  const [new999AssetComment, setNew999AssetComment] = useState<string>('');
   // Store asset_id and building_number for each asset to reload after save (key is asset_id string)
   const [assetIdentifiers, setAssetIdentifiers] = useState<Map<string, { asset_id: number; building_number: number }>>(new Map());
   // Store initial total area for validation
@@ -1068,9 +1073,138 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     return missing > 0.01 ? missing : 0; // Only show if missing is significant (>0.01)
   }, [initialTotalArea, currentTotalArea]);
 
-  // Function to add new asset with type 999 and missing size
+  // Function to open modal for adding new asset with type 999
   const handleAddMissingAsset = useCallback(() => {
     if (missingSize <= 0 || !building || !assetTypes.length) return;
+    setNew999AssetId('');
+    setNew999AssetSize('');
+    setNew999AssetComment('');
+    setAdd999AssetModalOpen(true);
+  }, [missingSize, building, assetTypes]);
+
+  // Function to save new 999 asset from modal
+  const handleSave999Asset = useCallback(() => {
+    if (!building || !new999AssetId || !new999AssetSize) {
+      setToast({ message: 'נא למלא מזהה נכס וגודל', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    const assetSize = parseFloat(new999AssetSize);
+    if (isNaN(assetSize) || assetSize <= 0) {
+      setToast({ message: 'גודל נכס חייב להיות מספר חיובי', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    // Get the first asset to copy some default values (payer_id, measurement_date, etc.)
+    const firstAsset = assets[0];
+    const today = new Date();
+    const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    
+    const newAssetId = `temp-${Date.now()}`;
+
+    // Create new asset with type 999
+    const newAsset: Asset = {
+      id: newAssetId,
+      asset_id: new999AssetId, // User-entered asset ID
+      building_number: building.building_number,
+      payer_id: firstAsset?.payer_id || '',
+      measurement_date: firstAsset?.measurement_date || dateStr,
+      main_asset_type: '999',
+      asset_size: assetSize,
+      sub_asset_type_1: '',
+      sub_asset_size_1: 0,
+      sub_asset_type_2: '',
+      sub_asset_size_2: 0,
+      sub_asset_type_3: '',
+      sub_asset_size_3: 0,
+      sub_asset_type_4: '',
+      sub_asset_size_4: 0,
+      sub_asset_type_5: '',
+      sub_asset_size_5: 0,
+      sub_asset_type_6: '',
+      sub_asset_size_6: 0,
+      penthouse: null,
+      floor: undefined,
+      discount_type: undefined,
+      discount_date_from: undefined,
+      discount_date_to: undefined,
+      comment: new999AssetComment || undefined,
+      tax_region: firstAsset?.tax_region || building.tax_region || undefined,
+      is_latest: true,
+      area_from_distribution: 0
+    };
+
+    // Add comment to all affected assets (all assets in the transfer) and add new asset
+    if (new999AssetComment && new999AssetComment.trim()) {
+      const updatedDirtyAssets = new Map(dirtyAssets);
+      assets.forEach(asset => {
+        const assetId = String(asset.asset_id);
+        const existing = updatedDirtyAssets.get(assetId) || {};
+        const existingComment = asset.comment || existing.comment || '';
+        const newComment = existingComment 
+          ? `${existingComment}; ${new999AssetComment.trim()}`
+          : new999AssetComment.trim();
+        updatedDirtyAssets.set(assetId, { ...existing, comment: newComment });
+      });
+      
+      // Add the new asset to dirtyAssets map
+      updatedDirtyAssets.set(newAssetId, {
+        asset_id: new999AssetId,
+        asset_size: assetSize,
+        comment: new999AssetComment || undefined
+      });
+      
+      setDirtyAssets(updatedDirtyAssets);
+
+      // Update assets array with comments and add new asset
+      setAssets(prev => {
+        const updated = prev.map(asset => {
+          const assetId = String(asset.asset_id);
+          const dirtyChanges = updatedDirtyAssets.get(assetId) || {};
+          return { ...asset, ...dirtyChanges };
+        });
+        return [...updated, newAsset];
+      });
+    } else {
+      // No comment to add, just add the new asset
+      setAssets(prev => [...prev, newAsset]);
+      
+      // Mark as new asset
+      setDirtyAssets(prev => {
+        const newMap = new Map(prev);
+        newMap.set(newAssetId, {
+          asset_id: new999AssetId,
+          asset_size: assetSize,
+          comment: new999AssetComment || undefined
+        });
+        return newMap;
+      });
+    }
+
+    // Close modal
+    setAdd999AssetModalClosing(true);
+    setTimeout(() => {
+      setAdd999AssetModalOpen(false);
+      setAdd999AssetModalClosing(false);
+      setNew999AssetId('');
+      setNew999AssetSize('');
+      setNew999AssetComment('');
+    }, 300);
+
+    // Scroll to the new asset in the grid
+    setTimeout(() => {
+      if (gridRef.current?.api) {
+        const rowIndex = assets.length; // New row will be at the end
+        gridRef.current.api.ensureIndexVisible(rowIndex, 'middle');
+        gridRef.current.api.setFocusedCell(rowIndex, 'asset_size');
+      }
+    }, 400);
+
+    setToast({ message: `נוסף נכס חדש מסוג 999`, type: 'success' });
+    setTimeout(() => setToast(null), 3000);
+  }, [building, assets, new999AssetId, new999AssetSize, new999AssetComment, dirtyAssets]);
 
     // Get the first asset to copy some default values (payer_id, measurement_date, etc.)
     const firstAsset = assets[0];
@@ -1599,7 +1733,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               return;
             }
             try {
-              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
+              const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס', 'הערה'];
               const rows = assets.map(asset => {
                 const assetId = String(asset.asset_id);
                 const dirtyChanges = dirtyAssets.get(assetId) || {};
@@ -1611,7 +1745,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   updatedAsset.measurement_date || '',
                   updatedAsset.main_asset_type || '',
                   updatedAsset.asset_size || '',
-                  updatedAsset.tax_region || ''
+                  updatedAsset.tax_region || '',
+                  updatedAsset.comment || ''
                 ];
               });
               const data = [headers, ...rows];
@@ -1621,7 +1756,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 filename,
                 sheetName: 'העברת שטחים',
                 data,
-                columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }]
+                columnWidths: [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 30 }]
               });
               setToast({ message: `יוצאו ${rows.length} נכסים בהצלחה`, type: 'success' });
             } catch (error) {
@@ -1755,6 +1890,138 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           </div>
         )}
       </div>
+
+      {/* Add 999 Asset Modal */}
+      {add999AssetModalOpen && (
+        <div 
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+            add999AssetModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => {
+            setAdd999AssetModalClosing(true);
+            setTimeout(() => {
+              setAdd999AssetModalOpen(false);
+              setAdd999AssetModalClosing(false);
+              setNew999AssetId('');
+              setNew999AssetSize('');
+              setNew999AssetComment('');
+            }, 300);
+          }}
+        >
+          <div 
+            className={`bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 flex flex-col transition-all duration-300 ${
+              add999AssetModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">הוסף נכס מסוג 999</h3>
+              <button
+                onClick={() => {
+                  setAdd999AssetModalClosing(true);
+                  setTimeout(() => {
+                    setAdd999AssetModalOpen(false);
+                    setAdd999AssetModalClosing(false);
+                    setNew999AssetId('');
+                    setNew999AssetSize('');
+                    setNew999AssetComment('');
+                  }, 300);
+                }}
+                className="text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="new999AssetId" className="block text-sm font-medium text-slate-700 mb-1">
+                מזהה נכס <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="new999AssetId"
+                value={new999AssetId}
+                onChange={(e) => setNew999AssetId(e.target.value)}
+                placeholder="הזן מזהה נכס"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="new999AssetSize" className="block text-sm font-medium text-slate-700 mb-1">
+                גודל נכס (מ"ר) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="new999AssetSize"
+                  value={new999AssetSize}
+                  onChange={(e) => {
+                    // Allow only numbers and decimal point
+                    const value = e.target.value.replace(/[^\d.]/g, '');
+                    setNew999AssetSize(value);
+                  }}
+                  placeholder={missingSize > 0 ? `מוצע: ${missingSize.toFixed(2)}` : 'הזן גודל'}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                />
+                {missingSize > 0 && !new999AssetSize && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm italic pointer-events-none">
+                    מוצע: {missingSize.toFixed(2)}
+                  </div>
+                )}
+              </div>
+              {missingSize > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  שטח חסר: {missingSize.toFixed(2)} מ"ר
+                </p>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="new999AssetComment" className="block text-sm font-medium text-slate-700 mb-1">
+                הערה (תתווסף לכל הנכסים המושפעים)
+              </label>
+              <textarea
+                id="new999AssetComment"
+                value={new999AssetComment}
+                onChange={(e) => setNew999AssetComment(e.target.value)}
+                placeholder="הזן הערה שתתווסף לכל הנכסים בפעולת ההעברה"
+                rows={3}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right resize-none"
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setAdd999AssetModalClosing(true);
+                  setTimeout(() => {
+                    setAdd999AssetModalOpen(false);
+                    setAdd999AssetModalClosing(false);
+                    setNew999AssetId('');
+                    setNew999AssetSize('');
+                    setNew999AssetComment('');
+                  }, 300);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"
+              >
+                <X className="h-4 w-4" />
+                ביטול
+              </button>
+              <button
+                onClick={handleSave999Asset}
+                disabled={!new999AssetId || !new999AssetSize}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 text-white rounded-md transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                הוסף
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Measurement Date Input Modal */}
       {measurementDateModalOpen && (

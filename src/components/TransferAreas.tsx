@@ -483,13 +483,58 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // For new assets (temp IDs), check both the asset_id and the tracking ID
       const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
       
-      // Try to get dirty changes by asset_id first, then by tracking ID for new assets
-      let dirtyChanges = allDirtyAssets.get(assetId) || {};
-      if (trackingId && Object.keys(dirtyChanges).length === 0) {
-        dirtyChanges = allDirtyAssets.get(trackingId) || {};
+      // For new assets, check tracking ID FIRST (where we store the size)
+      // For existing assets, check asset_id first
+      let dirtyChanges: Partial<Asset> = {};
+      if (trackingId) {
+        const trackingChanges = allDirtyAssets.get(trackingId);
+        if (trackingChanges) {
+          dirtyChanges = trackingChanges;
+        }
+      }
+      // If we have trackingId but didn't find changes, or if we don't have asset_size, also check by asset_id
+      // This handles cases where the asset might be stored under asset_id instead of trackingId
+      if (!dirtyChanges.asset_size || (trackingId && Object.keys(dirtyChanges).length === 0)) {
+        const assetIdChanges = allDirtyAssets.get(assetId);
+        if (assetIdChanges) {
+          // Merge with existing dirtyChanges, but prioritize assetIdChanges if we don't have asset_size
+          if (!dirtyChanges.asset_size && assetIdChanges.asset_size) {
+            dirtyChanges = { ...dirtyChanges, ...assetIdChanges };
+          } else if (Object.keys(dirtyChanges).length === 0) {
+            dirtyChanges = assetIdChanges;
+          }
+        }
       }
       
-      return { ...asset, ...dirtyChanges };
+      // Merge asset with dirty changes - ensure asset_size is included
+      // For new assets, dirty changes should have asset_size from trackingId
+      // For existing assets, asset_size might be in the asset object or dirty changes
+      const merged = { ...asset, ...dirtyChanges };
+      
+      // Ensure asset_size is properly set - prioritize dirty changes, then asset object
+      // For new assets, asset_size should be in dirtyChanges (stored with trackingId)
+      // For existing assets, asset_size might be in dirtyChanges or asset object
+      if (dirtyChanges.asset_size !== undefined && dirtyChanges.asset_size !== null) {
+        merged.asset_size = dirtyChanges.asset_size;
+      } else if (merged.asset_size === undefined || merged.asset_size === null) {
+        // If no asset_size after merge, use 0 (shouldn't happen, but safety check)
+        merged.asset_size = 0;
+      }
+      
+      // Debug for new assets - always log to help diagnose
+      if (trackingId) {
+        console.log('[validateAllAssets] Processing new asset:', {
+          assetId: asset.asset_id,
+          trackingId,
+          assetSizeFromAsset: asset.asset_size,
+          assetSizeFromDirty: dirtyChanges.asset_size,
+          finalAssetSize: merged.asset_size,
+          hasDirtyChanges: Object.keys(dirtyChanges).length > 0,
+          dirtyChangesKeys: Object.keys(dirtyChanges)
+        });
+      }
+      
+      return merged;
     });
 
     // Calculate current total area (excluding assets with not_accountable = true)
@@ -499,7 +544,12 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return sum;
       }
       
-      return sum + (a.asset_size || 0);
+      // Get asset_size - ensure it's a valid number
+      const assetSize = a.asset_size !== undefined && a.asset_size !== null 
+        ? (typeof a.asset_size === 'number' ? a.asset_size : parseFloat(String(a.asset_size)))
+        : 0;
+      
+      return sum + (isNaN(assetSize) ? 0 : assetSize);
     }, 0);
 
     // Validate total area if initial total area is set
@@ -1231,29 +1281,74 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
     // Revalidate all assets after addition
     setTimeout(async () => {
-      // First, immediately clear any existing area errors if area will match
       // Calculate total area including the new 999 asset
+      // IMPORTANT: The new asset has asset_size set directly in the asset object AND in dirtyAssets
+      // We need to make sure we're getting the size correctly
       const totalAreaWithNewAsset = finalAssets.reduce((sum, asset) => {
         const assetId = String(asset.asset_id);
         const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
         
-        // Get dirty changes
-        let dirtyChanges = finalDirtyAssets.get(assetId) || {};
-        if (trackingId && Object.keys(dirtyChanges).length === 0) {
-          dirtyChanges = finalDirtyAssets.get(trackingId) || {};
+        // Get dirty changes - for new assets, check tracking ID first
+        let dirtyChanges: Partial<Asset> = {};
+        if (trackingId) {
+          const trackingChanges = finalDirtyAssets.get(trackingId);
+          if (trackingChanges) {
+            dirtyChanges = trackingChanges;
+          }
+        }
+        // If no tracking changes found or no asset_size in tracking changes, check by asset_id
+        if ((!dirtyChanges || Object.keys(dirtyChanges).length === 0 || !dirtyChanges.asset_size) && assetId) {
+          const assetIdChanges = finalDirtyAssets.get(assetId);
+          if (assetIdChanges) {
+            // Merge with existing dirtyChanges to preserve other fields
+            dirtyChanges = { ...dirtyChanges, ...assetIdChanges };
+          }
         }
         
-        const assetWithChanges = { ...asset, ...dirtyChanges };
+        // Get asset_size - prioritize dirty changes, then asset object
+        // The new 999 asset should have asset_size in both the asset object (set when created) and dirtyAssets
+        let finalAssetSize = 0;
+        
+        // First check dirty changes (for new assets, this is stored with trackingId)
+        if (dirtyChanges && typeof dirtyChanges === 'object' && 'asset_size' in dirtyChanges) {
+          const dirtySize = dirtyChanges.asset_size;
+          if (dirtySize !== undefined && dirtySize !== null && !isNaN(Number(dirtySize)) && Number(dirtySize) > 0) {
+            finalAssetSize = Number(dirtySize);
+          }
+        }
+        
+        // If no size from dirty changes, use asset object's size
+        if (finalAssetSize === 0 && asset.asset_size !== undefined && asset.asset_size !== null) {
+          const assetSizeNum = Number(asset.asset_size);
+          if (!isNaN(assetSizeNum) && assetSizeNum > 0) {
+            finalAssetSize = assetSizeNum;
+          }
+        }
         
         // Skip assets where main_asset_type has not_accountable = true
-        const mainAssetType = assetWithChanges.main_asset_type || asset.main_asset_type;
+        const mainAssetType = (dirtyChanges.main_asset_type || asset.main_asset_type);
         if (mainAssetType && isAssetTypeNotAccountable(mainAssetType)) {
           return sum;
         }
         
-        return sum + (assetWithChanges.asset_size || 0);
+        return sum + finalAssetSize;
       }, 0);
 
+      // Debug: Log the calculation for troubleshooting
+      console.log('[TransferAreas] Area calculation after adding 999 asset:', {
+        initialTotalArea,
+        totalAreaWithNewAsset,
+        difference: initialTotalArea !== null ? totalAreaWithNewAsset - initialTotalArea : null,
+        newAssetSize: assetSize,
+        newAssetId: assetIdNum,
+        trackingId: trackingId,
+        finalAssetsCount: finalAssets.length,
+        newAssetInFinalAssets: finalAssets.find(a => String(a.asset_id) === String(assetIdNum) || a.id === trackingId),
+        dirtyAssetsHasTrackingId: finalDirtyAssets.has(trackingId),
+        dirtyAssetsTrackingIdValue: finalDirtyAssets.get(trackingId),
+        areaMatches: initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01
+      });
+      
       // Check if total area now matches the required area (with small tolerance for floating point)
       const areaMatches = initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01;
       

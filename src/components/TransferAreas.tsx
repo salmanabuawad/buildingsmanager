@@ -1254,7 +1254,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         return sum + (assetWithChanges.asset_size || 0);
       }, 0);
 
-      // Check if total area now matches the required area
+      // Check if total area now matches the required area (with small tolerance for floating point)
       const areaMatches = initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01;
       
       // Define area error patterns for filtering
@@ -1281,17 +1281,20 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // If area matches, first clear ALL existing validation errors (they might all be area-related)
       // This ensures we start fresh before re-validating
       if (areaMatches) {
+        // Clear all validation errors immediately
         setValidationErrors(new Map());
       }
       
       // Validate all assets - but skip area validation if area matches
+      // Pass null to prevent area error from being added
       const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, areaMatches ? null : initialTotalArea);
       
-      // If area matches, remove all area-related errors from new validation errors
+      // If area matches, ensure no area errors are in the results
       if (areaMatches) {
-        // Clear area errors from new validation errors only (existing were already cleared)
+        // Clear area errors from new validation errors
         const cleanedErrors = new Map<string, string>();
         for (const [assetId, errorMsg] of newValidationErrors.entries()) {
+          if (!errorMsg) continue;
           const cleanedError = removeAreaErrors(errorMsg);
           if (cleanedError) {
             cleanedErrors.set(assetId, cleanedError);
@@ -1299,8 +1302,29 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           // If error is empty after cleaning, don't add it (removes from map)
         }
         
-        // Set only cleaned errors (no area errors)
+        // Set only cleaned errors (no area errors) - this should be empty if area matches
         setValidationErrors(cleanedErrors);
+        
+        // Double-check: ensure no area errors remain by doing a final pass after state updates
+        // This handles any edge cases where errors might have been added with different keys
+        setTimeout(() => {
+          setValidationErrors(prev => {
+            const finalCleaned = new Map<string, string>();
+            for (const [key, errorMsg] of prev.entries()) {
+              const cleaned = removeAreaErrors(errorMsg);
+              if (cleaned) {
+                finalCleaned.set(key, cleaned);
+              }
+            }
+            return finalCleaned;
+          });
+          
+          // Force grid refresh after final cleanup
+          if (gridRef.current?.api) {
+            gridRef.current.api.refreshCells({ force: true });
+            gridRef.current.api.refreshClientSideRowModel('aggregate');
+          }
+        }, 100);
         
         // Show success message if area is now correct
         if (cleanedErrors.size === 0) {
@@ -1313,18 +1337,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             message: `נכס נוסף. השטח הכולל תקין, אך נמצאו ${cleanedErrors.size} שגיאות אחרות`, 
             type: 'info' 
           });
-        }
-        
-        // Force grid refresh to update error display after clearing area errors
-        if (gridRef.current?.api) {
-          setTimeout(() => {
-            if (gridRef.current?.api) {
-              // Refresh all cells to update error styling
-              gridRef.current.api.refreshCells({ force: true });
-              // Also refresh the row data to ensure validation errors are updated
-              gridRef.current.api.refreshClientSideRowModel('aggregate');
-            }
-          }, 300);
         }
         setTimeout(() => setToast(null), 5000);
       } else {
@@ -1422,9 +1434,18 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         if (!asset) return null;
         
         const assetId = String(asset.asset_id);
-        const hasValidationError = validationErrors.has(assetId);
+        // For new assets (temp IDs), check both the asset_id and the tracking ID
+        const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
         
-        const errorMsg = hasValidationError ? (validationErrors.get(assetId) || 'שגיאת אימות') : '';
+        // Check validation errors by asset_id first, then by tracking ID for new assets
+        let hasValidationError = validationErrors.has(assetId);
+        let errorMsg = '';
+        if (hasValidationError) {
+          errorMsg = validationErrors.get(assetId) || 'שגיאת אימות';
+        } else if (trackingId && validationErrors.has(trackingId)) {
+          hasValidationError = true;
+          errorMsg = validationErrors.get(trackingId) || 'שגיאת אימות';
+        }
         
         // Validation tooltip component
         const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
@@ -1920,7 +1941,16 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               onCellValueChanged={onCellValueChanged}
               getRowStyle={(params) => {
                 const assetId = String(params.data?.asset_id);
-                if (validationErrors.has(assetId)) {
+                // For new assets (temp IDs), check both the asset_id and the tracking ID
+                const trackingId = params.data?.id && params.data.id.startsWith('temp-') ? params.data.id : null;
+                
+                // Check validation errors by asset_id first, then by tracking ID for new assets
+                let hasValidationError = validationErrors.has(assetId);
+                if (!hasValidationError && trackingId) {
+                  hasValidationError = validationErrors.has(trackingId);
+                }
+                
+                if (hasValidationError) {
                   return { backgroundColor: '#fef2f2' }; // Light red for validation errors
                 }
                 return null;

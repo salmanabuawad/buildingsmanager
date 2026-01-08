@@ -1256,17 +1256,26 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // Check if total area now matches the required area
       const areaMatches = initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01;
       
-      // Validate all assets
-      const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, initialTotalArea);
+      // Validate all assets - but skip area validation if area matches
+      const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, areaMatches ? null : initialTotalArea);
       
-      // If area matches, remove area-related errors from all assets
+      // If area matches, remove all area-related errors from all assets
       if (areaMatches) {
         const cleanedErrors = new Map<string, string>();
         for (const [assetId, errorMsg] of newValidationErrors.entries()) {
-          // Remove area-related error messages
+          // Remove area-related error messages - check for the exact error message format
+          const areaErrorPatterns = [
+            'השטח הכולל',
+            'חייב להישאר',
+            'השטח הכולל הנוכחי'
+          ];
+          
           const cleanedError = errorMsg
             .split('\n')
-            .filter(line => !line.includes('השטח הכולל') && !line.includes('חייב להישאר'))
+            .filter(line => {
+              // Remove lines that contain any area-related pattern
+              return !areaErrorPatterns.some(pattern => line.includes(pattern));
+            })
             .join('\n')
             .trim();
           
@@ -1275,7 +1284,30 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             cleanedErrors.set(assetId, cleanedError);
           }
         }
-        setValidationErrors(cleanedErrors);
+        // Also clear any existing area errors from the current validation errors and merge with new cleaned errors
+        setValidationErrors(prev => {
+          const updated = new Map<string, string>();
+          // Clear area errors from existing errors
+          for (const [assetId, errorMsg] of prev.entries()) {
+            const cleanedError = errorMsg
+              .split('\n')
+              .filter(line => {
+                const lineTrimmed = line.trim();
+                return !areaErrorPatterns.some(pattern => lineTrimmed.includes(pattern));
+              })
+              .join('\n')
+              .trim();
+            
+            if (cleanedError) {
+              updated.set(assetId, cleanedError);
+            }
+          }
+          // Merge with new cleaned errors (overwrite existing)
+          for (const [assetId, errorMsg] of cleanedErrors.entries()) {
+            updated.set(assetId, errorMsg);
+          }
+          return updated;
+        });
         
         // Show success message if area is now correct
         if (cleanedErrors.size === 0) {

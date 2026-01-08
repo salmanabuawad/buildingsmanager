@@ -1231,17 +1231,77 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
     // Revalidate all assets after addition
     setTimeout(async () => {
-      const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, initialTotalArea);
-      setValidationErrors(newValidationErrors);
+      // Calculate total area including the new 999 asset
+      const totalAreaWithNewAsset = finalAssets.reduce((sum, asset) => {
+        const assetId = String(asset.asset_id);
+        const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
+        
+        // Get dirty changes
+        let dirtyChanges = finalDirtyAssets.get(assetId) || {};
+        if (trackingId && Object.keys(dirtyChanges).length === 0) {
+          dirtyChanges = finalDirtyAssets.get(trackingId) || {};
+        }
+        
+        const assetWithChanges = { ...asset, ...dirtyChanges };
+        
+        // Skip assets where main_asset_type has not_accountable = true
+        const mainAssetType = assetWithChanges.main_asset_type || asset.main_asset_type;
+        if (mainAssetType && isAssetTypeNotAccountable(mainAssetType)) {
+          return sum;
+        }
+        
+        return sum + (assetWithChanges.asset_size || 0);
+      }, 0);
+
+      // Check if total area now matches the required area
+      const areaMatches = initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01;
       
-      // Show validation result
-      if (newValidationErrors.size > 0) {
-        const errorCount = newValidationErrors.size;
-        setToast({ 
-          message: `נכס נוסף. נמצאו ${errorCount} שגיאות אימות`, 
-          type: 'error' 
-        });
+      // Validate all assets
+      const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, initialTotalArea);
+      
+      // If area matches, remove area-related errors from all assets
+      if (areaMatches) {
+        const cleanedErrors = new Map<string, string>();
+        for (const [assetId, errorMsg] of newValidationErrors.entries()) {
+          // Remove area-related error messages
+          const cleanedError = errorMsg
+            .split('\n')
+            .filter(line => !line.includes('השטח הכולל') && !line.includes('חייב להישאר'))
+            .join('\n')
+            .trim();
+          
+          // Only keep the error if there are other (non-area) errors
+          if (cleanedError) {
+            cleanedErrors.set(assetId, cleanedError);
+          }
+        }
+        setValidationErrors(cleanedErrors);
+        
+        // Show success message if area is now correct
+        if (cleanedErrors.size === 0) {
+          setToast({ 
+            message: `נכס נוסף בהצלחה. השטח הכולל תקין`, 
+            type: 'success' 
+          });
+        } else {
+          setToast({ 
+            message: `נכס נוסף. השטח הכולל תקין, אך נמצאו ${cleanedErrors.size} שגיאות אחרות`, 
+            type: 'info' 
+          });
+        }
         setTimeout(() => setToast(null), 5000);
+      } else {
+        // Area doesn't match, keep all errors
+        setValidationErrors(newValidationErrors);
+        
+        if (newValidationErrors.size > 0) {
+          const errorCount = newValidationErrors.size;
+          setToast({ 
+            message: `נכס נוסף. נמצאו ${errorCount} שגיאות אימות`, 
+            type: 'error' 
+          });
+          setTimeout(() => setToast(null), 5000);
+        }
       }
     }, 100);
 

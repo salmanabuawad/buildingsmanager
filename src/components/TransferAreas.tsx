@@ -1231,6 +1231,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
     // Revalidate all assets after addition
     setTimeout(async () => {
+      // First, immediately clear any existing area errors if area will match
       // Calculate total area including the new 999 asset
       const totalAreaWithNewAsset = finalAssets.reduce((sum, asset) => {
         const assetId = String(asset.asset_id);
@@ -1256,58 +1257,50 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // Check if total area now matches the required area
       const areaMatches = initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01;
       
+      // Define area error patterns for filtering
+      const areaErrorPatterns = [
+        'השטח הכולל',
+        'חייב להישאר',
+        'השטח הכולל הנוכחי',
+        'השטח הכולל של הנכסים'
+      ];
+      
+      // Helper function to remove area errors from error message
+      const removeAreaErrors = (errorMsg: string): string => {
+        if (!errorMsg) return '';
+        return errorMsg
+          .split('\n')
+          .filter(line => {
+            const lineTrimmed = line.trim();
+            return lineTrimmed && !areaErrorPatterns.some(pattern => lineTrimmed.includes(pattern));
+          })
+          .join('\n')
+          .trim();
+      };
+      
+      // If area matches, first clear ALL existing validation errors (they might all be area-related)
+      // This ensures we start fresh before re-validating
+      if (areaMatches) {
+        setValidationErrors(new Map());
+      }
+      
       // Validate all assets - but skip area validation if area matches
       const newValidationErrors = await validateAllAssets(finalAssets, finalDirtyAssets, areaMatches ? null : initialTotalArea);
       
-      // If area matches, remove all area-related errors from all assets
+      // If area matches, remove all area-related errors from new validation errors
       if (areaMatches) {
+        // Clear area errors from new validation errors only (existing were already cleared)
         const cleanedErrors = new Map<string, string>();
         for (const [assetId, errorMsg] of newValidationErrors.entries()) {
-          // Remove area-related error messages - check for the exact error message format
-          const areaErrorPatterns = [
-            'השטח הכולל',
-            'חייב להישאר',
-            'השטח הכולל הנוכחי'
-          ];
-          
-          const cleanedError = errorMsg
-            .split('\n')
-            .filter(line => {
-              // Remove lines that contain any area-related pattern
-              return !areaErrorPatterns.some(pattern => line.includes(pattern));
-            })
-            .join('\n')
-            .trim();
-          
-          // Only keep the error if there are other (non-area) errors
+          const cleanedError = removeAreaErrors(errorMsg);
           if (cleanedError) {
             cleanedErrors.set(assetId, cleanedError);
           }
+          // If error is empty after cleaning, don't add it (removes from map)
         }
-        // Also clear any existing area errors from the current validation errors and merge with new cleaned errors
-        setValidationErrors(prev => {
-          const updated = new Map<string, string>();
-          // Clear area errors from existing errors
-          for (const [assetId, errorMsg] of prev.entries()) {
-            const cleanedError = errorMsg
-              .split('\n')
-              .filter(line => {
-                const lineTrimmed = line.trim();
-                return !areaErrorPatterns.some(pattern => lineTrimmed.includes(pattern));
-              })
-              .join('\n')
-              .trim();
-            
-            if (cleanedError) {
-              updated.set(assetId, cleanedError);
-            }
-          }
-          // Merge with new cleaned errors (overwrite existing)
-          for (const [assetId, errorMsg] of cleanedErrors.entries()) {
-            updated.set(assetId, errorMsg);
-          }
-          return updated;
-        });
+        
+        // Set only cleaned errors (no area errors)
+        setValidationErrors(cleanedErrors);
         
         // Show success message if area is now correct
         if (cleanedErrors.size === 0) {
@@ -1320,6 +1313,18 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             message: `נכס נוסף. השטח הכולל תקין, אך נמצאו ${cleanedErrors.size} שגיאות אחרות`, 
             type: 'info' 
           });
+        }
+        
+        // Force grid refresh to update error display after clearing area errors
+        if (gridRef.current?.api) {
+          setTimeout(() => {
+            if (gridRef.current?.api) {
+              // Refresh all cells to update error styling
+              gridRef.current.api.refreshCells({ force: true });
+              // Also refresh the row data to ensure validation errors are updated
+              gridRef.current.api.refreshClientSideRowModel('aggregate');
+            }
+          }, 300);
         }
         setTimeout(() => setToast(null), 5000);
       } else {
@@ -1365,8 +1370,18 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     const assetId = String(params.data?.asset_id);
     if (!assetId) return { textAlign: 'right' };
     
-    const isDirty = dirtyAssets.has(assetId) && dirtyAssets.get(assetId)?.hasOwnProperty(fieldName);
-    const hasValidationError = validationErrors.has(assetId);
+    // For new assets (temp IDs), check both the asset_id and the tracking ID
+    const trackingId = params.data?.id && params.data.id.startsWith('temp-') ? params.data.id : null;
+    
+    const isDirty = dirtyAssets.has(assetId) || (trackingId && dirtyAssets.has(trackingId));
+    const dirtyChanges = dirtyAssets.get(assetId) || (trackingId ? dirtyAssets.get(trackingId) : {});
+    const isFieldDirty = dirtyChanges?.hasOwnProperty(fieldName);
+    
+    // Check validation errors by asset_id first, then by tracking ID for new assets
+    let hasValidationError = validationErrors.has(assetId);
+    if (!hasValidationError && trackingId) {
+      hasValidationError = validationErrors.has(trackingId);
+    }
     
     if (hasValidationError) {
       return {
@@ -2221,4 +2236,5 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     </div>
   );
 });
+
 

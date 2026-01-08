@@ -185,6 +185,106 @@ async function resetDistributionFlagsIfNeeded(
       console.warn(`[resetDistributionFlagsIfNeeded] Could not determine asset type for building ${buildingNumber}, skipping flag update`);
     }
 
+    // Check if flags should be turned off when no relevant assets exist
+    // After setting flags to true, we should check if there are actually eligible assets
+    if (changeType === 'delete' || changeType === 'update') {
+      // Get all assets for this building
+      const { data: allAssets, error: assetsError } = await supabase
+        .from('assets')
+        .select('main_asset_type')
+        .eq('building_number', buildingNumber);
+
+      if (!assetsError && allAssets && allAssets.length > 0) {
+        // Get all asset types to check their properties
+        const { data: allAssetTypes, error: typesError } = await supabase
+          .from('asset_types')
+          .select('name, business_residence, non_accountable_for_distribution');
+
+        if (!typesError && allAssetTypes) {
+          // Create a map for quick lookup
+          const assetTypeMap = new Map(
+            allAssetTypes.map((at: any) => [String(at.name).trim(), at])
+          );
+
+          // Check for business distribution: turn off if no business assets eligible for distribution
+          if (building.need_business_distribution && building.business_shared_area && building.business_shared_area > 0) {
+            const hasEligibleBusinessAssets = allAssets.some((asset: any) => {
+              if (!asset.main_asset_type) return false;
+              const mainTypeStr = String(asset.main_asset_type).trim();
+              const assetType = assetTypeMap.get(mainTypeStr);
+              
+              // Also try numeric lookup if string lookup fails
+              let foundType = assetType;
+              if (!foundType) {
+                const mainTypeNum = parseInt(mainTypeStr, 10);
+                if (!isNaN(mainTypeNum)) {
+                  for (const [key, value] of assetTypeMap.entries()) {
+                    const keyNum = parseInt(key, 10);
+                    if (!isNaN(keyNum) && keyNum === mainTypeNum) {
+                      foundType = value;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              return foundType && 
+                     foundType.business_residence === 'עסקים' && 
+                     foundType.non_accountable_for_distribution !== true;
+            });
+
+            if (!hasEligibleBusinessAssets) {
+              updates.need_business_distribution = false;
+              console.log(`[resetDistributionFlagsIfNeeded] Turning off need_business_distribution for building ${buildingNumber} (no eligible business assets)`);
+            }
+          }
+
+          // Check for residence distribution: turn off if no residence assets eligible for distribution
+          if (building.need_residence_distribution && building.residence_shared_area && building.residence_shared_area > 0) {
+            const hasEligibleResidenceAssets = allAssets.some((asset: any) => {
+              if (!asset.main_asset_type) return false;
+              const mainTypeStr = String(asset.main_asset_type).trim();
+              const assetType = assetTypeMap.get(mainTypeStr);
+              
+              // Also try numeric lookup if string lookup fails
+              let foundType = assetType;
+              if (!foundType) {
+                const mainTypeNum = parseInt(mainTypeStr, 10);
+                if (!isNaN(mainTypeNum)) {
+                  for (const [key, value] of assetTypeMap.entries()) {
+                    const keyNum = parseInt(key, 10);
+                    if (!isNaN(keyNum) && keyNum === mainTypeNum) {
+                      foundType = value;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              return foundType && 
+                     foundType.business_residence === 'מגורים' && 
+                     foundType.non_accountable_for_distribution !== true;
+            });
+
+            if (!hasEligibleResidenceAssets) {
+              updates.need_residence_distribution = false;
+              console.log(`[resetDistributionFlagsIfNeeded] Turning off need_residence_distribution for building ${buildingNumber} (no eligible residence assets)`);
+            }
+          }
+        }
+      } else if (!assetsError && (!allAssets || allAssets.length === 0)) {
+        // No assets at all - turn off both flags
+        if (building.need_business_distribution) {
+          updates.need_business_distribution = false;
+          console.log(`[resetDistributionFlagsIfNeeded] Turning off need_business_distribution for building ${buildingNumber} (no assets)`);
+        }
+        if (building.need_residence_distribution) {
+          updates.need_residence_distribution = false;
+          console.log(`[resetDistributionFlagsIfNeeded] Turning off need_residence_distribution for building ${buildingNumber} (no assets)`);
+        }
+      }
+    }
+
     // Update building if flags need to be reset (use direct supabase call to avoid circular reference)
     if (Object.keys(updates).length > 0) {
       await supabase

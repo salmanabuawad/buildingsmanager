@@ -1086,6 +1086,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     const newAssetId = `temp-${Date.now()}`;
 
     // Create new asset with type 999
+    // asset_size is set to 0 - user must manually type the size
+    // The missing size will be shown as a watermark/placeholder
     const newAsset: Asset = {
       id: newAssetId,
       asset_id: newAssetId, // Will be assigned by database when saved
@@ -1093,7 +1095,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       payer_id: firstAsset?.payer_id || '',
       measurement_date: firstAsset?.measurement_date || dateStr,
       main_asset_type: '999',
-      asset_size: missingSize,
+      asset_size: 0, // Set to 0 - user must manually type the size
       sub_asset_type_1: '',
       sub_asset_size_1: 0,
       sub_asset_type_2: '',
@@ -1111,7 +1113,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       discount_type: undefined,
       discount_date_from: undefined,
       discount_date_to: undefined,
-      comment: undefined,
+      comment: `מוצע: ${missingSize.toFixed(2)} מ"ר`, // Add suggested size in comment as hint
       tax_region: firstAsset?.tax_region || building.tax_region || undefined,
       is_latest: true,
       area_from_distribution: 0
@@ -1120,11 +1122,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     // Add to assets list
     setAssets(prev => [...prev, newAsset]);
     
-    // Mark as new asset
+    // Mark as new asset (don't set asset_size in dirtyAssets - user must type it manually)
     setDirtyAssets(prev => {
       const newMap = new Map(prev);
-      // Initialize with asset_size change
-      newMap.set(newAssetId, { asset_size: missingSize });
+      // Initialize empty - user must manually type the size
+      newMap.set(newAssetId, {});
       return newMap;
     });
 
@@ -1319,12 +1321,38 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) return '';
+        if (val === null || val === undefined || val === '' || val === 0) {
+          // Show watermark for type 999 assets with 0 size
+          const asset = params.data as Asset;
+          if (asset?.main_asset_type === '999') {
+            // Get missing size from the asset's comment if it contains the suggestion
+            const comment = asset.comment || '';
+            const match = comment.match(/מוצע: ([\d.]+)/);
+            if (match) {
+              return `[מוצע: ${match[1]}]`;
+            }
+            return '[הזן גודל]';
+          }
+          return '';
+        }
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'asset_size')
+      cellStyle: (params: any) => {
+        const style = getCellStyle(params, 'asset_size');
+        const asset = params.data as Asset;
+        const val = params.value;
+        // Style watermark text for type 999 with 0 size
+        if (asset?.main_asset_type === '999' && (val === 0 || val === null || val === undefined || val === '')) {
+          return {
+            ...style,
+            color: '#9ca3af', // Gray color for watermark
+            fontStyle: 'italic'
+          };
+        }
+        return style;
+      }
     },
     {
       field: 'sub_asset_type_1',

@@ -4063,7 +4063,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseCellRenderer]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles]);
 
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');

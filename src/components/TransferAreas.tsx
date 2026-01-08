@@ -480,7 +480,15 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     // Build updated assets with dirty changes applied
     const updatedAssets = allAssets.map(asset => {
       const assetId = String(asset.asset_id);
-      const dirtyChanges = allDirtyAssets.get(assetId) || {};
+      // For new assets (temp IDs), check both the asset_id and the tracking ID
+      const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
+      
+      // Try to get dirty changes by asset_id first, then by tracking ID for new assets
+      let dirtyChanges = allDirtyAssets.get(assetId) || {};
+      if (trackingId && Object.keys(dirtyChanges).length === 0) {
+        dirtyChanges = allDirtyAssets.get(trackingId) || {};
+      }
+      
       return { ...asset, ...dirtyChanges };
     });
 
@@ -1045,8 +1053,16 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   // Calculate current total area (sum of asset_size, excluding assets with not_accountable = true, with dirty changes applied)
   const currentTotalArea = useMemo(() => {
     return assets.reduce((sum, asset) => {
+      // For new assets (temp IDs), check both the asset_id and the tracking ID
       const assetId = String(asset.asset_id);
-      const dirtyChanges = dirtyAssets.get(assetId) || {};
+      const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
+      
+      // Try to get dirty changes by asset_id first, then by tracking ID for new assets
+      let dirtyChanges = dirtyAssets.get(assetId) || {};
+      if (trackingId && Object.keys(dirtyChanges).length === 0) {
+        dirtyChanges = dirtyAssets.get(trackingId) || {};
+      }
+      
       const assetWithChanges = { ...asset, ...dirtyChanges };
       
       // Skip assets where main_asset_type has not_accountable = true

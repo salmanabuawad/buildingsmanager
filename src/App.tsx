@@ -1344,6 +1344,8 @@ function App() {
                 buildingNumber={activeTab.buildingNumber}
                 taxRegion={activeTab.taxRegion}
                 selectedAssetIds={activeTab.selectedAssetIds}
+                onCloseTab={() => handleCloseTab(activeTabId)}
+                onOpenAssetsTab={handleOpenAssetsTab}
               />
             )}
             {activeTab?.type === 'asset-types' && (

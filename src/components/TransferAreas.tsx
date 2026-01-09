@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators } from '../lib/validation
 import { supabase } from '../lib/supabase';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus } from 'lucide-react';
+import { Building as BuildingIcon, Loader2, Save, X, AlertCircle, Copy, CheckCircle2, Download, Plus, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Toast } from './Toast';
 import { useGridPreferences } from '../lib/useGridPreferences';
@@ -294,10 +294,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       
       // Wait for assetTypes state to be set before calculating initial total area
       // Calculate initial total area (sum of asset_size, excluding assets with not_accountable = true)
-      // Use the helper function to check if asset type is not_accountable
+      // EXCEPT: Type 999 should always be included regardless of the flag
       const totalArea = fetchedAssets.reduce((sum, asset) => {
         // Skip assets where main_asset_type has not_accountable = true
-        if (asset.main_asset_type && finalAssetTypes) {
+        // EXCEPT for type 999, which should always be included in transfer area calculations
+        if (asset.main_asset_type && asset.main_asset_type !== '999' && finalAssetTypes) {
           const assetType = finalAssetTypes.find(at => at.name === asset.main_asset_type);
           if (assetType?.non_accountable_for_total_area === true) {
             return sum;
@@ -538,9 +539,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     });
 
     // Calculate current total area (excluding assets with not_accountable = true)
+    // EXCEPT: Type 999 should always be included regardless of the flag
     const newTotalArea = updatedAssets.reduce((sum, a) => {
       // Skip assets where main_asset_type has not_accountable = true
-      if (a.main_asset_type && isAssetTypeNotAccountable(a.main_asset_type)) {
+      // EXCEPT for type 999, which should always be included in transfer area calculations
+      if (a.main_asset_type && a.main_asset_type !== '999' && isAssetTypeNotAccountable(a.main_asset_type)) {
         return sum;
       }
       
@@ -1116,9 +1119,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const assetWithChanges = { ...asset, ...dirtyChanges };
       
       // Skip assets where main_asset_type has not_accountable = true
+      // EXCEPT for type 999, which should always be included in transfer area calculations
       // Check the updated main_asset_type if it was changed in dirtyChanges
       const mainAssetType = assetWithChanges.main_asset_type || asset.main_asset_type;
-      if (mainAssetType && isAssetTypeNotAccountable(mainAssetType)) {
+      if (mainAssetType && mainAssetType !== '999' && isAssetTypeNotAccountable(mainAssetType)) {
         return sum;
       }
       
@@ -1326,8 +1330,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         }
         
         // Skip assets where main_asset_type has not_accountable = true
+        // EXCEPT for type 999, which should always be included in transfer area calculations
         const mainAssetType = (dirtyChanges.main_asset_type || asset.main_asset_type);
-        if (mainAssetType && isAssetTypeNotAccountable(mainAssetType)) {
+        if (mainAssetType && mainAssetType !== '999' && isAssetTypeNotAccountable(mainAssetType)) {
           return sum;
         }
         
@@ -1871,8 +1876,44 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
+      cellEditor: 'agLargeTextCellEditor',
+      cellEditorParams: {
+        maxLength: 1000,
+        rows: 5,
+        cols: 50
+      },
+      cellEditorPopup: true,
+      cellEditorPopupPosition: 'over',
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        const isEditable = isFieldEditable(params, 'comment');
+        return (
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: hasValue ? 'flex-end' : 'center', 
+              gap: '4px', 
+              direction: 'rtl', 
+              width: '100%', 
+              paddingRight: hasValue ? '4px' : '0', 
+              cursor: isEditable ? 'pointer' : 'default', 
+              height: '100%' 
+            }}
+            onClick={(e) => {
+              if (!isEditable) {
+                e.stopPropagation();
+              }
+            }}
+          >
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
+      },
       headerClass: 'ag-right-aligned-header',
-      cellStyle: (params: any) => getCellStyle(params, 'comment')
+      cellStyle: (params: any) => getCellStyle(params, 'comment'),
+      tooltipValueGetter: (params) => params.value || ''
     },
     {
       field: 'extra_field_1',
@@ -2176,25 +2217,18 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               <label htmlFor="new999AssetSize" className="block text-sm font-medium text-slate-700 mb-1">
                 גודל נכס (מ"ר) <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="new999AssetSize"
-                  value={new999AssetSize}
-                  onChange={(e) => {
-                    // Allow only numbers and decimal point
-                    const value = e.target.value.replace(/[^\d.]/g, '');
-                    setNew999AssetSize(value);
-                  }}
-                  placeholder={missingSize > 0 ? `מוצע: ${missingSize.toFixed(2)}` : 'הזן גודל'}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
-                />
-                {missingSize > 0 && !new999AssetSize && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm italic pointer-events-none">
-                    מוצע: {missingSize.toFixed(2)}
-                  </div>
-                )}
-              </div>
+              <input
+                type="text"
+                id="new999AssetSize"
+                value={new999AssetSize}
+                onChange={(e) => {
+                  // Allow only numbers and decimal point
+                  const value = e.target.value.replace(/[^\d.]/g, '');
+                  setNew999AssetSize(value);
+                }}
+                placeholder="הזן גודל"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+              />
               {missingSize > 0 && (
                 <p className="mt-1 text-xs text-slate-500">
                   שטח חסר: {missingSize.toFixed(2)} מ"ר

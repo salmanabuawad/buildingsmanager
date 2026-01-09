@@ -481,58 +481,25 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     // Build updated assets with dirty changes applied
     const updatedAssets = allAssets.map(asset => {
       const assetId = String(asset.asset_id);
-      // For new assets (temp IDs), check both the asset_id and the tracking ID
-      const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
       
-      // For new assets, check tracking ID FIRST (where we store the size)
-      // For existing assets, check asset_id first
+      // Get dirty changes by asset_id (works for both new and existing assets)
       let dirtyChanges: Partial<Asset> = {};
-      if (trackingId) {
-        const trackingChanges = allDirtyAssets.get(trackingId);
-        if (trackingChanges) {
-          dirtyChanges = trackingChanges;
-        }
-      }
-      // If we have trackingId but didn't find changes, or if we don't have asset_size, also check by asset_id
-      // This handles cases where the asset might be stored under asset_id instead of trackingId
-      if (!dirtyChanges.asset_size || (trackingId && Object.keys(dirtyChanges).length === 0)) {
+      if (assetId) {
         const assetIdChanges = allDirtyAssets.get(assetId);
         if (assetIdChanges) {
-          // Merge with existing dirtyChanges, but prioritize assetIdChanges if we don't have asset_size
-          if (!dirtyChanges.asset_size && assetIdChanges.asset_size) {
-            dirtyChanges = { ...dirtyChanges, ...assetIdChanges };
-          } else if (Object.keys(dirtyChanges).length === 0) {
-            dirtyChanges = assetIdChanges;
-          }
+          dirtyChanges = assetIdChanges;
         }
       }
       
       // Merge asset with dirty changes - ensure asset_size is included
-      // For new assets, dirty changes should have asset_size from trackingId
-      // For existing assets, asset_size might be in the asset object or dirty changes
       const merged = { ...asset, ...dirtyChanges };
       
       // Ensure asset_size is properly set - prioritize dirty changes, then asset object
-      // For new assets, asset_size should be in dirtyChanges (stored with trackingId)
-      // For existing assets, asset_size might be in dirtyChanges or asset object
       if (dirtyChanges.asset_size !== undefined && dirtyChanges.asset_size !== null) {
         merged.asset_size = dirtyChanges.asset_size;
       } else if (merged.asset_size === undefined || merged.asset_size === null) {
         // If no asset_size after merge, use 0 (shouldn't happen, but safety check)
         merged.asset_size = 0;
-      }
-      
-      // Debug for new assets - always log to help diagnose
-      if (trackingId) {
-        console.log('[validateAllAssets] Processing new asset:', {
-          assetId: asset.asset_id,
-          trackingId,
-          assetSizeFromAsset: asset.asset_size,
-          assetSizeFromDirty: dirtyChanges.asset_size,
-          finalAssetSize: merged.asset_size,
-          hasDirtyChanges: Object.keys(dirtyChanges).length > 0,
-          dirtyChangesKeys: Object.keys(dirtyChanges)
-        });
       }
       
       return merged;
@@ -751,21 +718,22 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // First pass: validate all assets and prepare data
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
-          // Check if this is a new asset (temp ID) or an existing asset
-          const isNewAsset = assetId.startsWith('temp-');
-          
-          // Get the full asset data with changes (assetId is asset_id)
+          // Get the full asset data with changes
+          // Find asset by asset_id (works for both new and existing assets)
           const originalAsset = assets.find(a => String(a.asset_id) === assetId);
           
-          // For new assets, use the asset from assets array (which has the temp asset)
+          // Check if this is a new asset (not found in assets array but has dirty changes)
+          const isNewAsset = !originalAsset && dirtyAssets.has(assetId);
+          
+          // For new assets, create from dirty changes
           // For existing assets, find the original
-          if (!originalAsset) {
+          if (!originalAsset && !isNewAsset) {
             errors.push(`נכס ${assetId}: לא נמצא`);
             continue;
           }
 
           const updatedData = isNewAsset 
-            ? { ...originalAsset, ...changes } // New asset: merge with changes
+            ? { ...changes, asset_id: parseInt(assetId, 10) } as Partial<Asset> // New asset: use changes as base
             : { ...originalAsset, ...changes }; // Existing asset: merge with changes
 
           // For transfer areas tab: combine asset's tax_region with tab's taxRegion
@@ -1005,24 +973,21 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             });
           }
           
-          // For new assets, map temp IDs to new asset_ids from result
+          // For new assets, map asset IDs to new database-assigned asset_ids from result
           // The result.affected_asset_ids array contains IDs in the same order as assetsToSave
           // First come existing assets (originalAssets.length), then new assets
           if (result.affected_asset_ids && result.affected_asset_ids.length > 0 && newAssets.length > 0) {
-            // Get temp IDs for new assets from dirtyAssets
-            const tempIds = Array.from(dirtyAssets.keys()).filter(id => id.startsWith('temp-'));
-            
-            // Map temp IDs to new asset IDs
-            // The new asset IDs start at index originalAssets.length in the result array
-            tempIds.forEach((tempId, index) => {
+            // Iterate over newAssets in the same order they were saved
+            newAssets.forEach((newAsset, index) => {
               const newAssetIndex = originalAssets.length + index;
               if (newAssetIndex < result.affected_asset_ids!.length) {
                 const newAssetId = result.affected_asset_ids![newAssetIndex];
-                const originalAsset = assets.find(a => String(a.asset_id) === tempId);
-                if (originalAsset && newAssetId) {
-                  newIdentifiers.set(tempId, {
+                // Use the original asset_id (user-entered) as the key
+                const originalAssetIdKey = newAsset.asset_id ? String(newAsset.asset_id) : null;
+                if (originalAssetIdKey && newAssetId) {
+                  newIdentifiers.set(originalAssetIdKey, {
                     asset_id: newAssetId,
-                    building_number: originalAsset.building_number
+                    building_number: newAsset.building_number || buildingNumber
                   });
                 }
               }
@@ -1108,13 +1073,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     return assets.reduce((sum, asset) => {
       // For new assets (temp IDs), check both the asset_id and the tracking ID
       const assetId = String(asset.asset_id);
-      const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
       
-      // Try to get dirty changes by asset_id first, then by tracking ID for new assets
+      // Get dirty changes by asset_id (works for both new and existing assets)
       let dirtyChanges = dirtyAssets.get(assetId) || {};
-      if (trackingId && Object.keys(dirtyChanges).length === 0) {
-        dirtyChanges = dirtyAssets.get(trackingId) || {};
-      }
       
       const assetWithChanges = { ...asset, ...dirtyChanges };
       
@@ -1196,12 +1157,12 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     const today = new Date();
     const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     
-    // Use user-entered asset ID for tracking (prefixed with temp- to indicate it's new)
-    const trackingId = `temp-${assetIdNum}`;
+    // Use user-entered asset ID directly (like regular assets)
+    const assetIdStr = String(assetIdNum);
 
     // Create new asset with type 999 - use user-entered asset ID (as number)
     const newAsset: Asset = {
-      id: trackingId,
+      id: assetIdStr, // Use asset_id as id (like regular assets)
       asset_id: assetIdNum, // User-entered asset ID from modal (converted to number)
       building_number: building.building_number,
       payer_id: firstAsset?.payer_id || '',
@@ -1247,8 +1208,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         updatedDirtyAssets.set(assetId, { ...existing, comment: newComment });
       });
       
-      // Add the new asset to dirtyAssets map - use user-entered asset ID as key
-      updatedDirtyAssets.set(trackingId, {
+      // Add the new asset to dirtyAssets map - use asset_id as key (like regular assets)
+      updatedDirtyAssets.set(assetIdStr, {
         asset_id: assetIdNum,
         asset_size: assetSize,
         comment: new999AssetComment || undefined
@@ -1270,9 +1231,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // No comment to add, just add the new asset
       finalAssets = [...assets, newAsset];
       
-      // Mark as new asset - use user-entered asset ID as key
+      // Mark as new asset - use asset_id as key (like regular assets)
       const updatedDirtyAssets = new Map(dirtyAssets);
-      updatedDirtyAssets.set(trackingId, {
+      updatedDirtyAssets.set(assetIdStr, {
         asset_id: assetIdNum,
         asset_size: assetSize,
         comment: new999AssetComment || undefined
@@ -1290,22 +1251,13 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       // We need to make sure we're getting the size correctly
       const totalAreaWithNewAsset = finalAssets.reduce((sum, asset) => {
         const assetId = String(asset.asset_id);
-        const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
         
-        // Get dirty changes - for new assets, check tracking ID first
+        // Get dirty changes - use asset_id as key (works for both new and existing assets)
         let dirtyChanges: Partial<Asset> = {};
-        if (trackingId) {
-          const trackingChanges = finalDirtyAssets.get(trackingId);
-          if (trackingChanges) {
-            dirtyChanges = trackingChanges;
-          }
-        }
-        // If no tracking changes found or no asset_size in tracking changes, check by asset_id
-        if ((!dirtyChanges || Object.keys(dirtyChanges).length === 0 || !dirtyChanges.asset_size) && assetId) {
+        if (assetId) {
           const assetIdChanges = finalDirtyAssets.get(assetId);
           if (assetIdChanges) {
-            // Merge with existing dirtyChanges to preserve other fields
-            dirtyChanges = { ...dirtyChanges, ...assetIdChanges };
+            dirtyChanges = assetIdChanges;
           }
         }
         
@@ -1346,11 +1298,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         difference: initialTotalArea !== null ? totalAreaWithNewAsset - initialTotalArea : null,
         newAssetSize: assetSize,
         newAssetId: assetIdNum,
-        trackingId: trackingId,
+        assetIdStr: assetIdStr,
         finalAssetsCount: finalAssets.length,
-        newAssetInFinalAssets: finalAssets.find(a => String(a.asset_id) === String(assetIdNum) || a.id === trackingId),
-        dirtyAssetsHasTrackingId: finalDirtyAssets.has(trackingId),
-        dirtyAssetsTrackingIdValue: finalDirtyAssets.get(trackingId),
+        newAssetInFinalAssets: finalAssets.find(a => String(a.asset_id) === String(assetIdNum)),
+        dirtyAssetsHasAssetId: finalDirtyAssets.has(assetIdStr),
+        dirtyAssetsAssetIdValue: finalDirtyAssets.get(assetIdStr),
         areaMatches: initialTotalArea !== null && Math.abs(totalAreaWithNewAsset - initialTotalArea) <= 0.01
       });
       
@@ -1482,18 +1434,13 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     const assetId = String(params.data?.asset_id);
     if (!assetId) return { textAlign: 'right' };
     
-    // For new assets (temp IDs), check both the asset_id and the tracking ID
-    const trackingId = params.data?.id && params.data.id.startsWith('temp-') ? params.data.id : null;
-    
-    const isDirty = dirtyAssets.has(assetId) || (trackingId && dirtyAssets.has(trackingId));
-    const dirtyChanges = dirtyAssets.get(assetId) || (trackingId ? dirtyAssets.get(trackingId) : {});
+    // Get dirty changes and validation errors by asset_id (works for both new and existing assets)
+    const isDirty = dirtyAssets.has(assetId);
+    const dirtyChanges = dirtyAssets.get(assetId) || {};
     const isFieldDirty = dirtyChanges?.hasOwnProperty(fieldName);
     
-    // Check validation errors by asset_id first, then by tracking ID for new assets
-    let hasValidationError = validationErrors.has(assetId);
-    if (!hasValidationError && trackingId) {
-      hasValidationError = validationErrors.has(trackingId);
-    }
+    // Check validation errors by asset_id
+    const hasValidationError = validationErrors.has(assetId);
     
     if (hasValidationError) {
       return {
@@ -1534,18 +1481,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         if (!asset) return null;
         
         const assetId = String(asset.asset_id);
-        // For new assets (temp IDs), check both the asset_id and the tracking ID
-        const trackingId = asset.id && asset.id.startsWith('temp-') ? asset.id : null;
         
-        // Check validation errors by asset_id first, then by tracking ID for new assets
-        let hasValidationError = validationErrors.has(assetId);
-        let errorMsg = '';
-        if (hasValidationError) {
-          errorMsg = validationErrors.get(assetId) || 'שגיאת אימות';
-        } else if (trackingId && validationErrors.has(trackingId)) {
-          hasValidationError = true;
-          errorMsg = validationErrors.get(trackingId) || 'שגיאת אימות';
-        }
+        // Check validation errors by asset_id
+        const hasValidationError = validationErrors.has(assetId);
+        const errorMsg = hasValidationError ? (validationErrors.get(assetId) || 'שגיאת אימות') : '';
         
         // Validation tooltip component
         const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
@@ -2076,15 +2015,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               getRowId={(params) => String(params.data.asset_id)}
               onCellValueChanged={onCellValueChanged}
               getRowStyle={(params) => {
-                const assetId = String(params.data?.asset_id);
-                // For new assets (temp IDs), check both the asset_id and the tracking ID
-                const trackingId = params.data?.id && params.data.id.startsWith('temp-') ? params.data.id : null;
-                
-                // Check validation errors by asset_id first, then by tracking ID for new assets
-                let hasValidationError = validationErrors.has(assetId);
-                if (!hasValidationError && trackingId) {
-                  hasValidationError = validationErrors.has(trackingId);
-                }
+        const assetId = String(params.data?.asset_id);
+        
+        // Check validation errors by asset_id
+        const hasValidationError = validationErrors.has(assetId);
                 
                 if (hasValidationError) {
                   return { backgroundColor: '#fef2f2' }; // Light red for validation errors

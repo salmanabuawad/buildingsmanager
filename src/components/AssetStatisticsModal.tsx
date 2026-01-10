@@ -16,13 +16,13 @@ interface AssetStatisticsModalProps {
 interface StatisticsRow {
   type: string;
   typeDescription: string;
-  isSubType: boolean;
   totalArea: number;
   count: number;
 }
 
 export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buildingNumber }: AssetStatisticsModalProps) {
-  // Calculate statistics from assets
+  // Calculate statistics from assets - include ALL asset types from database
+  // Combine main and sub asset types into a single entry per type code
   const statistics = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
 
@@ -33,10 +33,28 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       return assetType?.description || typeName;
     };
 
-    // Process main asset types
+    // First, initialize ALL asset types from the database with 0 area and 0 count
+    // This ensures all types are listed, even if they don't appear in assets
+    assetTypes.forEach(assetType => {
+      if (assetType.name) {
+        const typeKey = assetType.name.trim();
+        if (!statsMap.has(typeKey)) {
+          statsMap.set(typeKey, {
+            type: assetType.name.trim(),
+            typeDescription: assetType.description || assetType.name,
+            totalArea: 0,
+            count: 0
+          });
+        }
+      }
+    });
+    
+    // Now process assets to update statistics with actual data
+    // Combine main and sub asset types into single entries
     assets.forEach(asset => {
+      // Process main asset types
       if (asset.main_asset_type) {
-        const typeKey = `main_${asset.main_asset_type}`;
+        const typeKey = asset.main_asset_type.trim();
         const existing = statsMap.get(typeKey);
         const area = asset.asset_size || 0;
         
@@ -44,17 +62,17 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
           existing.totalArea += area;
           existing.count += 1;
         } else {
+          // Type not in database, add it anyway
           statsMap.set(typeKey, {
             type: asset.main_asset_type,
             typeDescription: getTypeDescription(asset.main_asset_type),
-            isSubType: false,
             totalArea: area,
             count: 1
           });
         }
       }
 
-      // Process sub asset types (1-6)
+      // Process sub asset types (1-6) - combine with main types if same type code
       for (let i = 1; i <= 6; i++) {
         const subTypeField = `sub_asset_type_${i}` as keyof Asset;
         const subSizeField = `sub_asset_size_${i}` as keyof Asset;
@@ -63,7 +81,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         const subSize = asset[subSizeField] as number | undefined;
         
         if (subType && subType.trim() && (subSize != null && subSize > 0)) {
-          const typeKey = `sub_${subType}`;
+          const typeKey = subType.trim();
           const existing = statsMap.get(typeKey);
           const area = subSize || 0;
           
@@ -71,10 +89,10 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
             existing.totalArea += area;
             existing.count += 1;
           } else {
+            // Type not in database, add it anyway
             statsMap.set(typeKey, {
               type: subType,
               typeDescription: getTypeDescription(subType),
-              isSubType: true,
               totalArea: area,
               count: 1
             });
@@ -83,13 +101,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       }
     });
 
-    // Convert map to array and sort: main types first, then sub types, then by type name
+    // Convert map to array and sort by type name (numeric if possible, otherwise string)
     const statsArray = Array.from(statsMap.values()).sort((a, b) => {
-      // Main types come first
-      if (a.isSubType !== b.isSubType) {
-        return a.isSubType ? 1 : -1;
-      }
-      // Then sort by type name (numeric if possible, otherwise string)
       const aNum = parseInt(a.type, 10);
       const bNum = parseInt(b.type, 10);
       if (!isNaN(aNum) && !isNaN(bNum)) {
@@ -119,15 +132,6 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params) => {
         return params.value || '-';
-      }
-    },
-    {
-      field: 'isSubType',
-      headerName: 'סוג',
-      width: 100,
-      cellStyle: { textAlign: 'right' },
-      valueFormatter: (params) => {
-        return params.value ? 'משנה' : 'ראשי';
       }
     },
     {
@@ -163,19 +167,18 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
       
       // Create header row
-      const headerRow = ['סוג נכס', 'תיאור', 'סוג', 'כמות', 'סכום שטח'];
+      const headerRow = ['סוג נכס', 'תיאור', 'כמות', 'סכום שטח'];
       
       // Create data rows
       const dataRows = statistics.map(stat => [
         stat.type || '',
         stat.typeDescription || '-',
-        stat.isSubType ? 'משנה' : 'ראשי',
         stat.count || 0,
         stat.totalArea ? Number(stat.totalArea.toFixed(2)) : 0
       ]);
       
       // Add summary row
-      const summaryRow = ['סה"כ', '', '', assets.length, totalArea ? Number(totalArea.toFixed(2)) : 0];
+      const summaryRow = ['סה"כ', '', assets.length, totalArea ? Number(totalArea.toFixed(2)) : 0];
       
       // Combine all rows
       const excelData = [headerRow, ...dataRows, [], summaryRow];
@@ -191,7 +194,6 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         columnWidths: [
           { wch: 15 }, // סוג נכס
           { wch: 30 }, // תיאור
-          { wch: 12 }, // סוג
           { wch: 12 }, // כמות
           { wch: 18 }  // סכום שטח
         ]

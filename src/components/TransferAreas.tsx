@@ -999,7 +999,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           setAssetIdentifiers(prev => {
             const next = new Map(prev);
             for (const [key, value] of newIdentifiers.entries()) {
-              next.set(key, value);
+              // Use the database-assigned asset_id as the key for future lookups
+              // This ensures the new 999 asset can be reloaded correctly
+              next.set(String(value.asset_id), value);
             }
             return next;
           });
@@ -1014,7 +1016,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       }
       
       // Wait a bit for the database operations to complete, then reload data
-      if (originalAssets.length > 0) {
+      // Reload if there are original assets OR new assets (like 999) to ensure they stay visible
+      if (originalAssets.length > 0 || newAssets.length > 0) {
         await new Promise(resolve => setTimeout(resolve, 500));
         await fetchData();
       }
@@ -1034,7 +1037,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         setTimeout(() => setSuccess(null), 3000);
         
         // Close transfer tab and return to assets list tab after successful save
-        if (onCloseTab && onOpenAssetsTab) {
+        // BUT: If a 999 asset was added, keep the tab open so the user can see it in the grid
+        const has999Asset = newAssets.some(asset => asset.main_asset_type === '999');
+        
+        if (onCloseTab && onOpenAssetsTab && !has999Asset) {
           // Use a small delay to allow the success message to be visible
           setTimeout(() => {
             // Extract the original tax region (remove 990 and not_accountable regions that were added for transfer)

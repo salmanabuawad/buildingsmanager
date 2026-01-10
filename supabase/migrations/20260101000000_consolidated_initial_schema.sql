@@ -383,6 +383,7 @@ CREATE TABLE IF NOT EXISTS assets_history (
   action_id bigint,
   area_from_distribution numeric,
   exported_to_automation boolean DEFAULT false,
+  export_to_automation_at text,
   comment text,
   created_at timestamptz DEFAULT now()
 );
@@ -668,7 +669,7 @@ BEGIN
       sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
       structure_drawing_url, elevator, single_double_family, condo, townhouses, penthouse,
       tax_region, floor, discount_type, discount_date_from, discount_date_to,
-      area_from_distribution, exported_to_automation, comment
+      area_from_distribution, exported_to_automation, export_to_automation_at, comment
     )
     VALUES (
       v_asset.asset_id, v_asset.building_number, v_asset.payer_id, v_asset.measurement_date,
@@ -683,7 +684,7 @@ BEGIN
       v_asset.condo, v_asset.townhouses, v_asset.penthouse,
       v_asset.tax_region, v_asset.floor, v_asset.discount_type,
       v_asset.discount_date_from, v_asset.discount_date_to,
-      v_asset.area_from_distribution, v_asset.exported_to_automation, v_asset.comment
+      v_asset.area_from_distribution, v_asset.exported_to_automation, v_asset.export_to_automation_at, v_asset.comment
     );
   END IF;
 END;

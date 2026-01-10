@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
+import { parseDateFromDDMMYYYY } from './dateUtils';
 
 /**
  * ============================================================================
@@ -424,6 +425,7 @@ export interface Asset {
   area_from_distribution?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
   business_total_area?: number; // Total business area for this asset = asset_size + area_from_distribution (only for business assets, 0 for non-business assets)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
+  export_to_automation_at?: string; // Date when asset was exported to automation system (DD/MM/YYYY format)
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
 }
 
@@ -603,6 +605,8 @@ export function sanitizeAssetInput(input: any): any {
     discount_date_to: input.discount_date_to != null ? sanitizeDate(input.discount_date_to) : undefined,
     area_from_distribution: input.area_from_distribution != null ? sanitizeNumber(input.area_from_distribution) : undefined,
     exported_to_automation: input.exported_to_automation != null ? (input.exported_to_automation === true || input.exported_to_automation === 'true') : undefined,
+    export_to_automation_at: input.export_to_automation_at != null ? sanitizeDate(input.export_to_automation_at) : undefined,
+    comment: input.comment != null ? sanitizeText(input.comment) : undefined,
   };
   
   // Remove undefined values to avoid sending them to the database
@@ -2210,10 +2214,17 @@ export const api = {
         // Get asset IDs for marking as exported
         const assetIds = assetsToExport.map(a => a.asset_id);
 
-        // Mark all assets as exported
+        // Format current date to DD/MM/YYYY
+        const today = new Date();
+        const exportDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+        // Mark all assets as exported with export date
         const { error: updateError } = await supabase
           .from('assets')
-          .update({ exported_to_automation: true })
+          .update({ 
+            exported_to_automation: true,
+            export_to_automation_at: exportDate
+          })
           .in('asset_id', assetIds);
 
         if (updateError) {
@@ -2229,24 +2240,68 @@ export const api = {
     },
     resetExportToAutomation: async (): Promise<{ success: boolean; count: number; error?: string }> => {
       try {
-        // First, count how many assets are marked as exported
-        const { count: exportedCount } = await supabase
+        // First, get all exported assets with their export dates
+        const { data: exportedAssets, error: fetchError } = await supabase
           .from('assets')
-          .select('asset_id', { count: 'exact', head: true })
-          .eq('exported_to_automation', true);
+          .select('asset_id, export_to_automation_at')
+          .eq('exported_to_automation', true)
+          .not('export_to_automation_at', 'is', null);
 
-        // Reset exported_to_automation flag for all assets that are exported
-        const { error: updateError } = await supabase
+        if (fetchError) {
+          console.error('[api.assets.resetExportToAutomation] Error fetching exported assets:', fetchError);
+          return { success: false, count: 0, error: fetchError.message };
+        }
+
+        // If no exported assets found, return success with 0 count
+        if (!exportedAssets || exportedAssets.length === 0) {
+          return { success: true, count: 0 };
+        }
+
+        // Find the latest export date by parsing DD/MM/YYYY dates
+        // Find latest export date
+        let latestDate: Date | null = null;
+        let latestDateStr: string | null = null;
+
+        for (const asset of exportedAssets) {
+          if (asset.export_to_automation_at) {
+            const parsedDate = parseDateFromDDMMYYYY(asset.export_to_automation_at);
+            if (parsedDate && (!latestDate || parsedDate > latestDate)) {
+              latestDate = parsedDate;
+              latestDateStr = asset.export_to_automation_at;
+            }
+          }
+        }
+
+        // If no valid date found, return error
+        if (!latestDateStr) {
+          return { success: false, count: 0, error: 'לא נמצא תאריך ייצוא תקף' };
+        }
+
+        // Filter assets that have the latest export date
+        const assetIdsToReset = exportedAssets
+          .filter(asset => asset.export_to_automation_at === latestDateStr)
+          .map(asset => asset.asset_id);
+
+        if (assetIdsToReset.length === 0) {
+          return { success: true, count: 0 };
+        }
+
+        // Reset exported_to_automation flag and clear export date only for assets with latest date
+        const { error: updateError, count } = await supabase
           .from('assets')
-          .update({ exported_to_automation: false })
-          .eq('exported_to_automation', true);
+          .update({ 
+            exported_to_automation: false,
+            export_to_automation_at: null
+          })
+          .in('asset_id', assetIdsToReset)
+          .select('asset_id', { count: 'exact', head: true });
 
         if (updateError) {
           console.error('[api.assets.resetExportToAutomation] Error resetting export flag:', updateError);
           return { success: false, count: 0, error: updateError.message };
         }
 
-        return { success: true, count: exportedCount || 0 };
+        return { success: true, count: count || assetIdsToReset.length };
       } catch (error: any) {
         console.error('[api.assets.resetExportToAutomation] Unexpected error:', error);
         return { success: false, count: 0, error: error.message || 'Unknown error' };

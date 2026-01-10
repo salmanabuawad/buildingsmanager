@@ -714,6 +714,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     setLoading(true);
     try {
       const errors: string[] = [];
+      const errorAssetIds: string[] = []; // Track asset IDs with validation errors
       const originalAssets: Asset[] = [];
       const newAssetsData: Partial<Asset>[] = [];
       
@@ -731,6 +732,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           // For existing assets, find the original
           if (!originalAsset && !isNewAsset) {
             errors.push(`נכס ${assetId}: לא נמצא`);
+            if (!errorAssetIds.includes(assetId)) {
+              errorAssetIds.push(assetId);
+            }
             continue;
           }
 
@@ -858,7 +862,11 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
           const validation = await validateAll(validations);
           if (!validation.valid) {
-            errors.push(`נכס ${updatedData.asset_id}: ${validation.error}`);
+            const assetIdStr = String(updatedData.asset_id || assetId);
+            errors.push(`נכס ${assetIdStr}: ${validation.error}`);
+            if (!errorAssetIds.includes(assetIdStr)) {
+              errorAssetIds.push(assetIdStr);
+            }
             continue;
           }
 
@@ -893,9 +901,12 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           newAssetsData.push(newAssetData);
         } catch (err) {
           const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-          const assetIdentifier = originalAsset?.asset_id || assetId;
+          const assetIdentifier = String(originalAsset?.asset_id || assetId);
           const errorMsg = err instanceof Error ? err.message : 'Unknown error';
           errors.push(`נכס ${assetIdentifier}: ${errorMsg}`);
+          if (!errorAssetIds.includes(assetIdentifier)) {
+            errorAssetIds.push(assetIdentifier);
+          }
         }
       }
 
@@ -903,9 +914,35 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       const newAssets = newAssetsData.filter(asset => !asset.asset_id);
       const existingAssetsForSave = newAssetsData.filter(asset => asset.asset_id);
 
-      // If validation errors, stop here
+      // If validation errors and no assets to save, still close tab and open error fixing tab
       if (errors.length > 0 && originalAssets.length === 0 && newAssets.length === 0) {
         setError(errors.slice(0, 5).join('\n') + (errors.length > 5 ? `\n...ועוד ${errors.length - 5}` : ''));
+        // Clear dirty assets and validation errors
+        setDirtyAssets(new Map());
+        setValidationErrors(new Map());
+        
+        // Close transfer tab and open error fixing tab
+        if (onCloseTab && onOpenAssetsTab && errorAssetIds.length > 0) {
+          setTimeout(() => {
+            // Extract the original tax region
+            let originalTaxRegion: string | undefined = undefined;
+            if (taxRegion) {
+              const regions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
+              const notAccountableRegions = new Set<string>();
+              assetTypes.forEach(at => {
+                if (at.non_accountable_for_total_area === true && at.tax_region != null) {
+                  notAccountableRegions.add(String(at.tax_region));
+                }
+              });
+              const originalRegions = regions.filter(r => r !== '990' && !notAccountableRegions.has(r));
+              originalTaxRegion = originalRegions.length > 0 ? originalRegions[0] : undefined;
+            }
+            
+            onCloseTab();
+            // Open error fixing tab with asset IDs that have errors
+            onOpenAssetsTab(buildingNumber, originalTaxRegion || '', errorAssetIds);
+          }, 500);
+        }
         setLoading(false);
         return;
       }
@@ -1015,13 +1052,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         }
       }
       
-      // Wait a bit for the database operations to complete, then reload data
-      // Reload if there are original assets OR new assets (like 999) to ensure they stay visible
-      if (originalAssets.length > 0 || newAssets.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await fetchData();
-      }
-
+      // Show success/error messages
       if (errors.length > 0) {
         const totalSaved = originalAssets.length + newAssets.length;
         const successMsg = totalSaved > 0 ? `נשמרו ${totalSaved} נכסים${originalAssets.length > 0 ? ' כמדידות חדשות' : ''}. ` : '';
@@ -1035,49 +1066,50 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           : `✓ נשמרו ${newAssets.length} נכסים חדשים בהצלחה`;
         setSuccess(msg);
         setTimeout(() => setSuccess(null), 3000);
-        
-        // Close transfer tab and return to assets list tab after successful save
-        // BUT: If a 999 asset was added, keep the tab open so the user can see it in the grid
-        const has999Asset = newAssets.some(asset => asset.main_asset_type === '999');
-        
-        if (onCloseTab && onOpenAssetsTab && !has999Asset) {
-          // Use a small delay to allow the success message to be visible
-          setTimeout(() => {
-            // Extract the original tax region (remove 990 and not_accountable regions that were added for transfer)
-            // The taxRegion prop contains the combined tax region, but we need the original one
-            let originalTaxRegion: string | undefined = undefined;
-            if (taxRegion) {
-              const regions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
-              
-              // Get not_accountable tax regions from asset types
-              const notAccountableRegions = new Set<string>();
-              assetTypes.forEach(at => {
-                if (at.non_accountable_for_total_area === true && at.tax_region != null) {
-                  notAccountableRegions.add(String(at.tax_region));
-                }
-              });
-              
-              // Remove 990 (always added for transfer) and not_accountable regions
-              // Keep only the original tax region(s) that were passed when opening transfer
-              const originalRegions = regions.filter(r => r !== '990' && !notAccountableRegions.has(r));
-              originalTaxRegion = originalRegions.length > 0 ? originalRegions[0] : undefined;
-            }
-            
-            // Close the transfer tab
-            onCloseTab();
-            // Open the assets list tab with the same building and original tax region
-            onOpenAssetsTab(buildingNumber, originalTaxRegion || '', selectedAssetIds);
-          }, 500);
-        }
       }
 
+      // Clear dirty assets and validation errors after save attempt
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
       
-      // Wait a bit for the database trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      await fetchData();
+      // Always close transfer tab and open assets list tab after save
+      if (onCloseTab && onOpenAssetsTab) {
+        // Use a small delay to allow the success/error message to be visible
+        setTimeout(() => {
+          // Extract the original tax region (remove 990 and not_accountable regions that were added for transfer)
+          // The taxRegion prop contains the combined tax region, but we need the original one
+          let originalTaxRegion: string | undefined = undefined;
+          if (taxRegion) {
+            const regions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
+            
+            // Get not_accountable tax regions from asset types
+            const notAccountableRegions = new Set<string>();
+            assetTypes.forEach(at => {
+              if (at.non_accountable_for_total_area === true && at.tax_region != null) {
+                notAccountableRegions.add(String(at.tax_region));
+              }
+            });
+            
+            // Remove 990 (always added for transfer) and not_accountable regions
+            // Keep only the original tax region(s) that were passed when opening transfer
+            const originalRegions = regions.filter(r => r !== '990' && !notAccountableRegions.has(r));
+            originalTaxRegion = originalRegions.length > 0 ? originalRegions[0] : undefined;
+          }
+          
+          // Close the transfer tab
+          onCloseTab();
+          
+          // If there are validation errors with specific asset IDs, open error fixing tab
+          // Otherwise, open normal assets tab
+          if (errorAssetIds.length > 0) {
+            // Open error fixing tab with asset IDs that have errors
+            onOpenAssetsTab(buildingNumber, originalTaxRegion || '', errorAssetIds);
+          } else {
+            // Open normal assets tab
+            onOpenAssetsTab(buildingNumber, originalTaxRegion || '');
+          }
+        }, 500);
+      }
     } catch (err) {
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
       console.error('[TransferAreas] Error saving as new measurements:', err);

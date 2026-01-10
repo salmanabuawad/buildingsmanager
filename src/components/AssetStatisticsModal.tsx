@@ -192,9 +192,9 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col m-4 transform transition-all">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col m-4 transform transition-all">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-blue-600 rounded-t-lg">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-blue-600 rounded-t-lg flex-shrink-0">
           <div className="flex items-center gap-3">
             <BarChart3 className="h-6 w-6 text-white" />
             <h2 className="text-2xl font-bold text-white">סטטיסטיקות נכסים</h2>
@@ -209,7 +209,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col p-6">
+        <div className="flex-1 overflow-hidden flex flex-col p-6 min-h-0">
           {/* Summary */}
           <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex-shrink-0">
             <div className="grid grid-cols-3 gap-4 text-right">
@@ -231,7 +231,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
           </div>
 
           {/* Grid */}
-          <div className="flex-1 min-h-0" style={{ height: '50vh', minHeight: '400px' }}>
+          <div className="flex-1 min-h-0 overflow-hidden">
             <div className="ag-theme-alpine rounded-lg border border-gray-200" style={{ height: '100%', width: '100%' }}>
               <AgGridReact
                 rowData={statistics}
@@ -268,7 +268,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+        <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg flex-shrink-0">
           <button
             onClick={handleExportToExcel}
             disabled={statistics.length === 0}

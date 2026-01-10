@@ -211,19 +211,19 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col p-6 min-h-0">
           {/* Summary */}
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex-shrink-0">
-            <div className="grid grid-cols-3 gap-4 text-right">
+          <div className="mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200 flex-shrink-0">
+            <div className="grid grid-cols-3 gap-3 text-right">
               <div>
-                <p className="text-sm text-gray-600">סה"כ סוגי נכסים</p>
-                <p className="text-2xl font-bold text-gray-900">{statistics.length}</p>
+                <p className="text-xs text-gray-600">סה"כ סוגי נכסים</p>
+                <p className="text-lg font-bold text-gray-900">{statistics.length}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">סה"כ נכסים</p>
-                <p className="text-2xl font-bold text-gray-900">{assets.length}</p>
+                <p className="text-xs text-gray-600">סה"כ נכסים</p>
+                <p className="text-lg font-bold text-gray-900">{assets.length}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">סה"כ שטח</p>
-                <p className="text-2xl font-bold text-teal-600">
+                <p className="text-xs text-gray-600">סה"כ שטח</p>
+                <p className="text-lg font-bold text-teal-600">
                   {totalArea.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>

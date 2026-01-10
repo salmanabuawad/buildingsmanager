@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -24,6 +24,7 @@ import { exportToExcel } from '../lib/excelExport';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
+import { AssetStatisticsModal } from './AssetStatisticsModal';
 interface AssetsListProps {
   buildingNumber: number;
   taxRegion?: string;
@@ -99,6 +100,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [distributionHistoryCount, setDistributionHistoryCount] = useState<number>(0);
   const [transferHistoryCount, setTransferHistoryCount] = useState<number>(0);
   const [changeTaxRegionModalOpen, setChangeTaxRegionModalOpen] = useState(false);
+  const [showAssetStatisticsModal, setShowAssetStatisticsModal] = useState(false);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -4357,6 +4359,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 ייצא ל-Excel
               </button>
             )}
+            {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}
+            {!isErrorFixingMode && !isMultiTaxRegion && (
+              <button
+                type="button"
+                onClick={() => setShowAssetStatisticsModal(true)}
+                disabled={loading || assets.length === 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-blue-700/20 disabled:border-gray-500/20"
+                title="הצג סטטיסטיקות לפי סוגי נכסים ותתי-סוגים"
+              >
+                <BarChart3 className="h-4 w-4" />
+                סטטיסטיקות
+              </button>
+            )}
             {/* Change tax region button - only show in "all assets" tab (when taxRegion is not set) and not in error fixing mode */}
             {!isErrorFixingMode && !taxRegion && building && availableTaxRegions.length > 1 && (
               <button
@@ -4873,6 +4888,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           }}
         />
       )}
+
+      {/* Asset Statistics Modal */}
+      <AssetStatisticsModal
+        isOpen={showAssetStatisticsModal}
+        onClose={() => setShowAssetStatisticsModal(false)}
+        assets={assets}
+        assetTypes={assetTypes}
+      />
 
     </>
   );

@@ -2232,6 +2232,10 @@ export const api = {
           return { success: false, count: 0, assetIds: [], error: updateError.message };
         }
 
+        // Update latest export date in memory cache
+        const { setLatestExportDate } = await import('./validation');
+        setLatestExportDate(exportDate);
+
         return { success: true, count: assetsToExport.length, assetIds };
       } catch (error: any) {
         console.error('[api.assets.exportToAutomation] Unexpected error:', error);
@@ -2301,6 +2305,38 @@ export const api = {
           return { success: false, count: 0, error: updateError.message };
         }
 
+        // After reset, refresh the latest export date in memory (it will be the next latest date or null)
+        // Fetch remaining exported assets to find the next latest date
+        const { data: remainingExportedAssets, error: remainingFetchError } = await supabase
+          .from('assets')
+          .select('export_to_automation_at')
+          .eq('exported_to_automation', true)
+          .not('export_to_automation_at', 'is', null);
+
+        if (!remainingFetchError && remainingExportedAssets && remainingExportedAssets.length > 0) {
+          // Find the next latest export date
+          let nextLatestDate: Date | null = null;
+          let nextLatestDateStr: string | null = null;
+
+          for (const asset of remainingExportedAssets) {
+            if (asset.export_to_automation_at) {
+              const parsedDate = parseDateFromDDMMYYYY(asset.export_to_automation_at);
+              if (parsedDate && (!nextLatestDate || parsedDate > nextLatestDate)) {
+                nextLatestDate = parsedDate;
+                nextLatestDateStr = asset.export_to_automation_at;
+              }
+            }
+          }
+
+          // Update cache with next latest date
+          const { setLatestExportDate } = await import('./validation');
+          setLatestExportDate(nextLatestDateStr);
+        } else {
+          // No more exported assets, clear cache
+          const { setLatestExportDate } = await import('./validation');
+          setLatestExportDate(null);
+        }
+
         return { success: true, count: count || assetIdsToReset.length };
       } catch (error: any) {
         console.error('[api.assets.resetExportToAutomation] Unexpected error:', error);
@@ -2339,6 +2375,10 @@ export const api = {
             }
           }
         }
+
+        // Cache the latest export date in memory
+        const { setLatestExportDate } = await import('./validation');
+        setLatestExportDate(latestDateStr);
 
         return { success: true, date: latestDateStr };
       } catch (error: any) {

@@ -14,7 +14,7 @@ import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
 import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw } from 'lucide-react';
 import { api, AssetType } from './lib/api';
-import { assetValidators, validateEntity, getAssetTypes } from './lib/validation';
+import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
 
 interface Tab {
@@ -608,7 +608,11 @@ function App() {
       });
       setShowResetExportResultModal(true);
       
-      // Refresh the export count and latest export date - use setTimeout to ensure state updates are processed
+      // Immediately sync latest export date from cache (cache was updated by resetExportToAutomation with next latest date)
+      const cachedDate = getCachedLatestExportDate();
+      setLatestExportDate(cachedDate);
+      
+      // Refresh the export count - use setTimeout to ensure state updates are processed
       // Also refresh when modal closes as backup
       setTimeout(async () => {
         console.log('[App] Attempting to refresh export count after reset');
@@ -622,8 +626,10 @@ function App() {
         } else {
           console.warn('[App] Cannot refresh - activeTabId:', activeTabId, 'ref available:', !!buildingsListRef.current, 'method available:', !!buildingsListRef.current?.refreshExportCount);
         }
-        // Refresh latest export date after reset
-        await fetchLatestExportDate();
+        // Refresh latest export date after reset (cache is already updated by resetExportToAutomation with next latest date)
+        // Sync state with cache immediately
+        const cachedDate = getCachedLatestExportDate();
+        setLatestExportDate(cachedDate);
       }, 200);
     } catch (error) {
       console.error('Error resetting export to automation:', error);
@@ -651,17 +657,30 @@ function App() {
           console.error('[App] Error refreshing export count:', err);
         }
       }
-      // Refresh latest export date after reset
-      await fetchLatestExportDate();
+      // Refresh latest export date after reset (cache is already updated by resetExportToAutomation with next latest date)
+      // Sync state with cache immediately
+      const cachedDate = getCachedLatestExportDate();
+      setLatestExportDate(cachedDate);
     }, 100);
   }
 
-  // Fetch latest export date
+  // Fetch latest export date (from memory cache or database)
   const fetchLatestExportDate = async () => {
     try {
+      // First try to get from memory cache (synchronous, fast)
+      const cachedDate = getCachedLatestExportDate();
+      
+      if (cachedDate !== null && cachedDate !== undefined) {
+        setLatestExportDate(cachedDate);
+        return;
+      }
+      
+      // If not in cache, fetch from database and cache it
       const result = await api.assets.getLatestExportDate();
       if (result.success) {
         setLatestExportDate(result.date);
+      } else {
+        setLatestExportDate(null);
       }
     } catch (error) {
       console.error('Error fetching latest export date:', error);
@@ -669,10 +688,27 @@ function App() {
     }
   };
 
+  // Get latest export date from cache (synchronous, used directly in render)
+  // Always read from cache - it's updated immediately by export/reset operations
+  const displayLatestExportDate = getCachedLatestExportDate() || latestExportDate;
+
   // Fetch latest export date on component mount
   useEffect(() => {
     fetchLatestExportDate();
   }, []);
+
+  // Sync state with cache periodically to ensure UI updates when cache changes
+  // This ensures the button and modal always reflect the latest cached value
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cachedDate = getCachedLatestExportDate();
+      if (cachedDate !== latestExportDate) {
+        setLatestExportDate(cachedDate);
+      }
+    }, 500); // Check every 500ms to sync cache with state
+    
+    return () => clearInterval(interval);
+  }, [latestExportDate]);
 
   function openAddressList() {
     const addressListTabId = 'address-list-panel';
@@ -1243,7 +1279,7 @@ function App() {
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="font-medium text-slate-700">
-                    איפוס פריקת נתונים מתאריך{latestExportDate ? ` ${latestExportDate}` : ''}
+                    איפוס פריקת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
                   </span>
                   {resetExportLoading ? (
                     <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
@@ -1608,12 +1644,12 @@ function App() {
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
               <h3 className="text-lg font-bold text-slate-900">
-                איפוס פריקת נתונים מתאריך{latestExportDate ? ` ${latestExportDate}` : ''}
+                איפוס פריקת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
               </h3>
             </div>
             
             <p className="text-slate-600 mb-6">
-              האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לנכסים שיוצאו מתאריך{latestExportDate ? ` ${latestExportDate}` : ''}? פעולה זו תאפשר לייצא אותם מחדש.
+              האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לנכסים שיוצאו מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}? פעולה זו תאפשר לייצא אותם מחדש.
             </p>
 
             <div className="flex justify-end gap-3">

@@ -23,6 +23,9 @@ let inMemoryAssetTypes: any[] = [];
 let inMemoryAllAssets: any[] = [];
 let dataLoaded = false;
 
+// Global in-memory store for latest export date
+let inMemoryLatestExportDate: string | null = null;
+
 /**
  * Set validation rules in memory (called by ValidationContext on app startup)
  */
@@ -104,6 +107,25 @@ export function getAllAssets(): any[] {
     return [];
   }
   return inMemoryAllAssets;
+}
+
+/**
+ * Set latest export date in memory (called when exporting or fetching latest export date)
+ */
+export function setLatestExportDate(date: string | null): void {
+  inMemoryLatestExportDate = date;
+  if (date) {
+    console.log(`[validation] Latest export date cached in memory: ${date}`);
+  } else {
+    console.log('[validation] Latest export date cleared from memory');
+  }
+}
+
+/**
+ * Get latest export date from memory (synchronous)
+ */
+export function getLatestExportDate(): string | null {
+  return inMemoryLatestExportDate;
 }
 
 /**

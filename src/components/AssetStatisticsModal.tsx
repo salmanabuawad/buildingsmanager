@@ -1,14 +1,16 @@
 import { useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
-import { X, BarChart3 } from 'lucide-react';
+import { X, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { Asset, AssetType } from '../lib/api';
+import { exportToExcel } from '../lib/excelExport';
 
 interface AssetStatisticsModalProps {
   isOpen: boolean;
   onClose: () => void;
   assets: Asset[];
   assetTypes: AssetType[];
+  buildingNumber?: number;
 }
 
 interface StatisticsRow {
@@ -19,7 +21,7 @@ interface StatisticsRow {
   count: number;
 }
 
-export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes }: AssetStatisticsModalProps) {
+export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buildingNumber }: AssetStatisticsModalProps) {
   // Calculate statistics from assets
   const statistics = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
@@ -153,6 +155,53 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes }: As
     return statistics.reduce((sum, stat) => sum + stat.totalArea, 0);
   }, [statistics]);
 
+  // Handle Excel export
+  const handleExportToExcel = () => {
+    try {
+      // Prepare data for Excel export
+      const today = new Date();
+      const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+      
+      // Create header row
+      const headerRow = ['סוג נכס', 'תיאור', 'סוג', 'כמות', 'סכום שטח'];
+      
+      // Create data rows
+      const dataRows = statistics.map(stat => [
+        stat.type || '',
+        stat.typeDescription || '-',
+        stat.isSubType ? 'משנה' : 'ראשי',
+        stat.count || 0,
+        stat.totalArea ? Number(stat.totalArea.toFixed(2)) : 0
+      ]);
+      
+      // Add summary row
+      const summaryRow = ['סה"כ', '', '', assets.length, totalArea ? Number(totalArea.toFixed(2)) : 0];
+      
+      // Combine all rows
+      const excelData = [headerRow, ...dataRows, [], summaryRow];
+      
+      // Generate filename
+      const filename = `סטטיסטיקות_נכסים${buildingNumber ? `_מבנה_${buildingNumber}` : ''}_${dateStr.replace(/\//g, '-')}.xlsx`;
+      
+      // Export to Excel
+      exportToExcel({
+        filename,
+        sheetName: 'סטטיסטיקות',
+        data: excelData,
+        columnWidths: [
+          { wch: 15 }, // סוג נכס
+          { wch: 30 }, // תיאור
+          { wch: 12 }, // סוג
+          { wch: 12 }, // כמות
+          { wch: 18 }  // סכום שטח
+        ]
+      });
+    } catch (error) {
+      console.error('Error exporting statistics to Excel:', error);
+      alert('שגיאה בייצוא לקובץ Excel');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -229,7 +278,16 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes }: As
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+        <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+          <button
+            onClick={handleExportToExcel}
+            disabled={statistics.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+            title="ייצא סטטיסטיקות לקובץ Excel"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            ייצא ל-Excel
+          </button>
           <button
             onClick={onClose}
             className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"

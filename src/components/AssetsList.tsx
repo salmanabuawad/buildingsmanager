@@ -4895,6 +4895,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         onClose={() => setShowAssetStatisticsModal(false)}
         assets={assets}
         assetTypes={assetTypes}
+        buildingNumber={buildingNumber}
       />
 
     </>

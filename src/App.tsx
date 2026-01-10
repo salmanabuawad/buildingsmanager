@@ -73,6 +73,7 @@ function App() {
   const [showResetExportResultModal, setShowResetExportResultModal] = useState(false);
   const [resetExportResult, setResetExportResult] = useState<{ success: boolean; message: string } | null>(null);
   const [resetExportLoading, setResetExportLoading] = useState(false);
+  const [latestExportDate, setLatestExportDate] = useState<string | null>(null);
   // Helper function to get area_description_for_tab from tax region number(s)
   // Uses cached asset types from ValidationContext (no API call needed)
   const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
@@ -607,9 +608,9 @@ function App() {
       });
       setShowResetExportResultModal(true);
       
-      // Refresh the export count - use setTimeout to ensure state updates are processed
+      // Refresh the export count and latest export date - use setTimeout to ensure state updates are processed
       // Also refresh when modal closes as backup
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log('[App] Attempting to refresh export count after reset');
         console.log('[App] activeTabId:', activeTabId);
         console.log('[App] buildingsListRef.current:', buildingsListRef.current);
@@ -621,6 +622,8 @@ function App() {
         } else {
           console.warn('[App] Cannot refresh - activeTabId:', activeTabId, 'ref available:', !!buildingsListRef.current, 'method available:', !!buildingsListRef.current?.refreshExportCount);
         }
+        // Refresh latest export date after reset
+        await fetchLatestExportDate();
       }, 200);
     } catch (error) {
       console.error('Error resetting export to automation:', error);
@@ -638,7 +641,7 @@ function App() {
     setShowResetExportResultModal(false);
     setResetExportResult(null);
     
-    // Refresh the export count when closing the result modal to ensure button counter is updated
+    // Refresh the export count and latest export date when closing the result modal
     setTimeout(async () => {
       if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
         console.log('[App] Calling refreshExportCount when closing modal');
@@ -648,8 +651,28 @@ function App() {
           console.error('[App] Error refreshing export count:', err);
         }
       }
+      // Refresh latest export date after reset
+      await fetchLatestExportDate();
     }, 100);
   }
+
+  // Fetch latest export date
+  const fetchLatestExportDate = async () => {
+    try {
+      const result = await api.assets.getLatestExportDate();
+      if (result.success) {
+        setLatestExportDate(result.date);
+      }
+    } catch (error) {
+      console.error('Error fetching latest export date:', error);
+      setLatestExportDate(null);
+    }
+  };
+
+  // Fetch latest export date on component mount
+  useEffect(() => {
+    fetchLatestExportDate();
+  }, []);
 
   function openAddressList() {
     const addressListTabId = 'address-list-panel';
@@ -1219,7 +1242,9 @@ function App() {
                   disabled={resetExportLoading}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="font-medium text-slate-700">איפוס פריקת נתונים</span>
+                  <span className="font-medium text-slate-700">
+                    איפוס פריקת נתונים מתאריך{latestExportDate ? ` ${latestExportDate}` : ''}
+                  </span>
                   {resetExportLoading ? (
                     <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
                   ) : (
@@ -1582,11 +1607,13 @@ function App() {
           >
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
-              <h3 className="text-lg font-bold text-slate-900">איפוס פריקת נתונים</h3>
+              <h3 className="text-lg font-bold text-slate-900">
+                איפוס פריקת נתונים מתאריך{latestExportDate ? ` ${latestExportDate}` : ''}
+              </h3>
             </div>
             
             <p className="text-slate-600 mb-6">
-              האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לכל הנכסים? פעולה זו תאפשר לייצא אותם מחדש.
+              האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לנכסים שיוצאו מתאריך{latestExportDate ? ` ${latestExportDate}` : ''}? פעולה זו תאפשר לייצא אותם מחדש.
             </p>
 
             <div className="flex justify-end gap-3">

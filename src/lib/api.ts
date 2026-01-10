@@ -2307,6 +2307,45 @@ export const api = {
         return { success: false, count: 0, error: error.message || 'Unknown error' };
       }
     },
+    getLatestExportDate: async (): Promise<{ success: boolean; date: string | null; error?: string }> => {
+      try {
+        // Get all exported assets with their export dates
+        const { data: exportedAssets, error: fetchError } = await supabase
+          .from('assets')
+          .select('export_to_automation_at')
+          .eq('exported_to_automation', true)
+          .not('export_to_automation_at', 'is', null);
+
+        if (fetchError) {
+          console.error('[api.assets.getLatestExportDate] Error fetching exported assets:', fetchError);
+          return { success: false, date: null, error: fetchError.message };
+        }
+
+        // If no exported assets found, return null date
+        if (!exportedAssets || exportedAssets.length === 0) {
+          return { success: true, date: null };
+        }
+
+        // Find the latest export date by parsing DD/MM/YYYY dates
+        let latestDate: Date | null = null;
+        let latestDateStr: string | null = null;
+
+        for (const asset of exportedAssets) {
+          if (asset.export_to_automation_at) {
+            const parsedDate = parseDateFromDDMMYYYY(asset.export_to_automation_at);
+            if (parsedDate && (!latestDate || parsedDate > latestDate)) {
+              latestDate = parsedDate;
+              latestDateStr = asset.export_to_automation_at;
+            }
+          }
+        }
+
+        return { success: true, date: latestDateStr };
+      } catch (error: any) {
+        console.error('[api.assets.getLatestExportDate] Unexpected error:', error);
+        return { success: false, date: null, error: error.message || 'Unknown error' };
+      }
+    },
     files: {
       getAll: async (assetId: number): Promise<AssetFile[]> => {
         const { data, error } = await supabase

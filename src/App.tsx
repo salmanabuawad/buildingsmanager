@@ -884,6 +884,50 @@ function App() {
     });
   }, [activeTabId, handleNavigation]);
 
+  // Function to close all tabs except buildings list and regular assets list tabs (residential and business)
+  const handleCloseAllTabsExceptEssential = useCallback(() => {
+    handleNavigation(() => {
+      setTabs(prevTabs => {
+        // Keep: buildings list tabs and regular assets tabs (not error fixing mode)
+        const essentialTabs = prevTabs.filter(tab => {
+          // Keep buildings list tabs
+          if (tab.type === 'buildings') {
+            return true;
+          }
+          
+          // Keep assets tabs that are NOT in error fixing mode
+          // Error fixing mode tabs have isErrorFixingMode: true OR selectedAssetIds set (for error fixing)
+          if (tab.type === 'assets' && !tab.isErrorFixingMode && (!tab.selectedAssetIds || tab.selectedAssetIds.length === 0)) {
+            return true;
+          }
+          
+          // Close all other tabs (transfer-areas, asset-details, asset-types, etc.)
+          return false;
+        });
+        
+        // If no essential tabs remain, ensure buildings tab exists
+        if (essentialTabs.length === 0) {
+          const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+          setActiveTabId('buildings');
+          return [buildingsTab];
+        }
+        
+        // Set active tab to the last essential tab (or buildings if available)
+        const buildingsTab = essentialTabs.find(t => t.type === 'buildings');
+        const lastAssetsTab = essentialTabs.filter(t => t.type === 'assets').pop();
+        if (buildingsTab) {
+          setActiveTabId(buildingsTab.id);
+        } else if (lastAssetsTab) {
+          setActiveTabId(lastAssetsTab.id);
+        } else if (essentialTabs.length > 0) {
+          setActiveTabId(essentialTabs[essentialTabs.length - 1].id);
+        }
+        
+        return essentialTabs;
+      });
+    });
+  }, [handleNavigation]);
+
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 
 
@@ -1407,6 +1451,7 @@ function App() {
                 selectedAssetIds={activeTab.selectedAssetIds}
                 onCloseTab={() => handleCloseTab(activeTabId)}
                 onOpenAssetsTab={handleOpenAssetsTab}
+                onCloseAllTabsExceptEssential={handleCloseAllTabsExceptEssential}
               />
             )}
             {activeTab?.type === 'asset-types' && (

@@ -21,13 +21,14 @@ interface TransferAreasProps {
   selectedAssetIds: string[];
   onCloseTab?: () => void;
   onOpenAssetsTab?: (buildingNumber: number, taxRegion?: string, selectedAssetIds?: string[]) => void;
+  onCloseAllTabsExceptEssential?: () => void;
 }
 
 export interface TransferAreasRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({ buildingNumber, taxRegion, selectedAssetIds, onCloseTab, onOpenAssetsTab }, ref) => {
+export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({ buildingNumber, taxRegion, selectedAssetIds, onCloseTab, onOpenAssetsTab, onCloseAllTabsExceptEssential }, ref) => {
   const { t } = useTranslation();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
@@ -1072,40 +1073,67 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       setDirtyAssets(new Map());
       setValidationErrors(new Map());
       
-      // Always close transfer tab and open assets list tab after save
-      if (onCloseTab && onOpenAssetsTab) {
+      // Always close all tabs except essential (buildings list and regular assets tabs) after save
+      if (onCloseAllTabsExceptEssential) {
         // Use a small delay to allow the success/error message to be visible
         setTimeout(() => {
-          // Extract the original tax region (remove 990 and not_accountable regions that were added for transfer)
-          // The taxRegion prop contains the combined tax region, but we need the original one
+          // Close all tabs except buildings list and regular assets list tabs (residential and business)
+          onCloseAllTabsExceptEssential();
+          
+          // Then open the appropriate assets tab if needed
+          if (onOpenAssetsTab) {
+            // Extract the original tax region (remove 990 and not_accountable regions that were added for transfer)
+            // The taxRegion prop contains the combined tax region, but we need the original one
+            let originalTaxRegion: string | undefined = undefined;
+            if (taxRegion) {
+              const regions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
+              
+              // Get not_accountable tax regions from asset types
+              const notAccountableRegions = new Set<string>();
+              assetTypes.forEach(at => {
+                if (at.non_accountable_for_total_area === true && at.tax_region != null) {
+                  notAccountableRegions.add(String(at.tax_region));
+                }
+              });
+              
+              // Remove 990 (always added for transfer) and not_accountable regions
+              // Keep only the original tax region(s) that were passed when opening transfer
+              const originalRegions = regions.filter(r => r !== '990' && !notAccountableRegions.has(r));
+              originalTaxRegion = originalRegions.length > 0 ? originalRegions[0] : undefined;
+            }
+            
+            // If there are validation errors with specific asset IDs, open error fixing tab
+            // Otherwise, open normal assets tab
+            if (errorAssetIds.length > 0) {
+              // Open error fixing tab with asset IDs that have errors
+              onOpenAssetsTab(buildingNumber, originalTaxRegion || '', errorAssetIds);
+            } else if (originalTaxRegion) {
+              // Open normal assets tab with the original tax region
+              onOpenAssetsTab(buildingNumber, originalTaxRegion);
+            }
+          }
+        }, 500);
+      } else if (onCloseTab && onOpenAssetsTab) {
+        // Fallback to old behavior if new function not available
+        setTimeout(() => {
           let originalTaxRegion: string | undefined = undefined;
           if (taxRegion) {
             const regions = taxRegion.split(',').map(r => r.trim()).filter(r => r);
-            
-            // Get not_accountable tax regions from asset types
             const notAccountableRegions = new Set<string>();
             assetTypes.forEach(at => {
               if (at.non_accountable_for_total_area === true && at.tax_region != null) {
                 notAccountableRegions.add(String(at.tax_region));
               }
             });
-            
-            // Remove 990 (always added for transfer) and not_accountable regions
-            // Keep only the original tax region(s) that were passed when opening transfer
             const originalRegions = regions.filter(r => r !== '990' && !notAccountableRegions.has(r));
             originalTaxRegion = originalRegions.length > 0 ? originalRegions[0] : undefined;
           }
           
-          // Close the transfer tab
           onCloseTab();
           
-          // If there are validation errors with specific asset IDs, open error fixing tab
-          // Otherwise, open normal assets tab
           if (errorAssetIds.length > 0) {
-            // Open error fixing tab with asset IDs that have errors
             onOpenAssetsTab(buildingNumber, originalTaxRegion || '', errorAssetIds);
           } else {
-            // Open normal assets tab
             onOpenAssetsTab(buildingNumber, originalTaxRegion || '');
           }
         }, 500);

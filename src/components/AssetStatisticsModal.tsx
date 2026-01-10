@@ -21,7 +21,7 @@ interface StatisticsRow {
 }
 
 export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buildingNumber }: AssetStatisticsModalProps) {
-  // Calculate statistics from assets - include ALL asset types from database
+  // Calculate statistics from assets - only show types that exist in the assets list
   // Combine main and sub asset types into a single entry per type code
   const statistics = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
@@ -32,24 +32,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       const assetType = assetTypes.find(at => at.name === String(typeName).trim());
       return assetType?.description || typeName;
     };
-
-    // First, initialize ALL asset types from the database with 0 area and 0 count
-    // This ensures all types are listed, even if they don't appear in assets
-    assetTypes.forEach(assetType => {
-      if (assetType.name) {
-        const typeKey = assetType.name.trim();
-        if (!statsMap.has(typeKey)) {
-          statsMap.set(typeKey, {
-            type: assetType.name.trim(),
-            typeDescription: assetType.description || assetType.name,
-            totalArea: 0,
-            count: 0
-          });
-        }
-      }
-    });
     
-    // Now process assets to update statistics with actual data
+    // Process assets to collect statistics - only types that appear in assets
     // Combine main and sub asset types into single entries
     assets.forEach(asset => {
       // Process main asset types
@@ -62,7 +46,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
           existing.totalArea += area;
           existing.count += 1;
         } else {
-          // Type not in database, add it anyway
+          // Add new type entry
           statsMap.set(typeKey, {
             type: asset.main_asset_type,
             typeDescription: getTypeDescription(asset.main_asset_type),
@@ -89,7 +73,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
             existing.totalArea += area;
             existing.count += 1;
           } else {
-            // Type not in database, add it anyway
+            // Add new type entry
             statsMap.set(typeKey, {
               type: subType,
               typeDescription: getTypeDescription(subType),
@@ -227,7 +211,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col p-6">
           {/* Summary */}
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex-shrink-0">
             <div className="grid grid-cols-3 gap-4 text-right">
               <div>
                 <p className="text-sm text-gray-600">סה"כ סוגי נכסים</p>
@@ -247,15 +231,18 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
           </div>
 
           {/* Grid */}
-          <div className="flex-1 min-h-0">
-            <div className="ag-theme-alpine" style={{ height: '100%', width: '100%' }}>
+          <div className="flex-1 min-h-0" style={{ height: '50vh', minHeight: '400px' }}>
+            <div className="ag-theme-alpine rounded-lg border border-gray-200" style={{ height: '100%', width: '100%' }}>
               <AgGridReact
                 rowData={statistics}
                 columnDefs={columnDefs}
                 defaultColDef={{
                   resizable: true,
                   sortable: true,
-                  filter: true
+                  filter: true,
+                  headerClass: 'ag-right-aligned-header',
+                  headerStyle: { textAlign: 'right' },
+                  cellStyle: { textAlign: 'right' }
                 }}
                 localeText={{
                   noRowsToShow: 'אין נתונים להצגה',
@@ -274,6 +261,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
                 animateRows={true}
                 rowHeight={40}
                 headerHeight={40}
+                domLayout="normal"
               />
             </div>
           </div>

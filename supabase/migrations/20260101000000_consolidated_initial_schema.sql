@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS asset_types (
   active TEXT DEFAULT 'כן',
   non_accountable_for_total_area BOOLEAN DEFAULT false,
   non_accountable_for_distribution BOOLEAN DEFAULT false,
+  not_accountable_for_statistics BOOLEAN DEFAULT false,
   use_shared_area BOOLEAN DEFAULT NULL,
   area_description_for_tab TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -154,6 +155,7 @@ CREATE POLICY "Allow anonymous delete access"
 
 COMMENT ON TABLE asset_types IS 'Asset type definitions with validation rules';
 COMMENT ON COLUMN asset_types.use_shared_area IS 'שימוש בשטח משותף - Checkbox indicating if asset type uses shared area';
+COMMENT ON COLUMN asset_types.not_accountable_for_statistics IS 'Indicates if the asset type should be excluded from statistics calculations (UI statistics modal). Values: true (excluded) or false (included)';
 
 -- ============================================================================
 -- 3. VALIDATION RULES TABLE

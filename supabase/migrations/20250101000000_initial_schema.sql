@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS asset_types (
   active TEXT DEFAULT 'כן',
   non_accountable_for_total_area BOOLEAN DEFAULT false,
   non_accountable_for_distribution BOOLEAN DEFAULT false,
+  not_accountable_for_statistics BOOLEAN DEFAULT false,
   area_description_for_tab TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -141,6 +142,7 @@ CREATE TRIGGER update_asset_types_updated_at
 COMMENT ON COLUMN asset_types.active IS 'Indicates if the asset type is active. Values: "כן" (yes) or NULL (no)';
 COMMENT ON COLUMN asset_types.non_accountable_for_total_area IS 'Indicates if the asset type should be excluded from total area calculations. Values: true (לא נספר בחישוב שטח מבנה) or false (נספר בחישוב שטח מבנה)';
 COMMENT ON COLUMN asset_types.non_accountable_for_distribution IS 'Indicates if the asset type should be excluded from distribution calculations (business shared area distribution). Values: true (לא נספר בפיזור) or false (נספר בפיזור)';
+COMMENT ON COLUMN asset_types.not_accountable_for_statistics IS 'Indicates if the asset type should be excluded from statistics calculations (UI statistics modal). Values: true (excluded) or false (included)';
 
 -- ============================================================================
 -- 3. VALIDATION RULES TABLE

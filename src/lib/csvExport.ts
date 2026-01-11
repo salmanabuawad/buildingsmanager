@@ -11,18 +11,32 @@ export interface CSVExportOptions {
 }
 
 /**
+ * Prevent CSV / spreadsheet formula injection.
+ * If a value starts with =, +, -, @ (after optional whitespace), Excel may treat it as a formula.
+ * Prefix with an apostrophe to force text.
+ */
+function sanitizeSpreadsheetText(value: any): any {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'string') return value;
+  if (value.startsWith("'")) return value;
+  if (/^\s*[=+\-@]/.test(value)) return `'${value}`;
+  return value;
+}
+
+/**
  * Escape CSV field value
  * Handles quotes, commas, and newlines
  */
-function escapeCSVField(field: any): string {
+function escapeCSVField(field: any, delimiter: string): string {
   if (field === null || field === undefined) {
     return '';
   }
   
-  const str = String(field);
+  const sanitized = sanitizeSpreadsheetText(field);
+  const str = String(sanitized);
   
   // If field contains delimiter, quote, or newline, wrap in quotes and escape quotes
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+  if (str.includes(delimiter) || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   
@@ -49,7 +63,7 @@ export function exportToCSV(options: CSVExportOptions): void {
       if (!Array.isArray(row)) {
         return '';
       }
-      return row.map(field => escapeCSVField(field)).join(delimiter);
+      return row.map(field => escapeCSVField(field, delimiter)).join(delimiter);
     });
 
     // Join rows with standard newlines (Unix style for better compatibility)
@@ -59,7 +73,7 @@ export function exportToCSV(options: CSVExportOptions): void {
     // Most modern applications can handle UTF-8 without BOM
     const content = includeBOM ? '\ufeff' + csvContent : csvContent;
 
-    // Create blob with standard CSV MIME type (without charset parameter to reduce false positives)
+    // Create blob with standard CSV MIME type
     const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
 

@@ -19,6 +19,26 @@ export interface ExcelExportOptions {
 }
 
 /**
+ * Prevent spreadsheet formula injection / suspicious cell patterns.
+ * If a cell starts with =, +, -, @ (after optional whitespace), Excel may treat it as a formula.
+ * We prefix with an apostrophe to force text.
+ */
+function sanitizeSpreadsheetCell(value: any): any {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'string') return value;
+
+  // Avoid double-prefixing
+  if (value.startsWith("'")) return value;
+
+  // If first non-whitespace char is a formula trigger, force text
+  if (/^\s*[=+\-@]/.test(value)) {
+    return `'${value}`;
+  }
+
+  return value;
+}
+
+/**
  * Export data to Excel with options to reduce antivirus false positives
  * 
  * This function uses write options that create more standard Excel files:
@@ -37,8 +57,9 @@ export function exportToExcel(options: ExcelExportOptions): void {
       throw new Error('Excel data must be a non-empty array');
     }
 
-    // Create worksheet from data
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    // Create worksheet from data (sanitize cell values to avoid formula injection / AV suspicion)
+    const safeData = data.map(row => (Array.isArray(row) ? row.map(sanitizeSpreadsheetCell) : row)) as any[][];
+    const worksheet = XLSX.utils.aoa_to_sheet(safeData);
 
     // Set column widths if provided
     if (columnWidths && columnWidths.length > 0) {
@@ -93,7 +114,7 @@ export function exportToExcel(options: ExcelExportOptions): void {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+    link.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
     link.style.display = 'none';
     
     document.body.appendChild(link);

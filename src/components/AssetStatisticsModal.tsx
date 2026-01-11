@@ -300,7 +300,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
           {/* Excluded types list */}
           {excludedTypes.length > 0 && (
             <div className="mt-4 flex-shrink-0">
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Not included in the List Statistics</h3>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">לא נכלל בסטיסטיקה</h3>
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 max-h-40 overflow-auto">
                 <ul className="space-y-1 text-sm text-gray-800">
                   {excludedTypes.map((t) => (

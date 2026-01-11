@@ -63,6 +63,7 @@ export function AssetTypes() {
     business_residence: '',
     non_accountable_for_total_area: false,
     non_accountable_for_distribution: false,
+    not_accountable_for_statistics: false,
     use_shared_area: false,
     min_size: '',
     max_size: '',
@@ -107,6 +108,7 @@ export function AssetTypes() {
       business_residence: '', 
       non_accountable_for_total_area: false, 
       non_accountable_for_distribution: false, 
+      not_accountable_for_statistics: false,
       use_shared_area: false,
       min_size: '', 
       max_size: '' 
@@ -145,6 +147,7 @@ export function AssetTypes() {
         business_residence: formData.business_residence || undefined,
         non_accountable_for_total_area: formData.non_accountable_for_total_area || undefined,
         non_accountable_for_distribution: formData.non_accountable_for_distribution || undefined,
+        not_accountable_for_statistics: formData.not_accountable_for_statistics || undefined,
         use_shared_area: formData.use_shared_area || undefined,
         min_size: formData.min_size ? parseFloat(formData.min_size) : undefined,
         max_size: formData.max_size ? parseFloat(formData.max_size) : undefined,
@@ -603,6 +606,31 @@ export function AssetTypes() {
       cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
     },
     {
+      field: 'not_accountable_for_statistics',
+      headerName: 'לא נספר בסטטיסטיקה',
+      editable: true,
+      tooltipValueGetter: () => 'נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים',
+      cellRenderer: (params: any) => {
+        const assetType = params.data as AssetType;
+        if (!assetType) return null;
+        const currentValue = getCurrentValue(assetType, 'not_accountable_for_statistics');
+        const isDirty = isFieldDirty(assetType.id, 'not_accountable_for_statistics');
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={currentValue === true}
+              onChange={(e) => {
+                params.setValue(e.target.checked);
+              }}
+              className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
+            />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    },
+    {
       field: 'use_shared_area',
       headerName: 'שימוש בשטח משותף',
       editable: true,
@@ -849,6 +877,7 @@ export function AssetTypes() {
       'עסקים/מגורים',            // business_residence
       'לא נספר בחישוב שטח מבנה',  // non_accountable_for_total_area
       'לא נספר בפיזור',           // non_accountable_for_distribution
+      'לא נספר בסטטיסטיקה',       // not_accountable_for_statistics
       'שטח מ',                   // min_size
       'שטח עד'                   // max_size
     ];
@@ -881,6 +910,7 @@ export function AssetTypes() {
           { wch: 15 }, // עסקים/מגורים
           { wch: 25 }, // לא נספר בחישוב שטח מבנה
           { wch: 15 }, // לא נספר בפיזור
+          { wch: 18 }, // לא נספר בסטטיסטיקה
           { wch: 10 }, // שטח מ
           { wch: 10 }  // שטח עד
         ]
@@ -907,6 +937,8 @@ export function AssetTypes() {
       'מבנים צמודי קרקע טוריים מעל 2 יחידות', // townhouses
       'עסקים/מגורים',            // business_residence
       'לא נספר בחישוב שטח מבנה',  // non_accountable_for_total_area
+      'לא נספר בפיזור',           // non_accountable_for_distribution
+      'לא נספר בסטטיסטיקה',       // not_accountable_for_statistics
       'שטח מ',                   // min_size
       'שטח עד'                   // max_size
     ];
@@ -927,6 +959,7 @@ export function AssetTypes() {
         assetType.business_residence || '',
         assetType.non_accountable_for_total_area ? 'כן' : 'לא',
         assetType.non_accountable_for_distribution ? 'כן' : 'לא',
+        assetType.not_accountable_for_statistics ? 'כן' : 'לא',
         assetType.min_size?.toString() || '',
         assetType.max_size?.toString() || ''
       ]);
@@ -956,6 +989,7 @@ export function AssetTypes() {
         { wch: 15 }, // עסקים/מגורים
         { wch: 25 }, // לא נספר בחישוב שטח מבנה
         { wch: 15 }, // לא נספר בפיזור
+        { wch: 18 }, // לא נספר בסטטיסטיקה
         { wch: 10 }, // שטח מ
         { wch: 10 }  // שטח עד
       ]
@@ -1068,6 +1102,10 @@ export function AssetTypes() {
         // non_accountable_for_distribution field
         'non_accountable_for_distribution': 'non_accountable_for_distribution',
         'לא נספר בפיזור': 'non_accountable_for_distribution',
+        // not_accountable_for_statistics field
+        'not_accountable_for_statistics': 'not_accountable_for_statistics',
+        'notaccountableforstatistics': 'not_accountable_for_statistics',
+        'לא נספר בסטטיסטיקה': 'not_accountable_for_statistics',
         // min_size field
         'min_size': 'min_size',
         'minsize': 'min_size',
@@ -1158,6 +1196,7 @@ export function AssetTypes() {
           const business_residence = getValue('business_residence');
           const non_accountable_for_total_area = getValue('non_accountable_for_total_area');
           const non_accountable_for_distribution = getValue('non_accountable_for_distribution');
+          const not_accountable_for_statistics = getValue('not_accountable_for_statistics');
           const min_size = getValue('min_size');
           const max_size = getValue('max_size');
 
@@ -1187,6 +1226,7 @@ export function AssetTypes() {
             business_residence: validBusinessResidence,
             non_accountable_for_total_area: non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'כן' || non_accountable_for_total_area.toLowerCase() === 'yes' || non_accountable_for_total_area === '1' || non_accountable_for_total_area === 'true') ? true : (non_accountable_for_total_area && (non_accountable_for_total_area.toLowerCase() === 'לא' || non_accountable_for_total_area.toLowerCase() === 'no' || non_accountable_for_total_area === '0' || non_accountable_for_total_area === 'false') ? false : undefined),
             non_accountable_for_distribution: non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'כן' || non_accountable_for_distribution.toLowerCase() === 'yes' || non_accountable_for_distribution === '1' || non_accountable_for_distribution === 'true') ? true : (non_accountable_for_distribution && (non_accountable_for_distribution.toLowerCase() === 'לא' || non_accountable_for_distribution.toLowerCase() === 'no' || non_accountable_for_distribution === '0' || non_accountable_for_distribution === 'false') ? false : undefined),
+            not_accountable_for_statistics: not_accountable_for_statistics && (not_accountable_for_statistics.toLowerCase() === 'כן' || not_accountable_for_statistics.toLowerCase() === 'yes' || not_accountable_for_statistics === '1' || not_accountable_for_statistics === 'true') ? true : (not_accountable_for_statistics && (not_accountable_for_statistics.toLowerCase() === 'לא' || not_accountable_for_statistics.toLowerCase() === 'no' || not_accountable_for_statistics === '0' || not_accountable_for_statistics === 'false') ? false : undefined),
             min_size: min_size ? parseFloat(min_size) : undefined,
             max_size: max_size ? parseFloat(max_size) : undefined,
           };
@@ -1484,6 +1524,17 @@ export function AssetTypes() {
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   לא נספר בפיזור
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1" title="נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים">
+                  <input
+                    type="checkbox"
+                    checked={formData.not_accountable_for_statistics}
+                    onChange={(e) => setFormData({ ...formData, not_accountable_for_statistics: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  לא נספר בסטטיסטיקה
                 </label>
               </div>
               <div>

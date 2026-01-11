@@ -47,6 +47,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
   const [new999AssetId, setNew999AssetId] = useState<string>('');
   const [new999AssetSize, setNew999AssetSize] = useState<string>('');
   const [new999AssetComment, setNew999AssetComment] = useState<string>('');
+  const [add999AssetPersistentError, setAdd999AssetPersistentError] = useState<string | null>(null);
   // Store asset_id and building_number for each asset to reload after save (key is asset_id string)
   const [assetIdentifiers, setAssetIdentifiers] = useState<Map<string, { asset_id: number; building_number: number }>>(new Map());
   // Store initial total area for validation
@@ -1203,17 +1204,52 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     return missing > 0.01 ? missing : 0; // Only show if missing is significant (>0.01)
   }, [initialTotalArea, currentTotalArea]);
 
+  // Enable adding a special 999 asset only when the ONLY remaining issue is total-area mismatch.
+  // (validateAllAssets adds the total-area message to every asset error string)
+  const canAdd999Asset = useMemo(() => {
+    if (missingSize <= 0) return false;
+    if (validationErrors.size === 0) return true;
+
+    const areaErrorPatterns = [
+      'השטח הכולל',
+      'חייב להישאר',
+      'השטח הכולל הנוכחי',
+      'השטח הכולל של הנכסים'
+    ];
+
+    for (const msg of validationErrors.values()) {
+      const nonAreaLines = (msg || '')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+        .filter(l => !areaErrorPatterns.some(p => l.includes(p)));
+
+      if (nonAreaLines.length > 0) {
+        return false; // there are other errors besides total-area
+      }
+    }
+
+    return true;
+  }, [missingSize, validationErrors]);
+
   // Function to open modal for adding new asset with type 999
   const handleAddMissingAsset = useCallback(() => {
     if (missingSize <= 0 || !building || !assetTypes.length) return;
+    if (!canAdd999Asset) {
+      setToast({ message: 'ניתן להוסיף נכס מסוג 999 רק לאחר תיקון כל השגיאות האחרות (כאשר רק השטח הכולל חסר).', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
+      return;
+    }
     setNew999AssetId('');
     setNew999AssetSize('');
     setNew999AssetComment('');
+    setAdd999AssetPersistentError(null);
     setAdd999AssetModalOpen(true);
-  }, [missingSize, building, assetTypes]);
+  }, [missingSize, building, assetTypes, canAdd999Asset]);
 
   // Function to save new 999 asset from modal
-  const handleSave999Asset = useCallback(() => {
+  const handleSave999Asset = useCallback(async () => {
+    setAdd999AssetPersistentError(null);
     if (!building || !new999AssetId || !new999AssetSize) {
       setToast({ message: 'נא למלא מזהה נכס וגודל', type: 'error' });
       setTimeout(() => setToast(null), 3000);
@@ -1241,6 +1277,33 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     if (isNaN(assetIdNum)) {
       setToast({ message: 'מזהה נכס לא תקין', type: 'error' });
       setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    // Persistent uniqueness check (DB + current draft)
+    if (assets.some(a => String(a.asset_id) === String(assetIdNum)) || dirtyAssets.has(String(assetIdNum))) {
+      setAdd999AssetPersistentError(`מזהה נכס ${assetIdNum} כבר קיים ברשימה/טיוטה הנוכחית. בחר מזהה אחר.`);
+      return;
+    }
+
+    try {
+      const { data: existingAsset, error: existingErr } = await supabase
+        .from('assets')
+        .select('asset_id')
+        .eq('asset_id', assetIdNum)
+        .maybeSingle();
+
+      if (existingErr) {
+        setAdd999AssetPersistentError('לא ניתן לבדוק אם מזהה הנכס כבר קיים במערכת. נסה שוב.');
+        return;
+      }
+
+      if (existingAsset?.asset_id != null) {
+        setAdd999AssetPersistentError(`מזהה נכס ${assetIdNum} כבר קיים במערכת. בחר מזהה אחר.`);
+        return;
+      }
+    } catch (e) {
+      setAdd999AssetPersistentError('שגיאה בבדיקת מזהה הנכס מול בסיס הנתונים. נסה שוב.');
       return;
     }
 
@@ -1513,6 +1576,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       setNew999AssetId('');
       setNew999AssetSize('');
       setNew999AssetComment('');
+      setAdd999AssetPersistentError(null);
     }, 300);
 
     // Scroll to the new asset in the grid
@@ -1526,7 +1590,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
     setToast({ message: `נוסף נכס חדש מסוג 999`, type: 'success' });
     setTimeout(() => setToast(null), 3000);
-  }, [building, assets, new999AssetId, new999AssetSize, new999AssetComment, dirtyAssets]);
+  }, [building, new999AssetId, new999AssetSize, assets, dirtyAssets, new999AssetComment]);
 
   // Helper function to get cell style for dirty fields and validation errors
   const getCellStyle = useCallback((params: any, fieldName: string) => {
@@ -2178,8 +2242,13 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
             </span>
             <button
               onClick={handleAddMissingAsset}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-              title="הוסף נכס חדש מסוג 999 עם הגודל החסר"
+              disabled={!canAdd999Asset}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all duration-200 shadow-sm font-medium ${
+                canAdd999Asset
+                  ? 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white hover:shadow-md'
+                  : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+              }`}
+              title={canAdd999Asset ? 'הוסף נכס חדש מסוג 999 עם הגודל החסר' : 'תקן קודם את כל השגיאות האחרות (מלבד השטח הכולל)'}
             >
               <Plus className="h-4 w-4" />
               הוסף נכס מסוג 999
@@ -2203,6 +2272,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               setNew999AssetId('');
               setNew999AssetSize('');
               setNew999AssetComment('');
+              setAdd999AssetPersistentError(null);
             }, 300);
           }}
         >
@@ -2223,6 +2293,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                     setNew999AssetId('');
                     setNew999AssetSize('');
                     setNew999AssetComment('');
+                    setAdd999AssetPersistentError(null);
                   }, 300);
                 }}
                 className="text-slate-500 hover:text-slate-700 transition-colors"
@@ -2239,7 +2310,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 type="text"
                 id="new999AssetId"
                 value={new999AssetId}
-                onChange={(e) => setNew999AssetId(e.target.value)}
+                onChange={(e) => {
+                  setNew999AssetId(e.target.value);
+                  if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
+                }}
                 placeholder="הזן מזהה נכס"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
                 autoFocus
@@ -2258,6 +2332,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                   // Allow only numbers and decimal point
                   const value = e.target.value.replace(/[^\d.]/g, '');
                   setNew999AssetSize(value);
+                  if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
                 }}
                 placeholder="הזן גודל"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
@@ -2283,6 +2358,12 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               />
             </div>
 
+            {add999AssetPersistentError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm whitespace-pre-wrap">
+                {add999AssetPersistentError}
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
@@ -2293,6 +2374,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                     setNew999AssetId('');
                     setNew999AssetSize('');
                     setNew999AssetComment('');
+                    setAdd999AssetPersistentError(null);
                   }, 300);
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-500 hover:bg-slate-600 text-white rounded-md transition-all shadow-sm hover:shadow font-medium"

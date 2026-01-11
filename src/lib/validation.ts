@@ -64,7 +64,7 @@ export async function refreshAssetTypesCache(): Promise<void> {
     // Explicitly select all fields including business_residence
     const { data, error } = await supabase
       .from('asset_types')
-      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, area_description_for_tab, created_at, updated_at')
+      .select('id, name, description, tax_region, elevator, single_double_family, penthouse, condo, townhouses, business_residence, min_size, max_size, active, non_accountable_for_total_area, non_accountable_for_distribution, not_accountable_for_statistics, area_description_for_tab, created_at, updated_at')
       .order('name');
 
     if (error) {

@@ -23,14 +23,22 @@ interface StatisticsRow {
 export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buildingNumber }: AssetStatisticsModalProps) {
   // Calculate statistics from assets - only show types that exist in the assets list
   // Combine main and sub asset types into a single entry per type code
-  const statistics = useMemo(() => {
+  const { statistics, excludedTypes } = useMemo(() => {
     const statsMap = new Map<string, StatisticsRow>();
+    const excludedTypeKeys = new Set<string>();
 
     // Helper function to get asset type description
     const getTypeDescription = (typeName: string | undefined | null): string => {
       if (!typeName) return '';
       const assetType = assetTypes.find(at => at.name === String(typeName).trim());
       return assetType?.description || typeName;
+    };
+
+    const isNotAccountableForStatistics = (typeName: string | undefined | null): boolean => {
+      if (!typeName) return false;
+      const typeKey = String(typeName).trim();
+      const at = assetTypes.find(a => String(a.name).trim() === typeKey);
+      return at?.not_accountable_for_statistics === true;
     };
     
     // Process assets to collect statistics - only types that appear in assets
@@ -39,6 +47,9 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       // Process main asset types
       if (asset.main_asset_type) {
         const typeKey = asset.main_asset_type.trim();
+        if (isNotAccountableForStatistics(typeKey)) {
+          excludedTypeKeys.add(typeKey);
+        } else {
         const existing = statsMap.get(typeKey);
         const area = asset.asset_size || 0;
         
@@ -54,6 +65,7 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
             count: 1
           });
         }
+        }
       }
 
       // Process sub asset types (1-6) - combine with main types if same type code
@@ -66,6 +78,10 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         
         if (subType && subType.trim() && (subSize != null && subSize > 0)) {
           const typeKey = subType.trim();
+          if (isNotAccountableForStatistics(typeKey)) {
+            excludedTypeKeys.add(typeKey);
+            continue;
+          }
           const existing = statsMap.get(typeKey);
           const area = subSize || 0;
           
@@ -95,7 +111,22 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       return a.type.localeCompare(b.type);
     });
 
-    return statsArray;
+    const excludedTypesList = Array.from(excludedTypeKeys.values())
+      .map(typeKey => {
+        const at = assetTypes.find(a => String(a.name).trim() === typeKey);
+        return {
+          name: typeKey,
+          description: at?.description || ''
+        };
+      })
+      .sort((a, b) => {
+        const aNum = parseInt(a.name, 10);
+        const bNum = parseInt(b.name, 10);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return a.name.localeCompare(b.name);
+      });
+
+    return { statistics: statsArray, excludedTypes: excludedTypesList };
   }, [assets, assetTypes]);
 
   const columnDefs: ColDef<StatisticsRow>[] = [
@@ -265,6 +296,23 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
               />
             </div>
           </div>
+
+          {/* Excluded types list */}
+          {excludedTypes.length > 0 && (
+            <div className="mt-4 flex-shrink-0">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Not included in the List Statistics</h3>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 max-h-40 overflow-auto">
+                <ul className="space-y-1 text-sm text-gray-800">
+                  {excludedTypes.map((t) => (
+                    <li key={t.name} className="flex gap-2">
+                      <span className="font-semibold">{t.name}</span>
+                      <span className="text-gray-600">{t.description || '-'}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

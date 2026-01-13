@@ -1241,7 +1241,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       return;
     }
     setNew999AssetId('');
-    setNew999AssetSize('');
+    // Force 999 size to be the exact missing area (rounded to 2 decimals, consistent with validation tolerance 0.01)
+    setNew999AssetSize(missingSize.toFixed(2));
     setNew999AssetComment('');
     setAdd999AssetPersistentError(null);
     setAdd999AssetModalOpen(true);
@@ -1307,9 +1308,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       return;
     }
 
-    const assetSize = parseFloat(new999AssetSize);
-    if (isNaN(assetSize) || assetSize <= 0) {
-      setToast({ message: 'גודל נכס חייב להיות מספר חיובי', type: 'error' });
+    // Force size to be exactly the current missing size (source of truth)
+    const assetSize = missingSize;
+    if (isNaN(assetSize) || assetSize <= 0.01) {
+      setToast({ message: 'אין שטח חסר תקין להוספה', type: 'error' });
       setTimeout(() => setToast(null), 3000);
       return;
     }
@@ -1590,7 +1592,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
     setToast({ message: `נוסף נכס חדש מסוג 999`, type: 'success' });
     setTimeout(() => setToast(null), 3000);
-  }, [building, new999AssetId, new999AssetSize, assets, dirtyAssets, new999AssetComment]);
+  }, [building, new999AssetId, new999AssetSize, assets, dirtyAssets, new999AssetComment, missingSize]);
 
   // Helper function to get cell style for dirty fields and validation errors
   const getCellStyle = useCallback((params: any, fieldName: string) => {
@@ -2328,14 +2330,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 type="text"
                 id="new999AssetSize"
                 value={new999AssetSize}
-                onChange={(e) => {
-                  // Allow only numbers and decimal point
-                  const value = e.target.value.replace(/[^\d.]/g, '');
-                  setNew999AssetSize(value);
-                  if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
-                }}
-                placeholder="הזן גודל"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
+                readOnly
+                placeholder="מחושב אוטומטית"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-right"
               />
               {missingSize > 0 && (
                 <p className="mt-1 text-xs text-slate-500">

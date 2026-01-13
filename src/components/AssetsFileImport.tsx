@@ -105,6 +105,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [pendingSaveAsNew, setPendingSaveAsNew] = useState(false);
   const [validationCompleted, setValidationCompleted] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [importFromAutomation, setImportFromAutomation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skeletonFileInputRef = useRef<HTMLInputElement>(null);
   const [showBuildingCreateModal, setShowBuildingCreateModal] = useState(false);
@@ -1826,7 +1827,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_type: asset.discount_type || null,
           discount_date_from: asset.discount_date_from || null,
           discount_date_to: asset.discount_date_to || null,
-          comment: asset.comment || null
+          comment: asset.comment || null,
+          // If file is from automation, mark as not needing export.
+          // Any later edit in the app will flip this back to true via DB trigger.
+          need_to_export_to_automation: importFromAutomation ? false : true
         };
 
         if (asset.penthouse === 'כן') {
@@ -3326,6 +3330,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               <h2 className="text-lg font-bold text-slate-900">
                 נכסים מיובאים ({importedAssets.length})
               </h2>
+              {mode === 'regular' && (
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={importFromAutomation}
+                    onChange={(e) => setImportFromAutomation(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  הנתונים מאוטומציה (אוטומציה)
+                </label>
+              )}
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <button
                   type="button"

@@ -129,14 +129,24 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
     return { statistics: statsArray, excludedTypes: excludedTypesList };
   }, [assets, assetTypes]);
 
+  // Reversed field order (compared to the original)
   const columnDefs: ColDef<StatisticsRow>[] = [
     {
-      field: 'type',
-      headerName: 'סוג נכס',
-      width: 120,
+      field: 'totalArea',
+      headerName: 'סכום שטח',
+      width: 150,
       cellStyle: { textAlign: 'right', fontWeight: '600' },
       valueFormatter: (params) => {
-        return params.value || '';
+        return params.value ? params.value.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+      }
+    },
+    {
+      field: 'count',
+      headerName: 'כמות',
+      width: 100,
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => {
+        return params.value ? params.value.toLocaleString('he-IL') : '0';
       }
     },
     {
@@ -150,21 +160,12 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       }
     },
     {
-      field: 'count',
-      headerName: 'כמות',
-      width: 100,
-      cellStyle: { textAlign: 'right' },
-      valueFormatter: (params) => {
-        return params.value ? params.value.toLocaleString('he-IL') : '0';
-      }
-    },
-    {
-      field: 'totalArea',
-      headerName: 'סכום שטח',
-      width: 150,
+      field: 'type',
+      headerName: 'סוג נכס',
+      width: 120,
       cellStyle: { textAlign: 'right', fontWeight: '600' },
       valueFormatter: (params) => {
-        return params.value ? params.value.toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+        return params.value || '';
       }
     }
   ];
@@ -181,19 +182,24 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
       const today = new Date();
       const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
       
-      // Create header row
-      const headerRow = ['סוג נכס', 'תיאור', 'כמות', 'סכום שטח'];
+      // Create header row (match grid column order)
+      const headerRow = ['סכום שטח', 'כמות', 'תיאור', 'סוג נכס'];
       
       // Create data rows
       const dataRows = statistics.map(stat => [
-        stat.type || '',
-        stat.typeDescription || '-',
+        stat.totalArea ? Number(stat.totalArea.toFixed(2)) : 0,
         stat.count || 0,
-        stat.totalArea ? Number(stat.totalArea.toFixed(2)) : 0
+        stat.typeDescription || '-',
+        stat.type || ''
       ]);
       
       // Add summary row
-      const summaryRow = ['סה"כ', '', assets.length, totalArea ? Number(totalArea.toFixed(2)) : 0];
+      const summaryRow = [
+        totalArea ? Number(totalArea.toFixed(2)) : 0,
+        assets.length,
+        '',
+        'סה"כ'
+      ];
       
       // Combine all rows
       const excelData = [headerRow, ...dataRows, [], summaryRow];
@@ -207,10 +213,10 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
         sheetName: 'סטטיסטיקות',
         data: excelData,
         columnWidths: [
-          { wch: 15 }, // סוג נכס
-          { wch: 30 }, // תיאור
+          { wch: 18 }, // סכום שטח
           { wch: 12 }, // כמות
-          { wch: 18 }  // סכום שטח
+          { wch: 30 }, // תיאור
+          { wch: 15 }  // סוג נכס
         ]
       });
     } catch (error) {

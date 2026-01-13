@@ -305,6 +305,7 @@ CREATE TABLE IF NOT EXISTS assets (
   is_new_measurement boolean DEFAULT false,
   area_from_distribution numeric,
   exported_to_automation boolean DEFAULT false,
+  need_to_export_to_automation boolean DEFAULT true,
   comment text,
   FOREIGN KEY (building_number) REFERENCES buildings(building_number) ON DELETE CASCADE
 );
@@ -345,6 +346,7 @@ CREATE POLICY "Public can delete assets"
 COMMENT ON TABLE assets IS 'Asset records with all measurements and metadata';
 COMMENT ON COLUMN assets.area_from_distribution IS 'Area allocated from shared area distribution (business distribution only)';
 COMMENT ON COLUMN assets.exported_to_automation IS 'Flag indicating if asset has been exported to automation system. Set to false when asset is updated.';
+COMMENT ON COLUMN assets.need_to_export_to_automation IS 'Flag indicating if asset needs to be exported to automation system due to changes made in this app. Default true; automation imports can set false.';
 COMMENT ON COLUMN assets.comment IS 'Optional comment/note for the asset';
 
 -- ============================================================================

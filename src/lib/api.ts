@@ -426,6 +426,7 @@ export interface Asset {
   business_total_area?: number; // Total business area for this asset = asset_size + area_from_distribution (only for business assets, 0 for non-business assets)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
   export_to_automation_at?: string; // Date when asset was exported to automation system (DD/MM/YYYY format)
+  need_to_export_to_automation?: boolean; // Flag indicating if this asset needs exporting due to changes in this app
   comment?: string; // User comment/notes about the asset (הערה על הנכס)
 }
 
@@ -2177,11 +2178,14 @@ export const api = {
     },
     getExportToAutomationCount: async (): Promise<{ success: boolean; count: number; error?: string }> => {
       try {
-        // Count assets where exported_to_automation is null or false
+        // Count assets that still need export:
+        // - exported_to_automation is null/false AND
+        // - need_to_export_to_automation is true (set false on automation import, flipped back to true on later edits)
         const { count, error: countError } = await supabase
           .from('assets')
           .select('asset_id', { count: 'exact', head: true })
-          .or('exported_to_automation.is.null,exported_to_automation.eq.false');
+          .or('exported_to_automation.is.null,exported_to_automation.eq.false')
+          .eq('need_to_export_to_automation', true);
 
         if (countError) {
           console.error('[api.assets.getExportToAutomationCount] Error counting assets:', countError);
@@ -2196,11 +2200,14 @@ export const api = {
     },
     exportToAutomation: async (): Promise<{ success: boolean; count: number; assetIds: number[]; error?: string }> => {
       try {
-        // Fetch all assets where exported_to_automation is null or false
+        // Fetch all assets that still need export:
+        // - exported_to_automation is null/false AND
+        // - need_to_export_to_automation is true
         const { data: assetsToExport, error: fetchError } = await supabase
           .from('assets')
           .select('*')
           .or('exported_to_automation.is.null,exported_to_automation.eq.false')
+          .eq('need_to_export_to_automation', true)
           .order('asset_id');
 
         if (fetchError) {
@@ -2219,12 +2226,13 @@ export const api = {
         const today = new Date();
         const exportDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
-        // Mark all assets as exported with export date
+        // Mark all assets as exported with export date, and clear "needs export" flag
         const { error: updateError } = await supabase
           .from('assets')
           .update({ 
             exported_to_automation: true,
-            export_to_automation_at: exportDate
+            export_to_automation_at: exportDate,
+            need_to_export_to_automation: false
           })
           .in('asset_id', assetIds);
 

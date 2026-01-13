@@ -1,36 +1,36 @@
 /*
-  # Add need_to_export_to_automation flag to assets
+  # Add data_from_automation flag to assets
 
   This migration:
-  1. Adds need_to_export_to_automation boolean column to assets and assets_history
-     - Default: true (assets generally need exporting unless explicitly marked otherwise)
-  2. Adds trigger: when asset attributes change, need_to_export_to_automation is set to true
-     - Allows automation import to set it to false on INSERT
-     - Allows export process to set it to false without being overwritten (no attribute changes)
+  1. Adds data_from_automation boolean column to assets and assets_history
+     - Default: false
+     - Full import from automation sets it to true
+  2. Adds trigger: when asset attributes change inside this app, data_from_automation is set to false
+     - (meaning: the row is no longer "as received from automation")
   3. Updates copy_asset_to_history_before_update to include the new column
 */
 
 -- 1) Add column to assets + history
 ALTER TABLE assets
-ADD COLUMN IF NOT EXISTS need_to_export_to_automation BOOLEAN DEFAULT true;
+ADD COLUMN IF NOT EXISTS data_from_automation BOOLEAN DEFAULT false;
 
 ALTER TABLE assets_history
-ADD COLUMN IF NOT EXISTS need_to_export_to_automation BOOLEAN DEFAULT true;
+ADD COLUMN IF NOT EXISTS data_from_automation BOOLEAN DEFAULT false;
 
-COMMENT ON COLUMN assets.need_to_export_to_automation IS
-  'Indicates if this asset needs to be exported to the automation system due to changes made in this app. Default true; automation-imported assets can set false.';
+COMMENT ON COLUMN assets.data_from_automation IS
+  'Indicates if this asset row originated from the automation system (full import). If asset is edited in this app later, it is set to false.';
 
-COMMENT ON COLUMN assets_history.need_to_export_to_automation IS
-  'Historical snapshot of need_to_export_to_automation flag.';
+COMMENT ON COLUMN assets_history.data_from_automation IS
+  'Historical snapshot of data_from_automation flag.';
 
--- 2) Trigger to set need_to_export_to_automation=true when asset attributes change
-CREATE OR REPLACE FUNCTION set_need_to_export_to_automation_on_asset_change()
+-- 2) Trigger to set data_from_automation=false when asset attributes change
+CREATE OR REPLACE FUNCTION set_data_from_automation_false_on_asset_change()
 RETURNS TRIGGER AS $$
 DECLARE
   v_changed BOOLEAN := FALSE;
 BEGIN
-  -- If any "business" asset fields changed, mark as needing export.
-  -- Do NOT consider export-related fields themselves as triggers, so export workflows can set the flag back to false.
+  -- If any asset fields changed, mark as NOT from automation anymore.
+  -- Do NOT consider export-related fields themselves as triggers.
   v_changed :=
     (NEW.building_number IS DISTINCT FROM OLD.building_number) OR
     (NEW.payer_id IS DISTINCT FROM OLD.payer_id) OR
@@ -64,18 +64,18 @@ BEGIN
     (NEW.comment IS DISTINCT FROM OLD.comment);
 
   IF v_changed THEN
-    NEW.need_to_export_to_automation := TRUE;
+    NEW.data_from_automation := FALSE;
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_set_need_to_export_to_automation_on_asset_change ON assets;
-CREATE TRIGGER trigger_set_need_to_export_to_automation_on_asset_change
+DROP TRIGGER IF EXISTS trigger_set_data_from_automation_false_on_asset_change ON assets;
+CREATE TRIGGER trigger_set_data_from_automation_false_on_asset_change
   BEFORE UPDATE ON assets
   FOR EACH ROW
-  EXECUTE FUNCTION set_need_to_export_to_automation_on_asset_change();
+  EXECUTE FUNCTION set_data_from_automation_false_on_asset_change();
 
 -- 3) Update history copy function to include the new field
 -- (this function is used by asset update workflows to snapshot old rows)
@@ -96,7 +96,7 @@ BEGIN
       sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
       structure_drawing_url, elevator, single_double_family, condo, townhouses, penthouse,
       tax_region, floor, discount_type, discount_date_from, discount_date_to,
-      area_from_distribution, exported_to_automation, export_to_automation_at, need_to_export_to_automation, comment
+      area_from_distribution, exported_to_automation, export_to_automation_at, data_from_automation, comment
     )
     VALUES (
       v_asset.asset_id, v_asset.building_number, v_asset.payer_id, v_asset.measurement_date,
@@ -112,7 +112,7 @@ BEGIN
       v_asset.tax_region, v_asset.floor, v_asset.discount_type,
       v_asset.discount_date_from, v_asset.discount_date_to,
       v_asset.area_from_distribution, v_asset.exported_to_automation, v_asset.export_to_automation_at,
-      v_asset.need_to_export_to_automation, v_asset.comment
+      v_asset.data_from_automation, v_asset.comment
     );
   END IF;
 END;

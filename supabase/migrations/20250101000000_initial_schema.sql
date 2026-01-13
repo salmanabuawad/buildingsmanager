@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS assets (
   action_id bigint,
   business_distribution_area numeric,
   exported_to_automation boolean DEFAULT false,
-  need_to_export_to_automation boolean DEFAULT true
+  data_from_automation boolean DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_assets_building_number ON assets(building_number);

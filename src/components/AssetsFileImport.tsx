@@ -1828,9 +1828,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           discount_date_from: asset.discount_date_from || null,
           discount_date_to: asset.discount_date_to || null,
           comment: asset.comment || null,
-          // If file is from automation, mark as not needing export.
-          // Any later edit in the app will flip this back to true via DB trigger.
-          need_to_export_to_automation: importFromAutomation ? false : true
+          // If file is from automation, mark as coming from automation.
+          // Any later edit in the app will flip this back to false via DB trigger.
+          data_from_automation: importFromAutomation ? true : false
         };
 
         if (asset.penthouse === 'כן') {
@@ -3338,7 +3338,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     onChange={(e) => setImportFromAutomation(e.target.checked)}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
-                  הנתונים מאוטומציה (אוטומציה)
+                  הנתונים מאוטומציה
                 </label>
               )}
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">

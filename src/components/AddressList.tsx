@@ -157,15 +157,23 @@ export function AddressListComponent() {
 
     setIsSaving(true);
     try {
-      // Handle deletions
-      for (const streetCode of deletedAddresses) {
-        await api.addressList.delete(streetCode);
+      // Bulk delete first
+      if (deletedAddresses.size > 0) {
+        await api.addressList.deleteBulk(Array.from(deletedAddresses.values()));
       }
 
-      // Handle updates
-      for (const [streetCode, changes] of dirtyAddresses) {
-        if (deletedAddresses.has(streetCode)) continue;
-        await api.addressList.update(streetCode, changes);
+      // Bulk upsert changes (skip rows marked for deletion)
+      if (dirtyAddresses.size > 0) {
+        const updates = Array.from(dirtyAddresses.entries())
+          .filter(([streetCode]) => !deletedAddresses.has(streetCode))
+          .map(([street_code, changes]) => ({
+            street_code,
+            ...changes
+          }));
+
+        if (updates.length > 0) {
+          await api.addressList.upsertBulk(updates);
+        }
       }
 
       showMessage('success', 'כל השינויים נשמרו בהצלחה');

@@ -57,6 +57,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [deletedAssets, setDeletedAssets] = useState<Set<string>>(new Set());
   const [originalAssets, setOriginalAssets] = useState<Asset[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string, string>>(new Map());
+  // Save is gated behind an explicit Validate action.
+  // Any edit resets this back to false.
+  const [isValidatedForSave, setIsValidatedForSave] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const gridRef = useRef<AgGridReact<Asset>>(null);
   
@@ -101,6 +104,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [transferHistoryCount, setTransferHistoryCount] = useState<number>(0);
   const [changeTaxRegionModalOpen, setChangeTaxRegionModalOpen] = useState(false);
   const [showAssetStatisticsModal, setShowAssetStatisticsModal] = useState(false);
+
+  // Any change invalidates the last validation snapshot (user must re-validate).
+  useEffect(() => {
+    const hasChanges = dirtyAssets.size > 0 || newAssets.size > 0 || deletedAssets.size > 0;
+    if (hasChanges) {
+      setIsValidatedForSave(false);
+      setValidationErrors(new Map());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirtyAssets, newAssets, deletedAssets]);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -622,9 +635,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       if (showLoading) setLoading(false);
     }
   }
-  // Debounce timer for validation
-  const validationTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-
   // Helper function to validate discount dates
   const validateDiscountDates = useCallback((asset: Asset): string[] => {
     const errors: string[] = [];
@@ -746,7 +756,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Create updated asset with new value
       let updatedAsset = { ...data, [field]: newValue };
 
-      // Handle main_asset_type changes - validate non_accountable flags and tax region compatibility
+      // Handle main_asset_type changes (no online validation; only apply safe auto-fixes)
       if (field === 'main_asset_type' && newValue) {
         const newAssetTypeName = String(newValue).trim();
         const newAssetType = assetTypes?.find(at => {
@@ -762,60 +772,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         });
 
         if (newAssetTypeFinal) {
-          // Validate tax region compatibility - check if asset type exists for asset's tax region
-          const assetTaxRegion = data.tax_region != null ? String(data.tax_region) : validationTaxRegion;
-          if (assetTaxRegion && assetTypes) {
-            const assetTaxRegionNum = parseInt(assetTaxRegion, 10);
-            if (!isNaN(assetTaxRegionNum)) {
-              // Check if there's an asset type with the same name that matches the asset's tax region
-              const matchingAssetTypeForTaxRegion = assetTypes.find(at => {
-                const atNameStr = String(at.name).trim();
-                const atTaxRegionNum = at.tax_region != null 
-                  ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
-                  : null;
-                return atNameStr === newAssetTypeName && 
-                       atTaxRegionNum != null && 
-                       !isNaN(atTaxRegionNum) && 
-                       atTaxRegionNum === assetTaxRegionNum &&
-                       at.active === 'כן';
-              });
-              
-              if (!matchingAssetTypeForTaxRegion) {
-                // Asset type doesn't exist for this tax region - find valid tax regions
-                const validTaxRegions = new Set<number>();
-                assetTypes.forEach(at => {
-                  const atNameStr = String(at.name).trim();
-                  const atTaxRegionNum = at.tax_region != null 
-                    ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
-                    : null;
-                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && at.active === 'כן') {
-                    validTaxRegions.add(atTaxRegionNum);
-                  }
-                });
-                
-                const validRegionsStr = Array.from(validTaxRegions).sort((a, b) => a - b).join(', ');
-                const errorMsg = validRegionsStr 
-                  ? `סוג נכס ${newAssetTypeName} תקף רק באזורי מס: ${validRegionsStr}, אך הנכס הוא באזור מס ${assetTaxRegionNum}`
-                  : `סוג נכס ${newAssetTypeName} לא תקף לאזור מס ${assetTaxRegionNum}`;
-                
-                setError(errorMsg);
-                setTimeout(() => setError(null), 5000);
-                setValidationErrors(prev => {
-                  const newMap = new Map(prev);
-                  newMap.set(assetId, errorMsg);
-                  return newMap;
-                });
-                event.api.refreshCells({ rowNodes: [event.node!], force: true });
-                // Revert the change by resetting the cell value
-                const rowNode = event.api.getRowNode(assetId);
-                if (rowNode) {
-                  rowNode.setDataValue(field, data[field]);
-                }
-                return;
-              }
-            }
-          }
-
           // If new asset type has non_accountable_for_distribution = true and asset has area_from_distribution > 0, set it to 0
           if (newAssetTypeFinal.non_accountable_for_distribution === true) {
             const currentAreaFromDistribution = updatedAsset.area_from_distribution || 0;
@@ -823,15 +779,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               updatedAsset = { ...updatedAsset, area_from_distribution: 0 };
             }
           }
-        } else {
-          // Asset type not found - show error (full validation will catch this later, but show immediate feedback)
-          const errorMsg = `סוג נכס ${newAssetTypeName} לא נמצא`;
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            newMap.set(assetId, errorMsg);
-            return newMap;
-          });
-          event.api.refreshCells({ rowNodes: [event.node!], force: true });
         }
       }
 
@@ -864,144 +811,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         });
       }
 
-      // Distribution flags are set in the database during the transaction save,
-      // not when the field changes in the UI. This ensures flags are only set
-      // when data is actually saved.
-
-      // Skip validation if asset is not_accountable - skip ALL validations including quick ones
-      if (isAssetNotAccountableForTotalArea(updatedAsset)) {
-        // Clear existing validation timer for this asset
-        const existingTimer = validationTimerRef.current.get(String(assetId));
-        if (existingTimer) {
-          clearTimeout(existingTimer);
-          validationTimerRef.current.delete(String(assetId));
-        }
-        // Clear validation errors for this asset
-        setValidationErrors(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(assetId);
-          return newMap;
-        });
-        event.api.refreshCells({ rowNodes: [event.node!], force: true });
-        return;
-      }
-
-      // Clear existing validation timer for this asset
-      const existingTimer = validationTimerRef.current.get(String(assetId));
-      if (existingTimer) {
-        clearTimeout(existingTimer);
-      }
-
-      // Quick synchronous validation for format checks only
-      if (field === 'measurement_date' && updatedAsset.measurement_date) {
-        const dateValidation = inputValidators.validateDateFormat(updatedAsset.measurement_date);
-        if (!dateValidation.valid) {
-          setError(dateValidation.error || 'Invalid date format');
-          setTimeout(() => setError(null), 3000);
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            newMap.set(String(assetId), dateValidation.error || 'Invalid date format');
-            return newMap;
-          });
-          event.api.refreshCells({ rowNodes: [event.node!], force: true });
-          return;
-        }
-      }
-
-      // Quick synchronous validation for discount dates
-      const discountFields = ['discount_type', 'discount_date_from', 'discount_date_to'];
-      if (discountFields.includes(field)) {
-        const discountErrors = validateDiscountDates(updatedAsset);
-        if (discountErrors.length > 0) {
-          const errorMessage = discountErrors.join('\n');
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            newMap.set(String(assetId), errorMessage);
-            return newMap;
-          });
-          event.api.refreshCells({ rowNodes: [event.node!], force: true });
-        } else {
-          // Clear discount errors if validation passes (but keep other errors)
-          setValidationErrors(prev => {
-            const newMap = new Map(prev);
-            const existingError = newMap.get(String(assetId));
-            if (existingError) {
-              // Check if there are other errors (not discount-related)
-              // For now, we'll clear all errors - the debounced validation will set them again if needed
-              // This is fine since the debounced validation will run anyway
-            }
-            return newMap;
-          });
-        }
-      }
-
-      // Debounce expensive database validations (500ms delay)
-      // This prevents validation from running on every keystroke
-      const timer = setTimeout(async () => {
-        try {
-          // Prepare cached data for validation (all data is already in memory)
-          const cachedData = {
-            assetTypes: assetTypes || [],
-            building: building
-          };
-
-          // Debug logging for tax region validation
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AssetsList.onCellValueChanged] Validation parameters:', {
-              field,
-              assetId: updatedAsset.asset_id,
-              buildingNumber: updatedAsset.building_number,
-              validationTaxRegion: validationTaxRegion || 'NOT PROVIDED (will use building tax_region)',
-              buildingTaxRegion: building?.tax_region || 'NOT SET'
-            });
-          }
-
-          // Use the same validation as the validate button - AssetValidationHandler.validateSingleAsset
-          // This ensures consistent validation behavior across all components
-          const result = await AssetValidationHandler.validateSingleAsset(updatedAsset, {
-            taxRegion: validationTaxRegion, // Use validationTaxRegion from tab - same as batch validate
-            cachedData: cachedData
-          });
-
-          // Add discount validation errors
-          const discountErrors = validateDiscountDates(updatedAsset);
-          const allErrors = [...(result.errors || []), ...discountErrors];
-
-          // Recalculate actualValid from results - same as handleBatchValidateBuildingAssets
-          // This ensures consistency: an asset is only valid if valid=true AND no errors
-          const actualValid = result.valid && allErrors.length === 0;
-
-          // Update validationErrors state to reflect validation results
-          // Note: AssetsList uses Map<string, string> where the value is a joined error string
-          if (actualValid) {
-            // Validation passed - clear errors for this asset
-            setValidationErrors(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(String(assetId));
-              return newMap;
-            });
-            // Refresh the grid cells to clear validation styling
-            event.api.refreshCells({ rowNodes: [event.node!], force: true });
-          } else if (allErrors.length > 0) {
-            // Validation failed - set errors for this asset (join multiple errors with newline)
-            const errorMessage = allErrors.join('\n');
-            setValidationErrors(prev => {
-              const newMap = new Map(prev);
-              newMap.set(String(assetId), errorMessage);
-              return newMap;
-            });
-            // Refresh the grid cells to show validation styling
-            event.api.refreshCells({ rowNodes: [event.node!], force: true });
-          }
-        } catch (error) {
-          console.error('Error in debounced validation:', error);
-        } finally {
-          // Clean up timer reference
-          validationTimerRef.current.delete(String(assetId));
-        }
-      }, 500); // 500ms debounce delay
-
-      validationTimerRef.current.set(String(assetId), timer);
+      // No online validation on edit: user must click Validate.
+      setIsValidatedForSave(false);
+      setValidationErrors(new Map());
 
     } catch (error) {
       console.error('Error tracking change:', error);
@@ -1219,6 +1031,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         
         // Set validation errors in state
         setValidationErrors(newValidationErrors);
+        setIsValidatedForSave(false);
 
         // Refresh grid to show the validation errors - specifically refresh actions column and row styling
         if (gridRef.current?.api) {
@@ -1238,6 +1051,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         // Clear validation errors if all assets are valid
         console.log('[Batch Validation] All assets valid, clearing validation errors');
         setValidationErrors(new Map());
+        setIsValidatedForSave(true);
       }
     } catch (error) {
       console.error('Error during batch validation:', error);
@@ -1256,62 +1070,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
   }
 
-  // Track if we've already auto-validated for the current assets to prevent loops
-  const autoValidatedRef = useRef<string>('');
-  const isAutoValidatingRef = useRef<boolean>(false);
-  
-  // Memoize asset IDs key to prevent unnecessary re-renders
-  const assetIdsKey = useMemo(() => {
-    return assets.map(a => String(a.asset_id)).sort().join(',');
-  }, [assets]);
-  
-  // Auto-validate assets when loaded in error fixing mode (only once per asset set)
-  useEffect(() => {
-    // Don't run if already validating or if conditions aren't met
-    // Note: We check batchValidationLoading but don't include it in deps to prevent loops
-    if (!isErrorFixingMode || assets.length === 0 || !taxRegion || loading || batchValidationLoading || isAutoValidatingRef.current) {
-      return;
-    }
-    
-    // Create a unique key for this validation run based on asset IDs and tax region
-    const validationKey = `${buildingNumber}-${taxRegion}-${assetIdsKey}`;
-    
-    // Only validate if we haven't already validated this exact set of assets
-    if (autoValidatedRef.current === validationKey) {
-      return; // Already validated this exact set
-    }
-    
-    console.log('[AssetsList] Auto-validating assets in error fixing mode:', {
-      isErrorFixingMode,
-      assetsCount: assets.length,
-      taxRegion,
-      validationKey
-    });
-    
-    // Mark that we're about to validate this set
-    autoValidatedRef.current = validationKey;
-    isAutoValidatingRef.current = true;
-    
-    // Validate assets automatically when in error fixing mode
-    // Use a small delay to ensure assets are fully rendered
-    const timer = setTimeout(async () => {
-      try {
-        await handleBatchValidateBuildingAssets();
-      } catch (error) {
-        console.error('[AssetsList] Error in auto-validation:', error);
-      } finally {
-        // Reset the flag after validation completes
-        isAutoValidatingRef.current = false;
-      }
-    }, 500);
-    
-    return () => {
-      clearTimeout(timer);
-      // Don't reset isAutoValidatingRef here - let it complete naturally
-    };
-    // Only depend on stable values - exclude batchValidationLoading to prevent loops
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isErrorFixingMode, taxRegion, loading, buildingNumber, assetIdsKey]);
+  // Note: We intentionally do NOT auto-validate on load.
+  // Save is disabled until user explicitly clicks Validate.
 
   const handleExportInvalidAssetsToFile = useCallback(() => {
     if (!batchValidationResults || batchValidationResults.errors.length === 0) {
@@ -4480,13 +4240,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                     <X className="h-4 w-4" />
                     ביטול
                   </button>
-                  {/* Save button: disabled when there are validation errors or no changes */}
+                  {/* Save button: disabled until user validates after edits */}
                   <button
                     type="button"
                     onClick={handleSaveAll}
-                    disabled={loading || totalChanges === 0 || hasValidationErrors}
+                    disabled={loading || totalChanges === 0 || hasValidationErrors || !isValidatedForSave}
                     className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
-                    title={hasValidationErrors ? 'תקן שגיאות אימות לפני השמירה' : undefined}
+                    title={!isValidatedForSave ? 'יש ללחוץ "אמת הכל" לפני השמירה' : (hasValidationErrors ? 'תקן שגיאות אימות לפני השמירה' : undefined)}
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

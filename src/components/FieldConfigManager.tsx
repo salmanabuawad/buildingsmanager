@@ -259,41 +259,40 @@ export function FieldConfigManager() {
 
       setSaving(true);
 
+      const payload: any[] = [];
       for (const row of rowsToImport) {
-        try {
-          const gridName = String(row[gridNameIndex] || '').trim();
-          const fieldName = String(row[fieldNameIndex] || '').trim();
+        const gridName = String(row[gridNameIndex] || '').trim();
+        const fieldName = String(row[fieldNameIndex] || '').trim();
 
-          if (!gridName || !fieldName) {
-            errorCount++;
-            continue;
-          }
-
-          const hebrewName = hebrewNameIndex !== -1 ? String(row[hebrewNameIndex] || '').trim() : undefined;
-          const widthChars = widthCharsIndex !== -1 ? parseInt(String(row[widthCharsIndex] || '10')) : 10;
-          const padding = paddingIndex !== -1 ? parseInt(String(row[paddingIndex] || '8')) : 8;
-          const pinned = pinnedIndex !== -1 ? (String(row[pinnedIndex] || '').trim() === 'כן' || String(row[pinnedIndex] || '').trim().toLowerCase() === 'yes' || String(row[pinnedIndex] || '').trim() === 'true') : false;
-          const pinSide = pinSideIndex !== -1 ? (String(row[pinSideIndex] || '').trim() === 'שמאל' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'left' ? 'left' : String(row[pinSideIndex] || '').trim() === 'ימין' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'right' ? 'right' : null) : null;
-          const visible = visibleIndex !== -1 ? (String(row[visibleIndex] || '').trim() !== 'לא' && String(row[visibleIndex] || '').trim().toLowerCase() !== 'no' && String(row[visibleIndex] || '').trim() !== 'false') : true;
-          const columnOrder = columnOrderIndex !== -1 ? (row[columnOrderIndex] ? parseInt(String(row[columnOrderIndex])) : undefined) : undefined;
-
-          await api.fieldConfigurations.upsert({
-            grid_name: gridName,
-            field_name: fieldName,
-            width_chars: widthChars,
-            padding: padding,
-            hebrew_name: hebrewName || undefined,
-            pinned: pinned,
-            pin_side: pinSide,
-            visible: visible,
-            column_order: columnOrder,
-          });
-
-          importedCount++;
-        } catch (rowError) {
-          console.error('Error importing row:', rowError);
+        if (!gridName || !fieldName) {
           errorCount++;
+          continue;
         }
+
+        const hebrewName = hebrewNameIndex !== -1 ? String(row[hebrewNameIndex] || '').trim() : undefined;
+        const widthChars = widthCharsIndex !== -1 ? parseInt(String(row[widthCharsIndex] || '10')) : 10;
+        const padding = paddingIndex !== -1 ? parseInt(String(row[paddingIndex] || '8')) : 8;
+        const pinned = pinnedIndex !== -1 ? (String(row[pinnedIndex] || '').trim() === 'כן' || String(row[pinnedIndex] || '').trim().toLowerCase() === 'yes' || String(row[pinnedIndex] || '').trim() === 'true') : false;
+        const pinSide = pinSideIndex !== -1 ? (String(row[pinSideIndex] || '').trim() === 'שמאל' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'left' ? 'left' : String(row[pinSideIndex] || '').trim() === 'ימין' || String(row[pinSideIndex] || '').trim().toLowerCase() === 'right' ? 'right' : null) : null;
+        const visible = visibleIndex !== -1 ? (String(row[visibleIndex] || '').trim() !== 'לא' && String(row[visibleIndex] || '').trim().toLowerCase() !== 'no' && String(row[visibleIndex] || '').trim() !== 'false') : true;
+        const columnOrder = columnOrderIndex !== -1 ? (row[columnOrderIndex] ? parseInt(String(row[columnOrderIndex])) : undefined) : undefined;
+
+        payload.push({
+          grid_name: gridName,
+          field_name: fieldName,
+          width_chars: widthChars,
+          padding: padding,
+          hebrew_name: hebrewName || undefined,
+          pinned,
+          pin_side: pinSide,
+          visible,
+          column_order: columnOrder,
+        });
+      }
+
+      if (payload.length > 0) {
+        const bulkResult = await api.fieldConfigurations.upsertBulk(payload);
+        importedCount = bulkResult.count;
       }
 
       // Reload configurations
@@ -417,28 +416,20 @@ export function FieldConfigManager() {
 
     try {
       setSaving(true);
-      let savedCount = 0;
-      let errorCount = 0;
+      const payload = Array.from(dirtyConfigs.values()).map(dirtyConfig => ({
+        grid_name: dirtyConfig.grid_name,
+        field_name: dirtyConfig.field_name,
+        width_chars: dirtyConfig.width_chars,
+        padding: dirtyConfig.padding,
+        hebrew_name: dirtyConfig.hebrew_name || undefined,
+        pinned: dirtyConfig.pinned ?? false,
+        pin_side: dirtyConfig.pin_side || null,
+        visible: dirtyConfig.visible ?? true,
+        column_order: dirtyConfig.column_order,
+      }));
 
-      for (const [key, dirtyConfig] of dirtyConfigs.entries()) {
-        try {
-          await api.fieldConfigurations.upsert({
-            grid_name: dirtyConfig.grid_name,
-            field_name: dirtyConfig.field_name,
-            width_chars: dirtyConfig.width_chars,
-            padding: dirtyConfig.padding,
-            hebrew_name: dirtyConfig.hebrew_name || undefined,
-            pinned: dirtyConfig.pinned ?? false,
-            pin_side: dirtyConfig.pin_side || null,
-            visible: dirtyConfig.visible ?? true,
-            column_order: dirtyConfig.column_order,
-          });
-          savedCount++;
-        } catch (error) {
-          console.error(`Error saving config ${key}:`, error);
-          errorCount++;
-        }
-      }
+      const result = await api.fieldConfigurations.upsertBulk(payload);
+      const savedCount = result.count;
 
       // Reload configurations
       await loadConfigurations();
@@ -451,8 +442,8 @@ export function FieldConfigManager() {
       setDirtyConfigs(new Map());
       
       setToast({ 
-        message: `נשמרו ${savedCount} הגדרות בהצלחה${errorCount > 0 ? `, ${errorCount} שגיאות` : ''}`, 
-        type: savedCount > 0 ? 'success' : 'error' 
+        message: `נשמרו ${savedCount} הגדרות בהצלחה`, 
+        type: 'success' 
       });
       setTimeout(() => setToast(null), 5000);
     } catch (error) {

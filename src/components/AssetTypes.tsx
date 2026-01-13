@@ -251,28 +251,36 @@ export function AssetTypes() {
 
     setIsSaving(true);
     try {
-      // Process deletions first
-      for (const id of deletedAssetTypes) {
-        await api.assetTypes.delete(id);
+      // Bulk delete first
+      if (deletedAssetTypes.size > 0) {
+        await api.assetTypes.deleteBulk(Array.from(deletedAssetTypes.values()));
       }
 
-      // Process updates
+      // Validate updates, then save in ONE bulk call
+      const updatesToSave: Array<{ id: number; updates: Partial<AssetType> }> = [];
       for (const [id, changes] of dirtyAssetTypes.entries()) {
-        if (!deletedAssetTypes.has(id)) {
-          // Validate tax_region if it's being changed
-          if ('tax_region' in changes) {
-            const taxRegionValue = changes.tax_region;
-            const validation = await assetTypeValidators.validateTaxRegion(
-              taxRegionValue !== undefined && taxRegionValue !== null ? String(taxRegionValue) : ''
-            );
-            if (!validation.valid) {
-              showMessage('error', `שגיאה בנכס ${id}: ${validation.error}`);
-              setIsSaving(false);
-              return;
-            }
-          }
+        if (deletedAssetTypes.has(id)) continue;
 
-          await api.assetTypes.update(id, changes);
+        // Validate tax_region if it's being changed
+        if ('tax_region' in changes) {
+          const taxRegionValue = changes.tax_region;
+          const validation = await assetTypeValidators.validateTaxRegion(
+            taxRegionValue !== undefined && taxRegionValue !== null ? String(taxRegionValue) : ''
+          );
+          if (!validation.valid) {
+            showMessage('error', `שגיאה בנכס ${id}: ${validation.error}`);
+            setIsSaving(false);
+            return;
+          }
+        }
+
+        updatesToSave.push({ id, updates: changes });
+      }
+
+      if (updatesToSave.length > 0) {
+        const bulkResult = await api.assetTypes.updateBulkWithDistributionReset(updatesToSave);
+        if (!bulkResult.success) {
+          throw new Error(bulkResult.error || 'שגיאה בשמירה');
         }
       }
 
@@ -280,6 +288,9 @@ export function AssetTypes() {
       setDirtyAssetTypes(new Map());
       setDeletedAssetTypes(new Set());
       await fetchAssetTypes();
+      
+      // Keep validation rules in sync (asset types can affect them)
+      await refreshRules();
     } catch (error) {
       console.error('Error saving changes:', error);
       showMessage('error', 'שגיאה בשמירת השינויים');
@@ -1142,17 +1153,16 @@ export function AssetTypes() {
       // First, truncate the table by deleting all records
       try {
         const allAssetTypes = await api.assetTypes.getAll();
-        for (const assetType of allAssetTypes) {
-          try {
-            await api.assetTypes.delete(assetType.id);
-          } catch (err) {
-            console.error(`Error deleting asset type ${assetType.id}:`, err);
-          }
+        if (allAssetTypes && allAssetTypes.length > 0) {
+          await api.assetTypes.deleteBulk(allAssetTypes.map(at => at.id));
         }
       } catch (err) {
         console.error('Error truncating asset types:', err);
         showMessage('error', 'שגיאה במחיקת רשומות קיימות');
       }
+
+      // Collect valid rows and insert in one bulk call
+      const assetTypesToInsert = new Map<string, Omit<AssetType, 'id' | 'created_at' | 'updated_at'>>();
 
       // Parse and import each data row (skip header row)
       for (let i = 1; i < rows.length; i++) {
@@ -1231,12 +1241,20 @@ export function AssetTypes() {
             max_size: max_size ? parseFloat(max_size) : undefined,
           };
 
-          await api.assetTypes.create(assetTypeData);
-          successCount++;
+          // De-duplicate by name (keep last occurrence)
+          assetTypesToInsert.set(String(name), assetTypeData);
         } catch (error) {
           errors.push(`שורה ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           errorCount++;
         }
+      }
+
+      if (assetTypesToInsert.size > 0) {
+        const bulkCreate = await api.assetTypes.createBulk(Array.from(assetTypesToInsert.values()));
+        if (!bulkCreate.success) {
+          throw new Error(bulkCreate.error || 'שגיאה בייבוא סוגי נכסים');
+        }
+        successCount = bulkCreate.count;
       }
 
       await fetchAssetTypes();

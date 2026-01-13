@@ -1144,6 +1144,86 @@ export const api = {
       
       return data;
     },
+    updateBulk: async (
+      buildingsData: Array<{ building_number: number; updates: Partial<Building> }>
+    ): Promise<{ success: boolean; count: number; buildings?: Building[]; error?: string }> => {
+      if (!buildingsData || buildingsData.length === 0) {
+        return { success: true, count: 0, buildings: [] };
+      }
+
+      const payload = buildingsData
+        .filter(b => b && b.building_number != null)
+        .map(b => ({
+          building_number: b.building_number,
+          updates: Object.fromEntries(
+            Object.entries(sanitizeBuildingInput(b.updates || {})).filter(([_, v]) => v !== undefined)
+          )
+        }))
+        .filter(b => b.updates && Object.keys(b.updates).length > 0);
+
+      if (payload.length === 0) {
+        return { success: true, count: 0, buildings: [] };
+      }
+
+      const { data: functionResult, error: rpcError } = await supabase.rpc('update_buildings_bulk_with_distribution_flags', {
+        p_buildings_data: payload as any
+      });
+
+      if (rpcError) {
+        return { success: false, count: 0, error: rpcError.message };
+      }
+
+      const result = functionResult as { success: boolean; buildings: any[]; count: number };
+      return {
+        success: result?.success === true,
+        count: Number(result?.count || 0),
+        buildings: (result?.buildings || []) as Building[]
+      };
+    },
+    createBulk: async (inputs: Omit<Building, 'created_at'>[]): Promise<{ success: boolean; count: number; buildings?: Building[]; error?: string }> => {
+      if (!inputs || inputs.length === 0) {
+        return { success: true, count: 0, buildings: [] };
+      }
+
+      const prepared = inputs.map(input => {
+        const sanitizedInput = sanitizeBuildingInput(input as any);
+        const cleanedInput: any = Object.fromEntries(
+          Object.entries(sanitizedInput).filter(([_, v]) => v !== undefined)
+        );
+
+        // Enforce defaults on creation
+        cleanedInput.need_residence_distribution = false;
+        cleanedInput.need_business_distribution = false;
+
+        return cleanedInput;
+      });
+
+      const { data, error } = await supabase
+        .from('buildings')
+        .insert(prepared)
+        .select('*');
+
+      if (error) {
+        return { success: false, count: 0, error: error.message };
+      }
+
+      // Log changes asynchronously (one per created building)
+      try {
+        (data || []).forEach((b: any) => {
+          logChangeAsync(
+            'buildings',
+            'INSERT',
+            String(b.building_number),
+            undefined,
+            b
+          );
+        });
+      } catch (err) {
+        console.warn('[api.buildings.createBulk] Failed to log changes:', err);
+      }
+
+      return { success: true, count: data?.length || prepared.length, buildings: data || [] };
+    },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
       // Get building data before deletion (for change log)
       let beforeData: Building | null = null;
@@ -2817,6 +2897,45 @@ export const api = {
       
       return data;
     },
+    createBulk: async (inputs: Omit<AssetType, 'id' | 'created_at' | 'updated_at'>[]): Promise<{ success: boolean; count: number; rows?: AssetType[]; error?: string }> => {
+      if (!inputs || inputs.length === 0) {
+        return { success: true, count: 0, rows: [] };
+      }
+
+      const { data, error } = await supabase
+        .from('asset_types')
+        .insert(inputs)
+        .select('*');
+
+      if (error) {
+        return { success: false, count: 0, error: error.message };
+      }
+
+      // Refresh in-memory cache ONCE after bulk create
+      try {
+        const { refreshAssetTypesCache } = await import('./validation');
+        await refreshAssetTypesCache();
+      } catch (err) {
+        console.warn('[api.assetTypes.createBulk] Failed to refresh cache:', err);
+      }
+
+      // Log change entries asynchronously
+      try {
+        (data || []).forEach((row: any) => {
+          logChangeAsync(
+            'asset_types',
+            'INSERT',
+            String(row.id ?? row.asset_type ?? row.name),
+            undefined,
+            row
+          );
+        });
+      } catch (err) {
+        console.warn('[api.assetTypes.createBulk] Failed to log changes:', err);
+      }
+
+      return { success: true, count: data?.length || inputs.length, rows: data || [] };
+    },
     update: async (id: number, input: Partial<AssetType>): Promise<AssetType> => {
       // Get the current asset type data before update (for change log)
       let beforeData: AssetType | null = null;
@@ -3013,6 +3132,46 @@ export const api = {
 
       return data;
     },
+    updateBulkWithDistributionReset: async (
+      updates: Array<{ id: number; updates: Partial<AssetType> }>
+    ): Promise<{ success: boolean; count: number; affected_buildings?: number[]; error?: string }> => {
+      if (!updates || updates.length === 0) {
+        return { success: true, count: 0, affected_buildings: [] };
+      }
+
+      const payload = updates
+        .filter(u => u && u.id != null)
+        .map(u => ({
+          id: u.id,
+          updates: Object.fromEntries(Object.entries(u.updates || {}).filter(([_, v]) => v !== undefined))
+        }));
+
+      if (payload.length === 0) {
+        return { success: true, count: 0, affected_buildings: [] };
+      }
+
+      const { data, error } = await supabase.rpc('update_asset_types_bulk_with_distribution_reset', {
+        p_asset_types_data: payload as any
+      });
+
+      if (error) {
+        return { success: false, count: 0, error: error.message };
+      }
+
+      // Refresh in-memory cache ONCE after bulk update
+      try {
+        const { refreshAssetTypesCache } = await import('./validation');
+        await refreshAssetTypesCache();
+      } catch (err) {
+        console.warn('[api.assetTypes.updateBulkWithDistributionReset] Failed to refresh cache:', err);
+      }
+
+      return {
+        success: data?.success === true,
+        count: Number(data?.count || 0),
+        affected_buildings: (data?.affected_buildings || []) as number[]
+      };
+    },
     delete: async (id: number): Promise<{ message: string }> => {
       // Get asset type data before deletion (for change log)
       let beforeData: AssetType | null = null;
@@ -3063,6 +3222,47 @@ export const api = {
       
       return { message: 'Asset type deleted successfully' };
     },
+    deleteBulk: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
+      const numericIds = (ids || []).map(Number).filter(n => !isNaN(n));
+      if (numericIds.length === 0) {
+        return { success: true, count: 0 };
+      }
+
+      // Prefer deleting by id, fallback to asset_type if schema differs
+      let error: any = null;
+      let count: number | null = null;
+
+      const byId = await supabase
+        .from('asset_types')
+        .delete()
+        .in('id', numericIds)
+        .select('id', { count: 'exact', head: true });
+
+      error = byId.error;
+      count = byId.count ?? null;
+
+      if (error && error.code === '42703') {
+        const byLegacy = await supabase
+          .from('asset_types')
+          .delete()
+          .in('asset_type', numericIds)
+          .select('asset_type', { count: 'exact', head: true });
+        error = byLegacy.error;
+        count = byLegacy.count ?? null;
+      }
+
+      if (error) throw error;
+
+      // Refresh in-memory cache ONCE after bulk delete
+      try {
+        const { refreshAssetTypesCache } = await import('./validation');
+        await refreshAssetTypesCache();
+      } catch (err) {
+        console.warn('[api.assetTypes.deleteBulk] Failed to refresh cache:', err);
+      }
+
+      return { success: true, count: count || 0 };
+    },
   },
   addressList: {
     getAll: async (): Promise<AddressList[]> => {
@@ -3105,6 +3305,19 @@ export const api = {
       if (error) throw error;
       return data;
     },
+    upsertBulk: async (inputs: Partial<AddressList>[]): Promise<{ success: boolean; count: number; rows?: AddressList[] }> => {
+      if (!inputs || inputs.length === 0) {
+        return { success: true, count: 0, rows: [] };
+      }
+
+      const { data, error } = await supabase
+        .from('address_list')
+        .upsert(inputs, { onConflict: 'street_code' })
+        .select('*');
+
+      if (error) throw error;
+      return { success: true, count: data?.length || inputs.length, rows: data || [] };
+    },
     delete: async (streetCode: number): Promise<{ message: string }> => {
       const { error } = await supabase
         .from('address_list')
@@ -3113,6 +3326,21 @@ export const api = {
 
       if (error) throw error;
       return { message: 'Address deleted successfully' };
+    },
+    deleteBulk: async (streetCodes: number[]): Promise<{ success: boolean; count: number }> => {
+      const codes = (streetCodes || []).map(Number).filter(n => !isNaN(n));
+      if (codes.length === 0) {
+        return { success: true, count: 0 };
+      }
+
+      const { error, count } = await supabase
+        .from('address_list')
+        .delete()
+        .in('street_code', codes)
+        .select('street_code', { count: 'exact', head: true });
+
+      if (error) throw error;
+      return { success: true, count: count || 0 };
     },
   },
   validationRules: {
@@ -3381,6 +3609,19 @@ export const api = {
 
       if (error) throw error;
       return data;
+    },
+    upsertBulk: async (inputs: Omit<FieldConfiguration, 'created_at' | 'updated_at'>[]): Promise<{ success: boolean; count: number; rows?: FieldConfiguration[] }> => {
+      if (!inputs || inputs.length === 0) {
+        return { success: true, count: 0, rows: [] };
+      }
+
+      const { data, error } = await supabase
+        .from('field_configurations')
+        .upsert(inputs, { onConflict: 'grid_name,field_name' })
+        .select('*');
+
+      if (error) throw error;
+      return { success: true, count: data?.length || inputs.length, rows: data || [] };
     },
     delete: async (gridName: string, fieldName: string): Promise<{ message: string }> => {
       const { error } = await supabase

@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Download, AlertCircle, CheckCircle, Loader2, X, Save, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
 import { api, Asset, AssetType, Building, AddressList } from '../lib/api';
@@ -1802,7 +1803,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       }
 
       // Prepare all valid assets for bulk insert
-      const assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
+      let assetsToInsert: Partial<Asset>[] = validAssets.map(asset => {
         const assetData: Partial<Asset> = {
           building_number: asset.building_number!,
           payer_id: asset.payer_id || null,

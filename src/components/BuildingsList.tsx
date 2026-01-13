@@ -480,9 +480,25 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<string | number, Partial<Building>>>(new Map());
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string | number, Record<string, string>>>(new Map());
+  // Save is gated behind an explicit Validate action.
+  // Any edit resets this back to false.
+  const [isValidatedForSave, setIsValidatedForSave] = useState(false);
   const [buildingsToDelete, setBuildingsToDelete] = useState<Set<string | number>>(new Set());
   const [newBuildings, setNewBuildings] = useState<Set<string | number>>(new Set());
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
+
+  // Any change invalidates the last validation snapshot (user must re-validate).
+  useEffect(() => {
+    const hasChanges = dirtyBuildings.size > 0 || buildingsToDelete.size > 0 || newBuildings.size > 0;
+    if (hasChanges) {
+      setIsValidatedForSave(false);
+      // Clear stale validation messages (no online validation UX)
+      setValidationErrors(new Map());
+      setInvalidTaxRegions(new Set());
+      setInvalidTaxRegionBuildings(new Set());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirtyBuildings, buildingsToDelete, newBuildings]);
 
   // Translate field names from English to Hebrew for error messages
   const translateFieldName = useCallback((fieldName: string): string => {
@@ -968,107 +984,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
 
-    // Validate all fields - merge with all dirty changes to get complete row state
-    // Merge base building data with all dirty changes to get complete current state
-    const updatedBuilding = { 
-      ...building, 
-      ...updatedDirtyChanges,
-      [field]: valueForValidation // Use the parsed value for validation
-    };
-    
-    // Validate the complete row
-    const validation = await buildingValidators.validateAllFields(updatedBuilding);
-
-    setValidationErrors(prev => {
-      const next = new Map(prev);
-      if (!validation.valid) {
-        next.set(newBuildingKey, validation.errors);
-      } else {
-        next.delete(newBuildingKey);
-      }
-      return next;
-    });
-
-    // Update tax region validation state
-    if (field === 'tax_region') {
-      // Only validate removal for existing buildings (not new ones)
-      if (!isNew && building.building_number && building.building_number > 0) {
-        // Get original tax region from originalBuildings
-        const originalBuilding = originalBuildings.find(b => b.building_number === building.building_number);
-        const oldTaxRegion = originalBuilding?.tax_region;
-        
-        // Validate tax region removal
-        const removalValidation = await validateTaxRegionRemoval(
-          building.building_number,
-          oldTaxRegion,
-          newValue
-        );
-
-        if (!removalValidation.valid) {
-          // Show modal with error message
-          setTaxRegionValidationModal({
-            isOpen: true,
-            buildingNumber: building.building_number,
-            removedTaxRegions: removalValidation.removedTaxRegions,
-            assetCount: removalValidation.assetCount,
-            oldTaxRegion: oldTaxRegion,
-            buildingKey: buildingKey
-          });
-
-          // Mark this building as having invalid tax region (for visual error indication)
-          setInvalidTaxRegionBuildings(prev => new Set(prev).add(buildingKey));
-
-          // Add validation error for tax_region field
-          setValidationErrors(prev => {
-            const next = new Map(prev);
-            const existingErrors = next.get(newBuildingKey) || {};
-            next.set(newBuildingKey, {
-              ...existingErrors,
-              tax_region: `לא ניתן להסיר אזור מס ${removalValidation.removedTaxRegions.join(', ')} - קיימים ${removalValidation.assetCount} נכסים`
-            });
-            return next;
-          });
-
-          // Refresh grid to show error styling
-          if (gridRef.current?.api) {
-            setTimeout(() => {
-              if (gridRef.current?.api) {
-                gridRef.current.api.refreshCells({
-                  rowNodes: [event.node],
-                  columns: [field],
-                  force: true
-                });
-              }
-            }, 0);
-          }
-        } else {
-          // Validation passed - remove from invalid set
-          setInvalidTaxRegionBuildings(prev => {
-            const next = new Set(prev);
-            next.delete(buildingKey);
-            return next;
-          });
-        }
-      }
-
-      const isInvalid = await buildingValidators.checkTaxRegionInvalid(newValue);
-      setInvalidTaxRegions(prev => {
-        const next = new Set(prev);
-        if (isInvalid) {
-          // Use building_number for invalidTaxRegions (always a number)
-          const bldgNum = updatedBuilding.building_number || 0;
-          if (bldgNum > 0) {
-            next.add(bldgNum);
-          }
-        } else {
-          const bldgNum = updatedBuilding.building_number || 0;
-          if (bldgNum > 0) {
-            next.delete(bldgNum);
-          }
-        }
-        return next;
-      });
-    }
+    // No online validation on edit: user must click "אמת הכל".
+    // We still refresh the grid after updating dirty state below.
 
     // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {
@@ -1178,6 +1095,27 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       
       // Update validation errors
       setValidationErrors(newValidationErrors);
+
+      // Recalculate invalid tax regions (deferred - only on Validate)
+      const newInvalidTaxRegions = new Set<number>();
+      for (const { building, key } of buildingsToValidate) {
+        // Skip buildings marked for deletion
+        if (buildingsToDelete.has(key)) continue;
+
+        const dirtyChanges = dirtyBuildings.get(key) || {};
+        const updatedBuilding = { ...building, ...dirtyChanges };
+        if (updatedBuilding.tax_region) {
+          try {
+            const isInvalid = await buildingValidators.checkTaxRegionInvalid(updatedBuilding.tax_region);
+            if (isInvalid && updatedBuilding.building_number && updatedBuilding.building_number > 0) {
+              newInvalidTaxRegions.add(updatedBuilding.building_number);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+      setInvalidTaxRegions(newInvalidTaxRegions);
       
       // Refresh grid to show validation errors and row borders
       if (gridRef.current?.api) {
@@ -1190,9 +1128,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       if (errorCount > 0) {
         setError(`נמצאו שגיאות תקינות ב-${errorCount} מבנים`);
         setTimeout(() => setError(null), 5000);
+        setIsValidatedForSave(false);
       } else {
         setSuccess(`כל ${buildingsToValidate.length} המבנים תקינים`);
         setTimeout(() => setSuccess(null), 3000);
+        // Validated state enables Save button (until next edit)
+        setIsValidatedForSave(true);
       }
     } catch (err) {
       console.error('Error validating buildings:', err);
@@ -1650,33 +1591,21 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
 
       // Process saves
-      for (const buildingKey of allBuildingsToSave) {
-        try {
-          let building = findBuildingByKey(buildingKey);
-          
-          if (!building) {
-            console.warn(`[BuildingsList] Building not found for key: ${buildingKey}`);
-            continue;
-          }
-          
-          console.log(`[BuildingsList] Processing building:`, { buildingKey, building, isNew: isNewBuilding(building) });
+      try {
+        // Collect bulk creates/updates
+        const buildingsToCreate: any[] = [];
+        const buildingsToUpdate: Array<{ building_number: number; updates: any }> = [];
 
-          // For new buildings not in dirtyBuildings, use empty changes object
+        for (const buildingKey of allBuildingsToSave) {
+          const building = findBuildingByKey(buildingKey);
+          if (!building) continue;
+          if (buildingsToDelete.has(buildingKey)) continue;
+
           const changes = dirtyBuildings.get(buildingKey) || {};
           const isNew = isNewBuilding(building);
 
           if (isNew) {
             const finalBuilding = { ...building, ...changes };
-            
-            console.log(`[BuildingsList] Saving new building:`, { 
-              buildingKey, 
-              building, 
-              changes, 
-              finalBuilding,
-              building_number: finalBuilding.building_number,
-              tax_region: finalBuilding.tax_region
-            });
-            
             if (!finalBuilding.building_number || finalBuilding.building_number <= 0) {
               errors.push(`מבנה חדש: מזהה מבנה נדרש ו חייב להיות חיובי`);
               continue;
@@ -1686,44 +1615,40 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               continue;
             }
 
-            // Prepare building data for API - exclude internal fields
-            const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding;
-            console.log(`[BuildingsList] Calling api.buildings.create with:`, buildingData);
-            const createdBuilding = await api.buildings.create(buildingData);
-            console.log(`[BuildingsList] Building created successfully:`, createdBuilding);
-            
-            // Remove the old building from state - fetchBuildings will add it back from database
-            setBuildings(prev => prev.filter(b => {
-              const bKey = getBuildingKey(b);
-              return bKey !== buildingKey;
-            }));
-            setFilteredBuildings(prev => prev.filter(b => {
-              const bKey = getBuildingKey(b);
-              return bKey !== buildingKey;
-            }));
-            
-            savedCount++;
-            // Add both the original key and the new building_number to successfullySaved
-            // because dirtyBuildings might have been updated to use the new building_number
+            const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding as any;
+            buildingsToCreate.push(buildingData);
             successfullySaved.add(buildingKey);
-            if (createdBuilding.building_number && createdBuilding.building_number > 0) {
-              successfullySaved.add(createdBuilding.building_number);
-            }
+            successfullySaved.add(finalBuilding.building_number);
           } else {
             const actualBuildingNumber = building.building_number;
             if (!actualBuildingNumber || actualBuildingNumber <= 0) {
               errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מזהה מבנה לא תקין`);
               continue;
             }
-            await api.buildings.update(actualBuildingNumber, changes);
-            savedCount++;
+            buildingsToUpdate.push({ building_number: actualBuildingNumber, updates: changes });
             successfullySaved.add(buildingKey);
+            successfullySaved.add(actualBuildingNumber);
           }
-        } catch (err) {
-          const building = findBuildingByKey(buildingKey);
-          const buildingIdent = building?.building_number || buildingKey;
-          errors.push(`מבנה ${buildingIdent}: ${err instanceof Error ? err.message : 'שגיאה בשמירה'}`);
         }
+
+        // Execute bulk create/update (each is one API call)
+        if (buildingsToCreate.length > 0) {
+          const createResult = await api.buildings.createBulk(buildingsToCreate);
+          if (!createResult.success) {
+            throw new Error(createResult.error || 'שגיאה בשמירת מבנים חדשים');
+          }
+          savedCount += createResult.count;
+        }
+
+        if (buildingsToUpdate.length > 0) {
+          const updateResult = await api.buildings.updateBulk(buildingsToUpdate);
+          if (!updateResult.success) {
+            throw new Error(updateResult.error || 'שגיאה בעדכון מבנים');
+          }
+          savedCount += updateResult.count;
+        }
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : 'שגיאה בשמירה');
       }
 
       // Clear successfully processed buildings BEFORE fetchBuildings
@@ -2727,7 +2652,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <button
               type="button"
               onClick={handleSaveAll}
-              disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors}
+              disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors || !isValidatedForSave}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               {loading ? (

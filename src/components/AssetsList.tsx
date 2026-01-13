@@ -1470,12 +1470,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
         return next;
       });
-      
-      // Clear all pending validation timers before refreshing data
-      // This prevents individual asset validations from running after save
-      validationTimerRef.current.forEach(timer => clearTimeout(timer));
-      validationTimerRef.current.clear();
-      
+ 
       // Track which assets were just saved to prevent re-marking them as dirty in fetchData
       // This is especially important in error fixing mode where fetchData would re-mark them
       recentlySavedAssetsRef.current = new Set(successfullySaved);

@@ -1785,20 +1785,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       type: 'numericColumn',
       valueFormatter: (params) => {
         const val = params.value;
-        if (val === null || val === undefined || val === '' || val === 0) {
-          // Show watermark for type 999 assets with 0 size
-          const asset = params.data as Asset;
-          if (asset?.main_asset_type === '999') {
-            // Get missing size from the asset's comment if it contains the suggestion
-            const comment = asset.comment || '';
-            const match = comment.match(/מוצע: ([\d.]+)/);
-            if (match) {
-              return `[מוצע: ${match[1]}]`;
-            }
-            return '[הזן גודל]';
-          }
-          return '';
-        }
+        if (val === null || val === undefined || val === '' || val === 0) return '';
         const num = typeof val === 'number' ? val : parseFloat(val);
         return isNaN(num) || num === 0 ? '' : num.toFixed(2);
       },
@@ -1807,14 +1794,6 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         const style = getCellStyle(params, 'asset_size');
         const asset = params.data as Asset;
         const val = params.value;
-        // Style watermark text for type 999 with 0 size
-        if (asset?.main_asset_type === '999' && (val === 0 || val === null || val === undefined || val === '')) {
-          return {
-            ...style,
-            color: '#9ca3af', // Gray color for watermark
-            fontStyle: 'italic'
-          };
-        }
         return style;
       }
     },

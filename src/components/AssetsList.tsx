@@ -998,6 +998,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setBatchValidationResults(results);
       console.log(`[Batch Validation] Final results: ${results.valid} valid, ${results.invalid} invalid out of ${results.total} total (${results.errors.length} errors in errors array)`);
 
+      // Enable Save only if validation passed AND the validated set covers all changed rows.
+      // If user validated a subset (selected rows), we only unlock Save when all changed rows are included.
+      const changedAssetIds = new Set<string>();
+      for (const id of dirtyAssets.keys()) changedAssetIds.add(String(id));
+      for (const id of newAssets.values()) changedAssetIds.add(String(id));
+      for (const id of deletedAssets.values()) changedAssetIds.delete(String(id));
+
+      const validatedCoversAllChanges =
+        selectedAssets.size === 0 ||
+        Array.from(changedAssetIds).every(id => selectedAssets.has(String(id)));
+
+      setIsValidatedForSave(results.errors.length === 0 && validatedCoversAllChanges);
+
       // Mark invalid assets in the grid
       if (results.errors.length > 0) {
         const newValidationErrors = new Map<string, string>();

@@ -1154,25 +1154,42 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const successfullySaved = new Set<string>();
 
       // Process deletions first
+      const tempDeletedIds: string[] = [];
+      const dbDeletedIds: Array<string | number> = [];
+
       for (const assetId of deletedAssets) {
+        // Skip deletion if it's a temp asset (not saved to database yet)
+        if (String(assetId).startsWith('temp-')) {
+          tempDeletedIds.push(String(assetId));
+          continue;
+        }
+        dbDeletedIds.push(assetId);
+      }
+
+      // Temp deletions are local-only
+      for (const tempId of tempDeletedIds) {
+        deletedCount++;
+        successfullyDeleted.add(tempId);
+      }
+
+      // DB deletions: bulk when more than one id
+      if (dbDeletedIds.length === 1) {
         try {
-          const asset = assets.find(a => String(a.asset_id) === String(assetId));
-          if (!asset) continue;
-
-          // Skip deletion if it's a temp asset (not saved to database yet)
-          if (String(assetId).startsWith('temp-')) {
-            deletedCount++;
-            successfullyDeleted.add(String(assetId));
-            continue;
-          }
-
-          await api.assets.delete(assetId);
+          await api.assets.delete(dbDeletedIds[0]);
           deletedCount++;
-          successfullyDeleted.add(String(assetId));
+          successfullyDeleted.add(String(dbDeletedIds[0]));
         } catch (err) {
-          const asset = assets.find(a => String(a.asset_id) === String(assetId));
-          const assetIdent = asset?.asset_id || assetId;
+          const asset = assets.find(a => String(a.asset_id) === String(dbDeletedIds[0]));
+          const assetIdent = asset?.asset_id || dbDeletedIds[0];
           errors.push(`נכס ${assetIdent}: ${err instanceof Error ? err.message : 'שגיאה במחיקה'}`);
+        }
+      } else if (dbDeletedIds.length > 1) {
+        const bulkDelete = await api.assets.deleteBulkTransactional(dbDeletedIds, 'Bulk delete from AssetsList');
+        if (!bulkDelete.success) {
+          errors.push(`שגיאה במחיקה מרובה: ${bulkDelete.error || 'שגיאה לא ידועה'}`);
+        } else {
+          deletedCount += bulkDelete.count;
+          dbDeletedIds.forEach(id => successfullyDeleted.add(String(id)));
         }
       }
 

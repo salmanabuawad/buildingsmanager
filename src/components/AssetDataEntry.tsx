@@ -338,15 +338,22 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       const deletionErrors: string[] = [];
       
       // Process deletions first
-      for (const row of rowsToDelete) {
+      const idsToDelete = rowsToDelete.map(r => r._dbId).filter(id => id != null) as Array<number | string>;
+      if (idsToDelete.length === 1) {
         try {
-          if (row._dbId) {
-            await api.assets.delete(row._dbId);
-            deletedCount++;
-          }
+          await api.assets.delete(idsToDelete[0]);
+          deletedCount = 1;
         } catch (err) {
+          const row = rowsToDelete[0];
           const errorMsg = err instanceof Error ? err.message : 'שגיאה במחיקה';
           deletionErrors.push(`נכס ${row.asset_id} (מבנה ${row.building_number}): ${errorMsg}`);
+        }
+      } else if (idsToDelete.length > 1) {
+        const bulk = await api.assets.deleteBulkTransactional(idsToDelete, 'Bulk delete from AssetDataEntry');
+        if (!bulk.success) {
+          deletionErrors.push(`שגיאה במחיקה מרובה: ${bulk.error || 'שגיאה לא ידועה'}`);
+        } else {
+          deletedCount = bulk.count;
         }
       }
       const rowsWithErrors = rowData.filter(row =>

@@ -2239,6 +2239,32 @@ export const api = {
 
       return { message: 'Asset deleted successfully' };
     },
+    deleteBulkTransactional: async (ids: Array<number | string>, description?: string): Promise<{ success: boolean; count: number; error?: string }> => {
+      const assetIds = (ids || [])
+        .map(id => (typeof id === 'string' ? parseInt(id, 10) : id))
+        .filter(id => id != null && !isNaN(Number(id))) as number[];
+
+      if (assetIds.length === 0) {
+        return { success: true, count: 0 };
+      }
+
+      const userInfo = await getCurrentUserInfo();
+
+      const { data, error } = await supabase.rpc('delete_assets_bulk_transactional', {
+        p_asset_ids: assetIds,
+        p_user_id: userInfo.user_id || null,
+        p_description: description || 'Bulk asset delete'
+      });
+
+      if (error) {
+        return { success: false, count: 0, error: error.message };
+      }
+
+      return {
+        success: data?.success === true,
+        count: Number(data?.count || 0)
+      };
+    },
     saveTransactional: async (
       assetData: any,
       actionType: string = 'manual_update',

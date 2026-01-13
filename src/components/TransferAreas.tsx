@@ -1241,8 +1241,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       return;
     }
     setNew999AssetId('');
-    // Force 999 size to be the exact missing area (rounded to 2 decimals, consistent with validation tolerance 0.01)
-    setNew999AssetSize(missingSize.toFixed(2));
+    // Keep empty: user must type the correct value
+    setNew999AssetSize('');
     setNew999AssetComment('');
     setAdd999AssetPersistentError(null);
     setAdd999AssetModalOpen(true);
@@ -1308,11 +1308,18 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       return;
     }
 
-    // Force size to be exactly the current missing size (source of truth)
-    const assetSize = missingSize;
-    if (isNaN(assetSize) || assetSize <= 0.01) {
-      setToast({ message: 'אין שטח חסר תקין להוספה', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+    // User-entered size must match the missing area (within tolerance)
+    const assetSize = parseFloat(new999AssetSize);
+    if (isNaN(assetSize) || assetSize <= 0) {
+      setAdd999AssetPersistentError('גודל נכס חייב להיות מספר חיובי');
+      return;
+    }
+    if (missingSize <= 0.01) {
+      setAdd999AssetPersistentError('אין שטח חסר תקין להוספה');
+      return;
+    }
+    if (Math.abs(assetSize - missingSize) > 0.01) {
+      setAdd999AssetPersistentError(`גודל נכס חייב להיות בדיוק השטח החסר: ${missingSize.toFixed(2)} מ"ר`);
       return;
     }
 
@@ -2330,9 +2337,14 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
                 type="text"
                 id="new999AssetSize"
                 value={new999AssetSize}
-                readOnly
-                placeholder="מחושב אוטומטית"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-right"
+                onChange={(e) => {
+                  // Allow only numbers and decimal point
+                  const value = e.target.value.replace(/[^\d.]/g, '');
+                  setNew999AssetSize(value);
+                  if (add999AssetPersistentError) setAdd999AssetPersistentError(null);
+                }}
+                placeholder={missingSize > 0 ? `שטח חסר: ${missingSize.toFixed(2)}` : 'הזן גודל'}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-right"
               />
               {missingSize > 0 && (
                 <p className="mt-1 text-xs text-slate-500">

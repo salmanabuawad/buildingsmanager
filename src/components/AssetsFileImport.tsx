@@ -60,6 +60,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
   const [originalImportedAssets, setOriginalImportedAssets] = useState<ImportAssetRow[]>([]); // Store original state for rollback
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
 
+  // Display helper: show rows with errors first (stable ordering)
+  const displayedImportedAssets = useMemo(() => {
+    return importedAssets
+      .map((row, idx) => ({ row, idx }))
+      .sort((a, b) => {
+        const aHasError = !!(a.row._validationErrors && a.row._validationErrors.length > 0);
+        const bHasError = !!(b.row._validationErrors && b.row._validationErrors.length > 0);
+        if (aHasError !== bHasError) return aHasError ? -1 : 1;
+        return a.idx - b.idx;
+      })
+      .map(x => x.row);
+  }, [importedAssets]);
+
   // Helper function to check if an asset type is non_accountable_for_total_area
   const isAssetTypeNotAccountable = useCallback((assetTypeName: string | null | undefined): boolean => {
     if (!assetTypeName || !assetTypes || assetTypes.length === 0) {
@@ -3414,7 +3427,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     }
                     try {
                       const headers = ['מזהה מבנה', 'מזהה נכס', 'מזהה משלם', 'תאריך מדידה', 'סוג נכס ראשי', 'גודל נכס', 'אזור מס'];
-                      const rows = importedAssets.map(asset => [
+                      const rows = displayedImportedAssets.map(asset => [
                         asset.building_number || '',
                         asset.asset_id || '',
                         asset.payer_id || '',
@@ -3488,7 +3501,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
               <AgGridReact
                 ref={gridRef}
-                rowData={importedAssets}
+                rowData={displayedImportedAssets}
                 columnDefs={configuredColumnDefs}
                 getRowStyle={getRowStyle}
                 defaultColDef={{

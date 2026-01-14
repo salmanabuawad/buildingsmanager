@@ -639,23 +639,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return false;
   }, [validationErrors]);
 
-  // Sort buildings to put errored rows first
-  const sortedBuildings = useMemo(() => {
-    return [...filteredBuildings].map((building, idx) => ({ building, idx }))
-      .sort((a, b) => {
-        const aKey = getBuildingKey(a.building);
-        const bKey = getBuildingKey(b.building);
-        const aHasError = validationErrors.has(aKey) && validationErrors.get(aKey) && Object.keys(validationErrors.get(aKey)!).length > 0;
-        const bHasError = validationErrors.has(bKey) && validationErrors.get(bKey) && Object.keys(validationErrors.get(bKey)!).length > 0;
-        if (aHasError !== bHasError) {
-          return aHasError ? -1 : 1;
-        }
-        // Preserve original order within error/non-error groups
-        return a.idx - b.idx;
-      })
-      .map(x => x.building);
-  }, [filteredBuildings, validationErrors, getBuildingKey]);
-
   // Fetch buildings from API
   const fetchBuildings = async (showLoading = true) => {
     try {
@@ -744,6 +727,23 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const getBuildingKey = useCallback((building: Building): string | number => {
     return building._tempId || building.building_number;
   }, []);
+
+  // Sort buildings to put errored rows first
+  const sortedBuildings = useMemo(() => {
+    return [...filteredBuildings].map((building, idx) => ({ building, idx }))
+      .sort((a, b) => {
+        const aKey = getBuildingKey(a.building);
+        const bKey = getBuildingKey(b.building);
+        const aHasError = validationErrors.has(aKey) && validationErrors.get(aKey) && Object.keys(validationErrors.get(aKey)!).length > 0;
+        const bHasError = validationErrors.has(bKey) && validationErrors.get(bKey) && Object.keys(validationErrors.get(bKey)!).length > 0;
+        if (aHasError !== bHasError) {
+          return aHasError ? -1 : 1;
+        }
+        // Preserve original order within error/non-error groups
+        return a.idx - b.idx;
+      })
+      .map(x => x.building);
+  }, [filteredBuildings, validationErrors, getBuildingKey]);
 
   // Helper function to find building by key
   const findBuildingByKey = useCallback((key: string | number): Building | undefined => {

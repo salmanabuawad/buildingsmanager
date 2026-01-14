@@ -639,6 +639,23 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     return false;
   }, [validationErrors]);
 
+  // Sort buildings to put errored rows first
+  const sortedBuildings = useMemo(() => {
+    return [...filteredBuildings].map((building, idx) => ({ building, idx }))
+      .sort((a, b) => {
+        const aKey = getBuildingKey(a.building);
+        const bKey = getBuildingKey(b.building);
+        const aHasError = validationErrors.has(aKey) && validationErrors.get(aKey) && Object.keys(validationErrors.get(aKey)!).length > 0;
+        const bHasError = validationErrors.has(bKey) && validationErrors.get(bKey) && Object.keys(validationErrors.get(bKey)!).length > 0;
+        if (aHasError !== bHasError) {
+          return aHasError ? -1 : 1;
+        }
+        // Preserve original order within error/non-error groups
+        return a.idx - b.idx;
+      })
+      .map(x => x.building);
+  }, [filteredBuildings, validationErrors, getBuildingKey]);
+
   // Fetch buildings from API
   const fetchBuildings = async (showLoading = true) => {
     try {
@@ -1049,6 +1066,86 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   };
 
   // Validate all buildings with changes
+  // Helper function to run validation programmatically (without UI feedback)
+  const runValidationProgrammatically = useCallback(async (): Promise<{ hasErrors: boolean; errorMessage?: string }> => {
+    try {
+      const newValidationErrors = new Map<string | number, Record<string, string>>();
+      const buildingsToValidate: Array<{ building: Building; key: string | number }> = [];
+      
+      // Collect only buildings with dirty changes (or new buildings)
+      for (const building of buildings) {
+        const buildingKey = getBuildingKey(building);
+        
+        // Only validate buildings with changes (or new buildings), except those marked for deletion
+        if (!buildingsToDelete.has(buildingKey) && (dirtyBuildings.has(buildingKey) || newBuildings.has(buildingKey))) {
+          buildingsToValidate.push({ building, key: buildingKey });
+        }
+      }
+      
+      if (buildingsToValidate.length === 0) {
+        return { hasErrors: false };
+      }
+      
+      // Validate each building
+      for (const { building, key } of buildingsToValidate) {
+        const dirtyChanges = dirtyBuildings.get(key) || {};
+        const updatedBuilding = { ...building, ...dirtyChanges };
+        const validation = await buildingValidators.validateAllFields(updatedBuilding);
+        
+        if (!validation.valid) {
+          newValidationErrors.set(key, validation.errors);
+        }
+      }
+
+      // Check invalid tax regions
+      const newInvalidTaxRegions = new Set<number>();
+      for (const { building, key } of buildingsToValidate) {
+        if (buildingsToDelete.has(key)) continue;
+        const dirtyChanges = dirtyBuildings.get(key) || {};
+        const updatedBuilding = { ...building, ...dirtyChanges };
+        if (updatedBuilding.tax_region) {
+          try {
+            const isInvalid = await buildingValidators.checkTaxRegionInvalid(updatedBuilding.tax_region);
+            if (isInvalid && updatedBuilding.building_number && updatedBuilding.building_number > 0) {
+              newInvalidTaxRegions.add(updatedBuilding.building_number);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      // Update validation errors state
+      setValidationErrors(newValidationErrors);
+      setInvalidTaxRegions(newInvalidTaxRegions);
+
+      if (newValidationErrors.size > 0 || newInvalidTaxRegions.size > 0) {
+        const errorMessages: string[] = [];
+        for (const [buildingKey, errors] of newValidationErrors.entries()) {
+          const building = findBuildingByKey(buildingKey);
+          const buildingIdent = building?.building_number || buildingKey;
+          const fieldErrors = Object.entries(errors).map(([field, msg]) => `${field}: ${msg}`).join(', ');
+          errorMessages.push(`מבנה ${buildingIdent}: ${fieldErrors}`);
+        }
+        if (newInvalidTaxRegions.size > 0) {
+          errorMessages.push(`${newInvalidTaxRegions.size} מבנים עם אזור מיסים לא תקין`);
+        }
+        return {
+          hasErrors: true,
+          errorMessage: `נמצאו שגיאות אימות ב-${newValidationErrors.size} מבנים:\n${errorMessages.slice(0, 5).join('\n')}${errorMessages.length > 5 ? `\n...ועוד ${errorMessages.length - 5} מבנים` : ''}`
+        };
+      }
+
+      return { hasErrors: false };
+    } catch (err) {
+      console.error('Error running validation:', err);
+      return {
+        hasErrors: true,
+        errorMessage: `שגיאה בבדיקת תקינות: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`
+      };
+    }
+  }, [buildings, dirtyBuildings, buildingsToDelete, newBuildings, getBuildingKey, findBuildingByKey]);
+
   const handleValidateAll = useCallback(async () => {
     // Don't set loading to avoid refreshing the tab
     setError(null);
@@ -1519,32 +1616,19 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const handleSaveAll = async () => {
     if (dirtyBuildings.size === 0 && buildingsToDelete.size === 0 && newBuildings.size === 0) return;
 
-    // Check validation errors
-    const nonDeletedErrors = new Map();
-    for (const [buildingNumber, errors] of validationErrors.entries()) {
-      if (!buildingsToDelete.has(buildingNumber)) {
-        nonDeletedErrors.set(buildingNumber, errors);
-      }
-    }
-
-    if (nonDeletedErrors.size > 0) {
-      const errorMessages: string[] = [];
-      for (const [buildingNumber, errors] of nonDeletedErrors.entries()) {
-        const fieldErrors = Object.entries(errors)
-          .map(([field, msg]) => `${field}: ${msg}`)
-          .join(', ');
-        errorMessages.push(`Building ${buildingNumber}: ${fieldErrors}`);
-      }
-      setError(`Cannot save. Please fix validation errors: ${errorMessages.join('; ')}`);
-      setTimeout(() => setError(null), 8000);
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setSuccess(null);
     
     try {
+      // Run validation before saving
+      const validationResult = await runValidationProgrammatically();
+      if (validationResult.hasErrors) {
+        setError(validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.');
+        setTimeout(() => setError(null), 8000);
+        setLoading(false);
+        return;
+      }
       let savedCount = 0;
       let deletedCount = 0;
       const errors: string[] = [];
@@ -2652,7 +2736,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             <button
               type="button"
               onClick={handleSaveAll}
-              disabled={loading || totalChanges === 0 || invalidTaxRegions.size > 0 || hasValidationErrors || !isValidatedForSave}
+              disabled={loading || totalChanges === 0}
               className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
             >
               {loading ? (
@@ -2669,7 +2753,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           <div className="ag-theme-alpine buildings-list-grid" style={{ height: 'calc(100vh - 400px)', minHeight: '300px', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
             <AgGridReact
               ref={gridRef}
-              rowData={filteredBuildings}
+              rowData={sortedBuildings}
                 columnDefs={configuredColumnDefs}
                 defaultColDef={{
                   resizable: false, // Disabled - use field configurations instead

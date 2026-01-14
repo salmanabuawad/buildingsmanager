@@ -1332,10 +1332,22 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
   }, [rowData, originalRowData]);
 
   const filteredRowData = useMemo(() => {
-    if (selectedBuilding === 'all') {
-      return rowData;
-    }
-    return rowData.filter(row => row.building_number === selectedBuilding);
+    let filtered = selectedBuilding === 'all' 
+      ? rowData 
+      : rowData.filter(row => row.building_number === selectedBuilding);
+    
+    // Sort to put errored rows first
+    return filtered.map((row, idx) => ({ row, idx }))
+      .sort((a, b) => {
+        const aHasError = a.row._validationErrors && a.row._validationErrors.size > 0;
+        const bHasError = b.row._validationErrors && b.row._validationErrors.size > 0;
+        if (aHasError !== bHasError) {
+          return aHasError ? -1 : 1;
+        }
+        // Preserve original order within error/non-error groups
+        return a.idx - b.idx;
+      })
+      .map(x => x.row);
   }, [rowData, selectedBuilding]);
   return (
     <div className="max-w-[95vw] mx-auto px-4 py-2 relative">

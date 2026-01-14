@@ -12,7 +12,7 @@ import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
 import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
@@ -1330,6 +1330,21 @@ function App() {
                   ) : (
                     <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
                   )}
+                </button>
+                <button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = '/good_excel.xlsx';
+                    link.download = 'good_excel.xlsx';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  title="הורד קובץ good_excel.xlsx"
+                >
+                  <span className="font-medium text-slate-700">הורד good_excel.xlsx</span>
+                  <Download className="h-3.5 w-3.5 text-pink-600" />
                 </button>
               </div>
             )}

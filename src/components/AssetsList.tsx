@@ -822,6 +822,134 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
   }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion]);
 
+  // Helper function to run validation programmatically (without modal)
+  async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
+    try {
+      // Use the assets currently displayed in the grid (not fetching from API)
+      const gridAssets = assets || [];
+      
+      // Filter out historical records and non-accountable assets
+      let latestAssets = gridAssets.filter(asset => {
+        if (asset.is_latest === false) return false;
+        if (isAssetNotAccountableForTotalArea(asset)) return false;
+        return true;
+      });
+      
+      // Pre-fetch required supporting data
+      const [assetTypesData, buildingData] = await Promise.all([
+        api.assetTypes.getAll(),
+        api.buildings.getOne(buildingNumber).catch(() => null)
+      ]);
+
+      // Only validate assets that have dirty changes (or are new)
+      const assetsToValidate = latestAssets.filter(asset => {
+        const assetIdKey = String(asset.asset_id);
+        return dirtyAssets.has(assetIdKey) || newAssets.has(assetIdKey);
+      });
+
+      // Apply dirty changes to assets before validating
+      const assetsWithChanges = assetsToValidate.map(asset => {
+        const dirtyChanges = dirtyAssets.get(String(asset.asset_id));
+        if (dirtyChanges) {
+          return { ...asset, ...dirtyChanges };
+        }
+        return asset;
+      });
+
+      if (assetsWithChanges.length === 0) {
+        return { hasErrors: false };
+      }
+
+      // Prepare cached data for validation
+      const cachedData = {
+        assetTypes: assetTypesData || [],
+        building: buildingData
+      };
+
+      // Run validation
+      const batchResult = await AssetValidationHandler.validateBuildingAssets(
+        assetsWithChanges,
+        buildingNumber,
+        {
+          mode: 'building',
+          validateOnlyLatest: false,
+          taxRegion: taxRegion || undefined,
+          cachedData: cachedData,
+          validationRules: validationRules
+        }
+      );
+
+      // Add discount validation errors
+      const resultsWithDiscountErrors = batchResult.results.map(result => {
+        const asset = assetsWithChanges.find(a => {
+          const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
+          return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+        });
+        
+        if (asset) {
+          const discountErrors = validateDiscountDates(asset);
+          if (discountErrors.length > 0) {
+            const allErrors = [...(result.errors || []), ...discountErrors];
+            return {
+              ...result,
+              errors: allErrors,
+              valid: result.valid && allErrors.length === 0
+            };
+          }
+        }
+        return result;
+      });
+
+      // Check if there are any validation errors
+      const hasAnyValidationErrors = resultsWithDiscountErrors.some(r => !r.valid || (r.errors && r.errors.length > 0));
+
+      if (hasAnyValidationErrors) {
+        // Build error message
+        const errorAssets = resultsWithDiscountErrors
+          .filter(r => !r.valid || (r.errors && r.errors.length > 0))
+          .map(r => {
+            const asset = assetsWithChanges.find(a => {
+              const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
+              return r.assetId === assetIdentifier || r.assetId === String(a.asset_id);
+            });
+            return `נכס ${asset?.asset_id || r.assetId}: ${(r.errors || []).join('; ')}`;
+          });
+        
+        // Update validation errors state
+        const newValidationErrors = new Map<string, string>();
+        for (const result of resultsWithDiscountErrors) {
+          if (!result.valid || (result.errors && result.errors.length > 0)) {
+            const asset = assetsWithChanges.find(a => {
+              const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
+              return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+            });
+            if (asset) {
+              const dbId = String(asset.asset_id);
+              const errorMessage = (result.errors || []).join('; ');
+              newValidationErrors.set(dbId, errorMessage);
+            }
+          }
+        }
+        setValidationErrors(newValidationErrors);
+
+        return {
+          hasErrors: true,
+          errorMessage: `נמצאו שגיאות אימות ב-${errorAssets.length} נכסים:\n${errorAssets.slice(0, 5).join('\n')}${errorAssets.length > 5 ? `\n...ועוד ${errorAssets.length - 5} נכסים` : ''}`
+        };
+      }
+
+      // Clear validation errors if validation passed
+      setValidationErrors(new Map());
+      return { hasErrors: false };
+    } catch (err) {
+      console.error('Error running validation:', err);
+      return {
+        hasErrors: true,
+        errorMessage: `שגיאה בבדיקת תקינות: ${err instanceof Error ? err.message : 'שגיאה לא ידועה'}`
+      };
+    }
+  }
+
   async function handleBatchValidateBuildingAssets() {
     setShowBatchValidationModal(true);
     setBatchValidationLoading(true);
@@ -1145,6 +1273,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     setToast(null);
 
     try {
+      // Run validation before saving
+      const validationResult = await runValidationProgrammatically();
+      if (validationResult.hasErrors) {
+        setError(validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.');
+        setTimeout(() => setError(null), 8000);
+        setLoading(false);
+        return;
+      }
       let savedCount = 0;
       let deletedCount = 0;
       const errors: string[] = [];
@@ -3868,6 +4004,23 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');
 
   // Check if all visible assets are residential assets (מגורים)
+  // Sort assets to put errored rows first
+  const sortedAssets = useMemo(() => {
+    return [...assets].map((asset, idx) => ({ asset, idx }))
+      .sort((a, b) => {
+        const aId = String(a.asset.asset_id);
+        const bId = String(b.asset.asset_id);
+        const aHasError = validationErrors.has(aId);
+        const bHasError = validationErrors.has(bId);
+        if (aHasError !== bHasError) {
+          return aHasError ? -1 : 1;
+        }
+        // Preserve original order within error/non-error groups
+        return a.idx - b.idx;
+      })
+      .map(x => x.asset);
+  }, [assets, validationErrors]);
+
   const areAllAssetsResidence = useMemo(() => {
     if (!assets || assets.length === 0 || !assetTypes || assetTypes.length === 0) {
       return false;
@@ -4262,13 +4415,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                     <X className="h-4 w-4" />
                     ביטול
                   </button>
-                  {/* Save button: disabled until user validates after edits */}
+                  {/* Save button: enabled when there are changes, validation runs before save */}
                   <button
                     type="button"
                     onClick={handleSaveAll}
-                    disabled={loading || totalChanges === 0 || hasValidationErrors || !isValidatedForSave}
+                    disabled={loading || totalChanges === 0}
                     className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
-                    title={!isValidatedForSave ? 'יש ללחוץ "אמת הכל" לפני השמירה' : (hasValidationErrors ? 'תקן שגיאות אימות לפני השמירה' : undefined)}
+                    title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -4347,7 +4500,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           <div className="ag-theme-alpine rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={assets}
+            rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
             getRowStyle={(params) => {
               const assetId = String(params.data?.asset_id);

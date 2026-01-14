@@ -65,6 +65,23 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     fetchData();
   }, [buildingNumber, selectedAssetIds]);
 
+  // Sort assets to put errored rows first
+  const sortedAssets = useMemo(() => {
+    return [...assets].map((asset, idx) => ({ asset, idx }))
+      .sort((a, b) => {
+        const aId = String(a.asset.asset_id);
+        const bId = String(b.asset.asset_id);
+        const aHasError = validationErrors.has(aId);
+        const bHasError = validationErrors.has(bId);
+        if (aHasError !== bHasError) {
+          return aHasError ? -1 : 1;
+        }
+        // Preserve original order within error/non-error groups
+        return a.idx - b.idx;
+      })
+      .map(x => x.asset);
+  }, [assets, validationErrors]);
+
   // Determine if this is a business or residence tab based on tax region and asset types
   // This is used to pass the correct context to backend saves
   const isBusinessContext = useMemo(() => {
@@ -2146,9 +2163,9 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
         </button>
         <button
           onClick={handleOpenSaveAsNewMeasurementModal}
-          disabled={loading || !hasChanges || validationErrors.size > 0}
+          disabled={loading || !hasChanges}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-medium"
-          title={validationErrors.size > 0 ? 'תקן שגיאות אימות לפני שמירה' : !hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
+          title={!hasChanges ? 'אין שינויים לשמירה' : 'שמור כמדידות חדשות (הרשומות הישנות יעברו להיסטוריה)'}
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -2164,7 +2181,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
           <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={gridRef}
-              rowData={assets}
+              rowData={sortedAssets}
               columnDefs={configuredColumnDefs}
               defaultColDef={{
                 resizable: true,

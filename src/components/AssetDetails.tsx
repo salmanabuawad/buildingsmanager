@@ -3584,9 +3584,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   </button>
                   <button
                     onClick={handleSaveChanges}
-                    disabled={isSaving || (!!assetId && !hasChanges) || validationErrors.size > 0}
+                    disabled={isSaving || (!!assetId && !hasChanges)}
                     className="btn btn-primary btn-lg"
-                    title={validationErrors.size > 0 ? 'תקן שגיאות לפני שמירה' : (!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : 'שמור שינויים'}
+                    title={(!assetId && !latestMeasurement?.asset_id) ? 'מלא קוד נכס לשמירה' : (!hasChanges ? 'אין שינויים לשמירה' : 'שמור שינויים')}
                   >
                     {isSaving ? (
                       <Loader2 className="h-5 w-5 animate-spin" />

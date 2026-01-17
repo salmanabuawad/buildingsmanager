@@ -1782,8 +1782,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           setBuilding(currentBuilding);
         }
       } finally {
-        // Don't set loading=false here - isSaving was already cleared above
-        // Only set loading=false if we're actually in a loading state
+        // Always clear loading state after data refresh completes
+        setLoading(false);
       }
       
       // Restore scroll position and selection after a brief delay to allow grid to update
@@ -1864,8 +1864,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setError(errorMessage);
       // Don't clear error automatically - let user see it
     } finally {
-      // Only clear loading if we're actually in a loading state (not just saving)
-      // isSaving is cleared above, so we only need to clear loading if it was set
+      // Always ensure loading state is cleared after save operation completes
+      setLoading(false);
+      setIsSaving(false);
     }
   };
 

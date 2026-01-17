@@ -297,14 +297,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   useEffect(() => {
     setSelectedAssets(new Set());
   }, [buildingNumber, taxRegion]);
-  async function fetchData(showLoading = true) {
+  async function fetchData(showLoading = true, skipBuildingFetch = false) {
     try {
       if (showLoading) setLoading(true);
       // Use cached asset types from validation (faster, no API call)
       const { getAssetTypes } = await import('../lib/validation');
       const cachedAssetTypes = getAssetTypes();
+      
+      // Skip building fetch if we already have fresh data (e.g., after save)
       const [buildingData, assetsData] = await Promise.all([
-        api.buildings.getOne(buildingNumber),
+        skipBuildingFetch && building ? Promise.resolve(building) : api.buildings.getOne(buildingNumber),
         api.assets.getAll(buildingNumber)
       ]);
       setBuilding(buildingData);
@@ -1584,6 +1586,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 overload_ratio: overloadRatioToSave
               });
               
+              // Update local building state immediately to avoid refetch
+              setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioToSave } : null);
+              
               // The audit entry is automatically created by api.buildings.update
               // It will include overload_ratio in the after_data via get_building_audit_data
               // The description will mention the update
@@ -1691,7 +1696,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
       
       // Refresh data from server to update grid after successful deletions and saves
-      await fetchData(false);
+      // Skip building fetch since we already have updated building data locally
+      await fetchData(false, true);
       
       // Restore scroll position and selection after a brief delay to allow grid to update
       if (gridRef.current?.api && (scrollPosition.top > 0 || selectedRows.length > 0)) {
@@ -4760,7 +4766,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // Refresh assets after successful change
           // This will filter assets by current tab's taxRegion, so assets with new tax_region won't appear
           // but their dirty bits are already cleared above
-          fetchData(false);
+          // Skip building fetch since we already have the building data
+          fetchData(false, true);
         }}
       />
 

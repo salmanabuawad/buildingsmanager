@@ -860,9 +860,45 @@ async function validateAndSaveBulkAssets(
     return mergedAsset;
   });
 
-  // STEP 1: Validate ALL assets (same as single save)
+  // STEP 1: Validate ALL assets in parallel (with cached data for performance)
+  // Pre-fetch building and asset types once for all validations
+  const firstBuildingNumber = preparedAssetsData[0]?.building_number;
+  let cachedValidationData: { assetTypes?: any[]; building?: any } = {};
+  
+  if (firstBuildingNumber) {
+    try {
+      // Fetch building once and get asset types from cache (synchronous, no API call)
+      const [{ getAssetTypes }, buildingData] = await Promise.all([
+        import('./validation').then(m => ({ getAssetTypes: m.getAssetTypes })),
+        supabase.from('buildings').select('*').eq('building_number', firstBuildingNumber).maybeSingle()
+      ]);
+      
+      const assetTypes = getAssetTypes();
+      cachedValidationData = {
+        assetTypes: assetTypes.length > 0 ? assetTypes : undefined,
+        building: buildingData.data || undefined
+      };
+    } catch (err) {
+      console.warn('[validateAndSaveBulkAssets] Failed to pre-fetch validation data:', err);
+    }
+  }
+  
+  // Validate all assets in parallel with cached data
   const validationResults = await Promise.all(
-    preparedAssetsData.map(asset => AssetValidationHandler.validateSingleAsset(asset))
+    preparedAssetsData.map(asset => {
+      // Determine taxRegion from asset.tax_region if available, otherwise from building
+      const taxRegion = asset.tax_region != null 
+        ? String(asset.tax_region) 
+        : (cachedValidationData.building?.tax_region ? String(cachedValidationData.building.tax_region) : undefined);
+      
+      return AssetValidationHandler.validateSingleAsset(asset, {
+        taxRegion,
+        cachedData: {
+          ...cachedValidationData,
+          asset: asset // Include current asset in cached data
+        }
+      });
+    })
   );
 
   // Check if ALL assets are valid

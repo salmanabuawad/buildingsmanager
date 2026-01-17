@@ -781,7 +781,8 @@ export async function validateAssetTypeComplete(
       const assetTaxRegion = String(assetData.tax_region);
       // Split if comma-separated
       taxRegionsToCheck = assetTaxRegion.split(',').map(r => r.trim()).filter(r => r);
-      if (process.env.NODE_ENV === 'development') {
+      // Reduced logging frequency to improve performance (log only 1% of calls)
+      if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
         console.log('[validateAssetTypeComplete] Using asset.tax_region from assetData:', {
           assetTaxRegion: assetTaxRegion,
           taxRegionsToCheck: taxRegionsToCheck,
@@ -1879,7 +1880,8 @@ export async function validateField(
     r => r.entity_type === entityType && r.field_name === fieldName && r.enabled && r.rule_type !== 'cross_table_comparison'
   );
 
-  if (process.env.NODE_ENV === 'development') {
+  // Reduced logging frequency to improve performance (log only 1% of calls)
+  if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
     console.log(`validateField(${entityType}, ${fieldName}, ${value}, taxRegion: ${taxRegion}) - Found ${fieldRules.length} rules`, fieldRules.map(r => r.rule_type));
   }
 
@@ -2171,7 +2173,8 @@ export const assetValidators = {
     if (!assetType) {
       return { valid: true };
     }
-    if (process.env.NODE_ENV === 'development') {
+    // Reduced logging frequency to improve performance (log only 1% of calls)
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
       console.log('[assetValidators.validateAssetType] Validating asset type with taxRegion:', taxRegion, {
         assetType,
         fieldName

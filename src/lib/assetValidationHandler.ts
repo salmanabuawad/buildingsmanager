@@ -49,8 +49,8 @@ export class AssetValidationHandler {
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
-    // Log validation parameters for debugging (only in development)
-    if (process.env.NODE_ENV === 'development') {
+    // Log validation parameters for debugging (only in development, and only occasionally to reduce noise)
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) { // Log only 1% of validations
       console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
         assetId: asset.asset_id,
         buildingNumber: asset.building_number,

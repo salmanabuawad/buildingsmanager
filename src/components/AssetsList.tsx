@@ -90,6 +90,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       };
     }
   }, [uploadProgress]);
+
+  // Set busy cursor during save operations
+  useEffect(() => {
+    if (isSaving) {
+      document.body.style.cursor = 'wait';
+      return () => {
+        document.body.style.cursor = '';
+      };
+    }
+  }, [isSaving]);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);

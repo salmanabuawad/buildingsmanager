@@ -13,6 +13,7 @@ import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
+import { useUserRole } from '../contexts/UserRoleContext';
 
 // Validation tooltip icon component that uses fixed positioning to avoid overflow clipping
 const ValidationTooltipIcon = ({ message }: { message: string }) => {
@@ -440,6 +441,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   setShowCreateModal 
 }, ref) => {
   const { t } = useTranslation();
+  const { isReadOnly } = useUserRole();
   
   // State management
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -2014,17 +2016,19 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 message={hasValidationError ? allErrorMessages : (hasTaxRegionError ? t('invalidTaxRegion') : '')}
               />
             )}
-            <button
-              onClick={() => handleDeleteBuilding(building.building_number)}
-              className={`p-1 transition-colors hover:scale-110 ${
-                markedForDeletion
-                  ? 'text-red-800 bg-red-100 rounded'
-                  : 'text-red-600 hover:text-red-700'
-              }`}
-              title={markedForDeletion ? 'מסומן למחיקה' : 'מחק מבנה'}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => handleDeleteBuilding(building.building_number)}
+                className={`p-1 transition-colors hover:scale-110 ${
+                  markedForDeletion
+                    ? 'text-red-800 bg-red-100 rounded'
+                    : 'text-red-600 hover:text-red-700'
+                }`}
+                title={markedForDeletion ? 'מסומן למחיקה' : 'מחק מבנה'}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         );
       }
@@ -2033,6 +2037,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'building_number',
       headerName: 'מזהה מבנה',
       editable: (params: any) => {
+        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         if (!building) return false;
@@ -2142,7 +2147,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
         return getAreaDescriptionForTaxRegion(params.value);
       },
-      editable: true,
+      editable: !isReadOnly,
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
@@ -2191,6 +2196,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'residence_shared_area',
       headerName: 'שטח משותף מגורים',
       editable: (params: any) => {
+        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         const isNew = isNewBuilding(building);
@@ -2280,6 +2286,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       field: 'area_for_control',
       headerName: 'שטח לבקרה',
       editable: (params) => {
+        if (isReadOnly) return false;
         if (!params || !params.data) return false;
         const building = params.data as Building;
         if (!building) return false;
@@ -2445,7 +2452,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'building_address',
       headerName: 'כתובת',
-      editable: true,
+      editable: !isReadOnly,
       valueGetter: (params: any) => {
         // Return the street code from the data object
         return params.data?.building_address ?? null;
@@ -2495,7 +2502,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'gosh',
       headerName: 'גוש',
-      editable: true,
+      editable: !isReadOnly,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -2518,7 +2525,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'helka',
       headerName: 'חלקה',
-      editable: true,
+      editable: !isReadOnly,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -2541,7 +2548,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     {
       field: 'building_number_in_street',
       headerName: 'מספר בניין',
-      editable: true,
+      editable: !isReadOnly,
       valueParser: (params: any) => {
         if (!params) return null;
         const newValue = params.newValue;
@@ -2683,14 +2690,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
         <div className="mb-4 flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={addEmptyBuildingRow}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-            >
-              <Plus className="h-4 w-4" />
-              הוסף מבנה
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={addEmptyBuildingRow}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                הוסף מבנה
+              </button>
+            )}
             <button
               type="button"
               onClick={handleValidateAll}
@@ -2723,30 +2732,32 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               פריקת נתונים{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
             </button>
           </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleCancelAll}
-              disabled={loading || totalChanges === 0}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
-            >
-              <X className="h-4 w-4" />
-              {t('cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveAll}
-              disabled={loading || totalChanges === 0}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
-            </button>
-          </div>
+          {!isReadOnly && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleCancelAll}
+                disabled={loading || totalChanges === 0}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
+              >
+                <X className="h-4 w-4" />
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAll}
+                disabled={loading || totalChanges === 0}
+                className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {loading ? t('saving') : `${t('saveAll')}${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border border-slate-200 w-full">

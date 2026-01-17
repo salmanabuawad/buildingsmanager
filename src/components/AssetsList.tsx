@@ -21,6 +21,7 @@ import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
+import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
 import { FileViewer } from './FileViewer';
 import { AssetFilesModal } from './AssetFilesModal';
@@ -45,6 +46,7 @@ export interface AssetsListRef {
 export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
+  const { isReadOnly } = useUserRole();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [building, setBuilding] = useState<Building | null>(null);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -199,6 +201,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   // Helper function to check if a field should be editable
   // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    if (isReadOnly) return false;
     if (!params || !params.data) return false;
     const asset = params.data as Asset;
     const assetId = String(asset.asset_id);
@@ -210,7 +213,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     }
     
     return baseEditable;
-  }, [isAssetNotAccountableForTotalArea, newAssets, taxRegion]);
+  }, [isAssetNotAccountableForTotalArea, newAssets, taxRegion, isReadOnly]);
 
   // Helper function to get area_description_for_tab from tax region number
   const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
@@ -4406,30 +4409,34 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                       העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleCancelAll}
-                    disabled={loading || totalChanges === 0}
-                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 active:from-gray-700 active:to-gray-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-gray-700/20 disabled:border-gray-400/20"
-                  >
-                    <X className="h-4 w-4" />
-                    ביטול
-                  </button>
-                  {/* Save button: enabled when there are changes, validation runs before save */}
-                  <button
-                    type="button"
-                    onClick={handleSaveAll}
-                    disabled={loading || totalChanges === 0}
-                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
-                    title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    {loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
-                  </button>
+                  {!isReadOnly && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCancelAll}
+                        disabled={loading || totalChanges === 0}
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 active:from-gray-700 active:to-gray-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-gray-700/20 disabled:border-gray-400/20"
+                      >
+                        <X className="h-4 w-4" />
+                        ביטול
+                      </button>
+                      {/* Save button: enabled when there are changes, validation runs before save */}
+                      <button
+                        type="button"
+                        onClick={handleSaveAll}
+                        disabled={loading || totalChanges === 0}
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
+                        title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
+                      >
+                        {loading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        {loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
+                      </button>
+                    </>
+                  )}
                 </>
               );
             })()}

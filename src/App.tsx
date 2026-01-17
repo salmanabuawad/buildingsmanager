@@ -12,10 +12,13 @@ import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
 import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
+import { useUserRole } from './contexts/UserRoleContext';
+import { Login } from './components/Login';
+import { supabase } from './lib/supabase';
 
 interface Tab {
   id: string;
@@ -33,6 +36,10 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
+  const { isLoading: roleLoading } = useUserRole();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
   ]);
@@ -74,6 +81,54 @@ function App() {
   const [resetExportResult, setResetExportResult] = useState<{ success: boolean; message: string } | null>(null);
   const [resetExportLoading, setResetExportLoading] = useState(false);
   const [latestExportDate, setLatestExportDate] = useState<string | null>(null);
+  
+  // Check authentication status on mount and auth state changes
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session);
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setCheckingAuth(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  // Show login page if not authenticated
+  if (checkingAuth || roleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">טוען...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   // Helper function to get area_description_for_tab from tax region number(s)
   // Uses cached asset types from ValidationContext (no API call needed)
   const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
@@ -1350,6 +1405,17 @@ function App() {
             )}
           </div>
         </nav>
+        
+        {/* Logout button at bottom of sidebar */}
+        <div className="p-3 border-t border-purple-200">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-right bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-md transition-all duration-200 shadow-sm border border-red-200 hover:shadow-md hover:border-red-300 group"
+          >
+            <span className="font-medium text-sm text-red-700 group-hover:text-red-900">התנתק</span>
+            <LogOut className="h-4 w-4 text-red-600 group-hover:text-red-700" />
+          </button>
+        </div>
         
       </div>
 

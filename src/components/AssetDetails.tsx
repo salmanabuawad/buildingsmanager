@@ -36,6 +36,7 @@ interface AssetDetailsProps {
 
 export interface AssetDetailsRef {
   hasUnsavedChanges: () => boolean;
+  refresh: () => Promise<void>;
 }
 
 export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ assetId, buildingNumber, taxRegion, onDataUpdate, onAssetCreated }, ref) => {
@@ -611,7 +612,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
   // Expose hasUnsavedChanges via ref
   useImperativeHandle(ref, () => ({
-    hasUnsavedChanges: () => hasChanges
+    hasUnsavedChanges: () => hasChanges,
+    refresh: async () => {
+      await fetchData();
+    }
   }), [hasChanges]);
 
   // Handler for double-click on row
@@ -3283,10 +3287,13 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           <h3 className="text-lg font-semibold text-red-900 mb-2">שגיאה בטעינת הנתונים</h3>
           <p className="text-red-700 text-sm">{t('error')}: {error || 'Asset not found'}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={async () => {
+              setError(null);
+              await fetchData();
+            }}
             className="mt-6 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium"
           >
-            רענן דף
+            רענן נתונים
           </button>
         </div>
       </div>

@@ -1326,13 +1326,29 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     setToast(null);
 
     try {
-      // Run validation before saving
+      // Run validation before saving - MUST pass before proceeding to server
       const validationResult = await runValidationProgrammatically();
       if (validationResult.hasErrors) {
+        // Stop save operation - don't submit to server
+        setIsSaving(false);
         setError(validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.');
         setTimeout(() => setError(null), 8000);
-        setLoading(false);
-        return;
+        
+        // Refresh grid to show validation errors on rows
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: true });
+          // Scroll to first error row if possible
+          const firstErrorAssetId = Array.from(validationErrors.keys())[0];
+          if (firstErrorAssetId) {
+            gridRef.current.api.forEachNode(node => {
+              if (String(node.data?.asset_id) === firstErrorAssetId) {
+                node.setSelected(true);
+                gridRef.current?.api.ensureNodeVisible(node, 'top');
+              }
+            });
+          }
+        }
+        return; // Stop here - don't proceed to save
       }
       let savedCount = 0;
       let deletedCount = 0;

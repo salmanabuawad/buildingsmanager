@@ -14,6 +14,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
 import { useUserRole } from '../contexts/UserRoleContext';
+import { Toast } from './Toast';
 
 // Validation tooltip icon component that uses fixed positioning to avoid overflow clipping
 const ValidationTooltipIcon = ({ message }: { message: string }) => {
@@ -450,6 +451,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [invalidTaxRegions, setInvalidTaxRegions] = useState<Set<number>>(new Set());
   const [newBuilding, setNewBuilding] = useState({ building_number: '', tax_region: '', building_address: null as number | null });
   const [addressSearchValue, setAddressSearchValue] = useState<string>('');
@@ -917,10 +919,64 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 event.node.setDataValue('tax_region', building.tax_region);
               }
               
-              // Show error message
+              // Mark building as having invalid tax region change
+              setInvalidTaxRegionBuildings(prev => {
+                const next = new Set(prev);
+                next.add(buildingKey);
+                return next;
+              });
+              
+              // Add validation error
+              setValidationErrors(prev => {
+                const next = new Map(prev);
+                const existingErrors = next.get(buildingKey) || {};
+                const regionsStr = removedRegions.sort((a, b) => a - b).join(', ');
+                next.set(buildingKey, {
+                  ...existingErrors,
+                  tax_region: `לא ניתן לשנות את אזור המס של המבנה. יש נכסים תחת אזורי המס הבאים: ${regionsStr}`
+                });
+                return next;
+              });
+              
+              // Show toast error message
               const regionsStr = removedRegions.sort((a, b) => a - b).join(', ');
-              alert(`לא ניתן לשנות את אזור המס של המבנה. יש נכסים תחת אזורי המס הבאים: ${regionsStr}`);
+              setToast({
+                message: `לא ניתן לשנות את אזור המס של המבנה. יש נכסים תחת אזורי המס הבאים: ${regionsStr}`,
+                type: 'error'
+              });
+              setTimeout(() => setToast(null), 5000);
+              
+              // Refresh the row to show error styling
+              if (gridRef.current?.api) {
+                gridRef.current.api.refreshCells({ 
+                  rowNodes: [event.node], 
+                  force: true 
+                });
+              }
+              
               return;
+            } else {
+              // Valid change - clear any previous error for this building
+              setInvalidTaxRegionBuildings(prev => {
+                const next = new Set(prev);
+                next.delete(buildingKey);
+                return next;
+              });
+              
+              // Clear validation error for tax_region field
+              setValidationErrors(prev => {
+                const next = new Map(prev);
+                const existingErrors = next.get(buildingKey);
+                if (existingErrors) {
+                  const { tax_region, ...rest } = existingErrors;
+                  if (Object.keys(rest).length > 0) {
+                    next.set(buildingKey, rest);
+                  } else {
+                    next.delete(buildingKey);
+                  }
+                }
+                return next;
+              });
             }
           }
         }
@@ -3193,6 +3249,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </>
   );

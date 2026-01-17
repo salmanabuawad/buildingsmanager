@@ -12,6 +12,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [creatingUsers, setCreatingUsers] = useState(false);
+  const [createUsersMessage, setCreateUsersMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -19,26 +21,142 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+      // Try to sign in - handle both email and username
+      let signInError = null;
+      let signInData = null;
+      
+      // First try with the input as-is (could be email or username)
+      const loginAttempt = email.trim();
+      
+      // If it looks like a username (no @), try with @buildingsmanager.local
+      const emailToTry = loginAttempt.includes('@') 
+        ? loginAttempt 
+        : `${loginAttempt}@buildingsmanager.local`;
+      
+      const result = await supabase.auth.signInWithPassword({
+        email: emailToTry,
         password: password,
       });
 
+      signInError = result.error;
+      signInData = result.data;
+
       if (signInError) {
-        setError(signInError.message || 'שגיאה בהתחברות. אנא נסה שוב.');
+        // If login failed, provide helpful error message
+        let errorMessage = signInError.message || 'שגיאה בהתחברות. אנא נסה שוב.';
+        
+        if (signInError.message?.includes('Invalid login credentials')) {
+          errorMessage = 'פרטי התחברות לא תקינים. המשתמש לא קיים ב-Supabase Auth. לחץ על "צור משתמשים" למטה.';
+        } else if (signInError.message?.includes('Email not confirmed')) {
+          errorMessage = 'האימייל לא אושר. אנא אשר את האימייל או צור משתמש חדש עם "Auto Confirm" מופעל.';
+        }
+        
+        setError(errorMessage);
         setLoading(false);
         return;
       }
 
-      if (data.user) {
+      if (signInData?.user) {
         // Successfully logged in
         // The UserRoleContext will automatically refresh on auth state change
         onLoginSuccess();
+      } else {
+        setError('שגיאה בהתחברות. לא התקבל משתמש.');
+        setLoading(false);
       }
     } catch (err) {
       console.error('Login error:', err);
       setError('שגיאה בלתי צפויה. אנא נסה שוב.');
       setLoading(false);
+    }
+  };
+
+  const handleCreateUsers = async () => {
+    setCreatingUsers(true);
+    setCreateUsersMessage(null);
+    setError(null);
+
+    try {
+      // Create admin user
+      const { data: adminData, error: adminError } = await supabase.auth.signUp({
+        email: 'admin@buildingsmanager.local',
+        password: 'admin',
+        options: {
+          data: {
+            user_name: 'admin'
+          }
+        }
+      });
+
+      let messages: string[] = [];
+
+      if (adminError) {
+        if (adminError.message.includes('already registered') || adminError.message.includes('already exists')) {
+          messages.push('משתמש admin כבר קיים');
+        } else {
+          messages.push(`שגיאה ביצירת admin: ${adminError.message}`);
+        }
+      } else if (adminData.user) {
+        messages.push('✅ משתמש admin נוצר בהצלחה');
+        
+        // Try to link to users table
+        const { error: linkError } = await supabase
+          .from('users')
+          .update({ auth_user_id: adminData.user.id })
+          .eq('user_name', 'admin');
+        
+        if (!linkError) {
+          messages.push('✅ admin מקושר ל-users table');
+        }
+      }
+
+      // Sign out before creating next user
+      await supabase.auth.signOut();
+
+      // Create user (read-only)
+      const { data: userData, error: userError } = await supabase.auth.signUp({
+        email: 'user@buildingsmanager.local',
+        password: 'user',
+        options: {
+          data: {
+            user_name: 'user'
+          }
+        }
+      });
+
+      if (userError) {
+        if (userError.message.includes('already registered') || userError.message.includes('already exists')) {
+          messages.push('משתמש user כבר קיים');
+        } else {
+          messages.push(`שגיאה ביצירת user: ${userError.message}`);
+        }
+      } else if (userData.user) {
+        messages.push('✅ משתמש user נוצר בהצלחה');
+        
+        // Try to link to users table
+        const { error: linkError } = await supabase
+          .from('users')
+          .update({ auth_user_id: userData.user.id })
+          .eq('user_name', 'user');
+        
+        if (!linkError) {
+          messages.push('✅ user מקושר ל-users table');
+        }
+      }
+
+      // Sign out after creation
+      await supabase.auth.signOut();
+
+      if (messages.some(m => m.includes('✅'))) {
+        setCreateUsersMessage(messages.join('\n') + '\n\nאפשר להתחבר עכשיו!');
+      } else {
+        setCreateUsersMessage(messages.join('\n') + '\n\n⚠️ אם המשתמשים כבר קיימים, נסה להתחבר ישירות.');
+      }
+    } catch (err) {
+      console.error('Error creating users:', err);
+      setCreateUsersMessage(`שגיאה: ${err instanceof Error ? err.message : 'שגיאה בלתי צפויה'}`);
+    } finally {
+      setCreatingUsers(false);
     }
   };
 
@@ -133,9 +251,37 @@ export function Login({ onLoginSuccess }: LoginProps) {
           {/* Default Users Info */}
           <div className="mt-6 pt-6 border-t border-slate-200">
             <p className="text-xs text-slate-500 text-center mb-2">משתמשים ברירת מחדל:</p>
-            <div className="text-xs text-slate-600 space-y-1 text-center">
+            <div className="text-xs text-slate-600 space-y-1 text-center mb-3">
               <div>מנהל: <span className="font-mono font-semibold">admin</span> / <span className="font-mono font-semibold">admin</span></div>
               <div>משתמש: <span className="font-mono font-semibold">user</span> / <span className="font-mono font-semibold">user</span></div>
+            </div>
+            
+            {/* Create Users Button - Always visible */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={handleCreateUsers}
+                disabled={creatingUsers}
+                className="w-full py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {creatingUsers ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>יוצר משתמשים...</span>
+                  </>
+                ) : (
+                  <span>צור משתמשים ברירת מחדל</span>
+                )}
+              </button>
+              {createUsersMessage && (
+                <div className={`mt-2 p-2 rounded text-xs text-center whitespace-pre-line ${
+                  createUsersMessage.includes('✅') 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {createUsersMessage}
+                </div>
+              )}
             </div>
           </div>
         </div>

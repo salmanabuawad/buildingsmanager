@@ -1319,7 +1319,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       return;
     }
 
-    setLoading(true);
+    // DON'T set loading=true here - it causes full component refresh (shows loading spinner)
+    // Use isSaving for save button state instead to avoid tab refresh appearance
+    setIsSaving(true);
     setError(null);
     setToast(null);
 
@@ -1707,8 +1709,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Refresh assets data from server to update grid after successful deletions and saves
       // Skip building fetch since we already have updated building data locally (with cleared flags)
       // Only fetch assets, not building, to avoid overwriting our flag updates
+      // DON'T set loading=true here to avoid full tab refresh appearance - update data silently
       try {
-        setLoading(true);
+        // Fetch data silently without showing loading overlay
         const assetsData = await api.assets.getAll(buildingNumber);
         
         // Filter by tax region if needed (same logic as fetchData)
@@ -1782,8 +1785,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           setBuilding(currentBuilding);
         }
       } finally {
-        // Always clear loading state after data refresh completes
-        setLoading(false);
+        // Don't set loading state here - we didn't set it to true, so no need to clear it
+        // This ensures no loading overlay appears during data refresh
       }
       
       // Restore scroll position and selection after a brief delay to allow grid to update
@@ -1864,8 +1867,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setError(errorMessage);
       // Don't clear error automatically - let user see it
     } finally {
-      // Always ensure loading state is cleared after save operation completes
-      setLoading(false);
+      // Always ensure saving state is cleared after save operation completes
+      // Don't touch loading state - we never set it to true to avoid full refresh
       setIsSaving(false);
     }
   };

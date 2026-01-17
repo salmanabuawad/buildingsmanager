@@ -1570,60 +1570,52 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // Note: Distribution flags for asset type changes are now set in the database transaction
           // via the set_distribution_flags_for_asset_type_change function, which ensures atomicity
           
-          // If this was a business distribution, save the building with updated overload_ratio
-          // Always save overload_ratio for business distributions, even if it's 0 (when shared area is 0)
-          if (isDistributionSave && distributionType === 'business' && building) {
-            try {
-              // Use current building's overload_ratio (no need to fetch again - we already have it)
-              const oldOverloadRatio = building.overload_ratio;
+          // Note: Distribution flags are automatically cleared by the database function save_assets_bulk_transactional
+          // when action_type is 'business_distribution' or 'residence_distribution'
+          // We update local state immediately to reflect the cleared flags (don't wait for API calls)
+          
+          // Update local building state immediately after successful distribution save
+          // This ensures the UI updates instantly and flags disappear from screen right away
+          if (isDistributionSave && distributionType && building) {
+            setBuilding(prev => {
+              if (!prev) return null;
+              const updates: Partial<Building> = {};
               
-              // When shared area is 0, overload_ratio should be 0 (explicitly set, not null)
-              const overloadRatioToSave = building.business_shared_area! <= 0 
-                ? 0 
-                : (building.overload_ratio ?? null);
+              // Clear the appropriate distribution flag (database already cleared it in the transaction)
+              if (distributionType === 'business') {
+                updates.need_business_distribution = false;
+                // Also update overload_ratio for business distributions
+                const overloadRatioToSave = building.business_shared_area! <= 0 
+                  ? 0 
+                  : (building.overload_ratio ?? null);
+                updates.overload_ratio = overloadRatioToSave;
+                
+                // Save overload_ratio to database in background (non-blocking, don't wait)
+                api.buildings.update(building.building_number, {
+                  overload_ratio: overloadRatioToSave
+                }).catch(err => {
+                  console.warn('Failed to save overload_ratio to building:', err);
+                });
+              } else if (distributionType === 'residence') {
+                updates.need_residence_distribution = false;
+              }
               
-              await api.buildings.update(building.building_number, {
-                overload_ratio: overloadRatioToSave
-              });
-              
-              // Update local building state immediately to avoid refetch
-              setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioToSave } : null);
-              
-              // The audit entry is automatically created by api.buildings.update
-              // It will include overload_ratio in the after_data via get_building_audit_data
-              // The description will mention the update
-            } catch (buildingUpdateError) {
-              console.warn('Failed to save overload_ratio to building:', buildingUpdateError);
-              // Don't fail the entire save operation if building update fails
-              // The overload_ratio is already in local state and will be visible in UI
-            }
+              return { ...prev, ...updates };
+            });
           }
           
-          // If this was a residence distribution, clear the residence distribution flag
-          // Clear the flag even if it was a clearing distribution (area = 0)
-          if (isDistributionSave && distributionType === 'residence' && building) {
-            try {
-              await api.buildings.markResidenceDistributionDone(building.building_number);
-              // Update local building state to reflect the cleared flag
-              setBuilding(prev => prev ? { ...prev, need_residence_distribution: false } : null);
-            } catch (flagClearError) {
-              console.warn('Failed to clear residence distribution flag:', flagClearError);
-              // Don't fail the entire save operation if flag clearing fails
-              // The backend might have already cleared it, or we can try again later
-            }
-          }
-          
-          // Update distribution history counter after successful distribution save
+          // Update distribution history counter after successful distribution save (async, don't wait)
           if (isDistributionSave && distributionType) {
-            try {
-              // Use the specific distribution type (business_distribution or residence_distribution)
-              const actionType = distributionType === 'business' ? 'business_distribution' : 'residence_distribution';
-              const distributionHistory = await api.distributionAudit.getByBuilding(buildingNumber, actionType);
-              setDistributionHistoryCount(distributionHistory.length);
-            } catch (error) {
-              console.error('Error updating distribution history count:', error);
-              // Don't fail the save operation if counter update fails
-            }
+            // Don't wait for this - update counter in background
+            const actionType = distributionType === 'business' ? 'business_distribution' : 'residence_distribution';
+            api.distributionAudit.getByBuilding(buildingNumber, actionType)
+              .then(distributionHistory => {
+                setDistributionHistoryCount(distributionHistory.length);
+              })
+              .catch(error => {
+                console.error('Error updating distribution history count:', error);
+                // Don't fail the save operation if counter update fails
+              });
           }
         } else {
           if (result.validationErrors && result.validationErrors.length > 0) {

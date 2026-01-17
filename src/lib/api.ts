@@ -4102,5 +4102,73 @@ export const api = {
         throw new Error(`Failed to update user: ${error.message}`);
       }
     },
+    create: async (userData: {
+      user_name: string;
+      user_email: string;
+      password: string;
+      user_role?: 'admin' | 'user';
+    }): Promise<{
+      user_id: number;
+      auth_user_id: string | null;
+    }> => {
+      // First create user in Supabase Auth
+      let authUserId: string | null = null;
+      
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: userData.user_email,
+          password: userData.password,
+          options: {
+            data: {
+              user_name: userData.user_name
+            }
+          }
+        });
+
+        if (authError) {
+          throw new Error(`Failed to create auth user: ${authError.message}`);
+        }
+
+        authUserId = authData.user?.id || null;
+      } catch (err) {
+        // If auth creation fails, we can still create the user in the database
+        // but without auth_user_id
+        console.warn('Could not create Supabase Auth user:', err);
+      }
+
+      // Then create user in database
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          user_name: userData.user_name,
+          user_email: userData.user_email,
+          auth_user_id: authUserId,
+          user_role: userData.user_role || 'user',
+          active: true,
+        })
+        .select('user_id, auth_user_id')
+        .single();
+
+      if (error) {
+        console.error('Error creating user:', error);
+        throw new Error(`Failed to create user: ${error.message}`);
+      }
+
+      return {
+        user_id: data.user_id,
+        auth_user_id: data.auth_user_id,
+      };
+    },
+    delete: async (userId: number): Promise<void> => {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error deleting user:', error);
+        throw new Error(`Failed to delete user: ${error.message}`);
+      }
+    },
   },
 };

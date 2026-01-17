@@ -309,7 +309,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         skipBuildingFetch && building ? Promise.resolve(building) : api.buildings.getOne(buildingNumber),
         api.assets.getAll(buildingNumber)
       ]);
-      setBuilding(buildingData);
+      
+      // If skipping building fetch, preserve existing building state (don't overwrite our updates)
+      // Otherwise, update with fetched data
+      if (!skipBuildingFetch || !building) {
+        setBuilding(buildingData);
+      }
       setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
       
       // Fetch building address if building_address exists
@@ -1576,31 +1581,36 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           
           // Update local building state immediately after successful distribution save
           // This ensures the UI updates instantly and flags disappear from screen right away
+          // CRITICAL: Update building state BEFORE any other operations to ensure UI reflects changes immediately
           if (isDistributionSave && distributionType && building) {
-            setBuilding(prev => {
-              if (!prev) return null;
-              const updates: Partial<Building> = {};
+            const updatedBuilding: Building = { ...building };
+            
+            // Clear the appropriate distribution flag (database already cleared it in the transaction)
+            if (distributionType === 'business') {
+              updatedBuilding.need_business_distribution = false;
+              // Also update overload_ratio for business distributions
+              const overloadRatioToSave = building.business_shared_area! <= 0 
+                ? 0 
+                : (building.overload_ratio ?? null);
+              updatedBuilding.overload_ratio = overloadRatioToSave;
               
-              // Clear the appropriate distribution flag (database already cleared it in the transaction)
-              if (distributionType === 'business') {
-                updates.need_business_distribution = false;
-                // Also update overload_ratio for business distributions
-                const overloadRatioToSave = building.business_shared_area! <= 0 
-                  ? 0 
-                  : (building.overload_ratio ?? null);
-                updates.overload_ratio = overloadRatioToSave;
-                
-                // Save overload_ratio to database in background (non-blocking, don't wait)
-                api.buildings.update(building.building_number, {
-                  overload_ratio: overloadRatioToSave
-                }).catch(err => {
-                  console.warn('Failed to save overload_ratio to building:', err);
-                });
-              } else if (distributionType === 'residence') {
-                updates.need_residence_distribution = false;
-              }
-              
-              return { ...prev, ...updates };
+              // Save overload_ratio to database in background (non-blocking, don't wait)
+              api.buildings.update(building.building_number, {
+                overload_ratio: overloadRatioToSave
+              }).catch(err => {
+                console.warn('Failed to save overload_ratio to building:', err);
+              });
+            } else if (distributionType === 'residence') {
+              updatedBuilding.need_residence_distribution = false;
+            }
+            
+            // Update building state immediately (synchronous state update)
+            setBuilding(updatedBuilding);
+            
+            console.log('[AssetsList] Updated building flags after distribution save:', {
+              distributionType,
+              need_business_distribution: updatedBuilding.need_business_distribution,
+              need_residence_distribution: updatedBuilding.need_residence_distribution
             });
           }
           
@@ -1687,9 +1697,86 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         selectedRows = gridRef.current.api.getSelectedRows();
       }
       
-      // Refresh data from server to update grid after successful deletions and saves
-      // Skip building fetch since we already have updated building data locally
-      await fetchData(false, true);
+      // Refresh assets data from server to update grid after successful deletions and saves
+      // Skip building fetch since we already have updated building data locally (with cleared flags)
+      // Only fetch assets, not building, to avoid overwriting our flag updates
+      try {
+        setLoading(true);
+        const assetsData = await api.assets.getAll(buildingNumber);
+        
+        // Filter by tax region if needed (same logic as fetchData)
+        let filteredAssets = assetsData || [];
+        const selectedAssetIdsSet = selectedAssetIds && selectedAssetIds.length > 0 
+          ? new Set(selectedAssetIds.map(id => String(id)))
+          : null;
+        
+        if (taxRegion && taxRegion.trim() !== '') {
+          const taxRegionNum = parseInt(taxRegion.trim(), 10);
+          filteredAssets = (assetsData || []).filter(asset => {
+            if (selectedAssetIdsSet && selectedAssetIdsSet.has(String(asset.asset_id))) {
+              return true;
+            }
+            if (asset.tax_region == null) return false;
+            const assetTaxRegionNum = typeof asset.tax_region === 'string' 
+              ? parseInt(asset.tax_region, 10) 
+              : asset.tax_region;
+            return assetTaxRegionNum === taxRegionNum || String(assetTaxRegionNum) === taxRegion.trim();
+          });
+        }
+        
+        // Update assets state - use same logic as fetchData for consistency
+        // Handle error fixing mode and tax region updates
+        let finalAssets = filteredAssets;
+        if (isErrorFixingMode && selectedAssetIds && selectedAssetIds.length > 0 && taxRegion && taxRegion.trim() !== '') {
+          const newTaxRegion = parseInt(taxRegion.trim(), 10);
+          if (!isNaN(newTaxRegion)) {
+            finalAssets = filteredAssets.map(asset => {
+              if (selectedAssetIdsSet && selectedAssetIdsSet.has(String(asset.asset_id))) {
+                const assetId = String(asset.asset_id);
+                if (!recentlySavedAssetsRef.current.has(assetId)) {
+                  return { ...asset, tax_region: newTaxRegion };
+                }
+              }
+              return asset;
+            });
+          }
+        }
+        
+        setAssets(finalAssets);
+        setOriginalAssets(JSON.parse(JSON.stringify(finalAssets)));
+        
+        // Bulk fetch asset files (non-blocking, in background - don't wait)
+        if (finalAssets.length > 0) {
+          const assetIds = finalAssets.map(a => a.asset_id).filter(id => id != null).map(id => Number(id)).filter(id => !isNaN(id));
+          if (assetIds.length > 0) {
+            // Don't await - run in background
+            api.assets.files.getAllBulk(assetIds)
+              .then(filesByAsset => {
+                const filesMap = new Set<number>();
+                filesByAsset.forEach((files, assetId) => {
+                  if (files && files.length > 0) {
+                    filesMap.add(assetId);
+                  }
+                });
+                setAssetsWithFiles(filesMap);
+              })
+              .catch(err => {
+                console.warn('[AssetsList] Error bulk fetching asset files after save:', err);
+              });
+          }
+        }
+      } catch (err) {
+        console.error('[AssetsList] Error refreshing assets after save:', err);
+        // Fallback to full fetchData if refresh fails (but preserve building state)
+        const currentBuilding = building; // Save current building state
+        await fetchData(false, true);
+        // Restore building state if it was overwritten
+        if (currentBuilding) {
+          setBuilding(currentBuilding);
+        }
+      } finally {
+        setLoading(false);
+      }
       
       // Restore scroll position and selection after a brief delay to allow grid to update
       if (gridRef.current?.api && (scrollPosition.top > 0 || selectedRows.length > 0)) {

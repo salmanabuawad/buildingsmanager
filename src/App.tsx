@@ -113,6 +113,15 @@ function App() {
     setIsAuthenticated(true);
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   // Helper function to get area_description_for_tab from tax region number(s)
   // Uses cached asset types from ValidationContext (no API call needed)
   // NOTE: Must be defined before any early returns to comply with Rules of Hooks

@@ -1608,11 +1608,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             // Update building state immediately (synchronous state update)
             setBuilding(updatedBuilding);
             
-            console.log('[AssetsList] Updated building flags after distribution save:', {
-              distributionType,
-              need_business_distribution: updatedBuilding.need_business_distribution,
-              need_residence_distribution: updatedBuilding.need_residence_distribution
-            });
+            // Log disabled to reduce console noise
+            // console.log('[AssetsList] Updated building flags after distribution save:', {
+            //   distributionType,
+            //   need_business_distribution: updatedBuilding.need_business_distribution,
+            //   need_residence_distribution: updatedBuilding.need_residence_distribution
+            // });
           }
           
           // Update distribution history counter after successful distribution save (async, don't wait)

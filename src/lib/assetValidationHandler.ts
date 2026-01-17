@@ -49,15 +49,16 @@ export class AssetValidationHandler {
   ): Promise<AssetValidationResult> {
     const assetIdentifier = `נכס ${asset.asset_id}${asset.building_number ? ` (מבנה ${asset.building_number})` : ''}`;
     
-    // Log validation parameters for debugging (only in development, and only occasionally to reduce noise)
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) { // Log only 1% of validations
-      console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
-        assetId: asset.asset_id,
-        buildingNumber: asset.building_number,
-        taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
-        mainAssetType: asset.main_asset_type
-      });
-    }
+    // Log validation parameters for debugging (disabled to reduce console noise)
+    // Uncomment below and adjust frequency if needed for debugging
+    // if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) { // Log only 0.1% of validations
+    //   console.log('[AssetValidationHandler.validateSingleAsset] Parameters:', {
+    //     assetId: asset.asset_id,
+    //     buildingNumber: asset.building_number,
+    //     taxRegion: options?.taxRegion || 'NOT PROVIDED (will use building tax_region)',
+    //     mainAssetType: asset.main_asset_type
+    //   });
+    // }
     
     // Include asset in cachedData so validation can access asset.tax_region
     const cachedDataWithAsset = {
@@ -399,16 +400,17 @@ export class AssetValidationHandler {
     cachedData?: { assetTypes?: any[]; building?: any; asset?: any },
     validationRules?: any[]
   ): Promise<AssetValidationResult> {
-    // Log validation parameters for debugging (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
-        assetId: asset.asset_id,
-        buildingNumber: asset.building_number,
-        taxRegion: taxRegion || 'NOT PROVIDED (will use building tax_region)',
-        mainAssetType: asset.main_asset_type,
-        assetIdentifier: assetIdentifier
-      });
-    }
+    // Log validation parameters for debugging (disabled to reduce console noise)
+    // Uncomment below and adjust frequency if needed for debugging
+    // if (process.env.NODE_ENV === 'development' && Math.random() < 0.001) { // Log only 0.1% of validations
+    //   console.log('[AssetValidationHandler.validateAssetInternal] Parameters:', {
+    //     assetId: asset.asset_id,
+    //     buildingNumber: asset.building_number,
+    //     taxRegion: taxRegion || 'NOT PROVIDED (will use building tax_region)',
+    //     mainAssetType: asset.main_asset_type,
+    //     assetIdentifier: assetIdentifier
+    //   });
+    // }
     
     // Skip validation for asset type 990
     if (asset.main_asset_type && (String(asset.main_asset_type).trim() === '990' || parseInt(String(asset.main_asset_type).trim(), 10) === 990)) {

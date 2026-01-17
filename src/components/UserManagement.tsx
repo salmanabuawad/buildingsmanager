@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
-import { supabase } from '../lib/supabase';
 import { Loader2, User, Shield, UserX, CheckCircle2, XCircle, Save, RefreshCw, Key, X, Eye, EyeOff, Plus, Trash2, AlertCircle } from 'lucide-react';
 
 interface User {
@@ -116,21 +115,8 @@ export function UserManagement() {
       setChangingPassword(true);
       setError(null);
 
-      // Check if admin API is available (requires service role key)
-      if (!supabase.auth.admin) {
-        throw new Error('שינוי סיסמה דורש Service Role Key. אנא הגדר את המפתח בסביבת הפיתוח או השתמש בפונקציית שרת צד שרת.');
-      }
-
-      // Try to use admin API (requires service role key)
-      // Note: This will fail if service role key is not available
-      // In production, this should be done server-side via an API endpoint
-      const { error: updateError } = await supabase.auth.admin.updateUserById(authUserId, {
-        password: newPassword,
-      });
-
-      if (updateError) {
-        throw new Error(`שגיאה בעדכון הסיסמה: ${updateError.message}. ייתכן שדרוש Service Role Key או שרת צד שרת.`);
-      }
+      // Use Edge Function for secure password change
+      await api.users.changePassword(authUserId, newPassword);
 
       // Success
       setPasswordModalOpen(null);
@@ -140,7 +126,8 @@ export function UserManagement() {
       alert('הסיסמה עודכנה בהצלחה');
     } catch (err) {
       console.error('Error changing password:', err);
-      setError(err instanceof Error ? err.message : 'שגיאה בעדכון הסיסמה');
+      const errorMessage = err instanceof Error ? err.message : 'שגיאה בעדכון הסיסמה';
+      setError(errorMessage);
     } finally {
       setChangingPassword(false);
     }

@@ -298,6 +298,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   useEffect(() => {
     setSelectedAssets(new Set());
   }, [buildingNumber, taxRegion]);
+
+  // Refresh grid when validation errors change to show error styling
+  useEffect(() => {
+    if (validationErrors.size > 0 && gridRef.current?.api) {
+      // Small delay to ensure grid is ready
+      setTimeout(() => {
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: true });
+          gridRef.current.api.redrawRows();
+        }
+      }, 50);
+    }
+  }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
     try {
       if (showLoading) setLoading(true);
@@ -984,7 +997,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
         return {
           hasErrors: true,
-          errorMessage: `נמצאו שגיאות אימות ב-${errorAssets.length} נכסים:\n${errorAssets.slice(0, 5).join('\n')}${errorAssets.length > 5 ? `\n...ועוד ${errorAssets.length - 5} נכסים` : ''}`
+          errorMessage: `נמצאו שגיאות אימות ב-${errorAssets.length} נכסים:\n${errorAssets.slice(0, 5).join('\n')}${errorAssets.length > 5 ? `\n...ועוד ${errorAssets.length - 5} נכסים` : ''}`,
+          validationErrors: newValidationErrors // Return errors so caller can use them immediately
         };
       }
 
@@ -1334,20 +1348,32 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         setError(validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.');
         setTimeout(() => setError(null), 8000);
         
-        // Refresh grid to show validation errors on rows
-        if (gridRef.current?.api) {
-          gridRef.current.api.refreshCells({ force: true });
-          // Scroll to first error row if possible
-          const firstErrorAssetId = Array.from(validationErrors.keys())[0];
-          if (firstErrorAssetId) {
-            gridRef.current.api.forEachNode(node => {
-              if (String(node.data?.asset_id) === firstErrorAssetId) {
-                node.setSelected(true);
-                gridRef.current?.api.ensureNodeVisible(node, 'top');
+        // Get validation errors from result (they're already set in state, but use result for immediate access)
+        const errorsToShow = (validationResult as any).validationErrors || validationErrors;
+        
+        // Wait for React to process the validationErrors state update, then refresh grid
+        setTimeout(() => {
+          if (gridRef.current?.api) {
+            // Force full grid refresh to show validation errors on rows
+            gridRef.current.api.refreshCells({ force: true });
+            gridRef.current.api.redrawRows();
+            
+            // Scroll to first error row if possible
+            setTimeout(() => {
+              if (gridRef.current?.api && errorsToShow && errorsToShow.size > 0) {
+                const firstErrorAssetId = Array.from(errorsToShow.keys())[0];
+                gridRef.current.api.forEachNode(node => {
+                  const assetId = String(node.data?.asset_id);
+                  if (assetId === firstErrorAssetId) {
+                    node.setSelected(true);
+                    gridRef.current.api.ensureNodeVisible(node, 'top');
+                  }
+                });
               }
-            });
+            }, 100);
           }
-        }
+        }, 100); // Give React time to update state
+        
         return; // Stop here - don't proceed to save
       }
       let savedCount = 0;

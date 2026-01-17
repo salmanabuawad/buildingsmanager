@@ -52,6 +52,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [buildingAddress, setBuildingAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // Separate saving state to avoid full refresh appearance
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [dirtyAssets, setDirtyAssets] = useState<Map<string, Partial<Asset>>>(new Map());
@@ -1628,6 +1629,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               });
           }
         } else {
+          setIsSaving(false); // Clear saving state on error
           if (result.validationErrors && result.validationErrors.length > 0) {
             errors.push(...result.validationErrors);
           } else if (result.error) {
@@ -1637,6 +1639,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
 
+      // Clear saving state immediately after save completes (before data refresh)
+      // This prevents the full loading state from showing during data refresh
+      setIsSaving(false);
+      
       // Only clear successfully processed assets from state
       // Keep failed assets in state so they remain visible on screen
       // Remove successfully saved/deleted assets from change tracking
@@ -1775,7 +1781,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           setBuilding(currentBuilding);
         }
       } finally {
-        setLoading(false);
+        // Don't set loading=false here - isSaving was already cleared above
+        // Only set loading=false if we're actually in a loading state
       }
       
       // Restore scroll position and selection after a brief delay to allow grid to update
@@ -1850,12 +1857,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
     } catch (err) {
+      setIsSaving(false); // Clear saving state on error
       const errorMessage = `שגיאה בשמירה: ${err instanceof Error ? err.message : 'Unknown error'}`;
       console.error('[AssetsList] Error saving all:', err);
       setError(errorMessage);
       // Don't clear error automatically - let user see it
     } finally {
-      setLoading(false);
+      // Only clear loading if we're actually in a loading state (not just saving)
+      // isSaving is cleared above, so we only need to clear loading if it was set
     }
   };
 
@@ -4552,16 +4561,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                       <button
                         type="button"
                         onClick={handleSaveAll}
-                        disabled={loading || totalChanges === 0}
+                        disabled={isSaving || loading || totalChanges === 0}
                         className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 disabled:from-gray-300 disabled:to-gray-400  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none font-semibold border border-green-700/20 disabled:border-gray-400/20"
                         title={totalChanges === 0 ? 'אין שינויים לשמירה' : undefined}
                       >
-                        {loading ? (
+                        {isSaving || loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Save className="h-4 w-4" />
                         )}
-                        {loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
+                        {isSaving || loading ? 'שומר...' : `שמור הכל${totalChanges > 0 ? ` (${totalChanges})` : ''}`}
                       </button>
                     </>
                   )}

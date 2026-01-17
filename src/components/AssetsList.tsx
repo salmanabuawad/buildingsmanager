@@ -1347,6 +1347,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
 
+      // Collect ALL assets to save in a single bulk operation
+      // This ensures all distribution-related assets are saved together in one transaction
       const assetsToSave: any[] = [];
 
       // Detect if this is a distribution save by checking for distribution-related changes
@@ -1511,6 +1513,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           };
         }
         
+        // BULK SAVE: Save all assets in a single transaction
+        // This ensures all distribution-related assets are saved together, not one by one
         const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, afterData, description, isBusinessContext);
 
         if (result.success) {

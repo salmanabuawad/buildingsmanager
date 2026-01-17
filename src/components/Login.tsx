@@ -80,7 +80,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
       // Create admin user
       const { data: adminData, error: adminError } = await supabase.auth.signUp({
         email: 'admin@buildingsmanager.local',
-        password: 'admin',
+        password: 'admin123', // Minimum 6 characters required by Supabase
         options: {
           data: {
             user_name: 'admin'
@@ -116,7 +116,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
       // Create user (read-only)
       const { data: userData, error: userError } = await supabase.auth.signUp({
         email: 'user@buildingsmanager.local',
-        password: 'user',
+        password: 'user123', // Minimum 6 characters required by Supabase
         options: {
           data: {
             user_name: 'user'
@@ -252,8 +252,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
           <div className="mt-6 pt-6 border-t border-slate-200">
             <p className="text-xs text-slate-500 text-center mb-2">משתמשים ברירת מחדל:</p>
             <div className="text-xs text-slate-600 space-y-1 text-center mb-3">
-              <div>מנהל: <span className="font-mono font-semibold">admin</span> / <span className="font-mono font-semibold">admin</span></div>
-              <div>משתמש: <span className="font-mono font-semibold">user</span> / <span className="font-mono font-semibold">user</span></div>
+              <div>מנהל: <span className="font-mono font-semibold">admin</span> / <span className="font-mono font-semibold">admin123</span></div>
+              <div>משתמש: <span className="font-mono font-semibold">user</span> / <span className="font-mono font-semibold">user123</span></div>
             </div>
             
             {/* Create Users Button - Always visible */}

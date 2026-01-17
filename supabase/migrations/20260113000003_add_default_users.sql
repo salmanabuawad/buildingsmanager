@@ -1,9 +1,10 @@
 -- ============================================================================
--- Migration: Add default users (admin/admin and user/user)
+-- Migration: Add default users (admin/admin123 and user/user123)
 -- ============================================================================
 -- This migration adds two default users to the users table:
--- - admin/admin: Admin role with full permissions
--- - user/user: User role with read-only permissions
+-- - admin/admin123: Admin role with full permissions
+-- - user/user123: User role with read-only permissions
+-- Note: Passwords must be at least 6 characters (Supabase requirement)
 -- ============================================================================
 
 -- Insert admin user (if not exists)

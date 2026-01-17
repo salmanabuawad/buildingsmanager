@@ -87,8 +87,8 @@ After setup, you can login with:
 
 - **Admin** (full permissions):
   - Email: `admin@buildingsmanager.local`
-  - Password: `admin`
+  - Password: `admin123`
 
 - **User** (read-only):
   - Email: `user@buildingsmanager.local`
-  - Password: `user`
+  - Password: `user123`

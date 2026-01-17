@@ -99,14 +99,16 @@ editable: (params) => {
 
 The system includes two default users (created via migration `20260113000003_add_default_users.sql`):
 
-- **admin/admin**: Admin role with full permissions
+- **admin/admin123**: Admin role with full permissions
   - Username: `admin`
   - Email: `admin@buildingsmanager.local`
+  - Password: `admin123` (minimum 6 characters required by Supabase)
   - Role: `admin`
 
-- **user/user**: Read-only user role
+- **user/user123**: Read-only user role
   - Username: `user`
   - Email: `user@buildingsmanager.local`
+  - Password: `user123` (minimum 6 characters required by Supabase)
   - Role: `user`
 
 **Note**: These users have `auth_user_id = NULL` initially. To link them to Supabase Auth users:

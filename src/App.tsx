@@ -192,6 +192,262 @@ function App() {
     return descriptions.join(', ');
   }, []);
 
+  // All hooks must be defined before early returns to comply with Rules of Hooks
+  // These hooks may reference functions defined later (that's fine - they're regular functions, not hooks)
+  
+  const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {
+    // Get asset types from cache (synchronous, no API call)
+    let assetTypes: AssetType[] = [];
+    try {
+      assetTypes = getAssetTypes();
+    } catch (err) {
+      // If validation module not available, continue without asset types
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[App] Could not get asset types from cache:', err);
+      }
+    }
+    
+    const getAreaDescriptionForTaxRegion = (taxRegionNum: string | number | null | undefined): string => {
+      if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+        return String(taxRegionNum || '');
+      }
+      
+      const taxRegionParsed = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+      if (isNaN(taxRegionParsed)) {
+        return String(taxRegionNum);
+      }
+      
+      const matchingAssetType = assetTypes.find((at: AssetType) =>
+        at.tax_region === taxRegionParsed && at.area_description_for_tab
+      );
+      
+      return matchingAssetType?.area_description_for_tab || String(taxRegionParsed);
+    };
+    
+    const assetsTabId = assetIds && assetIds.length > 0
+      ? `assets-${buildingNumber}-region-${taxRegion}-errors-${Date.now()}`
+      : `assets-${buildingNumber}-region-${taxRegion}`;
+    
+    const newTab: Tab = {
+      id: assetsTabId,
+      type: 'assets',
+      buildingNumber,
+      taxRegion,
+      selectedAssetIds: assetIds,
+      isErrorFixingMode: assetIds && assetIds.length > 0, // Enable error fixing mode when assetIds are provided
+      label: assetIds && assetIds.length > 0
+        ? `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)} (תיקון שגיאות)`
+        : `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)}`,
+      refreshKey: Date.now()
+    };
+    
+    openTab(newTab);
+  }, [tabs]);
+
+  const handleSelectAsset = useCallback((assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
+    const assetDetailsTabId = `asset-details-${assetDbId}`;
+    
+    setTabs(prevTabs => {
+      const existingTab = prevTabs.find(t => t.id === assetDetailsTabId);
+
+      if (existingTab) {
+        // Tab already exists, refresh it and activate it
+        setActiveTabId(assetDetailsTabId);
+        return prevTabs.map(tab => 
+          tab.id === assetDetailsTabId 
+            ? { ...tab, refreshKey: Date.now() } 
+            : tab
+        );
+      }
+      
+      const newTab: Tab = {
+        id: assetDetailsTabId,
+        type: 'asset-details',
+        assetId: String(assetDbId),
+        assetIdentifier: assetId,
+        buildingNumber,
+        taxRegion, // Pass taxRegion from AssetsList tab - same as AssetsList
+        label: `נכס ${assetId}`,
+        refreshKey: Date.now()
+      };
+      
+      // Remove all other asset-details tabs (this closes the current tab if it's an asset-details tab)
+      const filteredTabs = prevTabs.filter(t => t.type !== 'asset-details');
+      
+      // Add the new tab
+      return [...filteredTabs, newTab];
+    });
+    
+    // Activate the new tab
+    setActiveTabId(assetDetailsTabId);
+  }, []);
+
+  // Listen for custom event to open asset view from audit details
+  useEffect(() => {
+    const handleOpenAssetView = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { assetDbId, assetId, buildingNumber, taxRegion } = customEvent.detail;
+      if (assetDbId && assetId && buildingNumber) {
+        handleSelectAsset(assetDbId, assetId, buildingNumber, taxRegion);
+      }
+    };
+    
+    window.addEventListener('openAssetView', handleOpenAssetView);
+    return () => {
+      window.removeEventListener('openAssetView', handleOpenAssetView);
+    };
+  }, [handleSelectAsset]);
+
+  // Fetch latest export date (from memory cache or database)
+  const fetchLatestExportDate = async () => {
+    try {
+      // First try to get from memory cache (synchronous, fast)
+      const cachedDate = getCachedLatestExportDate();
+      
+      if (cachedDate !== null && cachedDate !== undefined) {
+        setLatestExportDate(cachedDate);
+        return;
+      }
+      
+      // If not in cache, fetch from database and cache it
+      const result = await api.assets.getLatestExportDate();
+      if (result.success) {
+        setLatestExportDate(result.date);
+      } else {
+        setLatestExportDate(null);
+      }
+    } catch (error) {
+      console.error('Error fetching latest export date:', error);
+      setLatestExportDate(null);
+    }
+  };
+
+  // Fetch latest export date on component mount
+  useEffect(() => {
+    fetchLatestExportDate();
+  }, []);
+
+  // Sync state with cache periodically to ensure UI updates when cache changes
+  // This ensures the button and modal always reflect the latest cached value
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cachedDate = getCachedLatestExportDate();
+      if (cachedDate !== latestExportDate) {
+        setLatestExportDate(cachedDate);
+      }
+    }, 500); // Check every 500ms to sync cache with state
+    
+    return () => clearInterval(interval);
+  }, [latestExportDate]);
+
+  // Check if current tab has unsaved changes
+  const checkForUnsavedChanges = (): boolean => {
+    const activeTab = tabs.find(tab => tab.id === activeTabId);
+    if (!activeTab) return false;
+    
+    switch (activeTab.type) {
+      case 'buildings':
+        return buildingsListRef.current?.hasUnsavedChanges() || false;
+      case 'assets':
+        return assetsListRef.current?.hasUnsavedChanges() || false;
+      case 'asset-details':
+        return assetDetailsRef.current?.hasUnsavedChanges() || false;
+      case 'transfer-areas':
+        return transferAreasRef.current?.hasUnsavedChanges() || false;
+      case 'asset-data-entry':
+        return assetDataEntryRef.current?.hasUnsavedChanges() || false;
+      default:
+        return false;
+    }
+  };
+
+  // Handle navigation with dirty check
+  const handleNavigation = (navigationAction: () => void) => {
+    if (checkForUnsavedChanges()) {
+      setPendingNavigation(() => navigationAction);
+      setShowUnsavedChangesModal(true);
+    } else {
+      navigationAction();
+    }
+  };
+
+  // Function to close current tab and open multi-tax tab (all assets tab)
+  const handleCloseTabAndOpenMultiTax = useCallback((buildingNumber: number) => {
+    handleNavigation(() => {
+      const allAssetsTabId = `assets-${buildingNumber}-all`;
+      
+      setTabs(prev => {
+        // Find or create the "all assets" tab (multi-tax tab)
+        const existingTab = prev.find(t => t.id === allAssetsTabId);
+        
+        if (existingTab) {
+          // Tab exists, close current tab and keep the multi-tax tab
+          const newTabs = prev.filter(t => t.id !== activeTabId || t.id === allAssetsTabId);
+          setActiveTabId(allAssetsTabId);
+          return newTabs;
+        } else {
+          // Tab doesn't exist, create it and close current tab
+          const allAssetsTab: Tab = {
+            id: allAssetsTabId,
+            type: 'assets',
+            buildingNumber,
+            label: `מבנה ${buildingNumber} - כל הנכסים`,
+            path: `/buildings/${buildingNumber}/assets`,
+            refreshKey: Date.now()
+          };
+          
+          const newTabs = prev.filter(t => t.id !== activeTabId);
+          setActiveTabId(allAssetsTabId);
+          return [...newTabs, allAssetsTab];
+        }
+      });
+    });
+  }, [activeTabId, handleNavigation]);
+
+  // Function to close all tabs except buildings list and regular assets list tabs (residential and business)
+  const handleCloseAllTabsExceptEssential = useCallback(() => {
+    handleNavigation(() => {
+      setTabs(prevTabs => {
+        // Keep: buildings list tabs and regular assets tabs (not error fixing mode)
+        const essentialTabs = prevTabs.filter(tab => {
+          // Keep buildings list tabs
+          if (tab.type === 'buildings') {
+            return true;
+          }
+          
+          // Keep assets tabs that are NOT in error fixing mode
+          // Error fixing mode tabs have isErrorFixingMode: true OR selectedAssetIds set (for error fixing)
+          if (tab.type === 'assets' && !tab.isErrorFixingMode && (!tab.selectedAssetIds || tab.selectedAssetIds.length === 0)) {
+            return true;
+          }
+          
+          // Close all other tabs (transfer-areas, asset-details, asset-types, etc.)
+          return false;
+        });
+        
+        // If no essential tabs remain, ensure buildings tab exists
+        if (essentialTabs.length === 0) {
+          const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+          setActiveTabId('buildings');
+          return [buildingsTab];
+        }
+        
+        // Set active tab to the last essential tab (or buildings if available)
+        const buildingsTab = essentialTabs.find(t => t.type === 'buildings');
+        const lastAssetsTab = essentialTabs.filter(t => t.type === 'assets').pop();
+        if (buildingsTab) {
+          setActiveTabId(buildingsTab.id);
+        } else if (lastAssetsTab) {
+          setActiveTabId(lastAssetsTab.id);
+        } else if (essentialTabs.length > 0) {
+          setActiveTabId(essentialTabs[essentialTabs.length - 1].id);
+        }
+        
+        return essentialTabs;
+      });
+    });
+  }, [handleNavigation]);
+
   // Show login page if not authenticated
   // NOTE: Early returns must come AFTER all hooks to comply with Rules of Hooks
   if (checkingAuth || roleLoading) {
@@ -353,109 +609,6 @@ function App() {
       }
     });
   }
-
-  const handleOpenAssetsTab = useCallback((buildingNumber: number, taxRegion: string, assetIds?: string[]) => {
-    // Get asset types from cache (synchronous, no API call)
-    let assetTypes: AssetType[] = [];
-    try {
-      assetTypes = getAssetTypes();
-    } catch (err) {
-      // If validation module not available, continue without asset types
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[App] Could not get asset types from cache:', err);
-      }
-    }
-    
-    const getAreaDescriptionForTaxRegion = (taxRegionNum: string | number | null | undefined): string => {
-      if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
-        return String(taxRegionNum || '');
-      }
-      
-      const taxRegionParsed = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
-      if (isNaN(taxRegionParsed)) {
-        return String(taxRegionNum);
-      }
-      
-      const matchingAssetType = assetTypes.find((at: AssetType) =>
-        at.tax_region === taxRegionParsed && at.area_description_for_tab
-      );
-      
-      return matchingAssetType?.area_description_for_tab || String(taxRegionParsed);
-    };
-    
-    const assetsTabId = assetIds && assetIds.length > 0
-      ? `assets-${buildingNumber}-region-${taxRegion}-errors-${Date.now()}`
-      : `assets-${buildingNumber}-region-${taxRegion}`;
-    
-    const newTab: Tab = {
-      id: assetsTabId,
-      type: 'assets',
-      buildingNumber,
-      taxRegion,
-      selectedAssetIds: assetIds,
-      isErrorFixingMode: assetIds && assetIds.length > 0, // Enable error fixing mode when assetIds are provided
-      label: assetIds && assetIds.length > 0
-        ? `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)} (תיקון שגיאות)`
-        : `מבנה ${buildingNumber} - ${getAreaDescriptionForTaxRegion(taxRegion)}`,
-      refreshKey: Date.now()
-    };
-    
-    openTab(newTab);
-  }, [tabs]);
-
-  const handleSelectAsset = useCallback((assetDbId: string | number, assetId: string, buildingNumber: number, taxRegion?: string) => {
-    const assetDetailsTabId = `asset-details-${assetDbId}`;
-    
-    setTabs(prevTabs => {
-      const existingTab = prevTabs.find(t => t.id === assetDetailsTabId);
-
-      if (existingTab) {
-        // Tab already exists, refresh it and activate it
-        setActiveTabId(assetDetailsTabId);
-        return prevTabs.map(tab => 
-          tab.id === assetDetailsTabId 
-            ? { ...tab, refreshKey: Date.now() } 
-            : tab
-        );
-      }
-      
-      const newTab: Tab = {
-        id: assetDetailsTabId,
-        type: 'asset-details',
-        assetId: String(assetDbId),
-        assetIdentifier: assetId,
-        buildingNumber,
-        taxRegion, // Pass taxRegion from AssetsList tab - same as AssetsList
-        label: `נכס ${assetId}`,
-        refreshKey: Date.now()
-      };
-      
-      // Remove all other asset-details tabs (this closes the current tab if it's an asset-details tab)
-      const filteredTabs = prevTabs.filter(t => t.type !== 'asset-details');
-      
-      // Add the new tab
-      return [...filteredTabs, newTab];
-    });
-    
-    // Activate the new tab
-    setActiveTabId(assetDetailsTabId);
-  }, []);
-
-  // Listen for custom event to open asset view from audit details
-  useEffect(() => {
-    const handleOpenAssetView = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { assetDbId, assetId, buildingNumber, taxRegion } = customEvent.detail;
-      if (assetDbId && assetId && buildingNumber) {
-        handleSelectAsset(assetDbId, assetId, buildingNumber, taxRegion);
-      }
-    };
-    
-    window.addEventListener('openAssetView', handleOpenAssetView);
-    return () => {
-      window.removeEventListener('openAssetView', handleOpenAssetView);
-    };
-  }, [handleSelectAsset]);
 
   function handleOpenNewAsset(buildingNumber: number, taxRegion?: string) {
     const newAssetTabId = `asset-details-new-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;
@@ -722,51 +875,9 @@ function App() {
     }, 100);
   }
 
-  // Fetch latest export date (from memory cache or database)
-  const fetchLatestExportDate = async () => {
-    try {
-      // First try to get from memory cache (synchronous, fast)
-      const cachedDate = getCachedLatestExportDate();
-      
-      if (cachedDate !== null && cachedDate !== undefined) {
-        setLatestExportDate(cachedDate);
-        return;
-      }
-      
-      // If not in cache, fetch from database and cache it
-      const result = await api.assets.getLatestExportDate();
-      if (result.success) {
-        setLatestExportDate(result.date);
-      } else {
-        setLatestExportDate(null);
-      }
-    } catch (error) {
-      console.error('Error fetching latest export date:', error);
-      setLatestExportDate(null);
-    }
-  };
-
   // Get latest export date from cache (synchronous, used directly in render)
   // Always read from cache - it's updated immediately by export/reset operations
   const displayLatestExportDate = getCachedLatestExportDate() || latestExportDate;
-
-  // Fetch latest export date on component mount
-  useEffect(() => {
-    fetchLatestExportDate();
-  }, []);
-
-  // Sync state with cache periodically to ensure UI updates when cache changes
-  // This ensures the button and modal always reflect the latest cached value
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cachedDate = getCachedLatestExportDate();
-      if (cachedDate !== latestExportDate) {
-        setLatestExportDate(cachedDate);
-      }
-    }, 500); // Check every 500ms to sync cache with state
-    
-    return () => clearInterval(interval);
-  }, [latestExportDate]);
 
   function openAddressList() {
     const addressListTabId = 'address-list-panel';
@@ -841,37 +952,6 @@ function App() {
     });
   }
 
-  // Check if current tab has unsaved changes
-  const checkForUnsavedChanges = (): boolean => {
-    const activeTab = tabs.find(tab => tab.id === activeTabId);
-    if (!activeTab) return false;
-    
-    switch (activeTab.type) {
-      case 'buildings':
-        return buildingsListRef.current?.hasUnsavedChanges() || false;
-      case 'assets':
-        return assetsListRef.current?.hasUnsavedChanges() || false;
-      case 'asset-details':
-        return assetDetailsRef.current?.hasUnsavedChanges() || false;
-      case 'transfer-areas':
-        return transferAreasRef.current?.hasUnsavedChanges() || false;
-      case 'asset-data-entry':
-        return assetDataEntryRef.current?.hasUnsavedChanges() || false;
-      default:
-        return false;
-    }
-  };
-
-  // Handle navigation with dirty check
-  const handleNavigation = (navigationAction: () => void) => {
-    if (checkForUnsavedChanges()) {
-      setPendingNavigation(() => navigationAction);
-      setShowUnsavedChangesModal(true);
-    } else {
-      navigationAction();
-    }
-  };
-
   // Confirm navigation (proceed anyway)
   const handleConfirmNavigation = () => {
     setShowUnsavedChangesModal(false);
@@ -908,83 +988,6 @@ function App() {
       }
     });
   }
-
-  // Function to close current tab and open multi-tax tab (all assets tab)
-  const handleCloseTabAndOpenMultiTax = useCallback((buildingNumber: number) => {
-    handleNavigation(() => {
-      const allAssetsTabId = `assets-${buildingNumber}-all`;
-      
-      setTabs(prev => {
-        // Find or create the "all assets" tab (multi-tax tab)
-        const existingTab = prev.find(t => t.id === allAssetsTabId);
-        
-        if (existingTab) {
-          // Tab exists, close current tab and keep the multi-tax tab
-          const newTabs = prev.filter(t => t.id !== activeTabId || t.id === allAssetsTabId);
-          setActiveTabId(allAssetsTabId);
-          return newTabs;
-        } else {
-          // Tab doesn't exist, create it and close current tab
-          const allAssetsTab: Tab = {
-            id: allAssetsTabId,
-            type: 'assets',
-            buildingNumber,
-            label: `מבנה ${buildingNumber} - כל הנכסים`,
-            path: `/buildings/${buildingNumber}/assets`,
-            refreshKey: Date.now()
-          };
-          
-          const newTabs = prev.filter(t => t.id !== activeTabId);
-          setActiveTabId(allAssetsTabId);
-          return [...newTabs, allAssetsTab];
-        }
-      });
-    });
-  }, [activeTabId, handleNavigation]);
-
-  // Function to close all tabs except buildings list and regular assets list tabs (residential and business)
-  const handleCloseAllTabsExceptEssential = useCallback(() => {
-    handleNavigation(() => {
-      setTabs(prevTabs => {
-        // Keep: buildings list tabs and regular assets tabs (not error fixing mode)
-        const essentialTabs = prevTabs.filter(tab => {
-          // Keep buildings list tabs
-          if (tab.type === 'buildings') {
-            return true;
-          }
-          
-          // Keep assets tabs that are NOT in error fixing mode
-          // Error fixing mode tabs have isErrorFixingMode: true OR selectedAssetIds set (for error fixing)
-          if (tab.type === 'assets' && !tab.isErrorFixingMode && (!tab.selectedAssetIds || tab.selectedAssetIds.length === 0)) {
-            return true;
-          }
-          
-          // Close all other tabs (transfer-areas, asset-details, asset-types, etc.)
-          return false;
-        });
-        
-        // If no essential tabs remain, ensure buildings tab exists
-        if (essentialTabs.length === 0) {
-          const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-          setActiveTabId('buildings');
-          return [buildingsTab];
-        }
-        
-        // Set active tab to the last essential tab (or buildings if available)
-        const buildingsTab = essentialTabs.find(t => t.type === 'buildings');
-        const lastAssetsTab = essentialTabs.filter(t => t.type === 'assets').pop();
-        if (buildingsTab) {
-          setActiveTabId(buildingsTab.id);
-        } else if (lastAssetsTab) {
-          setActiveTabId(lastAssetsTab.id);
-        } else if (essentialTabs.length > 0) {
-          setActiveTabId(essentialTabs[essentialTabs.length - 1].id);
-        }
-        
-        return essentialTabs;
-      });
-    });
-  }, [handleNavigation]);
 
   const activeTab = tabs.find(tab => tab.id === activeTabId);
 

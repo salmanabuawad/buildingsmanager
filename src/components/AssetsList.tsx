@@ -951,9 +951,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       // Add discount validation errors
       const resultsWithDiscountErrors = batchResult.results.map(result => {
+        // result.assetId is the numeric asset_id, match by comparing asset_id directly
         const asset = assetsWithChanges.find(a => {
-          const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
-          return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+          // result.assetId can be string or number, so compare both ways
+          return String(result.assetId) === String(a.asset_id) || 
+                 Number(result.assetId) === Number(a.asset_id) ||
+                 result.assetId === a.asset_id;
         });
         
         if (asset) {
@@ -978,9 +981,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const errorAssets = resultsWithDiscountErrors
           .filter(r => !r.valid || (r.errors && r.errors.length > 0))
           .map(r => {
+            // Match by asset_id (result.assetId is the numeric asset_id)
             const asset = assetsWithChanges.find(a => {
-              const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
-              return r.assetId === assetIdentifier || r.assetId === String(a.asset_id);
+              return String(r.assetId) === String(a.asset_id) || 
+                     Number(r.assetId) === Number(a.asset_id) ||
+                     r.assetId === a.asset_id;
             });
             return `נכס ${asset?.asset_id || r.assetId}: ${(r.errors || []).join('; ')}`;
           });
@@ -989,14 +994,31 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const newValidationErrors = new Map<string, string>();
         for (const result of resultsWithDiscountErrors) {
           if (!result.valid || (result.errors && result.errors.length > 0)) {
+            // result.assetId is the numeric asset_id, not the assetIdentifier string
+            // Match by comparing asset_id directly
             const asset = assetsWithChanges.find(a => {
-              const assetIdentifier = `נכס ${a.asset_id}${a.building_number ? ` (מבנה ${a.building_number})` : ''}`;
-              return result.assetId === assetIdentifier || result.assetId === String(a.asset_id);
+              // result.assetId can be string or number, so compare both ways
+              return String(result.assetId) === String(a.asset_id) || 
+                     Number(result.assetId) === Number(a.asset_id) ||
+                     result.assetId === a.asset_id;
             });
+            
             if (asset) {
               const dbId = String(asset.asset_id);
               const errorMessage = (result.errors || []).join('; ');
               newValidationErrors.set(dbId, errorMessage);
+              console.log('[AssetsList] Adding validation error for asset:', {
+                assetId: dbId,
+                errorMessage,
+                resultAssetId: result.assetId,
+                resultAssetIdentifier: result.assetIdentifier
+              });
+            } else {
+              console.warn('[AssetsList] Could not find asset for validation result:', {
+                resultAssetId: result.assetId,
+                resultAssetIdentifier: result.assetIdentifier,
+                availableAssetIds: assetsWithChanges.map(a => a.asset_id)
+              });
             }
           }
         }

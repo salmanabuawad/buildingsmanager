@@ -113,24 +113,9 @@ function App() {
     setIsAuthenticated(true);
   };
 
-  // Show login page if not authenticated
-  if (checkingAuth || roleLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">טוען...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
-
   // Helper function to get area_description_for_tab from tax region number(s)
   // Uses cached asset types from ValidationContext (no API call needed)
+  // NOTE: Must be defined before any early returns to comply with Rules of Hooks
   const getAreaDescriptionForTaxRegion = useCallback((taxRegion: string | number | undefined): string => {
     if (!taxRegion) {
       return String(taxRegion || '');
@@ -168,6 +153,7 @@ function App() {
 
   // Helper function to get area descriptions for multiple tax regions
   // Uses cached asset types from ValidationContext (no API call needed)
+  // NOTE: Must be defined before any early returns to comply with Rules of Hooks
   const getAreaDescriptionsForTaxRegions = useCallback((taxRegionsString: string | undefined): string => {
     if (!taxRegionsString) {
       return '';
@@ -205,6 +191,23 @@ function App() {
     
     return descriptions.join(', ');
   }, []);
+
+  // Show login page if not authenticated
+  // NOTE: Early returns must come AFTER all hooks to comply with Rules of Hooks
+  if (checkingAuth || roleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">טוען...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   // Helper function to open a new tab, closing any existing tab of the same type
   // Exception: 'buildings' tab is always kept and multiple 'assets' tabs can exist (for different buildings/tax regions)

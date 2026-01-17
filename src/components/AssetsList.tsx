@@ -302,13 +302,20 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   // Refresh grid when validation errors change to show error styling
   useEffect(() => {
     if (validationErrors.size > 0 && gridRef.current?.api) {
+      console.log('[AssetsList] Validation errors changed, refreshing grid:', {
+        errorCount: validationErrors.size,
+        errorAssetIds: Array.from(validationErrors.keys())
+      });
       // Small delay to ensure grid is ready
       setTimeout(() => {
         if (gridRef.current?.api) {
+          // Force refresh all cells and rows to show error styling
           gridRef.current.api.refreshCells({ force: true });
           gridRef.current.api.redrawRows();
+          // Also refresh the entire grid to ensure styling is applied
+          gridRef.current.api.refreshClientSideRowModel('filter');
         }
-      }, 50);
+      }, 100);
     }
   }, [validationErrors]);
   async function fetchData(showLoading = true, skipBuildingFetch = false) {
@@ -993,7 +1000,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             }
           }
         }
-        setValidationErrors(newValidationErrors);
+        // Set validation errors and ensure they're visible
+        // Use functional update to ensure we're working with latest state
+        setValidationErrors(() => newValidationErrors);
+        
+        // Log for debugging
+        console.log('[AssetsList] Validation errors set in runValidationProgrammatically:', {
+          errorCount: newValidationErrors.size,
+          errorAssetIds: Array.from(newValidationErrors.keys()),
+          totalAssets: assetsWithChanges.length,
+          sampleErrors: Array.from(newValidationErrors.entries()).slice(0, 3)
+        });
 
         return {
           hasErrors: true,
@@ -1345,34 +1362,46 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       if (validationResult.hasErrors) {
         // Stop save operation - don't submit to server
         setIsSaving(false);
-        setError(validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.');
-        setTimeout(() => setError(null), 8000);
         
-        // Get validation errors from result (they're already set in state, but use result for immediate access)
-        const errorsToShow = (validationResult as any).validationErrors || validationErrors;
+        // Show toast error message
+        setToast({ 
+          message: validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.', 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 8000);
         
-        // Wait for React to process the validationErrors state update, then refresh grid
-        setTimeout(() => {
-          if (gridRef.current?.api) {
-            // Force full grid refresh to show validation errors on rows
-            gridRef.current.api.refreshCells({ force: true });
-            gridRef.current.api.redrawRows();
-            
-            // Scroll to first error row if possible
-            setTimeout(() => {
-              if (gridRef.current?.api && errorsToShow && errorsToShow.size > 0) {
-                const firstErrorAssetId = Array.from(errorsToShow.keys())[0];
-                gridRef.current.api.forEachNode(node => {
-                  const assetId = String(node.data?.asset_id);
-                  if (assetId === firstErrorAssetId) {
-                    node.setSelected(true);
-                    gridRef.current.api.ensureNodeVisible(node, 'top');
-                  }
-                });
-              }
-            }, 100);
-          }
-        }, 100); // Give React time to update state
+        // Force immediate grid refresh to show validation errors
+        // The validationErrors state is set inside runValidationProgrammatically
+        // Use requestAnimationFrame to ensure React has processed the state update
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (gridRef.current?.api) {
+              console.log('[AssetsList] Refreshing grid after validation errors:', {
+                validationErrorsSize: validationErrors.size,
+                errorAssetIds: Array.from(validationErrors.keys())
+              });
+              
+              // Force full grid refresh to show validation errors on rows
+              gridRef.current.api.refreshCells({ force: true });
+              gridRef.current.api.redrawRows();
+              
+              // Scroll to first error row if possible
+              setTimeout(() => {
+                if (gridRef.current?.api && validationErrors.size > 0) {
+                  const firstErrorAssetId = Array.from(validationErrors.keys())[0];
+                  console.log('[AssetsList] Scrolling to first error row:', firstErrorAssetId);
+                  gridRef.current.api.forEachNode(node => {
+                    const assetId = String(node.data?.asset_id);
+                    if (assetId === firstErrorAssetId) {
+                      node.setSelected(true);
+                      gridRef.current.api.ensureNodeVisible(node, 'top');
+                    }
+                  });
+                }
+              }, 200);
+            }
+          }, 200); // Give React time to update state
+        });
         
         return; // Stop here - don't proceed to save
       }
@@ -4694,10 +4723,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
             getRowStyle={(params) => {
-              const assetId = String(params.data?.asset_id);
+              if (!params.data) return null;
+              const assetId = String(params.data.asset_id);
+              
+              // Check for deleted assets first
               if (deletedAssets.has(assetId)) {
                 return { backgroundColor: '#fee2e2', opacity: 0.7 }; // Light red for deleted
               }
+              
+              // Check for validation errors - ensure we're checking the current state
               if (validationErrors.has(assetId)) {
                 return { 
                   backgroundColor: '#fee2e2', 
@@ -4705,6 +4739,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                   borderRadius: '4px'
                 }; // Light red background with red border for validation errors (matches other components)
               }
+              
               return null;
             }}
             defaultColDef={{

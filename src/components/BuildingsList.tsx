@@ -1126,8 +1126,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         force: true 
       });
       
-      // If there are validation errors, refresh all cells in the row to show error styling
-      if (!validation.valid && Object.keys(validation.errors).length > 0) {
+      // If there are validation errors for this building, refresh all cells in the row to show error styling
+      const buildingErrors = validationErrors.get(newBuildingKey);
+      if (buildingErrors && Object.keys(buildingErrors).length > 0) {
         setTimeout(() => {
           if (gridRef.current?.api) {
             gridRef.current.api.refreshCells({ 

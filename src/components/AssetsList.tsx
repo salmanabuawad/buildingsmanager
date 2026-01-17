@@ -532,22 +532,35 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             
             // Check which assets have files
             if (mergedAssets.length > 0) {
-              const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null);
+              const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null).map(id => Number(id)).filter(id => !isNaN(id));
               const filesMap = new Set<number>();
               
-              // Check files for all assets in parallel
-              await Promise.all(
-                assetIds.map(async (assetId) => {
-                  try {
-                    const files = await api.assets.files.getAll(assetId);
+              // Bulk fetch files for all assets in a single API call
+              if (assetIds.length > 0) {
+                try {
+                  const filesByAsset = await api.assets.files.getAllBulk(assetIds);
+                  filesByAsset.forEach((files, assetId) => {
                     if (files && files.length > 0) {
                       filesMap.add(assetId);
                     }
-                  } catch (err) {
-                    // Ignore errors - asset might not have files
-                  }
-                })
-              );
+                  });
+                } catch (err) {
+                  console.warn('[AssetsList] Error bulk fetching asset files:', err);
+                  // Fallback: if bulk fails, try individual fetches
+                  await Promise.all(
+                    assetIds.map(async (assetId) => {
+                      try {
+                        const files = await api.assets.files.getAll(assetId);
+                        if (files && files.length > 0) {
+                          filesMap.add(assetId);
+                        }
+                      } catch (err) {
+                        // Ignore errors - asset might not have files
+                      }
+                    })
+                  );
+                }
+              }
               
               setAssetsWithFiles(filesMap);
             } else {
@@ -565,23 +578,35 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           
           // Check which assets have files
           if (mergedAssets.length > 0) {
-            const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null);
+            const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null).map(id => Number(id)).filter(id => !isNaN(id));
             const filesMap = new Set<number>();
             
-            // Check files for all assets in parallel
-            await Promise.all(
-              assetIds.map(async (assetId) => {
-                try {
-                  // Check for files - show all files (undefined means show all including shared)
-                  const files = await api.assets.files.getAll(assetId);
+            // Bulk fetch files for all assets in a single API call
+            if (assetIds.length > 0) {
+              try {
+                const filesByAsset = await api.assets.files.getAllBulk(assetIds);
+                filesByAsset.forEach((files, assetId) => {
                   if (files && files.length > 0) {
                     filesMap.add(assetId);
                   }
-                } catch (err) {
-                  // Ignore errors - asset might not have files
-                }
-              })
-            );
+                });
+              } catch (err) {
+                console.warn('[AssetsList] Error bulk fetching asset files:', err);
+                // Fallback: if bulk fails, try individual fetches
+                await Promise.all(
+                  assetIds.map(async (assetId) => {
+                    try {
+                      const files = await api.assets.files.getAll(assetId);
+                      if (files && files.length > 0) {
+                        filesMap.add(assetId);
+                      }
+                    } catch (err) {
+                      // Ignore errors - asset might not have files
+                    }
+                  })
+                );
+              }
+            }
             
             setAssetsWithFiles(filesMap);
           } else {
@@ -597,22 +622,35 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       
       // Check which assets have files
       if (mergedAssets.length > 0) {
-        const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null);
+        const assetIds = mergedAssets.map(a => a.asset_id).filter(id => id != null).map(id => Number(id)).filter(id => !isNaN(id));
         const filesMap = new Set<number>();
         
-        // Check files for all assets in parallel
-        await Promise.all(
-          assetIds.map(async (assetId) => {
-            try {
-              const files = await api.assets.files.getAll(assetId);
+        // Bulk fetch files for all assets in a single API call
+        if (assetIds.length > 0) {
+          try {
+            const filesByAsset = await api.assets.files.getAllBulk(assetIds);
+            filesByAsset.forEach((files, assetId) => {
               if (files && files.length > 0) {
                 filesMap.add(assetId);
               }
-            } catch (err) {
-              // Ignore errors - asset might not have files
-            }
-          })
-        );
+            });
+          } catch (err) {
+            console.warn('[AssetsList] Error bulk fetching asset files:', err);
+            // Fallback: if bulk fails, try individual fetches
+            await Promise.all(
+              assetIds.map(async (assetId) => {
+                try {
+                  const files = await api.assets.files.getAll(assetId);
+                  if (files && files.length > 0) {
+                    filesMap.add(assetId);
+                  }
+                } catch (err) {
+                  // Ignore errors - asset might not have files
+                }
+              })
+            );
+          }
+        }
         
         setAssetsWithFiles(filesMap);
       } else {
@@ -839,9 +877,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       });
       
       // Pre-fetch required supporting data
+      // Use cached building data if available to avoid redundant API calls
       const [assetTypesData, buildingData] = await Promise.all([
         api.assetTypes.getAll(),
-        api.buildings.getOne(buildingNumber).catch(() => null)
+        building ? Promise.resolve(building) : api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
 
       // Only validate assets that have dirty changes (or are new)
@@ -986,9 +1025,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       console.log(`[Batch Validation] Filtered to latest only: ${latestAssets.length} out of ${gridAssets.length} assets (excluded ${gridAssets.length - latestAssets.length} historical records)`);
       
       // Pre-fetch required supporting data (asset types and building data)
+      // Use cached building data if available to avoid redundant API calls
       const [assetTypesData, buildingData] = await Promise.all([
         api.assetTypes.getAll(),
-        api.buildings.getOne(buildingNumber).catch(() => null)
+        building ? Promise.resolve(building) : api.buildings.getOne(buildingNumber).catch(() => null)
       ]);
 
       // If assets are selected, only validate selected ones; otherwise validate all
@@ -1532,9 +1572,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // Always save overload_ratio for business distributions, even if it's 0 (when shared area is 0)
           if (isDistributionSave && distributionType === 'business' && building) {
             try {
-              // Get the old overload_ratio for audit description
-              const oldBuilding = await api.buildings.getOne(building.building_number);
-              const oldOverloadRatio = oldBuilding?.overload_ratio;
+              // Use current building's overload_ratio (no need to fetch again - we already have it)
+              const oldOverloadRatio = building.overload_ratio;
               
               // When shared area is 0, overload_ratio should be 0 (explicitly set, not null)
               const overloadRatioToSave = building.business_shared_area! <= 0 

@@ -2511,6 +2511,38 @@ export const api = {
         if (error) throw error;
         return data || [];
       },
+      getAllBulk: async (assetIds: number[]): Promise<Map<number, AssetFile[]>> => {
+        if (!assetIds || assetIds.length === 0) {
+          return new Map();
+        }
+        
+        const { data, error } = await supabase
+          .from('asset_files')
+          .select('*')
+          .in('asset_id', assetIds)
+          .order('uploaded_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // Group files by asset_id
+        const filesByAsset = new Map<number, AssetFile[]>();
+        (data || []).forEach(file => {
+          const assetId = file.asset_id;
+          if (!filesByAsset.has(assetId)) {
+            filesByAsset.set(assetId, []);
+          }
+          filesByAsset.get(assetId)!.push(file);
+        });
+        
+        // Ensure all assetIds have an entry (even if empty)
+        assetIds.forEach(assetId => {
+          if (!filesByAsset.has(assetId)) {
+            filesByAsset.set(assetId, []);
+          }
+        });
+        
+        return filesByAsset;
+      },
       add: async (assetId: number, fileUrl: string, fileName?: string, fileSize?: number, fileType?: string, measurementDate?: string | null): Promise<AssetFile> => {
         const userInfo = await getCurrentUserInfo();
         const { data, error } = await supabase

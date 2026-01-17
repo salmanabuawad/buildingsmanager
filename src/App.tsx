@@ -22,7 +22,7 @@ import { supabase } from './lib/supabase';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -764,6 +764,19 @@ function App() {
     openTab(newTab);
   }
 
+  function openUserManagement() {
+    const userManagementTabId = 'user-management-panel';
+
+    const newTab: Tab = {
+      id: userManagementTabId,
+      type: 'user-management',
+      label: 'ניהול משתמשים'
+    };
+
+    // Remove all other user-management tabs, then add new one
+    openTab(newTab);
+  }
+
   async function exportSchemaToCSV() {
     try {
       const data = await api.schema.getTablesFieldsTypes();
@@ -1381,6 +1394,13 @@ function App() {
                   <FileText className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
+                  onClick={openUserManagement}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                >
+                  <span className="font-medium text-slate-700">ניהול משתמשים</span>
+                  <Users className="h-3.5 w-3.5 text-pink-600" />
+                </button>
+                <button
                   onClick={exportSchemaToCSV}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
                 >
@@ -1479,6 +1499,10 @@ function App() {
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'assets-file-import' ? (
                       <Upload className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'audit-log' ? (
+                      <FileText className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'user-management' ? (
+                      <Users className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
                     ) : (
@@ -1603,6 +1627,9 @@ function App() {
             )}
             {activeTab?.type === 'audit-log' && (
               <AuditLog key={activeTab.refreshKey} />
+            )}
+            {activeTab?.type === 'user-management' && (
+              <UserManagement key={activeTab.refreshKey} />
             )}
           </div>
         </div>

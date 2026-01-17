@@ -4060,4 +4060,47 @@ export const api = {
       return data || [];
     },
   },
+  users: {
+    getAll: async (): Promise<Array<{
+      user_id: number;
+      auth_user_id: string | null;
+      user_name: string;
+      user_email: string | null;
+      user_role: 'admin' | 'user';
+      active: boolean;
+      created_at: string;
+      updated_at: string;
+    }>> => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('user_id, auth_user_id, user_name, user_email, user_role, active, created_at, updated_at')
+        .order('user_name');
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw new Error(`Failed to fetch users: ${error.message}`);
+      }
+      
+      return data || [];
+    },
+    update: async (userId: number, updates: {
+      user_role?: 'admin' | 'user';
+      active?: boolean;
+      user_name?: string;
+      user_email?: string;
+    }): Promise<void> => {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error updating user:', error);
+        throw new Error(`Failed to update user: ${error.message}`);
+      }
+    },
+  },
 };

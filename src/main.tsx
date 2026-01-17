@@ -1,3 +1,94 @@
+// IMPORTANT: Set up error suppression BEFORE any other imports to catch errors early
+// Suppress console errors and warnings from external scripts FIRST
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+
+// Helper function to check if a message should be suppressed
+const shouldSuppressMessage = (message: string): boolean => {
+  const lowerMessage = message.toLowerCase();
+  
+  // Check for external script names/domains
+  const externalScriptPatterns = [
+    'chmln',
+    'messo',
+    'blitz',
+    'staticblitz.com',
+    'credentialless',
+    'w-credentialless-staticblitz.com',
+    'fetch.worker',
+    'headless'
+  ];
+  
+  // Check if message contains any external script pattern
+  const hasExternalScript = externalScriptPatterns.some(pattern => lowerMessage.includes(pattern));
+  
+  // Check for specific error patterns
+  const hasFailedToLoad = lowerMessage.includes('failed to load resource') && hasExternalScript;
+  const hasCannotRead = lowerMessage.includes('cannot read properties of undefined') && 
+    (lowerMessage.includes('chmln') || lowerMessage.includes('messo'));
+  const hasContextify = lowerMessage.includes('contextify') || 
+    lowerMessage.includes('running source code in new context');
+  const hasPreloadWarning = lowerMessage.includes('preloaded using link preload') && hasExternalScript;
+  
+  return hasExternalScript || hasFailedToLoad || hasCannotRead || hasContextify || hasPreloadWarning;
+};
+
+// Override console methods immediately to catch errors as early as possible
+console.error = (...args: any[]) => {
+  const errorString = args.map(arg => {
+    if (typeof arg === 'object' && arg !== null) {
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+  
+  if (shouldSuppressMessage(errorString)) {
+    return; // Suppress the error
+  }
+  originalConsoleError.apply(console, args);
+};
+
+console.warn = (...args: any[]) => {
+  const warnString = args.map(arg => {
+    if (typeof arg === 'object' && arg !== null) {
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+  
+  if (shouldSuppressMessage(warnString)) {
+    return; // Suppress the warning
+  }
+  originalConsoleWarn.apply(console, args);
+};
+
+console.log = (...args: any[]) => {
+  const logString = args.map(arg => {
+    if (typeof arg === 'object' && arg !== null) {
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+  
+  if (shouldSuppressMessage(logString)) {
+    return; // Suppress the log
+  }
+  originalConsoleLog.apply(console, args);
+};
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
@@ -8,27 +99,43 @@ import { ValidationProvider } from './contexts/ValidationContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { UserRoleProvider } from './contexts/UserRoleContext';
 
-// Suppress external script errors (from browser extensions, dev tools, etc.)
-window.addEventListener('error', (event) => {
-  const filename = event.filename || event.message || '';
-  const errorString = String(event.error || event.message || '');
-  const stack = event.error?.stack || '';
+// Helper function to check if an error is from external scripts
+const isExternalScriptError = (event: ErrorEvent | Event): boolean => {
+  const filename = (event as ErrorEvent).filename || (event as ErrorEvent).message || '';
+  const errorString = String((event as ErrorEvent).error || (event as ErrorEvent).message || '');
+  const stack = (event as ErrorEvent).error?.stack || '';
   const target = event.target as HTMLElement;
   const src = target?.getAttribute?.('src') || target?.getAttribute?.('href') || '';
+  const errorMessage = (event as ErrorEvent).error?.message || '';
   
-  // Check for external scripts (chmln, messo, blitz, etc.)
-  const isExternalScript = 
-    filename.includes('chmln.js') || filename.includes('messo.min.js') || filename.includes('blitz') ||
-    errorString.includes('chmln') || errorString.includes('messo') || errorString.includes('blitz') ||
-    stack.includes('chmln') || stack.includes('messo') || stack.includes('blitz') ||
-    src.includes('chmln') || src.includes('messo') || src.includes('blitz') ||
-    (event.error?.message && (
-      event.error.message.includes('chmln') || 
-      event.error.message.includes('messo') || 
-      event.error.message.includes('blitz')
-    ));
+  const checkString = (str: string) => {
+    const lowerStr = str.toLowerCase();
+    return (
+      lowerStr.includes('chmln') || 
+      lowerStr.includes('messo') || 
+      lowerStr.includes('blitz') ||
+      lowerStr.includes('staticblitz.com') ||
+      lowerStr.includes('credentialless') ||
+      lowerStr.includes('w-credentialless-staticblitz.com') ||
+      lowerStr.includes('fetch.worker')
+    );
+  };
   
-  if (isExternalScript) {
+  return (
+    checkString(filename) ||
+    checkString(errorString) ||
+    checkString(stack) ||
+    checkString(src) ||
+    checkString(errorMessage) ||
+    (errorMessage && errorMessage.includes('Cannot read properties of undefined') && (
+      errorMessage.includes('chmln') || errorMessage.includes('messo')
+    ))
+  );
+};
+
+// Suppress external script errors (from browser extensions, dev tools, etc.)
+window.addEventListener('error', (event) => {
+  if (isExternalScriptError(event)) {
     event.preventDefault();
     event.stopPropagation();
     return true;
@@ -64,27 +171,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
-// Suppress console errors and warnings from external scripts
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-
-console.error = (...args: any[]) => {
-  const errorString = args.map(arg => String(arg)).join(' ');
-  if (errorString.includes('chmln') || errorString.includes('messo') || errorString.includes('blitz') ||
-      errorString.includes('Failed to load resource') && (errorString.includes('messo') || errorString.includes('chmln'))) {
-    return; // Suppress the error
-  }
-  originalConsoleError.apply(console, args);
-};
-
-console.warn = (...args: any[]) => {
-  const warnString = args.map(arg => String(arg)).join(' ');
-  if (warnString.includes('chmln') || warnString.includes('messo') || warnString.includes('blitz') ||
-      warnString.includes('Contextify') || warnString.includes('preloaded using link preload')) {
-    return; // Suppress the warning
-  }
-  originalConsoleWarn.apply(console, args);
-};
+// Console methods are already overridden above (before imports)
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 

@@ -875,6 +875,61 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
 
+    // Validate tax_region changes: prevent change if building has assets under that region
+    if (field === 'tax_region' && !isNew && building.building_number && building.building_number > 0) {
+      try {
+        // Get all assets for this building
+        const assets = await api.assets.getAll(building.building_number);
+        
+        if (assets && assets.length > 0) {
+          // Get unique tax regions from assets
+          const assetTaxRegions = new Set<number>();
+          for (const asset of assets) {
+            if (asset.tax_region != null) {
+              const taxRegionNum = typeof asset.tax_region === 'string' 
+                ? parseInt(asset.tax_region, 10) 
+                : asset.tax_region;
+              if (!isNaN(taxRegionNum)) {
+                assetTaxRegions.add(taxRegionNum);
+              }
+            }
+          }
+
+          // If there are assets with tax regions, prevent changing the building's tax_region
+          if (assetTaxRegions.size > 0) {
+            // Parse old and new tax regions
+            const oldTaxRegions = building.tax_region 
+              ? String(building.tax_region).split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
+              : [];
+            
+            const newTaxRegionsStr = newValue != null ? String(newValue) : '';
+            const newTaxRegions = newTaxRegionsStr.trim() !== ''
+              ? newTaxRegionsStr.split(',').map(r => parseInt(r.trim())).filter(r => !isNaN(r))
+              : [];
+
+            // Check if any asset tax regions would be removed
+            const assetTaxRegionsArray = Array.from(assetTaxRegions);
+            const removedRegions = assetTaxRegionsArray.filter(region => !newTaxRegions.includes(region));
+
+            if (removedRegions.length > 0) {
+              // Revert the change
+              if (event.node && typeof event.node.setDataValue === 'function') {
+                event.node.setDataValue('tax_region', building.tax_region);
+              }
+              
+              // Show error message
+              const regionsStr = removedRegions.sort((a, b) => a - b).join(', ');
+              alert(`לא ניתן לשנות את אזור המס של המבנה. יש נכסים תחת אזורי המס הבאים: ${regionsStr}`);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error validating tax region change:', error);
+        // On error, allow the change (fail open to avoid blocking user)
+      }
+    }
+
     // Special handling for building_number changes in new buildings
     let newBuildingKey: string | number = buildingKey;
     

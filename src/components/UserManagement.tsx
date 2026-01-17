@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { supabase } from '../lib/supabase';
-import { Loader2, User, Shield, UserX, CheckCircle2, XCircle, Save, RefreshCw, Key, X, Eye, EyeOff } from 'lucide-react';
+import { Loader2, User, Shield, UserX, CheckCircle2, XCircle, Save, RefreshCw, Key, X, Eye, EyeOff, Plus, Trash2, AlertCircle } from 'lucide-react';
 
 interface User {
   user_id: number;

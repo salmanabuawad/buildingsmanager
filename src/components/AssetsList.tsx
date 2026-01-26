@@ -2741,7 +2741,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
       // Reload assets from database
-      const reloadedAssets = await api.assets.getByBuilding(buildingNumber, taxRegion);
+      const reloadedAssets = await api.assets.getAll(buildingNumber);
       setAssets(reloadedAssets);
       setOriginalAssets(JSON.parse(JSON.stringify(reloadedAssets)));
 
@@ -3085,7 +3085,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
       // Reload assets from database
-      const reloadedAssets = await api.assets.getByBuilding(buildingNumber, taxRegion);
+      const reloadedAssets = await api.assets.getAll(buildingNumber);
       setAssets(reloadedAssets);
       setOriginalAssets(JSON.parse(JSON.stringify(reloadedAssets)));
 

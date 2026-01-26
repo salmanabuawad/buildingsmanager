@@ -1804,7 +1804,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       
       // Prepare file list data for Excel: asset_id, payer_id, file_name
       const fileListData: any[][] = [
-        ['מזהה נכס', 'ת.ז. משלם', 'שם קובץ']
+        ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
       ];
       
       // Prepare files array for ZIP
@@ -1864,9 +1864,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               continue;
             }
             
-            // Add file to ZIP at root level
-            // Use a unique filename to avoid conflicts: {assetId}_{filename}
-            const zipFilePath = `${assetId}_${fileName || urlFileName}`;
+            // Add file to ZIP at root level with original filename
+            const zipFilePath = fileName || urlFileName;
             zipFiles.push({
               filename: zipFilePath,
               data: fileData
@@ -1887,7 +1886,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           data: fileListData,
           columnWidths: [
             { wch: 15 }, // מזהה נכס
-            { wch: 15 }, // ת.ז. משלם
+            { wch: 15 }, // מזהה משלם
             { wch: 30 }  // שם קובץ
           ]
         });

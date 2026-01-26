@@ -365,7 +365,7 @@ function calculateChangedFields(before: any, after: any): string[] {
 }
 
 export interface Building {
-  building_notes?: string;
+  note?: string;
   building_number: number;
   tax_region?: string;
   residence_shared_area?: number;
@@ -746,12 +746,12 @@ function sanitizeBuildingInput(input: any): any {
   if ('need_business_distribution' in input) {
     sanitized.need_business_distribution = input.need_business_distribution === true || input.need_business_distribution === 'true';
   }
-  // Handle building_notes: free text field
-  if ('building_notes' in input) {
-    if (input.building_notes === null || input.building_notes === '' || input.building_notes === undefined) {
-      sanitized.building_notes = null;
+  // Handle note: free text field
+  if ('note' in input) {
+    if (input.note === null || input.note === '' || input.note === undefined) {
+      sanitized.note = null;
     } else {
-      sanitized.building_notes = sanitizeText(input.building_notes);
+      sanitized.note = sanitizeText(input.note);
     }
   }
   

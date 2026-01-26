@@ -1089,8 +1089,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         valueToUpdate = isNaN(code) || code <= 0 ? null : code;
       }
     }
-    // For building_notes, preserve string value (including empty string as null)
-    if (field === 'building_notes') {
+    // For note, preserve string value (including empty string as null)
+    if (field === 'note') {
       valueToUpdate = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
@@ -1141,14 +1141,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       }
     }
-    // For building_notes, always store the value (including null for empty string)
-    if (field === 'building_notes') {
+    // For note, always store the value (including null for empty string)
+    if (field === 'note') {
       valueToStore = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
-    // For building_notes, always mark as dirty (even if empty, to allow clearing the field)
-    const hasMeaningfulValue = field === 'building_notes'
-      ? true // Always track building_notes changes, even if empty
+    // For note, always mark as dirty (even if empty, to allow clearing the field)
+    const hasMeaningfulValue = field === 'note'
+      ? true // Always track note changes, even if empty
       : (valueToStore !== null && valueToStore !== undefined && valueToStore !== '');
     
     // Calculate updated dirty changes for validation (before state update)
@@ -1252,7 +1252,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       gosh: null,
       helka: null,
       building_number_in_street: null,
-      building_notes: null,
+      note: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       _tempId: tempId,
@@ -1563,7 +1563,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         building.gosh != null ? building.gosh : '',
         building.helka != null ? building.helka : '',
         building.building_number_in_street != null ? building.building_number_in_street : '',
-        building.building_notes || ''
+        building.note || ''
       ]);
 
       // Create data array with headers and rows
@@ -2948,20 +2948,38 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellStyle: (params) => getCellStyle(params, 'building_number_in_street')
     },
     {
-      field: 'building_notes',
+      field: 'note',
       headerName: 'הערות',
       editable: !isReadOnly,
+      valueGetter: (params: any) => {
+        // Return the note from the data object
+        return params.data?.note ?? null;
+      },
+      valueSetter: (params: any) => {
+        // Ensure the value is set on the data object
+        if (params.data) {
+          const newValue = params.newValue;
+          // Convert empty string to null, otherwise keep as string
+          params.data.note = (newValue === '' || newValue === null || newValue === undefined) ? null : String(newValue);
+          console.log('[note valueSetter] Setting note:', {
+            newValue,
+            finalValue: params.data.note
+          });
+        }
+        return true;
+      },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
+        // Use params.value (from valueGetter) as primary source, fallback to building.note
+        const value = params.value != null ? params.value : (building.note ?? null);
         const isNew = isNewBuilding(building);
-        if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
+        if (isNew && (value === null || value === undefined || value === '')) {
           return '';
         }
-        const value = params.value != null ? String(params.value) : '';
-        return value;
+        return value != null ? String(value) : '';
       },
-      cellStyle: (params) => getCellStyle(params, 'building_notes')
+      cellStyle: (params) => getCellStyle(params, 'note')
     },
     {
       field: 'extra_field_1',

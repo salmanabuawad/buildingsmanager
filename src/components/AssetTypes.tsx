@@ -375,9 +375,9 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === 'כן'}
+              checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
+                params.setValue(e.target.checked ? true : false);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -455,9 +455,9 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === 'כן'}
+              checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
+                params.setValue(e.target.checked ? true : false);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -479,9 +479,9 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === 'כן'}
+              checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
+                params.setValue(e.target.checked ? true : false);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -503,9 +503,9 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === 'כן'}
+              checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
+                params.setValue(e.target.checked ? true : false);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -527,9 +527,9 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === 'כן'}
+              checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
+                params.setValue(e.target.checked ? true : false);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -551,9 +551,9 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === 'כן'}
+              checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? 'כן' : null);
+                params.setValue(e.target.checked ? true : false);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -1462,8 +1462,8 @@ export function AssetTypes() {
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
-                    checked={formData.elevator === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, elevator: e.target.checked ? 'כן' : '' })}
+                    checked={formData.elevator === true || formData.elevator === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, elevator: e.target.checked ? true : false })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   מעלית
@@ -1473,8 +1473,8 @@ export function AssetTypes() {
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
-                    checked={formData.single_double_family === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked ? 'כן' : '' })}
+                    checked={formData.single_double_family === true || formData.single_double_family === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, single_double_family: e.target.checked ? true : false })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   בית פרטי חד משפחתי דו משפחתי
@@ -1484,8 +1484,8 @@ export function AssetTypes() {
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
-                    checked={formData.penthouse === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked ? 'כן' : '' })}
+                    checked={formData.penthouse === true || formData.penthouse === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, penthouse: e.target.checked ? true : false })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   דירת גג
@@ -1495,8 +1495,8 @@ export function AssetTypes() {
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
-                    checked={formData.condo === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, condo: e.target.checked ? 'כן' : '' })}
+                    checked={formData.condo === true || formData.condo === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, condo: e.target.checked ? true : false })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   בית משותף
@@ -1506,8 +1506,8 @@ export function AssetTypes() {
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1">
                   <input
                     type="checkbox"
-                    checked={formData.townhouses === 'כן'}
-                    onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked ? 'כן' : '' })}
+                    checked={formData.townhouses === true || formData.townhouses === 'כן'}
+                    onChange={(e) => setFormData({ ...formData, townhouses: e.target.checked ? true : false })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   />
                   מבנים צמודי קרקע טוריים מעל 2 יחידות

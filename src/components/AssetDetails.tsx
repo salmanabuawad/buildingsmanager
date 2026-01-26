@@ -2538,7 +2538,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         return isFieldEditable(params, fieldName);
       },
       cellRenderer: (params: any) => {
-        const isChecked = params.value === 'כן';
+        const isChecked = params.value === true || params.value === 'כן';
         const isEditable = params.data.is_latest === true && editMode === 'inline';
         return (
           <div className="flex items-center justify-center h-full">
@@ -2548,7 +2548,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 checked={isChecked}
                 onChange={(e) => {
                   e.stopPropagation(); // Prevent event bubbling
-                  const newValue = e.target.checked ? 'כן' : null;
+                  const newValue = e.target.checked ? true : false;
                   
                   // Only allow editing for latest records
                   if (params.data.is_latest !== true) {

@@ -597,11 +597,13 @@ export function sanitizeAssetInput(input: any): any {
     sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
     sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
     sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
-    elevator: input.elevator != null ? sanitizeText(input.elevator) : undefined,
-    single_double_family: input.single_double_family != null ? sanitizeText(input.single_double_family) : undefined,
-    condo: input.condo != null ? sanitizeText(input.condo) : undefined,
-    townhouses: input.townhouses != null ? sanitizeText(input.townhouses) : undefined,
-    penthouse: input.penthouse != null ? sanitizeText(input.penthouse) : undefined,
+    // Checkbox fields: convert to boolean (true/false)
+    // Support both old format ('כן'/'לא') and new format (true/false)
+    elevator: input.elevator != null ? (input.elevator === true || input.elevator === 'כן' || input.elevator === 'true' || input.elevator === 'TRUE' || input.elevator === '1') : false,
+    single_double_family: input.single_double_family != null ? (input.single_double_family === true || input.single_double_family === 'כן' || input.single_double_family === 'true' || input.single_double_family === 'TRUE' || input.single_double_family === '1') : false,
+    condo: input.condo != null ? (input.condo === true || input.condo === 'כן' || input.condo === 'true' || input.condo === 'TRUE' || input.condo === '1') : false,
+    townhouses: input.townhouses != null ? (input.townhouses === true || input.townhouses === 'כן' || input.townhouses === 'true' || input.townhouses === 'TRUE' || input.townhouses === '1') : false,
+    penthouse: input.penthouse != null ? (input.penthouse === true || input.penthouse === 'כן' || input.penthouse === 'true' || input.penthouse === 'TRUE' || input.penthouse === '1') : false,
     structure_drawing_url: input.structure_drawing_url != null ? sanitizeText(input.structure_drawing_url) : undefined,
     floor: input.floor != null ? sanitizeInteger(input.floor) : undefined,
     discount_type: input.discount_type != null ? sanitizeText(input.discount_type) : undefined,
@@ -659,34 +661,34 @@ function sanitizeBuildingInput(input: any): any {
   if (input.total_building_area != null) {
     sanitized.total_building_area = sanitizeNumber(input.total_building_area);
   }
-  // Handle elevator: if explicitly set to null, include it; otherwise only if it has a value
+  // Handle checkbox fields: convert to boolean (true/false)
+  // Support both old format ('כן'/'לא') and new format (true/false)
   if ('elevator' in input) {
-    if (input.elevator === null || input.elevator === '') {
-      sanitized.elevator = null;
+    if (input.elevator === true || input.elevator === 'כן' || input.elevator === 'true' || input.elevator === 'TRUE' || input.elevator === '1') {
+      sanitized.elevator = true;
     } else {
-      sanitized.elevator = sanitizeText(input.elevator);
+      sanitized.elevator = false;
     }
   }
-  // Handle checkbox fields: if explicitly set to null, include it; otherwise only if it has a value
   if ('single_double_family' in input) {
-    if (input.single_double_family === null || input.single_double_family === '') {
-      sanitized.single_double_family = null;
+    if (input.single_double_family === true || input.single_double_family === 'כן' || input.single_double_family === 'true' || input.single_double_family === 'TRUE' || input.single_double_family === '1') {
+      sanitized.single_double_family = true;
     } else {
-      sanitized.single_double_family = sanitizeText(input.single_double_family);
+      sanitized.single_double_family = false;
     }
   }
   if ('condo' in input) {
-    if (input.condo === null || input.condo === '') {
-      sanitized.condo = null;
+    if (input.condo === true || input.condo === 'כן' || input.condo === 'true' || input.condo === 'TRUE' || input.condo === '1') {
+      sanitized.condo = true;
     } else {
-      sanitized.condo = sanitizeText(input.condo);
+      sanitized.condo = false;
     }
   }
   if ('townhouses' in input) {
-    if (input.townhouses === null || input.townhouses === '') {
-      sanitized.townhouses = null;
+    if (input.townhouses === true || input.townhouses === 'כן' || input.townhouses === 'true' || input.townhouses === 'TRUE' || input.townhouses === '1') {
+      sanitized.townhouses = true;
     } else {
-      sanitized.townhouses = sanitizeText(input.townhouses);
+      sanitized.townhouses = false;
     }
   }
   // Handle building_address: street code from address_list table

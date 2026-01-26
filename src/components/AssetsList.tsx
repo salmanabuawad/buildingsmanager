@@ -3434,7 +3434,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     const currentValue = dirtyChanges && 'penthouse' in dirtyChanges 
       ? dirtyChanges.penthouse 
       : params.data?.penthouse;
-    const isChecked = currentValue === 'כן';
+    const isChecked = currentValue === true || currentValue === 'כן';
     
     // Always show checkbox for both new and existing assets
     return (
@@ -3443,7 +3443,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           type="checkbox"
           checked={isChecked}
           onChange={(e) => {
-            const newValue = e.target.checked ? 'כן' : null;
+            const newValue = e.target.checked ? true : false;
             
             if (isNewAsset) {
               // Track the change in dirtyAssets for new assets

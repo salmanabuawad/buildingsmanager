@@ -1343,10 +1343,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       business_shared_area: null,
       area_for_control: null,
       total_building_area: null,
-      elevator: null,
-      single_double_family: null,
-      condo: null,
-      townhouses: null,
+      elevator: false,
+      single_double_family: false,
+      condo: false,
+      townhouses: false,
       building_address: null,
       overload_ratio: null,
       gosh: null,
@@ -2449,7 +2449,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   };
 
   // Handle checkbox change
-  const handleCheckboxChange = (building: Building, field: string, newValue: string | null) => {
+  const handleCheckboxChange = (building: Building, field: string, newValue: boolean) => {
     const buildingKey = getBuildingKey(building);
     setBuildings(prevBuildings => {
       return prevBuildings.map(b => {
@@ -2818,10 +2818,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '100%' }}>
             <input
               type="checkbox"
-              checked={params.value === 'כן' || params.value === true}
+              checked={params.value === true || params.value === 'כן'}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
+                const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('elevator', newValue);
                 handleCheckboxChange(building, 'elevator', newValue);
               }}
@@ -2853,7 +2853,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return null;
         const buildingKey = getBuildingKey(building);
         const markedForDeletion = buildingsToDelete.has(buildingKey);
-        const isChecked = params.value === 'כן' || params.value === true;
+        const isChecked = params.value === true || params.value === 'כן';
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <input
@@ -2861,7 +2861,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               checked={isChecked}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
+                const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('single_double_family', newValue);
                 handleCheckboxChange(building, 'single_double_family', newValue);
               }}
@@ -2885,7 +2885,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (!building) return null;
         const buildingKey = getBuildingKey(building);
         const markedForDeletion = buildingsToDelete.has(buildingKey);
-        const isChecked = params.value === 'כן' || params.value === true;
+        const isChecked = params.value === true || params.value === 'כן';
         return (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <input
@@ -2893,7 +2893,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               checked={isChecked}
               disabled={markedForDeletion}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
+                const newValue = e.target.checked ? true : false;
                 params.node.setDataValue('condo', newValue);
                 handleCheckboxChange(building, 'condo', newValue);
               }}

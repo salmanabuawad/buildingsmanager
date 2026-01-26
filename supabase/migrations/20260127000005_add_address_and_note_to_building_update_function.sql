@@ -102,10 +102,42 @@ BEGIN
     SET
       total_building_area = COALESCE((v_final_updates->>'total_building_area')::NUMERIC, total_building_area),
       tax_region = COALESCE((v_final_updates->>'tax_region')::TEXT, tax_region),
-      elevator = COALESCE((v_final_updates->>'elevator')::TEXT, elevator),
-      single_double_family = COALESCE((v_final_updates->>'single_double_family')::TEXT, single_double_family),
-      condo = COALESCE((v_final_updates->>'condo')::TEXT, condo),
-      townhouses = COALESCE((v_final_updates->>'townhouses')::TEXT, townhouses),
+      elevator = CASE
+        WHEN v_final_updates ? 'elevator' THEN 
+          CASE 
+            WHEN (v_final_updates->>'elevator')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN (v_final_updates->>'elevator')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE (v_final_updates->>'elevator')::boolean
+          END
+        ELSE elevator
+      END,
+      single_double_family = CASE
+        WHEN v_final_updates ? 'single_double_family' THEN 
+          CASE 
+            WHEN (v_final_updates->>'single_double_family')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN (v_final_updates->>'single_double_family')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE (v_final_updates->>'single_double_family')::boolean
+          END
+        ELSE single_double_family
+      END,
+      condo = CASE
+        WHEN v_final_updates ? 'condo' THEN 
+          CASE 
+            WHEN (v_final_updates->>'condo')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN (v_final_updates->>'condo')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE (v_final_updates->>'condo')::boolean
+          END
+        ELSE condo
+      END,
+      townhouses = CASE
+        WHEN v_final_updates ? 'townhouses' THEN 
+          CASE 
+            WHEN (v_final_updates->>'townhouses')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN (v_final_updates->>'townhouses')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE (v_final_updates->>'townhouses')::boolean
+          END
+        ELSE townhouses
+      END,
       residence_shared_area = COALESCE((v_final_updates->>'residence_shared_area')::NUMERIC, residence_shared_area),
       business_shared_area = COALESCE((v_final_updates->>'business_shared_area')::NUMERIC, business_shared_area),
       area_for_control = COALESCE((v_final_updates->>'area_for_control')::NUMERIC, area_for_control),

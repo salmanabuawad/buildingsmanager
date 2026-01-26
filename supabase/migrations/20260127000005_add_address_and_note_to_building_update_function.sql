@@ -105,36 +105,40 @@ BEGIN
       elevator = CASE
         WHEN v_final_updates ? 'elevator' THEN 
           CASE 
-            WHEN (v_final_updates->>'elevator')::text IN ('true', 'TRUE', '1', 'כן') THEN true
-            WHEN (v_final_updates->>'elevator')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
-            ELSE (v_final_updates->>'elevator')::boolean
+            WHEN jsonb_typeof(v_final_updates->'elevator') = 'boolean' THEN (v_final_updates->'elevator')::boolean
+            WHEN jsonb_typeof(v_final_updates->'elevator') = 'string' AND (v_final_updates->>'elevator')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN jsonb_typeof(v_final_updates->'elevator') = 'string' AND (v_final_updates->>'elevator')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE false
           END
         ELSE elevator
       END,
       single_double_family = CASE
         WHEN v_final_updates ? 'single_double_family' THEN 
           CASE 
-            WHEN (v_final_updates->>'single_double_family')::text IN ('true', 'TRUE', '1', 'כן') THEN true
-            WHEN (v_final_updates->>'single_double_family')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
-            ELSE (v_final_updates->>'single_double_family')::boolean
+            WHEN jsonb_typeof(v_final_updates->'single_double_family') = 'boolean' THEN (v_final_updates->'single_double_family')::boolean
+            WHEN jsonb_typeof(v_final_updates->'single_double_family') = 'string' AND (v_final_updates->>'single_double_family')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN jsonb_typeof(v_final_updates->'single_double_family') = 'string' AND (v_final_updates->>'single_double_family')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE false
           END
         ELSE single_double_family
       END,
       condo = CASE
         WHEN v_final_updates ? 'condo' THEN 
           CASE 
-            WHEN (v_final_updates->>'condo')::text IN ('true', 'TRUE', '1', 'כן') THEN true
-            WHEN (v_final_updates->>'condo')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
-            ELSE (v_final_updates->>'condo')::boolean
+            WHEN jsonb_typeof(v_final_updates->'condo') = 'boolean' THEN (v_final_updates->'condo')::boolean
+            WHEN jsonb_typeof(v_final_updates->'condo') = 'string' AND (v_final_updates->>'condo')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN jsonb_typeof(v_final_updates->'condo') = 'string' AND (v_final_updates->>'condo')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE false
           END
         ELSE condo
       END,
       townhouses = CASE
         WHEN v_final_updates ? 'townhouses' THEN 
           CASE 
-            WHEN (v_final_updates->>'townhouses')::text IN ('true', 'TRUE', '1', 'כן') THEN true
-            WHEN (v_final_updates->>'townhouses')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
-            ELSE (v_final_updates->>'townhouses')::boolean
+            WHEN jsonb_typeof(v_final_updates->'townhouses') = 'boolean' THEN (v_final_updates->'townhouses')::boolean
+            WHEN jsonb_typeof(v_final_updates->'townhouses') = 'string' AND (v_final_updates->>'townhouses')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN jsonb_typeof(v_final_updates->'townhouses') = 'string' AND (v_final_updates->>'townhouses')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE false
           END
         ELSE townhouses
       END,

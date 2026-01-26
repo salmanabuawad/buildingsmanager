@@ -104,6 +104,14 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   }, [props.data]);
 
   const { addressList = [] } = props;
+  
+  // Debug: Log addressList when it changes
+  useEffect(() => {
+    console.log('[AddressCellEditor] addressList updated:', {
+      length: addressList.length,
+      firstFew: addressList.slice(0, 3).map(a => ({ code: a.street_code, desc: a.street_description }))
+    });
+  }, [addressList]);
 
   // Get the field name from column (address is the default now)
   const fieldName = props.column?.getColId() || 'address';
@@ -205,15 +213,23 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Filter addresses based on search
   const filteredAddresses = useMemo(() => {
+    console.log('[AddressCellEditor] filteredAddresses calculation:', {
+      addressListLength: addressList.length,
+      searchValue,
+      hasAddressList: addressList.length > 0
+    });
+    
     if (!searchValue.trim()) {
       return addressList;
     }
     const searchLower = searchValue.toLowerCase();
-    return addressList.filter(a => 
+    const filtered = addressList.filter(a => 
       String(a.street_code).includes(searchValue) ||
       a.street_description?.toLowerCase().includes(searchLower) ||
       `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
     );
+    console.log('[AddressCellEditor] Filtered addresses:', filtered.length);
+    return filtered;
   }, [searchValue, addressList]);
 
   // Handle input change - use useCallback to prevent duplicate handlers
@@ -403,7 +419,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           textAlign: 'right'
         }}
       />
-      {showDropdown && filteredAddresses.length > 0 && (
+      {showDropdown && (
         <div
           ref={dropdownRef}
           style={{
@@ -422,22 +438,28 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
             textAlign: 'right'
           }}
         >
-          {filteredAddresses.map((address, index) => (
-            <div
-              key={address.street_code}
-              onClick={() => selectAddress(address)}
-              onMouseEnter={() => setSelectedIndex(index)}
-              style={{
-                padding: '8px 12px',
-                cursor: 'pointer',
-                backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
-                borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
-              }}
-            >
-              <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
-              <div style={{ fontSize: '0.9em', color: '#666' }}>{address.street_description}</div>
+          {filteredAddresses.length > 0 ? (
+            filteredAddresses.map((address, index) => (
+              <div
+                key={address.street_code}
+                onClick={() => selectAddress(address)}
+                onMouseEnter={() => setSelectedIndex(index)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
+                  borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
+                }}
+              >
+                <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
+                <div style={{ fontSize: '0.9em', color: '#666' }}>{address.street_description}</div>
+              </div>
+            ))
+          ) : (
+            <div style={{ padding: '8px 12px', color: '#666', fontStyle: 'italic' }}>
+              {addressList.length === 0 ? 'אין כתובות זמינות' : 'לא נמצאו תוצאות'}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
@@ -722,9 +744,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const loadAddressList = async () => {
       try {
         const addresses = await api.addressList.getAll();
+        console.log('[BuildingsList] Loaded address list:', addresses.length, 'addresses');
         setAddressList(addresses);
       } catch (err) {
         console.error('Error loading address list:', err);
+        setAddressList([]); // Set empty array on error
       }
     };
     loadAddressList();
@@ -2812,8 +2836,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return displayValue;
       },
       cellEditor: AddressCellEditor,
-      cellEditorParams: {
-        addressList: addressList || [],
+      cellEditorParams: (params: any) => {
+        console.log('[address cellEditorParams]', {
+          addressListLength: addressList.length,
+          hasAddressList: addressList.length > 0,
+          addressListSample: addressList.slice(0, 3)
+        });
+        return {
+          addressList: addressList || [],
+        };
       },
       cellStyle: (params) => getCellStyle(params, 'address')
     },

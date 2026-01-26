@@ -2762,6 +2762,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Refresh grid
       if (gridRef.current?.api) {
         gridRef.current.api.refreshCells({ force: true });
+        gridRef.current.api.redrawRows();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף');
@@ -3109,6 +3110,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       // Refresh grid
       if (gridRef.current?.api) {
         gridRef.current.api.refreshCells({ force: true });
+        gridRef.current.api.redrawRows();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בפיזור שטח משותף עסקים');

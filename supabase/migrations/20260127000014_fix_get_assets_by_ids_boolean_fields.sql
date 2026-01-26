@@ -6,6 +6,9 @@
   matching the column types after the boolean fields migration.
 */
 
+-- Drop the existing function first because we're changing the return type
+DROP FUNCTION IF EXISTS get_assets_by_ids(integer[]);
+
 CREATE OR REPLACE FUNCTION get_assets_by_ids(p_asset_ids integer[])
 RETURNS TABLE (
   building_number bigint,

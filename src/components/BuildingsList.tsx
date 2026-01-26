@@ -294,55 +294,72 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       fieldName
     });
     
-    // CRITICAL: Update node.data directly BEFORE stopEditing to ensure the value is set
-    // Then use setDataValue to trigger ag-grid's change detection
+    // CRITICAL: Don't call setDataValue before stopEditing - it causes issues
+    // Instead, let ag-grid's natural flow handle it:
+    // 1. stopEditing() will call getValue() which returns selectedValueRef.current
+    // 2. ag-grid will call valueSetter with the value from getValue()
+    // 3. ag-grid will trigger onCellValueChanged
+    
+    // Just ensure the ref is set correctly
+    console.log('[AddressCellEditor] Before stopEditing:', {
+      fieldName,
+      streetCode,
+      refValue: selectedValueRef.current,
+      nodeDataAddress: props.node?.data?.[fieldName]
+    });
+    
+    // Stop editing - AG Grid will:
+    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
+    // 2. Call valueSetter to update node.data[fieldName]
+    // 3. Trigger onCellValueChanged
+    props.stopEditing();
+    
+    // After stopEditing, use setDataValue to ensure the value is persisted
+    // This is needed because sometimes ag-grid doesn't properly update the value
     const node = props.node;
     const column = props.column;
     const api = props.api;
     
-    if (node && node.data) {
-      // Update node.data directly first
-      node.data[fieldName] = streetCode;
-      console.log('[AddressCellEditor] Updated node.data directly:', {
-        fieldName,
-        streetCode,
-        nodeDataAddress: node.data[fieldName],
-        nodeData: node.data
-      });
-    }
-    
-    if (node && column) {
-      const colId = column.getColId();
-      const currentValue = node.data?.[fieldName];
-      console.log('[AddressCellEditor] Before stopEditing, calling setDataValue:', {
-        colId,
-        fieldName,
-        streetCode,
-        currentValue,
-        nodeDataAddress: node.data?.[fieldName],
-        willUpdate: currentValue !== streetCode
-      });
-      
-      // Call setDataValue BEFORE stopEditing - this ensures ag-grid processes the change
-      // setDataValue will:
-      // 1. Call valueSetter to update node.data[fieldName] (but we already set it above)
-      // 2. Trigger onCellValueChanged
-      // 3. Then stopEditing will finalize the edit
-      node.setDataValue(colId, streetCode);
-      
-      // Verify the value was set
-      console.log('[AddressCellEditor] After setDataValue, verifying:', {
-        nodeDataAddress: node.data?.[fieldName],
-        streetCode,
-        match: node.data?.[fieldName] === streetCode
-      });
-    }
-    
-    // Stop editing - AG Grid will:
-    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. valueSetter was already called by setDataValue above
-    // 3. onCellValueChanged should be triggered by setDataValue
-    props.stopEditing();
+    setTimeout(() => {
+      if (node && column) {
+        const colId = column.getColId();
+        const currentValue = node.data?.[fieldName];
+        console.log('[AddressCellEditor] After stopEditing, checking value:', {
+          colId,
+          fieldName,
+          streetCode,
+          currentValue,
+          refValue: selectedValueRef.current,
+          needsUpdate: currentValue !== streetCode
+        });
+        
+        // If value doesn't match, force update
+        if (currentValue !== streetCode && streetCode != null) {
+          console.warn('[AddressCellEditor] Value mismatch after stopEditing, forcing update');
+          node.setDataValue(colId, streetCode);
+          
+          // Refresh to ensure display is updated
+          if (api) {
+            api.refreshCells({ 
+              rowNodes: [node], 
+              columns: [colId], 
+              force: true 
+            });
+            api.redrawRows({ rowNodes: [node] });
+          }
+        } else if (currentValue === streetCode) {
+          // Value is correct, just refresh display
+          if (api) {
+            api.refreshCells({ 
+              rowNodes: [node], 
+              columns: [colId], 
+              force: true 
+            });
+            api.redrawRows({ rowNodes: [node] });
+          }
+        }
+      }
+    }, 50);
     
     // Refresh to ensure display is updated after stopEditing completes
     setTimeout(() => {

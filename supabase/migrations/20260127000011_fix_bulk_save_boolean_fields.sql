@@ -297,41 +297,55 @@ BEGIN
           WHEN v_asset_data->'measurement_date' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'measurement_date'), '')::TEXT END,
         main_asset_type = COALESCE(v_new_main_asset_type, main_asset_type),
-        asset_size = CASE WHEN v_asset_data->'asset_size' IS NULL THEN asset_size
+        asset_size = CASE WHEN NOT (v_asset_data ? 'asset_size') THEN asset_size
+          WHEN v_asset_data->'asset_size' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'asset_size')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0) END,
         tax_region = CASE WHEN v_asset_data->'tax_region' IS NULL THEN tax_region
           ELSE (v_asset_data->>'tax_region')::BIGINT END,
         sub_asset_type_1 = CASE WHEN v_asset_data->'sub_asset_type_1' IS NULL THEN sub_asset_type_1
           WHEN v_asset_data->'sub_asset_type_1' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'sub_asset_type_1'), '')::TEXT END,
-        sub_asset_size_1 = CASE WHEN v_asset_data->'sub_asset_size_1' IS NULL THEN sub_asset_size_1
+        sub_asset_size_1 = CASE WHEN NOT (v_asset_data ? 'sub_asset_size_1') THEN sub_asset_size_1
+          WHEN v_asset_data->'sub_asset_size_1' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'sub_asset_size_1')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'sub_asset_size_1')::NUMERIC, 0) END,
         sub_asset_type_2 = CASE WHEN v_asset_data->'sub_asset_type_2' IS NULL THEN sub_asset_type_2
           WHEN v_asset_data->'sub_asset_type_2' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'sub_asset_type_2'), '')::TEXT END,
-        sub_asset_size_2 = CASE WHEN v_asset_data->'sub_asset_size_2' IS NULL THEN sub_asset_size_2
+        sub_asset_size_2 = CASE WHEN NOT (v_asset_data ? 'sub_asset_size_2') THEN sub_asset_size_2
+          WHEN v_asset_data->'sub_asset_size_2' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'sub_asset_size_2')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'sub_asset_size_2')::NUMERIC, 0) END,
         sub_asset_type_3 = CASE WHEN v_asset_data->'sub_asset_type_3' IS NULL THEN sub_asset_type_3
           WHEN v_asset_data->'sub_asset_type_3' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'sub_asset_type_3'), '')::TEXT END,
-        sub_asset_size_3 = CASE WHEN v_asset_data->'sub_asset_size_3' IS NULL THEN sub_asset_size_3
+        sub_asset_size_3 = CASE WHEN NOT (v_asset_data ? 'sub_asset_size_3') THEN sub_asset_size_3
+          WHEN v_asset_data->'sub_asset_size_3' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'sub_asset_size_3')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'sub_asset_size_3')::NUMERIC, 0) END,
         sub_asset_type_4 = CASE WHEN v_asset_data->'sub_asset_type_4' IS NULL THEN sub_asset_type_4
           WHEN v_asset_data->'sub_asset_type_4' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'sub_asset_type_4'), '')::TEXT END,
-        sub_asset_size_4 = CASE WHEN v_asset_data->'sub_asset_size_4' IS NULL THEN sub_asset_size_4
+        sub_asset_size_4 = CASE WHEN NOT (v_asset_data ? 'sub_asset_size_4') THEN sub_asset_size_4
+          WHEN v_asset_data->'sub_asset_size_4' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'sub_asset_size_4')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'sub_asset_size_4')::NUMERIC, 0) END,
         sub_asset_type_5 = CASE WHEN v_asset_data->'sub_asset_type_5' IS NULL THEN sub_asset_type_5
           WHEN v_asset_data->'sub_asset_type_5' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'sub_asset_type_5'), '')::TEXT END,
-        sub_asset_size_5 = CASE WHEN v_asset_data->'sub_asset_size_5' IS NULL THEN sub_asset_size_5
+        sub_asset_size_5 = CASE WHEN NOT (v_asset_data ? 'sub_asset_size_5') THEN sub_asset_size_5
+          WHEN v_asset_data->'sub_asset_size_5' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'sub_asset_size_5')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0) END,
         sub_asset_type_6 = CASE WHEN v_asset_data->'sub_asset_type_6' IS NULL THEN sub_asset_type_6
           WHEN v_asset_data->'sub_asset_type_6' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'sub_asset_type_6'), '')::TEXT END,
-        sub_asset_size_6 = CASE WHEN v_asset_data->'sub_asset_size_6' IS NULL THEN sub_asset_size_6
+        sub_asset_size_6 = CASE WHEN NOT (v_asset_data ? 'sub_asset_size_6') THEN sub_asset_size_6
+          WHEN v_asset_data->'sub_asset_size_6' = 'null'::jsonb THEN 0
+          WHEN (v_asset_data->>'sub_asset_size_6')::text = '' THEN 0
           ELSE COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0) END,
-        elevator = CASE WHEN v_asset_data->'elevator' IS NULL THEN elevator
+        elevator = CASE WHEN NOT (v_asset_data ? 'elevator') THEN elevator
           WHEN v_asset_data->'elevator' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'elevator') = 'string' THEN
             CASE 
@@ -342,7 +356,7 @@ BEGIN
             CASE WHEN (v_asset_data->'elevator')::text = 'true' THEN true ELSE false END
           ELSE elevator
         END,
-        single_double_family = CASE WHEN v_asset_data->'single_double_family' IS NULL THEN single_double_family
+        single_double_family = CASE WHEN NOT (v_asset_data ? 'single_double_family') THEN single_double_family
           WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'string' THEN
             CASE 
@@ -353,7 +367,7 @@ BEGIN
             CASE WHEN (v_asset_data->'single_double_family')::text = 'true' THEN true ELSE false END
           ELSE single_double_family
         END,
-        condo = CASE WHEN v_asset_data->'condo' IS NULL THEN condo
+        condo = CASE WHEN NOT (v_asset_data ? 'condo') THEN condo
           WHEN v_asset_data->'condo' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'condo') = 'string' THEN
             CASE 
@@ -364,7 +378,7 @@ BEGIN
             CASE WHEN (v_asset_data->'condo')::text = 'true' THEN true ELSE false END
           ELSE condo
         END,
-        townhouses = CASE WHEN v_asset_data->'townhouses' IS NULL THEN townhouses
+        townhouses = CASE WHEN NOT (v_asset_data ? 'townhouses') THEN townhouses
           WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'townhouses') = 'string' THEN
             CASE 
@@ -375,7 +389,7 @@ BEGIN
             CASE WHEN (v_asset_data->'townhouses')::text = 'true' THEN true ELSE false END
           ELSE townhouses
         END,
-        penthouse = CASE WHEN v_asset_data->'penthouse' IS NULL THEN penthouse
+        penthouse = CASE WHEN NOT (v_asset_data ? 'penthouse') THEN penthouse
           WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'penthouse') = 'string' THEN
             CASE 

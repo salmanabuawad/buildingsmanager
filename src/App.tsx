@@ -40,7 +40,7 @@ interface Tab {
 
 function App() {
   const { preferences, setEditMode } = usePreferences();
-  const { isLoading: roleLoading } = useUserRole();
+  const { isLoading: roleLoading, isReadOnly, isAdmin } = useUserRole();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   
@@ -1383,20 +1383,24 @@ function App() {
                   <span className="font-medium text-slate-700 text-xs">רשימת מבנים</span>
                   <Building className="h-3.5 w-3.5 text-purple-600" />
                 </button>
-                <button
-                  onClick={() => setShowCreateBuildingModal(true)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
-                >
-                  <span className="font-medium text-slate-700">צור מבנה חדש</span>
-                  <Plus className="h-3.5 w-3.5 text-purple-600" />
-                </button>
-                <button
-                  onClick={openFileImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
-                >
-                  <span className="font-medium text-slate-700">ייבוא File</span>
-                  <Upload className="h-3.5 w-3.5 text-purple-600" />
-                </button>
+                {!isReadOnly && (
+                  <>
+                    <button
+                      onClick={() => setShowCreateBuildingModal(true)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                    >
+                      <span className="font-medium text-slate-700">צור מבנה חדש</span>
+                      <Plus className="h-3.5 w-3.5 text-purple-600" />
+                    </button>
+                    <button
+                      onClick={openFileImport}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50/50 hover:bg-purple-100 active:bg-purple-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                    >
+                      <span className="font-medium text-slate-700">ייבוא File</span>
+                      <Upload className="h-3.5 w-3.5 text-purple-600" />
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1431,47 +1435,51 @@ function App() {
                   <span className="font-medium text-slate-700">נכסים שנמדדו ולא נשלחו</span>
                   <AlertCircle className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
-                <button
-                  onClick={openAssetsFileImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
-                >
-                  <span className="font-medium text-slate-700">ייבוא מלא</span>
-                  <Upload className="h-3.5 w-3.5 text-indigo-600" />
-                </button>
-                <button
-                  onClick={openAssetsSkeletonImport}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
-                >
-                  <span className="font-medium text-slate-700">ייבוא שלד</span>
-                  <Upload className="h-3.5 w-3.5 text-indigo-600" />
-                </button>
-                <div className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50/50 rounded-lg border border-indigo-200">
-                  <span className="font-medium text-slate-700 text-xs">מצב עריכה</span>
-                  <div className="flex items-center bg-white rounded-lg p-0.5 gap-0.5 border border-indigo-300">
+                {!isReadOnly && (
+                  <>
                     <button
-                      onClick={() => setEditMode('inline')}
-                      className={`p-1 rounded transition-colors ${
-                        preferences.editMode === 'inline'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-indigo-600 hover:bg-indigo-50'
-                      }`}
-                      title="עריכה ישירה בתא"
+                      onClick={openAssetsFileImport}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                     >
-                      <Edit className="h-3.5 w-3.5" />
+                      <span className="font-medium text-slate-700">ייבוא מלא</span>
+                      <Upload className="h-3.5 w-3.5 text-indigo-600" />
                     </button>
                     <button
-                      onClick={() => setEditMode('modal')}
-                      className={`p-1 rounded transition-colors ${
-                        preferences.editMode === 'modal'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-indigo-600 hover:bg-indigo-50'
-                      }`}
-                      title="עריכה בחלון נפרד"
+                      onClick={openAssetsSkeletonImport}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
                     >
-                      <Square className="h-3.5 w-3.5" />
+                      <span className="font-medium text-slate-700">ייבוא שלד</span>
+                      <Upload className="h-3.5 w-3.5 text-indigo-600" />
                     </button>
-                  </div>
-                </div>
+                    <div className="w-full flex items-center justify-between px-3 py-2 bg-indigo-50/50 rounded-lg border border-indigo-200">
+                      <span className="font-medium text-slate-700 text-xs">מצב עריכה</span>
+                      <div className="flex items-center bg-white rounded-lg p-0.5 gap-0.5 border border-indigo-300">
+                        <button
+                          onClick={() => setEditMode('inline')}
+                          className={`p-1 rounded transition-colors ${
+                            preferences.editMode === 'inline'
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-indigo-600 hover:bg-indigo-50'
+                          }`}
+                          title="עריכה ישירה בתא"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditMode('modal')}
+                          className={`p-1 rounded transition-colors ${
+                            preferences.editMode === 'modal'
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-indigo-600 hover:bg-indigo-50'
+                          }`}
+                          title="עריכה בחלון נפרד"
+                        >
+                          <Square className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1499,27 +1507,33 @@ function App() {
                   <span className="font-medium text-slate-700">סוגי נכסים</span>
                   <Tag className="h-3.5 w-3.5 text-pink-600" />
                 </button>
-                <button
-                  onClick={openValidationRules}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">כללי תקינות</span>
-                  <Settings className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                <button
-                  onClick={openFieldConfig}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">הגדרות שדות</span>
-                  <Settings className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                <button
-                  onClick={openAddressList}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">רשימת כתובות</span>
-                  <MapPin className="h-3.5 w-3.5 text-pink-600" />
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={openValidationRules}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  >
+                    <span className="font-medium text-slate-700">כללי תקינות</span>
+                    <Settings className="h-3.5 w-3.5 text-pink-600" />
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={openFieldConfig}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  >
+                    <span className="font-medium text-slate-700">הגדרות שדות</span>
+                    <Settings className="h-3.5 w-3.5 text-pink-600" />
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={openAddressList}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  >
+                    <span className="font-medium text-slate-700">רשימת כתובות</span>
+                    <MapPin className="h-3.5 w-3.5 text-pink-600" />
+                  </button>
+                )}
                 <button
                   onClick={openAuditLog}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
@@ -1527,27 +1541,31 @@ function App() {
                   <span className="font-medium text-slate-700">יומן ביקורת</span>
                   <FileText className="h-3.5 w-3.5 text-pink-600" />
                 </button>
-                <button
-                  onClick={openUserManagement}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">ניהול משתמשים</span>
-                  <Users className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                <button
-                  onClick={openResetExportModal}
-                  disabled={resetExportLoading}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="font-medium text-slate-700">
-                    איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
-                  </span>
-                  {resetExportLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
-                  )}
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={openUserManagement}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
+                  >
+                    <span className="font-medium text-slate-700">ניהול משתמשים</span>
+                    <Users className="h-3.5 w-3.5 text-pink-600" />
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={openResetExportModal}
+                    disabled={resetExportLoading}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="font-medium text-slate-700">
+                      איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
+                    </span>
+                    {resetExportLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
+                    )}
+                  </button>
+                )}
               </div>
             )}
           </div>

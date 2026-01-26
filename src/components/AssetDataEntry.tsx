@@ -12,6 +12,7 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel } from '../lib/excelExport';
+import { useUserRole } from '../contexts/UserRoleContext';
 interface AssetRow {
   id: string;
   building_number: number | null;
@@ -51,8 +52,9 @@ export interface AssetDataEntryRef {
 
 export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => {
   const { t } = useTranslation();
+  const { isReadOnly } = useUserRole();
   const gridRef = useRef<AgGridReact>(null);
-  
+
   // Grid preferences hook for saving/loading column state
   const gridPreferences = useGridPreferences(
     gridRef,
@@ -84,16 +86,19 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
   // Helper function to check if a field should be editable
   // For non-accountable assets, all fields are readonly (main_asset_type is readonly in all tabs except TransferAreas)
   const isFieldEditable = useCallback((params: any, fieldName: string): boolean => {
+    // If user is read-only, no fields are editable
+    if (isReadOnly) return false;
+
     if (!params || !params.data) return false;
     const row = params.data as AssetRow;
-    
+
     // For non-accountable assets, all fields are readonly (including main_asset_type)
     if (isAssetRowNotAccountable(row)) {
       return false;
     }
-    
+
     return true; // All fields are editable by default in AssetDataEntry
-  }, [isAssetRowNotAccountable]);
+  }, [isReadOnly, isAssetRowNotAccountable]);
   const [rowData, setRowData] = useState<AssetRow[]>([]);
   const [deletedRows, setDeletedRows] = useState<Set<string>>(new Set()); // Track rows marked for deletion
   const [loading, setLoading] = useState(false);
@@ -839,35 +844,39 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
             {hasError && (
               <ValidationTooltipIcon message={errorMessages} />
             )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddNewMeasurement(params.data.id);
-              }}
-              disabled={loading}
-              className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
-                loading
-                  ? 'bg-gray-300 text-gray-500 '
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-              title="הוסף מדידה חדשה"
-            >
-              מדידה חדשה
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDeleteRow(params.data.id);
-              }}
-              className="p-1 hover:bg-red-100 rounded transition-colors"
-              title="מחק שורה"
-            >
-              <Trash2 className="h-4 w-4 text-red-600" />
-            </button>
+            {!isReadOnly && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAddNewMeasurement(params.data.id);
+                  }}
+                  disabled={loading}
+                  className={`px-2 py-1 text-xs rounded transition-colors font-medium whitespace-nowrap ${
+                    loading
+                      ? 'bg-gray-300 text-gray-500 '
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                  title="הוסף מדידה חדשה"
+                >
+                  מדידה חדשה
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDeleteRow(params.data.id);
+                  }}
+                  className="p-1 hover:bg-red-100 rounded transition-colors"
+                  title="מחק שורה"
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </button>
+              </>
+            )}
           </div>
         );
       }
@@ -1309,7 +1318,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       }
       return colDef;
     });
-  }, [t, buildings, assetTypes, getCellStyle]);
+  }, [t, buildings, assetTypes, getCellStyle, isReadOnly, loading, handleAddNewMeasurement, handleDeleteRow, isFieldEditable]);
   // Store original row data for cancel functionality - update when rowData is initially loaded or after save
   const [originalRowData, setOriginalRowData] = useState<AssetRow[]>([]);
   
@@ -1408,19 +1417,22 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
           </div>
           <div className="flex items-center justify-between gap-1.5 mb-1.5">
             <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={addEmptyRow}
-                className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t('addRow')}
-              </button>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={addEmptyRow}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t('addRow')}
+                </button>
+              )}
             </div>
             <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
                   if (originalRowData.length === 0) {
                     // If no original data, just clear new rows and dirty flags
                     setRowData(prev => prev
@@ -1459,6 +1471,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                 <X className="h-3.5 w-3.5" />
                 {t('cancel')}
               </button>
+              )}
               <button
                 type="button"
                 onClick={async () => {
@@ -1498,18 +1511,20 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
                 <Download className="h-3.5 w-3.5" />
                 ייצא
               </button>
-              <button
-                onClick={handleSaveAll}
-                disabled={loading}
-                className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
-              >
-                {loading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                {loading ? t('saving') : t('saveAll')}
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={handleSaveAll}
+                  disabled={loading}
+                  className="flex items-center gap-1 px-3 py-1 text-xs bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none font-semibold"
+                >
+                  {loading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  {loading ? t('saving') : t('saveAll')}
+                </button>
+              )}
             </div>
           </div>
         </div>

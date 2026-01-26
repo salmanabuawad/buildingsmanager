@@ -124,6 +124,7 @@ BEGIN
       residence_shared_area = COALESCE((v_final_updates->>'residence_shared_area')::NUMERIC, residence_shared_area),
       business_shared_area = COALESCE((v_final_updates->>'business_shared_area')::NUMERIC, business_shared_area),
       area_for_control = COALESCE((v_final_updates->>'area_for_control')::NUMERIC, area_for_control),
+      building_address = COALESCE((v_final_updates->>'building_address')::INTEGER, building_address),
       gosh = COALESCE((v_final_updates->>'gosh')::BIGINT, gosh),
       helka = COALESCE((v_final_updates->>'helka')::BIGINT, helka),
       building_number_in_street = COALESCE((v_final_updates->>'building_number_in_street')::BIGINT, building_number_in_street),
@@ -166,4 +167,3 @@ END;
 $$;
 
 COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true whenever shared area changes, even if new value is 0. All updates happen in a single transaction. Use this function for all building updates, even single ones.';
-

@@ -1864,8 +1864,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               continue;
             }
             
-            // Add file to ZIP with organized folder structure: files/{assetId}/{filename}
-            const zipFilePath = `files/${assetId}/${fileName || urlFileName}`;
+            // Add file to ZIP at root level
+            // Use a unique filename to avoid conflicts: {assetId}_{filename}
+            const zipFilePath = `${assetId}_${fileName || urlFileName}`;
             zipFiles.push({
               filename: zipFilePath,
               data: fileData

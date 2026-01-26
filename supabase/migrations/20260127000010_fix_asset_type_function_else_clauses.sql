@@ -168,7 +168,7 @@ BEGIN
       active = CASE
         WHEN p_updates ? 'active' THEN 
           CASE 
-            WHEN jsonb_typeof(p_updates->'active') = 'boolean' THEN (p_updates->'active')::boolean
+            WHEN jsonb_typeof(p_updates->'active') = 'boolean' THEN (p_updates->>'active')::boolean
             WHEN jsonb_typeof(p_updates->'active') = 'string' AND (p_updates->>'active')::text IN ('true', 'TRUE', '1', 'כן') THEN true
             WHEN jsonb_typeof(p_updates->'active') = 'string' AND (p_updates->>'active')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
             ELSE false
@@ -351,7 +351,7 @@ BEGIN
       active = CASE
         WHEN p_updates ? 'active' THEN 
           CASE 
-            WHEN jsonb_typeof(p_updates->'active') = 'boolean' THEN (p_updates->'active')::boolean
+            WHEN jsonb_typeof(p_updates->'active') = 'boolean' THEN (p_updates->>'active')::boolean
             WHEN jsonb_typeof(p_updates->'active') = 'string' AND (p_updates->>'active')::text IN ('true', 'TRUE', '1', 'כן') THEN true
             WHEN jsonb_typeof(p_updates->'active') = 'string' AND (p_updates->>'active')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
             ELSE false

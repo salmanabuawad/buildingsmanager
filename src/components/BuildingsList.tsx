@@ -1174,29 +1174,57 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
     
     // For note, always mark as dirty (even if empty, to allow clearing the field)
+    // For address, check valueToUpdate (the number) instead of valueToStore
     const hasMeaningfulValue = field === 'note'
       ? true // Always track note changes, even if empty
+      : field === 'address'
+      ? (valueToUpdate !== null && valueToUpdate !== undefined)
       : (valueToStore !== null && valueToStore !== undefined && valueToStore !== '');
     
     // Calculate updated dirty changes for validation (before state update)
     const existingDirtyChanges = dirtyBuildings.get(newBuildingKey) || {};
     const valueForValidation = field === 'address' ? valueToUpdate : newValue;
+    // For address, use valueToUpdate (the number) directly, not valueToStore which might be null
+    // For note, use valueToStore (the string or null)
     const valueForDirty = field === 'address' ? valueToUpdate : valueToStore;
     
+    // For address, always mark as dirty if valueToUpdate is not null (even if it's 0, though that shouldn't happen)
+    // For note, hasMeaningfulValue already handles it
+    const shouldMarkAsDirty = field === 'address' 
+      ? (valueToUpdate !== null && valueToUpdate !== undefined)
+      : hasMeaningfulValue;
+    
     let updatedDirtyChanges: Partial<Building>;
-    if (hasMeaningfulValue) {
+    if (shouldMarkAsDirty) {
       updatedDirtyChanges = { ...existingDirtyChanges, [field]: valueForDirty };
+      console.log('[onCellValueChanged] Setting dirty change:', {
+        field,
+        buildingKey: newBuildingKey,
+        valueForDirty,
+        valueToUpdate,
+        valueToStore,
+        updatedDirtyChanges
+      });
     } else {
       updatedDirtyChanges = { ...existingDirtyChanges };
       delete updatedDirtyChanges[field as keyof Building];
+      console.log('[onCellValueChanged] Removing dirty change:', {
+        field,
+        buildingKey: newBuildingKey,
+        reason: 'hasMeaningfulValue is false'
+      });
     }
     
     if (field !== 'building_number' || !isNew) {
-      if (!isNew || hasMeaningfulValue) {
+      if (!isNew || shouldMarkAsDirty) {
         setDirtyBuildings(prev => {
           const next = new Map(prev);
-          if (hasMeaningfulValue) {
+          if (shouldMarkAsDirty) {
             next.set(newBuildingKey, updatedDirtyChanges);
+            console.log('[onCellValueChanged] Updated dirtyBuildings:', {
+              buildingKey: newBuildingKey,
+              changes: updatedDirtyChanges
+            });
           } else {
             if (Object.keys(updatedDirtyChanges).length > 0) {
               next.set(newBuildingKey, updatedDirtyChanges);
@@ -2114,6 +2142,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const changes = dirtyBuildings.get(buildingKey) || {};
           const isNew = isNewBuilding(building);
 
+          console.log('[handleSaveAll] Processing building:', {
+            buildingKey,
+            isNew,
+            buildingNumber: building.building_number,
+            changes,
+            hasAddress: 'address' in changes,
+            hasNote: 'note' in changes,
+            addressValue: changes.address,
+            noteValue: changes.note
+          });
+
           if (isNew) {
             const finalBuilding = { ...building, ...changes };
             if (!finalBuilding.building_number || finalBuilding.building_number <= 0) {
@@ -2126,6 +2165,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             }
 
             const { _tempId, _isNew, created_at, updated_at, ...buildingData } = finalBuilding as any;
+            console.log('[handleSaveAll] Creating building with data:', {
+              building_number: buildingData.building_number,
+              address: buildingData.address,
+              note: buildingData.note,
+              allFields: Object.keys(buildingData)
+            });
             buildingsToCreate.push(buildingData);
             successfullySaved.add(buildingKey);
             successfullySaved.add(finalBuilding.building_number);
@@ -2135,6 +2180,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               errors.push(`מבנה ${buildingKey}: לא ניתן לעדכן מבנה עם מזהה מבנה לא תקין`);
               continue;
             }
+            console.log('[handleSaveAll] Updating building with changes:', {
+              building_number: actualBuildingNumber,
+              address: changes.address,
+              note: changes.note,
+              allChanges: Object.keys(changes)
+            });
             buildingsToUpdate.push({ building_number: actualBuildingNumber, updates: changes });
             successfullySaved.add(buildingKey);
             successfullySaved.add(actualBuildingNumber);

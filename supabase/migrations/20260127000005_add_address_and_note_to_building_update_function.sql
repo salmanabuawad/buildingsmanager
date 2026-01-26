@@ -149,8 +149,26 @@ BEGIN
       helka = COALESCE((v_final_updates->>'helka')::BIGINT, helka),
       building_number_in_street = COALESCE((v_final_updates->>'building_number_in_street')::BIGINT, building_number_in_street),
       overload_ratio = COALESCE((v_final_updates->>'overload_ratio')::NUMERIC, overload_ratio),
-      need_residence_distribution = COALESCE((v_final_updates->>'need_residence_distribution')::BOOLEAN, need_residence_distribution),
-      need_business_distribution = COALESCE((v_final_updates->>'need_business_distribution')::BOOLEAN, need_business_distribution),
+      need_residence_distribution = CASE
+        WHEN v_final_updates ? 'need_residence_distribution' THEN 
+          CASE 
+            WHEN jsonb_typeof(v_final_updates->'need_residence_distribution') = 'boolean' THEN (v_final_updates->'need_residence_distribution')::boolean
+            WHEN jsonb_typeof(v_final_updates->'need_residence_distribution') = 'string' AND (v_final_updates->>'need_residence_distribution')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN jsonb_typeof(v_final_updates->'need_residence_distribution') = 'string' AND (v_final_updates->>'need_residence_distribution')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE need_residence_distribution
+          END
+        ELSE need_residence_distribution
+      END,
+      need_business_distribution = CASE
+        WHEN v_final_updates ? 'need_business_distribution' THEN 
+          CASE 
+            WHEN jsonb_typeof(v_final_updates->'need_business_distribution') = 'boolean' THEN (v_final_updates->'need_business_distribution')::boolean
+            WHEN jsonb_typeof(v_final_updates->'need_business_distribution') = 'string' AND (v_final_updates->>'need_business_distribution')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+            WHEN jsonb_typeof(v_final_updates->'need_business_distribution') = 'string' AND (v_final_updates->>'need_business_distribution')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
+            ELSE need_business_distribution
+          END
+        ELSE need_business_distribution
+      END,
       address = CASE 
         WHEN v_final_updates ? 'address' THEN (v_final_updates->>'address')::INTEGER
         ELSE address

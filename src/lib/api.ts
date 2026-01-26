@@ -660,8 +660,9 @@ export function sanitizeAssetInput(input: any): any {
     exported_to_automation: preConverted.exported_to_automation != null ? (preConverted.exported_to_automation === true || preConverted.exported_to_automation === 'true') : undefined,
     export_to_automation_at: preConverted.export_to_automation_at != null ? sanitizeDate(preConverted.export_to_automation_at) : undefined,
     comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,
+    is_new_measurement: preConverted.is_new_measurement === true ? true : (preConverted.is_new_measurement === false ? false : undefined),
   };
-  
+
   // Remove undefined values to avoid sending them to the database
   // But always keep measurement_date and boolean fields even if they're false
   // Boolean fields should always be included (true or false) to ensure they're updated

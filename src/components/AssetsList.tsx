@@ -2735,7 +2735,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
       // Reload building to get updated distribution flag
-      const updatedBuilding = await api.buildings.get(buildingNumber);
+      const updatedBuilding = await api.buildings.getOne(buildingNumber);
       if (updatedBuilding) {
         setBuilding(updatedBuilding);
       }
@@ -3079,7 +3079,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
 
       // Reload building to get updated distribution flag and overload_ratio
-      const updatedBuilding = await api.buildings.get(buildingNumber);
+      const updatedBuilding = await api.buildings.getOne(buildingNumber);
       if (updatedBuilding) {
         setBuilding(updatedBuilding);
       }

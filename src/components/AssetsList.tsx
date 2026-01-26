@@ -339,8 +339,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       }
       setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
       
-      // Fetch building address if building_address exists
-      if (buildingData?.building_address) {
+      // Fetch building address if address (street_code) exists
+      if (buildingData?.address) {
+        try {
+          const address = await api.addressList.getOne(buildingData.address);
+          setBuildingAddress(address.street_description);
+        } catch (err) {
+          console.error('Error fetching building address:', err);
+          setBuildingAddress(null);
+        }
+      } else if (buildingData?.building_address) {
+        // Fallback to old building_address field
         try {
           const address = await api.addressList.getOne(buildingData.building_address);
           setBuildingAddress(address.street_description);
@@ -4468,6 +4477,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
                   חלקה: {building?.helka || '-'}
                 </p>
+                {building?.address && (
+                  <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
+                    כתובת: {buildingAddress || '-'}
+                  </p>
+                )}
                 {isResidentTaxRegion && building?.residence_shared_area != null && building.residence_shared_area > 0 && (
                   <p className="text-sm text-white font-semibold bg-indigo-700 px-2 py-1 rounded">
                     שטח משותף מגורים: {building.residence_shared_area.toLocaleString('he-IL')}

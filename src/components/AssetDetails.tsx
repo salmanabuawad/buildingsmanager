@@ -2967,7 +2967,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   // Fetch building address when building changes
   useEffect(() => {
     async function fetchBuildingAddress() {
-      if (building?.building_address) {
+      if (building?.address) {
+        try {
+          const address = await api.addressList.getOne(building.address);
+          setBuildingAddress(address.street_description);
+        } catch (err) {
+          console.error('Error fetching building address:', err);
+          setBuildingAddress(null);
+        }
+      } else if (building?.building_address) {
+        // Fallback to old building_address field
         try {
           const address = await api.addressList.getOne(building.building_address);
           setBuildingAddress(address.street_description);
@@ -2980,7 +2989,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       }
     }
     fetchBuildingAddress();
-  }, [building?.building_address]);
+  }, [building?.address, building?.building_address]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -3460,6 +3469,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     חלקה: {building?.helka || '-'}
                   </p>
+                  {building?.address && (
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
+                      כתובת: {buildingAddress || '-'}
+                    </p>
+                  )}
                   <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     קומה: {asset?.floor != null ? asset.floor : '-'}
                   </p>

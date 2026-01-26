@@ -270,7 +270,18 @@ BEGIN
         (v_asset_data->>'structure_drawing_url')::TEXT, (v_asset_data->>'floor')::BIGINT,
         (v_asset_data->>'discount_type')::TEXT, (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'area_from_distribution')::NUMERIC,
-        COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false), (v_asset_data->>'comment')::TEXT);
+        CASE
+          WHEN v_asset_data->'exported_to_automation' IS NULL THEN false
+          WHEN jsonb_typeof(v_asset_data->'exported_to_automation') = 'string' THEN
+            CASE 
+              WHEN LOWER((v_asset_data->>'exported_to_automation')::text) IN ('true', '1') OR (v_asset_data->>'exported_to_automation')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'exported_to_automation') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'exported_to_automation')::text = 'true' THEN true ELSE false END
+          ELSE false
+        END,
+        (v_asset_data->>'comment')::TEXT);
     ELSE
       IF COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false) = true THEN
         INSERT INTO assets_history (asset_id, building_number, payer_id, measurement_date, main_asset_type,

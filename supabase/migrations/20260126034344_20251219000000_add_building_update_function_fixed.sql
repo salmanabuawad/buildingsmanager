@@ -166,4 +166,3 @@ END;
 $$;
 
 COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true whenever shared area changes, even if new value is 0. All updates happen in a single transaction. Use this function for all building updates, even single ones.';
-

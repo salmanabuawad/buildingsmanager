@@ -368,13 +368,30 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const clickedOnDropdown = dropdownRef.current && dropdownRef.current.contains(target);
+      const clickedOnInput = inputRef.current && inputRef.current.contains(target);
+      
+      console.log('[AddressCellEditor] Click outside check:', {
+        clickedOnDropdown,
+        clickedOnInput,
+        hasDropdown: !!dropdownRef.current,
+        hasInput: !!inputRef.current,
+        target: (target as Element)?.tagName
+      });
+      
+      // Only close if click is truly outside both dropdown and input
       if (
         dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
+        !clickedOnDropdown &&
         inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
+        !clickedOnInput
       ) {
-        props.stopEditing();
+        console.log('[AddressCellEditor] Click outside detected, closing editor');
+        // Use setTimeout to allow dropdown item clicks to process first
+        setTimeout(() => {
+          props.stopEditing();
+        }, 100);
       }
     };
 
@@ -454,16 +471,31 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                       console.log('[AddressCellEditor] Dropdown item clicked:', {
                         streetCode: address.street_code,
                         description: address.street_description,
-                        index
+                        index,
+                        addressObject: address
                       });
-                      selectAddress(address);
+                      // Use setTimeout to ensure the click event is fully processed
+                      setTimeout(() => {
+                        console.log('[AddressCellEditor] Calling selectAddress after timeout');
+                        selectAddress(address);
+                      }, 0);
+                    }}
+                    onMouseDown={(e) => {
+                      // Also handle mousedown to ensure click works
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[AddressCellEditor] Dropdown item mousedown:', {
+                        streetCode: address.street_code,
+                        description: address.street_description
+                      });
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
                     style={{
                       padding: '8px 12px',
                       cursor: 'pointer',
                       backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
-                      borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
+                      borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none',
+                      userSelect: 'none' // Prevent text selection
                     }}
                   >
                     <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>

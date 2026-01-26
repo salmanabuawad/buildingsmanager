@@ -1649,22 +1649,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             // For updates, ensure building_number is included
             // Note: is_new_measurement should only be set for explicit "save as new measurement" operations,
             // not for distribution saves. Distribution saves update assets in place without creating history.
-            const assetToSave = {
+            assetsToSave.push({
               asset_id: assetId,
               building_number: buildingNumberValue,
               ...changes
-            };
-
-            // Debug: log what we're saving for distribution
-            if (isDistributionSave && changes.area_from_distribution !== undefined) {
-              console.log('[handleSaveAll] Saving asset with distribution:', {
-                asset_id: assetId,
-                area_from_distribution: changes.area_from_distribution,
-                allChanges: changes
-              });
-            }
-
-            assetsToSave.push(assetToSave);
+            });
           }
         } catch (err) {
           const asset = assets.find(a => String(a.id) === String(assetId));

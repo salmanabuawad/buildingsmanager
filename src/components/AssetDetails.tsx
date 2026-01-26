@@ -3455,14 +3455,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   <p className="text-[10px] sm:text-xs text-teal-50">
                     מבנה {building.building_number}
                   </p>
-                  {buildingAddress && (
-                    <p className="text-[10px] sm:text-xs text-teal-50">
-                      - {buildingAddress}
-                      {building?.building_number_in_street && (
-                        <span className="mr-1"> {building.building_number_in_street}</span>
-                      )}
-                    </p>
-                  )}
                   <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                     גוש: {building?.gosh || '-'}
                   </p>

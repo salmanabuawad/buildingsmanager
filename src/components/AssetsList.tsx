@@ -4463,14 +4463,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 <p className="text-sm text-white/90 font-semibold bg-white/20 px-2 py-1 rounded">
                   סך הכל: {assets.length} נכסים
                 </p>
-                {buildingAddress && (
-                  <p className="text-sm text-white/90 font-medium">
-                    - {buildingAddress}
-                    {building?.building_number_in_street && (
-                      <span className="mr-1"> {building.building_number_in_street}</span>
-                    )}
-                  </p>
-                )}
                 <p className="text-sm text-white font-semibold bg-white/20 px-2 py-1 rounded">
                   גוש: {building?.gosh || '-'}
                 </p>

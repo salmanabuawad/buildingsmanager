@@ -116,7 +116,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   // Get the field name from column (address is the default now)
   const fieldName = props.column?.getColId() || 'address';
 
-  // Expose getValue method to AG Grid
+  // Expose methods to AG Grid
   // Don't include props.data in dependencies to avoid recreating the function
   // Access props.data via ref to always get the latest value
   useImperativeHandle(ref, () => ({
@@ -162,7 +162,9 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       }
       
       return value;
-    }
+    },
+    // Tell ag-grid this editor uses a popup (for better positioning)
+    isPopup: () => false // We use fixed positioning, not ag-grid's popup system
   }), [selectedValue, props.data, fieldName]); // Include props.data to recreate when it changes
 
   // Initialize with current value
@@ -419,48 +421,70 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           textAlign: 'right'
         }}
       />
-      {showDropdown && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            maxHeight: '200px',
-            overflowY: 'auto',
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            direction: 'rtl',
-            textAlign: 'right'
-          }}
-        >
-          {filteredAddresses.length > 0 ? (
-            filteredAddresses.map((address, index) => (
-              <div
-                key={address.street_code}
-                onClick={() => selectAddress(address)}
-                onMouseEnter={() => setSelectedIndex(index)}
-                style={{
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
-                  borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
-                }}
-              >
-                <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
-                <div style={{ fontSize: '0.9em', color: '#666' }}>{address.street_description}</div>
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: '8px 12px', color: '#666', fontStyle: 'italic' }}>
-              {addressList.length === 0 ? 'אין כתובות זמינות' : 'לא נמצאו תוצאות'}
+      {showDropdown && createPortal(
+        (() => {
+          // Calculate dropdown position using input element
+          let dropdownTop = 0;
+          let dropdownLeft = 0;
+          let dropdownWidth = 300;
+          
+          if (inputRef.current) {
+            const inputRect = inputRef.current.getBoundingClientRect();
+            dropdownTop = inputRect.bottom;
+            dropdownLeft = inputRect.left;
+            dropdownWidth = Math.max(inputRect.width, 300);
+          } else if (props.eGridCell) {
+            const cellRect = props.eGridCell.getBoundingClientRect();
+            dropdownTop = cellRect.bottom;
+            dropdownLeft = cellRect.left;
+            dropdownWidth = Math.max(cellRect.width, 300);
+          }
+          
+          return (
+            <div
+              ref={dropdownRef}
+              style={{
+                position: 'fixed', // Use fixed positioning to escape grid clipping
+                top: `${dropdownTop}px`,
+                left: `${dropdownLeft}px`,
+                width: `${dropdownWidth}px`,
+                maxHeight: '200px',
+                overflowY: 'auto',
+                backgroundColor: 'white',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                zIndex: 99999, // Very high z-index to appear above everything
+                direction: 'rtl',
+                textAlign: 'right'
+              }}
+            >
+              {filteredAddresses.length > 0 ? (
+                filteredAddresses.map((address, index) => (
+                  <div
+                    key={address.street_code}
+                    onClick={() => selectAddress(address)}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      backgroundColor: selectedIndex === index ? '#e3f2fd' : 'white',
+                      borderBottom: index < filteredAddresses.length - 1 ? '1px solid #eee' : 'none'
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>{address.street_code}</div>
+                    <div style={{ fontSize: '0.9em', color: '#666' }}>{address.street_description}</div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '8px 12px', color: '#666', fontStyle: 'italic' }}>
+                  {addressList.length === 0 ? 'אין כתובות זמינות' : 'לא נמצאו תוצאות'}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })(),
+        document.body
       )}
     </div>
   );

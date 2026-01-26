@@ -1618,6 +1618,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return;
       }
 
+      // Get all files for exported assets before creating rows
+      // Ensure assetIds are numbers (not strings)
+      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
+
       // Define headers for asset export - matching export_automatiom_sample.xlsx format
       const headers = [
         'זיהוי משלם',
@@ -1643,7 +1648,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'מספר פקודה',
         'שנת כספים',
         'תאריך גביה',
-        'יום ערך'
+        'יום ערך',
+        'קבצים מצורפים' // New column for files
       ];
 
       // Helper function to format date to YYYY-MM-DD HH:MM:SS format (automation format)
@@ -1717,33 +1723,51 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return assetSize || '';
       };
 
+      // Helper function to get file URLs/names for an asset
+      const getAssetFiles = (assetId: number): string => {
+        const assetIdNum = typeof assetId === 'string' ? parseInt(assetId, 10) : Number(assetId);
+        if (isNaN(assetIdNum) || assetIdNum <= 0) return '';
+        
+        const files = filesByAsset.get(assetIdNum);
+        if (!files || files.length === 0) return '';
+        
+        // Return comma-separated list of file URLs (or file names)
+        return files.map(file => file.file_url || file.file_name || '').filter(url => url).join('; ');
+      };
+
       // Convert assets to rows - matching sample file format and column order
-      const rows = exportedAssets.map(asset => [
-        asset.payer_id || '',                                    // זיהוי משלם
-        asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
-        formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
-        formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
-        asset.main_asset_type || '',                             // סוג נכס
-        getExportAssetSize(asset),                               // גודל נכס (asset_size + area_from_distribution for business)
-        asset.sub_asset_type_1 || '',                            // נכס משנה 1
-        asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
-        asset.sub_asset_type_2 || '',                            // נכס משנה 2
-        asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
-        asset.sub_asset_type_3 || '',                            // נכס משנה 3
-        asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
-        asset.sub_asset_type_4 || '',                            // נכס משנה 4
-        asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
-        asset.sub_asset_type_5 || '',                            // נכס משנה 5
-        asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
-        asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
-        asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
-        '',                                                      // מנה (empty in sample)
-        '',                                                      // מקום גביה (empty in sample)
-        '',                                                      // מספר פקודה (empty in sample)
-        '',                                                      // שנת כספים (empty in sample)
-        '',                                                      // תאריך גביה (empty in sample)
-        ''                                                       // יום ערך (empty in sample)
-      ]);
+      const rows = exportedAssets.map(asset => {
+        const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+        const assetFiles = getAssetFiles(assetId);
+        
+        return [
+          asset.payer_id || '',                                    // זיהוי משלם
+          asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
+          formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
+          formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
+          asset.main_asset_type || '',                             // סוג נכס
+          getExportAssetSize(asset),                               // גודל נכס (asset_size + area_from_distribution for business)
+          asset.sub_asset_type_1 || '',                            // נכס משנה 1
+          asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
+          asset.sub_asset_type_2 || '',                            // נכס משנה 2
+          asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
+          asset.sub_asset_type_3 || '',                            // נכס משנה 3
+          asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
+          asset.sub_asset_type_4 || '',                            // נכס משנה 4
+          asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
+          asset.sub_asset_type_5 || '',                            // נכס משנה 5
+          asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
+          asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
+          asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
+          '',                                                      // מנה (empty in sample)
+          '',                                                      // מקום גביה (empty in sample)
+          '',                                                      // מספר פקודה (empty in sample)
+          '',                                                      // שנת כספים (empty in sample)
+          '',                                                      // תאריך גביה (empty in sample)
+          '',                                                      // יום ערך (empty in sample)
+          assetFiles                                               // קבצים מצורפים (file URLs)
+        ];
+      });
 
       // Create data array with headers and rows
       const data = [headers, ...rows];
@@ -1782,15 +1806,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 12 }, // מספר פקודה
           { wch: 12 }, // שנת כספים
           { wch: 15 }, // תאריך גביה
-          { wch: 15 }  // יום ערך
+          { wch: 15 }, // יום ערך
+          { wch: 50 }  // קבצים מצורפים (wider for URLs)
         ]
       });
 
-      // Get all files for exported assets
-      // Ensure assetIds are numbers (not strings)
-      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
-      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
-      
       // Create a map of asset_id to asset data for lookup
       // Ensure asset_id is converted to number for consistent key matching
       const assetMap = new Map<number, any>();

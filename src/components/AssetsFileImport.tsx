@@ -432,8 +432,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         }
         if (headerMap['penthouse'] !== undefined) {
           const penthouseValue = (values[headerMap['penthouse']] || '').trim();
-          if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes') {
-            asset.penthouse = 'כן';
+          if (penthouseValue === 'כן' || penthouseValue.toLowerCase() === 'yes' || penthouseValue === '1' || penthouseValue.toLowerCase() === 'true') {
+            asset.penthouse = true;
+          } else {
+            asset.penthouse = false;
           }
         }
         if (headerMap['floor'] !== undefined) {
@@ -1861,8 +1863,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           data_from_automation: importFromAutomation ? true : false
         };
 
-        if (asset.penthouse === 'כן') {
-          assetData.penthouse = 'כן';
+        if (asset.penthouse === 'כן' || asset.penthouse === true) {
+          assetData.penthouse = true;
+        } else {
+          assetData.penthouse = false;
         }
 
         return assetData;

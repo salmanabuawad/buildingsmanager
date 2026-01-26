@@ -64,6 +64,7 @@ DECLARE
   v_building_record RECORD;
   v_shared_area_size NUMERIC := NULL;
   v_audit_distribution_type TEXT := NULL;
+  v_is_new_measurement BOOLEAN := FALSE;
 BEGIN
   -- Get or create user
   IF p_user_id IS NOT NULL THEN
@@ -197,6 +198,20 @@ BEGIN
       v_old_tax_region := NULL;
     END IF;
 
+    -- Determine if this is a new measurement
+    v_is_new_measurement := CASE
+      WHEN NOT (v_asset_data ? 'is_new_measurement') THEN false
+      WHEN v_asset_data->'is_new_measurement' = 'null'::jsonb THEN false
+      WHEN jsonb_typeof(v_asset_data->'is_new_measurement') = 'string' THEN
+        CASE 
+          WHEN LOWER((v_asset_data->>'is_new_measurement')::text) IN ('true', '1') OR (v_asset_data->>'is_new_measurement')::text = 'כן' THEN true 
+          ELSE false 
+        END
+      WHEN jsonb_typeof(v_asset_data->'is_new_measurement') = 'boolean' THEN 
+        CASE WHEN (v_asset_data->'is_new_measurement')::text = 'true' THEN true ELSE false END
+      ELSE false
+    END;
+
     IF v_existing_asset IS NULL THEN
       INSERT INTO assets (asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
         sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
@@ -289,18 +304,7 @@ BEGIN
         END,
         (v_asset_data->>'comment')::TEXT);
     ELSE
-      IF CASE
-          WHEN NOT (v_asset_data ? 'is_new_measurement') THEN false
-          WHEN v_asset_data->'is_new_measurement' = 'null'::jsonb THEN false
-          WHEN jsonb_typeof(v_asset_data->'is_new_measurement') = 'string' THEN
-            CASE 
-              WHEN LOWER((v_asset_data->>'is_new_measurement')::text) IN ('true', '1') OR (v_asset_data->>'is_new_measurement')::text = 'כן' THEN true 
-              ELSE false 
-            END
-          WHEN jsonb_typeof(v_asset_data->'is_new_measurement') = 'boolean' THEN 
-            CASE WHEN (v_asset_data->'is_new_measurement')::text = 'true' THEN true ELSE false END
-          ELSE false
-        END = true THEN
+      IF v_is_new_measurement = true THEN
         INSERT INTO assets_history (asset_id, building_number, payer_id, measurement_date, main_asset_type,
           asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
           sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5,

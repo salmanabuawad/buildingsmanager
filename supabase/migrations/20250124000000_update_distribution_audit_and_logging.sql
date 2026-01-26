@@ -41,29 +41,31 @@ END $$;
 -- UPDATE: save_assets_bulk_transactional to log distribution_audit
 -- ============================================================================
 
--- Drop any existing versions with different signatures to avoid ambiguity
-DROP FUNCTION IF EXISTS save_assets_bulk_transactional(
-  JSONB[],
-  BOOLEAN,
-  TEXT,
-  TEXT,
-  TEXT,
-  JSONB,
-  JSONB,
-  TEXT
-);
+-- Helper function to extract boolean from JSONB (used for boolean checkbox fields)
+CREATE OR REPLACE FUNCTION extract_boolean_from_jsonb(p_value JSONB, p_default BOOLEAN DEFAULT false)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF p_value IS NULL OR p_value = 'null'::jsonb THEN
+    RETURN p_default;
+  END IF;
+  
+  IF jsonb_typeof(p_value) = 'boolean' THEN
+    RETURN (p_value)::text::boolean;
+  END IF;
+  
+  IF jsonb_typeof(p_value) = 'string' THEN
+    RETURN CASE 
+      WHEN LOWER((p_value)::text) IN ('true', '1') OR (p_value)::text = 'כן' THEN true 
+      ELSE false 
+    END;
+  END IF;
+  
+  RETURN p_default;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
-DROP FUNCTION IF EXISTS save_assets_bulk_transactional(
-  JSONB[],
-  BOOLEAN,
-  TEXT,
-  TEXT,
-  TEXT,
-  JSONB,
-  JSONB,
-  TEXT,
-  BOOLEAN
-);
+-- Drop all existing versions to ensure clean replacement (no backward compatibility needed)
+DROP FUNCTION IF EXISTS save_assets_bulk_transactional CASCADE;
 
 CREATE OR REPLACE FUNCTION save_assets_bulk_transactional(
   p_assets_data JSONB[],
@@ -120,7 +122,7 @@ DECLARE
   -- Track if asset was found (for INSERT vs UPDATE check)
   v_asset_found BOOLEAN := FALSE;
   -- For distribution audit logging
-  v_audit_action_type distribution_audit_action_type;
+  v_audit_action_type audit_action_type;
   v_distribution_shared_area_size NUMERIC := NULL;
   v_distribution_overload_ratio NUMERIC := NULL;
   v_before_assets_json JSONB;
@@ -420,11 +422,11 @@ BEGIN
         COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
         (v_asset_data->>'sub_asset_type_6')::TEXT,
         COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
-        (v_asset_data->>'elevator')::TEXT,
-        (v_asset_data->>'single_double_family')::TEXT,
-        (v_asset_data->>'condo')::TEXT,
-        (v_asset_data->>'townhouses')::TEXT,
-        (v_asset_data->>'penthouse')::TEXT,
+        extract_boolean_from_jsonb(v_asset_data->'elevator', false),
+        extract_boolean_from_jsonb(v_asset_data->'single_double_family', false),
+        extract_boolean_from_jsonb(v_asset_data->'condo', false),
+        extract_boolean_from_jsonb(v_asset_data->'townhouses', false),
+        extract_boolean_from_jsonb(v_asset_data->'penthouse', false),
         (v_asset_data->>'structure_drawing_url')::TEXT,
         (v_asset_data->>'floor')::BIGINT,
         (v_asset_data->>'discount_type')::TEXT,
@@ -437,12 +439,12 @@ BEGIN
           ) THEN 0
           ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0)
         END,
-        COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, false),
+        extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false),
         (v_asset_data->>'comment')::TEXT
       );
     ELSE
       -- Check if is_new_measurement is true - if so, copy to history before update
-      IF COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false) = true THEN
+      IF extract_boolean_from_jsonb(v_asset_data->'is_new_measurement', false) = true THEN
         -- Copy current asset to history before updating
         BEGIN
           INSERT INTO assets_history (
@@ -491,18 +493,30 @@ BEGIN
         sub_asset_size_5 = COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, sub_asset_size_5),
         sub_asset_type_6 = COALESCE((v_asset_data->>'sub_asset_type_6')::TEXT, sub_asset_type_6),
         sub_asset_size_6 = COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, sub_asset_size_6),
-        elevator = COALESCE((v_asset_data->>'elevator')::TEXT, elevator),
-        single_double_family = COALESCE((v_asset_data->>'single_double_family')::TEXT, single_double_family),
-        condo = COALESCE((v_asset_data->>'condo')::TEXT, condo),
-        townhouses = COALESCE((v_asset_data->>'townhouses')::TEXT, townhouses),
-        penthouse = COALESCE((v_asset_data->>'penthouse')::TEXT, penthouse),
+        elevator = CASE WHEN NOT (v_asset_data ? 'elevator') THEN elevator
+          WHEN v_asset_data->'elevator' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'elevator', false) END,
+        single_double_family = CASE WHEN NOT (v_asset_data ? 'single_double_family') THEN single_double_family
+          WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'single_double_family', false) END,
+        condo = CASE WHEN NOT (v_asset_data ? 'condo') THEN condo
+          WHEN v_asset_data->'condo' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'condo', false) END,
+        townhouses = CASE WHEN NOT (v_asset_data ? 'townhouses') THEN townhouses
+          WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'townhouses', false) END,
+        penthouse = CASE WHEN NOT (v_asset_data ? 'penthouse') THEN penthouse
+          WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'penthouse', false) END,
         structure_drawing_url = COALESCE((v_asset_data->>'structure_drawing_url')::TEXT, structure_drawing_url),
         floor = COALESCE((v_asset_data->>'floor')::BIGINT, floor),
         discount_type = COALESCE((v_asset_data->>'discount_type')::TEXT, discount_type),
         discount_date_from = COALESCE((v_asset_data->>'discount_date_from')::TEXT, discount_date_from),
         discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
         area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
-        exported_to_automation = COALESCE((v_asset_data->>'exported_to_automation')::BOOLEAN, exported_to_automation),
+        exported_to_automation = CASE WHEN NOT (v_asset_data ? 'exported_to_automation') THEN exported_to_automation
+          WHEN v_asset_data->'exported_to_automation' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false) END,
         comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
         is_new_measurement = false, -- Reset flag after copying to history
         updated_at = NOW()
@@ -767,7 +781,7 @@ BEGIN
         END IF;
       END IF;
       
-      -- Map action_type to distribution_audit_action_type enum
+      -- Map action_type to audit_action_type enum
       -- For distribute_shared, determine if it's business or residence distribution
       -- Use the same logic as STEP 4: check description first (most reliable), then asset data
       IF p_action_type = 'distribute_shared' THEN
@@ -833,22 +847,22 @@ BEGIN
           END;
         END IF;
         
-        -- Set action type based on distribution type
+        -- Set action type based on distribution type (using audit_action_type enum)
         IF v_distribution_type = 'business' THEN
-          v_audit_action_type := 'business_distribution';
+          v_audit_action_type := 'business_distribution'::audit_action_type;
         ELSIF v_distribution_type = 'residence' THEN
-          v_audit_action_type := 'residence_distribution';
+          v_audit_action_type := 'residence_distribution'::audit_action_type;
         ELSE
-          -- Fallback to 'distribution' if type is not determined
-          v_audit_action_type := 'distribution';
-          RAISE WARNING 'Using fallback action_type "distribution" because distribution type could not be determined (description: %)', 
+          -- Fallback to 'distribute_shared' if type is not determined
+          v_audit_action_type := 'distribute_shared'::audit_action_type;
+          RAISE WARNING 'Using fallback action_type "distribute_shared" because distribution type could not be determined (description: %)', 
             p_description;
         END IF;
       ELSIF p_action_type = 'transfer_area' THEN
-        v_audit_action_type := 'transfer';
+        v_audit_action_type := 'transfer_area'::audit_action_type;
       END IF;
       
-      -- Log to audit table (part of the same transaction)
+      -- Log to audit table using log_audit_entry (part of the same transaction)
       -- Note: tax_region parameter is kept for backward compatibility but not used for filtering
       -- For transfer operations, verify that only affected assets are being logged
       -- This is a final safety check before logging
@@ -872,19 +886,20 @@ BEGIN
         END IF;
       END IF;
       
-      -- IMPORTANT: Only call log_audit ONCE per transfer/distribution operation
+      -- IMPORTANT: Only call log_audit_entry ONCE per transfer/distribution operation
       -- This ensures only ONE audit entry is created per operation
-      -- DO NOT add additional log_audit calls - this is the ONLY place audit entries are created for transfers/distributions
-      PERFORM log_audit(
-        v_first_building_number,
+      -- DO NOT add additional log_audit_entry calls - this is the ONLY place audit entries are created for transfers/distributions
+      PERFORM log_audit_entry(
         v_audit_action_type,
-        v_before_assets_json,
-        v_after_assets_json,
-        v_distribution_overload_ratio,
-        v_distribution_shared_area_size,
-        p_description,
+        'bulk_asset',
+        v_first_building_number::text,
         p_user_id,
-        NULL -- tax_region is no longer used for filtering, set to NULL
+        jsonb_build_object('assets', v_before_assets_json),
+        jsonb_build_object('assets', v_after_assets_json),
+        p_description,
+        v_first_building_number,
+        v_distribution_overload_ratio,
+        v_distribution_shared_area_size
       );
     END IF;
   ELSE

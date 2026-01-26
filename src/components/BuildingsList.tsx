@@ -12,7 +12,8 @@ import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
-import { exportToExcel } from '../lib/excelExport';
+import { exportToExcel, createExcelBlob } from '../lib/excelExport';
+import { createAndDownloadZip } from '../lib/zipExport';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
 
@@ -1753,8 +1754,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       const excelFilename = `שליחת_נתונים_${dateStr}.xlsx`;
 
-      // Export main Excel file with asset data
-      exportToExcel({
+      // Create main Excel file as Blob (for ZIP)
+      const mainExcelBlob = createExcelBlob({
         filename: excelFilename,
         sheetName: 'נכסים',
         data,
@@ -1786,7 +1787,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         ]
       });
 
-      // Get all files for exported assets and create separate Excel file
+      // Get all files for exported assets
       // Ensure assetIds are numbers (not strings)
       const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
       const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
@@ -1806,7 +1807,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         ['מזהה נכס', 'ת.ז. משלם', 'שם קובץ']
       ];
       
-      // Build file list from filesByAsset
+      // Prepare files array for ZIP
+      const zipFiles: Array<{ filename: string; data: Blob }> = [];
+      
+      // Add main Excel file to ZIP
+      zipFiles.push({
+        filename: excelFilename,
+        data: mainExcelBlob
+      });
+      
+      // Build file list and download asset files
       for (const [assetId, files] of filesByAsset.entries()) {
         if (!files || files.length === 0) continue;
         
@@ -1821,19 +1831,56 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             fileName = urlParts[urlParts.length - 1].split('?')[0];
           }
           
-          // Add row: asset_id, payer_id, file_name
+          // Add row to file list Excel: asset_id, payer_id, file_name
           fileListData.push([
             assetId,
             payerId,
             fileName || ''
           ]);
+          
+          // Download file from storage and add to ZIP
+          try {
+            // Extract file path from URL
+            const urlParts = file.file_url.split('/');
+            const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
+            
+            // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
+            let filePath = '';
+            const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
+            if (structureDrawingsIndex !== -1) {
+              filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
+            } else {
+              // Fallback: construct path from assetId and filename
+              filePath = `${assetId}/${urlFileName}`;
+            }
+            
+            // Download file from storage
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from('structure-drawings')
+              .download(filePath);
+            
+            if (downloadError || !fileData) {
+              console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
+              continue;
+            }
+            
+            // Add file to ZIP with organized folder structure: files/{assetId}/{filename}
+            const zipFilePath = `files/${assetId}/${fileName || urlFileName}`;
+            zipFiles.push({
+              filename: zipFilePath,
+              data: fileData
+            });
+          } catch (err) {
+            console.warn(`Error processing file for asset ${assetId}:`, err);
+          }
         }
       }
       
-      // Export file list Excel if there are files
+      // Create file list Excel as Blob (for ZIP)
+      let fileListExcelBlob: Blob | null = null;
       if (fileListData.length > 1) {
         const fileListFilename = `רשימת_קבצים_${dateStr}.xlsx`;
-        exportToExcel({
+        fileListExcelBlob = createExcelBlob({
           filename: fileListFilename,
           sheetName: 'רשימת קבצים',
           data: fileListData,
@@ -1843,11 +1890,21 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             { wch: 30 }  // שם קובץ
           ]
         });
+        
+        // Add file list Excel to ZIP
+        zipFiles.push({
+          filename: fileListFilename,
+          data: fileListExcelBlob
+        });
       }
+      
+      // Create and download ZIP file
+      const zipFilename = `שליחת_נתונים_${dateStr}.zip`;
+      await createAndDownloadZip(zipFilename, zipFiles);
       
       const filesCount = fileListData.length - 1; // Subtract header row
       const successMessage = filesCount > 0 
-        ? `נשלחו ${result.count} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים)`
+        ? `נשלחו ${result.count} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים בקובץ ZIP)`
         : `נשלחו ${result.count} נכסים לעירייה בהצלחה`;
       setSuccess(successMessage);
       setTimeout(() => setSuccess(null), 5000);

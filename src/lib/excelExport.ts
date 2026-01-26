@@ -130,6 +130,76 @@ export function exportToExcel(options: ExcelExportOptions): void {
 }
 
 /**
+ * Create Excel file as Blob (without downloading)
+ * Useful for creating ZIP files
+ * 
+ * @param options Excel export options
+ * @returns Blob containing the Excel file
+ */
+export function createExcelBlob(options: ExcelExportOptions): Blob {
+  try {
+    const { sheetName = 'Sheet1', data, columnWidths } = options;
+
+    // Validate data
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Excel data must be a non-empty array');
+    }
+
+    // Create worksheet from data (sanitize cell values to avoid formula injection / AV suspicion)
+    const safeData = data.map(row => (Array.isArray(row) ? row.map(sanitizeSpreadsheetCell) : row)) as any[][];
+    const worksheet = XLSX.utils.aoa_to_sheet(safeData);
+
+    // Set column widths if provided
+    if (columnWidths && columnWidths.length > 0) {
+      worksheet['!cols'] = columnWidths;
+    }
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+
+    // Get current date for metadata
+    const now = new Date();
+
+    // Set comprehensive workbook properties
+    workbook.Props = {
+      Title: sheetName,
+      Subject: 'Data Export',
+      Author: 'Buildings Manager',
+      CreatedDate: now,
+      ModifiedDate: now,
+      LastSavedBy: 'Buildings Manager',
+      Company: 'Buildings Management System',
+      Category: 'Data Export',
+      Keywords: 'export, data, buildings',
+      Comments: 'Exported from Buildings Management System'
+    };
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+    // Write file with explicit options
+    const writeOptions: XLSX.WritingOptions = {
+      bookType: 'xlsx',
+      bookSST: false,
+      type: 'array',
+      compression: true,
+      cellDates: true
+    };
+
+    // Generate the file as array buffer
+    const fileData = XLSX.write(workbook, writeOptions);
+    
+    // Create a Blob with proper MIME type
+    return new Blob([fileData], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+  } catch (error) {
+    console.error('Error creating Excel blob:', error);
+    throw error;
+  }
+}
+
+/**
  * Legacy export function for backward compatibility
  * Uses the new exportToExcel function internally
  */

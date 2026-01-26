@@ -2817,16 +2817,20 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellRenderer: (params: any) => {
         const building = params.data as Building;
         if (!building) return '';
-        // Always read from building data directly - this is the source of truth
-        const streetCode = building.address;
+        
+        // Use params.value (from valueGetter) as primary source, fallback to building.address
+        // params.value contains the street_code (number) that is stored in DB
+        const streetCode = params.value != null ? params.value : (building.address ?? null);
         if (!streetCode) return '';
         
         const isNew = isNewBuilding(building);
         
         // Find the address description - ensure type consistency (compare as numbers)
         const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
-        // Display format: "code - description" (same as building_address)
-        const displayValue = address ? `${address.street_code} - ${address.street_description}` : (streetCode ? String(streetCode) : '');
+        
+        // Display only the street description (name), not the code
+        // The code is stored in DB, but we show the description to the user
+        const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
         
         if (isNew && !streetCode) {
           return '';

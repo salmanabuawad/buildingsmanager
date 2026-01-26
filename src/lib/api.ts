@@ -1040,6 +1040,15 @@ export async function validateAndSaveBulkAssets(
   
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)
   try {
+    // Debug logging
+    console.log('[validateAndSaveBulkAssets] Calling save_assets_bulk_transactional with:', {
+      assetsCount: assetsForDatabase.length,
+      actionType,
+      sampleAsset: assetsForDatabase[0],
+      hasAreaFromDistribution: assetsForDatabase.some(a => a.area_from_distribution !== undefined),
+      allAssetsWithDistribution: assetsForDatabase.filter(a => a.area_from_distribution !== undefined).length
+    });
+
     const { data, error } = await supabase.rpc('save_assets_bulk_transactional', {
       p_assets_data: assetsForDatabase,
       p_validation_passed: allValid,

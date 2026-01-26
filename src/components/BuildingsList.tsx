@@ -138,6 +138,16 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         selectedValueRef.current = value;
       }
       
+      // Ensure value is a number (street_code should be a number)
+      if (value != null) {
+        const numValue = Number(value);
+        if (!isNaN(numValue) && numValue > 0) {
+          value = numValue;
+        } else {
+          value = null;
+        }
+      }
+      
       console.log('[AddressCellEditor] getValue() called:', {
         fieldName,
         refValue: selectedValueRef.current,
@@ -155,6 +165,10 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         }
         if (props.data) {
           props.data[fieldName] = value;
+        }
+        // Also update the node data if available
+        if (props.node && props.node.data) {
+          props.node.data[fieldName] = value;
         }
         console.log('[AddressCellEditor] Synced value to all data objects:', value);
       } else {
@@ -320,7 +334,11 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Use setDataValue BEFORE stopEditing to ensure value is set and dirty bit works
     if (props.node && props.column) {
       const colId = props.column.getColId();
-      console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', { colId, streetCode, oldValue });
+      console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', { colId, fieldName, streetCode, oldValue });
+      // Ensure node.data is updated
+      if (props.node.data) {
+        props.node.data[fieldName] = streetCode;
+      }
       props.node.setDataValue(colId, streetCode);
     }
     
@@ -335,10 +353,11 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     setTimeout(() => {
       if (props.node && props.column && props.api) {
         const colId = props.column.getColId();
-        const currentValue = props.node.data?.building_address;
+        const currentValue = props.node.data?.[fieldName];
         if (currentValue !== streetCode) {
           console.log('[AddressCellEditor] Value mismatch after stopEditing, calling setDataValue:', { 
             colId, 
+            fieldName,
             expected: streetCode, 
             actual: currentValue 
           });
@@ -908,6 +927,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
     if (!field || !building) {
       return;
+    }
+
+    // Debug log for address field
+    if (field === 'address') {
+      console.log('[CELL CHANGED] address field changed:', {
+        buildingKey,
+        isNew,
+        newValue,
+        oldValue: event.oldValue,
+        buildingAddress: building.address
+      });
     }
 
     // Skip checkbox fields - they're handled by cellRenderer
@@ -2835,7 +2865,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       valueSetter: (params: any) => {
         // Ensure the value is set on the data object
         if (params.data) {
-          params.data.address = params.newValue;
+          const newValue = params.newValue;
+          // Convert to number if it's a valid number, otherwise null
+          const numValue = newValue != null && newValue !== '' ? Number(newValue) : null;
+          params.data.address = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
+          console.log('[address valueSetter] Setting address:', {
+            newValue,
+            numValue,
+            finalValue: params.data.address
+          });
         }
         return true;
       },

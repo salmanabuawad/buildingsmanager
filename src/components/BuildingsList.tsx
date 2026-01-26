@@ -265,7 +265,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
   };
 
   // Select an address
-  const selectAddress = (address: AddressList) => {
+  const selectAddress = useCallback((address: AddressList) => {
     const streetCode = Number(address.street_code); // Ensure it's a number
     const oldValue = props.value;
     
@@ -273,12 +273,24 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       streetCode,
       oldValue,
       currentRefValue: selectedValueRef.current,
-      fieldName
+      fieldName,
+      address: address.street_description
     });
     
     // CRITICAL: Set value in ref FIRST - this is what getValue() will return
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
+    
+    // Update data objects BEFORE stopEditing to ensure ag-grid sees the change
+    if (props.data) {
+      props.data[fieldName] = streetCode;
+    }
+    if (dataRef.current) {
+      dataRef.current[fieldName] = streetCode;
+    }
+    if (props.node && props.node.data) {
+      props.node.data[fieldName] = streetCode;
+    }
     
     // Close dropdown first
     setShowDropdown(false);
@@ -286,10 +298,11 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Update search value to show selected address
     setSearchValue(`${address.street_code} - ${address.street_description}`);
     
-    // IMPORTANT: Don't update props.data directly - let ag-grid handle it through getValue() and valueSetter
-    // This ensures onCellValueChanged is triggered properly
-    
-    console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current);
+    console.log('[AddressCellEditor] Before stopEditing:', {
+      ref: selectedValueRef.current,
+      propsData: props.data?.[fieldName],
+      nodeData: props.node?.data?.[fieldName]
+    });
     
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
@@ -307,13 +320,18 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           fieldName,
           expected: streetCode,
           actual: currentValue,
-          nodeData: props.node.data
+          nodeData: props.node.data,
+          refValue: selectedValueRef.current
         });
         
         if (currentValue !== streetCode) {
           console.warn('[AddressCellEditor] Value mismatch, forcing update');
           // Force update using setDataValue
           props.node.setDataValue(colId, streetCode);
+          // Also update node.data directly
+          if (props.node.data) {
+            props.node.data[fieldName] = streetCode;
+          }
           // Refresh the cell to show the new value
           props.api.refreshCells({ 
             rowNodes: [props.node], 
@@ -330,7 +348,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         }
       }
     }, 50);
-  };
+  }, [props, fieldName]);
 
 
   // Handle click outside
@@ -416,7 +434,16 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
                 filteredAddresses.map((address, index) => (
                   <div
                     key={address.street_code}
-                    onClick={() => selectAddress(address)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[AddressCellEditor] Dropdown item clicked:', {
+                        streetCode: address.street_code,
+                        description: address.street_description,
+                        index
+                      });
+                      selectAddress(address);
+                    }}
                     onMouseEnter={() => setSelectedIndex(index)}
                     style={{
                       padding: '8px 12px',

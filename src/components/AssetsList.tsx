@@ -16,6 +16,7 @@ import { useValidationRules } from '../contexts/ValidationContext';
 import { supabase } from '../lib/supabase';
 import { compressFile } from '../lib/fileCompression';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
@@ -81,7 +82,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const [selectedDrawingUrl, setSelectedDrawingUrl] = useState<string | null>(null);
 
-  // Set busy cursor during file upload
+  // Set busy cursor during file upload (save operations use modal overlay instead)
   useEffect(() => {
     if (uploadProgress) {
       document.body.style.cursor = 'wait';
@@ -90,16 +91,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       };
     }
   }, [uploadProgress]);
-
-  // Set busy cursor during save operations
-  useEffect(() => {
-    if (isSaving) {
-      document.body.style.cursor = 'wait';
-      return () => {
-        document.body.style.cursor = '';
-      };
-    }
-  }, [isSaving]);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
@@ -900,6 +891,34 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setTimeout(() => setError(null), 3000);
     }
   }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion]);
+
+  // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty. onCellValueChanged may not
+  // fire when parsed value equals current (e.g. 0→0). onCellEditingStopped always fires when edit ends.
+  const onCellEditingStopped = useCallback((event: any) => {
+    if (isRefreshingAfterSaveRef.current) return;
+    const { data, column, colDef } = event;
+    const field = colDef?.field ?? column?.getColDef?.()?.field;
+    if (!data?.asset_id || !field) return;
+    const assetId = String(data.asset_id);
+    let newValue = event.newValue ?? event.node?.data?.[field];
+    if (newValue === '' || newValue === null || newValue === undefined) {
+      const isNumericField = colDef?.type === 'numericColumn' ||
+        field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
+        field === 'floor' || field === 'tax_region';
+      newValue = isNumericField ? 0 : null;
+    }
+    setDirtyAssets(prev => {
+      const next = new Map(prev);
+      const existing = next.get(assetId) || {};
+      next.set(assetId, { ...existing, [field]: newValue });
+      return next;
+    });
+    setAssets(prev => prev.map(a =>
+      String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
+    ));
+    setIsValidatedForSave(false);
+    setValidationErrors(new Map());
+  }, []);
 
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
@@ -3864,11 +3883,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       },
       editable: (params) => isFieldEditable(params, 'tax_region'),
       type: 'numericColumn',
-      valueParser: (params) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params) => numericValueParserInt(params, 10),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -3887,11 +3902,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       headerName: 'קומה',
       editable: (params) => isFieldEditable(params, 'floor'),
       type: 'numericColumn',
-      valueParser: (params) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params) => numericValueParserInt(params, 10),
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
@@ -3981,6 +3992,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       headerName: !isResidentTaxRegion ? 'גודל נכס ללא שטח משותף' : t('mainAssetSize'),
       editable: (params) => isFieldEditable(params, 'asset_size'),
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4013,6 +4025,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4045,6 +4058,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4077,6 +4091,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4109,6 +4124,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4141,6 +4157,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4173,6 +4190,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
+      valueParser: (params) => numericValueParser(params),
       valueFormatter: (params) => {
         const val = params.value;
         if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -4350,6 +4368,16 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   }
   return (
     <>
+      {/* Loading overlay modal for save operations */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <p className="text-slate-700 font-medium text-lg">שומר נתונים...</p>
+            <p className="text-slate-500 text-sm">אנא המתן, הפעולה עשויה לקחת מספר שניות</p>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow-lg relative">
@@ -4794,6 +4822,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
+            onCellEditingStopped={onCellEditingStopped}
             onGridReady={async (params) => {
               // Load saved column state first
               await gridPreferences.loadColumnState(params.api);
@@ -4864,6 +4893,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             animateRows={true}
             enableRtl={true}
             suppressHorizontalScroll={false}
+            singleClickEdit={true}
+            stopEditingWhenCellsLoseFocus={true}
           />
           </div>
         )}
@@ -5069,6 +5100,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             setSelectedAssetIdForFiles(null);
           }}
           assetId={selectedAssetIdForFiles}
+          isUploading={uploadingAssetId === selectedAssetIdForFiles}
           onFilesDeleted={(assetId, hasFiles) => {
             if (hasFiles) {
               setAssetsWithFiles(prev => new Set(prev).add(assetId));

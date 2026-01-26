@@ -46,7 +46,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
         let errorMessage = signInError.message || 'שגיאה בהתחברות. אנא נסה שוב.';
         
         if (signInError.message?.includes('Invalid login credentials')) {
-          errorMessage = 'פרטי התחברות לא תקינים. המשתמש לא קיים ב-Supabase Auth או הסיסמה שגויה.\n\nאפשרויות:\n1. לחץ על "צור משתמשים ברירת מחדל" למטה\n2. או ודא שהמשתמש קיים והסיסמה נכונה';
+          errorMessage = 'פרטי התחברות לא תקינים. המשתמש לא קיים ב-Supabase Auth או הסיסמה שגויה.';
         } else if (signInError.message?.includes('Email not confirmed')) {
           errorMessage = 'האימייל לא אושר. אנא:\n1. בדוק את תיבת הדואר הנכנס לאימייל\n2. או השתמש ב-Service Role Key ליצירת משתמשים עם Auto Confirm\n3. או השב את אישור האימייל ב-Supabase Dashboard';
         }
@@ -318,16 +318,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </button>
           </form>
 
-          {/* Default Users Info */}
+          {/* Create Users Button - Always visible */}
           <div className="mt-6 pt-6 border-t border-slate-200">
-            <p className="text-xs text-slate-500 text-center mb-2">משתמשים ברירת מחדל:</p>
-            <div className="text-xs text-slate-600 space-y-1 text-center mb-3">
-              <div>מנהל: <span className="font-mono font-semibold">admin</span> / <span className="font-mono font-semibold">admin123</span></div>
-              <div>משתמש: <span className="font-mono font-semibold">user</span> / <span className="font-mono font-semibold">user123</span></div>
-            </div>
-            
-            {/* Create Users Button - Always visible */}
-            <div className="mt-4 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={handleCreateUsers}
@@ -352,7 +344,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
                   {createUsersMessage}
                 </div>
               )}
-            </div>
           </div>
         </div>
 

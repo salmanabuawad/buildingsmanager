@@ -299,6 +299,8 @@ export function AssetStatisticsModal({ isOpen, onClose, assets, assetTypes, buil
                 rowHeight={32}
                 headerHeight={32}
                 domLayout="normal"
+                singleClickEdit={true}
+                stopEditingWhenCellsLoseFocus={true}
               />
             </div>
           </div>

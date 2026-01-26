@@ -4,6 +4,7 @@ import { AssetMeasurement, api } from '../lib/api';
 import { Plus, Edit2, Trash2, Calendar, Save, X, Upload, FileText, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PDFViewer } from './PDFViewer';
+import { compressFile } from '../lib/fileCompression';
 
 interface MeasurementHistoryProps {
   assetId: string;
@@ -119,12 +120,24 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
       setIsUploading(true);
       setUploadingFor(measurementId);
 
-      const fileExt = file.name.split('.').pop();
+      // Compress file if it's an image (skip compression for PDF files)
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      let fileToUpload: File;
+      
+      if (isPdf) {
+        // Skip compression for PDF files
+        fileToUpload = file;
+      } else {
+        // Compress image files to under 30KB
+        fileToUpload = await compressFile(file);
+      }
+
+      const fileExt = fileToUpload.name.split('.').pop() || file.name.split('.').pop();
       const filePath = `${assetId}/measurements/${measurementId}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('dwg-files')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 

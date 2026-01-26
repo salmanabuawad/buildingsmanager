@@ -365,6 +365,7 @@ function calculateChangedFields(before: any, after: any): string[] {
 }
 
 export interface Building {
+  building_notes?: string;
   building_number: number;
   tax_region?: string;
   residence_shared_area?: number;
@@ -729,6 +730,14 @@ function sanitizeBuildingInput(input: any): any {
   }
   if ('need_business_distribution' in input) {
     sanitized.need_business_distribution = input.need_business_distribution === true || input.need_business_distribution === 'true';
+  }
+  // Handle building_notes: free text field
+  if ('building_notes' in input) {
+    if (input.building_notes === null || input.building_notes === '' || input.building_notes === undefined) {
+      sanitized.building_notes = null;
+    } else {
+      sanitized.building_notes = sanitizeText(input.building_notes);
+    }
   }
   
   return sanitized;
@@ -2342,54 +2351,204 @@ export const api = {
     },
     exportToAutomation: async (): Promise<{ success: boolean; count: number; assetIds: number[]; error?: string }> => {
       try {
-        // Fetch all assets that still need export:
-        // - exported_to_automation is null/false AND
-        // - data_from_automation is null/false
-        const { data: assetsToExport, error: fetchError } = await supabase
-          .from('assets')
-          .select('*')
-          .or('exported_to_automation.is.null,exported_to_automation.eq.false')
-          .or('data_from_automation.is.null,data_from_automation.eq.false')
-          .order('asset_id');
+        // Use RPC function to bulk mark assets as exported
+        // This function updates all assets where exported_to_automation is null/false
+        // and data_from_automation is null/false
+        const { data: result, error: rpcError } = await supabase
+          .rpc('mark_assets_as_exported_to_automation');
 
-        if (fetchError) {
-          console.error('[api.assets.exportToAutomation] Error fetching assets:', fetchError);
-          return { success: false, count: 0, assetIds: [], error: fetchError.message };
+        if (rpcError) {
+          console.error('[api.assets.exportToAutomation] Error marking assets as exported:', rpcError);
+          return { success: false, count: 0, assetIds: [], error: rpcError.message };
         }
 
-        if (!assetsToExport || assetsToExport.length === 0) {
+        if (!result || result.length === 0) {
           return { success: true, count: 0, assetIds: [] };
         }
 
-        // Get asset IDs for marking as exported
-        const assetIds = assetsToExport.map(a => a.asset_id);
+        const updatedCount = result[0]?.updated_count || 0;
+        const assetIdsArray = result[0]?.asset_ids || [];
 
-        // Format current date to DD/MM/YYYY
-        const today = new Date();
-        const exportDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-
-        // Mark all assets as exported with export date
-        const { error: updateError } = await supabase
-          .from('assets')
-          .update({ 
-            exported_to_automation: true,
-            export_to_automation_at: exportDate
+        // Ensure all assetIds are numbers (PostgreSQL may return them as strings)
+        const assetIds = assetIdsArray
+          .map((id: any) => {
+            if (typeof id === 'string') {
+              const parsed = parseInt(id, 10);
+              return isNaN(parsed) ? null : parsed;
+            }
+            return typeof id === 'number' ? id : Number(id);
           })
-          .in('asset_id', assetIds);
+          .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
 
-        if (updateError) {
-          console.error('[api.assets.exportToAutomation] Error marking assets as exported:', updateError);
-          return { success: false, count: 0, assetIds: [], error: updateError.message };
-        }
-
-        // Update latest export date in memory cache
-        const { setLatestExportDate } = await import('./validation');
-        setLatestExportDate(exportDate);
-
-        return { success: true, count: assetsToExport.length, assetIds };
+        // Return the count and asset IDs that were exported
+        return { success: true, count: Number(updatedCount) || 0, assetIds };
       } catch (error: any) {
         console.error('[api.assets.exportToAutomation] Unexpected error:', error);
         return { success: false, count: 0, assetIds: [], error: error.message || 'Unknown error' };
+      }
+    },
+    getMeasuredNotExported: async (): Promise<Asset[]> => {
+      try {
+        // Fetch assets that:
+        // - have measurement_date (not null)
+        // - exported_to_automation is null or false
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .not('measurement_date', 'is', null)
+          .or('exported_to_automation.is.null,exported_to_automation.eq.false')
+          .order('building_number')
+          .order('asset_id');
+
+        if (error) {
+          console.error('[api.assets.getMeasuredNotExported] Error fetching assets:', error);
+          throw error;
+        }
+
+        return data || [];
+      } catch (error: any) {
+        console.error('[api.assets.getMeasuredNotExported] Unexpected error:', error);
+        throw error;
+      }
+    },
+    getMeasurementProgress: async (startDate?: string, endDate?: string): Promise<{
+      yearly: Array<{
+        year: number;
+        totalAssets: number;
+        totalBuildings: number;
+        uniqueMeasurementDates: number;
+        totalArea: number;
+        exportedCount: number;
+        notExportedCount: number;
+      }>;
+      total: {
+        totalAssets: number;
+        totalBuildings: number;
+        uniqueMeasurementDates: number;
+        totalArea: number;
+        exportedCount: number;
+        notExportedCount: number;
+      };
+    }> => {
+      try {
+        // Helper function to parse DD/MM/YYYY to Date
+        const parseDate = (dateStr: string): Date | null => {
+          if (!dateStr || dateStr === '' || dateStr === '01/01/1900') return null;
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+              return new Date(year, month - 1, day);
+            }
+          }
+          return null;
+        };
+
+        // Build query
+        let query = supabase
+          .from('assets')
+          .select('measurement_date, building_number, asset_id, asset_size, exported_to_automation')
+          .not('measurement_date', 'is', null)
+          .neq('measurement_date', '01/01/1900');
+
+        // Fetch all assets first
+        const { data: allAssetsData, error: fetchError } = await query;
+        if (fetchError) throw fetchError;
+        
+        const allAssets = allAssetsData || [];
+        
+        // Apply date filters if provided
+        const filteredAssets = allAssets.filter(asset => {
+            const assetDate = parseDate(asset.measurement_date);
+            if (!assetDate) return false;
+            
+            if (startDate) {
+              const start = parseDate(startDate);
+              if (start && assetDate < start) return false;
+            }
+            
+            if (endDate) {
+              const end = parseDate(endDate);
+              if (end) {
+                // Set end date to end of day
+                const endOfDay = new Date(end);
+                endOfDay.setHours(23, 59, 59, 999);
+                if (assetDate > endOfDay) return false;
+              }
+            }
+            
+            return true;
+          });
+          
+        // Group by year
+        const yearlyData = new Map<number, {
+          assets: Set<string>;
+          buildings: Set<number>;
+          measurementDates: Set<string>;
+          totalArea: number;
+          exportedCount: number;
+          notExportedCount: number;
+        }>();
+        
+        filteredAssets.forEach(asset => {
+          const assetDate = parseDate(asset.measurement_date);
+          if (!assetDate) return;
+          
+          const year = assetDate.getFullYear();
+          if (!yearlyData.has(year)) {
+            yearlyData.set(year, {
+              assets: new Set(),
+              buildings: new Set(),
+              measurementDates: new Set(),
+              totalArea: 0,
+              exportedCount: 0,
+              notExportedCount: 0
+            });
+          }
+          
+          const yearData = yearlyData.get(year)!;
+          yearData.assets.add(`${asset.building_number}-${asset.asset_id}-${asset.measurement_date}`);
+          yearData.buildings.add(asset.building_number);
+          yearData.measurementDates.add(asset.measurement_date);
+          if (asset.asset_size) {
+            yearData.totalArea += Number(asset.asset_size);
+          }
+          if (asset.exported_to_automation) {
+            yearData.exportedCount++;
+          } else {
+            yearData.notExportedCount++;
+          }
+        });
+        
+        // Calculate totals
+        const total = {
+          totalAssets: filteredAssets.length,
+          totalBuildings: new Set(filteredAssets.map(a => a.building_number)).size,
+          uniqueMeasurementDates: new Set(filteredAssets.map(a => a.measurement_date)).size,
+          totalArea: filteredAssets.reduce((sum, a) => sum + (Number(a.asset_size) || 0), 0),
+          exportedCount: filteredAssets.filter(a => a.exported_to_automation).length,
+          notExportedCount: filteredAssets.filter(a => !a.exported_to_automation).length
+        };
+        
+        // Convert to array and sort by year
+        const yearly = Array.from(yearlyData.entries())
+          .map(([year, data]) => ({
+            year,
+            totalAssets: data.assets.size,
+            totalBuildings: data.buildings.size,
+            uniqueMeasurementDates: data.measurementDates.size,
+            totalArea: data.totalArea,
+            exportedCount: data.exportedCount,
+            notExportedCount: data.notExportedCount
+          }))
+          .sort((a, b) => b.year - a.year);
+        
+        return { yearly, total };
+      } catch (error: any) {
+        console.error('[api.assets.getMeasurementProgress] Error:', error);
+        throw error;
       }
     },
     resetExportToAutomation: async (): Promise<{ success: boolean; count: number; error?: string }> => {
@@ -2432,23 +2591,39 @@ export const api = {
         }
 
         // Filter assets that have the latest export date
+        // Ensure all assetIds are numbers (Supabase may return them as strings)
         const assetIdsToReset = exportedAssets
           .filter(asset => asset.export_to_automation_at === latestDateStr)
-          .map(asset => asset.asset_id);
+          .map(asset => {
+            const id = asset.asset_id;
+            if (typeof id === 'string') {
+              const parsed = parseInt(id, 10);
+              return isNaN(parsed) ? null : parsed;
+            }
+            return typeof id === 'number' ? id : Number(id);
+          })
+          .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
 
         if (assetIdsToReset.length === 0) {
           return { success: true, count: 0 };
         }
 
         // Reset exported_to_automation flag and clear export date only for assets with latest date
-        const { error: updateError, count } = await supabase
-          .from('assets')
-          .update({ 
-            exported_to_automation: false,
-            export_to_automation_at: null
-          })
-          .in('asset_id', assetIdsToReset)
-          .select('asset_id', { count: 'exact', head: true });
+        // Update each asset individually to avoid type mismatch issues with .in()
+        const updatePromises = assetIdsToReset.map(async (assetId) => {
+          const { error } = await supabase
+            .from('assets')
+            .update({ 
+              exported_to_automation: false,
+              export_to_automation_at: null
+            })
+            .eq('asset_id', assetId);
+          return error;
+        });
+        
+        const updateErrors = await Promise.all(updatePromises);
+        const updateError = updateErrors.find(err => err !== null);
+        const count = assetIdsToReset.length;
 
         if (updateError) {
           console.error('[api.assets.resetExportToAutomation] Error resetting export flag:', updateError);
@@ -2563,17 +2738,20 @@ export const api = {
         // Group files by asset_id
         const filesByAsset = new Map<number, AssetFile[]>();
         (data || []).forEach(file => {
-          const assetId = file.asset_id;
-          if (!filesByAsset.has(assetId)) {
-            filesByAsset.set(assetId, []);
+          const assetId = Number(file.asset_id);
+          if (!isNaN(assetId) && assetId > 0) {
+            if (!filesByAsset.has(assetId)) {
+              filesByAsset.set(assetId, []);
+            }
+            filesByAsset.get(assetId)!.push(file);
           }
-          filesByAsset.get(assetId)!.push(file);
         });
         
         // Ensure all assetIds have an entry (even if empty)
         assetIds.forEach(assetId => {
-          if (!filesByAsset.has(assetId)) {
-            filesByAsset.set(assetId, []);
+          const numericId = Number(assetId);
+          if (!isNaN(numericId) && numericId > 0 && !filesByAsset.has(numericId)) {
+            filesByAsset.set(numericId, []);
           }
         });
         

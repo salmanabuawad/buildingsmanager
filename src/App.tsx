@@ -13,7 +13,9 @@ import { FieldConfigManager } from './components/FieldConfigManager';
 import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
 import { UserManagement } from './components/UserManagement';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users } from 'lucide-react';
+import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
+import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, BarChart3 } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
@@ -23,7 +25,7 @@ import { supabase } from './lib/supabase';
 
 interface Tab {
   id: string;
-  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management';
+  type: 'buildings' | 'assets' | 'admin' | 'asset-types' | 'asset-search' | 'validation-rules' | 'building-list-import' | 'assets-file-import' | 'assets-skeleton-import' | 'asset-details' | 'transfer-areas' | 'address-list' | 'field-config' | 'asset-data-entry' | 'audit-log' | 'user-management' | 'measured-not-exported-assets' | 'measurement-progress-dashboard';
   buildingNumber?: number;
   label: string;
   refreshKey?: number;
@@ -33,6 +35,7 @@ interface Tab {
   selectedAssetIds?: string[];
   isErrorFixingMode?: boolean; // For assets tabs: hide all buttons except Validate, Save, Save as new, and Cancel
   path?: string; // URL path for routing compatibility
+  initialAssetType?: string; // For asset-details tabs: initial asset type when creating new asset
 }
 
 function App() {
@@ -42,9 +45,10 @@ function App() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   
   const [tabs, setTabs] = useState<Tab[]>([
+    { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() },
     { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() }
   ]);
-  const [activeTabId, setActiveTabId] = useState('buildings');
+  const [activeTabId, setActiveTabId] = useState('measurement-progress-dashboard');
   const [showCreateBuildingModal, setShowCreateBuildingModal] = useState(false);
   const [buildingsMenuOpen, setBuildingsMenuOpen] = useState(false);
   const [assetsMenuOpen, setAssetsMenuOpen] = useState(false);
@@ -418,42 +422,52 @@ function App() {
   const handleCloseAllTabsExceptEssential = useCallback(() => {
     handleNavigation(() => {
       setTabs(prevTabs => {
-        // Keep: buildings list tabs and regular assets tabs (not error fixing mode)
+        // Keep: dashboard, buildings list tabs, and regular assets tabs (not error fixing mode)
+        const dashboardTab = prevTabs.find(t => t.type === 'measurement-progress-dashboard');
         const essentialTabs = prevTabs.filter(tab => {
+          // Always keep dashboard
+          if (tab.type === 'measurement-progress-dashboard') return true;
           // Keep buildings list tabs
-          if (tab.type === 'buildings') {
-            return true;
-          }
-          
+          if (tab.type === 'buildings') return true;
           // Keep assets tabs that are NOT in error fixing mode
           // Error fixing mode tabs have isErrorFixingMode: true OR selectedAssetIds set (for error fixing)
           if (tab.type === 'assets' && !tab.isErrorFixingMode && (!tab.selectedAssetIds || tab.selectedAssetIds.length === 0)) {
             return true;
           }
-          
           // Close all other tabs (transfer-areas, asset-details, asset-types, etc.)
           return false;
         });
         
-        // If no essential tabs remain, ensure buildings tab exists
+        // If no essential tabs remain, ensure dashboard and buildings tabs exist
         if (essentialTabs.length === 0) {
+          const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
           const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
           setActiveTabId('buildings');
-          return [buildingsTab];
+          return [dashboardTab, buildingsTab];
         }
+        
+        // Ensure dashboard is first and buildings is second
+        const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+        const buildingsTabInEssential = essentialTabs.find(t => t.type === 'buildings');
+        const buildingsTabToKeep: Tab = buildingsTabInEssential || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+        const otherTabs = essentialTabs.filter(t => 
+          t.type !== 'measurement-progress-dashboard' && t.type !== 'buildings'
+        );
+        const orderedTabs = [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs];
         
         // Set active tab to the last essential tab (or buildings if available)
-        const buildingsTab = essentialTabs.find(t => t.type === 'buildings');
-        const lastAssetsTab = essentialTabs.filter(t => t.type === 'assets').pop();
-        if (buildingsTab) {
-          setActiveTabId(buildingsTab.id);
+        const lastAssetsTab = otherTabs.filter(t => t.type === 'assets').pop();
+        if (buildingsTabInEssential) {
+          setActiveTabId(buildingsTabInEssential.id);
         } else if (lastAssetsTab) {
           setActiveTabId(lastAssetsTab.id);
-        } else if (essentialTabs.length > 0) {
-          setActiveTabId(essentialTabs[essentialTabs.length - 1].id);
+        } else if (otherTabs.length > 0) {
+          setActiveTabId(otherTabs[otherTabs.length - 1].id);
+        } else {
+          setActiveTabId('buildings');
         }
         
-        return essentialTabs;
+        return orderedTabs;
       });
     });
   }, [handleNavigation]);
@@ -492,33 +506,66 @@ function App() {
           );
         }
         
-        // For most tab types, close existing tabs of the same type (except 'buildings' and 'assets')
+        // For most tab types, close existing tabs of the same type (except 'buildings', 'assets', and 'measurement-progress-dashboard')
         // 'assets' tabs can have multiple instances (for different buildings/tax regions)
         // 'buildings' tab should always be kept
+        // 'measurement-progress-dashboard' should always be kept as first tab
         let filteredTabs = prev;
-        if (newTab.type !== 'buildings' && newTab.type !== 'assets') {
+        if (newTab.type !== 'buildings' && newTab.type !== 'assets' && newTab.type !== 'measurement-progress-dashboard') {
           // Remove all existing tabs of the same type
           filteredTabs = prev.filter(t => t.type !== newTab.type);
         }
         
-        // Ensure buildings tab exists
-        const hasBuildings = filteredTabs.some(t => t.id === 'buildings');
-        const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-        const tabsToReturn = hasBuildings ? [...filteredTabs, { ...newTab, refreshKey: Date.now() }] : [buildingsTab, ...filteredTabs, { ...newTab, refreshKey: Date.now() }];
+        // Ensure dashboard tab exists and is first
+        const dashboardTab = filteredTabs.find(t => t.type === 'measurement-progress-dashboard');
+        const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+        
+        // Remove dashboard and buildings from filtered tabs (we'll add them back in correct order)
+        const tabsWithoutEssential = filteredTabs.filter(t => 
+          t.type !== 'measurement-progress-dashboard' && t.type !== 'buildings'
+        );
+        
+        // If opening dashboard, just refresh it and keep it first
+        if (newTab.type === 'measurement-progress-dashboard') {
+          // Ensure buildings tab exists and is second
+          const buildingsTab = filteredTabs.find(t => t.type === 'buildings');
+          const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+          return [dashboardTabToKeep, buildingsTabToKeep, ...tabsWithoutEssential];
+        }
+        
+        // Ensure buildings tab exists and is second
+        const buildingsTab = filteredTabs.find(t => t.type === 'buildings');
+        const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+        
+        // If opening buildings tab, just refresh it and keep it second
+        if (newTab.type === 'buildings') {
+          return [dashboardTabToKeep, buildingsTabToKeep, ...tabsWithoutEssential];
+        }
+        
+        // For other tabs: dashboard first, buildings second, then other tabs, then new tab
+        const tabsToReturn = [dashboardTabToKeep, buildingsTabToKeep, ...tabsWithoutEssential, { ...newTab, refreshKey: Date.now() }];
         return tabsToReturn;
       });
       setActiveTabId(newTab.id);
     });
   }
 
+
   function handleSelectBuilding(buildingNumber: number, taxRegions?: string) {
     handleNavigation(() => {
       const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
       
-      // Ensure buildings tab exists
+      // Ensure buildings tab exists (but keep dashboard first)
       const existingBuildingsTab = tabs.find(t => t.id === 'buildings');
       if (!existingBuildingsTab) {
-        setTabs(prev => [buildingsTab, ...prev]);
+        setTabs(prev => {
+          const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
+          const tabsWithoutEssential = prev.filter(t => 
+            t.type !== 'measurement-progress-dashboard' && t.type !== 'buildings'
+          );
+          const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+          return [dashboardTabToKeep, buildingsTab, ...tabsWithoutEssential];
+        });
       }
 
       if (taxRegions && taxRegions.trim() !== '') {
@@ -532,12 +579,17 @@ function App() {
             // Tab already exists, close all other assets tabs and switch to it
             setTabs(prev => {
               // Close all assets tabs except the one we're switching to
-              const keepTabs = prev.filter(t => 
-                t.id === 'buildings' || 
-                t.type !== 'assets' || 
-                t.id === singleRegionTabId
+              // Keep dashboard first, buildings second
+              const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
+              const buildingsTab = prev.find(t => t.id === 'buildings');
+              const otherTabs = prev.filter(t => 
+                t.type !== 'measurement-progress-dashboard' && 
+                t.id !== 'buildings' && 
+                (t.id === 'buildings' || t.type !== 'assets' || t.id === singleRegionTabId)
               );
-              return keepTabs;
+              const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+              const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+              return [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs];
             });
             setActiveTabId(singleRegionTabId);
           } else {
@@ -556,13 +608,17 @@ function App() {
                 return prev;
               }
               // Close all assets tabs, then add new one
-              const keepTabs = prev.filter(t => 
-                t.id === 'buildings' || 
+              // Keep dashboard first, buildings second
+              const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
+              const buildingsTab = prev.find(t => t.id === 'buildings');
+              const otherTabs = prev.filter(t => 
+                t.type !== 'measurement-progress-dashboard' && 
+                t.id !== 'buildings' && 
                 t.type !== 'assets'
               );
-              // Ensure buildings tab exists
-              const hasBuildings = keepTabs.some(t => t.id === 'buildings');
-              return hasBuildings ? [...keepTabs, singleRegionTab] : [buildingsTab, ...keepTabs, singleRegionTab];
+              const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+              const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+              return [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs, singleRegionTab];
             });
             setActiveTabId(singleRegionTabId);
           }
@@ -601,13 +657,18 @@ function App() {
           // Activate the "all assets" tab (first tab)
           // Update tabs: close all previous assets tabs, then add new tabs for this building
           setTabs(prev => {
-            // Keep buildings tab and non-assets tabs, close all assets tabs
-            const keepTabs = prev.filter(t => 
-              t.id === 'buildings' || 
+            // Keep dashboard first, buildings second, then non-assets tabs, close all assets tabs
+            const dashboardTab = prev.find(t => t.type === 'measurement-progress-dashboard');
+            const buildingsTab = prev.find(t => t.id === 'buildings');
+            const otherTabs = prev.filter(t => 
+              t.type !== 'measurement-progress-dashboard' && 
+              t.id !== 'buildings' && 
               t.type !== 'assets'
             );
-            // Combine: keep tabs + all new tabs (this ensures we always have exactly 3 tabs for this building)
-            const newTabs = [...keepTabs, ...tabsToCreate];
+            const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+            const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+            // Combine: dashboard + buildings + other tabs + all new tabs
+            const newTabs = [dashboardTabToKeep, buildingsTabToKeep, ...otherTabs, ...tabsToCreate];
             return newTabs;
           });
           
@@ -620,13 +681,14 @@ function App() {
     });
   }
 
-  function handleOpenNewAsset(buildingNumber: number, taxRegion?: string) {
+  function handleOpenNewAsset(buildingNumber: number, taxRegion?: string, initialAssetType?: string) {
     const newAssetTabId = `asset-details-new-${buildingNumber}-${taxRegion || 'all'}-${Date.now()}`;
     const newTab: Tab = {
       id: newAssetTabId,
       type: 'asset-details',
       buildingNumber,
       taxRegion,
+      initialAssetType,
       label: `נכס חדש - מבנה ${buildingNumber}${taxRegion ? ` - ${getAreaDescriptionForTaxRegion(taxRegion)}` : ''}`
     };
     // Remove all other asset-details tabs, then add new one
@@ -725,6 +787,45 @@ function App() {
     openTab(newTab);
   }
 
+
+  function openBuildingsList() {
+    const buildingsTabId = 'buildings';
+
+    const newTab: Tab = {
+      id: buildingsTabId,
+      type: 'buildings',
+      label: 'מבנים'
+    };
+
+    // Open or refresh buildings tab
+    openTab(newTab);
+  }
+
+  function openMeasuredNotExportedAssets() {
+    const measuredNotExportedTabId = 'measured-not-exported-assets-panel';
+
+    const newTab: Tab = {
+      id: measuredNotExportedTabId,
+      type: 'measured-not-exported-assets',
+      label: 'נכסים שנמדדו ולא נשלחו'
+    };
+
+    // Remove all other measured-not-exported-assets tabs, then add new one
+    openTab(newTab);
+  }
+
+  function openMeasurementProgressDashboard() {
+    const dashboardTabId = 'measurement-progress-dashboard-panel';
+
+    const newTab: Tab = {
+      id: dashboardTabId,
+      type: 'measurement-progress-dashboard',
+      label: 'התקדמות פעילות מדידות'
+    };
+
+    // Remove all other measurement-progress-dashboard tabs, then add new one
+    openTab(newTab);
+  }
 
   function openValidationRules() {
     const validationRulesTabId = 'validation-rules-panel';
@@ -829,7 +930,7 @@ function App() {
       if (!result.success) {
         setResetExportResult({
           success: false,
-          message: `שגיאה באיפוס סימן פריקת הנתונים: ${result.error || 'שגיאה לא ידועה'}`
+          message: `שגיאה באיפוס סימן שליחת הנתונים: ${result.error || 'שגיאה לא ידועה'}`
         });
         setShowResetExportResultModal(true);
         setResetExportLoading(false);
@@ -838,7 +939,7 @@ function App() {
 
       setResetExportResult({
         success: true,
-        message: `אופס בהצלחה ${result.count} נכסים. כעת ניתן לייצא אותם מחדש באמצעות כפתור "פריקת נתונים".`
+        message: `אופס בהצלחה ${result.count} נכסים. כעת ניתן לשלוח אותם מחדש באמצעות כפתור "שליחת נתונים לעירייה".`
       });
       setShowResetExportResultModal(true);
       
@@ -869,7 +970,7 @@ function App() {
       console.error('Error resetting export to automation:', error);
       setResetExportResult({
         success: false,
-        message: 'שגיאה באיפוס סימן פריקת הנתונים. אנא נסה שוב.'
+        message: 'שגיאה באיפוס סימן שליחת הנתונים. אנא נסה שוב.'
       });
       setShowResetExportResultModal(true);
     } finally {
@@ -993,20 +1094,44 @@ function App() {
   function handleCloseTab(tabId: string) {
     handleNavigation(() => {
       setTabs(prevTabs => {
+        // Never allow closing the dashboard tab
+        if (tabId === 'measurement-progress-dashboard') {
+          return prevTabs;
+        }
+        
+        // Never allow closing the buildings tab
+        if (tabId === 'buildings') {
+          return prevTabs;
+        }
+        
         const newTabs = prevTabs.filter(tab => tab.id !== tabId);
         if (newTabs.length === 0) {
+          const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
           const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-          return [buildingsTab];
+          return [dashboardTab, buildingsTab];
         }
-        return newTabs;
+        
+        // Ensure dashboard is always first and buildings is always second
+        const dashboardTab = newTabs.find(t => t.type === 'measurement-progress-dashboard');
+        const buildingsTab = newTabs.find(t => t.type === 'buildings');
+        const tabsWithoutEssential = newTabs.filter(t => 
+          t.type !== 'measurement-progress-dashboard' && t.type !== 'buildings'
+        );
+        
+        const dashboardTabToKeep: Tab = dashboardTab || { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
+        const buildingsTabToKeep: Tab = buildingsTab || { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
+        
+        return [dashboardTabToKeep, buildingsTabToKeep, ...tabsWithoutEssential];
       });
 
       if (activeTabId === tabId) {
         const remainingTabs = tabs.filter(tab => tab.id !== tabId);
         if (remainingTabs.length > 0) {
-          setActiveTabId(remainingTabs[remainingTabs.length - 1].id);
+          // If closing active tab, switch to dashboard if it exists, otherwise to last tab
+          const dashboardTab = remainingTabs.find(t => t.type === 'measurement-progress-dashboard');
+          setActiveTabId(dashboardTab ? dashboardTab.id : remainingTabs[remainingTabs.length - 1].id);
         } else {
-          setActiveTabId('buildings');
+          setActiveTabId('measurement-progress-dashboard');
         }
       }
     });
@@ -1247,8 +1372,9 @@ function App() {
               <div className="mr-2 mt-2 space-y-1.5">
                 <button
                   onClick={() => {
+                    const dashboardTab: Tab = { id: 'measurement-progress-dashboard', type: 'measurement-progress-dashboard', label: 'התקדמות פעילות מדידות', refreshKey: Date.now() };
                     const buildingsTab: Tab = { id: 'buildings', type: 'buildings', label: 'מבנים', refreshKey: Date.now() };
-                    setTabs([buildingsTab]);
+                    setTabs([dashboardTab, buildingsTab]);
                     setActiveTabId('buildings');
                     setBuildingsMenuOpen(true);
                   }}
@@ -1297,6 +1423,13 @@ function App() {
                 >
                   <span className="font-medium text-slate-700">חיפוש נכס</span>
                   <Search className="h-3.5 w-3.5 text-indigo-600" />
+                </button>
+                <button
+                  onClick={openMeasuredNotExportedAssets}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-indigo-50/50 hover:bg-indigo-100 active:bg-indigo-200 rounded-md transition-all duration-200 text-xs shadow-sm hover:shadow-md"
+                >
+                  <span className="font-medium text-slate-700">נכסים שנמדדו ולא נשלחו</span>
+                  <AlertCircle className="h-3.5 w-3.5 text-indigo-600" />
                 </button>
                 <button
                   onClick={openAssetsFileImport}
@@ -1402,40 +1535,18 @@ function App() {
                   <Users className="h-3.5 w-3.5 text-pink-600" />
                 </button>
                 <button
-                  onClick={exportSchemaToCSV}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                >
-                  <span className="font-medium text-slate-700">ייצוא סכמת DB</span>
-                  <Database className="h-3.5 w-3.5 text-pink-600" />
-                </button>
-                <button
                   onClick={openResetExportModal}
                   disabled={resetExportLoading}
                   className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="font-medium text-slate-700">
-                    איפוס פריקת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
+                    איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
                   </span>
                   {resetExportLoading ? (
                     <Loader2 className="h-3.5 w-3.5 text-pink-600 animate-spin" />
                   ) : (
                     <RefreshCw className="h-3.5 w-3.5 text-pink-600" />
                   )}
-                </button>
-                <button
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = '/good_excel.xlsx';
-                    link.download = 'good_excel.xlsx';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  title="הורד קובץ good_excel.xlsx"
-                >
-                  <span className="font-medium text-slate-700">הורד good_excel.xlsx</span>
-                  <Download className="h-3.5 w-3.5 text-pink-600" />
                 </button>
               </div>
             )}
@@ -1488,6 +1599,10 @@ function App() {
                       <Tag className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'asset-search' ? (
                       <Search className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'measured-not-exported-assets' ? (
+                      <AlertCircle className="h-4 w-4 text-purple-700" />
+                    ) : tab.type === 'measurement-progress-dashboard' ? (
+                      <BarChart3 className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'validation-rules' ? (
                       <Settings className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'field-config' ? (
@@ -1515,7 +1630,7 @@ function App() {
                       {tab.label}
                     </span>
                   </div>
-                  {tab.type !== 'buildings' && (
+                  {tab.type !== 'buildings' && tab.type !== 'measurement-progress-dashboard' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1631,6 +1746,19 @@ function App() {
             )}
             {activeTab?.type === 'user-management' && (
               <UserManagement key={activeTab.refreshKey} />
+            )}
+            {activeTab?.type === 'measured-not-exported-assets' && (
+              <MeasuredNotExportedAssets
+                onSelectAsset={(assetId, assetIdentifier, buildingNumber, taxRegion) => {
+                  handleOpenNewAsset(buildingNumber, taxRegion);
+                }}
+              />
+            )}
+            {activeTab?.type === 'measurement-progress-dashboard' && (
+              <MeasurementProgressDashboard 
+                onOpenBuildingsList={openBuildingsList}
+                onOpenMeasuredNotExportedAssets={openMeasuredNotExportedAssets}
+              />
             )}
           </div>
         </div>
@@ -1813,12 +1941,12 @@ function App() {
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="h-6 w-6 text-orange-600 flex-shrink-0" />
               <h3 className="text-lg font-bold text-slate-900">
-                איפוס פריקת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
+                איפוס שליחת נתונים מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}
               </h3>
             </div>
             
             <p className="text-slate-600 mb-6">
-              האם אתה בטוח שברצונך לאפס את סימן פריקת הנתונים לנכסים שיוצאו מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}? פעולה זו תאפשר לייצא אותם מחדש.
+              האם אתה בטוח שברצונך לאפס את סימן שליחת הנתונים לנכסים שנשלחו מתאריך{displayLatestExportDate ? ` ${displayLatestExportDate}` : ''}? פעולה זו תאפשר לשלוח אותם מחדש.
             </p>
 
             <div className="flex justify-end gap-3">

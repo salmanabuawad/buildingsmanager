@@ -2777,11 +2777,13 @@ export const buildingValidators = {
       }
     }
 
+
     return {
       valid: Object.keys(errors).length === 0,
       errors
     };
   },
+
 };
 
 export async function validateCrossTable(

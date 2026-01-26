@@ -812,6 +812,8 @@ export function AddressListComponent() {
             onColumnMoved={gridPreferences.handleColumnMoved}
             onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
+            singleClickEdit={true}
+            stopEditingWhenCellsLoseFocus={true}
             enableRtl={true}
             animateRows={true}
             tooltipShowDelay={200}

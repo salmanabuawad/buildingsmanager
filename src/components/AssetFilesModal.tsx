@@ -10,9 +10,10 @@ interface AssetFilesModalProps {
   assetId: number;
   measurementDate?: string | null; // If provided, show only files for this measurement; if null, show shared files; if undefined, show all files
   onFilesDeleted?: (assetId: number, hasFiles: boolean) => void;
+  isUploading?: boolean; // Whether a file is currently being uploaded
 }
 
-export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onFilesDeleted }: AssetFilesModalProps) {
+export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onFilesDeleted, isUploading = false }: AssetFilesModalProps) {
   const [files, setFiles] = useState<AssetFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
@@ -121,7 +122,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
     <>
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 opacity-100"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', cursor: isUploading ? 'wait' : 'default' }}
         onClick={() => {
           if (!viewingFile) {
             onClose();
@@ -131,6 +132,7 @@ export function AssetFilesModal({ isOpen, onClose, assetId, measurementDate, onF
         <div 
           className="bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col transition-all duration-300 scale-100 opacity-100"
           onClick={(e) => e.stopPropagation()}
+          style={{ cursor: isUploading ? 'wait' : 'default' }}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">

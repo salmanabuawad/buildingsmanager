@@ -29,3 +29,31 @@ export function formatNumberToTwoDecimals(
   return num.toFixed(2);
 }
 
+/**
+ * Use as valueParser for numeric AG Grid columns (float).
+ * When the user clears the cell, returns 0 instead of null.
+ * Otherwise parses with Number() and returns the value, or 0 if invalid.
+ */
+export function numericValueParser(params: { newValue?: unknown } | null): number {
+  if (!params) return 0;
+  const v = params.newValue;
+  if (v === null || v === undefined || v === '') return 0;
+  const n = typeof v === 'number' ? v : Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Use as valueParser for integer AG Grid columns (e.g. tax_region, floor).
+ * When the user clears the cell, returns 0 instead of null.
+ * Otherwise parses with parseInt(radix) and returns the value, or 0 if invalid.
+ */
+export function numericValueParserInt(
+  params: { newValue?: unknown } | null,
+  radix: number = 10
+): number {
+  if (!params) return 0;
+  const v = params.newValue;
+  if (v === null || v === undefined || v === '') return 0;
+  const n = typeof v === 'number' ? v : parseInt(String(v), radix);
+  return isNaN(n) ? 0 : n;
+}

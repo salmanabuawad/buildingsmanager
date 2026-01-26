@@ -12,6 +12,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { useFieldConfig } from '../lib/useFieldConfig';
 import { exportToExcel } from '../lib/excelExport';
+import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 
 // Custom tooltip component that supports line breaks - uses standardized tooltip styles
 const CustomTooltip = (params: ITooltipParams) => {
@@ -332,6 +333,22 @@ export function AssetTypes() {
     }
   }, [handleCellChange]);
 
+  const onCellEditingStopped = useCallback((event: any) => {
+    const { data, column, colDef } = event;
+    const field = colDef?.field ?? column?.getColDef?.()?.field as keyof AssetType | undefined;
+    const assetTypeId = data?.id;
+    if (!field || !assetTypeId) return;
+    let newValue = event.newValue ?? event.node?.data?.[field];
+    if (newValue === '' || newValue === null || newValue === undefined) {
+      const isNumericField = field === 'tax_region' || field === 'min_size' || field === 'max_size';
+      newValue = isNumericField ? 0 : null;
+    }
+    handleCellChange(assetTypeId, field, newValue);
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ rowNodes: [event.node], force: true });
+    }
+  }, [handleCellChange]);
+
   // Handle grid ready - scroll to focus on actions
   const onGridReady = useCallback((event: GridReadyEvent) => {
     // Scroll to focus on actions column
@@ -397,11 +414,7 @@ export function AssetTypes() {
         return params.data.area_description_for_tab || String(params.value);
       },
       editable: true,
-      valueParser: (params: any) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params: any) => numericValueParserInt(params, 10),
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'tax_region');
         return { 
@@ -670,11 +683,7 @@ export function AssetTypes() {
       field: 'min_size',
       headerName: 'שטח מ',
       editable: true,
-      valueParser: (params: any) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseFloat(params.newValue);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params: any) => numericValueParser(params),
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'min_size');
         return { 
@@ -688,11 +697,7 @@ export function AssetTypes() {
       field: 'max_size',
       headerName: 'שטח עד',
       editable: true,
-      valueParser: (params: any) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseFloat(params.newValue);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params: any) => numericValueParser(params),
       cellStyle: (params: any) => {
         const isDirty = params.data && isFieldDirty(params.data.id, 'max_size');
         return { 
@@ -1651,6 +1656,7 @@ export function AssetTypes() {
                   return {};
                 }}
                 onCellValueChanged={onCellValueChanged}
+                onCellEditingStopped={onCellEditingStopped}
                 onGridReady={async (params) => {
                   await gridPreferences.loadColumnState(params.api);
                   onGridReady(params);
@@ -1681,6 +1687,8 @@ export function AssetTypes() {
                   enableBrowserTooltips: false,
                   tooltipMouseTrack: false,
                 }}
+                singleClickEdit={true}
+                stopEditingWhenCellsLoseFocus={true}
               />
             </div>
           </div>

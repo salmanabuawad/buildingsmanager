@@ -19,7 +19,7 @@ import { AuditLog, Building as BuildingType } from '../lib/api';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useValidationRules } from '../contexts/ValidationContext';
 import { formatDateToDDMMYYYY, formatDateTimeToDDMMYYYYHHMM } from '../lib/dateUtils';
-import { formatNumberToTwoDecimals } from '../lib/numberUtils';
+import { formatNumberToTwoDecimals, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
@@ -607,6 +607,26 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       setTimeout(() => setError(null), 3000);
     }
   }, [validationTaxRegion, assetTypes, building, validateDiscountDates]);
+
+  const onCellEditingStopped = useCallback((event: any) => {
+    const { data, column, colDef } = event;
+    const field = colDef?.field ?? column?.getColDef?.()?.field;
+    if (!data?.asset_id || !field || data.is_latest !== true) return;
+    const assetId = data.asset_id;
+    let newValue = event.newValue ?? event.node?.data?.[field];
+    if (newValue === '' || newValue === null || newValue === undefined) {
+      const isNumericField = colDef?.type === 'numericColumn' ||
+        field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
+        field === 'floor' || field === 'tax_region';
+      newValue = isNumericField ? 0 : null;
+    }
+    setDirtyAssets(prev => {
+      const next = new Map(prev);
+      const existing = next.get(assetId) || {};
+      next.set(assetId, { ...existing, [field]: newValue });
+      return next;
+    });
+  }, []);
 
   const hasChanges = dirtyAssets.size > 0;
 
@@ -2505,11 +2525,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
-      valueParser: (params) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params) => numericValueParserInt(params, 10),
       cellStyle: (params) => getCellStyle(params, 'tax_region'),
     },
     {
@@ -2601,11 +2617,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         return isFieldEditable(params, fieldName);
       },
       type: 'numericColumn',
-      valueParser: (params) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
-      },
+      valueParser: (params) => numericValueParserInt(params, 10),
       cellStyle: (params) => getCellStyle(params, 'floor')
     },
     {
@@ -3721,7 +3733,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                 }}
                 onSortChanged={() => {}}
                 onCellValueChanged={onCellValueChanged}
+                onCellEditingStopped={onCellEditingStopped}
                 onRowDoubleClicked={handleRowDoubleClick}
+                singleClickEdit={true}
+                stopEditingWhenCellsLoseFocus={true}
                 enableRtl={true}
                 animateRows={true}
                 tooltipShowDelay={200}
@@ -3922,6 +3937,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       // Handle single click for audit details
                     }}
                     suppressRowClickSelection={false}
+                    singleClickEdit={true}
                     stopEditingWhenCellsLoseFocus={true}
                     enableRtl={true}
                     animateRows={true}
@@ -4006,6 +4022,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           }}
           assetId={selectedAssetIdForFiles}
           measurementDate={selectedMeasurementDateForFiles}
+          isUploading={uploadingAssetId === selectedAssetIdForFiles}
           onFilesDeleted={(assetId, hasFiles) => {
             if (hasFiles) {
               setAssetsWithFiles(prev => new Set(prev).add(assetId));

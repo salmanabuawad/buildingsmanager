@@ -730,6 +730,19 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         })
       );
 
+      // For skeleton mode: Pre-load all assets once before validation loop
+      // This prevents multiple API calls inside the loop
+      let allAssetsForValidation: any[] = [];
+      if (mode === 'skeleton') {
+        const { getAllAssets, setAllAssets } = await import('../lib/validation');
+        allAssetsForValidation = getAllAssets();
+        if (allAssetsForValidation.length === 0) {
+          // If assets not loaded, load them now (once, before the loop)
+          allAssetsForValidation = await api.assets.getAll();
+          setAllAssets(allAssetsForValidation);
+        }
+      }
+
       // For skeleton mode, check for duplicates within the batch first
       if (mode === 'skeleton') {
         const assetIdToRows = new Map<string | number, number[]>();
@@ -818,22 +831,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               // Check asset ID uniqueness against database
               // For skeleton mode: check if asset_id exists in database at all (treating as new assets)
               // This check should always run if asset_id is present, regardless of other errors
+              // Use pre-loaded allAssetsForValidation to avoid multiple API calls
               if (asset.asset_id && asset.asset_id.trim() !== '') {
                 try {
-                  const { getAllAssets, setAllAssets } = await import('../lib/validation');
-                  // Ensure we have all assets loaded for uniqueness check
-                  let allAssets = getAllAssets();
-                  if (allAssets.length === 0) {
-                    // If assets not loaded, load them now
-                    const { api } = await import('../lib/api');
-                    const loadedAssets = await api.assets.getAll();
-                    setAllAssets(loadedAssets);
-                    allAssets = loadedAssets;
-                  }
                   // Check if asset_id already exists in database (any building)
+                  // Use the pre-loaded allAssetsForValidation array (loaded once before the loop)
                   const assetIdNum = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : asset.asset_id;
                   if (!isNaN(assetIdNum)) {
-                    const existingAsset = allAssets.find((a: any) => {
+                    const existingAsset = allAssetsForValidation.find((a: any) => {
                       const aId = typeof a.asset_id === 'string' ? parseInt(a.asset_id, 10) : a.asset_id;
                       return aId === assetIdNum;
                     });
@@ -1478,8 +1483,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
 
       if (insertError) {
         console.error('Supabase insert error:', insertError);
+        // Check for ON CONFLICT error (constraint mismatch) first
+        if (insertError.message?.includes('ON CONFLICT') || insertError.message?.includes('onConflict') || insertError.message?.includes('no unique or exclusion constraint')) {
+          errors.push(`שגיאה: בעיה במבנה מסד הנתונים - אילוץ ייחודי לא תואם. אנא פנה למנהל המערכת. פרטים: ${insertError.message}`);
+        }
         // Check if it's a conflict (409) or duplicate key error
-        if (insertError.code === '409' || insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique') || insertError.message?.includes('assets_asset_id_unique')) {
+        else if (insertError.code === '409' || insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique') || insertError.message?.includes('assets_asset_id_unique')) {
           // Get all asset_ids from the batch and check which ones exist in the database
           const assetIdsToCheck = validatedSkeletonAssets.map((a: ImportAssetRow) => a.asset_id).filter((id: any) => id != null);
           
@@ -1595,7 +1604,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     insertError,
                     assetIds: validatedSkeletonAssets.map(a => a.asset_id)
                   });
-                  errors.push(`שגיאה: מזהה נכס כפול בקובץ הייבוא. אנא בדוק שהנכסים לא מופיעים מספר פעמים בקובץ. פרטים: ${insertError.message}`);
+                  // Check if error mentions ON CONFLICT - this means constraint mismatch
+                  if (insertError.message?.includes('ON CONFLICT') || insertError.message?.includes('onConflict')) {
+                    errors.push(`שגיאה: בעיה במבנה מסד הנתונים. אנא פנה למנהל המערכת. פרטים: ${insertError.message}`);
+                  } else {
+                    errors.push(`שגיאה: מזהה נכס כפול בקובץ הייבוא. אנא בדוק שהנכסים לא מופיעים מספר פעמים בקובץ. פרטים: ${insertError.message}`);
+                  }
                 }
               }
             } catch (err) {
@@ -2066,8 +2080,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         // If bulk insert fails, try to identify which assets failed
         const errorMsg = bulkError.message || 'שגיאה בשמירה';
         
+        // Check for ON CONFLICT error (constraint mismatch)
+        if (errorMsg.includes('ON CONFLICT') || errorMsg.includes('onConflict') || errorMsg.includes('no unique or exclusion constraint')) {
+          errors.push(`שגיאה: בעיה במבנה מסד הנתונים - אילוץ ייחודי לא תואם. אנא פנה למנהל המערכת. פרטים: ${errorMsg}`);
+        }
         // If it's a unique constraint violation (duplicate asset_id), check which assets are duplicates
-        if (bulkError.code === '23505' || errorMsg.includes('assets_asset_id_unique') || errorMsg.includes('duplicate key')) {
+        else if (bulkError.code === '23505' || errorMsg.includes('assets_asset_id_unique') || errorMsg.includes('duplicate key')) {
           // Get all asset_ids from the batch and check which ones exist in the database (bulk query)
           const assetIdsToCheck = assetsToInsert.map(a => a.asset_id).filter(id => id != null);
           
@@ -3555,6 +3573,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 animateRows={true}
                 enableRtl={true}
                 suppressHorizontalScroll={false}
+                singleClickEdit={true}
+                stopEditingWhenCellsLoseFocus={true}
               />
             </div>
           </div>

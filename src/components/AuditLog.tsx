@@ -438,6 +438,8 @@ export function AuditLog() {
               setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
             }}
             onColumnMoved={masterGridPreferences.handleColumnMoved}
+            singleClickEdit={true}
+            stopEditingWhenCellsLoseFocus={true}
           />
         </div>
       </div>
@@ -491,6 +493,8 @@ export function AuditLog() {
                 setTimeout(() => detectAndApplyTextOverflow(params.api), 100);
               }}
               onColumnMoved={detailGridPreferences.handleColumnMoved}
+              singleClickEdit={true}
+              stopEditingWhenCellsLoseFocus={true}
             />
           </div>
         </div>

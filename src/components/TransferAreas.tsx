@@ -650,6 +650,31 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     }
   }, [assets, dirtyAssets, taxRegion, initialTotalArea, validateAllAssets]);
 
+  // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty when edit stops.
+  const onCellEditingStopped = useCallback((event: any) => {
+    const { data, column, colDef } = event;
+    const field = colDef?.field ?? column?.getColDef?.()?.field;
+    if (!data?.asset_id || !field) return;
+    const assetId = String(data.asset_id);
+    if (!assets.some(a => String(a.asset_id) === assetId)) return;
+    let newValue = event.newValue ?? event.node?.data?.[field];
+    if (newValue === '' || newValue === null || newValue === undefined) {
+      const isNumericField = colDef?.type === 'numericColumn' ||
+        field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
+        field === 'floor' || field === 'tax_region';
+      newValue = isNumericField ? 0 : null;
+    }
+    setDirtyAssets(prev => {
+      const next = new Map(prev);
+      const existing = next.get(assetId) || {};
+      next.set(assetId, { ...existing, [field]: newValue });
+      return next;
+    });
+    setAssets(prev => prev.map(a =>
+      String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
+    ));
+  }, [assets]);
+
   const handleOpenSaveAsNewMeasurementModal = useCallback(() => {
     if (dirtyAssets.size === 0) {
       setSuccess('אין שינויים לשמירה');
@@ -2203,6 +2228,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               suppressHorizontalScroll={false}
               getRowId={(params) => String(params.data.asset_id)}
               onCellValueChanged={onCellValueChanged}
+              onCellEditingStopped={onCellEditingStopped}
               getRowStyle={(params) => {
         const assetId = String(params.data?.asset_id);
         
@@ -2232,6 +2258,8 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
               }}
               onColumnMoved={gridPreferences.handleColumnMoved}
               onSortChanged={() => {}}
+              singleClickEdit={true}
+              stopEditingWhenCellsLoseFocus={true}
               enableRtl={true}
               animateRows={true}
             />

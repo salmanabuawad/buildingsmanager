@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, useImperativeHandle, forwardRef, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Building, AddressList, api } from '../lib/api';
@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { buildingValidators, getAssetTypes } from '../lib/validation';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellEditorParams } from 'ag-grid-community';
-import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, CheckCircle2, Download } from 'lucide-react';
+import { Search, AlertCircle, Plus, Loader2, Save, X, Trash2, CheckCircle2, Download, Building2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useGridPreferences } from '../lib/useGridPreferences';
 import { useFieldConfig } from '../lib/useFieldConfig';
@@ -433,11 +433,12 @@ export interface BuildingsListRef {
   refreshExportCount: () => Promise<void>;
 }
 
+// BuildingsList component with forwardRef
 export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({ 
   onSelectBuilding, 
   onOpenAssetTypes, 
   onOpenAssetSearch, 
-  onOpenValidationRules, 
+  onOpenValidationRules,
   showCreateModal, 
   setShowCreateModal 
 }, ref) => {
@@ -449,6 +450,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // Separate saving state to avoid full refresh appearance
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
@@ -650,17 +652,19 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const data = await api.buildings.getAll();
       
       // Preserve new buildings that haven't been saved yet (failed saves remain visible)
-      setBuildings(prevBuildings => {
-        const existingNewBuildings = prevBuildings.filter(b => {
-          const key = b._tempId || b.building_number;
-          return newBuildings.has(key);
-        });
-        const mergedBuildings = [...(data || []), ...existingNewBuildings];
-        setFilteredBuildings(mergedBuildings);
-        return mergedBuildings;
+      const existingNewBuildings = buildings.filter(b => {
+        const key = b._tempId || b.building_number;
+        return newBuildings.has(key);
       });
+      const mergedBuildings = [...(data || []), ...existingNewBuildings];
       
-      setOriginalBuildings(JSON.parse(JSON.stringify(data || [])));
+      // Batch state updates in a transition to prevent multiple grid refreshes
+      // This tells React these updates are non-urgent and can be batched together
+      startTransition(() => {
+        setBuildings(mergedBuildings);
+        setFilteredBuildings(mergedBuildings);
+        setOriginalBuildings(JSON.parse(JSON.stringify(data || [])));
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load buildings');
     } finally {
@@ -1032,6 +1036,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         valueToUpdate = isNaN(code) || code <= 0 ? null : code;
       }
     }
+    // For building_notes, preserve string value (including empty string as null)
+    if (field === 'building_notes') {
+      valueToUpdate = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
+    }
     
     // Update local state
     setBuildings(prevBuildings => {
@@ -1080,8 +1088,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       }
     }
+    // For building_notes, always store the value (including null for empty string)
+    if (field === 'building_notes') {
+      valueToStore = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
+    }
     
-    const hasMeaningfulValue = valueToStore !== null && valueToStore !== undefined && valueToStore !== '';
+    // For building_notes, always mark as dirty (even if empty, to allow clearing the field)
+    const hasMeaningfulValue = field === 'building_notes' 
+      ? true // Always track building_notes changes, even if empty
+      : (valueToStore !== null && valueToStore !== undefined && valueToStore !== '');
     
     // Calculate updated dirty changes for validation (before state update)
     const existingDirtyChanges = dirtyBuildings.get(newBuildingKey) || {};
@@ -1141,6 +1156,30 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
   }, [newBuildings, isNewBuilding, getBuildingKey, dirtyBuildings, validationErrors, validateTaxRegionRemoval, originalBuildings, buildings, setBuildings, setFilteredBuildings, setDirtyBuildings]);
 
+  // Ensure clearing a numeric cell (e.g. shared areas) always triggers dirty when edit stops.
+  const onCellEditingStopped = useCallback((event: any) => {
+    const { data, column, colDef } = event;
+    const field = colDef?.field ?? column?.getColDef?.()?.field;
+    if (!field || !data) return;
+    const skip = ['building_number', 'tax_region', 'elevator', 'single_double_family', 'condo', 'townhouses', 'building_address', 'overload_ratio', 'total_building_area', 'area_for_control'];
+    if (skip.includes(field)) return;
+    const building = data as Building;
+    const buildingKey = getBuildingKey(building);
+    let newValue = event.newValue ?? event.node?.data?.[field];
+    if (newValue === '' || newValue === null || newValue === undefined) {
+      const isNumeric = field === 'residence_shared_area' || field === 'business_shared_area';
+      newValue = isNumeric ? 0 : null;
+    }
+    setDirtyBuildings(prev => {
+      const next = new Map(prev);
+      const existing = next.get(buildingKey) || {};
+      next.set(buildingKey, { ...existing, [field]: newValue });
+      return next;
+    });
+    setBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
+    setFilteredBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
+  }, [getBuildingKey]);
+
   // Add empty building row
   const addEmptyBuildingRow = () => {
     const tempId = `temp-${Date.now()}`;
@@ -1160,6 +1199,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       gosh: null,
       helka: null,
       building_number_in_street: null,
+      building_notes: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       _tempId: tempId,
@@ -1259,6 +1299,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       };
     }
   }, [buildings, dirtyBuildings, buildingsToDelete, newBuildings, getBuildingKey, findBuildingByKey]);
+
+  // Refresh grid when validation errors change to ensure visual updates
+  // Skip refresh during save operations - handleSaveAll handles refresh manually
+  useEffect(() => {
+    if (validationErrors.size > 0 && !isSaving && gridRef.current?.api) {
+      // Use requestAnimationFrame and setTimeout to ensure React has processed state updates
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (gridRef.current?.api && !isSaving) {
+            gridRef.current.api.refreshCells({ force: true });
+            gridRef.current.api.redrawRows();
+          }
+        }, 100);
+      });
+    }
+  }, [validationErrors, isSaving]);
 
   const handleValidateAll = useCallback(async () => {
     // Don't set loading to avoid refreshing the tab
@@ -1416,7 +1472,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'כתובת',
         'גוש',
         'חלקה',
-        'מספר בניין'
+        'מספר בניין',
+        'הערות'
       ];
 
       // Helper function to format tax region with descriptions
@@ -1452,7 +1509,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         getAddressDescription(building.building_address),
         building.gosh != null ? building.gosh : '',
         building.helka != null ? building.helka : '',
-        building.building_number_in_street != null ? building.building_number_in_street : ''
+        building.building_number_in_street != null ? building.building_number_in_street : '',
+        building.building_notes || ''
       ]);
 
       // Create data array with headers and rows
@@ -1507,14 +1565,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const result = await api.assets.exportToAutomation();
 
       if (!result.success) {
-        setError(result.error || 'שגיאה בייצוא נכסים לאוטומציה');
+        setError(result.error || 'שגיאה בשליחת נכסים לעירייה');
         setTimeout(() => setError(null), 5000);
         setLoading(false);
         return;
       }
 
       if (result.count === 0) {
-        setSuccess('אין נכסים לייצוא - כל הנכסים כבר יוצאו לאוטומציה');
+        setSuccess('אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה');
         setTimeout(() => setSuccess(null), 5000);
         setLoading(false);
         setExportToAutomationCount(0);
@@ -1522,12 +1580,27 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
 
       // Fetch the exported assets to export them to Excel
+      // Use RPC function to avoid type mismatch issues with .in() operator
+      // Ensure assetIds are numbers (not strings) for the RPC call
+      const numericAssetIdsForQuery = result.assetIds
+        .map(id => {
+          if (typeof id === 'string') {
+            const parsed = parseInt(id, 10);
+            return isNaN(parsed) ? null : parsed;
+          }
+          return typeof id === 'number' ? id : Number(id);
+        })
+        .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+
+      if (numericAssetIdsForQuery.length === 0) {
+        setError('לא נמצאו נכסים לייצוא');
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
+
+      // Call RPC function (POST request) instead of GET with .in() or .eq() to avoid type mismatch
       const { data: exportedAssets, error: fetchError } = await supabase
-        .from('assets')
-        .select('*')
-        .in('asset_id', result.assetIds)
-        .order('building_number')
-        .order('asset_id');
+        .rpc('get_assets_by_ids', { p_asset_ids: numericAssetIdsForQuery });
 
       if (fetchError) {
         console.error('Error fetching exported assets:', fetchError);
@@ -1547,10 +1620,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
       // Define headers for asset export - matching export_automatiom_sample.xlsx format
       const headers = [
-        'זיהוי משלם ',
+        'זיהוי משלם',
         'זיהוי נכס',
-        'תחילת שינוי ',
-        'סוף שינוי ',
+        'תחילת שינוי',
+        'סוף שינוי',
         'סוג נכס',
         'גודל נכס',
         'נכס משנה 1',
@@ -1563,8 +1636,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'גודל נכס משנה 4',
         'נכס משנה 5',
         'גודל נכס משנה 5',
-        'סוג נכס משני 6',
-        'גודל נכסי משני 6',
+        'נכס משנה 6',
+        'גודל נכס משנה 6',
         'מנה',
         'מקום גביה',
         'מספר פקודה',
@@ -1647,7 +1720,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       // Convert assets to rows - matching sample file format and column order
       const rows = exportedAssets.map(asset => [
         asset.payer_id || '',                                    // זיהוי משלם
-        asset.asset_id || '',                                    // זיהוי נכס
+        asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
         formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
         formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
         asset.main_asset_type || '',                             // סוג נכס
@@ -1678,11 +1751,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       // Generate filename with current date
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-      const filename = `פריקת_נתונים_${dateStr}.xlsx`;
+      const excelFilename = `שליחת_נתונים_${dateStr}.xlsx`;
 
-      // Export to Excel
+      // Export main Excel file with asset data
       exportToExcel({
-        filename,
+        filename: excelFilename,
         sheetName: 'נכסים',
         data,
         columnWidths: [
@@ -1702,8 +1775,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 15 }, // גודל נכס משנה 4
           { wch: 15 }, // נכס משנה 5
           { wch: 15 }, // גודל נכס משנה 5
-          { wch: 15 }, // סוג נכס משני 6
-          { wch: 15 }, // גודל נכסי משני 6
+          { wch: 15 }, // נכס משנה 6
+          { wch: 15 }, // גודל נכס משנה 6
           { wch: 10 }, // מנה
           { wch: 12 }, // מקום גביה
           { wch: 12 }, // מספר פקודה
@@ -1713,13 +1786,112 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         ]
       });
 
-      setSuccess(`יוצאו ${result.count} נכסים לאוטומציה בהצלחה`);
+      // Get all files for exported assets
+      // Ensure assetIds are numbers (not strings)
+      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
+      
+      // Create a map of asset_id to asset data for lookup
+      // Ensure asset_id is converted to number for consistent key matching
+      const assetMap = new Map<number, any>();
+      exportedAssets.forEach(asset => {
+        const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+        if (!isNaN(assetId) && assetId > 0) {
+          assetMap.set(assetId, asset);
+        }
+      });
+      
+      // Prepare file list data for Excel
+      const fileListData: any[][] = [
+        ['שם קובץ', 'מזהה נכס', 'ת.ז. משלם']
+      ];
+      
+      // Download files separately and build file list
+      let filesDownloaded = 0;
+      for (const [assetId, files] of filesByAsset.entries()) {
+        if (!files || files.length === 0) continue;
+        
+        const asset = assetMap.get(assetId);
+        const payerId = asset?.payer_id || '';
+        
+        for (const file of files) {
+          try {
+            // Extract file path from URL
+            const urlParts = file.file_url.split('/');
+            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            
+            // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
+            let filePath = '';
+            const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
+            if (structureDrawingsIndex !== -1) {
+              filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
+            } else {
+              // Fallback: construct path from assetId and filename
+              filePath = `${assetId}/${fileName}`;
+            }
+            
+            // Download file from storage
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from('structure-drawings')
+              .download(filePath);
+            
+            if (downloadError || !fileData) {
+              console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
+              continue;
+            }
+            
+            // Add to file list
+            fileListData.push([
+              file.file_name || fileName,
+              assetId,
+              payerId
+            ]);
+            
+            // Download file separately
+            const fileUrl = URL.createObjectURL(fileData);
+            const fileLink = document.createElement('a');
+            fileLink.href = fileUrl;
+            fileLink.download = file.file_name || fileName;
+            document.body.appendChild(fileLink);
+            fileLink.click();
+            document.body.removeChild(fileLink);
+            URL.revokeObjectURL(fileUrl);
+            
+            // Small delay to avoid browser blocking multiple downloads
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            filesDownloaded++;
+          } catch (err) {
+            console.warn(`Error processing file for asset ${assetId}:`, err);
+          }
+        }
+      }
+      
+      // Export file list Excel if there are files
+      if (fileListData.length > 1) {
+        const fileListFilename = `רשימת_קבצים_${dateStr}.xlsx`;
+        exportToExcel({
+          filename: fileListFilename,
+          sheetName: 'רשימת קבצים',
+          data: fileListData,
+          columnWidths: [
+            { wch: 30 }, // שם קובץ
+            { wch: 15 }, // מזהה נכס
+            { wch: 15 }  // ת.ז. משלם
+          ]
+        });
+      }
+      
+      const successMessage = filesDownloaded > 0 
+        ? `נשלחו ${result.count} נכסים לעירייה בהצלחה (כולל ${filesDownloaded} קבצים)`
+        : `נשלחו ${result.count} נכסים לעירייה בהצלחה`;
+      setSuccess(successMessage);
       setTimeout(() => setSuccess(null), 5000);
       // Refresh the count after export
       await fetchExportToAutomationCount();
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
-      setError(error.message || 'שגיאה בייצוא נכסים לאוטומציה');
+      setError(error.message || 'שגיאה בשליחת נכסים לעירייה');
       setTimeout(() => setError(null), 5000);
     } finally {
       setLoading(false);
@@ -1730,18 +1902,56 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const handleSaveAll = async () => {
     if (dirtyBuildings.size === 0 && buildingsToDelete.size === 0 && newBuildings.size === 0) return;
 
-    setLoading(true);
+    // DON'T set loading=true here - it causes full component refresh (shows loading spinner)
+    // Use isSaving for save button state instead to avoid tab refresh appearance
+    setIsSaving(true);
     setError(null);
     setSuccess(null);
     
     try {
-      // Run validation before saving
+      // Run validation before saving - MUST pass before proceeding to server
       const validationResult = await runValidationProgrammatically();
       if (validationResult.hasErrors) {
-        setError(validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.');
-        setTimeout(() => setError(null), 8000);
-        setLoading(false);
-        return;
+        // Stop save operation - don't submit to server
+        setIsSaving(false);
+        
+        // Show toast error message
+        setToast({ 
+          message: validationResult.errorMessage || 'נמצאו שגיאות אימות. אנא תקן לפני השמירה.', 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 8000);
+        
+        // Force immediate grid refresh to show validation errors
+        // The validationErrors state is set inside runValidationProgrammatically
+        // Use requestAnimationFrame to ensure React has processed the state update
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (gridRef.current?.api) {
+              // Force full grid refresh to show validation errors on rows
+              gridRef.current.api.refreshCells({ force: true });
+              gridRef.current.api.redrawRows();
+              
+              // Scroll to first error row if possible
+              setTimeout(() => {
+                if (gridRef.current?.api && validationErrors.size > 0) {
+                  const firstErrorBuildingKey = Array.from(validationErrors.keys())[0];
+                  gridRef.current.api.forEachNode(node => {
+                    const building = node.data as Building;
+                    if (!building) return;
+                    const buildingKey = getBuildingKey(building);
+                    if (buildingKey === firstErrorBuildingKey || String(buildingKey) === String(firstErrorBuildingKey)) {
+                      node.setSelected(true);
+                      gridRef.current.api.ensureNodeVisible(node, 'top');
+                    }
+                  });
+                }
+              }, 200);
+            }
+          }, 200); // Give React time to update state
+        });
+        
+        return; // Stop here - don't proceed to save
       }
       let savedCount = 0;
       let deletedCount = 0;
@@ -1934,48 +2144,17 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         setError(null);
       }
 
-      // Remove deleted buildings from state before fetching
-      setBuildings(prev => prev.filter(b => {
-        const key = getBuildingKey(b);
-        return !successfullyDeleted.has(key);
-      }));
-      setFilteredBuildings(prev => prev.filter(b => {
-        const key = getBuildingKey(b);
-        return !successfullyDeleted.has(key);
-      }));
-      
       // Refresh data to get updated buildings from database
-      // This will also update originalBuildings for future cancel operations
+      // fetchBuildings will handle updating buildings, filteredBuildings, and originalBuildings
+      // No need to manually remove deleted buildings - fetchBuildings gets fresh data from DB
+      // Note: No manual grid refresh needed - fetchBuildings updates state which naturally refreshes the grid
       await fetchBuildings(false);
-      
-      // Force refresh grid to clear dirty styling after state updates
-      if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: true });
-      }
-      
-      // Update originalBuildings after successful save
-      setOriginalBuildings(prev => {
-        const updated = [...prev];
-        for (const buildingKey of successfullySaved) {
-          const building = findBuildingByKey(buildingKey);
-          if (building && !building._isNew && !building._tempId) {
-            // Replace or add the saved building
-            const index = updated.findIndex(b => b.building_number === building.building_number);
-            if (index >= 0) {
-              updated[index] = { ...building };
-            } else {
-              updated.push({ ...building });
-            }
-          }
-        }
-        return updated;
-      });
     } catch (error: any) {
       const errorMsg = `שגיאה בשמירה: ${error.message || error.toString()}`;
       console.error('[BuildingsList] Error saving changes:', error);
       setError(errorMsg);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -2682,6 +2861,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellStyle: (params) => getCellStyle(params, 'building_number_in_street')
     },
     {
+      field: 'building_notes',
+      headerName: 'הערות',
+      editable: !isReadOnly,
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
+          return '';
+        }
+        const value = params.value != null ? String(params.value) : '';
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'building_notes')
+    },
+    {
       field: 'extra_field_1',
       headerName: '',
       editable: false,
@@ -2842,7 +3037,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              פריקת נתונים{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
+              שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
             </button>
           </div>
           {!isReadOnly && (
@@ -2858,10 +3053,10 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               <button
                 type="button"
                 onClick={handleSaveAll}
-                disabled={loading || totalChanges === 0}
+                disabled={isSaving || totalChanges === 0}
                 className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-sm bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:shadow-none font-semibold w-full sm:w-auto"
               >
-                {loading ? (
+                {isSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Save className="h-4 w-4" />
@@ -2896,6 +3091,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 suppressColumnMoveAnimation: true,
               }}
               onCellValueChanged={onCellValueChanged}
+              onCellEditingStopped={onCellEditingStopped}
               onGridReady={async (params) => {
                 // Load saved column state first
                 await gridPreferences.loadColumnState(params.api);
@@ -3019,6 +3215,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 }
                 return { background: '#f0f9ff' };
               }}
+              singleClickEdit={true}
+              stopEditingWhenCellsLoseFocus={true}
             />
           </div>
         </div>
@@ -3263,3 +3461,5 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     </>
   );
 });
+
+BuildingsList.displayName = 'BuildingsList';

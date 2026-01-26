@@ -294,11 +294,23 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       fieldName
     });
     
-    // CRITICAL: Use setDataValue BEFORE stopEditing to ensure ag-grid processes the change
-    // This will trigger valueSetter and onCellValueChanged properly
+    // CRITICAL: Update node.data directly BEFORE stopEditing to ensure the value is set
+    // Then use setDataValue to trigger ag-grid's change detection
     const node = props.node;
     const column = props.column;
     const api = props.api;
+    
+    if (node && node.data) {
+      // Update node.data directly first
+      node.data[fieldName] = streetCode;
+      console.log('[AddressCellEditor] Updated node.data directly:', {
+        fieldName,
+        streetCode,
+        nodeDataAddress: node.data[fieldName],
+        nodeData: node.data
+      });
+    }
+    
     if (node && column) {
       const colId = column.getColId();
       const currentValue = node.data?.[fieldName];
@@ -307,15 +319,23 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         fieldName,
         streetCode,
         currentValue,
+        nodeDataAddress: node.data?.[fieldName],
         willUpdate: currentValue !== streetCode
       });
       
       // Call setDataValue BEFORE stopEditing - this ensures ag-grid processes the change
       // setDataValue will:
-      // 1. Update node.data[fieldName] via valueSetter
+      // 1. Call valueSetter to update node.data[fieldName] (but we already set it above)
       // 2. Trigger onCellValueChanged
       // 3. Then stopEditing will finalize the edit
       node.setDataValue(colId, streetCode);
+      
+      // Verify the value was set
+      console.log('[AddressCellEditor] After setDataValue, verifying:', {
+        nodeDataAddress: node.data?.[fieldName],
+        streetCode,
+        match: node.data?.[fieldName] === streetCode
+      });
     }
     
     // Stop editing - AG Grid will:
@@ -2892,25 +2912,47 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           // Convert to number if it's a valid number, otherwise null
           const numValue = newValue != null && newValue !== '' ? Number(newValue) : null;
           const finalValue = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
+          
+          // CRITICAL: Set the value directly on the data object
           params.data.address = finalValue;
+          
           console.log('[address valueSetter] Setting address:', {
             newValue,
             numValue,
             finalValue,
             oldValue: params.oldValue,
-            dataAddress: params.data.address
+            dataAddress: params.data.address,
+            dataObject: params.data,
+            hasAddress: 'address' in params.data
           });
         }
         return true;
       },
       cellRenderer: (params: any) => {
         const building = params.data as Building;
-        if (!building) return '';
+        if (!building) {
+          console.log('[address cellRenderer] No building data');
+          return '';
+        }
         
         // Use params.value (from valueGetter) as primary source, fallback to building.address
         // params.value contains the street_code (number) that is stored in DB
         const streetCode = params.value != null ? params.value : (building.address ?? null);
-        if (!streetCode) return '';
+        
+        console.log('[address cellRenderer] Rendering:', {
+          streetCode,
+          paramsValue: params.value,
+          buildingAddress: building.address,
+          dataObject: params.data,
+          hasAddressInData: 'address' in (params.data || {}),
+          isNew: isNewBuilding(building),
+          addressListLength: addressList.length
+        });
+        
+        if (!streetCode) {
+          console.log('[address cellRenderer] No streetCode, returning empty');
+          return '';
+        }
         
         const isNew = isNewBuilding(building);
         
@@ -2921,13 +2963,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // The code is stored in DB, but we show the description to the user
         const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
         
-        console.log('[address cellRenderer] Rendering:', {
+        console.log('[address cellRenderer] Final display:', {
           streetCode,
-          paramsValue: params.value,
-          buildingAddress: building.address,
           displayValue,
           hasAddress: !!address,
-          addressListLength: addressList.length
+          addressFound: address ? { code: address.street_code, desc: address.street_description } : null
         });
         
         if (isNew && !streetCode) {

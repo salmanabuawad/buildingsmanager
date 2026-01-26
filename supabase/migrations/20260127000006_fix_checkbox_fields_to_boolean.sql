@@ -88,6 +88,10 @@ END $$;
 -- ============================================================================
 -- 2. ASSETS TABLE - Checkbox fields
 -- ============================================================================
+-- Add data_from_automation column if it doesn't exist
+ALTER TABLE assets
+ADD COLUMN IF NOT EXISTS data_from_automation boolean DEFAULT false;
+
 -- Update NULL values to false
 UPDATE assets
 SET elevator = false WHERE elevator IS NULL;
@@ -182,6 +186,10 @@ END $$;
 -- ============================================================================
 -- 3. ASSETS_HISTORY TABLE - Checkbox fields
 -- ============================================================================
+-- Add data_from_automation column if it doesn't exist
+ALTER TABLE assets_history
+ADD COLUMN IF NOT EXISTS data_from_automation boolean DEFAULT false;
+
 -- Update NULL values to false
 UPDATE assets_history
 SET elevator = false WHERE elevator IS NULL;

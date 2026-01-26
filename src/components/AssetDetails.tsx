@@ -385,7 +385,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                        atTaxRegionNum != null && 
                        !isNaN(atTaxRegionNum) && 
                        atTaxRegionNum === assetTaxRegionNum &&
-                       at.active === 'כן';
+                       (at.active === true || at.active === 'כן');
               });
               
               if (!matchingAssetTypeForTaxRegion) {
@@ -396,7 +396,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                   const atTaxRegionNum = at.tax_region != null 
                     ? (typeof at.tax_region === 'string' ? parseInt(at.tax_region, 10) : at.tax_region)
                     : null;
-                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && at.active === 'כן') {
+                  if (atNameStr === newAssetTypeName && atTaxRegionNum != null && !isNaN(atTaxRegionNum) && (at.active === true || at.active === 'כן')) {
                     validTaxRegions.add(atTaxRegionNum);
                   }
                 });

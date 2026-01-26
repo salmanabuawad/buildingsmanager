@@ -220,7 +220,7 @@ export function getBuildingByNumber(buildingNumber: number | string | null | und
  */
 export function getAssetTypesByName(name: string): any[] {
   const assetTypes = getAssetTypes();
-  return assetTypes.filter(at => at.name === name && at.active === 'כן');
+  return assetTypes.filter(at => at.name === name && (at.active === true || at.active === 'כן'));
 }
 
 // Memoization cache for getValidTaxRegionsForAssetType
@@ -258,7 +258,7 @@ function getValidTaxRegionsForAssetType(
     );
     
     // Then filter by active status
-    assetTypes = allMatchingByName.filter(at => at.active === 'כן');
+    assetTypes = allMatchingByName.filter(at => at.active === true || at.active === 'כן');
     
     // Only log warnings for actual issues (not every call)
     if (assetTypes.length === 0 && allMatchingByName.length > 0) {
@@ -673,7 +673,7 @@ export async function validateAssetTypeForBuildingTaxRegion(
     if (assetTypes && Array.isArray(assetTypes)) {
       // Filter asset types
       let matchingAssetTypes = assetTypes.filter(at => 
-        at.name === assetTypeName && at.active === 'כן'
+        at.name === assetTypeName && (at.active === true || at.active === 'כן')
       );
 
       // Apply tax region filtering - ALWAYS check against asset_types table
@@ -856,7 +856,7 @@ export async function validateAssetTypeComplete(
       // Use cached asset types if available, otherwise query database
       if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
         let matchingAssetTypes = cachedData.assetTypes.filter(at => 
-          at.name === assetTypeName && at.active === 'כן'
+          at.name === assetTypeName && (at.active === true || at.active === 'כן')
         );
 
         // Check if asset type has specific valid tax regions from asset_types table
@@ -948,7 +948,7 @@ export async function validateAssetTypeComplete(
     if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
       // Filter from cache
       assetTypes = cachedData.assetTypes.filter(at => 
-        at.name === assetTypeName && at.active === 'כן'
+        at.name === assetTypeName && (at.active === true || at.active === 'כן')
       );
       
       // Apply tax region filtering if taxRegionsToCheck is available
@@ -1002,7 +1002,7 @@ export async function validateAssetTypeComplete(
       }
 
       if (assetTypes.length === 0) {
-        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא נמצא או לא פעיל עבור אזור המס המבוקש` };
       }
     } else {
       // Use in-memory asset types
@@ -1048,7 +1048,7 @@ export async function validateAssetTypeComplete(
       }
 
       if (assetTypes.length === 0) {
-        return { valid: false, error: 'שגיאה באימות סוג הנכס' };
+        return { valid: false, error: `סוג הנכס "${assetTypeName}" לא נמצא או לא פעיל עבור אזור המס המבוקש` };
       }
     }
 
@@ -1745,7 +1745,7 @@ export async function validateSubAssetsFor199Or299(
     if (cachedData?.assetTypes && Array.isArray(cachedData.assetTypes)) {
       // Filter from cache
       let matchingAssetTypes = cachedData.assetTypes.filter(at => 
-        validSubAssets.includes(at.name) && at.active === 'כן'
+        validSubAssets.includes(at.name) && (at.active === true || at.active === 'כן')
       );
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region
@@ -1798,7 +1798,7 @@ export async function validateSubAssetsFor199Or299(
       // Use in-memory asset types
       const allAssetTypes = getAssetTypes();
       let matchingAssetTypes = allAssetTypes.filter(at => 
-        validSubAssets.includes(at.name) && at.active === 'כן'
+        validSubAssets.includes(at.name) && (at.active === true || at.active === 'כן')
       );
 
       // ALWAYS check against asset_types table - use tab's taxRegion, ignore building.tax_region

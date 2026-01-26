@@ -20,6 +20,29 @@
     - All operations are transactional
 */
 
+-- Helper function to extract boolean from JSONB (used for boolean checkbox fields)
+CREATE OR REPLACE FUNCTION extract_boolean_from_jsonb(p_value JSONB, p_default BOOLEAN DEFAULT false)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF p_value IS NULL OR p_value = 'null'::jsonb THEN
+    RETURN p_default;
+  END IF;
+  
+  IF jsonb_typeof(p_value) = 'boolean' THEN
+    RETURN (p_value)::text::boolean;
+  END IF;
+  
+  IF jsonb_typeof(p_value) = 'string' THEN
+    RETURN CASE 
+      WHEN LOWER((p_value)::text) IN ('true', '1') OR (p_value)::text = 'כן' THEN true 
+      ELSE false 
+    END;
+  END IF;
+  
+  RETURN p_default;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 CREATE OR REPLACE FUNCTION save_assets_bulk_transactional(
   p_assets_data JSONB[],
   p_validation_passed BOOLEAN,
@@ -226,8 +249,11 @@ BEGIN
         (v_asset_data->>'sub_asset_type_4')::TEXT, COALESCE((v_asset_data->>'sub_asset_size_4')::NUMERIC, 0),
         (v_asset_data->>'sub_asset_type_5')::TEXT, COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
         (v_asset_data->>'sub_asset_type_6')::TEXT, COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
-        (v_asset_data->>'elevator')::TEXT, (v_asset_data->>'single_double_family')::TEXT,
-        (v_asset_data->>'condo')::TEXT, (v_asset_data->>'townhouses')::TEXT, (v_asset_data->>'penthouse')::TEXT,
+        extract_boolean_from_jsonb(v_asset_data->'elevator', false),
+        extract_boolean_from_jsonb(v_asset_data->'single_double_family', false),
+        extract_boolean_from_jsonb(v_asset_data->'condo', false),
+        extract_boolean_from_jsonb(v_asset_data->'townhouses', false),
+        extract_boolean_from_jsonb(v_asset_data->'penthouse', false),
         (v_asset_data->>'structure_drawing_url')::TEXT, (v_asset_data->>'floor')::BIGINT,
         (v_asset_data->>'discount_type')::TEXT, (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'area_from_distribution')::NUMERIC,
@@ -292,21 +318,21 @@ BEGIN
           ELSE NULLIF((v_asset_data->>'sub_asset_type_6'), '')::TEXT END,
         sub_asset_size_6 = CASE WHEN v_asset_data->'sub_asset_size_6' IS NULL THEN sub_asset_size_6
           ELSE COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0) END,
-        elevator = CASE WHEN v_asset_data->'elevator' IS NULL THEN elevator
-          WHEN v_asset_data->'elevator' = 'null'::jsonb THEN NULL
-          ELSE NULLIF((v_asset_data->>'elevator'), '')::TEXT END,
-        single_double_family = CASE WHEN v_asset_data->'single_double_family' IS NULL THEN single_double_family
-          WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN NULL
-          ELSE NULLIF((v_asset_data->>'single_double_family'), '')::TEXT END,
-        condo = CASE WHEN v_asset_data->'condo' IS NULL THEN condo
-          WHEN v_asset_data->'condo' = 'null'::jsonb THEN NULL
-          ELSE NULLIF((v_asset_data->>'condo'), '')::TEXT END,
-        townhouses = CASE WHEN v_asset_data->'townhouses' IS NULL THEN townhouses
-          WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN NULL
-          ELSE NULLIF((v_asset_data->>'townhouses'), '')::TEXT END,
-        penthouse = CASE WHEN v_asset_data->'penthouse' IS NULL THEN penthouse
-          WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN NULL
-          ELSE NULLIF((v_asset_data->>'penthouse'), '')::TEXT END,
+        elevator = CASE WHEN NOT (v_asset_data ? 'elevator') THEN elevator
+          WHEN v_asset_data->'elevator' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'elevator', false) END,
+        single_double_family = CASE WHEN NOT (v_asset_data ? 'single_double_family') THEN single_double_family
+          WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'single_double_family', false) END,
+        condo = CASE WHEN NOT (v_asset_data ? 'condo') THEN condo
+          WHEN v_asset_data->'condo' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'condo', false) END,
+        townhouses = CASE WHEN NOT (v_asset_data ? 'townhouses') THEN townhouses
+          WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'townhouses', false) END,
+        penthouse = CASE WHEN NOT (v_asset_data ? 'penthouse') THEN penthouse
+          WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN false
+          ELSE extract_boolean_from_jsonb(v_asset_data->'penthouse', false) END,
         structure_drawing_url = CASE WHEN v_asset_data->'structure_drawing_url' IS NULL THEN structure_drawing_url
           WHEN v_asset_data->'structure_drawing_url' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'structure_drawing_url'), '')::TEXT END,
@@ -514,6 +540,6 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON FUNCTION save_assets_bulk_transactional IS 'Bulk save assets with transactional operations including validation, distribution flags, and audit logging. All operations are atomic.';
+COMMENT ON FUNCTION save_assets_bulk_transactional IS 'Bulk save assets with transactional operations including validation, distribution flags, and audit logging. All operations are atomic. Supports boolean checkbox fields (elevator, single_double_family, condo, townhouses, penthouse).';
 
 SELECT 'Function save_assets_bulk_transactional created successfully' as status;

@@ -2,7 +2,7 @@
   Migration: Ensure update_asset_types_bulk_with_distribution_reset function exists
   
   This migration ensures the bulk asset type update function exists and is up to date.
-  It calls update_asset_type_with_distribution_reset which was fixed in migration 20260127000007.
+  It calls update_asset_type_with_distribution_reset which was fixed in migration 20260127000000_consolidated_boolean_fields_fix.
 */
 
 CREATE OR REPLACE FUNCTION update_asset_types_bulk_with_distribution_reset(
@@ -36,7 +36,7 @@ BEGIN
     END IF;
 
     -- Reuse the existing transactional function per asset type
-    -- This function was fixed in migration 20260127000007 to support boolean fields
+    -- This function was fixed in migration 20260127000000_consolidated_boolean_fields_fix to support boolean fields
     v_single_result := update_asset_type_with_distribution_reset(v_id, v_updates);
     v_results := array_append(v_results, v_single_result);
     v_count := v_count + 1;

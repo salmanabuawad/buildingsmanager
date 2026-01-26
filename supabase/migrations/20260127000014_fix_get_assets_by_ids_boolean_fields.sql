@@ -1,19 +1,11 @@
 /*
-  # Add get_assets_by_ids function
-
-  1. Changes
-    - Creates get_assets_by_ids function that returns assets by their IDs
-    - Used for exporting assets to automation system
-    - Returns all asset fields needed for Excel export
-
-  2. Parameters
-    - p_asset_ids: Array of asset IDs to fetch
-
-  3. Returns
-    - Table with all asset fields
+  Migration: Fix get_assets_by_ids function to return boolean fields as BOOLEAN
+  
+  This migration fixes the get_assets_by_ids function to return boolean checkbox fields
+  (elevator, single_double_family, condo, townhouses, penthouse) as BOOLEAN instead of TEXT,
+  matching the column types after the boolean fields migration.
 */
 
--- Create function to get assets by IDs
 CREATE OR REPLACE FUNCTION get_assets_by_ids(p_asset_ids integer[])
 RETURNS TABLE (
   building_number bigint,
@@ -100,8 +92,4 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Grant execute permission to authenticated and anon users
-GRANT EXECUTE ON FUNCTION get_assets_by_ids(integer[]) TO authenticated, anon;
-
--- Add comment
-COMMENT ON FUNCTION get_assets_by_ids IS 'Returns assets by their IDs. Used for exporting assets to automation system.';
+COMMENT ON FUNCTION get_assets_by_ids IS 'Returns assets by their IDs. Used for exporting assets to automation system. Returns boolean checkbox fields as BOOLEAN type.';

@@ -213,7 +213,8 @@ BEGIN
         (v_asset_data->>'sub_asset_type_5')::TEXT, COALESCE((v_asset_data->>'sub_asset_size_5')::NUMERIC, 0),
         (v_asset_data->>'sub_asset_type_6')::TEXT, COALESCE((v_asset_data->>'sub_asset_size_6')::NUMERIC, 0),
         CASE
-          WHEN v_asset_data->'elevator' IS NULL THEN false
+          WHEN NOT (v_asset_data ? 'elevator') THEN false
+          WHEN v_asset_data->'elevator' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'elevator') = 'string' THEN
             CASE 
               WHEN LOWER((v_asset_data->>'elevator')::text) IN ('true', '1') OR (v_asset_data->>'elevator')::text = 'כן' THEN true 
@@ -224,7 +225,8 @@ BEGIN
           ELSE false
         END,
         CASE
-          WHEN v_asset_data->'single_double_family' IS NULL THEN false
+          WHEN NOT (v_asset_data ? 'single_double_family') THEN false
+          WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'string' THEN
             CASE 
               WHEN LOWER((v_asset_data->>'single_double_family')::text) IN ('true', '1') OR (v_asset_data->>'single_double_family')::text = 'כן' THEN true 
@@ -235,7 +237,8 @@ BEGIN
           ELSE false
         END,
         CASE
-          WHEN v_asset_data->'condo' IS NULL THEN false
+          WHEN NOT (v_asset_data ? 'condo') THEN false
+          WHEN v_asset_data->'condo' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'condo') = 'string' THEN
             CASE 
               WHEN LOWER((v_asset_data->>'condo')::text) IN ('true', '1') OR (v_asset_data->>'condo')::text = 'כן' THEN true 
@@ -246,7 +249,8 @@ BEGIN
           ELSE false
         END,
         CASE
-          WHEN v_asset_data->'townhouses' IS NULL THEN false
+          WHEN NOT (v_asset_data ? 'townhouses') THEN false
+          WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'townhouses') = 'string' THEN
             CASE 
               WHEN LOWER((v_asset_data->>'townhouses')::text) IN ('true', '1') OR (v_asset_data->>'townhouses')::text = 'כן' THEN true 
@@ -257,7 +261,8 @@ BEGIN
           ELSE false
         END,
         CASE
-          WHEN v_asset_data->'penthouse' IS NULL THEN false
+          WHEN NOT (v_asset_data ? 'penthouse') THEN false
+          WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'penthouse') = 'string' THEN
             CASE 
               WHEN LOWER((v_asset_data->>'penthouse')::text) IN ('true', '1') OR (v_asset_data->>'penthouse')::text = 'כן' THEN true 
@@ -271,7 +276,8 @@ BEGIN
         (v_asset_data->>'discount_type')::TEXT, (v_asset_data->>'discount_date_from')::TEXT,
         (v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'area_from_distribution')::NUMERIC,
         CASE
-          WHEN v_asset_data->'exported_to_automation' IS NULL THEN false
+          WHEN NOT (v_asset_data ? 'exported_to_automation') THEN false
+          WHEN v_asset_data->'exported_to_automation' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'exported_to_automation') = 'string' THEN
             CASE 
               WHEN LOWER((v_asset_data->>'exported_to_automation')::text) IN ('true', '1') OR (v_asset_data->>'exported_to_automation')::text = 'כן' THEN true 
@@ -283,7 +289,18 @@ BEGIN
         END,
         (v_asset_data->>'comment')::TEXT);
     ELSE
-      IF COALESCE((v_asset_data->>'is_new_measurement')::BOOLEAN, false) = true THEN
+      IF CASE
+          WHEN NOT (v_asset_data ? 'is_new_measurement') THEN false
+          WHEN v_asset_data->'is_new_measurement' = 'null'::jsonb THEN false
+          WHEN jsonb_typeof(v_asset_data->'is_new_measurement') = 'string' THEN
+            CASE 
+              WHEN LOWER((v_asset_data->>'is_new_measurement')::text) IN ('true', '1') OR (v_asset_data->>'is_new_measurement')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'is_new_measurement') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'is_new_measurement')::text = 'true' THEN true ELSE false END
+          ELSE false
+        END = true THEN
         INSERT INTO assets_history (asset_id, building_number, payer_id, measurement_date, main_asset_type,
           asset_size, tax_region, sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
           sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4, sub_asset_type_5,

@@ -1522,7 +1522,7 @@ export const api = {
         .from('assets_history')
         .select('*')
         .eq('asset_id', assetId)
-        .order('history_created_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
         // If table doesn't exist or RLS blocks it, return empty array
@@ -1572,9 +1572,10 @@ export const api = {
           historyQuery = historyQuery.eq('building_number', buildingNumber);
         }
 
-        // Sort by history_created_at (database insertion date) descending, then by measurement_date as fallback
+        // Sort by created_at (database insertion date) descending, then by measurement_date as fallback
+        // Note: consolidated schema uses 'created_at' instead of 'history_created_at'
         const { data: historyData, error: historyError } = await historyQuery
-          .order('history_created_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false, nullsFirst: false })
           .order('measurement_date', { ascending: false });
 
         if (historyError) {
@@ -1585,13 +1586,13 @@ export const api = {
           throw historyError;
         }
 
-        // Sort history records by history_created_at (database insertion date) descending
-        // If history_created_at is null, use created_at or id as fallback
+        // Sort history records by created_at (database insertion date) descending
+        // Note: consolidated schema uses 'created_at' instead of 'history_created_at'
         const sortedHistory = (historyData || []).map(h => ({ ...h, is_latest: false }))
           .sort((a, b) => {
-            // Primary sort: history_created_at (database insertion date)
-            const aDate = a.history_created_at || a.created_at || a.id;
-            const bDate = b.history_created_at || b.created_at || b.id;
+            // Primary sort: created_at (database insertion date)
+            const aDate = a.created_at || a.history_created_at || a.id;
+            const bDate = b.created_at || b.history_created_at || b.id;
             
             if (aDate && bDate) {
               const aTime = new Date(aDate).getTime();
@@ -1659,7 +1660,7 @@ export const api = {
         .from('assets_history')
         .select('*')
         .eq('asset_id', assetId)
-        .order('history_created_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (historyError) {
         // If table doesn't exist or RLS blocks it, return only master
@@ -1722,7 +1723,7 @@ export const api = {
             .from('assets_history')
             .select('*')
             .in('asset_id', assetIds)
-            .order('history_created_at', { ascending: false });
+            .order('created_at', { ascending: false });
 
           if (historyError) {
             // If table doesn't exist or RLS blocks it, return only master records
@@ -1838,7 +1839,7 @@ export const api = {
         .from('assets_history')
         .select('*')
         .in('asset_id', assetIds)
-        .order('history_created_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (historyError) {
         // If table doesn't exist or RLS blocks it, return only master records

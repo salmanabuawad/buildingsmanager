@@ -35,8 +35,9 @@ BEGIN
   -- Check if non_accountable_for_distribution is being changed
   IF p_updates ? 'non_accountable_for_distribution' THEN
     v_new_non_accountable_for_distribution := CASE
-      WHEN jsonb_typeof(p_updates->'non_accountable_for_distribution') = 'boolean' THEN (p_updates->'non_accountable_for_distribution')::boolean
+      WHEN jsonb_typeof(p_updates->'non_accountable_for_distribution') = 'boolean' THEN (p_updates->>'non_accountable_for_distribution')::boolean
       WHEN jsonb_typeof(p_updates->'non_accountable_for_distribution') = 'string' AND (p_updates->>'non_accountable_for_distribution')::text IN ('true', 'TRUE', '1', 'כן') THEN true
+      WHEN jsonb_typeof(p_updates->'non_accountable_for_distribution') = 'string' AND (p_updates->>'non_accountable_for_distribution')::text IN ('false', 'FALSE', '0', 'לא', '') THEN false
       ELSE false
     END;
     

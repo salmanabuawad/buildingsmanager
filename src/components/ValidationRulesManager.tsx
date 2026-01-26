@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ValidationRule, api } from '../lib/api';
 import { useValidationRules } from '../contexts/ValidationContext';
-import { Settings, Plus, Save, X, RefreshCw, Download } from 'lucide-react';
+import { Settings, Plus, Save, X, RefreshCw, Download, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
@@ -19,6 +19,8 @@ export function ValidationRulesManager() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const emptyRule: Omit<ValidationRule, 'id' | 'created_at' | 'updated_at'> = {
     rule_key: '',
@@ -146,6 +148,264 @@ export function ValidationRulesManager() {
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       showMessage('error', 'שגיאה בייצוא לקובץ Excel');
+    }
+  }
+
+  async function handleFileImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      // Check if it's Excel file
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      
+      let rows: any[][] = [];
+      
+      if (isExcel) {
+        // Handle Excel file
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as any[][];
+      } else {
+        // Handle CSV file
+        const text = await file.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Parse CSV lines - handle quoted values
+        for (const line of lines) {
+          const parts: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              parts.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          parts.push(current.trim()); // Add last part
+          rows.push(parts);
+        }
+      }
+
+      if (rows.length === 0) {
+        showMessage('error', 'קובץ ריק');
+        return;
+      }
+
+      // Process headers - normalize and create mapping
+      const originalHeaders = rows[0].map(h => String(h || '').trim());
+      const normalizedHeaders = originalHeaders.map(h => h.toLowerCase());
+      
+      // Define exact field name mappings (Hebrew and English)
+      const fieldMappings: Record<string, string> = {
+        // enabled field
+        'enabled': 'enabled',
+        'מופעל': 'enabled',
+        'פעיל': 'enabled',
+        // rule_key field
+        'rule_key': 'rule_key',
+        'rulekey': 'rule_key',
+        'מפתח כלל': 'rule_key',
+        'מפתחכלל': 'rule_key',
+        // entity_type field
+        'entity_type': 'entity_type',
+        'entitytype': 'entity_type',
+        'סוג ישות': 'entity_type',
+        'סוגישות': 'entity_type',
+        // field_name field
+        'field_name': 'field_name',
+        'fieldname': 'field_name',
+        'שם שדה': 'field_name',
+        'שםשדה': 'field_name',
+        // rule_type field
+        'rule_type': 'rule_type',
+        'ruletype': 'rule_type',
+        'סוג כלל': 'rule_type',
+        'סוגכלל': 'rule_type',
+        // value_numeric field
+        'value_numeric': 'value_numeric',
+        'valuenumeric': 'value_numeric',
+        'ערך מספרי': 'value_numeric',
+        'ערכמספרי': 'value_numeric',
+        // value_text field
+        'value_text': 'value_text',
+        'valuetext': 'value_text',
+        'ערך טקסט': 'value_text',
+        'ערכטקסט': 'value_text',
+        // error_message field
+        'error_message': 'error_message',
+        'errormessage': 'error_message',
+        'הודעת שגיאה': 'error_message',
+        'הודעתשגיאה': 'error_message',
+        // description field
+        'description': 'description',
+        'תיאור': 'description',
+        // compare_table field
+        'compare_table': 'compare_table',
+        'comparetable': 'compare_table',
+        'טבלת השוואה': 'compare_table',
+        'טבלתהשוואה': 'compare_table',
+        // compare_field field
+        'compare_field': 'compare_field',
+        'comparefield': 'compare_field',
+        'שדה השוואה': 'compare_field',
+        'שדההשוואה': 'compare_field',
+        // join_field field
+        'join_field': 'join_field',
+        'joinfield': 'join_field',
+        'שדה חיבור': 'join_field',
+        'שדהחיבור': 'join_field',
+        // comparison_operator field
+        'comparison_operator': 'comparison_operator',
+        'comparisonoperator': 'comparison_operator',
+        'אופרטור השוואה': 'comparison_operator',
+        'אופרטורהשוואה': 'comparison_operator',
+        'operator': 'comparison_operator',
+        'אופרטור': 'comparison_operator',
+      };
+
+      // Create header mapping - map column index to field name
+      const headerMap: Record<string, number> = {};
+      for (let i = 0; i < originalHeaders.length; i++) {
+        const header = originalHeaders[i];
+        const normalized = normalizedHeaders[i];
+        const fieldName = fieldMappings[header] || fieldMappings[normalized];
+        if (fieldName) {
+          headerMap[fieldName] = i;
+        }
+      }
+
+      // Validate required fields
+      if (headerMap['rule_key'] === undefined) {
+        showMessage('error', 'שדה חובה חסר: "מפתח כלל" או "rule_key"');
+        return;
+      }
+      if (headerMap['field_name'] === undefined) {
+        showMessage('error', 'שדה חובה חסר: "שם שדה" או "field_name"');
+        return;
+      }
+      if (headerMap['entity_type'] === undefined) {
+        showMessage('error', 'שדה חובה חסר: "סוג ישות" או "entity_type"');
+        return;
+      }
+      if (headerMap['rule_type'] === undefined) {
+        showMessage('error', 'שדה חובה חסר: "סוג כלל" או "rule_type"');
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // Parse and import each data row (skip header row)
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+
+        // Extract values by field name using header mapping
+        const getValue = (fieldName: string): string => {
+          const colIndex = headerMap[fieldName];
+          if (colIndex === undefined || colIndex >= row.length) return '';
+          return String(row[colIndex] || '').trim();
+        };
+
+        const rule_key = getValue('rule_key');
+        const field_name = getValue('field_name');
+        const entity_type = getValue('entity_type');
+        const rule_type = getValue('rule_type');
+        
+        // Skip empty rows
+        if (!rule_key || !field_name || !entity_type || !rule_type) {
+          continue;
+        }
+
+        try {
+          // Extract all field values
+          const enabledStr = getValue('enabled');
+          const value_numericStr = getValue('value_numeric');
+          const value_text = getValue('value_text');
+          const error_message = getValue('error_message');
+          const description = getValue('description');
+          const compare_table = getValue('compare_table');
+          const compare_field = getValue('compare_field');
+          const join_field = getValue('join_field');
+          const comparison_operator = getValue('comparison_operator');
+
+          // Parse enabled field - default to true if not specified
+          const enabled = enabledStr === '' || enabledStr === undefined 
+            ? true 
+            : (enabledStr.toLowerCase() === 'כן' || enabledStr.toLowerCase() === 'yes' || enabledStr === '1' || enabledStr === 'true' || enabledStr === '✓');
+
+          // Parse value_numeric
+          const value_numeric = value_numericStr ? parseInt(value_numericStr) : undefined;
+
+          const ruleData: Omit<ValidationRule, 'id' | 'created_at' | 'updated_at'> = {
+            rule_key,
+            field_name,
+            entity_type,
+            rule_type,
+            enabled,
+            value_numeric: isNaN(value_numeric as any) ? undefined : value_numeric,
+            value_text: value_text || undefined,
+            error_message: error_message || undefined,
+            description: description || undefined,
+            compare_table: compare_table || undefined,
+            compare_field: compare_field || undefined,
+            join_field: join_field || undefined,
+            comparison_operator: comparison_operator || undefined,
+          };
+
+          // Try to create the rule
+          try {
+            await api.validationRules.create(ruleData);
+            successCount++;
+          } catch (createError: any) {
+            // If rule already exists (unique constraint on rule_key), try to update it
+            if (createError.message?.includes('duplicate') || createError.message?.includes('unique')) {
+              try {
+                // Get existing rule by key
+                const existingRule = await api.validationRules.getByKey(rule_key);
+                await api.validationRules.update(existingRule.id, ruleData);
+                successCount++;
+              } catch (updateError: any) {
+                errors.push(`שורה ${i + 1}: ${updateError.message || 'שגיאה בעדכון כלל'}`);
+                errorCount++;
+              }
+            } else {
+              errors.push(`שורה ${i + 1}: ${createError.message || 'שגיאה ביצירת כלל'}`);
+              errorCount++;
+            }
+          }
+        } catch (error) {
+          errors.push(`שורה ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errorCount++;
+        }
+      }
+
+      await fetchRules();
+      await handleRefreshCache();
+
+      if (errors.length > 0) {
+        showMessage('error', `יובאו ${successCount} כללי תקינות. ${errorCount} שגיאות: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+      } else {
+        showMessage('success', `יובאו בהצלחה ${successCount} כללי תקינות`);
+      }
+    } catch (error) {
+      console.error('Error importing validation rules:', error);
+      showMessage('error', 'שגיאה בקריאת קובץ Excel');
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   }
 
@@ -428,6 +688,21 @@ export function ValidationRulesManager() {
           <h2 className="text-lg font-bold text-slate-800">{t('validationRules')}</h2>
         </div>
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload className="h-4 w-4" />
+            {isImporting ? 'מייבא...' : 'ייבא מ-Excel'}
+          </button>
           <button
             onClick={handleExportToExcel}
             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"

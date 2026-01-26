@@ -949,10 +949,12 @@ async function validateAndSaveBulkAssets(
       return `${assetIdentifier}: ${errors}`;
     });
 
-  // STEP 2: Remove 'id' field before sending to database (same as single save - no extra transformation)
+  // STEP 2: Sanitize all assets and remove 'id' field before sending to database
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...assetWithoutId } = asset as any;
-    return assetWithoutId;
+    // Sanitize boolean fields to ensure "כן" is converted to true
+    const sanitized = sanitizeAssetInput(assetWithoutId);
+    return sanitized;
   });
   
   // STEP 3: Call transactional bulk save function (rejects if any validation failed)

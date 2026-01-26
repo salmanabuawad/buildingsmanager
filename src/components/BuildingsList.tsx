@@ -105,8 +105,8 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   const { addressList = [] } = props;
 
-  // Get the field name from column (building_address or address)
-  const fieldName = props.column?.getColId() || 'building_address';
+  // Get the field name from column (address is the default now)
+  const fieldName = props.column?.getColId() || 'address';
 
   // Expose getValue method to AG Grid
   // Don't include props.data in dependencies to avoid recreating the function
@@ -159,7 +159,25 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Initialize with current value
   useEffect(() => {
-    const streetCode = props.value;
+    // Try to get value from props.value first, then from data object using fieldName
+    let streetCode = props.value;
+    
+    // If props.value is null/undefined, try to get from data object
+    if (streetCode == null && props.data) {
+      streetCode = props.data[fieldName];
+    }
+    if (streetCode == null && dataRef.current) {
+      streetCode = dataRef.current[fieldName];
+    }
+    
+    console.log('[AddressCellEditor] Initializing:', {
+      fieldName,
+      propsValue: props.value,
+      dataValue: props.data?.[fieldName],
+      dataRefValue: dataRef.current?.[fieldName],
+      finalValue: streetCode
+    });
+    
     if (streetCode != null) {
       setSelectedValue(streetCode);
       selectedValueRef.current = streetCode;
@@ -183,7 +201,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         inputRef.current.setSelectionRange(length, length);
       }
     }, 0);
-  }, [addressList]); // Removed props.value from dependencies to prevent resetting after selection
+  }, [addressList, fieldName]); // Include fieldName to properly initialize
 
   // Filter addresses based on search
   const filteredAddresses = useMemo(() => {

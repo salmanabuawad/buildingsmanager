@@ -143,7 +143,7 @@ export function DistributionHistoryModal({
       'sub_asset_type_4', 'sub_asset_size_4',
       'sub_asset_type_5', 'sub_asset_size_5',
       'sub_asset_type_6', 'sub_asset_size_6',
-      'area_from_distribution'
+      'business_distribution_area'
     ];
     
     for (const field of fieldsToCompare) {
@@ -323,8 +323,8 @@ export function DistributionHistoryModal({
                             <tr key={`${row.asset_id}-after`} style={{ backgroundColor: bgColor }}>
                               <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">אחרי</td>
                               {!isResident && (
-                                <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'area_from_distribution') ? 'font-bold italic' : ''}`}>
-                                  {asset?.area_from_distribution != null && asset.area_from_distribution !== 0 ? formatNumberToTwoDecimals(asset.area_from_distribution, false) : ''}
+                                <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
+                                  {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
                                 </td>
                               )}
                               <td 
@@ -420,8 +420,8 @@ export function DistributionHistoryModal({
                             </td>
                             <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">לפני</td>
                             {!isResident && (
-                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'area_from_distribution') ? 'font-bold italic' : ''}`}>
-                                {asset?.area_from_distribution != null && asset.area_from_distribution !== 0 ? formatNumberToTwoDecimals(asset.area_from_distribution, false) : ''}
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'business_distribution_area') ? 'font-bold italic' : ''}`}>
+                                {asset?.business_distribution_area != null && asset.business_distribution_area !== 0 ? formatNumberToTwoDecimals(asset.business_distribution_area, false) : ''}
                               </td>
                             )}
                             <td 

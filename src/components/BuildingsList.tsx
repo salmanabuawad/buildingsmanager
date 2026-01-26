@@ -1834,7 +1834,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       // Get asset types to determine business/residence type
       const assetTypes = getAssetTypes();
       
-      // Helper function to calculate export asset size (asset_size + area_from_distribution for business assets)
+      // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets)
       const getExportAssetSize = (asset: any): number | string => {
         const assetSize = asset.asset_size || 0;
         
@@ -1860,9 +1860,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             }
           }
           
-          // If it's a business asset, add area_from_distribution to asset_size
+          // If it's a business asset, add business_distribution_area to asset_size
           if (assetType?.business_residence === 'עסקים') {
-            const areaFromDistribution = asset.area_from_distribution || 0;
+            const areaFromDistribution = asset.business_distribution_area || 0;
             return assetSize + areaFromDistribution;
           }
         }
@@ -1878,7 +1878,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
         formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
         asset.main_asset_type || '',                             // סוג נכס
-        getExportAssetSize(asset),                               // גודל נכס (asset_size + area_from_distribution for business)
+        getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
         asset.sub_asset_type_1 || '',                            // נכס משנה 1
         asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
         asset.sub_asset_type_2 || '',                            // נכס משנה 2

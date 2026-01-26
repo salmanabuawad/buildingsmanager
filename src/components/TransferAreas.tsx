@@ -1402,7 +1402,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       comment: new999AssetComment || undefined,
       tax_region: firstAsset?.tax_region || building.tax_region || undefined,
       is_latest: true,
-      area_from_distribution: 0
+      business_distribution_area: 0
     };
 
     // Add comment to all affected assets (all assets in the transfer) and add new asset

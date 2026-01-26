@@ -424,8 +424,8 @@ export interface Asset {
   discount_type?: string; // סוג הנחה (Discount type)
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
-  area_from_distribution?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
-  business_total_area?: number; // Total business area for this asset = asset_size + area_from_distribution (only for business assets, 0 for non-business assets)
+  business_distribution_area?: number; // Area distributed to this asset from shared area distribution (business or residence, depending on asset type)
+  business_total_area?: number; // Total business area for this asset = asset_size + business_distribution_area (only for business assets, 0 for non-business assets)
   exported_to_automation?: boolean; // Flag indicating if asset has been exported to automation system (default: false)
   export_to_automation_at?: string; // Date when asset was exported to automation system (DD/MM/YYYY format)
   data_from_automation?: boolean; // Flag indicating if this asset row originated from automation import
@@ -656,7 +656,7 @@ export function sanitizeAssetInput(input: any): any {
     discount_type: preConverted.discount_type != null ? sanitizeText(preConverted.discount_type) : undefined,
     discount_date_from: preConverted.discount_date_from != null ? sanitizeDate(preConverted.discount_date_from) : undefined,
     discount_date_to: preConverted.discount_date_to != null ? sanitizeDate(preConverted.discount_date_to) : undefined,
-    area_from_distribution: preConverted.area_from_distribution != null ? sanitizeNumber(preConverted.area_from_distribution) : undefined,
+    business_distribution_area: preConverted.business_distribution_area != null ? sanitizeNumber(preConverted.business_distribution_area) : undefined,
     exported_to_automation: preConverted.exported_to_automation != null ? (preConverted.exported_to_automation === true || preConverted.exported_to_automation === 'true') : undefined,
     export_to_automation_at: preConverted.export_to_automation_at != null ? sanitizeDate(preConverted.export_to_automation_at) : undefined,
     comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,

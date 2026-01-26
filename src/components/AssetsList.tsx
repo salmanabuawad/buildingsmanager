@@ -241,10 +241,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   // Check if there are any assets with previous residence distribution
   const hasPreviousResidenceDistribution = useMemo(() => {
     if (!assets || assets.length === 0) return false;
-    // Check if any residential assets have area_from_distribution > 0
-    // Residence distribution now uses area_from_distribution (same as business)
+    // Check if any residential assets have business_distribution_area > 0
+    // Residence distribution now uses business_distribution_area (same as business)
     return assets.some(asset => {
-      const areaFromDist = asset.area_from_distribution || 0;
+      const areaFromDist = asset.business_distribution_area || 0;
       return areaFromDist > 0;
     });
   }, [assets]);
@@ -252,9 +252,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   // Check if there are any assets with previous business distribution
   const hasPreviousBusinessDistribution = useMemo(() => {
     if (!assets || assets.length === 0) return false;
-    // Check if any business assets have area_from_distribution > 0
+    // Check if any business assets have business_distribution_area > 0
     return assets.some(asset => {
-      const areaFromDist = asset.area_from_distribution || 0;
+      const areaFromDist = asset.business_distribution_area || 0;
       return areaFromDist > 0;
     });
   }, [assets]);
@@ -851,11 +851,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         });
 
         if (newAssetTypeFinal) {
-          // If new asset type has non_accountable_for_distribution = true and asset has area_from_distribution > 0, set it to 0
+          // If new asset type has non_accountable_for_distribution = true and asset has business_distribution_area > 0, set it to 0
           if (newAssetTypeFinal.non_accountable_for_distribution === true) {
-            const currentAreaFromDistribution = updatedAsset.area_from_distribution || 0;
+            const currentAreaFromDistribution = updatedAsset.business_distribution_area || 0;
             if (currentAreaFromDistribution > 0) {
-              updatedAsset = { ...updatedAsset, area_from_distribution: 0 };
+              updatedAsset = { ...updatedAsset, business_distribution_area: 0 };
             }
           }
         }
@@ -866,9 +866,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const newMap = new Map(prev);
         const existing = newMap.get(assetId) || {};
         const changesToStore = { ...existing, [field]: newValue };
-        // Also include area_from_distribution change if it was set to 0
-        if (updatedAsset.area_from_distribution !== data.area_from_distribution) {
-          changesToStore.area_from_distribution = updatedAsset.area_from_distribution;
+        // Also include business_distribution_area change if it was set to 0
+        if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
+          changesToStore.business_distribution_area = updatedAsset.business_distribution_area;
         }
         newMap.set(assetId, changesToStore);
         return newMap;
@@ -881,11 +881,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         )
       );
 
-      // If area_from_distribution was automatically set to 0 due to non_accountable_for_distribution change, refresh that cell
-      if (field === 'main_asset_type' && updatedAsset.area_from_distribution !== data.area_from_distribution && event.api) {
+      // If business_distribution_area was automatically set to 0 due to non_accountable_for_distribution change, refresh that cell
+      if (field === 'main_asset_type' && updatedAsset.business_distribution_area !== data.business_distribution_area && event.api) {
         event.api.refreshCells({ 
           rowNodes: [event.node!], 
-          columns: ['area_from_distribution'],
+          columns: ['business_distribution_area'],
           force: true 
         });
       }
@@ -1536,11 +1536,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       let isDistributionSave = false;
       let distributionType: 'residence' | 'business' | null = null;
       
-      // Check for distribution: look for area_from_distribution changes
+      // Check for distribution: look for business_distribution_area changes
       // Need to determine if it's business or residence based on asset types
       for (const [assetId, changes] of dirtyAssets.entries()) {
         if (deletedAssets.has(assetId)) continue;
-        if (changes.area_from_distribution !== undefined) {
+        if (changes.business_distribution_area !== undefined) {
           isDistributionSave = true;
           // Determine type by checking asset's business_residence type
           const asset = assets.find(a => String(a.asset_id) === String(assetId));
@@ -2393,7 +2393,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const areaPerAsset = building.residence_shared_area! / residentialAssets.length;
       const isClearing = areaPerAsset === 0;
       
-      // Also clear area_from_distribution for non-accountable assets
+      // Also clear business_distribution_area for non-accountable assets
       // (assets that don't have at least one accountable type for distribution)
       const nonAccountableAssets = assets.filter(asset => {
         // Skip deleted assets
@@ -2409,19 +2409,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const updatedAssets = [...assets];
       let updatedCount = 0;
 
-      // First, clear area_from_distribution for non-accountable assets
+      // First, clear business_distribution_area for non-accountable assets
       for (const asset of nonAccountableAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
         const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-        const currentAreaFromDistribution = existingChanges.area_from_distribution !== undefined
-          ? existingChanges.area_from_distribution
-          : (currentAsset?.area_from_distribution || 0);
+        const currentAreaFromDistribution = existingChanges.business_distribution_area !== undefined
+          ? existingChanges.business_distribution_area
+          : (currentAsset?.business_distribution_area || 0);
         
         // Only clear if it's not already 0
         if (currentAreaFromDistribution > 0) {
           const changes: Partial<Asset> = { ...existingChanges };
-          changes.area_from_distribution = 0;
+          changes.business_distribution_area = 0;
           updatedDirtyAssets.set(assetId, changes);
           
           // Update local assets array for immediate UI update
@@ -2877,7 +2877,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         return;
       }
 
-      // Sum all business accountable assets' main size (ignore existing area_from_distribution)
+      // Sum all business accountable assets' main size (ignore existing business_distribution_area)
       let totalMainSize = 0;
       for (const asset of businessAssets) {
         const assetId = String(asset.asset_id);
@@ -2885,7 +2885,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const currentAssetSize = existingChanges.asset_size !== undefined
           ? existingChanges.asset_size
           : (asset.asset_size || 0);
-        // Use asset_size directly, ignoring any existing area_from_distribution
+        // Use asset_size directly, ignoring any existing business_distribution_area
         totalMainSize += currentAssetSize;
       }
 
@@ -2914,7 +2914,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           setBuilding(prev => prev ? { ...prev, overload_ratio: overloadRatioPercentage } : prev);
       }
 
-      // Also clear area_from_distribution for non-accountable assets
+      // Also clear business_distribution_area for non-accountable assets
       const nonAccountableAssets = assets.filter(asset => {
         // Skip deleted assets
         if (deletedAssets.has(String(asset.asset_id))) {
@@ -2929,19 +2929,19 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const updatedAssets = [...assets];
       let updatedCount = 0;
 
-      // First, clear area_from_distribution for non-accountable assets
+      // First, clear business_distribution_area for non-accountable assets
       for (const asset of nonAccountableAssets) {
         const assetId = String(asset.asset_id);
         const existingChanges = updatedDirtyAssets.get(assetId) || {};
         const currentAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-        const currentAreaFromDistribution = existingChanges.area_from_distribution !== undefined
-          ? existingChanges.area_from_distribution
-          : (currentAsset?.area_from_distribution || 0);
+        const currentAreaFromDistribution = existingChanges.business_distribution_area !== undefined
+          ? existingChanges.business_distribution_area
+          : (currentAsset?.business_distribution_area || 0);
         
         // Only clear if it's not already 0
         if (currentAreaFromDistribution > 0) {
           const changes: Partial<Asset> = { ...existingChanges };
-          changes.area_from_distribution = 0;
+          changes.business_distribution_area = 0;
           updatedDirtyAssets.set(assetId, changes);
           
           // Update local assets array for immediate UI update
@@ -2964,20 +2964,20 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         // Prepare changes object
         const changes: Partial<Asset> = { ...existingChanges };
 
-        // Get current asset size for calculation (ignore existing area_from_distribution)
+        // Get current asset size for calculation (ignore existing business_distribution_area)
         const currentAssetSize = existingChanges.asset_size !== undefined
           ? existingChanges.asset_size
           : (currentAsset?.asset_size || 0);
 
         // Calculate new distribution area based on asset_size directly
-        // Redistribution ignores any existing area_from_distribution and recalculates from scratch
+        // Redistribution ignores any existing business_distribution_area and recalculates from scratch
         // Note: We only READ currentAssetSize for calculation, we do NOT update it
         const newDistributionArea = overloadRatio * currentAssetSize;
 
-        // IMPORTANT: Only update area_from_distribution field
+        // IMPORTANT: Only update business_distribution_area field
         // Do NOT update asset_size, sub_asset_size_1, or any other sub-asset sizes
         // For clearing distribution (overloadRatio = 0), set to 0; otherwise set to new value
-        changes.area_from_distribution = newDistributionArea;
+        changes.business_distribution_area = newDistributionArea;
 
         updatedDirtyAssets.set(assetId, changes);
 
@@ -3066,7 +3066,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         'גודל נכס משנה 5',
         'סוג נכס משנה 6',
         'גודל נכס משנה 6',
-        'גודל שטח משותף',  // area_from_distribution
+        'גודל שטח משותף',  // business_distribution_area
         'הערה'  // comment
       ];
 
@@ -3096,7 +3096,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         asset.sub_asset_size_5 || '',
         asset.sub_asset_type_6 || '',
         asset.sub_asset_size_6 || '',
-        asset.area_from_distribution || '',
+        asset.business_distribution_area || '',
         asset.comment || ''
       ]);
 
@@ -4245,7 +4245,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
-      field: 'area_from_distribution',
+      field: 'business_distribution_area',
       headerName: 'גודל שטח משותף',
       editable: false, // Always readonly - only updated through distribution functions
       type: 'numericColumn',
@@ -4257,7 +4257,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       },
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
-      hide: isResidentTaxRegion // Hide for residence assets (area_from_distribution is only for business distribution)
+      hide: isResidentTaxRegion // Hide for residence assets (business_distribution_area is only for business distribution)
     },
     {
       field: 'business_total_area',

@@ -423,11 +423,11 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
             }
           }
 
-          // If new asset type has non_accountable_for_distribution = true and asset has area_from_distribution > 0, set it to 0
+          // If new asset type has non_accountable_for_distribution = true and asset has business_distribution_area > 0, set it to 0
           if (newAssetTypeFinal.non_accountable_for_distribution === true) {
-            const currentAreaFromDistribution = updatedAsset.area_from_distribution || 0;
+            const currentAreaFromDistribution = updatedAsset.business_distribution_area || 0;
             if (currentAreaFromDistribution > 0) {
-              updatedAsset = { ...updatedAsset, area_from_distribution: 0 };
+              updatedAsset = { ...updatedAsset, business_distribution_area: 0 };
             }
           }
         }
@@ -438,9 +438,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         const newMap = new Map(prev);
         const existing = newMap.get(assetId) || {};
         const changesToStore = { ...existing, [field]: newValue };
-        // Also include area_from_distribution change if it was set to 0
-        if (updatedAsset.area_from_distribution !== data.area_from_distribution) {
-          changesToStore.area_from_distribution = updatedAsset.area_from_distribution;
+        // Also include business_distribution_area change if it was set to 0
+        if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
+          changesToStore.business_distribution_area = updatedAsset.business_distribution_area;
         }
         newMap.set(assetId, changesToStore);
         return newMap;
@@ -2291,7 +2291,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value)
     },
     {
-      field: 'area_from_distribution',
+      field: 'business_distribution_area',
       headerName: 'גודל שטח משותף',
       width: 120,
       sortable: true,
@@ -2299,7 +2299,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' },
       valueFormatter: (params: any) => formatNumberToTwoDecimals(params.value),
-      hide: !isBusinessContext // Hide for residence assets (area_from_distribution is only for business distribution)
+      hide: !isBusinessContext // Hide for residence assets (business_distribution_area is only for business distribution)
     }
   ], [getAreaDescriptionForTaxRegion, isBusinessContext]);
 

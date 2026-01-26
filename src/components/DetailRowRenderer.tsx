@@ -214,7 +214,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
   }, [params.assetColumnDefs]);
 
   // Define allowed fields: asset_id, asset types, sizes, and distribution area
-  // Order: reversed - main type + size first, then subtypes (1 to 6), then area_from_distribution, then asset_id
+  // Order: reversed - main type + size first, then subtypes (1 to 6), then business_distribution_area, then asset_id
   const allowedFields = useMemo(() => [
     'main_asset_type',
     'asset_size',
@@ -230,7 +230,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     'sub_asset_size_5',
     'sub_asset_type_6',
     'sub_asset_size_6',
-    'area_from_distribution',
+    'business_distribution_area',
     'asset_id'
   ], []);
 
@@ -309,21 +309,21 @@ export function DetailRowRenderer(params: DetailRowParams) {
     return assetId || '';
   };
 
-  // Prepare columns: asset_id and _source first (right side in RTL), then area_from_distribution (if not hidden), then other allowed fields
+  // Prepare columns: asset_id and _source first (right side in RTL), then business_distribution_area (if not hidden), then other allowed fields
   // In RTL, items at the beginning of the array appear on the right
-  // Check if area_from_distribution is hidden in column definitions (e.g., for residence assets)
+  // Check if business_distribution_area is hidden in column definitions (e.g., for residence assets)
   const tableColumns = useMemo(() => {
-    const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id' && f !== 'area_from_distribution');
+    const fieldsWithoutAssetId = allowedFields.filter(f => f !== 'asset_id' && f !== 'business_distribution_area');
     
-    // Check if area_from_distribution column is hidden in assetColumnDefs
-    const areaFromDistributionCol = params.assetColumnDefs.find((col: any) => col.field === 'area_from_distribution');
+    // Check if business_distribution_area column is hidden in assetColumnDefs
+    const areaFromDistributionCol = params.assetColumnDefs.find((col: any) => col.field === 'business_distribution_area');
     const isAreaFromDistributionHidden = areaFromDistributionCol?.hide === true;
     
-    // Include area_from_distribution only if it's not hidden
+    // Include business_distribution_area only if it's not hidden
     if (isAreaFromDistributionHidden) {
       return ['asset_id', '_source', ...fieldsWithoutAssetId];
     } else {
-      return ['asset_id', '_source', 'area_from_distribution', ...fieldsWithoutAssetId];
+      return ['asset_id', '_source', 'business_distribution_area', ...fieldsWithoutAssetId];
     }
   }, [allowedFields, params.assetColumnDefs]);
 

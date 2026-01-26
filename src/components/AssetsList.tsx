@@ -2685,68 +2685,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           updatedCount++;
       }
 
-      // Collect assets to save (all assets with changes)
-      const assetsToSave = [];
-      const beforeAssets = [];
-      const afterAssets = [];
-
-      for (const [assetId, changes] of updatedDirtyAssets.entries()) {
-        const assetIdNum = parseInt(assetId, 10);
-        if (isNaN(assetIdNum)) continue;
-
-        const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-        const updatedAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-
-        if (originalAsset && updatedAsset) {
-          // Prepare asset for save (merge original with changes)
-          assetsToSave.push({
-            ...originalAsset,
-            ...changes,
-            asset_id: assetIdNum
-          });
-
-          // Store before and after for audit
-          beforeAssets.push(originalAsset);
-          afterAssets.push(updatedAsset);
-        }
-      }
-
-      if (assetsToSave.length === 0) {
-        setError('לא נמצאו שינויים לשמירה');
-        setTimeout(() => setError(null), 3000);
-        setLoading(false);
-        return;
-      }
-
-      // Save to database with audit logging and flag clearing
-      const result = await validateAndSaveBulkAssets(
-        assetsToSave,
-        'residence_distribution',
-        { assets: beforeAssets },
-        { assets: afterAssets },
-        `פיזור שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) ל-${assetsToSave.length} נכסים`
-      );
-
-      if (!result.success) {
-        setError(result.error || 'שגיאה בשמירת הפיזור');
-        setTimeout(() => setError(null), 5000);
-        setLoading(false);
-        return;
-      }
-
-      // Reload building to get updated distribution flag
-      const updatedBuilding = await api.buildings.getOne(buildingNumber);
-      if (updatedBuilding) {
-        setBuilding(updatedBuilding);
-      }
-
-      // Reload assets from database
-      const reloadedAssets = await api.assets.getAll(buildingNumber);
-      setAssets(reloadedAssets);
-      setOriginalAssets(JSON.parse(JSON.stringify(reloadedAssets)));
-
-      // Clear dirty state
-      setDirtyAssets(new Map());
+      // Update state without saving to database
+      setAssets(updatedAssets);
+      setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);
 
       // Show success message
@@ -2754,10 +2695,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         ? building.residence_shared_area!.toLocaleString('he-IL')
         : '0 (ניקוי פיזור קודם)';
       setToast({
-        message: `פוזר שטח משותף מגורים (${sharedAreaText}) בין ${updatedCount} נכסים בהצלחה`,
+        message: `חושב פיזור שטח משותף מגורים (${sharedAreaText}) ל-${updatedCount} נכסים. לחץ "שמור הכל" לשמירה.`,
         type: 'success'
       });
-      setTimeout(() => setToast(null), 3000);
+      setTimeout(() => setToast(null), 5000);
 
       // Refresh grid
       if (gridRef.current?.api) {
@@ -3026,72 +2967,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         updatedCount++;
       }
 
-      // Collect assets to save (all assets with changes)
-      const assetsToSave = [];
-      const beforeAssets = [];
-      const afterAssets = [];
-
-      for (const [assetId, changes] of updatedDirtyAssets.entries()) {
-        const assetIdNum = parseInt(assetId, 10);
-        if (isNaN(assetIdNum)) continue;
-
-        const originalAsset = assets.find(a => String(a.asset_id) === assetId);
-        const updatedAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
-
-        if (originalAsset && updatedAsset) {
-          // Prepare asset for save (merge original with changes)
-          assetsToSave.push({
-            ...originalAsset,
-            ...changes,
-            asset_id: assetIdNum
-          });
-
-          // Store before and after for audit
-          beforeAssets.push(originalAsset);
-          afterAssets.push(updatedAsset);
-        }
-      }
-
-      if (assetsToSave.length === 0) {
-        setError('לא נמצאו שינויים לשמירה');
-        setTimeout(() => setError(null), 3000);
-        setLoading(false);
-        return;
-      }
-
-      // Save building's overload_ratio first
-      await api.buildings.update(buildingNumber, { overload_ratio: overloadRatioPercentage });
-
-      // Save to database with audit logging and flag clearing
-      const result = await validateAndSaveBulkAssets(
-        assetsToSave,
-        'business_distribution',
-        { assets: beforeAssets, overload_ratio: overloadRatioPercentage },
-        { assets: afterAssets, overload_ratio: overloadRatioPercentage },
-        `פיזור שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) ל-${assetsToSave.length} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`,
-        true // isBusinessContext
-      );
-
-      if (!result.success) {
-        setError(result.error || 'שגיאה בשמירת הפיזור');
-        setTimeout(() => setError(null), 5000);
-        setLoading(false);
-        return;
-      }
-
-      // Reload building to get updated distribution flag and overload_ratio
-      const updatedBuilding = await api.buildings.getOne(buildingNumber);
-      if (updatedBuilding) {
-        setBuilding(updatedBuilding);
-      }
-
-      // Reload assets from database
-      const reloadedAssets = await api.assets.getAll(buildingNumber);
-      setAssets(reloadedAssets);
-      setOriginalAssets(JSON.parse(JSON.stringify(reloadedAssets)));
-
-      // Clear dirty state
-      setDirtyAssets(new Map());
+      // Update state without saving to database
+      setAssets(updatedAssets);
+      setDirtyAssets(updatedDirtyAssets);
       setIsValidatedForSave(false);
 
       // Show success message
@@ -3102,10 +2980,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         ? ` יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%.`
         : '';
       setToast({
-        message: `פוזר שטח משותף עסקים (${sharedAreaText}) בין ${updatedCount} נכסים בהצלחה.${overloadRatioText}`,
+        message: `חושב פיזור שטח משותף עסקים (${sharedAreaText}) ל-${updatedCount} נכסים.${overloadRatioText} לחץ "שמור הכל" לשמירה.`,
         type: 'success'
       });
-      setTimeout(() => setToast(null), 3000);
+      setTimeout(() => setToast(null), 5000);
 
       // Refresh grid
       if (gridRef.current?.api) {

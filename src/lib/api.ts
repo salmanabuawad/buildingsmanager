@@ -564,11 +564,36 @@ export type AuditLog = DistributionAudit;
 
 
 /**
+ * Helper function to convert Hebrew boolean strings to actual booleans
+ */
+function convertHebrewBooleans(obj: any): any {
+  const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
+  const converted = { ...obj };
+  
+  booleanFields.forEach(field => {
+    const value = converted[field];
+    if (typeof value === 'string') {
+      if (value === 'כן' || value.toLowerCase() === 'yes' || value === '1' || value.toLowerCase() === 'true') {
+        converted[field] = true;
+      } else if (value === 'לא' || value.toLowerCase() === 'no' || value === '0' || value.toLowerCase() === 'false' || value === '') {
+        converted[field] = false;
+      }
+    } else if (value === null || value === undefined) {
+      // Don't set to false if not present - let sanitizeAssetInput handle defaults
+    }
+  });
+  
+  return converted;
+}
+
+/**
  * Sanitizes asset data before sending to the server
  */
 export function sanitizeAssetInput(input: any): any {
+  // First convert any Hebrew boolean strings
+  const preConverted = convertHebrewBooleans(input);
   // Default measurement_date to today if not provided or invalid
-  let measurementDate = input.measurement_date != null ? sanitizeDate(input.measurement_date) : '';
+  let measurementDate = preConverted.measurement_date != null ? sanitizeDate(preConverted.measurement_date) : '';
   if (!measurementDate || measurementDate === '') {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, '0');
@@ -578,49 +603,63 @@ export function sanitizeAssetInput(input: any): any {
   }
   
   const sanitized: any = {
-    building_number: input.building_number != null ? sanitizeInteger(input.building_number) : undefined,
-    payer_id: input.payer_id != null && input.payer_id !== '' ? sanitizeText(input.payer_id) : undefined,
-    asset_id: input.asset_id != null ? sanitizeInteger(input.asset_id) : undefined,
+    building_number: preConverted.building_number != null ? sanitizeInteger(preConverted.building_number) : undefined,
+    payer_id: preConverted.payer_id != null && preConverted.payer_id !== '' ? sanitizeText(preConverted.payer_id) : undefined,
+    asset_id: preConverted.asset_id != null ? sanitizeInteger(preConverted.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
-    main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
-    asset_size: ('asset_size' in input) ? sanitizeNumber(input.asset_size ?? 0) : undefined,
-    tax_region: input.tax_region != null ? sanitizeInteger(input.tax_region) : undefined,
-    sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,
-    sub_asset_size_1: ('sub_asset_size_1' in input) ? sanitizeNumber(input.sub_asset_size_1 ?? 0) : undefined,
-    sub_asset_type_2: input.sub_asset_type_2 != null ? sanitizeText(input.sub_asset_type_2) : undefined,
-    sub_asset_size_2: ('sub_asset_size_2' in input) ? sanitizeNumber(input.sub_asset_size_2 ?? 0) : undefined,
-    sub_asset_type_3: input.sub_asset_type_3 != null ? sanitizeText(input.sub_asset_type_3) : undefined,
-    sub_asset_size_3: ('sub_asset_size_3' in input) ? sanitizeNumber(input.sub_asset_size_3 ?? 0) : undefined,
-    sub_asset_type_4: input.sub_asset_type_4 != null ? sanitizeText(input.sub_asset_type_4) : undefined,
-    sub_asset_size_4: ('sub_asset_size_4' in input) ? sanitizeNumber(input.sub_asset_size_4 ?? 0) : undefined,
-    sub_asset_type_5: input.sub_asset_type_5 != null ? sanitizeText(input.sub_asset_type_5) : undefined,
-    sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
-    sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
-    sub_asset_size_6: ('sub_asset_size_6' in input) ? sanitizeNumber(input.sub_asset_size_6 ?? 0) : undefined,
+    main_asset_type: preConverted.main_asset_type != null ? sanitizeText(preConverted.main_asset_type) : undefined,
+    asset_size: ('asset_size' in preConverted) ? sanitizeNumber(preConverted.asset_size ?? 0) : undefined,
+    tax_region: preConverted.tax_region != null ? sanitizeInteger(preConverted.tax_region) : undefined,
+    sub_asset_type_1: preConverted.sub_asset_type_1 != null ? sanitizeText(preConverted.sub_asset_type_1) : undefined,
+    sub_asset_size_1: ('sub_asset_size_1' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_1 ?? 0) : undefined,
+    sub_asset_type_2: preConverted.sub_asset_type_2 != null ? sanitizeText(preConverted.sub_asset_type_2) : undefined,
+    sub_asset_size_2: ('sub_asset_size_2' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_2 ?? 0) : undefined,
+    sub_asset_type_3: preConverted.sub_asset_type_3 != null ? sanitizeText(preConverted.sub_asset_type_3) : undefined,
+    sub_asset_size_3: ('sub_asset_size_3' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_3 ?? 0) : undefined,
+    sub_asset_type_4: preConverted.sub_asset_type_4 != null ? sanitizeText(preConverted.sub_asset_type_4) : undefined,
+    sub_asset_size_4: ('sub_asset_size_4' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_4 ?? 0) : undefined,
+    sub_asset_type_5: preConverted.sub_asset_type_5 != null ? sanitizeText(preConverted.sub_asset_type_5) : undefined,
+    sub_asset_size_5: preConverted.sub_asset_size_5 != null ? sanitizeNumber(preConverted.sub_asset_size_5) : undefined,
+    sub_asset_type_6: preConverted.sub_asset_type_6 != null ? sanitizeText(preConverted.sub_asset_type_6) : undefined,
+    sub_asset_size_6: ('sub_asset_size_6' in preConverted) ? sanitizeNumber(preConverted.sub_asset_size_6 ?? 0) : undefined,
     // Checkbox fields: convert to boolean (true/false only, never null/undefined)
     // Support both old format ('כן'/'לא') and new format (true/false)
     // Always return boolean: true or false
-    elevator: (input.elevator === true || input.elevator === 'כן' || input.elevator === 'true' || input.elevator === 'TRUE' || input.elevator === '1') ? true : false,
-    single_double_family: (input.single_double_family === true || input.single_double_family === 'כן' || input.single_double_family === 'true' || input.single_double_family === 'TRUE' || input.single_double_family === '1') ? true : false,
-    condo: (input.condo === true || input.condo === 'כן' || input.condo === 'true' || input.condo === 'TRUE' || input.condo === '1') ? true : false,
-    townhouses: (input.townhouses === true || input.townhouses === 'כן' || input.townhouses === 'true' || input.townhouses === 'TRUE' || input.townhouses === '1') ? true : false,
-    penthouse: (input.penthouse === true || input.penthouse === 'כן' || input.penthouse === 'true' || input.penthouse === 'TRUE' || input.penthouse === '1') ? true : false,
-    structure_drawing_url: input.structure_drawing_url != null ? sanitizeText(input.structure_drawing_url) : undefined,
-    floor: input.floor != null ? sanitizeInteger(input.floor) : undefined,
-    discount_type: input.discount_type != null ? sanitizeText(input.discount_type) : undefined,
-    discount_date_from: input.discount_date_from != null ? sanitizeDate(input.discount_date_from) : undefined,
-    discount_date_to: input.discount_date_to != null ? sanitizeDate(input.discount_date_to) : undefined,
-    area_from_distribution: input.area_from_distribution != null ? sanitizeNumber(input.area_from_distribution) : undefined,
-    exported_to_automation: input.exported_to_automation != null ? (input.exported_to_automation === true || input.exported_to_automation === 'true') : undefined,
-    export_to_automation_at: input.export_to_automation_at != null ? sanitizeDate(input.export_to_automation_at) : undefined,
-    comment: input.comment != null ? sanitizeText(input.comment) : undefined,
+    // Note: preConverted already handles Hebrew strings, but we keep these checks for safety
+    elevator: (preConverted.elevator === true || preConverted.elevator === 'כן' || preConverted.elevator === 'true' || preConverted.elevator === 'TRUE' || preConverted.elevator === '1') ? true : false,
+    single_double_family: (preConverted.single_double_family === true || preConverted.single_double_family === 'כן' || preConverted.single_double_family === 'true' || preConverted.single_double_family === 'TRUE' || preConverted.single_double_family === '1') ? true : false,
+    condo: (preConverted.condo === true || preConverted.condo === 'כן' || preConverted.condo === 'true' || preConverted.condo === 'TRUE' || preConverted.condo === '1') ? true : false,
+    townhouses: (preConverted.townhouses === true || preConverted.townhouses === 'כן' || preConverted.townhouses === 'true' || preConverted.townhouses === 'TRUE' || preConverted.townhouses === '1') ? true : false,
+    penthouse: (preConverted.penthouse === true || preConverted.penthouse === 'כן' || preConverted.penthouse === 'true' || preConverted.penthouse === 'TRUE' || preConverted.penthouse === '1') ? true : false,
+    structure_drawing_url: preConverted.structure_drawing_url != null ? sanitizeText(preConverted.structure_drawing_url) : undefined,
+    floor: preConverted.floor != null ? sanitizeInteger(preConverted.floor) : undefined,
+    discount_type: preConverted.discount_type != null ? sanitizeText(preConverted.discount_type) : undefined,
+    discount_date_from: preConverted.discount_date_from != null ? sanitizeDate(preConverted.discount_date_from) : undefined,
+    discount_date_to: preConverted.discount_date_to != null ? sanitizeDate(preConverted.discount_date_to) : undefined,
+    area_from_distribution: preConverted.area_from_distribution != null ? sanitizeNumber(preConverted.area_from_distribution) : undefined,
+    exported_to_automation: preConverted.exported_to_automation != null ? (preConverted.exported_to_automation === true || preConverted.exported_to_automation === 'true') : undefined,
+    export_to_automation_at: preConverted.export_to_automation_at != null ? sanitizeDate(preConverted.export_to_automation_at) : undefined,
+    comment: preConverted.comment != null ? sanitizeText(preConverted.comment) : undefined,
   };
   
   // Remove undefined values to avoid sending them to the database
-  // But always keep measurement_date even if it's somehow undefined (shouldn't happen)
+  // But always keep measurement_date and boolean fields even if they're false
+  // Boolean fields should always be included (true or false) to ensure they're updated
+  const booleanFieldsToKeep = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
   Object.keys(sanitized).forEach(key => {
-    if (key !== 'measurement_date' && sanitized[key] === undefined) {
+    if (key !== 'measurement_date' && !booleanFieldsToKeep.includes(key) && sanitized[key] === undefined) {
       delete sanitized[key];
+    }
+  });
+  
+  // Ensure all boolean fields are explicitly set (true or false, never undefined)
+  booleanFieldsToKeep.forEach(field => {
+    if (sanitized[field] === undefined) {
+      sanitized[field] = false;
+    }
+    // Double-check: ensure it's actually a boolean, not a string
+    if (typeof sanitized[field] !== 'boolean') {
+      sanitized[field] = (sanitized[field] === 'כן' || sanitized[field] === true || sanitized[field] === 'true' || sanitized[field] === '1') ? true : false;
     }
   });
   
@@ -952,8 +991,30 @@ async function validateAndSaveBulkAssets(
   // STEP 2: Sanitize all assets and remove 'id' field before sending to database
   const assetsForDatabase = preparedAssetsData.map(asset => {
     const { id, ...assetWithoutId } = asset as any;
+    
+    // Explicitly convert any "כן" values to true before sanitization
+    // Handle all possible formats: string "כן", string "לא", boolean, null, undefined
+    const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
+    booleanFields.forEach(field => {
+      const value = assetWithoutId[field];
+      if (value === 'כן' || value === 'yes' || value === 'YES' || value === '1' || value === 'true' || value === 'TRUE') {
+        assetWithoutId[field] = true;
+      } else if (value === 'לא' || value === 'no' || value === 'NO' || value === '0' || value === 'false' || value === 'FALSE' || value === null || value === undefined || value === '') {
+        assetWithoutId[field] = false;
+      }
+      // If value is already boolean, keep it as is
+    });
+    
     // Sanitize boolean fields to ensure "כן" is converted to true
     const sanitized = sanitizeAssetInput(assetWithoutId);
+    
+    // Double-check: ensure all boolean fields are actually boolean, not strings
+    booleanFields.forEach(field => {
+      if (sanitized[field] !== undefined && typeof sanitized[field] !== 'boolean') {
+        sanitized[field] = (sanitized[field] === 'כן' || sanitized[field] === true || sanitized[field] === 'true' || sanitized[field] === '1') ? true : false;
+      }
+    });
+    
     return sanitized;
   });
   

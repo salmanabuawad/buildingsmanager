@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Asset, Building, AssetType, AddressList, api } from '../lib/api';
+import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets } from '../lib/api';
 import { assetValidators, validateAll, inputValidators, validateEntity } from '../lib/validation';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
@@ -2682,19 +2682,82 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           } as Asset;
         }
 
-        updatedCount++;
+          updatedCount++;
       }
 
-      // Update local state only - changes will be saved when user clicks "Save All"
-        setDirtyAssets(updatedDirtyAssets);
-        setAssets(updatedAssets);
-      
-      // Show result in modal
-      const sharedAreaText = building.residence_shared_area! > 0 
+      // Collect assets to save (all assets with changes)
+      const assetsToSave = [];
+      const beforeAssets = [];
+      const afterAssets = [];
+
+      for (const [assetId, changes] of updatedDirtyAssets.entries()) {
+        const assetIdNum = parseInt(assetId, 10);
+        if (isNaN(assetIdNum)) continue;
+
+        const originalAsset = assets.find(a => String(a.asset_id) === assetId);
+        const updatedAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+
+        if (originalAsset && updatedAsset) {
+          // Prepare asset for save (merge original with changes)
+          assetsToSave.push({
+            ...originalAsset,
+            ...changes,
+            asset_id: assetIdNum
+          });
+
+          // Store before and after for audit
+          beforeAssets.push(originalAsset);
+          afterAssets.push(updatedAsset);
+        }
+      }
+
+      if (assetsToSave.length === 0) {
+        setError('לא נמצאו שינויים לשמירה');
+        setTimeout(() => setError(null), 3000);
+        setLoading(false);
+        return;
+      }
+
+      // Save to database with audit logging and flag clearing
+      const result = await validateAndSaveBulkAssets(
+        assetsToSave,
+        'residence_distribution',
+        { assets: beforeAssets },
+        { assets: afterAssets },
+        `פיזור שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) ל-${assetsToSave.length} נכסים`
+      );
+
+      if (!result.success) {
+        setError(result.error || 'שגיאה בשמירת הפיזור');
+        setTimeout(() => setError(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      // Reload building to get updated distribution flag
+      const updatedBuilding = await api.buildings.get(buildingNumber);
+      if (updatedBuilding) {
+        setBuilding(updatedBuilding);
+      }
+
+      // Reload assets from database
+      const reloadedAssets = await api.assets.getByBuilding(buildingNumber, taxRegion);
+      setAssets(reloadedAssets);
+      setOriginalAssets(JSON.parse(JSON.stringify(reloadedAssets)));
+
+      // Clear dirty state
+      setDirtyAssets(new Map());
+      setIsValidatedForSave(false);
+
+      // Show success message
+      const sharedAreaText = building.residence_shared_area! > 0
         ? building.residence_shared_area!.toLocaleString('he-IL')
         : '0 (ניקוי פיזור קודם)';
-      setDistributionResult(`פוזר שטח משותף מגורים (${sharedAreaText}) בין ${updatedCount} נכסים. השינויים יישמרו בלחיצה על "שמור הכל"`);
-      setDistributionModalOpen(true);
+      setToast({
+        message: `פוזר שטח משותף מגורים (${sharedAreaText}) בין ${updatedCount} נכסים בהצלחה`,
+        type: 'success'
+      });
+      setTimeout(() => setToast(null), 3000);
 
       // Refresh grid
       if (gridRef.current?.api) {
@@ -2962,20 +3025,86 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         updatedCount++;
       }
 
-      // Update local state only - changes will be saved when user clicks "Save All"
-        setDirtyAssets(updatedDirtyAssets);
-        setAssets(updatedAssets);
-      
-      // Note: Building state with updated overload_ratio was already set in the try block above
-      // Show result in modal
-      const sharedAreaText = building.business_shared_area! > 0 
+      // Collect assets to save (all assets with changes)
+      const assetsToSave = [];
+      const beforeAssets = [];
+      const afterAssets = [];
+
+      for (const [assetId, changes] of updatedDirtyAssets.entries()) {
+        const assetIdNum = parseInt(assetId, 10);
+        if (isNaN(assetIdNum)) continue;
+
+        const originalAsset = assets.find(a => String(a.asset_id) === assetId);
+        const updatedAsset = updatedAssets.find(a => String(a.asset_id) === assetId);
+
+        if (originalAsset && updatedAsset) {
+          // Prepare asset for save (merge original with changes)
+          assetsToSave.push({
+            ...originalAsset,
+            ...changes,
+            asset_id: assetIdNum
+          });
+
+          // Store before and after for audit
+          beforeAssets.push(originalAsset);
+          afterAssets.push(updatedAsset);
+        }
+      }
+
+      if (assetsToSave.length === 0) {
+        setError('לא נמצאו שינויים לשמירה');
+        setTimeout(() => setError(null), 3000);
+        setLoading(false);
+        return;
+      }
+
+      // Save building's overload_ratio first
+      await api.buildings.update(buildingNumber, { overload_ratio: overloadRatioPercentage });
+
+      // Save to database with audit logging and flag clearing
+      const result = await validateAndSaveBulkAssets(
+        assetsToSave,
+        'business_distribution',
+        { assets: beforeAssets, overload_ratio: overloadRatioPercentage },
+        { assets: afterAssets, overload_ratio: overloadRatioPercentage },
+        `פיזור שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) ל-${assetsToSave.length} נכסים. יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%`,
+        true // isBusinessContext
+      );
+
+      if (!result.success) {
+        setError(result.error || 'שגיאה בשמירת הפיזור');
+        setTimeout(() => setError(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      // Reload building to get updated distribution flag and overload_ratio
+      const updatedBuilding = await api.buildings.get(buildingNumber);
+      if (updatedBuilding) {
+        setBuilding(updatedBuilding);
+      }
+
+      // Reload assets from database
+      const reloadedAssets = await api.assets.getByBuilding(buildingNumber, taxRegion);
+      setAssets(reloadedAssets);
+      setOriginalAssets(JSON.parse(JSON.stringify(reloadedAssets)));
+
+      // Clear dirty state
+      setDirtyAssets(new Map());
+      setIsValidatedForSave(false);
+
+      // Show success message
+      const sharedAreaText = building.business_shared_area! > 0
         ? building.business_shared_area!.toLocaleString('he-IL')
         : '0 (ניקוי פיזור קודם)';
       const overloadRatioText = building.business_shared_area! > 0
         ? ` יחס העמסה: ${overloadRatioPercentage.toFixed(2)}%.`
         : '';
-      setDistributionResult(`פוזר שטח משותף עסקים (${sharedAreaText}) בין ${updatedCount} נכסים.${overloadRatioText} השינויים יישמרו בלחיצה על "שמור הכל"`);
-      setDistributionModalOpen(true);
+      setToast({
+        message: `פוזר שטח משותף עסקים (${sharedAreaText}) בין ${updatedCount} נכסים בהצלחה.${overloadRatioText}`,
+        type: 'success'
+      });
+      setTimeout(() => setToast(null), 3000);
 
       // Refresh grid
       if (gridRef.current?.api) {

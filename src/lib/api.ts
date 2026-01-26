@@ -877,7 +877,7 @@ async function validateAndSaveAsset(
  * ENFORCES: Validation must pass for ALL assets before save
  * GUARANTEES: All operations (saves + post-save actions) in ONE transaction
  */
-async function validateAndSaveBulkAssets(
+export async function validateAndSaveBulkAssets(
   assetsData: any[],
   actionType: string = 'manual_update',
   beforeData?: any,

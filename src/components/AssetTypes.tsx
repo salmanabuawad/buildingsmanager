@@ -377,7 +377,14 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? true : false);
+                const newValue = e.target.checked ? true : false;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'active', newValue);
+                setTimeout(() => {
+                  if (gridRef.current?.api) {
+                    gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
+                  }
+                }, 0);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -457,7 +464,9 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? true : false);
+                const newValue = e.target.checked ? true : false;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'elevator', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -481,7 +490,9 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? true : false);
+                const newValue = e.target.checked ? true : false;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'single_double_family', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -505,7 +516,9 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? true : false);
+                const newValue = e.target.checked ? true : false;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'penthouse', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -553,7 +566,9 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true || currentValue === 'כן'}
               onChange={(e) => {
-                params.setValue(e.target.checked ? true : false);
+                const newValue = e.target.checked ? true : false;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'townhouses', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -595,7 +610,14 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true}
               onChange={(e) => {
-                params.setValue(e.target.checked);
+                const newValue = e.target.checked;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'non_accountable_for_total_area', newValue);
+                setTimeout(() => {
+                  if (gridRef.current?.api) {
+                    gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
+                  }
+                }, 0);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -620,7 +642,14 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true}
               onChange={(e) => {
-                params.setValue(e.target.checked);
+                const newValue = e.target.checked;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'non_accountable_for_distribution', newValue);
+                setTimeout(() => {
+                  if (gridRef.current?.api) {
+                    gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
+                  }
+                }, 0);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -645,7 +674,9 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true}
               onChange={(e) => {
-                params.setValue(e.target.checked);
+                const newValue = e.target.checked;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'not_accountable_for_statistics', newValue);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -670,7 +701,14 @@ export function AssetTypes() {
               type="checkbox"
               checked={currentValue === true}
               onChange={(e) => {
-                params.setValue(e.target.checked);
+                const newValue = e.target.checked;
+                params.setValue(newValue);
+                handleCellChange(assetType.id, 'use_shared_area', newValue);
+                setTimeout(() => {
+                  if (gridRef.current?.api) {
+                    gridRef.current.api.refreshCells({ rowNodes: [params.node], force: true });
+                  }
+                }, 0);
               }}
               className={`w-4 h-4 text-blue-600 rounded ${isDirty ? 'ring-2 ring-yellow-400' : ''}`}
             />
@@ -871,7 +909,7 @@ export function AssetTypes() {
       }
       return colDef;
     });
-  }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes, assetTypes, dirtyAssetTypes]);
+  }, [t, getCurrentValue, isFieldDirty, handleDelete, deletedAssetTypes, assetTypes, dirtyAssetTypes, handleCellChange, gridRef]);
 
   // Apply field configurations from database
   const configuredColumnDefs = useFieldConfig(columnDefs, 'asset-types');

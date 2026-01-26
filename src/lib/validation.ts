@@ -1181,8 +1181,17 @@ export async function validateAssetTypeComplete(
       // Match asset attribute: penthouse (דירת גג)
       // NOTE: Penthouse validation only applies to main assets, not sub-assets
       // If assetData is not provided, it means we're validating a sub-asset, so skip penthouse check
-      if (assetData != null && assetType.penthouse != null && assetType.penthouse.trim() !== '') {
-        const requiredValue = String(assetType.penthouse).trim();
+      // Handle boolean or string values for assetType.penthouse
+      let assetTypePenthouseValue = '';
+      if (assetType.penthouse != null) {
+        if (typeof assetType.penthouse === 'boolean') {
+          assetTypePenthouseValue = assetType.penthouse ? 'כן' : 'לא';
+        } else {
+          assetTypePenthouseValue = String(assetType.penthouse).trim();
+        }
+      }
+      if (assetData != null && assetTypePenthouseValue !== '') {
+        const requiredValue = assetTypePenthouseValue;
         const assetPenthouse = assetData?.penthouse;
         
         // Normalize asset penthouse value to a boolean-like check
@@ -1229,52 +1238,120 @@ export async function validateAssetTypeComplete(
       // If assetData is not provided, it means we're validating a sub-asset, so skip building-level checks
       if (assetData != null) {
         // Step 4a: Match elevator (מעלית)
-        if (assetType.elevator != null && assetType.elevator.trim() !== '') {
-          const requiredValue = assetType.elevator.toLowerCase();
-          const buildingValue = building.elevator ? building.elevator.toLowerCase() : '';
+        // Handle boolean or string values for assetType.elevator
+        let assetTypeElevatorValue = '';
+        if (assetType.elevator != null) {
+          if (typeof assetType.elevator === 'boolean') {
+            assetTypeElevatorValue = assetType.elevator ? 'כן' : 'לא';
+          } else {
+            assetTypeElevatorValue = String(assetType.elevator).trim();
+          }
+        }
+        if (assetTypeElevatorValue !== '') {
+          const requiredValue = assetTypeElevatorValue.toLowerCase();
+          // Handle boolean or string values for building.elevator
+          let buildingValue = '';
+          if (building.elevator != null) {
+            if (typeof building.elevator === 'boolean') {
+              buildingValue = building.elevator ? 'כן' : 'לא';
+            } else {
+              buildingValue = String(building.elevator).toLowerCase();
+            }
+          }
 
           if (requiredValue === 'כן' || requiredValue === 'yes') {
-            if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש מעלית, אבל במבנה אין מעלית');
             }
           } else if (requiredValue === 'לא' || requiredValue === 'no') {
-            if (buildingValue === 'כן' || buildingValue === 'yes') {
+            if (buildingValue === 'כן' || buildingValue === 'yes' || buildingValue === 'true') {
               errors.push('מיועד למבנים ללא מעלית, אבל במבנה יש מעלית');
             }
           }
         }
 
         // Step 4b: Match single_double_family (בית פרטי)
-        if (assetType.single_double_family != null && assetType.single_double_family.trim() !== '') {
-          const requiredValue = assetType.single_double_family.toLowerCase();
-          const buildingValue = building.single_double_family ? building.single_double_family.toLowerCase() : '';
+        // Handle boolean or string values for assetType.single_double_family
+        let assetTypeSingleDoubleFamilyValue = '';
+        if (assetType.single_double_family != null) {
+          if (typeof assetType.single_double_family === 'boolean') {
+            assetTypeSingleDoubleFamilyValue = assetType.single_double_family ? 'כן' : 'לא';
+          } else {
+            assetTypeSingleDoubleFamilyValue = String(assetType.single_double_family).trim();
+          }
+        }
+        if (assetTypeSingleDoubleFamilyValue !== '') {
+          const requiredValue = assetTypeSingleDoubleFamilyValue.toLowerCase();
+          // Handle boolean or string values for building.single_double_family
+          let buildingValue = '';
+          if (building.single_double_family != null) {
+            if (typeof building.single_double_family === 'boolean') {
+              buildingValue = building.single_double_family ? 'כן' : 'לא';
+            } else {
+              buildingValue = String(building.single_double_family).toLowerCase();
+            }
+          }
 
           if (requiredValue === 'כן' || requiredValue === 'yes') {
-            if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש משפחה יחידה/דו משפחתי, אבל המבנה לא מסומן ככזה');
             }
           }
         }
 
         // Step 4c: Match condo (בית משותף)
-        if (assetType.condo != null && assetType.condo.trim() !== '') {
-          const requiredValue = assetType.condo.toLowerCase();
-          const buildingValue = building.condo ? building.condo.toLowerCase() : '';
+        // Handle boolean or string values for assetType.condo
+        let assetTypeCondoValue = '';
+        if (assetType.condo != null) {
+          if (typeof assetType.condo === 'boolean') {
+            assetTypeCondoValue = assetType.condo ? 'כן' : 'לא';
+          } else {
+            assetTypeCondoValue = String(assetType.condo).trim();
+          }
+        }
+        if (assetTypeCondoValue !== '') {
+          const requiredValue = assetTypeCondoValue.toLowerCase();
+          // Handle boolean or string values for building.condo
+          let buildingValue = '';
+          if (building.condo != null) {
+            if (typeof building.condo === 'boolean') {
+              buildingValue = building.condo ? 'כן' : 'לא';
+            } else {
+              buildingValue = String(building.condo).toLowerCase();
+            }
+          }
 
           if (requiredValue === 'כן' || requiredValue === 'yes') {
-            if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש בית משותף, אבל המבנה לא מסומן ככזה');
             }
           }
         }
 
         // Step 4d: Match townhouses (טוריים)
-        if (assetType.townhouses != null && assetType.townhouses.trim() !== '') {
-          const requiredValue = assetType.townhouses.toLowerCase();
-          const buildingValue = building.townhouses ? building.townhouses.toLowerCase() : '';
+        // Handle boolean or string values for assetType.townhouses
+        let assetTypeTownhousesValue = '';
+        if (assetType.townhouses != null) {
+          if (typeof assetType.townhouses === 'boolean') {
+            assetTypeTownhousesValue = assetType.townhouses ? 'כן' : 'לא';
+          } else {
+            assetTypeTownhousesValue = String(assetType.townhouses).trim();
+          }
+        }
+        if (assetTypeTownhousesValue !== '') {
+          const requiredValue = assetTypeTownhousesValue.toLowerCase();
+          // Handle boolean or string values for building.townhouses
+          let buildingValue = '';
+          if (building.townhouses != null) {
+            if (typeof building.townhouses === 'boolean') {
+              buildingValue = building.townhouses ? 'כן' : 'לא';
+            } else {
+              buildingValue = String(building.townhouses).toLowerCase();
+            }
+          }
 
           if (requiredValue === 'כן' || requiredValue === 'yes') {
-            if (buildingValue !== 'כן' && buildingValue !== 'yes') {
+            if (buildingValue !== 'כן' && buildingValue !== 'yes' && buildingValue !== 'true') {
               errors.push('דורש טוריים, אבל המבנה לא מסומן ככזה');
             }
           }

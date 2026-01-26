@@ -583,20 +583,20 @@ export function sanitizeAssetInput(input: any): any {
     asset_id: input.asset_id != null ? sanitizeInteger(input.asset_id) : undefined,
     measurement_date: measurementDate, // Always include measurement_date
     main_asset_type: input.main_asset_type != null ? sanitizeText(input.main_asset_type) : undefined,
-    asset_size: input.asset_size != null ? sanitizeNumber(input.asset_size) : undefined,
+    asset_size: ('asset_size' in input) ? sanitizeNumber(input.asset_size ?? 0) : undefined,
     tax_region: input.tax_region != null ? sanitizeInteger(input.tax_region) : undefined,
     sub_asset_type_1: input.sub_asset_type_1 != null ? sanitizeText(input.sub_asset_type_1) : undefined,
-    sub_asset_size_1: input.sub_asset_size_1 != null ? sanitizeNumber(input.sub_asset_size_1) : undefined,
+    sub_asset_size_1: ('sub_asset_size_1' in input) ? sanitizeNumber(input.sub_asset_size_1 ?? 0) : undefined,
     sub_asset_type_2: input.sub_asset_type_2 != null ? sanitizeText(input.sub_asset_type_2) : undefined,
-    sub_asset_size_2: input.sub_asset_size_2 != null ? sanitizeNumber(input.sub_asset_size_2) : undefined,
+    sub_asset_size_2: ('sub_asset_size_2' in input) ? sanitizeNumber(input.sub_asset_size_2 ?? 0) : undefined,
     sub_asset_type_3: input.sub_asset_type_3 != null ? sanitizeText(input.sub_asset_type_3) : undefined,
-    sub_asset_size_3: input.sub_asset_size_3 != null ? sanitizeNumber(input.sub_asset_size_3) : undefined,
+    sub_asset_size_3: ('sub_asset_size_3' in input) ? sanitizeNumber(input.sub_asset_size_3 ?? 0) : undefined,
     sub_asset_type_4: input.sub_asset_type_4 != null ? sanitizeText(input.sub_asset_type_4) : undefined,
-    sub_asset_size_4: input.sub_asset_size_4 != null ? sanitizeNumber(input.sub_asset_size_4) : undefined,
+    sub_asset_size_4: ('sub_asset_size_4' in input) ? sanitizeNumber(input.sub_asset_size_4 ?? 0) : undefined,
     sub_asset_type_5: input.sub_asset_type_5 != null ? sanitizeText(input.sub_asset_type_5) : undefined,
     sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
     sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
-    sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
+    sub_asset_size_6: ('sub_asset_size_6' in input) ? sanitizeNumber(input.sub_asset_size_6 ?? 0) : undefined,
     // Checkbox fields: convert to boolean (true/false only, never null/undefined)
     // Support both old format ('כן'/'לא') and new format (true/false)
     // Always return boolean: true or false

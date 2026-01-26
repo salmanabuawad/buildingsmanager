@@ -297,10 +297,14 @@ BEGIN
           WHEN v_asset_data->'measurement_date' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'measurement_date'), '')::TEXT END,
         main_asset_type = COALESCE(v_new_main_asset_type, main_asset_type),
-        asset_size = CASE WHEN NOT (v_asset_data ? 'asset_size') THEN asset_size
+        asset_size = CASE 
+          WHEN NOT (v_asset_data ? 'asset_size') THEN asset_size
           WHEN v_asset_data->'asset_size' = 'null'::jsonb THEN 0
+          WHEN jsonb_typeof(v_asset_data->'asset_size') = 'number' THEN 
+            (v_asset_data->>'asset_size')::NUMERIC
           WHEN (v_asset_data->>'asset_size')::text = '' THEN 0
-          ELSE COALESCE((v_asset_data->>'asset_size')::NUMERIC, 0) END,
+          WHEN (v_asset_data->>'asset_size')::text = '0' THEN 0
+          ELSE (v_asset_data->>'asset_size')::NUMERIC END,
         tax_region = CASE WHEN v_asset_data->'tax_region' IS NULL THEN tax_region
           ELSE (v_asset_data->>'tax_region')::BIGINT END,
         sub_asset_type_1 = CASE WHEN v_asset_data->'sub_asset_type_1' IS NULL THEN sub_asset_type_1
@@ -418,7 +422,7 @@ BEGIN
           WHEN v_asset_data->'area_from_distribution' IS NULL THEN area_from_distribution
           ELSE COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, 0) END,
         exported_to_automation = false,
-        comment = CASE WHEN v_asset_data->'comment' IS NULL THEN comment
+        comment = CASE WHEN NOT (v_asset_data ? 'comment') THEN comment
           WHEN v_asset_data->'comment' = 'null'::jsonb THEN NULL
           ELSE NULLIF((v_asset_data->>'comment'), '')::TEXT END,
         is_new_measurement = false,

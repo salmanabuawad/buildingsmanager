@@ -215,36 +215,56 @@ BEGIN
         CASE
           WHEN v_asset_data->'elevator' IS NULL THEN false
           WHEN jsonb_typeof(v_asset_data->'elevator') = 'string' THEN
-            CASE WHEN (v_asset_data->>'elevator')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'elevator') = 'boolean' THEN (v_asset_data->>'elevator')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'elevator')::text) IN ('true', '1') OR (v_asset_data->>'elevator')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'elevator') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'elevator')::text = 'true' THEN true ELSE false END
           ELSE false
         END,
         CASE
           WHEN v_asset_data->'single_double_family' IS NULL THEN false
           WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'string' THEN
-            CASE WHEN (v_asset_data->>'single_double_family')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'boolean' THEN (v_asset_data->>'single_double_family')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'single_double_family')::text) IN ('true', '1') OR (v_asset_data->>'single_double_family')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'single_double_family')::text = 'true' THEN true ELSE false END
           ELSE false
         END,
         CASE
           WHEN v_asset_data->'condo' IS NULL THEN false
           WHEN jsonb_typeof(v_asset_data->'condo') = 'string' THEN
-            CASE WHEN (v_asset_data->>'condo')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'condo') = 'boolean' THEN (v_asset_data->>'condo')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'condo')::text) IN ('true', '1') OR (v_asset_data->>'condo')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'condo') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'condo')::text = 'true' THEN true ELSE false END
           ELSE false
         END,
         CASE
           WHEN v_asset_data->'townhouses' IS NULL THEN false
           WHEN jsonb_typeof(v_asset_data->'townhouses') = 'string' THEN
-            CASE WHEN (v_asset_data->>'townhouses')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'townhouses') = 'boolean' THEN (v_asset_data->>'townhouses')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'townhouses')::text) IN ('true', '1') OR (v_asset_data->>'townhouses')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'townhouses') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'townhouses')::text = 'true' THEN true ELSE false END
           ELSE false
         END,
         CASE
           WHEN v_asset_data->'penthouse' IS NULL THEN false
           WHEN jsonb_typeof(v_asset_data->'penthouse') = 'string' THEN
-            CASE WHEN (v_asset_data->>'penthouse')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'penthouse') = 'boolean' THEN (v_asset_data->>'penthouse')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'penthouse')::text) IN ('true', '1') OR (v_asset_data->>'penthouse')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'penthouse') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'penthouse')::text = 'true' THEN true ELSE false END
           ELSE false
         END,
         (v_asset_data->>'structure_drawing_url')::TEXT, (v_asset_data->>'floor')::BIGINT,
@@ -314,36 +334,56 @@ BEGIN
         elevator = CASE WHEN v_asset_data->'elevator' IS NULL THEN elevator
           WHEN v_asset_data->'elevator' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'elevator') = 'string' THEN
-            CASE WHEN (v_asset_data->>'elevator')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'elevator') = 'boolean' THEN (v_asset_data->>'elevator')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'elevator')::text) IN ('true', '1') OR (v_asset_data->>'elevator')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'elevator') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'elevator')::text = 'true' THEN true ELSE false END
           ELSE elevator
         END,
         single_double_family = CASE WHEN v_asset_data->'single_double_family' IS NULL THEN single_double_family
           WHEN v_asset_data->'single_double_family' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'string' THEN
-            CASE WHEN (v_asset_data->>'single_double_family')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'boolean' THEN (v_asset_data->>'single_double_family')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'single_double_family')::text) IN ('true', '1') OR (v_asset_data->>'single_double_family')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'single_double_family') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'single_double_family')::text = 'true' THEN true ELSE false END
           ELSE single_double_family
         END,
         condo = CASE WHEN v_asset_data->'condo' IS NULL THEN condo
           WHEN v_asset_data->'condo' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'condo') = 'string' THEN
-            CASE WHEN (v_asset_data->>'condo')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'condo') = 'boolean' THEN (v_asset_data->>'condo')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'condo')::text) IN ('true', '1') OR (v_asset_data->>'condo')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'condo') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'condo')::text = 'true' THEN true ELSE false END
           ELSE condo
         END,
         townhouses = CASE WHEN v_asset_data->'townhouses' IS NULL THEN townhouses
           WHEN v_asset_data->'townhouses' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'townhouses') = 'string' THEN
-            CASE WHEN (v_asset_data->>'townhouses')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'townhouses') = 'boolean' THEN (v_asset_data->>'townhouses')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'townhouses')::text) IN ('true', '1') OR (v_asset_data->>'townhouses')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'townhouses') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'townhouses')::text = 'true' THEN true ELSE false END
           ELSE townhouses
         END,
         penthouse = CASE WHEN v_asset_data->'penthouse' IS NULL THEN penthouse
           WHEN v_asset_data->'penthouse' = 'null'::jsonb THEN false
           WHEN jsonb_typeof(v_asset_data->'penthouse') = 'string' THEN
-            CASE WHEN (v_asset_data->>'penthouse')::text IN ('true', 'TRUE', '1', 'כן') THEN true ELSE false END
-          WHEN jsonb_typeof(v_asset_data->'penthouse') = 'boolean' THEN (v_asset_data->>'penthouse')::boolean
+            CASE 
+              WHEN LOWER((v_asset_data->>'penthouse')::text) IN ('true', '1') OR (v_asset_data->>'penthouse')::text = 'כן' THEN true 
+              ELSE false 
+            END
+          WHEN jsonb_typeof(v_asset_data->'penthouse') = 'boolean' THEN 
+            CASE WHEN (v_asset_data->'penthouse')::text = 'true' THEN true ELSE false END
           ELSE penthouse
         END,
         structure_drawing_url = CASE WHEN v_asset_data->'structure_drawing_url' IS NULL THEN structure_drawing_url

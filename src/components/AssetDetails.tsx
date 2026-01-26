@@ -2533,10 +2533,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       field: 'penthouse',
       headerName: 'דירת גג',
       hide: isBusinessAsset, // Hide penthouse for business assets (only show for residence)
-      editable: (params) => {
-        const fieldName = params.colDef?.field || '';
-        return isFieldEditable(params, fieldName);
-      },
+      editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === true || params.value === 'כן';
         const isEditable = params.data.is_latest === true && editMode === 'inline';

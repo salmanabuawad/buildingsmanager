@@ -3900,7 +3900,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => isFieldEditable(params, 'penthouse'),
+      editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params),
       cellRenderer: penthouseCellRenderer,

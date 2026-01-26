@@ -365,7 +365,7 @@ export function AssetTypes() {
     {
       field: 'active',
       headerName: 'פעיל',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -445,7 +445,7 @@ export function AssetTypes() {
     {
       field: 'elevator',
       headerName: 'מעלית',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -469,7 +469,7 @@ export function AssetTypes() {
     {
       field: 'single_double_family',
       headerName: 'בית פרטי',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -493,7 +493,7 @@ export function AssetTypes() {
     {
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -517,7 +517,7 @@ export function AssetTypes() {
     {
       field: 'condo',
       headerName: 'בית משותף',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -541,7 +541,7 @@ export function AssetTypes() {
     {
       field: 'townhouses',
       headerName: 'טוריים',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -582,7 +582,7 @@ export function AssetTypes() {
     {
       field: 'non_accountable_for_total_area',
       headerName: 'לא נספר בחישוב שטח מבנה',
-      editable: true,
+      editable: false,
       tooltipValueGetter: () => 'נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
@@ -607,7 +607,7 @@ export function AssetTypes() {
     {
       field: 'non_accountable_for_distribution',
       headerName: 'לא נספר בפיזור',
-      editable: true,
+      editable: false,
       tooltipValueGetter: () => 'נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
@@ -632,7 +632,7 @@ export function AssetTypes() {
     {
       field: 'not_accountable_for_statistics',
       headerName: 'לא נספר בסטטיסטיקה',
-      editable: true,
+      editable: false,
       tooltipValueGetter: () => 'נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
@@ -657,7 +657,7 @@ export function AssetTypes() {
     {
       field: 'use_shared_area',
       headerName: 'שימוש בשטח משותף',
-      editable: true,
+      editable: false,
       tooltipValueGetter: () => 'סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;

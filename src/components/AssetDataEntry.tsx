@@ -908,10 +908,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: (params) => {
-        const fieldName = params.colDef?.field || '';
-        return isFieldEditable(params, fieldName);
-      },
+      editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === true || params.value === 'כן';
         return (

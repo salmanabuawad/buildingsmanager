@@ -2799,7 +2799,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       colId: 'penthouse',
       field: 'penthouse',
       headerName: 'דירת גג',
-      editable: true,
+      editable: false,
       cellRenderer: (params: any) => {
         const isChecked = params.value === true || params.value === 'כן';
         return (

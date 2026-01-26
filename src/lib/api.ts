@@ -366,7 +366,6 @@ function calculateChangedFields(before: any, after: any): string[] {
 
 export interface Building {
   building_notes?: string;
-  note?: string;
   building_number: number;
   tax_region?: string;
   residence_shared_area?: number;
@@ -753,14 +752,6 @@ function sanitizeBuildingInput(input: any): any {
       sanitized.building_notes = null;
     } else {
       sanitized.building_notes = sanitizeText(input.building_notes);
-    }
-  }
-  // Handle note: free text field
-  if ('note' in input) {
-    if (input.note === null || input.note === '' || input.note === undefined) {
-      sanitized.note = null;
-    } else {
-      sanitized.note = sanitizeText(input.note);
     }
   }
   

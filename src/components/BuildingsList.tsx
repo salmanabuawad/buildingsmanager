@@ -105,6 +105,9 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   const { addressList = [] } = props;
 
+  // Get the field name from column (building_address or address)
+  const fieldName = props.column?.getColId() || 'building_address';
+
   // Expose getValue method to AG Grid
   // Don't include props.data in dependencies to avoid recreating the function
   // Access props.data via ref to always get the latest value
@@ -115,21 +118,23 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       
       // If ref is null, try to get from data object as fallback
       const currentData = dataRef.current;
-      if (value === null && currentData && currentData.building_address != null) {
-        value = currentData.building_address;
+      const fieldValue = currentData?.[fieldName];
+      if (value === null && currentData && fieldValue != null) {
+        value = fieldValue;
         selectedValueRef.current = value; // Sync the ref
       }
       
       // If still null, try props.data directly (last resort)
-      if (value === null && props.data && props.data.building_address != null) {
-        value = props.data.building_address;
+      if (value === null && props.data && props.data[fieldName] != null) {
+        value = props.data[fieldName];
         selectedValueRef.current = value;
       }
       
       console.log('[AddressCellEditor] getValue() called:', {
+        fieldName,
         refValue: selectedValueRef.current,
-        dataRefValue: currentData?.building_address,
-        propsDataValue: props.data?.building_address,
+        dataRefValue: fieldValue,
+        propsDataValue: props.data?.[fieldName],
         returning: value,
         hasDataRef: !!currentData,
         hasPropsData: !!props.data
@@ -138,10 +143,10 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       // CRITICAL: If we have a value, ensure it's set in all data objects
       if (value !== null && value !== undefined) {
         if (currentData) {
-          currentData.building_address = value;
+          currentData[fieldName] = value;
         }
         if (props.data) {
-          props.data.building_address = value;
+          props.data[fieldName] = value;
         }
         console.log('[AddressCellEditor] Synced value to all data objects:', value);
       } else {
@@ -150,7 +155,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       
       return value;
     }
-  }), [selectedValue, props.data]); // Include props.data to recreate when it changes
+  }), [selectedValue, props.data, fieldName]); // Include props.data to recreate when it changes
 
   // Initialize with current value
   useEffect(() => {
@@ -261,20 +266,20 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     
     // Update data object immediately - use both props.data and dataRef
     if (props.data) {
-      props.data.building_address = streetCode;
-      console.log('[AddressCellEditor] Updated props.data.building_address to:', streetCode, 'verified:', props.data.building_address);
+      props.data[fieldName] = streetCode;
+      console.log(`[AddressCellEditor] Updated props.data.${fieldName} to:`, streetCode, 'verified:', props.data[fieldName]);
     }
     // Also update the ref to ensure consistency
     if (dataRef.current) {
-      dataRef.current.building_address = streetCode;
-      console.log('[AddressCellEditor] Updated dataRef.current.building_address to:', streetCode, 'verified:', dataRef.current.building_address);
+      dataRef.current[fieldName] = streetCode;
+      console.log(`[AddressCellEditor] Updated dataRef.current.${fieldName} to:`, streetCode, 'verified:', dataRef.current[fieldName]);
     }
     
     // Close dropdown
     setShowDropdown(false);
     
     // Verify ref and data are set before stopping
-    console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.building_address, 'node:', props.node?.data?.building_address);
+    console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.[fieldName], 'node:', props.node?.data?.[fieldName]);
     
     // Use setDataValue BEFORE stopEditing to ensure value is set and dirty bit works
     if (props.node && props.column) {
@@ -313,16 +318,17 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     }, 10);
     
     // After stopEditing, verify the value was set correctly
-    console.log('[AddressCellEditor] After stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.building_address);
+    console.log('[AddressCellEditor] After stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.[fieldName]);
     
     // Force refresh to ensure cell displays the value
     setTimeout(() => {
       if (props.api && props.column && props.node) {
         const colId = props.column.getColId();
-        const currentDataValue = props.data?.building_address;
-        const nodeDataValue = props.node.data?.building_address;
+        const currentDataValue = props.data?.[fieldName];
+        const nodeDataValue = props.node.data?.[fieldName];
         console.log('[AddressCellEditor] Refreshing cell:', { 
           colId, 
+          fieldName,
           streetCode,
           refValue: selectedValueRef.current,
           dataValue: currentDataValue,
@@ -1037,8 +1043,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         valueToUpdate = isNaN(code) || code <= 0 ? null : code;
       }
     }
-    // For building_notes and note, preserve string value (including empty string as null)
-    if (field === 'building_notes' || field === 'note') {
+    // For building_notes, preserve string value (including empty string as null)
+    if (field === 'building_notes') {
       valueToUpdate = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
@@ -1089,14 +1095,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       }
     }
-    // For building_notes and note, always store the value (including null for empty string)
-    if (field === 'building_notes' || field === 'note') {
+    // For building_notes, always store the value (including null for empty string)
+    if (field === 'building_notes') {
       valueToStore = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
-    // For building_notes and note, always mark as dirty (even if empty, to allow clearing the field)
-    const hasMeaningfulValue = (field === 'building_notes' || field === 'note')
-      ? true // Always track building_notes and note changes, even if empty
+    // For building_notes, always mark as dirty (even if empty, to allow clearing the field)
+    const hasMeaningfulValue = field === 'building_notes'
+      ? true // Always track building_notes changes, even if empty
       : (valueToStore !== null && valueToStore !== undefined && valueToStore !== '');
     
     // Calculate updated dirty changes for validation (before state update)
@@ -1471,6 +1477,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'בית משותף',
         'מבנים צמודי קרקע טוריים מעל 2 יחידות',
         'כתובת',
+        'כתובת (dropdown)',
         'גוש',
         'חלקה',
         'מספר בניין',
@@ -1494,6 +1501,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
       };
 
+      // Helper function to get address description for address field
+      const getAddressDescriptionForAddress = (streetCode: number | null | undefined): string => {
+        if (!streetCode) return '';
+        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
+        return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
+      };
+
       // Convert buildings to rows
       const rows = buildingsToExport.map(building => [
         building.building_number || '',
@@ -1508,6 +1522,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         building.condo === 'כן' || building.condo === true ? 'כן' : '',
         building.townhouses === 'כן' || building.townhouses === true ? 'כן' : '',
         getAddressDescription(building.building_address),
+        getAddressDescriptionForAddress(building.address),
         building.gosh != null ? building.gosh : '',
         building.helka != null ? building.helka : '',
         building.building_number_in_street != null ? building.building_number_in_street : '',
@@ -1540,9 +1555,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 12 }, // בית משותף
           { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
           { wch: 30 }, // כתובת
+          { wch: 30 }, // כתובת (dropdown)
           { wch: 10 }, // גוש
           { wch: 10 }, // חלקה
-          { wch: 12 }  // מספר בניין
+          { wch: 12 }, // מספר בניין
+          { wch: 30 }  // הערות
         ]
       });
 
@@ -2838,7 +2855,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         
         // Find the address description - ensure type consistency (compare as numbers)
         const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
-        const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
+        // Display format: "code - description" (same as building_address)
+        const displayValue = address ? `${address.street_code} - ${address.street_description}` : (streetCode ? String(streetCode) : '');
         
         if (isNew && !streetCode) {
           return '';
@@ -2936,22 +2954,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'building_notes')
-    },
-    {
-      field: 'note',
-      headerName: 'הערה',
-      editable: !isReadOnly,
-      cellRenderer: (params: any) => {
-        const building = params.data as Building;
-        if (!building) return '';
-        const isNew = isNewBuilding(building);
-        if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
-          return '';
-        }
-        const value = params.value != null ? String(params.value) : '';
-        return value;
-      },
-      cellStyle: (params) => getCellStyle(params, 'note')
     },
     {
       field: 'extra_field_1',

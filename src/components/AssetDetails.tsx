@@ -2598,9 +2598,15 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           </div>
         );
       },
-      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueGetter: (params: any) => {
+        const value = params.data?.penthouse;
+        // Convert to boolean: true if checked, false otherwise
+        return (value === true || value === 'כן') ? true : false;
+      },
       valueSetter: (params: any) => {
-        params.data.penthouse = params.newValue;
+        // Always set as boolean: true or false
+        const newValue = params.newValue;
+        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
         return true;
       },
       cellStyle: (params) => {

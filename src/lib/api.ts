@@ -597,13 +597,14 @@ export function sanitizeAssetInput(input: any): any {
     sub_asset_size_5: input.sub_asset_size_5 != null ? sanitizeNumber(input.sub_asset_size_5) : undefined,
     sub_asset_type_6: input.sub_asset_type_6 != null ? sanitizeText(input.sub_asset_type_6) : undefined,
     sub_asset_size_6: input.sub_asset_size_6 != null ? sanitizeNumber(input.sub_asset_size_6) : undefined,
-    // Checkbox fields: convert to boolean (true/false)
+    // Checkbox fields: convert to boolean (true/false only, never null/undefined)
     // Support both old format ('כן'/'לא') and new format (true/false)
-    elevator: input.elevator != null ? (input.elevator === true || input.elevator === 'כן' || input.elevator === 'true' || input.elevator === 'TRUE' || input.elevator === '1') : false,
-    single_double_family: input.single_double_family != null ? (input.single_double_family === true || input.single_double_family === 'כן' || input.single_double_family === 'true' || input.single_double_family === 'TRUE' || input.single_double_family === '1') : false,
-    condo: input.condo != null ? (input.condo === true || input.condo === 'כן' || input.condo === 'true' || input.condo === 'TRUE' || input.condo === '1') : false,
-    townhouses: input.townhouses != null ? (input.townhouses === true || input.townhouses === 'כן' || input.townhouses === 'true' || input.townhouses === 'TRUE' || input.townhouses === '1') : false,
-    penthouse: input.penthouse != null ? (input.penthouse === true || input.penthouse === 'כן' || input.penthouse === 'true' || input.penthouse === 'TRUE' || input.penthouse === '1') : false,
+    // Always return boolean: true or false
+    elevator: (input.elevator === true || input.elevator === 'כן' || input.elevator === 'true' || input.elevator === 'TRUE' || input.elevator === '1') ? true : false,
+    single_double_family: (input.single_double_family === true || input.single_double_family === 'כן' || input.single_double_family === 'true' || input.single_double_family === 'TRUE' || input.single_double_family === '1') ? true : false,
+    condo: (input.condo === true || input.condo === 'כן' || input.condo === 'true' || input.condo === 'TRUE' || input.condo === '1') ? true : false,
+    townhouses: (input.townhouses === true || input.townhouses === 'כן' || input.townhouses === 'true' || input.townhouses === 'TRUE' || input.townhouses === '1') ? true : false,
+    penthouse: (input.penthouse === true || input.penthouse === 'כן' || input.penthouse === 'true' || input.penthouse === 'TRUE' || input.penthouse === '1') ? true : false,
     structure_drawing_url: input.structure_drawing_url != null ? sanitizeText(input.structure_drawing_url) : undefined,
     floor: input.floor != null ? sanitizeInteger(input.floor) : undefined,
     discount_type: input.discount_type != null ? sanitizeText(input.discount_type) : undefined,

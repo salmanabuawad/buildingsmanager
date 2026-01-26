@@ -255,8 +255,8 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: R
               <div className="flex items-center h-10">
                 <input
                   type="checkbox"
-                  checked={formData.penthouse === 'כן'}
-                  onChange={(e) => handleFieldChange('penthouse', e.target.checked ? 'כן' : null)}
+                  checked={formData.penthouse === true || formData.penthouse === 'כן'}
+                  onChange={(e) => handleFieldChange('penthouse', e.target.checked ? true : false)}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 />
                 <span className="mr-2 text-sm text-slate-600">כן</span>

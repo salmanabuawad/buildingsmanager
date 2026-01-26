@@ -2801,14 +2801,14 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       headerName: 'דירת גג',
       editable: true,
       cellRenderer: (params: any) => {
-        const isChecked = params.value === 'כן';
+        const isChecked = params.value === true || params.value === 'כן';
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
+                const newValue = e.target.checked ? true : false;
                 params.setValue(newValue);
               }}
               className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
@@ -2816,9 +2816,15 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           </div>
         );
       },
-      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueGetter: (params: any) => {
+        const value = params.data?.penthouse;
+        // Convert to boolean: true if checked, false otherwise
+        return (value === true || value === 'כן') ? true : false;
+      },
       valueSetter: (params: any) => {
-        params.data.penthouse = params.newValue;
+        // Always set as boolean: true or false
+        const newValue = params.newValue;
+        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
         return true;
       },
       cellStyle: (params) => {
@@ -4142,8 +4148,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="elevator"
-                      checked={buildingCreateData.elevator === 'כן'}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.checked ? 'כן' : undefined }))}
+                      checked={buildingCreateData.elevator === true || buildingCreateData.elevator === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, elevator: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
                     />
@@ -4156,8 +4162,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="single_double_family"
-                      checked={buildingCreateData.single_double_family === 'כן'}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.checked ? 'כן' : undefined }))}
+                      checked={buildingCreateData.single_double_family === true || buildingCreateData.single_double_family === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, single_double_family: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
                     />
@@ -4170,8 +4176,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="condo"
-                      checked={buildingCreateData.condo === 'כן'}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.checked ? 'כן' : undefined }))}
+                      checked={buildingCreateData.condo === true || buildingCreateData.condo === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, condo: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
                     />
@@ -4184,8 +4190,8 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                     <input
                       type="checkbox"
                       id="townhouses"
-                      checked={buildingCreateData.townhouses === 'כן'}
-                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.checked ? 'כן' : undefined }))}
+                      checked={buildingCreateData.townhouses === true || buildingCreateData.townhouses === 'כן'}
+                      onChange={(e) => setBuildingCreateData(prev => ({ ...prev, townhouses: e.target.checked ? true : false }))}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       disabled={isCreatingBuilding}
                     />

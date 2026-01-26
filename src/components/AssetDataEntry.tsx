@@ -913,14 +913,14 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
         return isFieldEditable(params, fieldName);
       },
       cellRenderer: (params: any) => {
-        const isChecked = params.value === 'כן';
+        const isChecked = params.value === true || params.value === 'כן';
         return (
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
               checked={isChecked}
               onChange={(e) => {
-                const newValue = e.target.checked ? 'כן' : null;
+                const newValue = e.target.checked ? true : false;
                 params.setValue(newValue);
               }}
               className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
@@ -928,9 +928,15 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
           </div>
         );
       },
-      valueGetter: (params: any) => params.data?.penthouse === 'כן' ? 'כן' : null,
+      valueGetter: (params: any) => {
+        const value = params.data?.penthouse;
+        // Convert to boolean: true if checked, false otherwise
+        return (value === true || value === 'כן') ? true : false;
+      },
       valueSetter: (params: any) => {
-        params.data.penthouse = params.newValue;
+        // Always set as boolean: true or false
+        const newValue = params.newValue;
+        params.data.penthouse = (newValue === true || newValue === 'כן') ? true : false;
         return true;
       },
       cellStyle: (params) => {

@@ -5,7 +5,7 @@ publish = "dist"
 # Application URL: https://buildingmanager.bolt.host/
 
 [build.environment]
-VITE_SUPABASE_URL = "https://cdsxuioesfqvzuvwlhrc.supabase.co"
+VITE_SUPABASE_URL = "https://bolt-native-database-59857294.supabase.co"
 # Note: Update VITE_SUPABASE_ANON_KEY with the correct key from your Supabase project
 VITE_SUPABASE_ANON_KEY = "your-anon-key-here"
 

@@ -1,6 +1,7 @@
 -- ============================================================================
 -- Create asset_files table and fix RLS policies
 -- Run this script in Supabase Dashboard > SQL Editor
+-- Project: bolt-native-database-59857294
 -- ============================================================================
 
 -- Step 1: Create asset_files table (if it doesn't exist)

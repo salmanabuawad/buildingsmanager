@@ -198,7 +198,7 @@ Create a `.env` file in the project root:
 **Supabase (Production):**
 ```env
 VITE_USE_LOCAL_DB=false
-VITE_SUPABASE_URL=https://cdsxuioesfqvzuvwlhrc.supabase.co
+VITE_SUPABASE_URL=https://bolt-native-database-59857294.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 

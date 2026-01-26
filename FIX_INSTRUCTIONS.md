@@ -2,7 +2,7 @@
 
 ## ✅ מה תוקן:
 
-1. **עודכן ה-URL של Supabase** מ-`oqfcdzagpftajmpxuajl.supabase.co` ל-`cdsxuioesfqvzuvwlhrc.supabase.co` בקבצים:
+1. **עודכן ה-URL של Supabase** ל-`bolt-native-database-59857294.supabase.co` בקבצים:
    - `netlify.toml`
    - `README.md`
    - `data_for_test/.env.test`
@@ -12,7 +12,7 @@
 ### שלב 1: עדכן את ה-ANON_KEY
 
 1. פתח את [Supabase Dashboard](https://supabase.com/dashboard)
-2. בחר את הפרויקט `cdsxuioesfqvzuvwlhrc`
+2. בחר את הפרויקט `bolt-native-database-59857294`
 3. לך ל-Settings > API
 4. העתק את ה-`anon` key
 5. עדכן את הקבצים הבאים:

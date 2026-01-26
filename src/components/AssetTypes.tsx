@@ -375,7 +375,7 @@ export function AssetTypes() {
           <div className="flex items-center justify-center h-full">
             <input
               type="checkbox"
-              checked={currentValue === true || currentValue === 'כן'}
+              checked={currentValue === true}
               onChange={(e) => {
                 const newValue = e.target.checked ? true : false;
                 params.setValue(newValue);

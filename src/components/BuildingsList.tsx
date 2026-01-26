@@ -1025,9 +1025,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       newBuildingKey = newValueNum;
     }
 
-    // For building_address, extract the code from formatted string if needed
+    // For building_address and address, extract the code from formatted string if needed
     let valueToUpdate = newValue;
-    if (field === 'building_address') {
+    if (field === 'building_address' || field === 'address') {
       if (typeof newValue === 'string' && newValue.includes(' - ')) {
         const codeStr = newValue.split(' - ')[0].trim();
         const code = Number(codeStr);
@@ -1037,8 +1037,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         valueToUpdate = isNaN(code) || code <= 0 ? null : code;
       }
     }
-    // For building_notes, preserve string value (including empty string as null)
-    if (field === 'building_notes') {
+    // For building_notes and note, preserve string value (including empty string as null)
+    if (field === 'building_notes' || field === 'note') {
       valueToUpdate = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
@@ -1073,9 +1073,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     });
 
     // Update dirty tracking
-    // For building_address, ensure we store the number, not the formatted string
+    // For building_address and address, ensure we store the number, not the formatted string
     let valueToStore = newValue;
-    if (field === 'building_address') {
+    if (field === 'building_address' || field === 'address') {
       // If newValue is a formatted string "code - description", extract the code
       if (typeof newValue === 'string' && newValue.includes(' - ')) {
         const codeStr = newValue.split(' - ')[0].trim();
@@ -1089,20 +1089,20 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         }
       }
     }
-    // For building_notes, always store the value (including null for empty string)
-    if (field === 'building_notes') {
+    // For building_notes and note, always store the value (including null for empty string)
+    if (field === 'building_notes' || field === 'note') {
       valueToStore = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
-    // For building_notes, always mark as dirty (even if empty, to allow clearing the field)
-    const hasMeaningfulValue = field === 'building_notes' 
-      ? true // Always track building_notes changes, even if empty
+    // For building_notes and note, always mark as dirty (even if empty, to allow clearing the field)
+    const hasMeaningfulValue = (field === 'building_notes' || field === 'note')
+      ? true // Always track building_notes and note changes, even if empty
       : (valueToStore !== null && valueToStore !== undefined && valueToStore !== '');
     
     // Calculate updated dirty changes for validation (before state update)
     const existingDirtyChanges = dirtyBuildings.get(newBuildingKey) || {};
-    const valueForValidation = field === 'building_address' ? valueToUpdate : newValue;
-    const valueForDirty = field === 'building_address' ? valueToUpdate : valueToStore;
+    const valueForValidation = (field === 'building_address' || field === 'address') ? valueToUpdate : newValue;
+    const valueForDirty = (field === 'building_address' || field === 'address') ? valueToUpdate : valueToStore;
     
     let updatedDirtyChanges: Partial<Building>;
     if (hasMeaningfulValue) {
@@ -2813,6 +2813,46 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellStyle: (params) => getCellStyle(params, 'building_address')
     },
     {
+      field: 'address',
+      headerName: 'כתובת',
+      editable: !isReadOnly,
+      valueGetter: (params: any) => {
+        // Return the street code from the data object
+        return params.data?.address ?? null;
+      },
+      valueSetter: (params: any) => {
+        // Ensure the value is set on the data object
+        if (params.data) {
+          params.data.address = params.newValue;
+        }
+        return true;
+      },
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        // Always read from building data directly - this is the source of truth
+        const streetCode = building.address;
+        if (!streetCode) return '';
+        
+        const isNew = isNewBuilding(building);
+        
+        // Find the address description - ensure type consistency (compare as numbers)
+        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
+        const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
+        
+        if (isNew && !streetCode) {
+          return '';
+        }
+        
+        return displayValue;
+      },
+      cellEditor: AddressCellEditor,
+      cellEditorParams: {
+        addressList: addressList || [],
+      },
+      cellStyle: (params) => getCellStyle(params, 'address')
+    },
+    {
       field: 'gosh',
       headerName: 'גוש',
       editable: !isReadOnly,
@@ -2896,6 +2936,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return value;
       },
       cellStyle: (params) => getCellStyle(params, 'building_notes')
+    },
+    {
+      field: 'note',
+      headerName: 'הערה',
+      editable: !isReadOnly,
+      cellRenderer: (params: any) => {
+        const building = params.data as Building;
+        if (!building) return '';
+        const isNew = isNewBuilding(building);
+        if (isNew && (params.value === null || params.value === undefined || params.value === '')) {
+          return '';
+        }
+        const value = params.value != null ? String(params.value) : '';
+        return value;
+      },
+      cellStyle: (params) => getCellStyle(params, 'note')
     },
     {
       field: 'extra_field_1',

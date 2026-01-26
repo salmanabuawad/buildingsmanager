@@ -366,6 +366,7 @@ function calculateChangedFields(before: any, after: any): string[] {
 
 export interface Building {
   building_notes?: string;
+  note?: string;
   building_number: number;
   tax_region?: string;
   residence_shared_area?: number;
@@ -380,6 +381,7 @@ export interface Building {
   need_residence_distribution?: boolean;
   need_business_distribution?: boolean;
   building_address?: number; // Street code from address_list table
+  address?: number; // Street code from address_list table (dropdown in UI)
   overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
   gosh?: number; // גוש (Block number)
   helka?: number; // חלקה (Parcel number)
@@ -702,6 +704,20 @@ function sanitizeBuildingInput(input: any): any {
       }
     }
   }
+  // Handle address: street code from address_list table (dropdown in UI)
+  if ('address' in input) {
+    if (input.address === null || input.address === '' || input.address === undefined) {
+      sanitized.address = null;
+    } else {
+      const code = sanitizeInteger(input.address);
+      // Only set if it's a valid positive number, otherwise set to null
+      if (code && code > 0) {
+        sanitized.address = code;
+      } else {
+        sanitized.address = null;
+      }
+    }
+  }
   // Handle overload_ratio: numeric field for overload percentage
   if (input.overload_ratio != null) {
     sanitized.overload_ratio = sanitizeNumber(input.overload_ratio);
@@ -737,6 +753,14 @@ function sanitizeBuildingInput(input: any): any {
       sanitized.building_notes = null;
     } else {
       sanitized.building_notes = sanitizeText(input.building_notes);
+    }
+  }
+  // Handle note: free text field
+  if ('note' in input) {
+    if (input.note === null || input.note === '' || input.note === undefined) {
+      sanitized.note = null;
+    } else {
+      sanitized.note = sanitizeText(input.note);
     }
   }
   

@@ -124,20 +124,6 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       // ALWAYS check the ref first - this is the source of truth
       let value = selectedValueRef.current;
       
-      // If ref is null, try to get from data object as fallback
-      const currentData = dataRef.current;
-      const fieldValue = currentData?.[fieldName];
-      if (value === null && currentData && fieldValue != null) {
-        value = fieldValue;
-        selectedValueRef.current = value; // Sync the ref
-      }
-      
-      // If still null, try props.data directly (last resort)
-      if (value === null && props.data && props.data[fieldName] != null) {
-        value = props.data[fieldName];
-        selectedValueRef.current = value;
-      }
-      
       // Ensure value is a number (street_code should be a number)
       if (value != null) {
         const numValue = Number(value);
@@ -151,35 +137,14 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       console.log('[AddressCellEditor] getValue() called:', {
         fieldName,
         refValue: selectedValueRef.current,
-        dataRefValue: fieldValue,
-        propsDataValue: props.data?.[fieldName],
-        returning: value,
-        hasDataRef: !!currentData,
-        hasPropsData: !!props.data
+        returning: value
       });
-      
-      // CRITICAL: If we have a value, ensure it's set in all data objects
-      if (value !== null && value !== undefined) {
-        if (currentData) {
-          currentData[fieldName] = value;
-        }
-        if (props.data) {
-          props.data[fieldName] = value;
-        }
-        // Also update the node data if available
-        if (props.node && props.node.data) {
-          props.node.data[fieldName] = value;
-        }
-        console.log('[AddressCellEditor] Synced value to all data objects:', value);
-      } else {
-        console.error('[AddressCellEditor] getValue() returning NULL! This will cause the cell to be empty.');
-      }
       
       return value;
     },
     // Tell ag-grid this editor uses a popup (for better positioning)
     isPopup: () => false // We use fixed positioning, not ag-grid's popup system
-  }), [selectedValue, props.data, fieldName]); // Include props.data to recreate when it changes
+  }), [selectedValue, fieldName]); // Removed props.data to avoid recreating unnecessarily
 
   // Initialize with current value
   useEffect(() => {
@@ -301,46 +266,30 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
 
   // Select an address
   const selectAddress = (address: AddressList) => {
-    const streetCode = address.street_code;
+    const streetCode = Number(address.street_code); // Ensure it's a number
     const oldValue = props.value;
     
     console.log('[AddressCellEditor] Selecting address:', {
       streetCode,
       oldValue,
-      currentRefValue: selectedValueRef.current
+      currentRefValue: selectedValueRef.current,
+      fieldName
     });
     
     // CRITICAL: Set value in ref FIRST - this is what getValue() will return
     selectedValueRef.current = streetCode;
     setSelectedValue(streetCode);
     
-    // Update data object immediately - use both props.data and dataRef
-    if (props.data) {
-      props.data[fieldName] = streetCode;
-      console.log(`[AddressCellEditor] Updated props.data.${fieldName} to:`, streetCode, 'verified:', props.data[fieldName]);
-    }
-    // Also update the ref to ensure consistency
-    if (dataRef.current) {
-      dataRef.current[fieldName] = streetCode;
-      console.log(`[AddressCellEditor] Updated dataRef.current.${fieldName} to:`, streetCode, 'verified:', dataRef.current[fieldName]);
-    }
-    
-    // Close dropdown
+    // Close dropdown first
     setShowDropdown(false);
     
-    // Verify ref and data are set before stopping
-    console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.[fieldName], 'node:', props.node?.data?.[fieldName]);
+    // Update search value to show selected address
+    setSearchValue(`${address.street_code} - ${address.street_description}`);
     
-    // Use setDataValue BEFORE stopEditing to ensure value is set and dirty bit works
-    if (props.node && props.column) {
-      const colId = props.column.getColId();
-      console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', { colId, fieldName, streetCode, oldValue });
-      // Ensure node.data is updated
-      if (props.node.data) {
-        props.node.data[fieldName] = streetCode;
-      }
-      props.node.setDataValue(colId, streetCode);
-    }
+    // IMPORTANT: Don't update props.data directly - let ag-grid handle it through getValue() and valueSetter
+    // This ensures onCellValueChanged is triggered properly
+    
+    console.log('[AddressCellEditor] Before stopEditing - ref:', selectedValueRef.current);
     
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
@@ -348,21 +297,31 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // 3. Trigger onCellValueChanged (if value changed)
     props.stopEditing();
     
-    // After stopEditing, use setDataValue to ensure the value is set on the node
-    // This is a backup in case getValue()/valueSetter didn't work
+    // After stopEditing, verify and refresh if needed
     setTimeout(() => {
       if (props.node && props.column && props.api) {
         const colId = props.column.getColId();
         const currentValue = props.node.data?.[fieldName];
+        console.log('[AddressCellEditor] After stopEditing check:', {
+          colId,
+          fieldName,
+          expected: streetCode,
+          actual: currentValue,
+          nodeData: props.node.data
+        });
+        
         if (currentValue !== streetCode) {
-          console.log('[AddressCellEditor] Value mismatch after stopEditing, calling setDataValue:', { 
-            colId, 
-            fieldName,
-            expected: streetCode, 
-            actual: currentValue 
-          });
+          console.warn('[AddressCellEditor] Value mismatch, forcing update');
+          // Force update using setDataValue
           props.node.setDataValue(colId, streetCode);
-          // Refresh to ensure the cell updates
+          // Refresh the cell to show the new value
+          props.api.refreshCells({ 
+            rowNodes: [props.node], 
+            columns: [colId], 
+            force: true 
+          });
+        } else {
+          // Value is correct, just refresh to ensure display is updated
           props.api.refreshCells({ 
             rowNodes: [props.node], 
             columns: [colId], 
@@ -370,32 +329,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           });
         }
       }
-    }, 10);
-    
-    // After stopEditing, verify the value was set correctly
-    console.log('[AddressCellEditor] After stopEditing - ref:', selectedValueRef.current, 'data:', props.data?.[fieldName]);
-    
-    // Force refresh to ensure cell displays the value
-    setTimeout(() => {
-      if (props.api && props.column && props.node) {
-        const colId = props.column.getColId();
-        const currentDataValue = props.data?.[fieldName];
-        const nodeDataValue = props.node.data?.[fieldName];
-        console.log('[AddressCellEditor] Refreshing cell:', { 
-          colId, 
-          fieldName,
-          streetCode,
-          refValue: selectedValueRef.current,
-          dataValue: currentDataValue,
-          nodeDataValue: nodeDataValue
-        });
-        props.api.refreshCells({ 
-          rowNodes: [props.node], 
-          columns: [colId], 
-          force: true 
-        });
-      }
-    }, 100);
+    }, 50);
   };
 
 
@@ -2868,11 +2802,14 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           const newValue = params.newValue;
           // Convert to number if it's a valid number, otherwise null
           const numValue = newValue != null && newValue !== '' ? Number(newValue) : null;
-          params.data.address = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
+          const finalValue = (numValue != null && !isNaN(numValue) && numValue > 0) ? numValue : null;
+          params.data.address = finalValue;
           console.log('[address valueSetter] Setting address:', {
             newValue,
             numValue,
-            finalValue: params.data.address
+            finalValue,
+            oldValue: params.oldValue,
+            dataAddress: params.data.address
           });
         }
         return true;

@@ -840,17 +840,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const isNew = isNewBuilding(building);
     const newValue = event.newValue;
 
-    // Debug log for building_address changes
-    if (field === 'building_address') {
-      console.log('[CELL CHANGED] building_address changed:', {
-        oldValue: event.oldValue,
-        newValue: newValue,
-        buildingKey: buildingKey,
-        building: building,
-        dataBuildingAddress: building.building_address
-      });
-    }
-
     if (!field || !building) {
       return;
     }
@@ -1031,9 +1020,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       newBuildingKey = newValueNum;
     }
 
-    // For building_address and address, extract the code from formatted string if needed
+    // For address, extract the code from formatted string if needed
     let valueToUpdate = newValue;
-    if (field === 'building_address' || field === 'address') {
+    if (field === 'address') {
       if (typeof newValue === 'string' && newValue.includes(' - ')) {
         const codeStr = newValue.split(' - ')[0].trim();
         const code = Number(codeStr);
@@ -1079,9 +1068,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     });
 
     // Update dirty tracking
-    // For building_address and address, ensure we store the number, not the formatted string
+    // For address, ensure we store the number, not the formatted string
     let valueToStore = newValue;
-    if (field === 'building_address' || field === 'address') {
+    if (field === 'address') {
       // If newValue is a formatted string "code - description", extract the code
       if (typeof newValue === 'string' && newValue.includes(' - ')) {
         const codeStr = newValue.split(' - ')[0].trim();
@@ -1107,8 +1096,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     
     // Calculate updated dirty changes for validation (before state update)
     const existingDirtyChanges = dirtyBuildings.get(newBuildingKey) || {};
-    const valueForValidation = (field === 'building_address' || field === 'address') ? valueToUpdate : newValue;
-    const valueForDirty = (field === 'building_address' || field === 'address') ? valueToUpdate : valueToStore;
+    const valueForValidation = field === 'address' ? valueToUpdate : newValue;
+    const valueForDirty = field === 'address' ? valueToUpdate : valueToStore;
     
     let updatedDirtyChanges: Partial<Building>;
     if (hasMeaningfulValue) {
@@ -1477,7 +1466,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'בית משותף',
         'מבנים צמודי קרקע טוריים מעל 2 יחידות',
         'כתובת',
-        'כתובת (dropdown)',
         'גוש',
         'חלקה',
         'מספר בניין',
@@ -1501,13 +1489,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
       };
 
-      // Helper function to get address description for address field
-      const getAddressDescriptionForAddress = (streetCode: number | null | undefined): string => {
-        if (!streetCode) return '';
-        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
-        return address ? `${address.street_code} - ${address.street_description}` : String(streetCode);
-      };
-
       // Convert buildings to rows
       const rows = buildingsToExport.map(building => [
         building.building_number || '',
@@ -1521,8 +1502,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         building.single_double_family === 'כן' || building.single_double_family === true ? 'כן' : '',
         building.condo === 'כן' || building.condo === true ? 'כן' : '',
         building.townhouses === 'כן' || building.townhouses === true ? 'כן' : '',
-        getAddressDescription(building.building_address),
-        getAddressDescriptionForAddress(building.address),
+        getAddressDescription(building.address),
         building.gosh != null ? building.gosh : '',
         building.helka != null ? building.helka : '',
         building.building_number_in_street != null ? building.building_number_in_street : '',
@@ -1555,7 +1535,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           { wch: 12 }, // בית משותף
           { wch: 40 }, // מבנים צמודי קרקע טוריים מעל 2 יחידות
           { wch: 30 }, // כתובת
-          { wch: 30 }, // כתובת (dropdown)
           { wch: 10 }, // גוש
           { wch: 10 }, // חלקה
           { wch: 12 }, // מספר בניין
@@ -2778,56 +2757,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         alignItems: 'center',
         justifyContent: 'center'
       }
-    },
-    {
-      field: 'building_address',
-      headerName: 'כתובת',
-      editable: !isReadOnly,
-      valueGetter: (params: any) => {
-        // Return the street code from the data object
-        return params.data?.building_address ?? null;
-      },
-      valueSetter: (params: any) => {
-        // Ensure the value is set on the data object
-        console.log('[valueSetter] building_address:', {
-          oldValue: params.oldValue,
-          newValue: params.newValue,
-          hasData: !!params.data,
-          dataBefore: params.data?.building_address
-        });
-        if (params.data) {
-          params.data.building_address = params.newValue;
-          console.log('[valueSetter] Updated data.building_address to:', params.newValue, 'verified:', params.data.building_address);
-        } else {
-          console.warn('[valueSetter] params.data is null!');
-        }
-        return true;
-      },
-      cellRenderer: (params: any) => {
-        const building = params.data as Building;
-        if (!building) return '';
-        // Always read from building data directly - this is the source of truth
-        const streetCode = building.building_address;
-        if (!streetCode) return '';
-        
-        const isNew = isNewBuilding(building);
-        
-        // Find the address description - ensure type consistency (compare as numbers)
-        const address = addressList.find(a => Number(a.street_code) === Number(streetCode));
-        const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
-        
-        if (isNew && !streetCode) {
-          return '';
-        }
-        
-        
-        return displayValue;
-      },
-      cellEditor: AddressCellEditor,
-      cellEditorParams: {
-        addressList: addressList || [],
-      },
-      cellStyle: (params) => getCellStyle(params, 'building_address')
     },
     {
       field: 'address',

@@ -287,22 +287,18 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Update search value to show selected address
     setSearchValue(`${address.street_code} - ${address.street_description}`);
     
-    // Update node.data directly BEFORE setDataValue to ensure consistency
-    const node = props.node;
-    const column = props.column;
-    const api = props.api;
-    if (node && node.data) {
-      node.data[fieldName] = streetCode;
-    }
-    if (props.data) {
-      props.data[fieldName] = streetCode;
-    }
-    if (dataRef.current) {
-      dataRef.current[fieldName] = streetCode;
-    }
+    console.log('[AddressCellEditor] Before stopEditing:', {
+      ref: selectedValueRef.current,
+      streetCode,
+      oldValue,
+      fieldName
+    });
     
     // Use setDataValue BEFORE stopEditing to ensure ag-grid knows about the change
     // This will trigger valueSetter and onCellValueChanged
+    const node = props.node;
+    const column = props.column;
+    const api = props.api;
     if (node && column) {
       const colId = column.getColId();
       console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', {
@@ -311,14 +307,9 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         streetCode,
         oldValue
       });
+      // setDataValue will trigger valueSetter and onCellValueChanged
       node.setDataValue(colId, streetCode);
     }
-    
-    console.log('[AddressCellEditor] Before stopEditing:', {
-      ref: selectedValueRef.current,
-      propsData: props.data?.[fieldName],
-      nodeData: node?.data?.[fieldName]
-    });
     
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
@@ -326,7 +317,8 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // 3. Trigger onCellValueChanged (if value changed)
     props.stopEditing();
     
-    // After stopEditing, verify and refresh if needed
+    // After stopEditing, verify and force update if needed
+    // Use setDataValue to ensure onCellValueChanged is triggered
     setTimeout(() => {
       if (node && column && api) {
         const colId = column.getColId();
@@ -340,33 +332,22 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           refValue: selectedValueRef.current
         });
         
-        // Always refresh to ensure display is updated
-        // Use redrawRows to force a complete refresh
+        // Always use setDataValue to ensure onCellValueChanged is triggered
+        // This will update the value and trigger the cell change handler
+        if (currentValue !== streetCode) {
+          console.warn('[AddressCellEditor] Value mismatch, forcing update with setDataValue');
+          node.setDataValue(colId, streetCode);
+        }
+        
+        // Refresh to ensure display is updated
         api.refreshCells({ 
           rowNodes: [node], 
           columns: [colId], 
           force: true 
         });
         api.redrawRows({ rowNodes: [node] });
-        
-        if (currentValue !== streetCode) {
-          console.warn('[AddressCellEditor] Value mismatch, forcing update');
-          // Force update using setDataValue
-          node.setDataValue(colId, streetCode);
-          // Also update node.data directly
-          if (node.data) {
-            node.data[fieldName] = streetCode;
-          }
-          // Refresh again after update
-          api.refreshCells({ 
-            rowNodes: [node], 
-            columns: [colId], 
-            force: true 
-          });
-          api.redrawRows({ rowNodes: [node] });
-        }
       }
-    }, 100);
+    }, 50);
   }, [fieldName]); // Remove props from dependencies to avoid recreating unnecessarily
 
 
@@ -2939,6 +2920,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         // Display only the street description (name), not the code
         // The code is stored in DB, but we show the description to the user
         const displayValue = address ? address.street_description : (streetCode ? String(streetCode) : '');
+        
+        console.log('[address cellRenderer] Rendering:', {
+          streetCode,
+          paramsValue: params.value,
+          buildingAddress: building.address,
+          displayValue,
+          hasAddress: !!address,
+          addressListLength: addressList.length
+        });
         
         if (isNew && !streetCode) {
           return '';

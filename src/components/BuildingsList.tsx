@@ -294,60 +294,44 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       fieldName
     });
     
-    // Use setDataValue BEFORE stopEditing to ensure ag-grid knows about the change
-    // This will trigger valueSetter and onCellValueChanged
-    const node = props.node;
-    const column = props.column;
-    const api = props.api;
-    if (node && column) {
-      const colId = column.getColId();
-      console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', {
-        colId,
-        fieldName,
-        streetCode,
-        oldValue
-      });
-      // setDataValue will trigger valueSetter and onCellValueChanged
-      node.setDataValue(colId, streetCode);
-    }
-    
     // Stop editing - AG Grid will:
     // 1. Call getValue() which returns selectedValueRef.current (streetCode)
     // 2. Call valueSetter to update the data object (if value changed)
     // 3. Trigger onCellValueChanged (if value changed)
     props.stopEditing();
     
-    // After stopEditing, verify and force update if needed
-    // Use setDataValue to ensure onCellValueChanged is triggered
-    setTimeout(() => {
-      if (node && column && api) {
-        const colId = column.getColId();
-        const currentValue = node.data?.[fieldName];
-        console.log('[AddressCellEditor] After stopEditing check:', {
-          colId,
-          fieldName,
-          expected: streetCode,
-          actual: currentValue,
-          nodeData: node.data,
-          refValue: selectedValueRef.current
-        });
-        
-        // Always use setDataValue to ensure onCellValueChanged is triggered
-        // This will update the value and trigger the cell change handler
-        if (currentValue !== streetCode) {
-          console.warn('[AddressCellEditor] Value mismatch, forcing update with setDataValue');
-          node.setDataValue(colId, streetCode);
+    // After stopEditing, ALWAYS use setDataValue to ensure onCellValueChanged is triggered
+    // This is necessary because ag-grid might not detect the change from getValue() alone
+    const node = props.node;
+    const column = props.column;
+    const api = props.api;
+    if (node && column) {
+      const colId = column.getColId();
+      const currentValue = node.data?.[fieldName];
+      console.log('[AddressCellEditor] After stopEditing, calling setDataValue:', {
+        colId,
+        fieldName,
+        streetCode,
+        currentValue,
+        willUpdate: currentValue !== streetCode
+      });
+      
+      // Always call setDataValue to ensure onCellValueChanged is triggered
+      // This will update the value and trigger the cell change handler
+      node.setDataValue(colId, streetCode);
+      
+      // Refresh to ensure display is updated
+      setTimeout(() => {
+        if (api) {
+          api.refreshCells({ 
+            rowNodes: [node], 
+            columns: [colId], 
+            force: true 
+          });
+          api.redrawRows({ rowNodes: [node] });
         }
-        
-        // Refresh to ensure display is updated
-        api.refreshCells({ 
-          rowNodes: [node], 
-          columns: [colId], 
-          force: true 
-        });
-        api.redrawRows({ rowNodes: [node] });
-      }
-    }, 50);
+      }, 50);
+    }
   }, [fieldName]); // Remove props from dependencies to avoid recreating unnecessarily
 
 

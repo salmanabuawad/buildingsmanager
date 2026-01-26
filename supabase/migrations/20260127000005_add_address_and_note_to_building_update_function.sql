@@ -1,25 +1,10 @@
 /*
-  # Add Function to Update Buildings with Automatic Distribution Flag Setting (Bulk)
+  Migration: Add address and note fields to update_buildings_bulk_with_distribution_flags function
   
-  1. Overview
-    - Creates a database function to update multiple buildings in bulk
-    - Automatically sets distribution flags when shared areas change
-    - All updates happen in a single transaction
-  
-  2. Logic
-    - Takes array of building updates (each with building_number and updates JSONB)
-    - For each building, checks if residence_shared_area or business_shared_area changed
-    - Sets need_residence_distribution or need_business_distribution flags to true
-    - Only sets flags if the new shared area value is > 0
-  
-  3. Benefits
-    - Centralized logic for building updates
-    - Automatic flag management
-    - Bulk operations in single transaction
-    - Can be used by application code or other database functions
+  This migration updates the function to support updating the address and note fields
+  that were added to the buildings table.
 */
 
--- Function to update multiple buildings in bulk and automatically set distribution flags when shared areas change
 CREATE OR REPLACE FUNCTION update_buildings_bulk_with_distribution_flags(
   p_buildings_data JSONB[]
 )
@@ -173,4 +158,4 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true whenever shared area changes, even if new value is 0. All updates happen in a single transaction. Use this function for all building updates, even single ones.';
+COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true whenever shared area changes, even if new value is 0. Supports updating address and note fields. All updates happen in a single transaction. Use this function for all building updates, even single ones.';

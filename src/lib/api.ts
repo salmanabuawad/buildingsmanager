@@ -1218,13 +1218,32 @@ export const api = {
 
       const payload = buildingsData
         .filter(b => b && b.building_number != null)
-        .map(b => ({
-          building_number: b.building_number,
-          updates: Object.fromEntries(
-            Object.entries(sanitizeBuildingInput(b.updates || {})).filter(([_, v]) => v !== undefined)
-          )
-        }))
+        .map(b => {
+          const sanitized = sanitizeBuildingInput(b.updates || {});
+          console.log('[updateBulk] Sanitizing building updates:', {
+            building_number: b.building_number,
+            originalUpdates: b.updates,
+            sanitized,
+            sanitizedKeys: Object.keys(sanitized),
+            sanitizedEntries: Object.entries(sanitized).map(([k, v]) => ({ key: k, value: v, type: typeof v }))
+          });
+          return {
+            building_number: b.building_number,
+            updates: Object.fromEntries(
+              Object.entries(sanitized).filter(([_, v]) => v !== undefined)
+            )
+          };
+        })
         .filter(b => b.updates && Object.keys(b.updates).length > 0);
+      
+      console.log('[updateBulk] Final payload before RPC call:', {
+        payloadLength: payload.length,
+        payload: payload.map(p => ({
+          building_number: p.building_number,
+          updatesKeys: Object.keys(p.updates),
+          updates: p.updates
+        }))
+      });
 
       if (payload.length === 0) {
         return { success: true, count: 0, buildings: [] };

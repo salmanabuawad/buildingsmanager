@@ -287,11 +287,22 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     // Update search value to show selected address
     setSearchValue(`${address.street_code} - ${address.street_description}`);
     
-    // Use setDataValue BEFORE stopEditing to ensure ag-grid knows about the change
-    // This will trigger valueSetter and onCellValueChanged
+    // Update node.data directly BEFORE setDataValue to ensure consistency
     const node = props.node;
     const column = props.column;
     const api = props.api;
+    if (node && node.data) {
+      node.data[fieldName] = streetCode;
+    }
+    if (props.data) {
+      props.data[fieldName] = streetCode;
+    }
+    if (dataRef.current) {
+      dataRef.current[fieldName] = streetCode;
+    }
+    
+    // Use setDataValue BEFORE stopEditing to ensure ag-grid knows about the change
+    // This will trigger valueSetter and onCellValueChanged
     if (node && column) {
       const colId = column.getColId();
       console.log('[AddressCellEditor] Calling setDataValue before stopEditing:', {
@@ -329,6 +340,15 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           refValue: selectedValueRef.current
         });
         
+        // Always refresh to ensure display is updated
+        // Use redrawRows to force a complete refresh
+        api.refreshCells({ 
+          rowNodes: [node], 
+          columns: [colId], 
+          force: true 
+        });
+        api.redrawRows({ rowNodes: [node] });
+        
         if (currentValue !== streetCode) {
           console.warn('[AddressCellEditor] Value mismatch, forcing update');
           // Force update using setDataValue
@@ -337,22 +357,16 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
           if (node.data) {
             node.data[fieldName] = streetCode;
           }
-          // Refresh the cell to show the new value
+          // Refresh again after update
           api.refreshCells({ 
             rowNodes: [node], 
             columns: [colId], 
             force: true 
           });
-        } else {
-          // Value is correct, just refresh to ensure display is updated
-          api.refreshCells({ 
-            rowNodes: [node], 
-            columns: [colId], 
-            force: true 
-          });
+          api.redrawRows({ rowNodes: [node] });
         }
       }
-    }, 50);
+    }, 100);
   }, [fieldName]); // Remove props from dependencies to avoid recreating unnecessarily
 
 
@@ -1083,16 +1097,24 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     }
 
     // For address, extract the code from formatted string if needed
+    // Note: newValue should already be a number from valueSetter, but handle string case too
     let valueToUpdate = newValue;
     if (field === 'address') {
       if (typeof newValue === 'string' && newValue.includes(' - ')) {
         const codeStr = newValue.split(' - ')[0].trim();
         const code = Number(codeStr);
         valueToUpdate = isNaN(code) || code <= 0 ? null : code;
-      } else if (newValue != null) {
+      } else if (newValue != null && newValue !== '') {
         const code = Number(newValue);
         valueToUpdate = isNaN(code) || code <= 0 ? null : code;
+      } else {
+        valueToUpdate = null;
       }
+      console.log('[onCellValueChanged] address valueToUpdate:', {
+        newValue,
+        valueToUpdate,
+        type: typeof newValue
+      });
     }
     // For note, preserve string value (including empty string as null)
     if (field === 'note') {
@@ -1192,10 +1214,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
 
     // Refresh grid to show dirty state and validation errors
     if (gridRef.current?.api) {
-      // Refresh the changed cell
+      // Refresh the changed cell - use field name, not colId
+      const columnToRefresh = field;
       gridRef.current.api.refreshCells({ 
         rowNodes: [event.node], 
-        columns: [field],
+        columns: [columnToRefresh],
         force: true 
       });
       

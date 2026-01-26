@@ -709,8 +709,13 @@ function sanitizeBuildingInput(input: any): any {
       sanitized.address = null;
     } else {
       const code = sanitizeInteger(input.address);
+      console.log('[sanitizeBuildingInput] address sanitization:', {
+        inputAddress: input.address,
+        sanitizedCode: code,
+        type: typeof input.address
+      });
       // Only set if it's a valid positive number, otherwise set to null
-      if (code && code > 0) {
+      if (code != null && code > 0) {
         sanitized.address = code;
       } else {
         sanitized.address = null;

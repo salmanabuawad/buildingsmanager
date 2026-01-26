@@ -2150,7 +2150,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
             hasAddress: 'address' in changes,
             hasNote: 'note' in changes,
             addressValue: changes.address,
-            noteValue: changes.note
+            noteValue: changes.note,
+            allChangesKeys: Object.keys(changes),
+            allChangesValues: Object.entries(changes).map(([k, v]) => ({ key: k, value: v, type: typeof v }))
           });
 
           if (isNew) {

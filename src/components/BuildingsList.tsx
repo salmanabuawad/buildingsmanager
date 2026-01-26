@@ -294,21 +294,15 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
       fieldName
     });
     
-    // Stop editing - AG Grid will:
-    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
-    // 2. Call valueSetter to update the data object (if value changed)
-    // 3. Trigger onCellValueChanged (if value changed)
-    props.stopEditing();
-    
-    // After stopEditing, ALWAYS use setDataValue to ensure onCellValueChanged is triggered
-    // This is necessary because ag-grid might not detect the change from getValue() alone
+    // CRITICAL: Use setDataValue BEFORE stopEditing to ensure ag-grid processes the change
+    // This will trigger valueSetter and onCellValueChanged properly
     const node = props.node;
     const column = props.column;
     const api = props.api;
     if (node && column) {
       const colId = column.getColId();
       const currentValue = node.data?.[fieldName];
-      console.log('[AddressCellEditor] After stopEditing, calling setDataValue:', {
+      console.log('[AddressCellEditor] Before stopEditing, calling setDataValue:', {
         colId,
         fieldName,
         streetCode,
@@ -316,22 +310,38 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
         willUpdate: currentValue !== streetCode
       });
       
-      // Always call setDataValue to ensure onCellValueChanged is triggered
-      // This will update the value and trigger the cell change handler
+      // Call setDataValue BEFORE stopEditing - this ensures ag-grid processes the change
+      // setDataValue will:
+      // 1. Update node.data[fieldName] via valueSetter
+      // 2. Trigger onCellValueChanged
+      // 3. Then stopEditing will finalize the edit
       node.setDataValue(colId, streetCode);
-      
-      // Refresh to ensure display is updated
-      setTimeout(() => {
-        if (api) {
-          api.refreshCells({ 
-            rowNodes: [node], 
-            columns: [colId], 
-            force: true 
-          });
-          api.redrawRows({ rowNodes: [node] });
-        }
-      }, 50);
     }
+    
+    // Stop editing - AG Grid will:
+    // 1. Call getValue() which returns selectedValueRef.current (streetCode)
+    // 2. valueSetter was already called by setDataValue above
+    // 3. onCellValueChanged should be triggered by setDataValue
+    props.stopEditing();
+    
+    // Refresh to ensure display is updated after stopEditing completes
+    setTimeout(() => {
+      if (node && column && api) {
+        const colId = column.getColId();
+        console.log('[AddressCellEditor] After stopEditing, refreshing cell:', {
+          colId,
+          fieldName,
+          nodeDataAddress: node.data?.[fieldName],
+          refValue: selectedValueRef.current
+        });
+        api.refreshCells({ 
+          rowNodes: [node], 
+          columns: [colId], 
+          force: true 
+        });
+        api.redrawRows({ rowNodes: [node] });
+      }
+    }, 100);
   }, [fieldName]); // Remove props from dependencies to avoid recreating unnecessarily
 
 
@@ -2867,7 +2877,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       editable: !isReadOnly,
       valueGetter: (params: any) => {
         // Return the street code from the data object
-        return params.data?.address ?? null;
+        const value = params.data?.address ?? null;
+        console.log('[address valueGetter] Getting value:', {
+          dataAddress: params.data?.address,
+          returning: value,
+          type: typeof value
+        });
+        return value;
       },
       valueSetter: (params: any) => {
         // Ensure the value is set on the data object

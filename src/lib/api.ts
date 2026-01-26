@@ -565,21 +565,41 @@ export type AuditLog = DistributionAudit;
 
 /**
  * Helper function to convert Hebrew boolean strings to actual booleans
+ * This is used both when loading data from DB and when preparing data for DB
  */
 function convertHebrewBooleans(obj: any): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  
   const booleanFields = ['elevator', 'single_double_family', 'condo', 'townhouses', 'penthouse', 'exported_to_automation'];
   const converted = { ...obj };
   
   booleanFields.forEach(field => {
     const value = converted[field];
+    // Handle string values (including Hebrew)
     if (typeof value === 'string') {
-      if (value === 'כן' || value.toLowerCase() === 'yes' || value === '1' || value.toLowerCase() === 'true') {
+      const trimmed = value.trim();
+      if (trimmed === 'כן' || trimmed.toLowerCase() === 'yes' || trimmed === '1' || trimmed.toLowerCase() === 'true' || trimmed === 'TRUE') {
         converted[field] = true;
-      } else if (value === 'לא' || value.toLowerCase() === 'no' || value === '0' || value.toLowerCase() === 'false' || value === '') {
+      } else if (trimmed === 'לא' || trimmed.toLowerCase() === 'no' || trimmed === '0' || trimmed.toLowerCase() === 'false' || trimmed === 'FALSE' || trimmed === '') {
         converted[field] = false;
       }
-    } else if (value === null || value === undefined) {
+    } 
+    // If already boolean, keep it
+    else if (typeof value === 'boolean') {
+      converted[field] = value;
+    }
+    // If null/undefined, leave it (will be handled by sanitizeAssetInput)
+    else if (value === null || value === undefined) {
       // Don't set to false if not present - let sanitizeAssetInput handle defaults
+    }
+    // For any other type, try to convert
+    else {
+      const strValue = String(value).trim();
+      if (strValue === 'כן' || strValue.toLowerCase() === 'yes' || strValue === '1' || strValue.toLowerCase() === 'true') {
+        converted[field] = true;
+      } else {
+        converted[field] = false;
+      }
     }
   });
   
@@ -1517,7 +1537,8 @@ export const api = {
         return parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime();
       });
 
-      return sortedData;
+      // Convert any Hebrew boolean strings to actual booleans when loading from DB
+      return sortedData.map(asset => convertHebrewBooleans(asset));
     },
     getLatestOnly: async (buildingNumber?: number): Promise<Asset[]> => {
       let query = supabase
@@ -1551,7 +1572,8 @@ export const api = {
       const latestMap = new Map<string, Asset>();
       for (const asset of sortedData) {
         if (!latestMap.has(asset.asset_id)) {
-          latestMap.set(asset.asset_id, asset);
+          // Convert any Hebrew boolean strings to actual booleans when loading from DB
+          latestMap.set(asset.asset_id, convertHebrewBooleans(asset));
         }
       }
 
@@ -1579,9 +1601,12 @@ export const api = {
         return new Date(dateStr);
       };
 
-      return (data || []).sort((a, b) =>
+      const sorted = (data || []).sort((a, b) =>
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
+      
+      // Convert any Hebrew boolean strings to actual booleans when loading from DB
+      return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getHistoryByAssetId: async (assetId: string | number): Promise<Asset[]> => {
       const { data, error } = await supabase
@@ -1606,9 +1631,12 @@ export const api = {
         return new Date(dateStr);
       };
 
-      return (data || []).sort((a, b) =>
+      const sorted = (data || []).sort((a, b) =>
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
+      
+      // Convert any Hebrew boolean strings to actual booleans when loading from DB
+      return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getAssetWithHistory: async (assetId: string | number, buildingNumber?: number): Promise<Asset[]> => {
       try {
@@ -3032,9 +3060,12 @@ export const api = {
         return new Date(dateStr);
       };
 
-      return (data || []).sort((a, b) =>
+      const sorted = (data || []).sort((a, b) =>
         parseDate(b.measurement_date).getTime() - parseDate(a.measurement_date).getTime()
       );
+      
+      // Convert any Hebrew boolean strings to actual booleans when loading from DB
+      return sorted.map(asset => convertHebrewBooleans(asset));
     },
     getOne: async (id: string): Promise<AssetMeasurement> => {
       const { data, error } = await supabase

@@ -1591,6 +1591,23 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
 
+      // Debug logging
+      console.log('[handleSaveAll] Distribution detection:', {
+        isDistributionSave,
+        distributionType,
+        buildingFlags: {
+          need_residence_distribution: building?.need_residence_distribution,
+          need_business_distribution: building?.need_business_distribution
+        },
+        buildingData: {
+          business_shared_area: building?.business_shared_area,
+          residence_shared_area: building?.residence_shared_area,
+          overload_ratio: building?.overload_ratio
+        },
+        dirtyAssetsCount: dirtyAssets.size,
+        sampleChanges: Array.from(dirtyAssets.values()).slice(0, 3)
+      });
+
       for (const [assetId, changes] of dirtyAssets.entries()) {
         try {
           if (deletedAssets.has(assetId)) continue;
@@ -1694,6 +1711,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           };
         }
         
+        // Debug logging
+        console.log('[handleSaveAll] Calling saveBulkTransactional with:', {
+          assetsCount: assetsToSave.length,
+          actionType,
+          description,
+          afterData,
+          isBusinessContext
+        });
+
         // BULK SAVE: Save all assets in a single transaction
         // This ensures all distribution-related assets are saved together, not one by one
         const result = await api.assets.saveBulkTransactional(assetsToSave, actionType, undefined, afterData, description, isBusinessContext);
@@ -1740,13 +1766,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             
             // Update building state immediately (synchronous state update)
             setBuilding(updatedBuilding);
-            
-            // Log disabled to reduce console noise
-            // console.log('[AssetsList] Updated building flags after distribution save:', {
-            //   distributionType,
-            //   need_business_distribution: updatedBuilding.need_business_distribution,
-            //   need_residence_distribution: updatedBuilding.need_residence_distribution
-            // });
+
+            console.log('[AssetsList] Updated building flags after distribution save:', {
+              distributionType,
+              need_business_distribution: updatedBuilding.need_business_distribution,
+              need_residence_distribution: updatedBuilding.need_residence_distribution,
+              overload_ratio: updatedBuilding.overload_ratio
+            });
           }
           
           // Update distribution history counter after successful distribution save (async, don't wait)

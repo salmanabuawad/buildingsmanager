@@ -12,10 +12,9 @@ import { AddressListComponent } from './components/AddressList';
 import { FieldConfigManager } from './components/FieldConfigManager';
 import { AssetDataEntry, AssetDataEntryRef } from './components/AssetDataEntry';
 import { AuditLog } from './components/AuditLog';
-import { UserManagement } from './components/UserManagement';
 import { MeasuredNotExportedAssets } from './components/MeasuredNotExportedAssets';
 import { MeasurementProgressDashboard } from './components/MeasurementProgressDashboard';
-import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, Users, BarChart3 } from 'lucide-react';
+import { X, Settings, Building, Home, Tag, Search, Plus, Building2, Upload, ChevronDown, ChevronLeft, Trash2, Database, CheckCircle2, AlertCircle, Loader2, Menu, MapPin, Edit, Square, Save, FileText, RefreshCw, Download, LogOut, BarChart3 } from 'lucide-react';
 import { api, AssetType } from './lib/api';
 import { assetValidators, validateEntity, getAssetTypes, getLatestExportDate as getCachedLatestExportDate } from './lib/validation';
 import { usePreferences } from './contexts/PreferencesContext';
@@ -866,19 +865,6 @@ function App() {
     openTab(newTab);
   }
 
-  function openUserManagement() {
-    const userManagementTabId = 'user-management-panel';
-
-    const newTab: Tab = {
-      id: userManagementTabId,
-      type: 'user-management',
-      label: 'ניהול משתמשים'
-    };
-
-    // Remove all other user-management tabs, then add new one
-    openTab(newTab);
-  }
-
   async function exportSchemaToCSV() {
     try {
       const data = await api.schema.getTablesFieldsTypes();
@@ -1543,15 +1529,6 @@ function App() {
                 </button>
                 {isAdmin && (
                   <button
-                    onClick={openUserManagement}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow"
-                  >
-                    <span className="font-medium text-slate-700">ניהול משתמשים</span>
-                    <Users className="h-3.5 w-3.5 text-pink-600" />
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
                     onClick={openResetExportModal}
                     disabled={resetExportLoading}
                     className="w-full flex items-center gap-2 px-3 py-2 text-right bg-pink-50/50 hover:bg-pink-100 rounded-lg transition-all text-xs shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1635,8 +1612,6 @@ function App() {
                       <Upload className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'audit-log' ? (
                       <FileText className="h-4 w-4 text-purple-700" />
-                    ) : tab.type === 'user-management' ? (
-                      <Users className="h-4 w-4 text-purple-700" />
                     ) : tab.type === 'buildings' ? (
                       <img src="/buildings.png" alt="Buildings" className="h-4 w-4" />
                     ) : (
@@ -1761,9 +1736,6 @@ function App() {
             )}
             {activeTab?.type === 'audit-log' && (
               <AuditLog key={activeTab.refreshKey} />
-            )}
-            {activeTab?.type === 'user-management' && (
-              <UserManagement key={activeTab.refreshKey} />
             )}
             {activeTab?.type === 'measured-not-exported-assets' && (
               <MeasuredNotExportedAssets

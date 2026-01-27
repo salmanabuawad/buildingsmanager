@@ -12,8 +12,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [creatingUsers, setCreatingUsers] = useState(false);
-  const [createUsersMessage, setCreateUsersMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -68,165 +66,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       console.error('Login error:', err);
       setError('שגיאה בלתי צפויה. אנא נסה שוב.');
       setLoading(false);
-    }
-  };
-
-  const handleCreateUsers = async () => {
-    setCreatingUsers(true);
-    setCreateUsersMessage(null);
-    setError(null);
-
-    try {
-      // Use Edge Function to create users with auto-confirm (requires service role key)
-      // Fallback to direct signUp if Edge Function is not available
-      const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
-      const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || '';
-
-      let useEdgeFunction = false;
-      let result;
-
-      // Try Edge Function first (if available)
-      if (supabaseUrl && supabaseAnonKey) {
-        try {
-          const response = await fetch(`${supabaseUrl}/functions/v1/create-users`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseAnonKey,
-            },
-          });
-
-          if (response.ok) {
-            result = await response.json();
-            useEdgeFunction = true;
-          } else if (response.status === 404) {
-            // Edge Function not deployed, fall back to signUp
-            console.warn('Edge Function not found, using signUp fallback');
-          } else {
-            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-            throw new Error(errorData.error || `Failed to create users: ${response.statusText}`);
-          }
-        } catch (fetchError) {
-          // Edge Function not available, fall back to signUp
-          console.warn('Edge Function not available, using signUp fallback:', fetchError);
-        }
-      }
-
-      // Fallback to direct signUp if Edge Function is not available
-      if (!useEdgeFunction) {
-        // Create admin user
-        const { data: adminData, error: adminError } = await supabase.auth.signUp({
-          email: 'admin@buildingsmanager.local',
-          password: 'admin123',
-          options: {
-            data: {
-              user_name: 'admin'
-            }
-          }
-        });
-
-        let messages: string[] = [];
-
-        if (adminError) {
-          if (adminError.message.includes('already registered') || adminError.message.includes('already exists')) {
-            messages.push('משתמש admin כבר קיים');
-          } else {
-            messages.push(`שגיאה ביצירת admin: ${adminError.message}`);
-          }
-        } else if (adminData.user) {
-          messages.push('✅ משתמש admin נוצר בהצלחה');
-          
-          // Try to link to users table
-          const { error: linkError } = await supabase
-            .from('users')
-            .update({ auth_user_id: adminData.user.id })
-            .eq('user_name', 'admin');
-          
-          if (!linkError) {
-            messages.push('✅ admin מקושר ל-users table');
-          }
-        }
-
-        // Sign out before creating next user
-        await supabase.auth.signOut();
-
-        // Create user (read-only)
-        const { data: userData, error: userError } = await supabase.auth.signUp({
-          email: 'user@buildingsmanager.local',
-          password: 'user123',
-          options: {
-            data: {
-              user_name: 'user'
-            }
-          }
-        });
-
-        if (userError) {
-          if (userError.message.includes('already registered') || userError.message.includes('already exists')) {
-            messages.push('משתמש user כבר קיים');
-          } else {
-            messages.push(`שגיאה ביצירת user: ${userError.message}`);
-          }
-        } else if (userData.user) {
-          messages.push('✅ משתמש user נוצר בהצלחה');
-          
-          // Try to link to users table
-          const { error: linkError } = await supabase
-            .from('users')
-            .update({ auth_user_id: userData.user.id })
-            .eq('user_name', 'user');
-          
-          if (!linkError) {
-            messages.push('✅ user מקושר ל-users table');
-          }
-        }
-
-        // Sign out after creation
-        await supabase.auth.signOut();
-
-        result = {
-          success: messages.some(m => m.includes('✅')),
-          results: messages.map(m => ({ user: m.includes('admin') ? 'admin' : 'user', success: m.includes('✅'), message: m })),
-          message: messages.join('\n')
-        };
-      }
-
-      // Display results
-      const messages = result.results.map(r => r.message).join('\n');
-      const allSuccess = result.results.every(r => r.success);
-
-      // Try to verify login works after creation
-      let loginTestMessage = '';
-      if (allSuccess || result.results.some(r => r.success)) {
-        try {
-          const { error: testError } = await supabase.auth.signInWithPassword({
-            email: 'admin@buildingsmanager.local',
-            password: 'admin123',
-          });
-          
-          if (!testError) {
-            loginTestMessage = '\n\n✅ בדיקת התחברות הצליחה! אפשר להתחבר עכשיו.';
-            await supabase.auth.signOut(); // Sign out after test
-          } else if (testError.message?.includes('Email not confirmed')) {
-            loginTestMessage = '\n\n⚠️ המשתמשים נוצרו אך דורשים אישור אימייל. אנא השתמש ב-Edge Function (דורש Service Role Key) ליצירת משתמשים עם Auto Confirm.';
-          } else {
-            loginTestMessage = `\n\n⚠️ המשתמשים נוצרו אך יש בעיה בהתחברות: ${testError.message}. נסה להתחבר ידנית.`;
-          }
-        } catch (testErr) {
-          loginTestMessage = '\n\n⚠️ המשתמשים נוצרו. נסה להתחבר ידנית.';
-        }
-      }
-
-      if (allSuccess) {
-        setCreateUsersMessage(messages + loginTestMessage);
-      } else {
-        setCreateUsersMessage(messages + loginTestMessage + '\n\n💡 טיפ: כדי ליצור משתמשים עם Auto Confirm, אנא פרוס את ה-Edge Function (ראה DEPLOY_EDGE_FUNCTION.md)');
-      }
-    } catch (err) {
-      console.error('Error creating users:', err);
-      setCreateUsersMessage(`שגיאה: ${err instanceof Error ? err.message : 'שגיאה בלתי צפויה'}\n\n💡 טיפ: ודא שה-Edge Function פרוס או שהגדרות Supabase מאפשרות יצירת משתמשים ללא אישור אימייל.`);
-    } finally {
-      setCreatingUsers(false);
     }
   };
 
@@ -317,34 +156,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
               )}
             </button>
           </form>
-
-          {/* Create Users Button - Always visible */}
-          <div className="mt-6 pt-6 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={handleCreateUsers}
-                disabled={creatingUsers}
-                className="w-full py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {creatingUsers ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>יוצר משתמשים...</span>
-                  </>
-                ) : (
-                  <span>צור משתמשים ברירת מחדל</span>
-                )}
-              </button>
-              {createUsersMessage && (
-                <div className={`mt-2 p-2 rounded text-xs text-center whitespace-pre-line ${
-                  createUsersMessage.includes('✅') 
-                    ? 'bg-green-50 text-green-700 border border-green-200' 
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                }`}>
-                  {createUsersMessage}
-                </div>
-              )}
-          </div>
         </div>
 
         {/* Footer */}

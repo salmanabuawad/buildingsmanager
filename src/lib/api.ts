@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getSession, getAuthUserIdForRpc } from './usersTableAuth';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 import { parseDateFromDDMMYYYY } from './dateUtils';
@@ -34,41 +35,25 @@ import { parseDateFromDDMMYYYY } from './dateUtils';
  */
 
 /**
- * Get the current user name from Supabase auth
- * Returns 'default' if no user is logged in
+ * Get the current user name (users-table auth only)
+ * Returns 'default' if no session
  */
 async function getCurrentUserName(): Promise<string> {
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-      return 'default';
-    }
-    // Try to get user email or id
-    return user.email || user.id || 'default';
-  } catch (error) {
-    console.warn('Error getting current user:', error);
-    return 'default';
-  }
+  const s = getSession();
+  return s?.user_name ?? 'default';
 }
 
 /**
- * Get current user information (name, email, id)
+ * Get current user info for RPCs (users-table auth only).
+ * user_id is 'uid:' + user_id for p_user_id / auth_user_id lookup.
  */
 async function getCurrentUserInfo(): Promise<{ user_name: string; user_email?: string; user_id?: string }> {
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-      return { user_name: 'default' };
-    }
-    return {
-      user_name: user.email || user.id || 'default',
-      user_email: user.email || undefined,
-      user_id: user.id || undefined
-    };
-  } catch (error) {
-    console.warn('Error getting current user info:', error);
-    return { user_name: 'default' };
-  }
+  const s = getSession();
+  if (!s) return { user_name: 'default' };
+  return {
+    user_name: s.user_name,
+    user_id: getAuthUserIdForRpc() ?? undefined,
+  };
 }
 
 /**
@@ -4495,53 +4480,19 @@ export const api = {
       user_id: number;
       auth_user_id: string | null;
     }> => {
-      // First create user in Supabase Auth
-      let authUserId: string | null = null;
-      
-      try {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: userData.user_email,
-          password: userData.password,
-          options: {
-            data: {
-              user_name: userData.user_name
-            }
-          }
-        });
-
-        if (authError) {
-          throw new Error(`Failed to create auth user: ${authError.message}`);
-        }
-
-        authUserId = authData.user?.id || null;
-      } catch (err) {
-        // If auth creation fails, we can still create the user in the database
-        // but without auth_user_id
-        console.warn('Could not create Supabase Auth user:', err);
-      }
-
-      // Then create user in database
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          user_name: userData.user_name,
-          user_email: userData.user_email,
-          auth_user_id: authUserId,
-          user_role: userData.user_role || 'user',
-          active: true,
-        })
-        .select('user_id, auth_user_id')
-        .single();
-
+      const { data, error } = await supabase.rpc('users_create_internal', {
+        p_user_name: userData.user_name,
+        p_user_email: userData.user_email || '',
+        p_password: userData.password,
+        p_user_role: userData.user_role || 'user',
+      });
       if (error) {
         console.error('Error creating user:', error);
         throw new Error(`Failed to create user: ${error.message}`);
       }
-
-      return {
-        user_id: data.user_id,
-        auth_user_id: data.auth_user_id,
-      };
+      const d = data as { user_id: number; auth_user_id: string } | null;
+      if (!d?.user_id) throw new Error('Failed to create user');
+      return { user_id: d.user_id, auth_user_id: d.auth_user_id };
     },
     delete: async (userId: number): Promise<void> => {
       const { error } = await supabase

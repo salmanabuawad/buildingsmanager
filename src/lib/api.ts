@@ -2956,6 +2956,20 @@ export const api = {
               .download(filePath);
             
             if (downloadError || !fileData) {
+              // Check for bucket not found error
+              if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
+                console.error(
+                  'Storage bucket "structure-drawings" not found. ' +
+                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                );
+                // Return error instead of continuing silently
+                throw new Error(
+                  'Storage bucket "structure-drawings" not found. ' +
+                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                );
+              }
               console.error(`Error downloading file ${filePath}:`, downloadError);
               continue;
             }

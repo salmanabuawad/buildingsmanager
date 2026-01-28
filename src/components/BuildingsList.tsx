@@ -2370,6 +2370,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               .download(filePath);
             
             if (downloadError || !fileData) {
+              // Check for bucket not found error
+              if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
+                console.error(
+                  'Storage bucket "structure-drawings" not found. ' +
+                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                );
+                // Show error to user
+                setError('Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.');
+                setTimeout(() => setError(null), 10000);
+                continue;
+              }
               console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
               continue;
             }

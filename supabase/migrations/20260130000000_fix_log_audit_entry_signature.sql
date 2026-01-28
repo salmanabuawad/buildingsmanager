@@ -67,6 +67,7 @@ BEGIN
   
   -- Insert audit record using entity_id (which holds the building number)
   -- Note: p_building_number, p_overload_ratio, and p_shared_area_size are accepted for compatibility but not stored
+  -- Using action_id as the primary key column (if your table uses 'id', change RETURNING action_id to RETURNING id)
   INSERT INTO audit (
     user_id,
     action_type,
@@ -84,7 +85,7 @@ BEGIN
     p_after_data,
     p_description
   )
-  RETURNING id INTO v_audit_id;
+  RETURNING action_id INTO v_audit_id;
   
   RETURN v_audit_id;
 END;

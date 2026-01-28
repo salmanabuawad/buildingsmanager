@@ -948,9 +948,33 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const buildingKey = getBuildingKey(building);
     const isNew = isNewBuilding(building);
     const newValue = event.newValue;
+    const oldValue = event.oldValue;
 
     if (!field || !building) {
       return;
+    }
+    
+    // Early return if value didn't actually change (AG Grid sometimes fires this even when just clicking)
+    // Compare oldValue and newValue directly first
+    if (!isNew && oldValue !== undefined && newValue !== undefined) {
+      // Normalize for comparison
+      const normalizeForCompare = (val: any): any => {
+        if (val == null || val === '') return null;
+        if (field === 'address') {
+          const num = Number(val);
+          return isNaN(num) || num <= 0 ? null : num;
+        }
+        if (field === 'note') {
+          return String(val).trim() || null;
+        }
+        return val;
+      };
+      const normalizedOld = normalizeForCompare(oldValue);
+      const normalizedNew = normalizeForCompare(newValue);
+      if (normalizedOld === normalizedNew) {
+        console.log('[onCellValueChanged] Value unchanged, skipping:', { field, oldValue, newValue });
+        return;
+      }
     }
 
     // Debug log for address field
@@ -1347,20 +1371,69 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     if (skip.includes(field)) return;
     const building = data as Building;
     const buildingKey = getBuildingKey(building);
+    const isNew = isNewBuilding(building);
+    
+    // Get the new value
     let newValue = event.newValue ?? event.node?.data?.[field];
     if (newValue === '' || newValue === null || newValue === undefined) {
       const isNumeric = field === 'residence_shared_area' || field === 'business_shared_area';
       newValue = isNumeric ? 0 : null;
     }
-    setDirtyBuildings(prev => {
-      const next = new Map(prev);
-      const existing = next.get(buildingKey) || {};
-      next.set(buildingKey, { ...existing, [field]: newValue });
-      return next;
-    });
-    setBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
-    setFilteredBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
-  }, [getBuildingKey]);
+    
+    // Normalize numeric values for comparison
+    if (field === 'residence_shared_area' || field === 'business_shared_area') {
+      newValue = newValue != null ? Number(newValue) : null;
+      if (newValue !== null && isNaN(newValue)) {
+        newValue = null;
+      }
+    }
+    
+    // Get original value to compare
+    const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
+    const originalValue = originalBuilding ? (originalBuilding as any)[field] : undefined;
+    
+    // Normalize original value for comparison
+    let normalizedOriginalValue = originalValue;
+    if (field === 'residence_shared_area' || field === 'business_shared_area') {
+      normalizedOriginalValue = normalizedOriginalValue != null ? Number(normalizedOriginalValue) : null;
+      if (normalizedOriginalValue !== null && isNaN(normalizedOriginalValue)) {
+        normalizedOriginalValue = null;
+      }
+    }
+    
+    // Compare values - only mark as dirty if changed
+    const valuesAreEqual = (a: any, b: any): boolean => {
+      if (a == null && b == null) return true;
+      if (a == null || b == null) return false;
+      if (typeof a === 'number' && typeof b === 'number') return a === b;
+      return a === b;
+    };
+    
+    const valueChanged = !valuesAreEqual(newValue, normalizedOriginalValue);
+    
+    // Only update if value changed (or if it's a new building)
+    if (isNew || valueChanged) {
+      setDirtyBuildings(prev => {
+        const next = new Map(prev);
+        const existing = next.get(buildingKey) || {};
+        if (valueChanged || isNew) {
+          next.set(buildingKey, { ...existing, [field]: newValue });
+        } else {
+          // Value didn't change, remove from dirty if it was there
+          const updated = { ...existing };
+          delete updated[field as keyof Building];
+          if (Object.keys(updated).length > 0) {
+            next.set(buildingKey, updated);
+          } else {
+            next.delete(buildingKey);
+          }
+        }
+        return next;
+      });
+      setBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
+      setFilteredBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
+    }
+  }, [getBuildingKey, isNewBuilding, originalBuildings]);
 
   // Add empty building row
   const addEmptyBuildingRow = () => {

@@ -1554,7 +1554,17 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       clearInterval(progressInterval);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Check for bucket not found error
+        if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
+          throw new Error(
+            'Storage bucket "structure-drawings" not found. ' +
+            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+          );
+        }
+        throw uploadError;
+      }
 
       setUploadProgress({ assetId, progress: 90, fileName: file.name });
 
@@ -1590,8 +1600,14 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         assetFilesModalRef.current?.refreshFiles();
       }
     } catch (err) {
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : typeof err === 'object' && err !== null && 'message' in err
+        ? String(err.message)
+        : t('failedToUploadDrawing');
+      
       setToast({
-        message: err instanceof Error ? err.message : t('failedToUploadDrawing'),
+        message: errorMessage,
         type: 'error'
       });
     } finally {

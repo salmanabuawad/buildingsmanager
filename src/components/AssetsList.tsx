@@ -3242,7 +3242,17 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       clearInterval(progressInterval);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Check for bucket not found error
+        if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
+          throw new Error(
+            'Storage bucket "structure-drawings" not found. ' +
+            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+          );
+        }
+        throw uploadError;
+      }
 
       setUploadProgress({ assetId, progress: 90, fileName: file.name });
 
@@ -3278,7 +3288,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         setAssetFilesModalKey(prev => prev + 1);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'נכשל בהעלאת הקובץ');
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : typeof err === 'object' && err !== null && 'message' in err
+        ? String(err.message)
+        : 'נכשל בהעלאת הקובץ';
+      
+      setError(errorMessage);
       setTimeout(() => setError(null), 5000);
     } finally {
       setUploadProgress(null);

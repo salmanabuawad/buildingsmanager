@@ -145,7 +145,17 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
         .from('dwg-files')
         .upload(filePath, fileToUpload, uploadOptions);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Check for bucket not found error
+        if (uploadError.message?.includes('Bucket not found') || uploadError.statusCode === '404') {
+          throw new Error(
+            'Storage bucket "dwg-files" not found. ' +
+            'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "dwg-files". ' +
+            'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+          );
+        }
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('dwg-files')
@@ -163,8 +173,14 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
       setMessage({ type: 'success', text: t('uploadSuccess') });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: t('uploadError') });
-      setTimeout(() => setMessage(null), 3000);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null && 'message' in error
+        ? String(error.message)
+        : t('uploadError');
+      
+      setMessage({ type: 'error', text: errorMessage });
+      setTimeout(() => setMessage(null), 5000); // Show longer for bucket errors
     } finally {
       setIsUploading(false);
       setUploadingFor(null);

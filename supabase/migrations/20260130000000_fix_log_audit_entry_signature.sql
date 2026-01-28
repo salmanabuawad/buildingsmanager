@@ -1,11 +1,13 @@
 -- Fix log_audit_entry function signature to match bulk save calls
 -- The bulk save function calls log_audit_entry with 10 parameters (including building_number, overload_ratio, shared_area_size)
--- but the consolidated schema only defined it with 7 parameters.
+-- Note: entity_id already holds the building number, so we don't need a separate building_number column
+-- Note: overload_ratio and shared_area_size parameters are accepted for compatibility but not stored in audit table
 
 -- Drop the 7-parameter version first
 DROP FUNCTION IF EXISTS log_audit_entry(audit_action_type, text, text, text, jsonb, jsonb, text);
 
 -- Create with 10 parameters to match bulk save calls
+-- Note: p_building_number parameter is accepted for compatibility but entity_id is used instead
 CREATE OR REPLACE FUNCTION log_audit_entry(
   p_action_type audit_action_type,
   p_entity_type text,
@@ -14,7 +16,7 @@ CREATE OR REPLACE FUNCTION log_audit_entry(
   p_before_data jsonb DEFAULT NULL,
   p_after_data jsonb DEFAULT NULL,
   p_description text DEFAULT NULL,
-  p_building_number BIGINT DEFAULT NULL,
+  p_building_number BIGINT DEFAULT NULL, -- Accepted for compatibility, but entity_id is used instead
   p_overload_ratio NUMERIC DEFAULT NULL,
   p_shared_area_size NUMERIC DEFAULT NULL
 )
@@ -63,7 +65,8 @@ BEGIN
     v_user_id_fk := v_default_user_id;
   END IF;
   
-  -- Insert audit record with building_number, overload_ratio, and shared_area_size
+  -- Insert audit record using entity_id (which holds the building number)
+  -- Note: p_building_number, p_overload_ratio, and p_shared_area_size are accepted for compatibility but not stored
   INSERT INTO audit (
     user_id,
     action_type,
@@ -71,10 +74,7 @@ BEGIN
     entity_id,
     before_data,
     after_data,
-    description,
-    building_number,
-    overload_ratio,
-    shared_area_size
+    description
   ) VALUES (
     v_user_id_fk,
     p_action_type,
@@ -82,10 +82,7 @@ BEGIN
     p_entity_id,
     p_before_data,
     p_after_data,
-    p_description,
-    p_building_number,
-    p_overload_ratio,
-    p_shared_area_size
+    p_description
   )
   RETURNING id INTO v_audit_id;
   
@@ -93,7 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION log_audit_entry(audit_action_type, text, text, text, jsonb, jsonb, text, bigint, numeric, numeric) IS 'Log audit entry with support for building_number, overload_ratio, and shared_area_size. Supports both Supabase Auth UUIDs and users-table auth_user_id format (uid:user_id).';
+COMMENT ON FUNCTION log_audit_entry(audit_action_type, text, text, text, jsonb, jsonb, text, bigint, numeric, numeric) IS 'Log audit entry. entity_id holds the building number. Supports both Supabase Auth UUIDs and users-table auth_user_id format (uid:user_id).';
 
 -- Force PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';

@@ -1217,13 +1217,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       valueToStore = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
-    // For note, always mark as dirty (even if empty, to allow clearing the field)
-    // For address, check valueToUpdate (the number) instead of valueToStore
-    const hasMeaningfulValue = field === 'note'
-      ? true // Always track note changes, even if empty
-      : field === 'address'
-      ? (valueToUpdate !== null && valueToUpdate !== undefined)
-      : (valueToStore !== null && valueToStore !== undefined && valueToStore !== '');
+    // Get original building value to compare with new value
+    const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
+    const originalValue = originalBuilding ? (originalBuilding as any)[field] : undefined;
+    
+    // For address, normalize original value (could be building_address or address)
+    let normalizedOriginalValue = originalValue;
+    if (field === 'address' && originalBuilding) {
+      normalizedOriginalValue = (originalBuilding as any).address ?? (originalBuilding as any).building_address ?? null;
+      // Normalize to number for comparison
+      if (normalizedOriginalValue != null) {
+        normalizedOriginalValue = Number(normalizedOriginalValue);
+        if (isNaN(normalizedOriginalValue) || normalizedOriginalValue <= 0) {
+          normalizedOriginalValue = null;
+        }
+      }
+    }
+    // For note, normalize original (null/undefined/empty string all become null)
+    if (field === 'note') {
+      normalizedOriginalValue = originalValue === '' || originalValue === null || originalValue === undefined ? null : String(originalValue);
+    }
     
     // Calculate updated dirty changes for validation (before state update)
     const existingDirtyChanges = dirtyBuildings.get(newBuildingKey) || {};
@@ -1232,11 +1245,25 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // For note, use valueToStore (the string or null)
     const valueForDirty = field === 'address' ? valueToUpdate : valueToStore;
     
-    // For address, always mark as dirty if valueToUpdate is not null (even if it's 0, though that shouldn't happen)
-    // For note, hasMeaningfulValue already handles it
-    const shouldMarkAsDirty = field === 'address' 
-      ? (valueToUpdate !== null && valueToUpdate !== undefined)
-      : hasMeaningfulValue;
+    // Compare new value with original value - only mark as dirty if they're different
+    const valuesAreEqual = (a: any, b: any): boolean => {
+      // Handle null/undefined comparison
+      if (a == null && b == null) return true;
+      if (a == null || b == null) return false;
+      // For numbers, compare numerically
+      if (typeof a === 'number' && typeof b === 'number') return a === b;
+      // For strings, compare after trimming
+      if (typeof a === 'string' && typeof b === 'string') return a.trim() === b.trim();
+      // Default comparison
+      return a === b;
+    };
+    
+    const valueChanged = !valuesAreEqual(valueForDirty, normalizedOriginalValue);
+    
+    // Only mark as dirty if the value actually changed (or if it's a new building with a value)
+    const shouldMarkAsDirty = isNew 
+      ? (valueForDirty != null && valueForDirty !== '') // New buildings: mark if has value
+      : valueChanged; // Existing buildings: mark only if changed
     
     let updatedDirtyChanges: Partial<Building>;
     if (shouldMarkAsDirty) {
@@ -1255,7 +1282,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       console.log('[onCellValueChanged] Removing dirty change:', {
         field,
         buildingKey: newBuildingKey,
-        reason: 'hasMeaningfulValue is false'
+        reason: 'value matches original',
+        newValue: valueForDirty,
+        originalValue: normalizedOriginalValue
       });
     }
     

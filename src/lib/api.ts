@@ -364,14 +364,24 @@ export interface Building {
   townhouses?: string;
   need_residence_distribution?: boolean;
   need_business_distribution?: boolean;
-  building_address?: number; // Street code from address_list table
-  address?: number; // Street code from address_list table (dropdown in UI)
+  building_address?: number; // Street code from address_list table (DB column)
+  address?: number; // Street code from address_list table (dropdown in UI; normalized from building_address when loading)
   overload_ratio?: number; // אחוז העמסה - Overload ratio percentage
   gosh?: number; // גוש (Block number)
   helka?: number; // חלקה (Parcel number)
   building_number_in_street?: number; // מספר בניין (Building number in street)
   _tempId?: string; // Hidden field to identify new buildings before saving
   _isNew?: boolean; // Hidden field to mark new buildings
+}
+
+/** Normalize a building row from DB so the UI gets .address for display (DB column is building_address). */
+function normalizeBuildingForUi(row: Record<string, unknown>): Building {
+  const b = { ...row } as Building;
+  const streetCode = b.building_address ?? (row as Record<string, unknown>).building_address ?? b.address;
+  if (streetCode != null) {
+    b.address = Number(streetCode);
+  }
+  return b;
 }
 
 export interface Asset {
@@ -1079,7 +1089,7 @@ export const api = {
 
       if (error) throw error;
 
-      return data || [];
+      return (data || []).map(normalizeBuildingForUi);
     },
     getOne: async (buildingNumber: number): Promise<Building> => {
       const { data, error } = await supabase
@@ -1091,7 +1101,7 @@ export const api = {
       if (error) throw error;
       if (!data) throw new Error('Building not found');
 
-      return data;
+      return normalizeBuildingForUi(data);
     },
     getAvailableTaxRegions: async (buildingNumber: number): Promise<string | null> => {
       // Get all assets for this building
@@ -1208,14 +1218,14 @@ export const api = {
           .select()
           .single();
         
-        data = fallbackResult.data;
+        data = fallbackResult.data ? normalizeBuildingForUi(fallbackResult.data as Record<string, unknown>) : null;
         error = fallbackResult.error;
       } else {
         // Bulk function returns {success, count, buildings: [...]}
         // Extract the first (and only) building from the result
         const result = functionResult as { success: boolean; buildings: Building[]; count: number };
         if (result && result.buildings && result.buildings.length > 0) {
-          data = result.buildings[0];
+          data = normalizeBuildingForUi(result.buildings[0] as Record<string, unknown>);
         } else {
           error = { message: 'No building data returned from bulk update function' };
         }
@@ -1342,7 +1352,7 @@ export const api = {
       return {
         success: result?.success === true,
         count: Number(result?.count || 0),
-        buildings: (result?.buildings || []) as Building[]
+        buildings: (result?.buildings || []).map((b: Record<string, unknown>) => normalizeBuildingForUi(b))
       };
     },
     createBulk: async (inputs: Omit<Building, 'created_at'>[]): Promise<{ success: boolean; count: number; buildings?: Building[]; error?: string }> => {
@@ -1387,7 +1397,7 @@ export const api = {
         console.warn('[api.buildings.createBulk] Failed to log changes:', err);
       }
 
-      return { success: true, count: data?.length || prepared.length, buildings: data || [] };
+      return { success: true, count: data?.length || prepared.length, buildings: (data || []).map((b: Record<string, unknown>) => normalizeBuildingForUi(b)) };
     },
     delete: async (buildingNumber: number): Promise<{ message: string }> => {
       // Get building data before deletion (for change log)

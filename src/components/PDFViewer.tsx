@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
+import { supabase } from '../lib/supabase';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -17,10 +18,58 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [rotation, setRotation] = useState<number>(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actualFileUrl, setActualFileUrl] = useState<string>(fileUrl);
+
+  // Try to get signed URL if the file is from a private bucket
+  useEffect(() => {
+    const getSignedUrlIfNeeded = async () => {
+      // Check if URL is from Supabase storage
+      if (fileUrl.includes('.supabase.co/storage/v1/object/public/') || 
+          fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
+        // Already a public or signed URL, use as-is
+        setActualFileUrl(fileUrl);
+        return;
+      }
+
+      // Try to extract bucket and path from URL
+      try {
+        const urlObj = new URL(fileUrl);
+        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/);
+        
+        if (pathMatch) {
+          const [, bucket, path] = pathMatch;
+          // Try to get signed URL for private bucket
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(path, 3600); // 1 hour expiry
+          
+          if (!error && data?.signedUrl) {
+            setActualFileUrl(data.signedUrl);
+            return;
+          }
+        }
+      } catch (error) {
+        // URL parsing failed, use original URL
+        console.warn('Could not parse file URL for signed URL generation:', error);
+      }
+      
+      // Fallback to original URL
+      setActualFileUrl(fileUrl);
+    };
+
+    getSignedUrlIfNeeded();
+  }, [fileUrl]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
     setPageNumber(1);
+    setLoadError(null);
+  }
+
+  function onDocumentLoadError(error: Error) {
+    console.error('PDF load error:', error);
+    setLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
   }
 
   function changePage(offset: number) {
@@ -135,7 +184,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
         <div className="flex justify-center">
           <Document
-            file={fileUrl}
+            file={actualFileUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             loading={
               <div className="flex items-center justify-center p-12">
@@ -144,9 +193,35 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
             }
             error={
               <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                <p className="text-red-800">Failed to load PDF file.</p>
+                <p className="text-red-800 font-semibold mb-2">Failed to load PDF file.</p>
+                {loadError && (
+                  <p className="text-red-700 text-sm mb-2">{loadError}</p>
+                )}
+                <p className="text-red-700 text-sm mb-3">
+                  Possible causes:
+                </p>
+                <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                  <li>The file may be corrupted</li>
+                  <li>The file URL may be incorrect</li>
+                  <li>CORS or authentication issues</li>
+                  <li>The storage bucket may not exist</li>
+                </ul>
+                <div className="mt-4">
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                  >
+                    <Download className="h-4 w-4" />
+                    Try Download Instead
+                  </button>
+                </div>
               </div>
             }
+            onLoadError={onDocumentLoadError}
+            options={{
+              httpHeaders: {},
+              withCredentials: false,
+            }}
           >
             <Page
               pageNumber={pageNumber}

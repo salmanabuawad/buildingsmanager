@@ -20,6 +20,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   const [scale, setScale] = useState<number>(1.0);
   const [rotation, setRotation] = useState<number>(0);
   const [imageError, setImageError] = useState(false);
+  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
 
   // Detect file type from URL and filename
   useEffect(() => {
@@ -51,6 +52,12 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
     setPageNumber(1);
+    setPdfLoadError(null);
+  }
+
+  function onDocumentLoadError(error: Error) {
+    console.error('PDF load error:', error);
+    setPdfLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
   }
 
   function changePage(offset: number) {
@@ -187,9 +194,35 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
               }
               error={
                 <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                  <p className="text-red-800">Failed to load PDF file.</p>
+                  <p className="text-red-800 font-semibold mb-2">Failed to load PDF file.</p>
+                  {pdfLoadError && (
+                    <p className="text-red-700 text-sm mb-2">{pdfLoadError}</p>
+                  )}
+                  <p className="text-red-700 text-sm mb-3">
+                    Possible causes:
+                  </p>
+                  <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                    <li>The file may be corrupted</li>
+                    <li>The file URL may be incorrect</li>
+                    <li>CORS or authentication issues</li>
+                    <li>The storage bucket may not exist</li>
+                  </ul>
+                  <div className="mt-4">
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                    >
+                      <Download className="h-4 w-4" />
+                      Try Download Instead
+                    </button>
+                  </div>
                 </div>
               }
+              onLoadError={onDocumentLoadError}
+              options={{
+                httpHeaders: {},
+                withCredentials: false,
+              }}
             >
               <Page
                 pageNumber={pageNumber}

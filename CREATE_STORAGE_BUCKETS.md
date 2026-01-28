@@ -5,7 +5,28 @@ The application requires two storage buckets to be created in your Supabase proj
 1. **`structure-drawings`** - For asset structure drawings (PDFs/images)
 2. **`dwg-files`** - For measurement drawings (PDFs/images)
 
-## Option 1: Create via Supabase Dashboard (Recommended)
+## ⚡ QUICK START - Run This SQL Script (Easiest Method)
+
+**Fastest way to create both buckets:**
+
+1. Open your Supabase Dashboard: https://app.supabase.com
+2. Go to **SQL Editor** → **New Query**
+3. Open the file `CREATE_BUCKETS_NOW.sql` in this project
+4. Copy the entire contents and paste into the SQL Editor
+5. Click **"Run"** (or press Ctrl+Enter)
+6. You should see both buckets created successfully!
+
+The script will:
+- ✅ Create `structure-drawings` bucket
+- ✅ Create `dwg-files` bucket  
+- ✅ Set up all required RLS policies for both buckets
+- ✅ Verify the buckets exist
+
+**After running the script, refresh your application and try uploading/downloading files again.**
+
+---
+
+## Option 1: Create via Supabase Dashboard (Manual Method)
 
 1. Go to your Supabase Dashboard: https://app.supabase.com
 2. Select your project

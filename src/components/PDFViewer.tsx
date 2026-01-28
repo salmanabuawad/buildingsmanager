@@ -129,7 +129,20 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
   async function handleDownload() {
     try {
-      const response = await fetch(fileUrl);
+      // Use actualFileUrl if available (signed URL), otherwise fallback to fileUrl
+      const urlToDownload = actualFileUrl || fileUrl;
+      
+      if (!urlToDownload) {
+        alert('File URL not available. Please try again.');
+        return;
+      }
+      
+      const response = await fetch(urlToDownload);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      }
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -141,7 +154,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download failed:', error);
-      alert('Failed to download PDF. Please try again.');
+      alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     }
   }
 

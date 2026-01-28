@@ -1,16 +1,6 @@
-/*
-  # Fix Building Update Function for Boolean Fields
-  
-  1. Changes
-    - Update the update_buildings_bulk_with_distribution_flags function
-    - Change TEXT casting to BOOLEAN for checkbox fields
-    - Use extract_boolean_from_jsonb helper for proper boolean handling
-  
-  2. Security
-    - No changes to RLS policies
-*/
+-- Update RPC to set buildings.note (runs after 20260131000000_add_note_to_buildings)
+-- Adds note to the UPDATE SET list in update_buildings_bulk_with_distribution_flags
 
--- Recreate the function with proper boolean handling
 CREATE OR REPLACE FUNCTION update_buildings_bulk_with_distribution_flags(
   p_buildings_data JSONB[]
 )
@@ -33,77 +23,55 @@ DECLARE
   v_result JSONB;
   v_updated_buildings JSONB[] := ARRAY[]::JSONB[];
 BEGIN
-  -- Process each building update
   FOREACH v_building_data IN ARRAY p_buildings_data
   LOOP
-    -- Extract building_number and updates
     v_building_number := (v_building_data->>'building_number')::BIGINT;
     v_updates := v_building_data->'updates';
-    
+
     IF v_building_number IS NULL THEN
       RAISE EXCEPTION 'Building number is required for all building updates';
     END IF;
-    
+
     IF v_updates IS NULL OR v_updates = '{}'::jsonb THEN
-      -- Skip if no updates provided
       CONTINUE;
     END IF;
-    
-    -- Get current building data
+
     SELECT * INTO v_old_building
     FROM buildings
     WHERE building_number = v_building_number;
-    
+
     IF NOT FOUND THEN
       RAISE WARNING 'Building % not found, skipping', v_building_number;
       CONTINUE;
     END IF;
-    
-    -- Get old values (keep NULL as NULL, don't convert to 0)
+
     v_old_residence_area := v_old_building.residence_shared_area;
     v_old_business_area := v_old_building.business_shared_area;
-    
-    -- Get new values from updates
-    -- If the field is provided in updates, use it; otherwise keep the old value
+
     IF v_updates ? 'residence_shared_area' THEN
       v_new_residence_area := (v_updates->>'residence_shared_area')::NUMERIC;
     ELSE
       v_new_residence_area := v_old_residence_area;
     END IF;
-    
+
     IF v_updates ? 'business_shared_area' THEN
       v_new_business_area := (v_updates->>'business_shared_area')::NUMERIC;
     ELSE
       v_new_business_area := v_old_business_area;
     END IF;
-    
-    -- Start with the provided updates
+
     v_final_updates := v_updates;
-    
-    -- Check if residence_shared_area changed (even if new value is zero or NULL)
-    -- Set flag whenever old value is different from new value
+
     IF v_old_residence_area IS DISTINCT FROM v_new_residence_area THEN
-      -- Set need_residence_distribution flag to true when shared area changes
       v_final_updates := v_final_updates || jsonb_build_object('need_residence_distribution', true);
-      
-      RAISE NOTICE 'Setting need_residence_distribution=true for building % (residence_shared_area changed from % to %)', 
-        v_building_number, v_old_residence_area, v_new_residence_area;
     END IF;
-    
-    -- Check if business_shared_area changed (even if new value is zero or NULL)
-    -- Set flag whenever old value is different from new value
+
     IF v_old_business_area IS DISTINCT FROM v_new_business_area THEN
-      -- Set need_business_distribution flag to true when shared area changes
       v_final_updates := v_final_updates || jsonb_build_object('need_business_distribution', true);
-      
-      RAISE NOTICE 'Setting need_business_distribution=true for building % (business_shared_area changed from % to %)', 
-        v_building_number, v_old_business_area, v_new_business_area;
     END IF;
-    
-    -- Remove read-only fields that shouldn't be updated
+
     v_final_updates := v_final_updates - 'action_id' - 'created_at' - 'building_number';
-    
-    -- Update the building
+
     UPDATE buildings
     SET
       total_building_area = COALESCE((v_final_updates->>'total_building_area')::NUMERIC, total_building_area),
@@ -125,24 +93,22 @@ BEGIN
         WHEN v_final_updates ? 'address' THEN (v_final_updates->>'address')::INTEGER
         WHEN v_final_updates ? 'building_address' THEN (v_final_updates->>'building_address')::INTEGER
         ELSE building_address
-      END
+      END,
+      note = CASE WHEN v_final_updates ? 'note' THEN NULLIF(TRIM(v_final_updates->>'note'), '')::TEXT ELSE note END
     WHERE building_number = v_building_number;
-    
-    -- Track affected buildings
+
     IF NOT (v_building_number = ANY(v_affected_buildings)) THEN
       v_affected_buildings := array_append(v_affected_buildings, v_building_number);
     END IF;
-    
-    -- Get updated building data
+
     SELECT to_jsonb(b.*) INTO v_final_updates
     FROM buildings b
     WHERE b.building_number = v_building_number;
-    
+
     v_updated_buildings := array_append(v_updated_buildings, v_final_updates);
     v_count := v_count + 1;
   END LOOP;
-  
-  -- Return result
+
   v_result := jsonb_build_object(
     'success', true,
     'count', v_count,
@@ -150,15 +116,14 @@ BEGIN
     'buildings', v_updated_buildings,
     'message', format('Successfully updated %s buildings', v_count)
   );
-  
+
   RETURN v_result;
-  
+
 EXCEPTION
   WHEN OTHERS THEN
-    -- Any error will cause automatic rollback of the entire transaction
     RAISE EXCEPTION 'Bulk building update failed and rolled back: %', SQLERRM
       USING HINT = 'All changes have been rolled back. No partial data was saved.';
 END;
 $$;
 
-COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas (residence_shared_area or business_shared_area) change. Sets flags to true whenever shared area changes, even if new value is 0. All updates happen in a single transaction. Use this function for all building updates, even single ones.';
+COMMENT ON FUNCTION update_buildings_bulk_with_distribution_flags IS 'Bulk update buildings and automatically set distribution flags when shared areas change. Includes address (via building_address) and note.';

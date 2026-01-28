@@ -67,21 +67,22 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     getSignedUrlIfNeeded();
   }, [fileUrl]);
 
-  // Detect file type from URL and filename
+  // Detect file type from URL and filename (use original fileUrl to avoid duplicate calls)
   useEffect(() => {
     const detectFileType = async () => {
       const name = (fileName || fileUrl).toLowerCase();
       
-      // First check filename extension
+      // First check filename extension - this works without fetching
       const category = getFileTypeCategory(name, '');
       if (category !== 'other') {
         setFileType(category);
         return;
       }
 
-      // Try to detect from URL or fetch headers
+      // Only fetch headers if we can't determine from extension
+      // Use original fileUrl to avoid duplicate calls when actualFileUrl changes
       try {
-        const response = await fetch(actualFileUrl, { method: 'HEAD' });
+        const response = await fetch(fileUrl, { method: 'HEAD' });
         const contentType = response.headers.get('content-type') || '';
         const detectedCategory = getFileTypeCategory(name, contentType);
         setFileType(detectedCategory);
@@ -91,8 +92,9 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       }
     };
 
+    // Only run detection once when fileUrl or fileName changes, not when actualFileUrl changes
     detectFileType();
-  }, [actualFileUrl, fileName]);
+  }, [fileUrl, fileName]); // Removed actualFileUrl from dependencies to avoid duplicate calls
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);

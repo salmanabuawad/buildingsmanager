@@ -65,6 +65,8 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [validationProgress, setValidationProgress] = useState<ValidationProgress | null>(null);
   const [measurementDateModalOpen, setMeasurementDateModalOpen] = useState(false);
   const [measurementDateModalClosing, setMeasurementDateModalClosing] = useState(false);
+  const [validationErrorModalOpen, setValidationErrorModalOpen] = useState(false);
+  const [validationErrorModalClosing, setValidationErrorModalClosing] = useState(false);
   const [newMeasurementDate, setNewMeasurementDate] = useState<string>('');
   const [fileViewerClosing, setFileViewerClosing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
@@ -883,7 +885,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         console.error('[AssetDetails] Validation errors prevent saving:', Array.from(validationErrors.entries()));
       }
       setError(errorMsg);
-      setToast({ message: 'תקן שגיאות אימות לפני השמירה', type: 'error' });
+      setValidationErrorModalOpen(true);
       return;
     }
 
@@ -1278,7 +1280,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
     if (validationErrors.size > 0) {
       setError('Please fix all validation errors before saving');
-      setToast({ message: 'תקן שגיאות לפני שמירה', type: 'error' });
+      setValidationErrorModalOpen(true);
       return;
     }
 
@@ -3444,6 +3446,72 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           </div>
         </div>
       )}
+
+      {/* Validation Error Modal */}
+      {validationErrorModalOpen && (
+        <div 
+          className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+            validationErrorModalClosing ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <div 
+            className={`bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 transition-all duration-300 border border-gray-100 ${
+              validationErrorModalClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                שגיאת אימות
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setValidationErrorModalClosing(true);
+                  setTimeout(() => {
+                    setValidationErrorModalOpen(false);
+                    setValidationErrorModalClosing(false);
+                  }, 300);
+                }}
+                className="text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-slate-700 text-right">
+                תקן שגיאות אימות לפני השמירה
+              </p>
+              {validationErrors.size > 0 && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800 font-medium mb-2">
+                    נמצאו {validationErrors.size} שגיאות אימות
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setValidationErrorModalClosing(true);
+                  setTimeout(() => {
+                    setValidationErrorModalOpen(false);
+                    setValidationErrorModalClosing(false);
+                  }, 300);
+                }}
+                className="flex items-center gap-1 px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-semibold"
+              >
+                <X className="h-4 w-4" />
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full mx-auto px-1 sm:px-2 py-1 sm:py-2">
       <div className="mb-2 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-600 rounded-lg shadow-lg p-1.5 border border-blue-400/20">
         <div className="flex items-center gap-2">

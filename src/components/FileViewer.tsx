@@ -22,14 +22,19 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   const [rotation, setRotation] = useState<number>(0);
   const [imageError, setImageError] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
-  const [actualFileUrl, setActualFileUrl] = useState<string>(fileUrl);
+  const [actualFileUrl, setActualFileUrl] = useState<string | null>(null);
+  const [isPreparingUrl, setIsPreparingUrl] = useState<boolean>(true);
 
   // Try to get signed URL if the file is from a private bucket
   useEffect(() => {
     const getSignedUrlIfNeeded = async () => {
+      setIsPreparingUrl(true);
+      setPdfLoadError(null);
+      
       // Check if URL is already a signed URL
       if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
         setActualFileUrl(fileUrl);
+        setIsPreparingUrl(false);
         return;
       }
 
@@ -50,9 +55,18 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
           if (!error && data?.signedUrl) {
             console.log('Using signed URL for file:', data.signedUrl);
             setActualFileUrl(data.signedUrl);
+            setIsPreparingUrl(false);
             return;
           } else if (error) {
-            console.warn('Failed to create signed URL, using original:', error);
+            // Check for bucket not found error
+            if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
+              const errorMsg = `Storage bucket "${bucket}" not found. Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucket}". See CREATE_STORAGE_BUCKETS.md for detailed instructions.`;
+              console.error(errorMsg);
+              setPdfLoadError(errorMsg);
+              // Still try to use original URL in case bucket gets created
+            } else {
+              console.warn('Failed to create signed URL, using original:', error);
+            }
           }
         }
       } catch (error) {
@@ -62,6 +76,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
       
       // Fallback to original URL
       setActualFileUrl(fileUrl);
+      setIsPreparingUrl(false);
     };
 
     getSignedUrlIfNeeded();
@@ -104,7 +119,20 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
 
   function onDocumentLoadError(error: Error) {
     console.error('PDF load error:', error);
-    setPdfLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
+    
+    // Check if it's a bucket not found error from the error message
+    const errorMessage = error.message || '';
+    if (errorMessage.includes('Bucket not found') || errorMessage.includes('404')) {
+      const bucketMatch = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\//);
+      const bucketName = bucketMatch ? bucketMatch[1] : 'unknown';
+      setPdfLoadError(
+        `Storage bucket "${bucketName}" not found. ` +
+        `Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucketName}". ` +
+        `See CREATE_STORAGE_BUCKETS.md for detailed instructions.`
+      );
+    } else {
+      setPdfLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
+    }
   }
 
   function changePage(offset: number) {
@@ -231,54 +259,67 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
 
         <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
           <div className="flex justify-center">
-            <Document
-              file={actualFileUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              loading={
-                <div className="flex items-center justify-center p-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
-                </div>
-              }
-              error={
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                  <p className="text-red-800 font-semibold mb-2">Failed to load PDF file.</p>
-                  {pdfLoadError && (
-                    <p className="text-red-700 text-sm mb-2">{pdfLoadError}</p>
-                  )}
-                  <p className="text-red-700 text-sm mb-3">
-                    Possible causes:
-                  </p>
-                  <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
-                    <li>The file may be corrupted</li>
-                    <li>The file URL may be incorrect</li>
-                    <li>CORS or authentication issues</li>
-                    <li>The storage bucket may not exist</li>
-                  </ul>
-                  <div className="mt-4">
-                    <button
-                      onClick={handleDownload}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                    >
-                      <Download className="h-4 w-4" />
-                      Try Download Instead
-                    </button>
+            {isPreparingUrl ? (
+              <div className="flex items-center justify-center p-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
+              </div>
+            ) : actualFileUrl ? (
+              <Document
+                file={actualFileUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={
+                  <div className="flex items-center justify-center p-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
                   </div>
-                </div>
-              }
-              onLoadError={onDocumentLoadError}
-              options={{
-                httpHeaders: {},
-                withCredentials: false,
-              }}
-            >
-              <Page
-                pageNumber={pageNumber}
-                scale={scale}
-                rotate={rotation}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
-            </Document>
+                }
+                error={
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <p className="text-red-800 font-semibold mb-2">Failed to load PDF file.</p>
+                    {pdfLoadError && (
+                      <p className="text-red-700 text-sm mb-2">{pdfLoadError}</p>
+                    )}
+                    <p className="text-red-700 text-sm mb-3">
+                      Possible causes:
+                    </p>
+                    <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                      <li>The file may be corrupted</li>
+                      <li>The file URL may be incorrect</li>
+                      <li>CORS or authentication issues</li>
+                      <li>The storage bucket may not exist</li>
+                    </ul>
+                    <div className="mt-4">
+                      <button
+                        onClick={handleDownload}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        <Download className="h-4 w-4" />
+                        Try Download Instead
+                      </button>
+                    </div>
+                  </div>
+                }
+                onLoadError={onDocumentLoadError}
+                options={{
+                  httpHeaders: {},
+                  withCredentials: false,
+                }}
+              >
+                <Page
+                  pageNumber={pageNumber}
+                  scale={scale}
+                  rotate={rotation}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                />
+              </Document>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <p className="text-red-800 font-semibold mb-2">Failed to prepare PDF URL.</p>
+                {pdfLoadError && (
+                  <p className="text-red-700 text-sm mb-2">{pdfLoadError}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

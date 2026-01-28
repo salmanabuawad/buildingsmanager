@@ -956,12 +956,18 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return;
     }
     
-    // First check: if oldValue === newValue (AG Grid provides this), skip immediately
-    if (!isNew && oldValue !== undefined && newValue !== undefined && oldValue === newValue) {
-      console.log('[onCellValueChanged] oldValue === newValue, skipping:', { field, oldValue, newValue });
-      const cellKey = `${buildingKey}_${field}`;
-      cellEditStartValues.current.delete(cellKey);
-      return;
+    const cellKey = `${buildingKey}_${field}`;
+    
+    // CRITICAL: Only process if editing actually started (user clicked to edit)
+    // If onCellEditingStarted wasn't called, this is just AG Grid firing events without user interaction
+    const editStartValue = cellEditStartValues.current.get(cellKey);
+    if (editStartValue === undefined && !isNew) {
+      // Editing didn't start - this is likely AG Grid firing onCellValueChanged without user interaction
+      // Only allow if oldValue !== newValue (actual change detected)
+      if (oldValue === newValue || (oldValue === undefined && newValue === undefined)) {
+        console.log('[onCellValueChanged] No edit started and values unchanged, skipping:', { field, oldValue, newValue });
+        return;
+      }
     }
     
     // Normalize values for comparison
@@ -1001,21 +1007,20 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         buildingKey
       });
       // Clean up any tracking
-      const cellKey = `${buildingKey}_${field}`;
       cellEditStartValues.current.delete(cellKey);
       return;
     }
     
-    // Also check edit start value if available (secondary check)
-    const cellKey = `${buildingKey}_${field}`;
-    const editStartValue = cellEditStartValues.current.get(cellKey);
+    // Check edit start value if available (most reliable - compares with value when editing started)
     if (editStartValue !== undefined) {
       const normalizedStartValue = normalizeForCompare(editStartValue);
       if (normalizedNewValue === normalizedStartValue) {
         console.log('[onCellValueChanged] Value unchanged from edit start, skipping:', {
           field,
           startValue: editStartValue,
+          normalizedStartValue,
           newValue,
+          normalizedNewValue,
           cellKey
         });
         cellEditStartValues.current.delete(cellKey);
@@ -1023,6 +1028,16 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
       // Clean up tracking after use
       cellEditStartValues.current.delete(cellKey);
+    }
+    
+    // Also check oldValue === newValue as final safeguard
+    if (!isNew && oldValue !== undefined && newValue !== undefined) {
+      const normalizedOld = normalizeForCompare(oldValue);
+      if (normalizedOld === normalizedNewValue) {
+        console.log('[onCellValueChanged] oldValue === newValue (normalized), skipping:', { field, oldValue, newValue });
+        cellEditStartValues.current.delete(cellKey);
+        return;
+      }
     }
 
     // Debug log for address field
@@ -1326,7 +1341,30 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return a === b;
     };
     
-    const valueChanged = !valuesAreEqual(valueForDirty, normalizedOriginalValueForDirty);
+    // Compare with edit start value first (most reliable - user actually edited)
+    const editStartValueForDirty = cellEditStartValues.current.get(`${buildingKey}_${field}`);
+    let valueChanged = false;
+    
+    if (editStartValueForDirty !== undefined) {
+      // We have the edit start value - compare with it
+      const normalizeForDirtyCompare = (val: any): any => {
+        if (val == null || val === '') return null;
+        if (field === 'address') {
+          const num = Number(val);
+          return isNaN(num) || num <= 0 ? null : num;
+        }
+        if (field === 'note') {
+          return String(val).trim() || null;
+        }
+        return val;
+      };
+      const normalizedStart = normalizeForDirtyCompare(editStartValueForDirty);
+      const normalizedDirty = normalizeForDirtyCompare(valueForDirty);
+      valueChanged = normalizedStart !== normalizedDirty;
+    } else {
+      // Fallback: compare with original building value
+      valueChanged = !valuesAreEqual(valueForDirty, normalizedOriginalValueForDirty);
+    }
     
     // Only mark as dirty if the value actually changed (or if it's a new building with a value)
     const shouldMarkAsDirty = isNew 

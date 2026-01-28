@@ -121,8 +121,11 @@ BEGIN
       overload_ratio = COALESCE((v_final_updates->>'overload_ratio')::NUMERIC, overload_ratio),
       need_residence_distribution = COALESCE((v_final_updates->>'need_residence_distribution')::BOOLEAN, need_residence_distribution),
       need_business_distribution = COALESCE((v_final_updates->>'need_business_distribution')::BOOLEAN, need_business_distribution),
-      building_address = COALESCE((v_final_updates->>'building_address')::INTEGER, building_address),
-      address = CASE WHEN v_final_updates ? 'address' THEN (v_final_updates->>'address')::INTEGER ELSE address END,
+      building_address = CASE
+        WHEN v_final_updates ? 'address' THEN (v_final_updates->>'address')::INTEGER
+        WHEN v_final_updates ? 'building_address' THEN (v_final_updates->>'building_address')::INTEGER
+        ELSE building_address
+      END,
       note = CASE WHEN v_final_updates ? 'note' THEN NULLIF(TRIM(v_final_updates->>'note'), '')::TEXT ELSE note END
     WHERE building_number = v_building_number;
     

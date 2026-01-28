@@ -880,11 +880,9 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
   async function handleSaveChanges() {
     if (validationErrors.size > 0) {
-      const errorMsg = 'Please fix all validation errors before saving';
       if (process.env.NODE_ENV === 'development') {
         console.error('[AssetDetails] Validation errors prevent saving:', Array.from(validationErrors.entries()));
       }
-      setError(errorMsg);
       setValidationErrorModalOpen(true);
       return;
     }
@@ -1279,7 +1277,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     }
 
     if (validationErrors.size > 0) {
-      setError('Please fix all validation errors before saving');
       setValidationErrorModalOpen(true);
       return;
     }
@@ -3310,7 +3307,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <AlertCircle className="h-8 w-8 text-red-600" />
             </div>
           </div>
-          <h3 className="text-lg font-semibold text-red-900 mb-2">שגיאה בטעינת הנתונים</h3>
           <p className="text-red-700 text-sm">{t('error')}: {error || 'Asset not found'}</p>
           <button
             onClick={async () => {

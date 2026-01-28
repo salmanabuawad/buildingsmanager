@@ -1004,6 +1004,22 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const numNew = normalizeNumericForCompare(newValue);
       const numStart = editStartValue !== undefined ? normalizeNumericForCompare(editStartValue) : null;
       
+      // CRITICAL: If edit started with 0 (or null/empty) and new value is also 0, skip
+      // This catches the case where user clicks a zero cell but doesn't change it
+      if (numStart !== null && numStart === 0 && numNew === 0) {
+        console.log('[onCellValueChanged] Numeric field unchanged from zero - skipping:', {
+          field,
+          startValue: numStart,
+          newValue: numNew,
+          oldValue: numOld,
+          editStartValue,
+          userInteracted
+        });
+        cellEditStartValues.current.delete(cellKey);
+        cellEditUserInteracted.current.delete(cellKey);
+        return; // EARLY RETURN - don't mark dirty, don't update state
+      }
+      
       // If both old and new are 0 (or null/empty treated as 0), and user hasn't interacted, skip
       if (numOld === 0 && numNew === 0 && userInteracted === false) {
         console.log('[onCellValueChanged] Numeric field with zero value, user did not interact - skipping:', {
@@ -1016,19 +1032,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         });
         cellEditStartValues.current.delete(cellKey);
         cellEditUserInteracted.current.delete(cellKey);
-        return;
+        return; // EARLY RETURN - don't mark dirty, don't update state
       }
       
-      // If edit started with 0 and new value is also 0, skip (user clicked zero cell but didn't change it)
-      if (numStart === 0 && numNew === 0) {
-        console.log('[onCellValueChanged] Numeric field unchanged from zero - skipping:', {
-          field,
-          startValue: numStart,
-          newValue: numNew
-        });
-        cellEditStartValues.current.delete(cellKey);
-        cellEditUserInteracted.current.delete(cellKey);
-        return;
+      // If values are different, mark that user interacted
+      if (numOld !== numNew) {
+        cellEditUserInteracted.current.set(cellKey, true);
       }
     }
     
@@ -1054,16 +1063,26 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellEditUserInteracted.current.set(cellKey, true);
     }
     
-    // Normalize values for comparison
+    // Normalize values for comparison (with special handling for numeric fields)
     const normalizeForCompare = (val: any): any => {
-      if (val == null || val === '') return null;
+      // For numeric fields, normalize null/empty to 0 for consistent comparison
+      if (isNumericField) {
+        if (val == null || val === '' || val === undefined) return 0;
+        const num = Number(val);
+        return isNaN(num) ? 0 : num;
+      }
+      // For address field
       if (field === 'address') {
+        if (val == null || val === '') return null;
         const num = Number(val);
         return isNaN(num) || num <= 0 ? null : num;
       }
+      // For note field
       if (field === 'note') {
-        return String(val).trim() || null;
+        return val == null || val === '' ? null : String(val).trim() || null;
       }
+      // Default normalization
+      if (val == null || val === '') return null;
       if (typeof val === 'number') return val;
       if (typeof val === 'string') return val.trim() || null;
       return val;
@@ -1088,11 +1107,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         normalizedOriginalValue,
         newValue,
         normalizedNewValue,
-        buildingKey
+        buildingKey,
+        isNumericField
       });
       // Clean up any tracking
       cellEditStartValues.current.delete(cellKey);
-      return;
+      cellEditUserInteracted.current.delete(cellKey);
+      return; // EARLY RETURN - don't mark dirty, don't update state
     }
     
     // Check edit start value if available (MOST RELIABLE - compares with value when editing started)
@@ -1106,7 +1127,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           newValue,
           normalizedNewValue,
           cellKey,
-          userInteracted
+          userInteracted,
+          isNumericField
         });
         // Clean up tracking
         cellEditStartValues.current.delete(cellKey);
@@ -1631,6 +1653,9 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const buildingKey = getBuildingKey(building);
     const cellKey = `${buildingKey}_${field}`;
     
+    // Check if this is a numeric field
+    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
+    
     // Get initial value from the building data
     let initialValue = (building as any)[field];
     
@@ -1642,6 +1667,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         initialValue = isNaN(num) || num <= 0 ? null : num;
       }
     }
+    // Normalize initial value for numeric fields - treat null/undefined/empty as 0
+    else if (isNumericField) {
+      if (initialValue == null || initialValue === '' || initialValue === undefined) {
+        initialValue = 0;
+      } else {
+        const num = Number(initialValue);
+        initialValue = isNaN(num) ? 0 : num;
+      }
+    }
     
     // Store initial value and mark that editing started (but user hasn't interacted yet)
     cellEditStartValues.current.set(cellKey, initialValue);
@@ -1651,6 +1685,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       cellKey,
       field,
       initialValue,
+      isNumericField,
       userInteracted: false
     });
   }, [getBuildingKey]);

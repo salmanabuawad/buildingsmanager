@@ -3230,9 +3230,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
       setUploadProgress({ assetId, progress: 40, fileName: file.name });
 
+      // Preserve content-type to prevent file corruption (especially important for PDFs)
+      const uploadOptions: { contentType?: string; upsert: boolean } = { upsert: false };
+      if (compressedFile.type) {
+        uploadOptions.contentType = compressedFile.type;
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('structure-drawings')
-        .upload(filePath, compressedFile);
+        .upload(filePath, compressedFile, uploadOptions);
 
       clearInterval(progressInterval);
 

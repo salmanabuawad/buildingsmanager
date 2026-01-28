@@ -135,9 +135,15 @@ export function MeasurementHistory({ assetId }: MeasurementHistoryProps) {
       const fileExt = fileToUpload.name.split('.').pop() || file.name.split('.').pop();
       const filePath = `${assetId}/measurements/${measurementId}-${Date.now()}.${fileExt}`;
 
+      // Preserve content-type to prevent file corruption (especially important for PDFs)
+      const uploadOptions: { contentType?: string; upsert: boolean } = { upsert: false };
+      if (fileToUpload.type) {
+        uploadOptions.contentType = fileToUpload.type;
+      }
+
       const { error: uploadError } = await supabase.storage
         .from('dwg-files')
-        .upload(filePath, fileToUpload);
+        .upload(filePath, fileToUpload, uploadOptions);
 
       if (uploadError) throw uploadError;
 

@@ -1285,25 +1285,25 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       valueToStore = newValue === '' || newValue === null || newValue === undefined ? null : String(newValue);
     }
     
-    // Get original building value to compare with new value
-    const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
-    const originalValue = originalBuilding ? (originalBuilding as any)[field] : undefined;
+    // Get original building value to compare with new value (reuse variables from earlier check)
+    const originalBuildingForDirty = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
+    const originalValueForDirty = originalBuildingForDirty ? (originalBuildingForDirty as any)[field] : undefined;
     
     // For address, normalize original value (could be building_address or address)
-    let normalizedOriginalValue = originalValue;
-    if (field === 'address' && originalBuilding) {
-      normalizedOriginalValue = (originalBuilding as any).address ?? (originalBuilding as any).building_address ?? null;
+    let normalizedOriginalValueForDirty = originalValueForDirty;
+    if (field === 'address' && originalBuildingForDirty) {
+      normalizedOriginalValueForDirty = (originalBuildingForDirty as any).address ?? (originalBuildingForDirty as any).building_address ?? null;
       // Normalize to number for comparison
-      if (normalizedOriginalValue != null) {
-        normalizedOriginalValue = Number(normalizedOriginalValue);
-        if (isNaN(normalizedOriginalValue) || normalizedOriginalValue <= 0) {
-          normalizedOriginalValue = null;
+      if (normalizedOriginalValueForDirty != null) {
+        normalizedOriginalValueForDirty = Number(normalizedOriginalValueForDirty);
+        if (isNaN(normalizedOriginalValueForDirty) || normalizedOriginalValueForDirty <= 0) {
+          normalizedOriginalValueForDirty = null;
         }
       }
     }
     // For note, normalize original (null/undefined/empty string all become null)
     if (field === 'note') {
-      normalizedOriginalValue = originalValue === '' || originalValue === null || originalValue === undefined ? null : String(originalValue);
+      normalizedOriginalValueForDirty = originalValueForDirty === '' || originalValueForDirty === null || originalValueForDirty === undefined ? null : String(originalValueForDirty);
     }
     
     // Calculate updated dirty changes for validation (before state update)
@@ -1326,7 +1326,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return a === b;
     };
     
-    const valueChanged = !valuesAreEqual(valueForDirty, normalizedOriginalValue);
+    const valueChanged = !valuesAreEqual(valueForDirty, normalizedOriginalValueForDirty);
     
     // Only mark as dirty if the value actually changed (or if it's a new building with a value)
     const shouldMarkAsDirty = isNew 
@@ -1352,7 +1352,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         buildingKey: newBuildingKey,
         reason: 'value matches original',
         newValue: valueForDirty,
-        originalValue: normalizedOriginalValue
+        originalValue: normalizedOriginalValueForDirty
       });
     }
     

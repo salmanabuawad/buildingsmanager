@@ -964,9 +964,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const editStartValue = cellEditStartValues.current.get(cellKey);
     const userInteracted = cellEditUserInteracted.current.get(cellKey);
     
+    // Check if this is a numeric field
+    const isNumericField = ['residence_shared_area', 'business_shared_area', 'area_for_control', 'overload_ratio', 'total_building_area', 'gosh', 'helka', 'building_number_in_street'].includes(field);
+    
     // Quick normalization for comparison
     const normalizeQuick = (val: any): any => {
-      if (val == null || val === '') return null;
+      if (val == null || val === '') {
+        // For numeric fields, treat null/empty as 0 for comparison
+        return isNumericField ? 0 : null;
+      }
       if (field === 'address') {
         const num = Number(val);
         return isNaN(num) || num <= 0 ? null : num;
@@ -974,12 +980,57 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       if (field === 'note') {
         return String(val).trim() || null;
       }
+      if (isNumericField) {
+        const num = Number(val);
+        return isNaN(num) ? 0 : num;
+      }
       return val;
     };
     
     const normOld = normalizeQuick(oldValue);
     const normNew = normalizeQuick(newValue);
     const valuesAreSame = normOld === normNew || (normOld == null && normNew == null);
+    
+    // For numeric fields: normalize zero/null/empty to 0 for comparison
+    const normalizeNumericForCompare = (val: any): number | null => {
+      if (val == null || val === '' || val === undefined) return 0;
+      const num = Number(val);
+      return isNaN(num) ? 0 : num;
+    };
+    
+    // Special handling for numeric fields with zero values
+    if (isNumericField && !isNew) {
+      const numOld = normalizeNumericForCompare(oldValue);
+      const numNew = normalizeNumericForCompare(newValue);
+      const numStart = editStartValue !== undefined ? normalizeNumericForCompare(editStartValue) : null;
+      
+      // If both old and new are 0 (or null/empty treated as 0), and user hasn't interacted, skip
+      if (numOld === 0 && numNew === 0 && userInteracted === false) {
+        console.log('[onCellValueChanged] Numeric field with zero value, user did not interact - skipping:', {
+          field,
+          oldValue,
+          newValue,
+          numOld,
+          numNew,
+          editStartValue: numStart
+        });
+        cellEditStartValues.current.delete(cellKey);
+        cellEditUserInteracted.current.delete(cellKey);
+        return;
+      }
+      
+      // If edit started with 0 and new value is also 0, skip (user clicked zero cell but didn't change it)
+      if (numStart === 0 && numNew === 0) {
+        console.log('[onCellValueChanged] Numeric field unchanged from zero - skipping:', {
+          field,
+          startValue: numStart,
+          newValue: numNew
+        });
+        cellEditStartValues.current.delete(cellKey);
+        cellEditUserInteracted.current.delete(cellKey);
+        return;
+      }
+    }
     
     // STRICT CHECK: If user hasn't interacted AND values are the same, skip immediately
     // This catches the case where user just clicks cell without editing

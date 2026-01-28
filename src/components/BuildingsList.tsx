@@ -956,10 +956,13 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return;
     }
     
-    // Check if value changed from when editing started (not just from oldValue)
-    // This prevents marking dirty when just clicking a cell without editing
-    const cellKey = `${buildingKey}_${field}`;
-    const editStartValue = cellEditStartValues.current.get(cellKey);
+    // First check: if oldValue === newValue (AG Grid provides this), skip immediately
+    if (!isNew && oldValue !== undefined && newValue !== undefined && oldValue === newValue) {
+      console.log('[onCellValueChanged] oldValue === newValue, skipping:', { field, oldValue, newValue });
+      const cellKey = `${buildingKey}_${field}`;
+      cellEditStartValues.current.delete(cellKey);
+      return;
+    }
     
     // Normalize values for comparison
     const normalizeForCompare = (val: any): any => {
@@ -976,11 +979,38 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return val;
     };
     
-    const normalizedNewValue = normalizeForCompare(newValue);
-    const normalizedStartValue = normalizeForCompare(editStartValue);
+    // Get original value from originalBuildings (before any edits) - most reliable source
+    const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
+    let originalDataValue: any = originalBuilding ? (originalBuilding as any)[field] : undefined;
+    if (field === 'address' && originalBuilding) {
+      originalDataValue = (originalBuilding as any).address ?? (originalBuilding as any).building_address ?? null;
+    }
     
-    // If we have a tracked start value, compare with it (most reliable)
+    // Normalize both values for comparison
+    const normalizedOriginalValue = normalizeForCompare(originalDataValue);
+    const normalizedNewValue = normalizeForCompare(newValue);
+    
+    // Check if value changed from original data value (most reliable check)
+    if (!isNew && normalizedOriginalValue === normalizedNewValue) {
+      console.log('[onCellValueChanged] Value unchanged from original data, skipping:', {
+        field,
+        originalDataValue,
+        normalizedOriginalValue,
+        newValue,
+        normalizedNewValue,
+        buildingKey
+      });
+      // Clean up any tracking
+      const cellKey = `${buildingKey}_${field}`;
+      cellEditStartValues.current.delete(cellKey);
+      return;
+    }
+    
+    // Also check edit start value if available (secondary check)
+    const cellKey = `${buildingKey}_${field}`;
+    const editStartValue = cellEditStartValues.current.get(cellKey);
     if (editStartValue !== undefined) {
+      const normalizedStartValue = normalizeForCompare(editStartValue);
       if (normalizedNewValue === normalizedStartValue) {
         console.log('[onCellValueChanged] Value unchanged from edit start, skipping:', {
           field,
@@ -988,25 +1018,11 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
           newValue,
           cellKey
         });
-        // Clean up tracking
         cellEditStartValues.current.delete(cellKey);
         return;
       }
       // Clean up tracking after use
       cellEditStartValues.current.delete(cellKey);
-    } else {
-      // Fallback: compare oldValue and newValue if we don't have start value
-      if (!isNew && oldValue !== undefined && newValue !== undefined) {
-        const normalizedOld = normalizeForCompare(oldValue);
-        if (normalizedOld === normalizedNewValue) {
-          console.log('[onCellValueChanged] Value unchanged (oldValue === newValue), skipping:', {
-            field,
-            oldValue,
-            newValue
-          });
-          return;
-        }
-      }
     }
 
     // Debug log for address field
@@ -1020,10 +1036,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       });
     }
 
-    // Skip checkbox fields - they're handled by cellRenderer
-    if (['elevator', 'single_double_family', 'condo', 'townhouses'].includes(field)) {
-      return;
-    }
 
     // Prevent AG-Grid from randomly updating building_number for existing buildings
     if (field === 'building_number' && !isNew) {

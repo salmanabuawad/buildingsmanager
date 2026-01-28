@@ -602,6 +602,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [validationErrors, setValidationErrors] = useState<Map<string | number, Record<string, string>>>(new Map());
   // Track cell values when editing starts - only mark dirty if value actually changed during edit
   const cellEditStartValues = useRef<Map<string, any>>(new Map());
+  // Track if user actually interacted with the editor (typed, selected, etc.) - not just clicked
+  const cellEditUserInteracted = useRef<Map<string, boolean>>(new Map());
   // Save is gated behind an explicit Validate action.
   // Any edit resets this back to false.
   const [isValidatedForSave, setIsValidatedForSave] = useState(false);
@@ -958,16 +960,47 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     
     const cellKey = `${buildingKey}_${field}`;
     
-    // CRITICAL: Only process if editing actually started (user clicked to edit)
-    // If onCellEditingStarted wasn't called, this is just AG Grid firing events without user interaction
+    // CRITICAL: Only process if user actually interacted AND value changed
     const editStartValue = cellEditStartValues.current.get(cellKey);
-    if (editStartValue === undefined && !isNew) {
-      // Editing didn't start - this is likely AG Grid firing onCellValueChanged without user interaction
-      // Only allow if oldValue !== newValue (actual change detected)
-      if (oldValue === newValue || (oldValue === undefined && newValue === undefined)) {
-        console.log('[onCellValueChanged] No edit started and values unchanged, skipping:', { field, oldValue, newValue });
-        return;
+    const userInteracted = cellEditUserInteracted.current.get(cellKey);
+    
+    // Quick normalization for comparison
+    const normalizeQuick = (val: any): any => {
+      if (val == null || val === '') return null;
+      if (field === 'address') {
+        const num = Number(val);
+        return isNaN(num) || num <= 0 ? null : num;
       }
+      if (field === 'note') {
+        return String(val).trim() || null;
+      }
+      return val;
+    };
+    
+    const normOld = normalizeQuick(oldValue);
+    const normNew = normalizeQuick(newValue);
+    const valuesAreSame = normOld === normNew || (normOld == null && normNew == null);
+    
+    // STRICT CHECK: If user hasn't interacted AND values are the same, skip immediately
+    // This catches the case where user just clicks cell without editing
+    if (!isNew && userInteracted === false && valuesAreSame) {
+      console.log('[onCellValueChanged] User clicked but didn't interact, values unchanged - skipping:', {
+        field,
+        oldValue,
+        newValue,
+        normOld,
+        normNew,
+        editStartValue,
+        userInteracted
+      });
+      cellEditStartValues.current.delete(cellKey);
+      cellEditUserInteracted.current.delete(cellKey);
+      return;
+    }
+    
+    // If values are different, mark that user interacted
+    if (!valuesAreSame && editStartValue !== undefined) {
+      cellEditUserInteracted.current.set(cellKey, true);
     }
     
     // Normalize values for comparison
@@ -1011,33 +1044,46 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return;
     }
     
-    // Check edit start value if available (most reliable - compares with value when editing started)
+    // Check edit start value if available (MOST RELIABLE - compares with value when editing started)
     if (editStartValue !== undefined) {
       const normalizedStartValue = normalizeForCompare(editStartValue);
       if (normalizedNewValue === normalizedStartValue) {
-        console.log('[onCellValueChanged] Value unchanged from edit start, skipping:', {
+        console.log('[onCellValueChanged] Value unchanged from edit start, skipping dirty tracking:', {
           field,
           startValue: editStartValue,
           normalizedStartValue,
           newValue,
           normalizedNewValue,
-          cellKey
+          cellKey,
+          userInteracted
         });
+        // Clean up tracking
         cellEditStartValues.current.delete(cellKey);
-        return;
+        cellEditUserInteracted.current.delete(cellKey);
+        return; // EARLY RETURN - don't mark dirty, don't update state
       }
-      // Clean up tracking after use
-      cellEditStartValues.current.delete(cellKey);
     }
     
     // Also check oldValue === newValue as final safeguard
     if (!isNew && oldValue !== undefined && newValue !== undefined) {
       const normalizedOld = normalizeForCompare(oldValue);
       if (normalizedOld === normalizedNewValue) {
-        console.log('[onCellValueChanged] oldValue === newValue (normalized), skipping:', { field, oldValue, newValue });
+        console.log('[onCellValueChanged] oldValue === newValue (normalized), skipping:', {
+          field,
+          oldValue,
+          newValue,
+          normalizedOld,
+          normalizedNewValue
+        });
         cellEditStartValues.current.delete(cellKey);
-        return;
+        cellEditUserInteracted.current.delete(cellKey);
+        return; // EARLY RETURN - don't mark dirty, don't update state
       }
+    }
+    
+    // If we get here, value actually changed - mark user as interacted
+    if (editStartValue !== undefined && userInteracted !== true) {
+      cellEditUserInteracted.current.set(cellKey, true);
     }
 
     // Debug log for address field
@@ -1546,13 +1592,15 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
     
-    // Store initial value
+    // Store initial value and mark that editing started (but user hasn't interacted yet)
     cellEditStartValues.current.set(cellKey, initialValue);
+    cellEditUserInteracted.current.set(cellKey, false); // User hasn't interacted yet
     
     console.log('[onCellEditingStarted] Tracking edit start:', {
       cellKey,
       field,
-      initialValue
+      initialValue,
+      userInteracted: false
     });
   }, [getBuildingKey]);
 

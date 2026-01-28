@@ -63,8 +63,16 @@ export async function loginUsersTable(
     setSession(session);
     return { success: true, session };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'שגיאה בהתחברות.';
-    return { success: false, error: msg };
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === 'Failed to fetch' || msg.includes('fetch')) {
+      return {
+        success: false,
+        error:
+          'לא ניתן להגיע לשרת.\n' +
+          'בדוק חיבור לאינטרנט, וודא שכתובת Supabase והמפתח בסביבת הבנייה נכונים (וכן שהפרויקט לא מושהה).',
+      };
+    }
+    return { success: false, error: msg || 'שגיאה בהתחברות.' };
   }
 }
 

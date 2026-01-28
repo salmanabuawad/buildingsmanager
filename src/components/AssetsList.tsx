@@ -1863,6 +1863,56 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         selectedRows = gridRef.current.api.getSelectedRows();
       }
       
+      // Check if distribution flags might have changed due to asset saves
+      // Distribution flags can change when:
+      // 1. Asset type changes (main_asset_type) - triggers database trigger
+      // 2. Asset size changes (asset_size) - for business assets
+      // 3. Asset creation/deletion - affects distribution eligibility
+      let shouldRefreshBuildingFlags = false;
+      if (!isDistributionSave) {
+        // Check for changes that might affect distribution flags
+        for (const [assetId, changes] of dirtyAssets.entries()) {
+          if (deletedAssets.has(assetId)) {
+            // Deletion might affect flags
+            shouldRefreshBuildingFlags = true;
+            break;
+          }
+          // Asset type change might affect flags
+          if (changes.main_asset_type !== undefined) {
+            shouldRefreshBuildingFlags = true;
+            break;
+          }
+          // Asset size change might affect flags (for business assets)
+          if (changes.asset_size !== undefined) {
+            shouldRefreshBuildingFlags = true;
+            break;
+          }
+        }
+        // New assets might affect flags
+        if (newAssets.size > 0) {
+          shouldRefreshBuildingFlags = true;
+        }
+        // Deletions might affect flags
+        if (successfullyDeleted.size > 0) {
+          shouldRefreshBuildingFlags = true;
+        }
+      }
+      
+      // Refresh building data if distribution flags might have changed
+      if (shouldRefreshBuildingFlags && buildingNumber) {
+        try {
+          const updatedBuilding = await api.buildings.getOne(buildingNumber);
+          setBuilding(updatedBuilding);
+          console.log('[AssetsList] Refreshed building data after asset save to update distribution flags:', {
+            need_business_distribution: updatedBuilding.need_business_distribution,
+            need_residence_distribution: updatedBuilding.need_residence_distribution
+          });
+        } catch (err) {
+          console.warn('[AssetsList] Error refreshing building data after asset save:', err);
+          // Don't fail the save operation if building refresh fails
+        }
+      }
+      
       // Refresh assets data from server to update grid after successful deletions and saves
       // Skip building fetch since we already have updated building data locally (with cleared flags)
       // Only fetch assets, not building, to avoid overwriting our flag updates

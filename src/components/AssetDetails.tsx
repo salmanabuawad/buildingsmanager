@@ -1137,6 +1137,22 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
         const newAssetId = result.affected_asset_ids?.[0];
 
+        // Refresh building data to update distribution flags after asset creation
+        // Asset creation might affect distribution flags (e.g., if asset type requires distribution)
+        if (currentAssetData.building_number) {
+          try {
+            const updatedBuilding = await api.buildings.getOne(currentAssetData.building_number);
+            setBuilding(updatedBuilding);
+            console.log('[AssetDetails] Refreshed building data after asset creation to update distribution flags:', {
+              need_business_distribution: updatedBuilding.need_business_distribution,
+              need_residence_distribution: updatedBuilding.need_residence_distribution
+            });
+          } catch (err) {
+            console.warn('[AssetDetails] Error refreshing building data after asset creation:', err);
+            // Don't fail the save operation if building refresh fails
+          }
+        }
+
         setToast({ message: t('updatedSuccessfully'), type: 'success' });
 
         // Notify parent to update the tab with the new asset ID
@@ -1191,6 +1207,39 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to save assets');
+      }
+
+      // Check if distribution flags might have changed due to asset updates
+      // Distribution flags can change when:
+      // 1. Asset type changes (main_asset_type) - triggers database trigger
+      // 2. Asset size changes (asset_size) - for business assets
+      let shouldRefreshBuildingFlags = false;
+      for (const [dbId, changes] of dirtyAssets.entries()) {
+        // Asset type change might affect flags
+        if (changes.main_asset_type !== undefined) {
+          shouldRefreshBuildingFlags = true;
+          break;
+        }
+        // Asset size change might affect flags (for business assets)
+        if (changes.asset_size !== undefined) {
+          shouldRefreshBuildingFlags = true;
+          break;
+        }
+      }
+      
+      // Refresh building data if distribution flags might have changed
+      if (shouldRefreshBuildingFlags && asset && asset.building_number) {
+        try {
+          const updatedBuilding = await api.buildings.getOne(asset.building_number);
+          setBuilding(updatedBuilding);
+          console.log('[AssetDetails] Refreshed building data after asset update to update distribution flags:', {
+            need_business_distribution: updatedBuilding.need_business_distribution,
+            need_residence_distribution: updatedBuilding.need_residence_distribution
+          });
+        } catch (err) {
+          console.warn('[AssetDetails] Error refreshing building data after asset update:', err);
+          // Don't fail the save operation if building refresh fails
+        }
       }
 
       setToast({ message: t('updatedSuccessfully'), type: 'success' });
@@ -1413,6 +1462,22 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to save new measurement');
+      }
+
+      // Refresh building data to update distribution flags after saving new measurement
+      // New measurement might affect distribution flags if asset type or size changed
+      if (currentAsset.building_number) {
+        try {
+          const updatedBuilding = await api.buildings.getOne(currentAsset.building_number);
+          setBuilding(updatedBuilding);
+          console.log('[AssetDetails] Refreshed building data after save as new measurement to update distribution flags:', {
+            need_business_distribution: updatedBuilding.need_business_distribution,
+            need_residence_distribution: updatedBuilding.need_residence_distribution
+          });
+        } catch (err) {
+          console.warn('[AssetDetails] Error refreshing building data after save as new measurement:', err);
+          // Don't fail the save operation if building refresh fails
+        }
       }
 
       // Clone files from current measurement to new measurement

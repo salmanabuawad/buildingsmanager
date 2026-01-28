@@ -24,29 +24,32 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
   // Try to get signed URL if the file is from a private bucket
   useEffect(() => {
     const getSignedUrlIfNeeded = async () => {
-      // Check if URL is from Supabase storage
-      if (fileUrl.includes('.supabase.co/storage/v1/object/public/') || 
-          fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
-        // Already a public or signed URL, use as-is
+      // Check if URL is already a signed URL
+      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
         setActualFileUrl(fileUrl);
         return;
       }
 
-      // Try to extract bucket and path from URL
+      // Try to extract bucket and path from URL (even if it has /public/ in path)
       try {
         const urlObj = new URL(fileUrl);
-        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/);
+        // Match both /public/ and /sign/ paths
+        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
         
         if (pathMatch) {
           const [, bucket, path] = pathMatch;
-          // Try to get signed URL for private bucket
+          
+          // Try to get signed URL for the file (works for both public and private buckets)
           const { data, error } = await supabase.storage
             .from(bucket)
             .createSignedUrl(path, 3600); // 1 hour expiry
           
           if (!error && data?.signedUrl) {
+            console.log('Using signed URL for file:', data.signedUrl);
             setActualFileUrl(data.signedUrl);
             return;
+          } else if (error) {
+            console.warn('Failed to create signed URL, using original:', error);
           }
         }
       } catch (error) {

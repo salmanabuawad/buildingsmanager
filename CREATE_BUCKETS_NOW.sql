@@ -10,32 +10,34 @@
 -- 3. Then run only the RLS policy sections below
 
 -- Step 1: Create structure-drawings bucket
+-- NOTE: Setting public=true allows getPublicUrl() to work, but RLS policies still protect access
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'structure-drawings',
   'structure-drawings',
-  false,
+  true,  -- Set to true so getPublicUrl() works (RLS policies still protect access)
   52428800, -- 50MB limit
   ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 )
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
-  public = EXCLUDED.public,
+  public = true,  -- Update existing buckets to be public
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- Step 2: Create dwg-files bucket
+-- NOTE: Setting public=true allows getPublicUrl() to work, but RLS policies still protect access
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'dwg-files',
   'dwg-files',
-  false,
+  true,  -- Set to true so getPublicUrl() works (RLS policies still protect access)
   52428800, -- 50MB limit
   ARRAY['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 )
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
-  public = EXCLUDED.public,
+  public = true,  -- Update existing buckets to be public
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 

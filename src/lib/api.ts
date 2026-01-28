@@ -770,6 +770,15 @@ function sanitizeBuildingInput(input: any): any {
       }
     }
   }
+  // Handle note: free-text building note
+  if ('note' in input) {
+    if (input.note === null || input.note === undefined) {
+      sanitized.note = null;
+    } else {
+      const s = String(input.note).trim();
+      sanitized.note = s === '' ? null : s;
+    }
+  }
   // Handle overload_ratio: numeric field for overload percentage
   if (input.overload_ratio != null) {
     sanitized.overload_ratio = sanitizeNumber(input.overload_ratio);

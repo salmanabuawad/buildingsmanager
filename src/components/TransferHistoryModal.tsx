@@ -354,12 +354,109 @@ export function TransferHistoryModal({
                         const asset = row.asset;
                         const isBefore = row.is_before_row;
                         const bgColor = isBefore ? '#fee2e2' : '#dcfce7';
-                        const isSecondRow = !isBefore && idx > 0 && rowData[idx - 1].asset_id === row.asset_id;
+                        // Check if this is an "after" row that follows a "before" row for the same asset
+                        const prevRow = idx > 0 ? rowData[idx - 1] : null;
+                        const isSecondRow = !isBefore && prevRow && prevRow.asset_id === row.asset_id && prevRow.is_before_row;
                         
                         if (isSecondRow) {
-                          // Second row (after) - skip asset_id cell because it's spanned from first row
+                          // Second row (after) - asset_id cell is spanned from first row, so start with status
                           return (
                             <tr key={`${row.asset_id}-after`} style={{ backgroundColor: bgColor }}>
+                              {/* Asset ID cell is spanned from before row, so we don't render it here */}
+                              <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">אחרי</td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
+                                title={asset?.main_asset_type ? getAssetTypeDescription(asset.main_asset_type) : ''}
+                              >
+                                {asset?.main_asset_type || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'asset_size') ? 'font-bold italic' : ''}`}>
+                                {asset?.asset_size != null && asset.asset_size !== 0 ? formatNumberToTwoDecimals(asset.asset_size, false) : ''}
+                              </td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_1') ? 'font-bold italic' : ''}`}
+                                title={asset?.sub_asset_type_1 ? getAssetTypeDescription(asset.sub_asset_type_1) : ''}
+                              >
+                                {asset?.sub_asset_type_1 || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_1') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_1 != null && asset.sub_asset_size_1 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_1, false) : ''}
+                              </td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_2') ? 'font-bold italic' : ''}`}
+                                title={asset?.sub_asset_type_2 ? getAssetTypeDescription(asset.sub_asset_type_2) : ''}
+                              >
+                                {asset?.sub_asset_type_2 || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_2') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_2 != null && asset.sub_asset_size_2 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_2, false) : ''}
+                              </td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_3') ? 'font-bold italic' : ''}`}
+                                title={asset?.sub_asset_type_3 ? getAssetTypeDescription(asset.sub_asset_type_3) : ''}
+                              >
+                                {asset?.sub_asset_type_3 || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_3') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_3 != null && asset.sub_asset_size_3 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_3, false) : ''}
+                              </td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_4') ? 'font-bold italic' : ''}`}
+                                title={asset?.sub_asset_type_4 ? getAssetTypeDescription(asset.sub_asset_type_4) : ''}
+                              >
+                                {asset?.sub_asset_type_4 || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_4') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_4 != null && asset.sub_asset_size_4 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_4, false) : ''}
+                              </td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_5') ? 'font-bold italic' : ''}`}
+                                title={asset?.sub_asset_type_5 ? getAssetTypeDescription(asset.sub_asset_type_5) : ''}
+                              >
+                                {asset?.sub_asset_type_5 || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_5') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_5 != null && asset.sub_asset_size_5 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_5, false) : ''}
+                              </td>
+                              <td 
+                                className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_type_6') ? 'font-bold italic' : ''}`}
+                                title={asset?.sub_asset_type_6 ? getAssetTypeDescription(asset.sub_asset_type_6) : ''}
+                              >
+                                {asset?.sub_asset_type_6 || ''}
+                              </td>
+                              <td className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'sub_asset_size_6') ? 'font-bold italic' : ''}`}>
+                                {asset?.sub_asset_size_6 != null && asset.sub_asset_size_6 !== 0 ? formatNumberToTwoDecimals(asset.sub_asset_size_6, false) : ''}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        
+                        // If this is an "after" row but there's no "before" row, render it with its own asset_id
+                        if (!isBefore && (!prevRow || prevRow.asset_id !== row.asset_id || !prevRow.is_before_row)) {
+                          const handleAssetIdClick = (e: any) => {
+                            e.stopPropagation();
+                            const assetBuildingNumber = asset?.building_number || buildingNumber;
+                            window.dispatchEvent(new CustomEvent('openAssetView', {
+                              detail: {
+                                assetDbId: row.asset_id,
+                                assetId: String(row.asset_id),
+                                buildingNumber: assetBuildingNumber,
+                                taxRegion: undefined
+                              }
+                            }));
+                          };
+                          
+                          return (
+                            <tr key={`${row.asset_id}-after-only`} style={{ backgroundColor: bgColor }}>
+                              <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">
+                                <button
+                                  onClick={handleAssetIdClick}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"
+                                  title="פתח פרטי נכס"
+                                >
+                                  {row.asset_id}
+                                </button>
+                              </td>
                               <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">אחרי</td>
                               <td 
                                 className={`border border-gray-300 px-2 py-1.5 text-right ${isValueChanged(row.asset_id, 'main_asset_type') ? 'font-bold italic' : ''}`}
@@ -441,9 +538,14 @@ export function TransferHistoryModal({
                           }));
                         };
                         
+                        // Check if there's an "after" row following this "before" row
+                        const nextRow = idx < rowData.length - 1 ? rowData[idx + 1] : null;
+                        const hasAfterRow = nextRow && nextRow.asset_id === row.asset_id && !nextRow.is_before_row;
+                        const rowSpanValue = hasAfterRow ? 2 : 1;
+                        
                         return (
                           <tr key={`${row.asset_id}-before`} style={{ backgroundColor: bgColor }}>
-                            <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold" rowSpan={2} style={{ verticalAlign: 'middle' }}>
+                            <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold" rowSpan={rowSpanValue} style={{ verticalAlign: 'middle' }}>
                               <button
                                 onClick={handleAssetIdClick}
                                 className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"

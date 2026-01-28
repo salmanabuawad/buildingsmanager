@@ -147,7 +147,25 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = sanitizeFilename(fileName || 'document.pdf');
+      
+      // Extract filename from URL if fileName is not provided or extract from URL path
+      let downloadName = fileName;
+      if (!downloadName || downloadName === 'document.pdf') {
+        try {
+          const urlObj = new URL(urlToDownload);
+          const pathParts = urlObj.pathname.split('/');
+          const lastPart = pathParts[pathParts.length - 1];
+          // Remove query parameters if any
+          const filenameFromUrl = lastPart.split('?')[0];
+          if (filenameFromUrl && filenameFromUrl !== '') {
+            downloadName = filenameFromUrl;
+          }
+        } catch (e) {
+          // If URL parsing fails, use default
+        }
+      }
+      
+      link.download = sanitizeFilename(downloadName || 'document.pdf');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

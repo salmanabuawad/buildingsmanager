@@ -18,13 +18,18 @@ export function escapeHtml(unsafe: string | null | undefined): string {
 
 /**
  * Sanitizes a string to be used as a filename
+ * Preserves Unicode characters (including Hebrew, Arabic, etc.) while removing dangerous characters
  */
 export function sanitizeFilename(filename: string | null | undefined): string {
   if (filename == null) return 'download';
 
   return String(filename)
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/_{2,}/g, '_')
+    // Remove or replace dangerous characters: null bytes, path separators, control characters
+    .replace(/\0/g, '') // Remove null bytes
+    .replace(/[/\\?%*:|"<>]/g, '_') // Replace path separators and special chars with underscore
+    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters (except space)
+    .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+    .trim()
     .substring(0, 255);
 }
 

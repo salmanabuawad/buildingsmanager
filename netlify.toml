@@ -5,9 +5,9 @@ publish = "dist"
 # Application URL: https://buildingmanager.bolt.host/
 
 [build.environment]
-# Vite env vars (use VITE_*, not REACT_APP_*). Project: oqfcdzagpftajmpxuajl
-VITE_SUPABASE_URL = "https://oqfcdzagpftajmpxuajl.supabase.co"
-VITE_SUPABASE_ANON_KEY = "sb_publishable_Apzwapcy0awjs7O3DeX7Yg_vdjXF0nU"
+# Vite env vars (use VITE_*, not REACT_APP_*). Project: mmqnrwjjxewrgwczezzf
+VITE_SUPABASE_URL = "https://mmqnrwjjxewrgwczezzf.supabase.co"
+VITE_SUPABASE_ANON_KEY = "sb_publishable_UuWn9HaUQ1zKtXTA0Sy3-A_5XD3J-lO"
 
 [[redirects]]
 from = "/*"

@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
-import { supabase } from '../lib/supabase';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -19,50 +18,6 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
   const [scale, setScale] = useState<number>(1.0);
   const [rotation, setRotation] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actualFileUrl, setActualFileUrl] = useState<string>(fileUrl);
-
-  // Try to get signed URL if the file is from a private bucket
-  useEffect(() => {
-    const getSignedUrlIfNeeded = async () => {
-      // Check if URL is already a signed URL
-      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
-        setActualFileUrl(fileUrl);
-        return;
-      }
-
-      // Try to extract bucket and path from URL (even if it has /public/ in path)
-      try {
-        const urlObj = new URL(fileUrl);
-        // Match both /public/ and /sign/ paths
-        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-        
-        if (pathMatch) {
-          const [, bucket, path] = pathMatch;
-          
-          // Try to get signed URL for the file (works for both public and private buckets)
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .createSignedUrl(path, 3600); // 1 hour expiry
-          
-          if (!error && data?.signedUrl) {
-            console.log('Using signed URL for file:', data.signedUrl);
-            setActualFileUrl(data.signedUrl);
-            return;
-          } else if (error) {
-            console.warn('Failed to create signed URL, using original:', error);
-          }
-        }
-      } catch (error) {
-        // URL parsing failed, use original URL
-        console.warn('Could not parse file URL for signed URL generation:', error);
-      }
-      
-      // Fallback to original URL
-      setActualFileUrl(fileUrl);
-    };
-
-    getSignedUrlIfNeeded();
-  }, [fileUrl]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -187,7 +142,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
         <div className="flex justify-center">
           <Document
-            file={actualFileUrl}
+            file={fileUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             loading={
               <div className="flex items-center justify-center p-12">

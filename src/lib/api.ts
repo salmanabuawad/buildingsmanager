@@ -4505,68 +4505,28 @@ export const api = {
         throw new Error(`Failed to delete user: ${error.message}`);
       }
     },
-    changePassword: async (authUserId: string, newPassword: string): Promise<void> => {
-      // Get the current session token for authorization
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Not authenticated');
-      }
-
-      // Call the Edge Function
-      const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || process.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || process.env.VITE_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Missing Supabase configuration');
-      }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/change-user-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify({
-          auth_user_id: authUserId,
-          new_password: newPassword,
-        }),
+    changePassword: async (userId: number, newPassword: string): Promise<void> => {
+      const { error } = await supabase.rpc('users_set_password', {
+        p_user_id: userId,
+        p_new_password: newPassword,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to change password: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to change password');
-      }
+      if (error) throw new Error(error.message || 'Failed to change password');
     },
     createDefaultUsers: async (): Promise<{ success: boolean; results: Array<{ user: string; success: boolean; message: string }>; message: string }> => {
-      // Call the Edge Function to create users with auto-confirm
-      const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || process.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || process.env.VITE_SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Missing Supabase configuration');
+      try {
+        await supabase.rpc('users_ensure_defaults');
+        return {
+          success: true,
+          results: [
+            { user: 'admin', success: true, message: 'admin מוכן' },
+            { user: 'user', success: true, message: 'user מוכן' },
+          ],
+          message: 'משתמשי ברירת מחדל מוכנים. התחבר עם admin / admin123 או user / user123.',
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'שגיאה';
+        return { success: false, results: [], message: msg };
       }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/create-users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseAnonKey,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to create users: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      return result;
     },
   },
 };

@@ -90,14 +90,9 @@ export function UserManagement() {
     handleUpdateUser(userId, { active: !currentActive });
   };
 
-  const handleChangePassword = async (userId: number, authUserId: string | null) => {
+  const handleChangePassword = async (userId: number) => {
     if (!isAdmin) {
       setError('אין לך הרשאה לשנות סיסמאות');
-      return;
-    }
-
-    if (!authUserId) {
-      setError('למשתמש זה אין auth_user_id - לא ניתן לשנות סיסמה');
       return;
     }
 
@@ -115,8 +110,7 @@ export function UserManagement() {
       setChangingPassword(true);
       setError(null);
 
-      // Use Edge Function for secure password change
-      await api.users.changePassword(authUserId, newPassword);
+      await api.users.changePassword(userId, newPassword);
 
       // Success
       setPasswordModalOpen(null);
@@ -363,17 +357,15 @@ export function UserManagement() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          {user.auth_user_id && (
-                            <button
-                              onClick={() => openPasswordModal(user.user_id)}
-                              disabled={saving === user.user_id || deleting === user.user_id}
-                              className="px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                              title="שנה סיסמה"
-                            >
-                              <Key className="h-4 w-4" />
-                              שנה סיסמה
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openPasswordModal(user.user_id)}
+                            disabled={saving === user.user_id || deleting === user.user_id}
+                            className="px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            title="שנה סיסמה"
+                          >
+                            <Key className="h-4 w-4" />
+                            שנה סיסמה
+                          </button>
                           <button
                             onClick={() => handleActiveToggle(user.user_id, user.active)}
                             disabled={saving === user.user_id || deleting === user.user_id}
@@ -489,7 +481,7 @@ export function UserManagement() {
                 onClick={() => {
                   const user = users.find(u => u.user_id === passwordModalOpen);
                   if (user) {
-                    handleChangePassword(user.user_id, user.auth_user_id);
+                    handleChangePassword(user.user_id);
                   }
                 }}
                 disabled={changingPassword || !newPassword || !confirmPassword}

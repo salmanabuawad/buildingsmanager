@@ -984,7 +984,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // STRICT CHECK: If user hasn't interacted AND values are the same, skip immediately
     // This catches the case where user just clicks cell without editing
     if (!isNew && userInteracted === false && valuesAreSame) {
-      console.log('[onCellValueChanged] User clicked but didn't interact, values unchanged - skipping:', {
+      console.log('[onCellValueChanged] User clicked but did not interact, values unchanged - skipping:', {
         field,
         oldValue,
         newValue,

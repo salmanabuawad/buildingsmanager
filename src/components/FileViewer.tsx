@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
 import { getFileTypeCategory } from '../lib/fileCompression';
+import { supabase } from '../lib/supabase';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -21,6 +22,50 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
   const [rotation, setRotation] = useState<number>(0);
   const [imageError, setImageError] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
+  const [actualFileUrl, setActualFileUrl] = useState<string>(fileUrl);
+
+  // Try to get signed URL if the file is from a private bucket
+  useEffect(() => {
+    const getSignedUrlIfNeeded = async () => {
+      // Check if URL is already a signed URL
+      if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
+        setActualFileUrl(fileUrl);
+        return;
+      }
+
+      // Try to extract bucket and path from URL (even if it has /public/ in path)
+      try {
+        const urlObj = new URL(fileUrl);
+        // Match both /public/ and /sign/ paths
+        const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
+        
+        if (pathMatch) {
+          const [, bucket, path] = pathMatch;
+          
+          // Try to get signed URL for the file (works for both public and private buckets)
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(path, 3600); // 1 hour expiry
+          
+          if (!error && data?.signedUrl) {
+            console.log('Using signed URL for file:', data.signedUrl);
+            setActualFileUrl(data.signedUrl);
+            return;
+          } else if (error) {
+            console.warn('Failed to create signed URL, using original:', error);
+          }
+        }
+      } catch (error) {
+        // URL parsing failed, use original URL
+        console.warn('Could not parse file URL for signed URL generation:', error);
+      }
+      
+      // Fallback to original URL
+      setActualFileUrl(fileUrl);
+    };
+
+    getSignedUrlIfNeeded();
+  }, [fileUrl]);
 
   // Detect file type from URL and filename
   useEffect(() => {
@@ -36,7 +81,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
 
       // Try to detect from URL or fetch headers
       try {
-        const response = await fetch(fileUrl, { method: 'HEAD' });
+        const response = await fetch(actualFileUrl, { method: 'HEAD' });
         const contentType = response.headers.get('content-type') || '';
         const detectedCategory = getFileTypeCategory(name, contentType);
         setFileType(detectedCategory);
@@ -47,7 +92,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     };
 
     detectFileType();
-  }, [fileUrl, fileName]);
+  }, [actualFileUrl, fileName]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -185,7 +230,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
         <div className="border border-t-0 border-slate-300 rounded-b-lg bg-slate-50 p-4 overflow-auto max-h-[600px]">
           <div className="flex justify-center">
             <Document
-              file={fileUrl}
+              file={actualFileUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               loading={
                 <div className="flex items-center justify-center p-12">
@@ -286,7 +331,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
             </div>
           ) : (
             <img
-              src={fileUrl}
+              src={actualFileUrl}
               alt={fileName || 'Image'}
               className="max-w-full h-auto"
               style={{

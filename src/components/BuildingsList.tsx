@@ -600,6 +600,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
   const [dirtyBuildings, setDirtyBuildings] = useState<Map<string | number, Partial<Building>>>(new Map());
   const [originalBuildings, setOriginalBuildings] = useState<Building[]>([]);
   const [validationErrors, setValidationErrors] = useState<Map<string | number, Record<string, string>>>(new Map());
+  // Track cell values when editing starts - only mark dirty if value actually changed during edit
+  const cellEditStartValues = useRef<Map<string, any>>(new Map());
   // Save is gated behind an explicit Validate action.
   // Any edit resets this back to false.
   const [isValidatedForSave, setIsValidatedForSave] = useState(false);
@@ -954,26 +956,56 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return;
     }
     
-    // Early return if value didn't actually change (AG Grid sometimes fires this even when just clicking)
-    // Compare oldValue and newValue directly first
-    if (!isNew && oldValue !== undefined && newValue !== undefined) {
-      // Normalize for comparison
-      const normalizeForCompare = (val: any): any => {
-        if (val == null || val === '') return null;
-        if (field === 'address') {
-          const num = Number(val);
-          return isNaN(num) || num <= 0 ? null : num;
-        }
-        if (field === 'note') {
-          return String(val).trim() || null;
-        }
-        return val;
-      };
-      const normalizedOld = normalizeForCompare(oldValue);
-      const normalizedNew = normalizeForCompare(newValue);
-      if (normalizedOld === normalizedNew) {
-        console.log('[onCellValueChanged] Value unchanged, skipping:', { field, oldValue, newValue });
+    // Check if value changed from when editing started (not just from oldValue)
+    // This prevents marking dirty when just clicking a cell without editing
+    const cellKey = `${buildingKey}_${field}`;
+    const editStartValue = cellEditStartValues.current.get(cellKey);
+    
+    // Normalize values for comparison
+    const normalizeForCompare = (val: any): any => {
+      if (val == null || val === '') return null;
+      if (field === 'address') {
+        const num = Number(val);
+        return isNaN(num) || num <= 0 ? null : num;
+      }
+      if (field === 'note') {
+        return String(val).trim() || null;
+      }
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') return val.trim() || null;
+      return val;
+    };
+    
+    const normalizedNewValue = normalizeForCompare(newValue);
+    const normalizedStartValue = normalizeForCompare(editStartValue);
+    
+    // If we have a tracked start value, compare with it (most reliable)
+    if (editStartValue !== undefined) {
+      if (normalizedNewValue === normalizedStartValue) {
+        console.log('[onCellValueChanged] Value unchanged from edit start, skipping:', {
+          field,
+          startValue: editStartValue,
+          newValue,
+          cellKey
+        });
+        // Clean up tracking
+        cellEditStartValues.current.delete(cellKey);
         return;
+      }
+      // Clean up tracking after use
+      cellEditStartValues.current.delete(cellKey);
+    } else {
+      // Fallback: compare oldValue and newValue if we don't have start value
+      if (!isNew && oldValue !== undefined && newValue !== undefined) {
+        const normalizedOld = normalizeForCompare(oldValue);
+        if (normalizedOld === normalizedNewValue) {
+          console.log('[onCellValueChanged] Value unchanged (oldValue === newValue), skipping:', {
+            field,
+            oldValue,
+            newValue
+          });
+          return;
+        }
       }
     }
 
@@ -1388,28 +1420,34 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       }
     }
     
-    // Get original value to compare
-    const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
-    const originalValue = originalBuilding ? (originalBuilding as any)[field] : undefined;
+    // Check if value changed from when editing started (most reliable check)
+    const cellKey = `${buildingKey}_${field}`;
+    const editStartValue = cellEditStartValues.current.get(cellKey);
     
-    // Normalize original value for comparison
-    let normalizedOriginalValue = originalValue;
-    if (field === 'residence_shared_area' || field === 'business_shared_area') {
-      normalizedOriginalValue = normalizedOriginalValue != null ? Number(normalizedOriginalValue) : null;
-      if (normalizedOriginalValue !== null && isNaN(normalizedOriginalValue)) {
-        normalizedOriginalValue = null;
-      }
-    }
-    
-    // Compare values - only mark as dirty if changed
-    const valuesAreEqual = (a: any, b: any): boolean => {
-      if (a == null && b == null) return true;
-      if (a == null || b == null) return false;
-      if (typeof a === 'number' && typeof b === 'number') return a === b;
-      return a === b;
+    // Normalize for comparison
+    const normalizeForCompare = (val: any): any => {
+      if (val == null || val === '') return null;
+      if (typeof val === 'number') return isNaN(val) ? null : val;
+      if (typeof val === 'string') return val.trim() || null;
+      return val;
     };
     
-    const valueChanged = !valuesAreEqual(newValue, normalizedOriginalValue);
+    const normalizedNewValue = normalizeForCompare(newValue);
+    const normalizedStartValue = normalizeForCompare(editStartValue);
+    
+    // If we have a tracked start value, compare with it
+    let valueChanged = false;
+    if (editStartValue !== undefined) {
+      valueChanged = normalizedNewValue !== normalizedStartValue;
+      // Clean up tracking
+      cellEditStartValues.current.delete(cellKey);
+    } else {
+      // Fallback: compare with original building value
+      const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
+      const originalValue = originalBuilding ? (originalBuilding as any)[field] : undefined;
+      let normalizedOriginalValue = normalizeForCompare(originalValue);
+      valueChanged = normalizedNewValue !== normalizedOriginalValue;
+    }
     
     // Only update if value changed (or if it's a new building)
     if (isNew || valueChanged) {
@@ -1434,6 +1472,39 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       setFilteredBuildings(prev => prev.map(b => getBuildingKey(b) === buildingKey ? { ...b, [field]: newValue } : b));
     }
   }, [getBuildingKey, isNewBuilding, originalBuildings]);
+
+  // Track when cell editing starts - store initial value
+  const onCellEditingStarted = useCallback((event: any) => {
+    if (!event || !event.data || !event.colDef) return;
+    
+    const field = event.colDef?.field;
+    const building = event.data as Building;
+    if (!field || !building) return;
+    
+    const buildingKey = getBuildingKey(building);
+    const cellKey = `${buildingKey}_${field}`;
+    
+    // Get initial value from the building data
+    let initialValue = (building as any)[field];
+    
+    // Normalize initial value for address field
+    if (field === 'address') {
+      initialValue = building.address ?? building.building_address ?? null;
+      if (initialValue != null) {
+        const num = Number(initialValue);
+        initialValue = isNaN(num) || num <= 0 ? null : num;
+      }
+    }
+    
+    // Store initial value
+    cellEditStartValues.current.set(cellKey, initialValue);
+    
+    console.log('[onCellEditingStarted] Tracking edit start:', {
+      cellKey,
+      field,
+      initialValue
+    });
+  }, [getBuildingKey]);
 
   // Add empty building row
   const addEmptyBuildingRow = () => {
@@ -3459,6 +3530,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               }}
               onCellValueChanged={onCellValueChanged}
               onCellEditingStopped={onCellEditingStopped}
+              onCellEditingStarted={onCellEditingStarted}
               onGridReady={async (params) => {
                 // Load saved column state first
                 await gridPreferences.loadColumnState(params.api);

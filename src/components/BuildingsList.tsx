@@ -14,6 +14,7 @@ import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { detectAndApplyTextOverflow, setupTextOverflowObserver } from '../lib/textOverflowDetector';
 import { exportToExcel, createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
+import { formatDateToDDMMYYYY } from '../lib/dateUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
 
@@ -2157,37 +2158,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         'יום ערך'
       ];
 
-      // Helper function to format date to YYYY-MM-DD HH:MM:SS format (automation format)
-      const formatDateToAutomationFormat = (dateStr: string | null | undefined): string => {
-        if (!dateStr) return '';
-        try {
-          // Try to parse different date formats
-          let date: Date;
-          
-          // If it's already in DD/MM/YYYY format
-          const parts = dateStr.split('/');
-          if (parts.length === 3) {
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-            const year = parseInt(parts[2], 10);
-            date = new Date(year, month, day);
-          } else {
-            // Try to parse as ISO date or other formats
-            date = new Date(dateStr);
-          }
-          
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day} 00:00:00`;
-          }
-        } catch (error) {
-          console.warn('Error formatting date:', dateStr, error);
-        }
-        return '';
-      };
-
       // Get asset types to determine business/residence type
       const assetTypes = getAssetTypes();
       
@@ -2232,8 +2202,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       const rows = exportedAssets.map(asset => [
         asset.payer_id || '',                                    // זיהוי משלם
         asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
-        formatDateToAutomationFormat(asset.discount_date_from) || '',  // תחילת שינוי
-        formatDateToAutomationFormat(asset.discount_date_to) || '',    // סוף שינוי
+        formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
+        formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
         asset.main_asset_type || '',                             // סוג נכס
         getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
         asset.sub_asset_type_1 || '',                            // נכס משנה 1

@@ -330,6 +330,15 @@ function App() {
     return () => clearInterval(interval);
   }, [latestExportDate]);
 
+  // Update "איפוס שליחת נתונים מתאריך" span immediately after export to automation
+  useEffect(() => {
+    const handleExportToAutomationSuccess = () => {
+      setLatestExportDate(getCachedLatestExportDate());
+    };
+    window.addEventListener('exportToAutomationSuccess', handleExportToAutomationSuccess);
+    return () => window.removeEventListener('exportToAutomationSuccess', handleExportToAutomationSuccess);
+  }, []);
+
   // Check if current tab has unsaved changes
   const checkForUnsavedChanges = (): boolean => {
     const activeTab = tabs.find(tab => tab.id === activeTabId);

@@ -3,6 +3,7 @@ import { getSession, getAuthUserIdForRpc } from './usersTableAuth';
 import i18n from '../i18n/i18n';
 import { sanitizeText, sanitizeNumber, sanitizeInteger, sanitizeDate } from './sanitize';
 import { parseDateFromDDMMYYYY } from './dateUtils';
+import { setLatestExportDate } from './validation';
 
 /**
  * ============================================================================
@@ -2518,6 +2519,15 @@ export const api = {
             return typeof id === 'number' ? id : Number(id);
           })
           .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+
+        // After successful export, update latest export date cache so "איפוס שליחת נתונים מתאריך" span updates
+        if (Number(updatedCount) > 0) {
+          const d = new Date();
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          setLatestExportDate(`${day}/${month}/${year}`);
+        }
 
         // Return the count and asset IDs that were exported
         return { success: true, count: Number(updatedCount) || 0, assetIds };

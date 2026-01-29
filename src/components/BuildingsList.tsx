@@ -2402,6 +2402,8 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       setTimeout(() => setSuccess(null), 5000);
       // Refresh the count after export
       await fetchExportToAutomationCount();
+      // Notify App to update "איפוס שליחת נתונים מתאריך" span (cache was set by api.assets.exportToAutomation)
+      window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
     } catch (error: any) {
       console.error('Error exporting to automation:', error);
       setError(error.message || 'שגיאה בשליחת נכסים לעירייה');

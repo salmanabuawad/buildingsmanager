@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight, File as FileIcon } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
@@ -27,59 +27,61 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
 
   // Try to get signed URL if the file is from a private bucket
   useEffect(() => {
+    let cancelled = false;
+
     const getSignedUrlIfNeeded = async () => {
       setIsPreparingUrl(true);
       setPdfLoadError(null);
-      
-      // Check if URL is already a signed URL
+
       if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
-        setActualFileUrl(fileUrl);
+        if (!cancelled) setActualFileUrl(fileUrl);
         setIsPreparingUrl(false);
         return;
       }
 
-      // Try to extract bucket and path from URL (even if it has /public/ in path)
       try {
         const urlObj = new URL(fileUrl);
-        // Match both /public/ and /sign/ paths
         const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-        
+
         if (pathMatch) {
           const [, bucket, path] = pathMatch;
-          
-          // Try to get signed URL for the file (works for both public and private buckets)
+
           const { data, error } = await supabase.storage
             .from(bucket)
             .createSignedUrl(path, 3600); // 1 hour expiry
-          
+
+          if (cancelled) return;
+
           if (!error && data?.signedUrl) {
-            console.log('Using signed URL for file:', data.signedUrl);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Using signed URL for file:', data.signedUrl);
+            }
             setActualFileUrl(data.signedUrl);
             setIsPreparingUrl(false);
             return;
-          } else if (error) {
-            // Check for bucket not found error
+          }
+          if (error) {
             if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
-              const errorMsg = `Storage bucket "${bucket}" not found. Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucket}". See CREATE_STORAGE_BUCKETS.md for detailed instructions.`;
-              console.error(errorMsg);
-              setPdfLoadError(errorMsg);
-              // Still try to use original URL in case bucket gets created
-            } else {
+              setPdfLoadError(`Storage bucket "${bucket}" not found. See CREATE_STORAGE_BUCKETS.md for instructions.`);
+            } else if (process.env.NODE_ENV === 'development') {
               console.warn('Failed to create signed URL, using original:', error);
             }
           }
         }
       } catch (error) {
-        // URL parsing failed, use original URL
-        console.warn('Could not parse file URL for signed URL generation:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Could not parse file URL for signed URL generation:', error);
+        }
       }
-      
-      // Fallback to original URL
-      setActualFileUrl(fileUrl);
-      setIsPreparingUrl(false);
+
+      if (!cancelled) {
+        setActualFileUrl(fileUrl);
+        setIsPreparingUrl(false);
+      }
     };
 
     getSignedUrlIfNeeded();
+    return () => { cancelled = true; };
   }, [fileUrl]);
 
   // Detect file type from URL and filename (use original fileUrl to avoid duplicate calls)
@@ -110,6 +112,11 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
     // Only run detection once when fileUrl or fileName changes, not when actualFileUrl changes
     detectFileType();
   }, [fileUrl, fileName]); // Removed actualFileUrl from dependencies to avoid duplicate calls
+
+  const documentOptions = useMemo(() => ({
+    httpHeaders: {},
+    withCredentials: false,
+  }), []);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -330,10 +337,7 @@ export function FileViewer({ fileUrl, fileName }: FileViewerProps) {
                   </div>
                 }
                 onLoadError={onDocumentLoadError}
-                options={{
-                  httpHeaders: {},
-                  withCredentials: false,
-                }}
+                options={documentOptions}
               >
                 <Page
                   pageNumber={pageNumber}

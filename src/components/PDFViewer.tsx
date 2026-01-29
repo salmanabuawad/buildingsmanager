@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, Download, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeFilename } from '../lib/sanitize';
@@ -24,59 +24,66 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
 
   // Try to get signed URL if the file is from a private bucket
   useEffect(() => {
+    let cancelled = false;
+
     const getSignedUrlIfNeeded = async () => {
       setIsPreparingUrl(true);
       setLoadError(null);
-      
+
       // Check if URL is already a signed URL
       if (fileUrl.includes('.supabase.co/storage/v1/object/sign/')) {
-        setActualFileUrl(fileUrl);
+        if (!cancelled) setActualFileUrl(fileUrl);
         setIsPreparingUrl(false);
         return;
       }
 
-      // Try to extract bucket and path from URL (even if it has /public/ in path)
       try {
         const urlObj = new URL(fileUrl);
-        // Match both /public/ and /sign/ paths
         const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+)/);
-        
+
         if (pathMatch) {
           const [, bucket, path] = pathMatch;
-          
-          // Try to get signed URL for the file (works for both public and private buckets)
+
           const { data, error } = await supabase.storage
             .from(bucket)
             .createSignedUrl(path, 3600); // 1 hour expiry
-          
+
+          if (cancelled) return;
+
           if (!error && data?.signedUrl) {
-            console.log('Using signed URL for file:', data.signedUrl);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Using signed URL for file:', data.signedUrl);
+            }
             setActualFileUrl(data.signedUrl);
             setIsPreparingUrl(false);
             return;
-          } else if (error) {
+          }
+          if (error) {
             // Check for bucket not found error
             if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
               const errorMsg = `Storage bucket "${bucket}" not found. Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "${bucket}". See CREATE_STORAGE_BUCKETS.md for detailed instructions.`;
               console.error(errorMsg);
               setLoadError(errorMsg);
               // Still try to use original URL in case bucket gets created
-            } else {
+            } else if (process.env.NODE_ENV === 'development') {
               console.warn('Failed to create signed URL, using original:', error);
             }
           }
         }
       } catch (error) {
-        // URL parsing failed, use original URL
-        console.warn('Could not parse file URL for signed URL generation:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Could not parse file URL for signed URL generation:', error);
+        }
       }
-      
-      // Fallback to original URL
-      setActualFileUrl(fileUrl);
-      setIsPreparingUrl(false);
+
+      if (!cancelled) {
+        setActualFileUrl(fileUrl);
+        setIsPreparingUrl(false);
+      }
     };
 
     getSignedUrlIfNeeded();
+    return () => { cancelled = true; };
   }, [fileUrl]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
@@ -102,6 +109,11 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
       setLoadError(error.message || 'Failed to load PDF file. The file may be corrupted or inaccessible.');
     }
   }
+
+  const documentOptions = useMemo(() => ({
+    httpHeaders: {},
+    withCredentials: false,
+  }), []);
 
   function changePage(offset: number) {
     setPageNumber(prevPageNumber => prevPageNumber + offset);
@@ -285,10 +297,7 @@ export function PDFViewer({ fileUrl, fileName }: PDFViewerProps) {
                 </div>
               }
               onLoadError={onDocumentLoadError}
-              options={{
-                httpHeaders: {},
-                withCredentials: false,
-              }}
+              options={documentOptions}
             >
               <Page
                 pageNumber={pageNumber}

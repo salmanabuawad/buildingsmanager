@@ -929,22 +929,17 @@ function App() {
       const cachedDate = getCachedLatestExportDate();
       setLatestExportDate(cachedDate);
       
+      // Notify components to refresh "לא נשלחו לעירייה" (export count, dashboard, measured-not-exported list)
+      window.dispatchEvent(new CustomEvent('resetExportToAutomationSuccess'));
       // Refresh the export count - use setTimeout to ensure state updates are processed
-      // Also refresh when modal closes as backup
+      // Also refresh when modal closes as backup (refresh whenever BuildingsList ref exists, not only when tab is active)
       setTimeout(async () => {
-        console.log('[App] Attempting to refresh export count after reset');
-        console.log('[App] activeTabId:', activeTabId);
-        console.log('[App] buildingsListRef.current:', buildingsListRef.current);
-        if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
-          console.log('[App] Calling refreshExportCount after reset');
+        if (buildingsListRef.current?.refreshExportCount) {
           buildingsListRef.current.refreshExportCount().catch(err => {
             console.error('[App] Error refreshing export count:', err);
           });
-        } else {
-          console.warn('[App] Cannot refresh - activeTabId:', activeTabId, 'ref available:', !!buildingsListRef.current, 'method available:', !!buildingsListRef.current?.refreshExportCount);
         }
         // Refresh latest export date after reset (cache is already updated by resetExportToAutomation with next latest date)
-        // Sync state with cache immediately
         const cachedDate = getCachedLatestExportDate();
         setLatestExportDate(cachedDate);
       }, 200);
@@ -966,16 +961,13 @@ function App() {
     
     // Refresh the export count and latest export date when closing the result modal
     setTimeout(async () => {
-      if (activeTabId === 'buildings' && buildingsListRef.current?.refreshExportCount) {
-        console.log('[App] Calling refreshExportCount when closing modal');
+      if (buildingsListRef.current?.refreshExportCount) {
         try {
           await buildingsListRef.current.refreshExportCount();
         } catch (err) {
           console.error('[App] Error refreshing export count:', err);
         }
       }
-      // Refresh latest export date after reset (cache is already updated by resetExportToAutomation with next latest date)
-      // Sync state with cache immediately
       const cachedDate = getCachedLatestExportDate();
       setLatestExportDate(cachedDate);
     }, 100);

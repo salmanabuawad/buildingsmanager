@@ -68,6 +68,15 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     fetchData();
   }, [fetchData]);
 
+  // Refetch "נכסים שנמדדו ולא נשלחו לעירייה" after reset exported to automation
+  useEffect(() => {
+    const handleResetExportSuccess = () => {
+      fetchData();
+    };
+    window.addEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
+    return () => window.removeEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
+  }, [fetchData]);
+
   // Column definitions
   const columnDefs = useMemo<ColDef<Asset>[]>(() => [
     {

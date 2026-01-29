@@ -95,6 +95,15 @@ export const MeasurementProgressDashboard = ({ onOpenBuildingsList, onOpenMeasur
     }
   };
 
+  // Refetch "לא נשלחו לעירייה" after reset exported to automation
+  useEffect(() => {
+    const handleResetExportSuccess = () => {
+      fetchData();
+    };
+    window.addEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
+    return () => window.removeEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
+  }, [startDate, endDate]);
+
   // Column definitions for yearly data
   const columnDefs = useMemo<ColDef<YearlyData>[]>(() => [
     {

@@ -36,7 +36,9 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
       setValidationData({ buildings, assetTypes, assets });
       setAllAssets(assets);
       
-      console.log(`[ValidationContext] Loaded into memory: ${rules.length} validation rules, ${buildings.length} buildings, ${assetTypes.length} asset types, ${assets.length} assets`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[ValidationContext] Loaded into memory: ${rules.length} validation rules, ${buildings.length} buildings, ${assetTypes.length} asset types, ${assets.length} assets`);
+      }
     } catch (err) {
       console.error('[ValidationContext] Failed to load validation data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load validation data');

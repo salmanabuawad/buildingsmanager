@@ -303,10 +303,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   // Refresh grid when validation errors change to show error styling
   useEffect(() => {
     if (validationErrors.size > 0 && gridRef.current?.api) {
-      console.log('[AssetsList] Validation errors changed, refreshing grid:', {
-        errorCount: validationErrors.size,
-        errorAssetIds: Array.from(validationErrors.keys())
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AssetsList] Validation errors changed, refreshing grid:', {
+          errorCount: validationErrors.size,
+          errorAssetIds: Array.from(validationErrors.keys())
+        });
+      }
       // Small delay to ensure grid is ready
       setTimeout(() => {
         if (gridRef.current?.api) {
@@ -337,38 +339,38 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       if (!skipBuildingFetch || !building) {
         setBuilding(buildingData);
       }
-      setAssetTypes(cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll());
+      const assetTypesToUse = cachedAssetTypes.length > 0 ? cachedAssetTypes : await api.assetTypes.getAll();
+      setAssetTypes(assetTypesToUse);
       
-      // Fetch building address if address (street_code) exists
+      // Fetch building address if address (street_code) exists (single optional request)
       if (buildingData?.address) {
         try {
           const address = await api.addressList.getOne(buildingData.address);
           setBuildingAddress(address.street_description);
         } catch (err) {
-          console.error('Error fetching building address:', err);
+          if (process.env.NODE_ENV === 'development') console.error('Error fetching building address:', err);
           setBuildingAddress(null);
         }
       } else if (buildingData?.building_address) {
-        // Fallback to old building_address field
         try {
           const address = await api.addressList.getOne(buildingData.building_address);
           setBuildingAddress(address.street_description);
         } catch (err) {
-          console.error('Error fetching building address:', err);
+          if (process.env.NODE_ENV === 'development') console.error('Error fetching building address:', err);
           setBuildingAddress(null);
         }
       } else {
         setBuildingAddress(null);
       }
       
-      // Log initial fetch results
-      const assetTypesCount = cachedAssetTypes.length > 0 ? cachedAssetTypes.length : (await api.assetTypes.getAll()).length;
-      console.log(`[AssetsList] Fetched data for building ${buildingNumber}:`, {
-        assetsCount: (assetsData || []).length,
-        assetTypesCount,
-        taxRegion,
-        buildingExists: !!buildingData
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[AssetsList] Fetched data for building ${buildingNumber}:`, {
+          assetsCount: (assetsData || []).length,
+          assetTypesCount: assetTypesToUse.length,
+          taxRegion,
+          buildingExists: !!buildingData
+        });
+      }
       
       // Filter by tax region according to tab's tax region
       // If selectedAssetIds is provided (e.g., in error fixing mode), include those assets even if tax_region doesn't match
@@ -381,13 +383,15 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const taxRegionNum = parseInt(taxRegion.trim());
         const taxRegionStr = taxRegion.trim();
         
-        console.log(`[AssetsList] Filtering assets by tab tax region:`, {
-          requestedTaxRegion: taxRegion,
-          taxRegionNum,
-          taxRegionStr,
-          totalAssetsBeforeFilter: (assetsData || []).length,
-          hasSelectedAssetIds: !!selectedAssetIdsSet
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[AssetsList] Filtering assets by tab tax region:`, {
+            requestedTaxRegion: taxRegion,
+            taxRegionNum,
+            taxRegionStr,
+            totalAssetsBeforeFilter: (assetsData || []).length,
+            hasSelectedAssetIds: !!selectedAssetIdsSet
+          });
+        }
         
         filteredAssets = [];
         let skippedNoTaxRegion = 0;
@@ -755,6 +759,22 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     return errors;
   }, []);
 
+  const getRowStyle = useCallback((params: { data?: { asset_id?: unknown }; } | null) => {
+    if (!params?.data) return null;
+    const assetId = String(params.data.asset_id);
+    if (deletedAssets.has(assetId)) {
+      return { backgroundColor: '#fee2e2', opacity: 0.7 };
+    }
+    if (validationErrors.has(assetId)) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '3px solid #ef4444',
+        borderRadius: '4px'
+      };
+    }
+    return null;
+  }, [deletedAssets, validationErrors]);
+
   const onCellValueChanged = useCallback(async (event: any) => {
     // Skip validation if we're currently refreshing after save (prevents unnecessary API calls)
     // This is critical - when fetchData updates assets state, AG Grid may trigger this event
@@ -1045,32 +1065,36 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               const dbId = String(asset.asset_id);
               const errorMessage = (result.errors || []).join('; ');
               newValidationErrors.set(dbId, errorMessage);
-              console.log('[AssetsList] Adding validation error for asset:', {
-                assetId: dbId,
-                errorMessage,
-                resultAssetId: result.assetId,
-                resultAssetIdentifier: result.assetIdentifier
-              });
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[AssetsList] Adding validation error for asset:', {
+                  assetId: dbId,
+                  errorMessage,
+                  resultAssetId: result.assetId,
+                  resultAssetIdentifier: result.assetIdentifier
+                });
+              }
             } else {
-              console.warn('[AssetsList] Could not find asset for validation result:', {
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('[AssetsList] Could not find asset for validation result:', {
                 resultAssetId: result.assetId,
                 resultAssetIdentifier: result.assetIdentifier,
                 availableAssetIds: assetsWithChanges.map(a => a.asset_id)
-              });
+                });
+              }
             }
           }
         }
         // Set validation errors and ensure they're visible
-        // Use functional update to ensure we're working with latest state
         setValidationErrors(() => newValidationErrors);
         
-        // Log for debugging
-        console.log('[AssetsList] Validation errors set in runValidationProgrammatically:', {
-          errorCount: newValidationErrors.size,
-          errorAssetIds: Array.from(newValidationErrors.keys()),
-          totalAssets: assetsWithChanges.length,
-          sampleErrors: Array.from(newValidationErrors.entries()).slice(0, 3)
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AssetsList] Validation errors set in runValidationProgrammatically:', {
+            errorCount: newValidationErrors.size,
+            errorAssetIds: Array.from(newValidationErrors.keys()),
+            totalAssets: assetsWithChanges.length,
+            sampleErrors: Array.from(newValidationErrors.entries()).slice(0, 3)
+          });
+        }
 
         return {
           hasErrors: true,
@@ -1436,10 +1460,12 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         requestAnimationFrame(() => {
           setTimeout(() => {
             if (gridRef.current?.api) {
-              console.log('[AssetsList] Refreshing grid after validation errors:', {
-                validationErrorsSize: validationErrors.size,
-                errorAssetIds: Array.from(validationErrors.keys())
-              });
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[AssetsList] Refreshing grid after validation errors:', {
+                  validationErrorsSize: validationErrors.size,
+                  errorAssetIds: Array.from(validationErrors.keys())
+                });
+              }
               
               // Force full grid refresh to show validation errors on rows
               gridRef.current.api.refreshCells({ force: true });
@@ -1449,7 +1475,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               setTimeout(() => {
                 if (gridRef.current?.api && validationErrors.size > 0) {
                   const firstErrorAssetId = Array.from(validationErrors.keys())[0];
-                  console.log('[AssetsList] Scrolling to first error row:', firstErrorAssetId);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[AssetsList] Scrolling to first error row:', firstErrorAssetId);
+                  }
                   gridRef.current.api.forEachNode(node => {
                     const assetId = String(node.data?.asset_id);
                     if (assetId === firstErrorAssetId) {
@@ -1767,12 +1795,14 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             // Update building state immediately (synchronous state update)
             setBuilding(updatedBuilding);
 
-            console.log('[AssetsList] Updated building flags after distribution save:', {
-              distributionType,
-              need_business_distribution: updatedBuilding.need_business_distribution,
-              need_residence_distribution: updatedBuilding.need_residence_distribution,
-              overload_ratio: updatedBuilding.overload_ratio
-            });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[AssetsList] Updated building flags after distribution save:', {
+                distributionType,
+                need_business_distribution: updatedBuilding.need_business_distribution,
+                need_residence_distribution: updatedBuilding.need_residence_distribution,
+                overload_ratio: updatedBuilding.overload_ratio
+              });
+            }
           }
           
           // Update distribution history counter after successful distribution save (async, don't wait)
@@ -1898,38 +1928,38 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
       
-      // Refresh building data if distribution flags might have changed
-      if (shouldRefreshBuildingFlags && buildingNumber) {
-        try {
-          const updatedBuilding = await api.buildings.getOne(buildingNumber);
-          setBuilding(updatedBuilding);
-          console.log('[AssetsList] Refreshed building data after asset save to update distribution flags:', {
-            need_business_distribution: updatedBuilding.need_business_distribution,
-            need_residence_distribution: updatedBuilding.need_residence_distribution
-          });
-        } catch (err) {
-          console.warn('[AssetsList] Error refreshing building data after asset save:', err);
-          // Don't fail the save operation if building refresh fails
-        }
-      }
-      
-      // Refresh assets data from server to update grid after successful deletions and saves
-      // Skip building fetch since we already have updated building data locally (with cleared flags)
-      // Only fetch assets, not building, to avoid overwriting our flag updates
-      // DON'T set loading=true here to avoid full tab refresh appearance - update data silently
+      // Refresh building and/or assets data from server (parallel when both needed for performance)
+      const needBuilding = shouldRefreshBuildingFlags && buildingNumber;
       try {
-        // Fetch data silently without showing loading overlay
-        const assetsData = await api.assets.getAll(buildingNumber);
+        let assetsData: Asset[] | null = null;
+        if (needBuilding) {
+          const [updatedBuilding, assets] = await Promise.all([
+            api.buildings.getOne(buildingNumber),
+            api.assets.getAll(buildingNumber)
+          ]);
+          setBuilding(updatedBuilding);
+          assetsData = assets;
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AssetsList] Refreshed building data after asset save to update distribution flags:', {
+              need_business_distribution: updatedBuilding.need_business_distribution,
+              need_residence_distribution: updatedBuilding.need_residence_distribution
+            });
+          }
+        } else {
+          assetsData = await api.assets.getAll(buildingNumber);
+        }
+        
+        if (assetsData == null) assetsData = [];
         
         // Filter by tax region if needed (same logic as fetchData)
-        let filteredAssets = assetsData || [];
+        let filteredAssets = assetsData;
         const selectedAssetIdsSet = selectedAssetIds && selectedAssetIds.length > 0 
           ? new Set(selectedAssetIds.map(id => String(id)))
           : null;
         
         if (taxRegion && taxRegion.trim() !== '') {
           const taxRegionNum = parseInt(taxRegion.trim(), 10);
-          filteredAssets = (assetsData || []).filter(asset => {
+          filteredAssets = assetsData.filter(asset => {
             if (selectedAssetIdsSet && selectedAssetIdsSet.has(String(asset.asset_id))) {
               return true;
             }
@@ -4649,7 +4679,9 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                         console.warn('[AssetsList] taxRegion contains comma, extracting first value:', taxRegion);
                         taxRegionToPass = taxRegion.split(',')[0].trim();
                       }
-                      console.log('[AssetsList] Opening new asset with:', { buildingNumber, taxRegion: taxRegionToPass, originalTaxRegion: taxRegion });
+                      if (process.env.NODE_ENV === 'development') {
+                        console.log('[AssetsList] Opening new asset with:', { buildingNumber, taxRegion: taxRegionToPass, originalTaxRegion: taxRegion });
+                      }
                       onOpenNewAsset(buildingNumber, taxRegionToPass);
                     } else {
                       addEmptyRow();
@@ -4895,26 +4927,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             ref={gridRef}
             rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
-            getRowStyle={(params) => {
-              if (!params.data) return null;
-              const assetId = String(params.data.asset_id);
-              
-              // Check for deleted assets first
-              if (deletedAssets.has(assetId)) {
-                return { backgroundColor: '#fee2e2', opacity: 0.7 }; // Light red for deleted
-              }
-              
-              // Check for validation errors - ensure we're checking the current state
-              if (validationErrors.has(assetId)) {
-                return { 
-                  backgroundColor: '#fee2e2', 
-                  border: '3px solid #ef4444',
-                  borderRadius: '4px'
-                }; // Light red background with red border for validation errors (matches other components)
-              }
-              
-              return null;
-            }}
+            getRowStyle={getRowStyle}
             defaultColDef={{
               resizable: false, // Disabled - use field configurations instead
               wrapHeaderText: true,
@@ -4931,6 +4944,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
+              rowBuffer: 10,
+              debounceVerticalScrollbar: true,
             }}
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}
@@ -5074,26 +5089,22 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
           // Capture the selected asset IDs that were passed to the modal to avoid stale closures
           const savedAssetIds = Array.from(selectedAssets);
           
-          console.log('[AssetsList] Clearing dirty bits after tax region change:', {
-            savedAssetIds,
-            dirtyAssetsSizeBefore: dirtyAssets.size,
-            dirtyAssetIdsBefore: Array.from(dirtyAssets.keys())
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AssetsList] Clearing dirty bits after tax region change:', {
+              savedAssetIds,
+              dirtyAssetsSizeBefore: dirtyAssets.size,
+              dirtyAssetIdsBefore: Array.from(dirtyAssets.keys())
+            });
+          }
           
           setDirtyAssets(prev => {
             const next = new Map(prev);
-            let clearedCount = 0;
             for (const assetId of savedAssetIds) {
-              const assetIdStr = String(assetId);
-              if (next.delete(assetIdStr)) {
-                clearedCount++;
-              }
+              next.delete(String(assetId));
             }
-            console.log('[AssetsList] Cleared dirty bits:', { 
-              clearedCount, 
-              remainingSize: next.size,
-              remainingIds: Array.from(next.keys())
-            });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[AssetsList] Cleared dirty bits:', { remainingSize: next.size, remainingIds: Array.from(next.keys()) });
+            }
             return next;
           });
           

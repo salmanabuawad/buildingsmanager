@@ -72,15 +72,6 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
   const [uploadProgress, setUploadProgress] = useState<{ assetId: number; progress: number; fileName: string } | null>(null);
   const [uploadingAssetId, setUploadingAssetId] = useState<number | null>(null);
 
-  // Set busy cursor during file upload
-  useEffect(() => {
-    if (uploadProgress) {
-      document.body.style.cursor = 'wait';
-      return () => {
-        document.body.style.cursor = '';
-      };
-    }
-  }, [uploadProgress]);
   const [isRowEditModalOpen, setIsRowEditModalOpen] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<Asset | null>(null);
   const [assetFilesModalOpen, setAssetFilesModalOpen] = useState(false);
@@ -3436,6 +3427,21 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
         singleAssetTitle={asset ? `אימות נכס ${asset.asset_id}` : undefined}
         assetId={asset?.asset_id}
       />
+
+      {/* Loading overlay modal for file upload */}
+      {uploadProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" style={{ cursor: 'wait' }}>
+          <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[200px]">
+            <Loader2 className="h-12 w-12 text-teal-600 animate-spin" />
+            <p className="text-slate-700 font-medium text-lg">{t('uploading') || 'מעלה קובץ...'}</p>
+            <p className="text-slate-500 text-sm truncate max-w-[280px]" title={uploadProgress.fileName}>{uploadProgress.fileName}</p>
+            <div className="w-full max-w-[200px] h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-full bg-teal-600 transition-all duration-300" style={{ width: `${uploadProgress.progress}%` }} />
+            </div>
+            <p className="text-slate-500 text-xs">{Math.round(uploadProgress.progress)}%</p>
+          </div>
+        </div>
+      )}
 
       {/* Measurement Date Modal */}
       {measurementDateModalOpen && (

@@ -3869,17 +3869,18 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 )}
                 <input
                   type="file"
+                  multiple
                   ref={(el) => {
                     if (el) fileInputRefs.current.set(assetId, el);
                   }}
                   className="hidden"
                   accept="image/*,.pdf,.dwg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleFileUpload(asset.asset_id, file);
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files?.length) return;
+                    for (let i = 0; i < files.length; i++) {
+                      await handleFileUpload(asset.asset_id, files[i]);
                     }
-                    // Reset input
                     if (fileInputRefs.current.has(assetId)) {
                       fileInputRefs.current.get(assetId)!.value = '';
                     }

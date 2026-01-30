@@ -1993,14 +1993,16 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               <Upload className="h-5 w-5" />
               <input
                 type="file"
+                multiple
                 className="hidden"
                 accept="*/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file && asset.asset_id) {
-                    handleFileUpload(asset.asset_id, file);
-                    e.target.value = '';
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files?.length || !asset.asset_id) return;
+                  for (let i = 0; i < files.length; i++) {
+                    await handleFileUpload(asset.asset_id, files[i]);
                   }
+                  e.target.value = '';
                 }}
                 disabled={uploadingAssetId === asset.asset_id}
               />

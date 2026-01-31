@@ -1741,9 +1741,7 @@ function App() {
             )}
             {activeTab?.type === 'measured-not-exported-assets' && (
               <MeasuredNotExportedAssets
-                onSelectAsset={(assetId, assetIdentifier, buildingNumber, taxRegion) => {
-                  handleOpenNewAsset(buildingNumber, taxRegion);
-                }}
+                onSelectAsset={handleSelectAsset}
               />
             )}
             {activeTab?.type === 'measurement-progress-dashboard' && (

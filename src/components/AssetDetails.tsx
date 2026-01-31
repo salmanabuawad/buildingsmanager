@@ -2759,7 +2759,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
               direction: 'rtl', 
               width: '100%', 
               paddingRight: hasValue ? '4px' : '0', 
-              cursor: isEditable ? 'pointer' : 'default', 
+              cursor: 'default', 
               height: '100%' 
             }}
             onClick={(e) => {

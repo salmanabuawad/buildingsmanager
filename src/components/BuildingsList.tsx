@@ -992,6 +992,23 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     const normNew = normalizeQuick(newValue);
     const valuesAreSame = normOld === normNew || (normOld == null && normNew == null);
     
+    // CRITICAL: If user didn't interact and values are the same, skip entirely
+    // This prevents dirty state from being set when just clicking a cell without editing
+    if (userInteracted === false && valuesAreSame && !isNew) {
+      console.log('[onCellValueChanged] User did not interact and value unchanged - skipping:', {
+        field,
+        cellKey,
+        oldValue,
+        newValue,
+        normOld,
+        normNew,
+        userInteracted
+      });
+      cellEditStartValues.current.delete(cellKey);
+      cellEditUserInteracted.current.delete(cellKey);
+      return; // EARLY RETURN - don't mark dirty, don't update state
+    }
+    
     // For numeric fields: normalize zero/null/empty to 0 for comparison
     const normalizeNumericForCompare = (val: any): number | null => {
       if (val == null || val === '' || val === undefined) return 0;
@@ -2908,7 +2925,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 textDecoration: 'underline',
                 textDecorationColor: '#10b981',
                 textUnderlineOffset: '2px',
-                cursor: 'pointer',
+                cursor: 'default',
                 transition: 'all 0.2s ease'
               }}
               className="hover:text-emerald-700 hover:decoration-emerald-600"
@@ -2926,7 +2943,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
         if (building && !isNewBuilding(building)) {
           return {
             ...baseStyle,
-            cursor: 'pointer',
+            cursor: 'default',
             color: '#059669',
             fontWeight: '600',
             textDecoration: 'underline',

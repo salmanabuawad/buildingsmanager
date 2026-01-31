@@ -3513,7 +3513,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               direction: 'rtl', 
               width: '100%', 
               paddingRight: hasValue ? '4px' : '0', 
-              cursor: isEditable ? 'pointer' : 'default', 
+              cursor: 'default', 
               height: '100%' 
             }}
             onClick={(e) => {
@@ -3920,7 +3920,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         if (asset && !newAssets.has(String(asset.asset_id))) {
           return {
             ...baseStyle,
-            cursor: 'pointer',
+            cursor: 'default',
             color: '#059669',
             fontWeight: '600',
             textDecoration: 'underline',
@@ -3945,7 +3945,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
                 textDecoration: 'underline',
                 textDecorationColor: '#10b981',
                 textUnderlineOffset: '2px',
-                cursor: 'pointer',
+                cursor: 'default',
                 transition: 'all 0.2s ease'
               }}
               className="hover:text-emerald-700 hover:decoration-emerald-600"
@@ -4095,7 +4095,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
               direction: 'rtl', 
               width: '100%', 
               paddingRight: hasValue ? '4px' : '0', 
-              cursor: isEditable ? 'pointer' : 'default', 
+              cursor: 'default', 
               height: '100%' 
             }}
             onClick={(e) => {

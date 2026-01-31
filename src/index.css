@@ -151,6 +151,17 @@ input[type="number"] {
   white-space: nowrap !important;
   line-height: 1.5 !important;
   text-overflow: clip !important; /* Use clip instead of ellipsis */
+  cursor: default !important; /* Don't show pointer cursor on cells */
+  outline: none !important; /* Remove focus outline */
+}
+
+/* Remove focus outline from AG Grid cells */
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:focus-visible,
+.ag-theme-alpine .ag-cell:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* Chrome-style fade effect for cell content - only when text overflows */
@@ -352,8 +363,8 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Better focus styles */
-*:focus-visible {
+/* Better focus styles - exclude AG Grid cells */
+*:focus-visible:not(.ag-cell):not(.ag-cell *) {
   outline: 2px solid #0d9488;
   outline-offset: 2px;
 }

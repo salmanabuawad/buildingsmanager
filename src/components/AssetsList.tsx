@@ -92,6 +92,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
   const recentlySavedAssetsRef = useRef<Set<string>>(new Set());
+  // Track cell values when editing starts - only mark dirty if value actually changed during edit
+  const cellEditStartValues = useRef<Map<string, any>>(new Map());
+  // Track if user actually interacted with the editor (typed, selected, etc.) - not just clicked
+  const cellEditUserInteracted = useRef<Map<string, boolean>>(new Map());
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
@@ -825,7 +829,13 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       const { data, colDef } = event;
       const field = colDef.field;
       const assetId = String(data.asset_id);
+      const isNew = newAssets.has(assetId);
+      const oldValue = event.oldValue;
       let newValue = event.newValue;
+      
+      const cellKey = `${assetId}_${field}`;
+      const editStartValue = cellEditStartValues.current.get(cellKey);
+      const userInteracted = cellEditUserInteracted.current.get(cellKey);
 
       // Normalize empty values: set to null for strings, 0 for numbers
       if (newValue === '' || newValue === null || newValue === undefined) {
@@ -841,6 +851,48 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         } else {
           newValue = null;
         }
+      }
+
+      // Quick normalization for comparison
+      const normalizeQuick = (val: any): any => {
+        if (val == null || val === '') {
+          const isNumericField = colDef.type === 'numericColumn' || 
+            field === 'asset_size' || 
+            field?.startsWith('sub_asset_size_') || 
+            field === 'floor' || 
+            field === 'tax_region';
+          return isNumericField ? 0 : null;
+        }
+        if (typeof val === 'string') return val.trim() || null;
+        if (typeof val === 'number') return isNaN(val) ? null : val;
+        return val;
+      };
+      
+      const normOld = normalizeQuick(oldValue);
+      const normNew = normalizeQuick(newValue);
+      const valuesAreSame = normOld === normNew || (normOld == null && normNew == null);
+      
+      // CRITICAL: If user didn't interact and values are the same, skip entirely
+      // This prevents dirty state from being set when just clicking a cell without editing
+      if (userInteracted === false && valuesAreSame && !isNew) {
+        console.log('[AssetsList.onCellValueChanged] User did not interact and value unchanged - skipping:', {
+          field,
+          cellKey,
+          oldValue,
+          newValue,
+          normOld,
+          normNew,
+          userInteracted
+        });
+        cellEditStartValues.current.delete(cellKey);
+        cellEditUserInteracted.current.delete(cellKey);
+        return; // EARLY RETURN - don't mark dirty, don't update state
+      }
+      
+      // If onCellValueChanged is called AND values are different, mark as interacted
+      // This means the user actually typed something that changed the value
+      if (!valuesAreSame && editStartValue !== undefined) {
+        cellEditUserInteracted.current.set(cellKey, true);
       }
 
       // Create updated asset with new value
@@ -872,18 +924,41 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         }
       }
 
-      // Track the change in dirtyAssets immediately (no debounce)
-      setDirtyAssets(prev => {
-        const newMap = new Map(prev);
-        const existing = newMap.get(assetId) || {};
-        const changesToStore = { ...existing, [field]: newValue };
-        // Also include business_distribution_area change if it was set to 0
-        if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
-          changesToStore.business_distribution_area = updatedAsset.business_distribution_area;
-        }
-        newMap.set(assetId, changesToStore);
-        return newMap;
-      });
+      // Only mark as dirty if value actually changed (or if it's a new asset with a value)
+      const shouldMarkAsDirty = isNew 
+        ? (newValue != null && newValue !== '') // New assets: mark if has value
+        : !valuesAreSame; // Existing assets: mark only if changed
+      
+      if (shouldMarkAsDirty) {
+        // Track the change in dirtyAssets immediately (no debounce)
+        setDirtyAssets(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(assetId) || {};
+          const changesToStore = { ...existing, [field]: newValue };
+          // Also include business_distribution_area change if it was set to 0
+          if (updatedAsset.business_distribution_area !== data.business_distribution_area) {
+            changesToStore.business_distribution_area = updatedAsset.business_distribution_area;
+          }
+          newMap.set(assetId, changesToStore);
+          return newMap;
+        });
+      } else {
+        // Value didn't change, remove from dirty if it was there
+        setDirtyAssets(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(assetId) || {};
+          if (Object.keys(existing).length > 0) {
+            const updated = { ...existing };
+            delete updated[field as keyof Asset];
+            if (Object.keys(updated).length > 0) {
+              newMap.set(assetId, updated);
+            } else {
+              newMap.delete(assetId);
+            }
+          }
+          return newMap;
+        });
+      }
 
       // Update the assets state immediately (no debounce)
       setAssets(prevAssets =>
@@ -910,7 +985,51 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       setError('Failed to track change');
       setTimeout(() => setError(null), 3000);
     }
-  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion]);
+  }, [validationTaxRegion, assetTypes, building, setAssets, taxRegion, newAssets, originalAssets]);
+
+  // Track when cell editing starts - store initial value
+  const onCellEditingStarted = useCallback((event: any) => {
+    if (!event || !event.data || !event.colDef) return;
+    
+    const field = event.colDef?.field;
+    const asset = event.data as Asset;
+    if (!field || !asset) return;
+    
+    const assetId = String(asset.asset_id);
+    const cellKey = `${assetId}_${field}`;
+    
+    // Check if this is a numeric field
+    const isNumericField = event.colDef?.type === 'numericColumn' ||
+      field === 'asset_size' || 
+      field?.startsWith('sub_asset_size_') || 
+      field === 'floor' || 
+      field === 'tax_region';
+    
+    // Get initial value from the asset data
+    let initialValue = (asset as any)[field];
+    
+    // Normalize initial value for numeric fields - treat null/undefined/empty as 0
+    if (isNumericField) {
+      if (initialValue == null || initialValue === '' || initialValue === undefined) {
+        initialValue = 0;
+      } else {
+        const num = Number(initialValue);
+        initialValue = isNaN(num) ? 0 : num;
+      }
+    }
+    
+    // Store initial value and mark that editing started (but user hasn't interacted yet)
+    cellEditStartValues.current.set(cellKey, initialValue);
+    cellEditUserInteracted.current.set(cellKey, false); // User hasn't interacted yet
+    
+    console.log('[AssetsList.onCellEditingStarted] Tracking edit start:', {
+      cellKey,
+      field,
+      initialValue,
+      isNumericField,
+      userInteracted: false
+    });
+  }, []);
 
   // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty. onCellValueChanged may not
   // fire when parsed value equals current (e.g. 0→0). onCellEditingStopped always fires when edit ends.
@@ -920,6 +1039,11 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
     const field = colDef?.field ?? column?.getColDef?.()?.field;
     if (!data?.asset_id || !field) return;
     const assetId = String(data.asset_id);
+    const isNew = newAssets.has(assetId);
+    const cellKey = `${assetId}_${field}`;
+    const editStartValue = cellEditStartValues.current.get(cellKey);
+    const userInteracted = cellEditUserInteracted.current.get(cellKey);
+    
     let newValue = event.newValue ?? event.node?.data?.[field];
     if (newValue === '' || newValue === null || newValue === undefined) {
       const isNumericField = colDef?.type === 'numericColumn' ||
@@ -927,18 +1051,72 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         field === 'floor' || field === 'tax_region';
       newValue = isNumericField ? 0 : null;
     }
-    setDirtyAssets(prev => {
-      const next = new Map(prev);
-      const existing = next.get(assetId) || {};
-      next.set(assetId, { ...existing, [field]: newValue });
-      return next;
-    });
-    setAssets(prev => prev.map(a =>
-      String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
-    ));
-    setIsValidatedForSave(false);
-    setValidationErrors(new Map());
-  }, []);
+    
+    // Normalize for comparison
+    const normalizeForCompare = (val: any): any => {
+      if (val == null || val === '') {
+        const isNumericField = colDef?.type === 'numericColumn' ||
+          field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
+          field === 'floor' || field === 'tax_region';
+        return isNumericField ? 0 : null;
+      }
+      if (typeof val === 'number') return isNaN(val) ? null : val;
+      if (typeof val === 'string') return val.trim() || null;
+      return val;
+    };
+    
+    const normalizedNewValue = normalizeForCompare(newValue);
+    const normalizedStartValue = normalizeForCompare(editStartValue);
+    
+    // If we have a tracked start value, compare with it
+    let valueChanged = false;
+    if (editStartValue !== undefined) {
+      valueChanged = normalizedNewValue !== normalizedStartValue;
+    } else {
+      // Fallback: compare with original asset value
+      const originalAsset = !isNew ? originalAssets.find(a => String(a.asset_id) === assetId) : null;
+      const originalValue = originalAsset ? (originalAsset as any)[field] : undefined;
+      let normalizedOriginalValue = normalizeForCompare(originalValue);
+      valueChanged = normalizedNewValue !== normalizedOriginalValue;
+    }
+    
+    // CRITICAL: If user didn't interact (just clicked without typing) OR value didn't change, skip entirely
+    if (!isNew && (userInteracted === false || !valueChanged)) {
+      console.log('[AssetsList.onCellEditingStopped] Skipping - user did not interact or value unchanged:', {
+        field,
+        cellKey,
+        userInteracted,
+        valueChanged,
+        editStartValue,
+        newValue,
+        normalizedStartValue,
+        normalizedNewValue
+      });
+      // Clean up tracking
+      cellEditStartValues.current.delete(cellKey);
+      cellEditUserInteracted.current.delete(cellKey);
+      return; // EARLY RETURN - don't mark dirty, don't update state
+    }
+    
+    // Clean up tracking
+    cellEditStartValues.current.delete(cellKey);
+    cellEditUserInteracted.current.delete(cellKey);
+    
+    // Only update if value changed (or if it's a new asset)
+    if (isNew || valueChanged) {
+      setDirtyAssets(prev => {
+        const next = new Map(prev);
+        const existing = next.get(assetId) || {};
+        next.set(assetId, { ...existing, [field]: newValue });
+        return next;
+      });
+      setAssets(prev => prev.map(a =>
+        String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
+      ));
+      setIsValidatedForSave(false);
+      setValidationErrors(new Map());
+    }
+  }, [newAssets, originalAssets]);
 
   // Helper function to run validation programmatically (without modal)
   async function runValidationProgrammatically(): Promise<{ hasErrors: boolean; errorMessage?: string }> {
@@ -4957,6 +5135,7 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
             getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
             onCellEditingStopped={onCellEditingStopped}
+            onCellEditingStarted={onCellEditingStarted}
             onGridReady={async (params) => {
               // Load saved column state first
               await gridPreferences.loadColumnState(params.api);

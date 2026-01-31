@@ -1009,6 +1009,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       return; // EARLY RETURN - don't mark dirty, don't update state
     }
     
+    // If onCellValueChanged is called AND values are different, mark as interacted
+    // This means the user actually typed something that changed the value
+    if (!valuesAreSame && editStartValue !== undefined) {
+      cellEditUserInteracted.current.set(cellKey, true);
+    }
+    
     // For numeric fields: normalize zero/null/empty to 0 for comparison
     const normalizeNumericForCompare = (val: any): number | null => {
       if (val == null || val === '' || val === undefined) return 0;
@@ -1610,6 +1616,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     // Check if value changed from when editing started (most reliable check)
     const cellKey = `${buildingKey}_${field}`;
     const editStartValue = cellEditStartValues.current.get(cellKey);
+    const userInteracted = cellEditUserInteracted.current.get(cellKey);
     
     // Normalize for comparison
     const normalizeForCompare = (val: any): any => {
@@ -1626,8 +1633,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
     let valueChanged = false;
     if (editStartValue !== undefined) {
       valueChanged = normalizedNewValue !== normalizedStartValue;
-      // Clean up tracking
-      cellEditStartValues.current.delete(cellKey);
     } else {
       // Fallback: compare with original building value
       const originalBuilding = !isNew ? originalBuildings.find(b => getBuildingKey(b) === buildingKey) : null;
@@ -1635,6 +1640,28 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
       let normalizedOriginalValue = normalizeForCompare(originalValue);
       valueChanged = normalizedNewValue !== normalizedOriginalValue;
     }
+    
+    // CRITICAL: If user didn't interact (just clicked without typing) OR value didn't change, skip entirely
+    if (!isNew && (userInteracted === false || !valueChanged)) {
+      console.log('[onCellEditingStopped] Skipping - user did not interact or value unchanged:', {
+        field,
+        cellKey,
+        userInteracted,
+        valueChanged,
+        editStartValue,
+        newValue,
+        normalizedStartValue,
+        normalizedNewValue
+      });
+      // Clean up tracking
+      cellEditStartValues.current.delete(cellKey);
+      cellEditUserInteracted.current.delete(cellKey);
+      return; // EARLY RETURN - don't mark dirty, don't update state
+    }
+    
+    // Clean up tracking
+    cellEditStartValues.current.delete(cellKey);
+    cellEditUserInteracted.current.delete(cellKey);
     
     // Only update if value changed (or if it's a new building)
     if (isNew || valueChanged) {

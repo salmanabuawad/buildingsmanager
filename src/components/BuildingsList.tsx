@@ -3676,19 +3676,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
               <Download className="h-4 w-4" />
               ייצא ל-Excel
             </button>
-            <button
-              type="button"
-              onClick={handleExportToAutomation}
-              disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
-            </button>
           </div>
           {!isReadOnly && (
             <div className="flex gap-2">

@@ -14,6 +14,10 @@ import { useFieldConfig } from '../lib/useFieldConfig';
 import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
+import { supabase } from '../lib/supabase';
+import { getAssetTypes } from '../lib/validation';
+import { createExcelBlob } from '../lib/excelExport';
+import { createAndDownloadZip } from '../lib/zipExport';
 
 interface MeasuredNotExportedAssetsProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
@@ -28,6 +32,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
+  const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
   // Grid preferences hook for saving/loading column state
@@ -93,9 +98,36 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     }
   }, []);
 
+  // Fetch export to automation count
+  const fetchExportToAutomationCount = useCallback(async () => {
+    try {
+      const result = await api.assets.getExportToAutomationCount();
+      if (result.success) {
+        console.log('[MeasuredNotExportedAssets] Refreshed export count:', result.count);
+        setExportToAutomationCount(result.count);
+      }
+    } catch (err) {
+      console.error('Error fetching export to automation count:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
+    fetchExportToAutomationCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData]);
+
+  // Listen for exportToAutomationSuccess event to refresh count
+  useEffect(() => {
+    const handleExportSuccess = () => {
+      fetchExportToAutomationCount();
+    };
+    
+    window.addEventListener('exportToAutomationSuccess', handleExportSuccess);
+    return () => {
+      window.removeEventListener('exportToAutomationSuccess', handleExportSuccess);
+    };
+  }, [fetchExportToAutomationCount]);
 
   // Refetch "נכסים שנמדדו ולא נשלחו לעירייה" after reset exported to automation
   useEffect(() => {
@@ -542,6 +574,354 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   // Apply field configurations to column definitions
   const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');
 
+  // Export assets to automation system
+  const handleExportToAutomation = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Call API to export assets and mark them as exported
+      const result = await api.assets.exportToAutomation();
+
+      if (!result.success) {
+        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      if (result.count === 0) {
+        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        setExportToAutomationCount(0);
+        return;
+      }
+
+      // Fetch the exported assets to export them to Excel
+      // Use RPC function to avoid type mismatch issues with .in() operator
+      // Ensure assetIds are numbers (not strings) for the RPC call
+      const numericAssetIdsForQuery = result.assetIds
+        .map(id => {
+          if (typeof id === 'string') {
+            const parsed = parseInt(id, 10);
+            return isNaN(parsed) ? null : parsed;
+          }
+          return typeof id === 'number' ? id : Number(id);
+        })
+        .filter((id): id is number => id !== null && !isNaN(id) && id > 0);
+
+      if (numericAssetIdsForQuery.length === 0) {
+        setToast({ message: 'לא נמצאו נכסים לייצוא', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+        return;
+      }
+
+      // Call RPC function (POST request) instead of GET with .in() or .eq() to avoid type mismatch
+      const { data: exportedAssets, error: fetchError } = await supabase
+        .rpc('get_assets_by_ids', { p_asset_ids: numericAssetIdsForQuery });
+
+      if (fetchError) {
+        console.error('Error fetching exported assets:', fetchError);
+        setToast({ message: 'הנכסים סומנו כייצאו אך לא ניתן היה לייצא אותם לקובץ Excel', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      if (!exportedAssets || exportedAssets.length === 0) {
+        setToast({ message: `סומנו ${result.count} נכסים כייצאו בהצלחה`, type: 'success' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        setExportToAutomationCount(0);
+        return;
+      }
+
+      // Define headers for asset export - matching export_automatiom_sample.xlsx format
+      const headers = [
+        'זיהוי משלם',
+        'זיהוי נכס',
+        'תחילת שינוי',
+        'סוף שינוי',
+        'סוג נכס',
+        'גודל נכס',
+        'נכס משנה 1',
+        'גודל נכס משנה 1',
+        'נכס משנה 2',
+        'גודל נכס משנה 2',
+        'נכס משנה 3',
+        'גודל נכס משנה 3',
+        'נכס משנה 4',
+        'גודל נכס משנה 4',
+        'נכס משנה 5',
+        'גודל נכס משנה 5',
+        'נכס משנה 6',
+        'גודל נכס משנה 6',
+        'מנה',
+        'מקום גביה',
+        'מספר פקודה',
+        'שנת כספים',
+        'תאריך גביה',
+        'יום ערך'
+      ];
+
+      // Get asset types to determine business/residence type
+      const assetTypesData = getAssetTypes();
+      
+      // Helper function to calculate export asset size (asset_size + business_distribution_area for business assets)
+      const getExportAssetSize = (asset: any): number | string => {
+        const assetSize = asset.asset_size || 0;
+        
+        // Check if this is a business asset
+        if (asset.main_asset_type && assetTypesData.length > 0) {
+          const assetTypeName = String(asset.main_asset_type).trim();
+          
+          // Try string lookup first
+          let assetType = assetTypesData.find((at: any) => {
+            const atName = String(at.name || '').trim();
+            return atName === assetTypeName;
+          });
+          
+          // If not found, try numeric comparison
+          if (!assetType) {
+            const assetTypeNum = parseInt(assetTypeName, 10);
+            if (!isNaN(assetTypeNum)) {
+              assetType = assetTypesData.find((at: any) => {
+                const atName = String(at.name || '').trim();
+                const atNameNum = parseInt(atName, 10);
+                return !isNaN(atNameNum) && atNameNum === assetTypeNum;
+              });
+            }
+          }
+          
+          // If it's a business asset, add business_distribution_area to asset_size
+          if (assetType?.business_residence === 'עסקים') {
+            const areaFromDistribution = asset.business_distribution_area || 0;
+            return assetSize + areaFromDistribution;
+          }
+        }
+        
+        // For non-business assets, return asset_size as is
+        return assetSize || '';
+      };
+
+      // Convert assets to rows - matching sample file format and column order
+      const rows = exportedAssets.map(asset => [
+        asset.payer_id || '',                                    // זיהוי משלם
+        asset.asset_id != null ? String(asset.asset_id) : '',   // זיהוי נכס (convert to string)
+        formatDateToDDMMYYYY(asset.discount_date_from) || '',  // תחילת שינוי
+        formatDateToDDMMYYYY(asset.discount_date_to) || '',    // סוף שינוי
+        asset.main_asset_type || '',                             // סוג נכס
+        getExportAssetSize(asset),                               // גודל נכס (asset_size + business_distribution_area for business)
+        asset.sub_asset_type_1 || '',                            // נכס משנה 1
+        asset.sub_asset_size_1 || '',                            // גודל נכס משנה 1
+        asset.sub_asset_type_2 || '',                            // נכס משנה 2
+        asset.sub_asset_size_2 || '',                            // גודל נכס משנה 2
+        asset.sub_asset_type_3 || '',                            // נכס משנה 3
+        asset.sub_asset_size_3 || '',                            // גודל נכס משנה 3
+        asset.sub_asset_type_4 || '',                            // נכס משנה 4
+        asset.sub_asset_size_4 || '',                            // גודל נכס משנה 4
+        asset.sub_asset_type_5 || '',                            // נכס משנה 5
+        asset.sub_asset_size_5 || '',                            // גודל נכס משנה 5
+        asset.sub_asset_type_6 || '',                            // סוג נכס משני 6
+        asset.sub_asset_size_6 || '',                            // גודל נכסי משני 6
+        '',                                                      // מנה (empty in sample)
+        '',                                                      // מקום גביה (empty in sample)
+        '',                                                      // מספר פקודה (empty in sample)
+        '',                                                      // שנת כספים (empty in sample)
+        '',                                                      // תאריך גביה (empty in sample)
+        ''                                                       // יום ערך (empty in sample)
+      ]);
+
+      // Create data array with headers and rows
+      const data = [headers, ...rows];
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+      const excelFilename = `שליחת_נתונים_${dateStr}.xlsx`;
+
+      // Create main Excel file as Blob (for ZIP)
+      const mainExcelBlob = createExcelBlob({
+        filename: excelFilename,
+        sheetName: 'נכסים',
+        data,
+        columnWidths: [
+          { wch: 15 }, // זיהוי משלם
+          { wch: 15 }, // זיהוי נכס
+          { wch: 20 }, // תחילת שינוי
+          { wch: 20 }, // סוף שינוי
+          { wch: 12 }, // סוג נכס
+          { wch: 12 }, // גודל נכס
+          { wch: 15 }, // נכס משנה 1
+          { wch: 15 }, // גודל נכס משנה 1
+          { wch: 15 }, // נכס משנה 2
+          { wch: 15 }, // גודל נכס משנה 2
+          { wch: 15 }, // נכס משנה 3
+          { wch: 15 }, // גודל נכס משנה 3
+          { wch: 15 }, // נכס משנה 4
+          { wch: 15 }, // גודל נכס משנה 4
+          { wch: 15 }, // נכס משנה 5
+          { wch: 15 }, // גודל נכס משנה 5
+          { wch: 15 }, // נכס משנה 6
+          { wch: 15 }, // גודל נכס משנה 6
+          { wch: 10 }, // מנה
+          { wch: 12 }, // מקום גביה
+          { wch: 12 }, // מספר פקודה
+          { wch: 12 }, // שנת כספים
+          { wch: 15 }, // תאריך גביה
+          { wch: 15 }  // יום ערך
+        ]
+      });
+
+      // Get all files for exported assets
+      // Ensure assetIds are numbers (not strings)
+      const numericAssetIdsForFiles = result.assetIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+      const filesByAsset = await api.assets.files.getAllBulk(numericAssetIdsForFiles);
+      
+      // Create a map of asset_id to asset data for lookup
+      // Ensure asset_id is converted to number for consistent key matching
+      const assetMap = new Map<number, any>();
+      exportedAssets.forEach(asset => {
+        const assetId = typeof asset.asset_id === 'string' ? parseInt(asset.asset_id, 10) : Number(asset.asset_id);
+        if (!isNaN(assetId) && assetId > 0) {
+          assetMap.set(assetId, asset);
+        }
+      });
+      
+      // Prepare file list data for Excel: asset_id, payer_id, file_name
+      const fileListData: any[][] = [
+        ['מזהה נכס', 'מזהה משלם', 'שם קובץ']
+      ];
+      
+      // Prepare files array for ZIP
+      const zipFiles: Array<{ filename: string; data: Blob }> = [];
+      
+      // Add main Excel file to ZIP
+      zipFiles.push({
+        filename: excelFilename,
+        data: mainExcelBlob
+      });
+      
+      // Build file list and download asset files
+      for (const [assetId, files] of filesByAsset.entries()) {
+        if (!files || files.length === 0) continue;
+        
+        const asset = assetMap.get(assetId);
+        const payerId = asset?.payer_id || '';
+        
+        for (const file of files) {
+          // Extract file name from URL if file_name is not available
+          let fileName = file.file_name;
+          if (!fileName && file.file_url) {
+            const urlParts = file.file_url.split('/');
+            fileName = urlParts[urlParts.length - 1].split('?')[0];
+          }
+          
+          // Add row to file list Excel: asset_id, payer_id, file_name
+          fileListData.push([
+            assetId,
+            payerId,
+            fileName || ''
+          ]);
+          
+          // Download file from storage and add to ZIP
+          try {
+            // Extract file path from URL
+            const urlParts = file.file_url.split('/');
+            const urlFileName = urlParts[urlParts.length - 1].split('?')[0];
+            
+            // Try to extract path from URL (format: .../structure-drawings/{assetId}/{filename})
+            let filePath = '';
+            const structureDrawingsIndex = file.file_url.indexOf('structure-drawings/');
+            if (structureDrawingsIndex !== -1) {
+              filePath = file.file_url.substring(structureDrawingsIndex + 'structure-drawings/'.length).split('?')[0];
+            } else {
+              // Fallback: construct path from assetId and filename
+              filePath = `${assetId}/${urlFileName}`;
+            }
+            
+            // Download file from storage
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from('structure-drawings')
+              .download(filePath);
+            
+            if (downloadError || !fileData) {
+              // Check for bucket not found error
+              if (downloadError?.message?.includes('Bucket not found') || downloadError?.statusCode === '404') {
+                console.error(
+                  'Storage bucket "structure-drawings" not found. ' +
+                  'Please create the bucket in Supabase Dashboard: Storage → New bucket → Name: "structure-drawings". ' +
+                  'See CREATE_STORAGE_BUCKETS.md for detailed instructions.'
+                );
+                // Show error to user
+                setToast({ message: 'Storage bucket "structure-drawings" not found. Please create it in Supabase Dashboard. See CREATE_STORAGE_BUCKETS.md for instructions.', type: 'error' });
+                setTimeout(() => setToast(null), 10000);
+                continue;
+              }
+              console.warn(`Error downloading file for asset ${assetId}:`, downloadError);
+              continue;
+            }
+            
+            // Add file to ZIP at root level with original filename
+            const zipFilePath = fileName || urlFileName;
+            zipFiles.push({
+              filename: zipFilePath,
+              data: fileData
+            });
+          } catch (err) {
+            console.warn(`Error processing file for asset ${assetId}:`, err);
+          }
+        }
+      }
+      
+      // Create file list Excel as Blob (for ZIP)
+      let fileListExcelBlob: Blob | null = null;
+      if (fileListData.length > 1) {
+        const fileListFilename = `רשימת_קבצים_${dateStr}.xlsx`;
+        fileListExcelBlob = createExcelBlob({
+          filename: fileListFilename,
+          sheetName: 'רשימת קבצים',
+          data: fileListData,
+          columnWidths: [
+            { wch: 15 }, // מזהה נכס
+            { wch: 15 }, // מזהה משלם
+            { wch: 30 }  // שם קובץ
+          ]
+        });
+        
+        // Add file list Excel to ZIP
+        zipFiles.push({
+          filename: fileListFilename,
+          data: fileListExcelBlob
+        });
+      }
+      
+      // Create and download ZIP file
+      const zipFilename = `שליחת_נתונים_${dateStr}.zip`;
+      await createAndDownloadZip(zipFilename, zipFiles);
+      
+      const filesCount = fileListData.length - 1; // Subtract header row
+      const successMessage = filesCount > 0 
+        ? `נשלחו ${result.count} נכסים לעירייה בהצלחה (כולל ${filesCount} קבצים בקובץ ZIP)`
+        : `נשלחו ${result.count} נכסים לעירייה בהצלחה`;
+      setToast({ message: successMessage, type: 'success' });
+      setTimeout(() => setToast(null), 5000);
+      // Refresh the count after export
+      await fetchExportToAutomationCount();
+      // Refresh the assets list
+      await fetchData();
+      // Notify App to update "איפוס שליחת נתונים מתאריך" span (cache was set by api.assets.exportToAutomation)
+      window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
+    } catch (error: any) {
+      console.error('Error exporting to automation:', error);
+      setToast({ message: error.message || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchExportToAutomationCount, fetchData]);
+
   // Export to Excel
   const handleExportToExcel = useCallback(async () => {
     try {
@@ -651,6 +1031,19 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           >
             <Download className="h-4 w-4" />
             ייצא ל-Excel
+          </button>
+          <button
+            type="button"
+            onClick={handleExportToAutomation}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
           </button>
         </div>
       </div>

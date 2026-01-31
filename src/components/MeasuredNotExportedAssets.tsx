@@ -1,13 +1,17 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Asset, Building, api } from '../lib/api';
+import { useTranslation } from 'react-i18next';
+import { Asset, Building, AssetType, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { Building as BuildingIcon, AlertCircle, Loader2, Download, RefreshCw } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, Loader2, Download, RefreshCw, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatDateToDDMMYYYY } from '../lib/dateUtils';
+import { numericValueParser, numericValueParserInt } from '../lib/numberUtils';
 import { useGridPreferences } from '../lib/useGridPreferences';
+import { useFieldConfig } from '../lib/useFieldConfig';
+import { processColumnHeader } from '../lib/gridHeaderUtils';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { Toast } from './Toast';
 
@@ -16,9 +20,11 @@ interface MeasuredNotExportedAssetsProps {
 }
 
 export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExportedAssetsProps) => {
+  const { t } = useTranslation();
   const { isReadOnly } = useUserRole();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [buildings, setBuildings] = useState<Map<number, Building>>(new Map());
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
@@ -31,6 +37,25 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     'default'
   );
 
+  // Helper function to get area_description_for_tab from tax region number
+  const getAreaDescriptionForTaxRegion = useCallback((taxRegionNum: string | number | null | undefined): string => {
+    if (!taxRegionNum || !assetTypes || assetTypes.length === 0) {
+      return String(taxRegionNum || '');
+    }
+    
+    const taxRegion = typeof taxRegionNum === 'string' ? parseInt(taxRegionNum.trim(), 10) : taxRegionNum;
+    if (isNaN(taxRegion)) {
+      return String(taxRegionNum);
+    }
+    
+    // Find first asset type with matching tax_region that has area_description_for_tab
+    const matchingAssetType = assetTypes.find(at =>
+      at.tax_region === taxRegion && at.area_description_for_tab
+    );
+    
+    return matchingAssetType?.area_description_for_tab || String(taxRegion);
+  }, [assetTypes]);
+
   // Fetch data
   const fetchData = useCallback(async () => {
     try {
@@ -39,6 +64,9 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
 
       // Fetch assets that are measured but not exported
       const measuredAssets = await api.assets.getMeasuredNotExported();
+      
+      // Fetch asset types
+      const assetTypesData = await api.assetTypes.getAll();
 
       // Get unique building numbers
       const buildingNumbers = new Set(measuredAssets.map(a => a.building_number));
@@ -56,6 +84,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
 
       setAssets(measuredAssets);
       setBuildings(buildingsMap);
+      setAssetTypes(assetTypesData);
     } catch (err: any) {
       console.error('Error fetching measured not exported assets:', err);
       setError(err.message || 'שגיאה בטעינת הנכסים');
@@ -77,52 +106,441 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     return () => window.removeEventListener('resetExportToAutomationSuccess', handleResetExportSuccess);
   }, [fetchData]);
 
-  // Column definitions
-  const columnDefs = useMemo<ColDef<Asset>[]>(() => [
-    {
-      field: 'payer_id',
-      headerName: 'ת.ז. משלם',
-      width: 120
-    },
-    {
-      field: 'tax_region',
-      headerName: 'אזור מיסים',
-      width: 120
-    },
-    {
-      field: 'measurement_date',
-      headerName: 'תאריך מדידה',
-      width: 120,
-      cellRenderer: (params: any) => {
-        return params.value ? formatDateToDDMMYYYY(params.value) : '';
-      }
-    },
-    {
-      field: 'asset_size',
-      headerName: 'שטח (מ"ר)',
-      width: 120,
-      type: 'numericColumn',
-      valueFormatter: (params: any) => {
-        if (params.value == null) return '';
-        return Number(params.value).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
-    },
-    {
-      field: 'main_asset_type',
-      headerName: 'סוג נכס',
-      width: 150
-    },
-    {
-      field: 'asset_id',
-      headerName: 'מזהה נכס',
-      width: 120
-    },
+  // Column definitions - comprehensive set matching AssetsList, all read-only
+  const columnDefs = useMemo<ColDef<Asset>[]>(() => {
+    const defs: ColDef<Asset>[] = [
     {
       field: 'building_number',
       headerName: 'מספר מבנה',
-      width: 120
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'asset_id',
+      headerName: t('assetId') || 'מזהה נכס',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => {
+        const asset = params.data as Asset;
+        if (asset) {
+          return {
+            textAlign: 'right',
+            color: '#059669',
+            fontWeight: '600',
+            textDecoration: 'underline',
+            textDecorationColor: '#10b981',
+            textUnderlineOffset: '2px',
+            cursor: 'default'
+          };
+        }
+        return { textAlign: 'right' };
+      },
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        if (!asset) return '';
+        const value = params.value != null ? String(params.value) : '';
+        
+        return (
+          <span 
+            style={{
+              color: '#059669',
+              fontWeight: '600',
+              textDecoration: 'underline',
+              textDecorationColor: '#10b981',
+              textUnderlineOffset: '2px',
+              cursor: 'default',
+              transition: 'all 0.2s ease'
+            }}
+            className="hover:text-emerald-700 hover:decoration-emerald-600"
+            title={t('viewDetails') || 'לחץ לצפייה בפרטים'}
+          >
+            {value}
+          </span>
+        );
+      },
+      onCellClicked: (params: any) => {
+        const asset = params.data as Asset;
+        if (asset) {
+          const assetId = String(asset.asset_id);
+          onSelectAsset(
+            assetId,
+            assetId,
+            asset.building_number,
+            asset.tax_region ? String(asset.tax_region) : undefined
+          );
+        }
+      }
+    },
+    {
+      field: 'measurement_date',
+      headerName: t('measurementDate') || 'תאריך מדידה',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value),
+      cellStyle: { textAlign: 'right', backgroundColor: '#ecfdf5', fontWeight: '700', color: '#065f46', opacity: 0.8 }
+    },
+    {
+      field: 'payer_id',
+      headerName: t('payerId') || 'ת.ז. משלם',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'tax_region',
+      headerName: 'אזור מס',
+      headerTooltip: 'אזור מס',
+      editable: false,
+      type: 'numericColumn',
+      tooltipValueGetter: (params) => {
+        if (params.value == null) return '';
+        return getAreaDescriptionForTaxRegion(params.value);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      colId: 'penthouse',
+      field: 'penthouse',
+      headerName: 'דירת גג',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      cellRenderer: (params: any) => {
+        if (!params || !params.data) return null;
+        const isChecked = params.value === true || params.value === 'כן';
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled
+              className="w-4 h-4 text-blue-600 rounded"
+            />
+          </div>
+        );
+      }
+    },
+    {
+      field: 'floor',
+      headerName: 'קומה',
+      editable: false,
+      type: 'numericColumn',
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_type',
+      headerName: 'סוג הנחה',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'discount_date_from',
+      headerName: 'תאריך הנחה מ',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
+    },
+    {
+      field: 'discount_date_to',
+      headerName: 'תאריך הנחה עד',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' },
+      valueFormatter: (params) => formatDateToDDMMYYYY(params.value)
+    },
+    {
+      field: 'comment',
+      headerName: 'הערה',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellRenderer: (params: any) => {
+        const hasValue = params.value && params.value.trim() !== '';
+        return (
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: hasValue ? 'flex-end' : 'center', 
+              gap: '4px', 
+              direction: 'rtl', 
+              width: '100%', 
+              paddingRight: hasValue ? '4px' : '0', 
+              cursor: 'default', 
+              height: '100%' 
+            }}
+          >
+            {hasValue && <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{params.value}</span>}
+            <MessageSquare size={16} style={{ color: hasValue ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
+      },
+      cellStyle: { textAlign: 'right' },
+      tooltipValueGetter: (params) => params.value || ''
+    },
+    {
+      field: 'main_asset_type',
+      ...processColumnHeader(t('mainAssetType') || 'סוג נכס ראשי'),
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'asset_size',
+      headerName: t('mainAssetSize') || 'גודל נכס',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_1',
+      headerName: t('subAssetType1') || 'תת סוג נכס 1',
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_1',
+      headerName: t('subAssetSize1') || 'גודל תת נכס 1',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_2',
+      headerName: t('subAssetType2') || 'תת סוג נכס 2',
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_2',
+      headerName: t('subAssetSize2') || 'גודל תת נכס 2',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_3',
+      headerName: t('subAssetType3') || 'תת סוג נכס 3',
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_3',
+      headerName: t('subAssetSize3') || 'גודל תת נכס 3',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_4',
+      headerName: t('subAssetType4') || 'תת סוג נכס 4',
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_4',
+      headerName: t('subAssetSize4') || 'גודל תת נכס 4',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_5',
+      headerName: t('subAssetType5') || 'תת סוג נכס 5',
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_5',
+      headerName: t('subAssetSize5') || 'גודל תת נכס 5',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_type_6',
+      headerName: t('subAssetType6') || 'תת סוג נכס 6',
+      editable: false,
+      tooltipValueGetter: (params) => {
+        if (!params.value) return '';
+        const assetType = assetTypes.find(at => at.name === params.value);
+        return assetType?.description || params.value;
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'sub_asset_size_6',
+      headerName: t('subAssetSize6') || 'גודל תת נכס 6',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'business_distribution_area',
+      headerName: 'גודל שטח משותף',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'business_total_area',
+      headerName: 'סה"כ שטח עסקים',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'residence_distribution_area',
+      headerName: 'גודל שטח משותף מגורים',
+      editable: false,
+      type: 'numericColumn',
+      valueFormatter: (params) => {
+        const val = params.value;
+        if (val === null || val === undefined || val === '' || val === 0) return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+      },
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field',
+      headerName: '',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_1',
+      headerName: '',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'extra_field_2',
+      headerName: '',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     }
-  ], [buildings]);
+    ];
+    
+    // Process all headers to add icons for long headers
+    return defs.map(colDef => {
+      if (colDef.headerName && typeof colDef.headerName === 'string') {
+        const processed = processColumnHeader(colDef.headerName);
+        return { ...colDef, ...processed };
+      }
+      return colDef;
+    });
+  }, [t, assetTypes, getAreaDescriptionForTaxRegion, onSelectAsset]);
+  
+  // Apply field configurations to column definitions
+  const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');
 
   // Export to Excel
   const handleExportToExcel = useCallback(async () => {
@@ -133,26 +551,40 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         return;
       }
 
-      const headers = [
-        'מספר מבנה',
-        'מזהה נכס',
-        'סוג נכס',
-        'שטח (מ"ר)',
-        'תאריך מדידה',
-        'אזור מיסים',
-        'ת.ז. משלם'
-      ];
+      // Get all column headers from configured columns
+      const headers = configuredColumnDefs
+        .filter(col => col.headerName && col.headerName !== '')
+        .map(col => col.headerName as string)
+        .reverse(); // Reverse for RTL
+
+      // Get all field names in the same order
+      const fields = configuredColumnDefs
+        .filter(col => col.field && col.headerName && col.headerName !== '')
+        .map(col => col.field as string)
+        .reverse();
 
       const rows = assets.map(asset => {
-        return [
-          asset.building_number || '',
-          asset.asset_id || '',
-          asset.main_asset_type || '',
-          asset.asset_size != null ? Number(asset.asset_size).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          asset.measurement_date ? formatDateToDDMMYYYY(asset.measurement_date) : '',
-          asset.tax_region || '',
-          asset.payer_id || ''
-        ];
+        return fields.map(field => {
+          const value = (asset as any)[field];
+          const colDef = configuredColumnDefs.find(col => col.field === field);
+          
+          // Format based on column type
+          if (colDef?.type === 'numericColumn') {
+            if (value == null || value === '' || value === 0) return '';
+            const num = typeof value === 'number' ? value : parseFloat(value);
+            return isNaN(num) || num === 0 ? '' : num.toFixed(2);
+          }
+          
+          if (field === 'measurement_date' || field === 'discount_date_from' || field === 'discount_date_to') {
+            return value ? formatDateToDDMMYYYY(value) : '';
+          }
+          
+          if (field === 'penthouse') {
+            return value === true || value === 'כן' ? 'כן' : 'לא';
+          }
+          
+          return value != null ? String(value) : '';
+        });
       });
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -229,17 +661,18 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
           <AgGridReact
             ref={gridRef}
             rowData={assets}
-            columnDefs={columnDefs}
+            columnDefs={configuredColumnDefs}
             defaultColDef={{
-              resizable: false,
+              resizable: true,
               wrapHeaderText: true,
               autoHeaderHeight: true,
               wrapText: true,
               autoHeight: false,
               sortable: true,
               filter: true,
-              cellStyle: { textAlign: 'right', fontSize: '16px' },
-              headerClass: 'buildings-list-header',
+              editable: false,
+              cellStyle: { textAlign: 'right' },
+              headerClass: 'ag-right-aligned-header',
               headerStyle: { fontSize: '11px', textAlign: 'right', fontWeight: 'normal', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' },
               minWidth: 40
             }}

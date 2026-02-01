@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, api } from '../lib/api';
 import { AgGridReact } from 'ag-grid-react';
@@ -20,6 +21,57 @@ import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 
+// Validation tooltip icon component that uses fixed positioning to avoid overflow clipping
+const ValidationTooltipIcon = ({ message }: { message: string }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [position, setPosition] = useState({ top: 0, right: 0 });
+  const iconRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    if (iconRef.current) {
+      const rect = iconRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top + rect.height / 2,
+        right: window.innerWidth - rect.left
+      });
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+  };
+
+  return (
+    <>
+      <div 
+        ref={iconRef}
+        className="w-4 h-4 flex items-center justify-center flex-shrink-0"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <AlertCircle className="h-4 w-4 text-red-600" />
+      </div>
+      {isHovered && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: `${position.top}px`,
+            right: `${position.right}px`,
+            transform: 'translateY(-50%)',
+            zIndex: 10000,
+            pointerEvents: 'none'
+          }}
+          className="bg-red-50 border-2 border-red-300 rounded-lg shadow-lg p-3 max-w-md"
+        >
+          <div className="text-sm text-red-800 whitespace-pre-line">{message}</div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
 interface MeasuredNotExportedAssetsProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
 }
@@ -34,6 +86,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'info' } | null>(null);
   const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
+  const [validationErrors, setValidationErrors] = useState<Map<string, string[]>>(new Map());
   const gridRef = useRef<AgGridReact<Asset>>(null);
 
   // Grid preferences hook for saving/loading column state
@@ -91,12 +144,76 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       setAssets(measuredAssets);
       setBuildings(buildingsMap);
       setAssetTypes(assetTypesData);
+
+      // Validate all assets after loading
+      await validateAllAssets(measuredAssets, buildingsMap, assetTypesData);
     } catch (err: any) {
       console.error('Error fetching measured not exported assets:', err);
       setError(err.message || 'שגיאה בטעינת הנכסים');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Validate all assets and store errors
+  const validateAllAssets = useCallback(async (
+    assetsToValidate: Asset[],
+    buildingsMap: Map<number, Building>,
+    assetTypesData: AssetType[]
+  ) => {
+    if (assetsToValidate.length === 0) {
+      setValidationErrors(new Map());
+      return;
+    }
+
+    const errorsMap = new Map<string, string[]>();
+
+    // Group assets by building number for validation
+    const assetsByBuilding = new Map<number, Asset[]>();
+    for (const asset of assetsToValidate) {
+      const buildingNumber = asset.building_number;
+      if (!assetsByBuilding.has(buildingNumber)) {
+        assetsByBuilding.set(buildingNumber, []);
+      }
+      assetsByBuilding.get(buildingNumber)!.push(asset);
+    }
+
+    // Validate assets for each building
+    for (const [buildingNumber, buildingAssets] of assetsByBuilding.entries()) {
+      const building = buildingsMap.get(buildingNumber);
+      if (!building) continue;
+
+      const cachedData = {
+        assetTypes: assetTypesData,
+        building: building
+      };
+
+      try {
+        const batchResult = await AssetValidationHandler.validateBuildingAssets(
+          buildingAssets,
+          buildingNumber,
+          {
+            mode: 'building',
+            validateOnlyLatest: false,
+            cachedData: cachedData
+          }
+        );
+
+        // Store errors for each asset
+        for (const result of batchResult.results) {
+          if (!result.valid && result.errors && result.errors.length > 0) {
+            const assetId = typeof result.assetId === 'string' 
+              ? result.assetId 
+              : String(result.assetId);
+            errorsMap.set(assetId, result.errors);
+          }
+        }
+      } catch (err) {
+        console.error(`Error validating assets for building ${buildingNumber}:`, err);
+      }
+    }
+
+    setValidationErrors(errorsMap);
   }, []);
 
   // Fetch export to automation count
@@ -142,6 +259,36 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   // Column definitions - comprehensive set matching AssetsList, all read-only
   const columnDefs = useMemo<ColDef<Asset>[]>(() => {
     const defs: ColDef<Asset>[] = [
+    {
+      colId: 'actions',
+      headerName: 'פעולות',
+      editable: false,
+      pinned: 'right',
+      lockPosition: true,
+      lockPinned: true,
+      suppressMovable: true,
+      suppressHeaderMenuButton: true,
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: any) => {
+        const asset = params.data as Asset;
+        if (!asset) return null;
+        const assetId = String(asset.asset_id);
+        const errors = validationErrors.get(assetId);
+        const hasErrors = errors && errors.length > 0;
+        const errorMessage = hasErrors ? errors.join('\n') : '';
+
+        return (
+          <div className="flex items-center justify-center gap-1 h-full">
+            {hasErrors && (
+              <ValidationTooltipIcon message={errorMessage} />
+            )}
+          </div>
+        );
+      },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
     {
       field: 'building_number',
       headerName: 'מספר מבנה',
@@ -570,7 +717,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
       return colDef;
     });
-  }, [t, assetTypes, getAreaDescriptionForTaxRegion, onSelectAsset]);
+  }, [t, assetTypes, getAreaDescriptionForTaxRegion, onSelectAsset, validationErrors]);
   
   // Apply field configurations to column definitions
   const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');

@@ -480,6 +480,7 @@ export interface AssetType {
 }
 
 export interface AddressList {
+  id?: number; // Primary key (added in migration)
   street_code: number;
   street_description: string;
   created_at: string;

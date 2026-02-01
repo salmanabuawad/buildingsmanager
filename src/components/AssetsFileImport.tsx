@@ -4081,11 +4081,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         setTimeout(() => setShowAddressDropdown(false), 200);
                       }}
                       onKeyDown={(e) => {
+                        const searchLower = addressSearchValue.toLowerCase();
                         const filteredAddresses = addressSearchValue.trim()
                           ? addressList.filter(a => 
-                              String(a.street_code).includes(addressSearchValue) ||
-                              a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
-                              `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                              String(a.street_code).toLowerCase().includes(searchLower) ||
+                              a.street_description?.toLowerCase().includes(searchLower) ||
+                              `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
                             )
                           : addressList;
 
@@ -4112,11 +4113,12 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                       disabled={isCreatingBuilding}
                     />
                     {showAddressDropdown && (() => {
+                      const searchLower = addressSearchValue.toLowerCase();
                       const filteredAddresses = addressSearchValue.trim()
                         ? addressList.filter(a => 
-                            String(a.street_code).includes(addressSearchValue) ||
-                            a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
-                            `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                            String(a.street_code).toLowerCase().includes(searchLower) ||
+                            a.street_description?.toLowerCase().includes(searchLower) ||
+                            `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
                           )
                         : addressList;
                       
@@ -4131,7 +4133,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         >
                           {filteredAddresses.slice(0, 20).map((address) => (
                             <div
-                              key={address.street_code}
+                              key={address.id || `${address.street_code}-${address.street_description}`}
                               onClick={() => {
                                 setBuildingCreateData(prev => ({ ...prev, building_address: address.street_code }));
                                 setAddressSearchValue(`${address.street_code} - ${address.street_description}`);

@@ -206,7 +206,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
     }
     const searchLower = searchValue.toLowerCase();
     const filtered = addressList.filter(a => 
-      String(a.street_code).includes(searchValue) ||
+      String(a.street_code).toLowerCase().includes(searchLower) ||
       a.street_description?.toLowerCase().includes(searchLower) ||
       `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
     );
@@ -482,7 +482,7 @@ const AddressCellEditor = React.forwardRef<any, AddressCellEditorParams>((props,
               {filteredAddresses.length > 0 ? (
                 filteredAddresses.map((address, index) => (
                   <div
-                    key={address.street_code}
+                    key={address.id || `${address.street_code}-${index}`}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -3925,11 +3925,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                       setTimeout(() => setShowAddressDropdown(false), 200);
                     }}
                     onKeyDown={(e) => {
+                      const searchLower = addressSearchValue.toLowerCase();
                       const filteredAddresses = addressSearchValue.trim()
                         ? addressList.filter(a => 
-                            String(a.street_code).includes(addressSearchValue) ||
-                            a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
-                            `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                            String(a.street_code).toLowerCase().includes(searchLower) ||
+                            a.street_description?.toLowerCase().includes(searchLower) ||
+                            `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
                           )
                         : addressList;
 
@@ -3964,11 +3965,12 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                     placeholder="Type street code or name..."
                   />
                   {showAddressDropdown && (() => {
+                    const searchLower = addressSearchValue.toLowerCase();
                     const filteredAddresses = addressSearchValue.trim()
                       ? addressList.filter(a => 
-                          String(a.street_code).includes(addressSearchValue) ||
-                          a.street_description?.toLowerCase().includes(addressSearchValue.toLowerCase()) ||
-                          `${a.street_code} - ${a.street_description}`.toLowerCase().includes(addressSearchValue.toLowerCase())
+                          String(a.street_code).toLowerCase().includes(searchLower) ||
+                          a.street_description?.toLowerCase().includes(searchLower) ||
+                          `${a.street_code} - ${a.street_description}`.toLowerCase().includes(searchLower)
                         )
                       : addressList;
                     
@@ -3984,7 +3986,7 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                       <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-auto">
                         {filteredAddresses.map((address, index) => (
                           <div
-                            key={address.street_code}
+                            key={address.id || `${address.street_code}-${index}`}
                             onClick={() => {
                               setNewBuilding(prev => ({ ...prev, building_address: address.street_code }));
                               setAddressSearchValue(`${address.street_code} - ${address.street_description}`);

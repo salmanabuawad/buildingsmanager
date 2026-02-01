@@ -261,10 +261,17 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const columnDefs = useMemo<ColDef<Asset>[]>(() => {
     const defs: ColDef<Asset>[] = [
     {
+      field: 'building_number',
+      headerName: 'מספר מבנה',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
       colId: 'actions',
       headerName: 'פעולות',
       editable: false,
-      pinned: 'right',
+      pinned: 'left',
       lockPosition: true,
       lockPinned: true,
       suppressMovable: true,
@@ -289,13 +296,6 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
-    },
-    {
-      field: 'building_number',
-      headerName: 'מספר מבנה',
-      editable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'asset_id',
@@ -722,6 +722,28 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   
   // Apply field configurations to column definitions
   const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+
+  // Sort assets to show invalid ones first
+  const sortedAssets = useMemo(() => {
+    if (!assets || assets.length === 0) return assets;
+    
+    return [...assets].sort((a, b) => {
+      const aId = String(a.asset_id);
+      const bId = String(b.asset_id);
+      const aHasErrors = validationErrors.has(aId);
+      const bHasErrors = validationErrors.has(bId);
+      
+      // Invalid assets first
+      if (aHasErrors && !bHasErrors) return -1;
+      if (!aHasErrors && bHasErrors) return 1;
+      
+      // If both have errors or both don't, maintain original order (by building_number, then asset_id)
+      if (a.building_number !== b.building_number) {
+        return a.building_number - b.building_number;
+      }
+      return String(a.asset_id).localeCompare(String(b.asset_id));
+    });
+  }, [assets, validationErrors]);
 
   // Get row style to highlight invalid assets
   const getRowStyle = useCallback((params: any) => {
@@ -1313,7 +1335,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         <div className="ag-theme-alpine buildings-list-grid" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
           <AgGridReact
             ref={gridRef}
-            rowData={assets}
+            rowData={sortedAssets}
             columnDefs={configuredColumnDefs}
             defaultColDef={{
               resizable: true,

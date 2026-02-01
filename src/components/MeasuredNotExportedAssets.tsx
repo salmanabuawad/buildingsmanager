@@ -639,9 +639,11 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         // Collect validation errors
         for (const result of batchResult.results) {
           if (!result.valid && result.errors && result.errors.length > 0) {
-            // Extract asset_id from result.assetId (format: "נכס {asset_id} (מבנה {building_number})")
-            const assetIdMatch = result.assetId.match(/נכס\s+(\d+)/);
-            const assetId = assetIdMatch ? assetIdMatch[1] : result.assetId;
+            // result.assetId is string | number, result.assetIdentifier is the display string
+            // Use assetId directly (convert to string if needed) or extract from assetIdentifier
+            const assetId = typeof result.assetId === 'string' 
+              ? result.assetId 
+              : String(result.assetId);
             
             allValidationResults.push({
               assetId: assetId,

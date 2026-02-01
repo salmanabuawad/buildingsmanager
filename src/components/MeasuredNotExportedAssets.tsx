@@ -261,24 +261,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   const columnDefs = useMemo<ColDef<Asset>[]>(() => {
     const defs: ColDef<Asset>[] = [
     {
-      field: 'building_number',
-      headerName: 'מספר מבנה',
-      editable: false,
-      headerClass: 'ag-right-aligned-header',
-      cellStyle: { textAlign: 'right' }
-    },
-    {
       colId: 'actions',
       headerName: 'פעולות',
       editable: false,
-      pinned: 'left',
-      lockPosition: true,
-      lockPinned: true,
       suppressMovable: true,
       suppressHeaderMenuButton: true,
       sortable: false,
       filter: false,
-      resizable: false,
       cellRenderer: (params: any) => {
         const asset = params.data as Asset;
         if (!asset) return null;
@@ -296,6 +285,13 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
         );
       },
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+    },
+    {
+      field: 'building_number',
+      headerName: 'מספר מבנה',
+      editable: false,
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: { textAlign: 'right' }
     },
     {
       field: 'asset_id',

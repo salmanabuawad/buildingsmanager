@@ -13,6 +13,7 @@
 -- ============================================================================
 INSERT INTO field_configurations (grid_name, field_name, width_chars, padding, hebrew_name, pinned, pin_side, visible, column_order)
 VALUES 
+  ('measured-not-exported-assets', 'actions', 10, 2, 'פעולות', true, 'left', true, NULL),
   ('measured-not-exported-assets', 'building_number', 10, 2, 'מספר בניין', false, null, true, NULL),
   ('measured-not-exported-assets', 'asset_id', 10, 2, 'מזהה נכס', true, 'right', true, NULL),
   ('measured-not-exported-assets', 'payer_id', 10, 2, 'מזהה משלם', false, null, true, NULL),
@@ -48,7 +49,12 @@ ON CONFLICT (grid_name, field_name) DO UPDATE
 SET width_chars = EXCLUDED.width_chars, 
     padding = EXCLUDED.padding, 
     hebrew_name = EXCLUDED.hebrew_name,
-    pinned = CASE WHEN EXCLUDED.field_name = 'asset_id' THEN true ELSE field_configurations.pinned END,
-    pin_side = CASE WHEN EXCLUDED.field_name = 'asset_id' THEN 'right' WHEN field_configurations.pinned = true THEN 'right' ELSE field_configurations.pin_side END,
+    pinned = CASE WHEN EXCLUDED.field_name IN ('actions', 'asset_id') THEN true ELSE field_configurations.pinned END,
+    pin_side = CASE 
+      WHEN EXCLUDED.field_name = 'actions' THEN 'left'
+      WHEN EXCLUDED.field_name = 'asset_id' THEN 'right'
+      WHEN field_configurations.pinned = true THEN field_configurations.pin_side
+      ELSE field_configurations.pin_side 
+    END,
     visible = EXCLUDED.visible,
     updated_at = now();

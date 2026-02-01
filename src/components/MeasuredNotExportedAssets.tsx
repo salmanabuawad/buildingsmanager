@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase';
 import { getAssetTypes } from '../lib/validation';
 import { createExcelBlob } from '../lib/excelExport';
 import { createAndDownloadZip } from '../lib/zipExport';
+import { AssetValidationHandler } from '../lib/assetValidationHandler';
 
 interface MeasuredNotExportedAssetsProps {
   onSelectAsset: (assetId: string, assetIdentifier: string, buildingNumber: number, taxRegion?: string) => void;
@@ -580,6 +581,99 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     setError(null);
 
     try {
+      // STEP 1: Get assets that will be exported (measured but not exported)
+      const assetsToExport = await api.assets.getMeasuredNotExported();
+      
+      if (assetsToExport.length === 0) {
+        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        setExportToAutomationCount(0);
+        return;
+      }
+
+      // STEP 2: Validate all assets before export
+      setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
+      
+      // Group assets by building number for validation
+      const assetsByBuilding = new Map<number, Asset[]>();
+      for (const asset of assetsToExport) {
+        const buildingNumber = asset.building_number;
+        if (!assetsByBuilding.has(buildingNumber)) {
+          assetsByBuilding.set(buildingNumber, []);
+        }
+        assetsByBuilding.get(buildingNumber)!.push(asset);
+      }
+
+      // Validate assets for each building
+      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+      
+      for (const [buildingNumber, buildingAssets] of assetsByBuilding.entries()) {
+        // Get building data
+        const building = buildings.get(buildingNumber) || await api.buildings.getOne(buildingNumber);
+        
+        // Prepare cached data for validation
+        const cachedData = {
+          assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
+          building: building
+        };
+
+        // Validate assets for this building
+        const batchResult = await AssetValidationHandler.validateBuildingAssets(
+          buildingAssets,
+          buildingNumber,
+          {
+            mode: 'building',
+            validateOnlyLatest: false,
+            cachedData: cachedData,
+            onProgress: (progress) => {
+              // Update toast with progress
+              setToast({ 
+                message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`, 
+                type: 'info' 
+              });
+            }
+          }
+        );
+
+        // Collect validation errors
+        for (const result of batchResult.results) {
+          if (!result.valid && result.errors && result.errors.length > 0) {
+            // Extract asset_id from result.assetId (format: "נכס {asset_id} (מבנה {building_number})")
+            const assetIdMatch = result.assetId.match(/נכס\s+(\d+)/);
+            const assetId = assetIdMatch ? assetIdMatch[1] : result.assetId;
+            
+            allValidationResults.push({
+              assetId: assetId,
+              buildingNumber: buildingNumber,
+              errors: result.errors
+            });
+          }
+        }
+      }
+
+      // STEP 3: Check if validation passed
+      if (allValidationResults.length > 0) {
+        const invalidCount = allValidationResults.length;
+        const errorMessages = allValidationResults
+          .slice(0, 5) // Show first 5 errors
+          .map(r => `נכס ${r.assetId} (מבנה ${r.buildingNumber}): ${r.errors.join(', ')}`)
+          .join('\n');
+        
+        const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
+        
+        setToast({ 
+          message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`, 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 15000);
+        setLoading(false);
+        return;
+      }
+
+      // STEP 4: All assets passed validation - proceed with export
+      setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
+      
       // Call API to export assets and mark them as exported
       const result = await api.assets.exportToAutomation();
 
@@ -920,7 +1014,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     } finally {
       setLoading(false);
     }
-  }, [fetchExportToAutomationCount, fetchData]);
+  }, [fetchExportToAutomationCount, fetchData, buildings, assetTypes]);
 
   // Export to Excel
   const handleExportToExcel = useCallback(async () => {

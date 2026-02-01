@@ -214,6 +214,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
     }
 
     setValidationErrors(errorsMap);
+    console.log('[MeasuredNotExportedAssets] Validation completed. Errors found:', errorsMap.size, 'assets');
   }, []);
 
   // Fetch export to automation count
@@ -721,6 +722,22 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
   
   // Apply field configurations to column definitions
   const configuredColumnDefs = useFieldConfig(columnDefs, 'measured-not-exported-assets');
+
+  // Get row style to highlight invalid assets
+  const getRowStyle = useCallback((params: any) => {
+    if (!params?.data) return null;
+    const asset = params.data as Asset;
+    const assetId = String(asset.asset_id);
+    
+    if (validationErrors.has(assetId)) {
+      return {
+        backgroundColor: '#fee2e2',
+        border: '3px solid #ef4444',
+        borderRadius: '4px'
+      };
+    }
+    return null;
+  }, [validationErrors]);
 
   // Export assets to automation system
   const handleExportToAutomation = useCallback(async () => {
@@ -1323,6 +1340,7 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
             domLayout="normal"
             suppressMenuHide={true}
             enableRangeSelection={false}
+            getRowStyle={getRowStyle}
           onGridReady={async (params) => {
             await gridPreferences.loadColumnState(params.api);
           }}

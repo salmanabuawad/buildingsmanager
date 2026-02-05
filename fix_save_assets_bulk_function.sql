@@ -153,7 +153,8 @@ sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
 sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse,
 structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-business_distribution_area, exported_to_automation, comment, created_at, updated_at, is_new_measurement
+business_distribution_area, exported_to_automation, comment, created_at, updated_at, is_new_measurement,
+apartment_number, apartment_floor, storage_number, storage_floor
 FROM assets 
 WHERE building_number = v_first_building_number
 ORDER BY asset_id
@@ -296,6 +297,10 @@ discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_
 business_distribution_area = COALESCE((v_asset_data->>'business_distribution_area')::NUMERIC, business_distribution_area),
 exported_to_automation = CASE WHEN v_asset_data ? 'exported_to_automation' THEN extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false) ELSE exported_to_automation END,
 comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
+apartment_number = CASE WHEN v_asset_data ? 'apartment_number' THEN NULLIF((v_asset_data->>'apartment_number')::TEXT, '') ELSE apartment_number END,
+apartment_floor = CASE WHEN v_asset_data ? 'apartment_floor' THEN NULLIF((v_asset_data->>'apartment_floor')::TEXT, '') ELSE apartment_floor END,
+storage_number = CASE WHEN v_asset_data ? 'storage_number' THEN NULLIF((v_asset_data->>'storage_number')::TEXT, '') ELSE storage_number END,
+storage_floor = CASE WHEN v_asset_data ? 'storage_floor' THEN NULLIF((v_asset_data->>'storage_floor')::TEXT, '') ELSE storage_floor END,
 updated_at = NOW()
 WHERE asset_id = v_asset_id;
 END IF;
@@ -322,7 +327,8 @@ sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
 sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse,
 structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-business_distribution_area, exported_to_automation, comment, created_at, updated_at
+business_distribution_area, exported_to_automation, comment, created_at, updated_at,
+apartment_number, apartment_floor, storage_number, storage_floor
 FROM assets 
 WHERE building_number = v_first_building_number
 ORDER BY asset_id

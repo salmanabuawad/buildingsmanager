@@ -153,7 +153,7 @@ sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
 sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse,
 structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-area_from_distribution, exported_to_automation, comment, created_at, updated_at, is_new_measurement
+business_distribution_area, exported_to_automation, comment, created_at, updated_at, is_new_measurement
 FROM assets 
 WHERE building_number = v_first_building_number
 ORDER BY asset_id
@@ -218,7 +218,7 @@ asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_si
 sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
 sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url,
-discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation, comment
+discount_type, discount_date_from, discount_date_to, business_distribution_area, exported_to_automation, comment
 )
 VALUES (
 v_asset_id, v_building_number, (v_asset_data->>'payer_id')::TEXT,
@@ -237,7 +237,7 @@ extract_boolean_from_jsonb(v_asset_data->'townhouses', false),
 extract_boolean_from_jsonb(v_asset_data->'penthouse', false),
 (v_asset_data->>'structure_drawing_url')::TEXT,
 (v_asset_data->>'discount_type')::TEXT, (v_asset_data->>'discount_date_from')::TEXT,
-(v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'area_from_distribution')::NUMERIC,
+(v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'business_distribution_area')::NUMERIC,
 extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false), (v_asset_data->>'comment')::TEXT
 );
 ELSE
@@ -250,7 +250,7 @@ INSERT INTO assets_history (
   sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
   elevator, single_double_family, condo, townhouses, penthouse,
   structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-  area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+  business_distribution_area, exported_to_automation, comment, created_at, updated_at,
   apartment_number, apartment_floor, storage_number, storage_floor, is_new_measurement,
   data_from_automation
 )
@@ -261,7 +261,7 @@ SELECT
   sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
   elevator, single_double_family, condo, townhouses, penthouse,
   structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-  area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+  business_distribution_area, exported_to_automation, comment, created_at, updated_at,
   apartment_number, apartment_floor, storage_number, storage_floor, is_new_measurement,
   data_from_automation
 FROM assets WHERE asset_id = v_asset_id;
@@ -295,7 +295,7 @@ structure_drawing_url = COALESCE((v_asset_data->>'structure_drawing_url')::TEXT,
 discount_type = COALESCE((v_asset_data->>'discount_type')::TEXT, discount_type),
 discount_date_from = COALESCE((v_asset_data->>'discount_date_from')::TEXT, discount_date_from),
 discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
-area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
+business_distribution_area = COALESCE((v_asset_data->>'business_distribution_area')::NUMERIC, business_distribution_area),
 exported_to_automation = CASE WHEN v_asset_data ? 'exported_to_automation' THEN extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false) ELSE exported_to_automation END,
 comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
 updated_at = NOW()
@@ -324,7 +324,7 @@ sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
 sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse,
 structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-area_from_distribution, exported_to_automation, comment, created_at, updated_at
+business_distribution_area, exported_to_automation, comment, created_at, updated_at
 FROM assets 
 WHERE building_number = v_first_building_number
 ORDER BY asset_id
@@ -417,4 +417,57 @@ $$;
 
 COMMENT ON FUNCTION public.save_assets_bulk_transactional IS 'Bulk save assets with transactional operations including validation, distribution flags, and audit logging. All operations are atomic.';
 
-SELECT 'Function save_assets_bulk_transactional created successfully!' as status;
+-- Fix trigger function reset_export_flags_on_change to remove floor reference
+CREATE OR REPLACE FUNCTION reset_export_flags_on_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+-- Only reset flags if actual data changed (not just metadata or the export flags themselves)
+-- Check if any field other than exported_to_automation, export_to_automation_at, updated_at, or updated_by changed
+IF (
+NEW.building_number IS DISTINCT FROM OLD.building_number OR
+NEW.asset_id IS DISTINCT FROM OLD.asset_id OR
+NEW.payer_id IS DISTINCT FROM OLD.payer_id OR
+NEW.main_asset_type IS DISTINCT FROM OLD.main_asset_type OR
+NEW.asset_size IS DISTINCT FROM OLD.asset_size OR
+NEW.measurement_date IS DISTINCT FROM OLD.measurement_date OR
+NEW.tax_region IS DISTINCT FROM OLD.tax_region OR
+NEW.sub_asset_type_1 IS DISTINCT FROM OLD.sub_asset_type_1 OR
+NEW.sub_asset_size_1 IS DISTINCT FROM OLD.sub_asset_size_1 OR
+NEW.sub_asset_type_2 IS DISTINCT FROM OLD.sub_asset_type_2 OR
+NEW.sub_asset_size_2 IS DISTINCT FROM OLD.sub_asset_size_2 OR
+NEW.sub_asset_type_3 IS DISTINCT FROM OLD.sub_asset_type_3 OR
+NEW.sub_asset_size_3 IS DISTINCT FROM OLD.sub_asset_size_3 OR
+NEW.sub_asset_type_4 IS DISTINCT FROM OLD.sub_asset_type_4 OR
+NEW.sub_asset_size_4 IS DISTINCT FROM OLD.sub_asset_size_4 OR
+NEW.sub_asset_type_5 IS DISTINCT FROM OLD.sub_asset_type_5 OR
+NEW.sub_asset_size_5 IS DISTINCT FROM OLD.sub_asset_size_5 OR
+NEW.sub_asset_type_6 IS DISTINCT FROM OLD.sub_asset_type_6 OR
+NEW.sub_asset_size_6 IS DISTINCT FROM OLD.sub_asset_size_6 OR
+NEW.business_distribution_area IS DISTINCT FROM OLD.business_distribution_area OR
+NEW.elevator IS DISTINCT FROM OLD.elevator OR
+NEW.single_double_family IS DISTINCT FROM OLD.single_double_family OR
+NEW.condo IS DISTINCT FROM OLD.condo OR
+NEW.townhouses IS DISTINCT FROM OLD.townhouses OR
+NEW.penthouse IS DISTINCT FROM OLD.penthouse OR
+NEW.structure_drawing_url IS DISTINCT FROM OLD.structure_drawing_url OR
+NEW.discount_type IS DISTINCT FROM OLD.discount_type OR
+NEW.discount_date_from IS DISTINCT FROM OLD.discount_date_from OR
+NEW.discount_date_to IS DISTINCT FROM OLD.discount_date_to OR
+NEW.comment IS DISTINCT FROM OLD.comment OR
+NEW.apartment_number IS DISTINCT FROM OLD.apartment_number OR
+NEW.apartment_floor IS DISTINCT FROM OLD.apartment_floor OR
+NEW.storage_number IS DISTINCT FROM OLD.storage_number OR
+NEW.storage_floor IS DISTINCT FROM OLD.storage_floor
+) THEN
+-- Reset export flags
+NEW.exported_to_automation := false;
+NEW.export_to_automation_at := NULL;
+END IF;
+
+RETURN NEW;
+END;
+$$;
+
+SELECT 'Function save_assets_bulk_transactional and reset_export_flags_on_change created successfully!' as status;

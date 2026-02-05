@@ -43,7 +43,7 @@ export function numericValueParser(params: { newValue?: unknown } | null): numbe
 }
 
 /**
- * Use as valueParser for integer AG Grid columns (e.g. tax_region, floor).
+ * Use as valueParser for integer AG Grid columns (e.g. tax_region).
  * When the user clears the cell, returns 0 instead of null.
  * Otherwise parses with parseInt(radix) and returns the value, or 0 if invalid.
  */

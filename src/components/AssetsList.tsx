@@ -858,7 +858,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
           const isNumericField = colDef.type === 'numericColumn' || 
             field === 'asset_size' || 
             field?.startsWith('sub_asset_size_') || 
-            field === 'floor' || 
             field === 'tax_region';
           return isNumericField ? 0 : null;
         }
@@ -1001,7 +1000,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     const isNumericField = event.colDef?.type === 'numericColumn' ||
       field === 'asset_size' || 
       field?.startsWith('sub_asset_size_') || 
-      field === 'floor' || 
       field === 'tax_region';
     
     // Get initial value from the asset data
@@ -1047,7 +1045,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     if (newValue === '' || newValue === null || newValue === undefined) {
       const isNumericField = colDef?.type === 'numericColumn' ||
         field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
-        field === 'floor' || field === 'tax_region';
+        field === 'tax_region';
       newValue = isNumericField ? 0 : null;
     }
     
@@ -1056,7 +1054,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       if (val == null || val === '') {
         const isNumericField = colDef?.type === 'numericColumn' ||
           field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
-          field === 'floor' || field === 'tax_region';
+          field === 'tax_region';
         return isNumericField ? 0 : null;
       }
       if (typeof val === 'number') return isNaN(val) ? null : val;

@@ -44,18 +44,7 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-const AssetsListComponent = forwardRef<AssetsListRef, AssetsListProps>(({ 
-  buildingNumber, 
-  taxRegion, 
-  onSelectAsset, 
-  onOpenTransferAreas, 
-  onOpenNewAsset, 
-  selectedAssetIds, 
-  onOpenAssetsTab, 
-  onCloseTabAndOpenMultiTax, 
-  onCloseTab, 
-  isErrorFixingMode = false 
-}, ref) => {
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();
@@ -5491,6 +5480,4 @@ const AssetsListComponent = forwardRef<AssetsListRef, AssetsListProps>(({
   );
 });
 
-AssetsListComponent.displayName = 'AssetsList';
-
-export const AssetsList = AssetsListComponent;
+AssetsList.displayName = 'AssetsList';

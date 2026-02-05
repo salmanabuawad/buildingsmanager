@@ -4264,8 +4264,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       headerClass: 'ag-right-aligned-header',
       cellStyle: (params: any) => getCellStyle(params)
     },
-      cellStyle: (params: any) => getCellStyle(params)
-    },
     {
       field: 'discount_type',
       headerName: 'סוג הנחה',

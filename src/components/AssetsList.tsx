@@ -45,7 +45,10 @@ export interface AssetsListRef {
 }
 
 export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(
-  ({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
+  (
+    { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false },
+    ref
+  ) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();

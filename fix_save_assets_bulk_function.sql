@@ -251,7 +251,7 @@ INSERT INTO assets_history (
   elevator, single_double_family, condo, townhouses, penthouse,
   structure_drawing_url, discount_type, discount_date_from, discount_date_to,
   business_distribution_area, exported_to_automation, comment, created_at, updated_at,
-  apartment_number, apartment_floor, storage_number, storage_floor, is_new_measurement,
+  apartment_number, apartment_floor, storage_number, storage_floor,
   data_from_automation
 )
 SELECT 
@@ -262,7 +262,7 @@ SELECT
   elevator, single_double_family, condo, townhouses, penthouse,
   structure_drawing_url, discount_type, discount_date_from, discount_date_to,
   business_distribution_area, exported_to_automation, comment, created_at, updated_at,
-  apartment_number, apartment_floor, storage_number, storage_floor, is_new_measurement,
+  apartment_number, apartment_floor, storage_number, storage_floor,
   data_from_automation
 FROM assets WHERE asset_id = v_asset_id;
 END IF;
@@ -470,4 +470,157 @@ RETURN NEW;
 END;
 $$;
 
-SELECT 'Function save_assets_bulk_transactional and reset_export_flags_on_change created successfully!' as status;
+-- Fix copy_asset_to_history_before_update function to remove floor reference
+CREATE OR REPLACE FUNCTION copy_asset_to_history_before_update(p_asset_id bigint)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+v_old_asset jsonb;
+BEGIN
+SELECT to_jsonb(a.*) INTO v_old_asset
+FROM assets a
+WHERE a.asset_id = p_asset_id;
+
+IF v_old_asset IS NOT NULL THEN
+INSERT INTO assets_history (
+building_number, payer_id, asset_id, measurement_date,
+main_asset_type, asset_size,
+sub_asset_type_1, sub_asset_size_1,
+sub_asset_type_2, sub_asset_size_2,
+sub_asset_type_3, sub_asset_size_3,
+sub_asset_type_4, sub_asset_size_4,
+sub_asset_type_5, sub_asset_size_5,
+sub_asset_type_6, sub_asset_size_6,
+structure_drawing_url, created_at, updated_at,
+elevator, single_double_family, condo, townhouses, penthouse,
+tax_region, discount_type, discount_date_from, discount_date_to,
+business_distribution_area, exported_to_automation, comment,
+apartment_number, apartment_floor, storage_number, storage_floor, data_from_automation
+) VALUES (
+(v_old_asset->>'building_number')::bigint,
+v_old_asset->>'payer_id',
+(v_old_asset->>'asset_id')::bigint,
+v_old_asset->>'measurement_date',
+v_old_asset->>'main_asset_type',
+(v_old_asset->>'asset_size')::numeric,
+v_old_asset->>'sub_asset_type_1',
+(v_old_asset->>'sub_asset_size_1')::numeric,
+v_old_asset->>'sub_asset_type_2',
+(v_old_asset->>'sub_asset_size_2')::numeric,
+v_old_asset->>'sub_asset_type_3',
+(v_old_asset->>'sub_asset_size_3')::numeric,
+v_old_asset->>'sub_asset_type_4',
+(v_old_asset->>'sub_asset_size_4')::numeric,
+v_old_asset->>'sub_asset_type_5',
+(v_old_asset->>'sub_asset_size_5')::numeric,
+v_old_asset->>'sub_asset_type_6',
+(v_old_asset->>'sub_asset_size_6')::numeric,
+v_old_asset->>'structure_drawing_url',
+COALESCE((v_old_asset->>'created_at')::timestamptz, now()),
+COALESCE((v_old_asset->>'updated_at')::timestamptz, now()),
+COALESCE((v_old_asset->>'elevator')::boolean, false),
+COALESCE((v_old_asset->>'single_double_family')::boolean, false),
+COALESCE((v_old_asset->>'condo')::boolean, false),
+COALESCE((v_old_asset->>'townhouses')::boolean, false),
+COALESCE((v_old_asset->>'penthouse')::boolean, false),
+(v_old_asset->>'tax_region')::integer,
+v_old_asset->>'discount_type',
+v_old_asset->>'discount_date_from',
+v_old_asset->>'discount_date_to',
+COALESCE((v_old_asset->>'business_distribution_area')::numeric, 0),
+COALESCE((v_old_asset->>'exported_to_automation')::boolean, false),
+v_old_asset->>'comment',
+v_old_asset->>'apartment_number',
+v_old_asset->>'apartment_floor',
+v_old_asset->>'storage_number',
+v_old_asset->>'storage_floor',
+COALESCE((v_old_asset->>'data_from_automation')::boolean, false)
+);
+END IF;
+END;
+$$;
+
+COMMENT ON FUNCTION copy_asset_to_history_before_update IS 'Copy asset to history before update (for new measurements). Updated to remove floor field and add apartment/storage fields.';
+
+-- Fix copy_asset_to_history trigger function to remove floor reference
+CREATE OR REPLACE FUNCTION copy_asset_to_history()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    IF COALESCE(NEW.is_new_measurement, false) = true THEN
+      INSERT INTO assets_history (
+        building_number, payer_id, asset_id, measurement_date,
+        main_asset_type, asset_size,
+        sub_asset_type_1, sub_asset_size_1,
+        sub_asset_type_2, sub_asset_size_2,
+        sub_asset_type_3, sub_asset_size_3,
+        sub_asset_type_4, sub_asset_size_4,
+        sub_asset_type_5, sub_asset_size_5,
+        sub_asset_type_6, sub_asset_size_6,
+        structure_drawing_url, created_at, updated_at,
+        elevator, single_double_family, condo, townhouses, penthouse,
+        tax_region, discount_type, discount_date_from, discount_date_to,
+        business_distribution_area, exported_to_automation, comment,
+        apartment_number, apartment_floor, storage_number, storage_floor, data_from_automation
+      ) VALUES (
+        OLD.building_number, OLD.payer_id, OLD.asset_id, OLD.measurement_date,
+        OLD.main_asset_type, OLD.asset_size,
+        OLD.sub_asset_type_1, OLD.sub_asset_size_1,
+        OLD.sub_asset_type_2, OLD.sub_asset_size_2,
+        OLD.sub_asset_type_3, OLD.sub_asset_size_3,
+        OLD.sub_asset_type_4, OLD.sub_asset_size_4,
+        OLD.sub_asset_type_5, OLD.sub_asset_size_5,
+        OLD.sub_asset_type_6, OLD.sub_asset_size_6,
+        OLD.structure_drawing_url, OLD.created_at, OLD.updated_at,
+        OLD.elevator, OLD.single_double_family, OLD.condo, OLD.townhouses, OLD.penthouse,
+        OLD.tax_region, OLD.discount_type, OLD.discount_date_from, OLD.discount_date_to,
+        OLD.business_distribution_area, OLD.exported_to_automation, OLD.comment,
+        OLD.apartment_number, OLD.apartment_floor, OLD.storage_number, OLD.storage_floor, OLD.data_from_automation
+      );
+      NEW.is_new_measurement = false;
+    END IF;
+    RETURN NEW;
+  END IF;
+  
+  IF TG_OP = 'DELETE' THEN
+    INSERT INTO assets_history (
+      building_number, payer_id, asset_id, measurement_date,
+      main_asset_type, asset_size,
+      sub_asset_type_1, sub_asset_size_1,
+      sub_asset_type_2, sub_asset_size_2,
+      sub_asset_type_3, sub_asset_size_3,
+      sub_asset_type_4, sub_asset_size_4,
+      sub_asset_type_5, sub_asset_size_5,
+      sub_asset_type_6, sub_asset_size_6,
+      structure_drawing_url, created_at, updated_at,
+      elevator, single_double_family, condo, townhouses, penthouse,
+      tax_region, discount_type, discount_date_from, discount_date_to,
+      business_distribution_area, exported_to_automation, comment,
+      apartment_number, apartment_floor, storage_number, storage_floor, data_from_automation
+    ) VALUES (
+      OLD.building_number, OLD.payer_id, OLD.asset_id, OLD.measurement_date,
+      OLD.main_asset_type, OLD.asset_size,
+      OLD.sub_asset_type_1, OLD.sub_asset_size_1,
+      OLD.sub_asset_type_2, OLD.sub_asset_size_2,
+      OLD.sub_asset_type_3, OLD.sub_asset_size_3,
+      OLD.sub_asset_type_4, OLD.sub_asset_size_4,
+      OLD.sub_asset_type_5, OLD.sub_asset_size_5,
+      OLD.sub_asset_type_6, OLD.sub_asset_size_6,
+      OLD.structure_drawing_url, OLD.created_at, OLD.updated_at,
+      OLD.elevator, OLD.single_double_family, OLD.condo, OLD.townhouses, OLD.penthouse,
+      OLD.tax_region, OLD.discount_type, OLD.discount_date_from, OLD.discount_date_to,
+      OLD.business_distribution_area, OLD.exported_to_automation, OLD.comment,
+      OLD.apartment_number, OLD.apartment_floor, OLD.storage_number, OLD.storage_floor, OLD.data_from_automation
+    );
+    RETURN OLD;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION copy_asset_to_history IS 'Trigger function to copy asset to history before update (when is_new_measurement=true) or on delete. Updated to remove floor field and add apartment/storage fields.';
+
+SELECT 'Functions save_assets_bulk_transactional, reset_export_flags_on_change, copy_asset_to_history_before_update, and copy_asset_to_history trigger function created successfully!' as status;

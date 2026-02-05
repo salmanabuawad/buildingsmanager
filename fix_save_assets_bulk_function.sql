@@ -251,8 +251,7 @@ INSERT INTO assets_history (
   elevator, single_double_family, condo, townhouses, penthouse,
   structure_drawing_url, discount_type, discount_date_from, discount_date_to,
   business_distribution_area, exported_to_automation, comment, created_at, updated_at,
-  apartment_number, apartment_floor, storage_number, storage_floor,
-  data_from_automation
+  apartment_number, apartment_floor, storage_number, storage_floor
 )
 SELECT 
   asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
@@ -262,8 +261,7 @@ SELECT
   elevator, single_double_family, condo, townhouses, penthouse,
   structure_drawing_url, discount_type, discount_date_from, discount_date_to,
   business_distribution_area, exported_to_automation, comment, created_at, updated_at,
-  apartment_number, apartment_floor, storage_number, storage_floor,
-  data_from_automation
+  apartment_number, apartment_floor, storage_number, storage_floor
 FROM assets WHERE asset_id = v_asset_id;
 END IF;
 
@@ -497,7 +495,7 @@ structure_drawing_url, created_at, updated_at,
 elevator, single_double_family, condo, townhouses, penthouse,
 tax_region, discount_type, discount_date_from, discount_date_to,
 business_distribution_area, exported_to_automation, comment,
-apartment_number, apartment_floor, storage_number, storage_floor, data_from_automation
+apartment_number, apartment_floor, storage_number, storage_floor
 ) VALUES (
 (v_old_asset->>'building_number')::bigint,
 v_old_asset->>'payer_id',
@@ -535,8 +533,7 @@ v_old_asset->>'comment',
 v_old_asset->>'apartment_number',
 v_old_asset->>'apartment_floor',
 v_old_asset->>'storage_number',
-v_old_asset->>'storage_floor',
-COALESCE((v_old_asset->>'data_from_automation')::boolean, false)
+v_old_asset->>'storage_floor'
 );
 END IF;
 END;
@@ -563,7 +560,7 @@ BEGIN
         elevator, single_double_family, condo, townhouses, penthouse,
         tax_region, discount_type, discount_date_from, discount_date_to,
         business_distribution_area, exported_to_automation, comment,
-        apartment_number, apartment_floor, storage_number, storage_floor, data_from_automation
+        apartment_number, apartment_floor, storage_number, storage_floor
       ) VALUES (
         OLD.building_number, OLD.payer_id, OLD.asset_id, OLD.measurement_date,
         OLD.main_asset_type, OLD.asset_size,
@@ -577,7 +574,7 @@ BEGIN
         OLD.elevator, OLD.single_double_family, OLD.condo, OLD.townhouses, OLD.penthouse,
         OLD.tax_region, OLD.discount_type, OLD.discount_date_from, OLD.discount_date_to,
         OLD.business_distribution_area, OLD.exported_to_automation, OLD.comment,
-        OLD.apartment_number, OLD.apartment_floor, OLD.storage_number, OLD.storage_floor, OLD.data_from_automation
+        OLD.apartment_number, OLD.apartment_floor, OLD.storage_number, OLD.storage_floor
       );
       NEW.is_new_measurement = false;
     END IF;
@@ -598,7 +595,7 @@ BEGIN
       elevator, single_double_family, condo, townhouses, penthouse,
       tax_region, discount_type, discount_date_from, discount_date_to,
       business_distribution_area, exported_to_automation, comment,
-      apartment_number, apartment_floor, storage_number, storage_floor, data_from_automation
+      apartment_number, apartment_floor, storage_number, storage_floor
     ) VALUES (
       OLD.building_number, OLD.payer_id, OLD.asset_id, OLD.measurement_date,
       OLD.main_asset_type, OLD.asset_size,
@@ -612,7 +609,7 @@ BEGIN
       OLD.elevator, OLD.single_double_family, OLD.condo, OLD.townhouses, OLD.penthouse,
       OLD.tax_region, OLD.discount_type, OLD.discount_date_from, OLD.discount_date_to,
       OLD.business_distribution_area, OLD.exported_to_automation, OLD.comment,
-      OLD.apartment_number, OLD.apartment_floor, OLD.storage_number, OLD.storage_floor, OLD.data_from_automation
+      OLD.apartment_number, OLD.apartment_floor, OLD.storage_number, OLD.storage_floor
     );
     RETURN OLD;
   END IF;

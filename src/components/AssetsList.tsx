@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets } from '../lib/api';
@@ -44,7 +44,8 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
+function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsListRef>) {
+  const { buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false } = props;
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();
@@ -5478,6 +5479,8 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
 
     </>
   );
-});
+}
+
+export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(AssetsListInner);
 
 AssetsList.displayName = 'AssetsList';

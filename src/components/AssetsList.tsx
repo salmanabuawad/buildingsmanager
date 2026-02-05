@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets } from '../lib/api';
@@ -44,8 +44,18 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-const AssetsListComponent = React.forwardRef<AssetsListRef, AssetsListProps>(
-  ({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
+const AssetsListComponent = forwardRef<AssetsListRef, AssetsListProps>(({ 
+  buildingNumber, 
+  taxRegion, 
+  onSelectAsset, 
+  onOpenTransferAreas, 
+  onOpenNewAsset, 
+  selectedAssetIds, 
+  onOpenAssetsTab, 
+  onCloseTabAndOpenMultiTax, 
+  onCloseTab, 
+  isErrorFixingMode = false 
+}, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
   const { isReadOnly } = useUserRole();

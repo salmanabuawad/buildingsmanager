@@ -4966,7 +4966,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Distribute shared area button - always visible in residence tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
-            {!isErrorFixingMode && building && isResidentTaxRegion && building.residence_shared_area != null && (
+            {!isErrorFixingMode && building && isResidentTaxRegion && (building.residence_shared_area != null || building.need_residence_distribution === true) && (
               <button
                 type="button"
                 onClick={handleDistributeSharedArea}
@@ -4978,9 +4978,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 }
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 active:from-teal-700 active:to-teal-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-teal-700/20 disabled:border-gray-500/20"
                 title={building.need_residence_distribution === true 
-                  ? building.residence_shared_area! > 0
-                    ? `פזר שטח משותף מגורים (${building.residence_shared_area!.toLocaleString('he-IL')}) בין כל נכסי המגורים`
-                    : 'נקה פיזור קודם של שטח משותף מגורים (שטח משותף = 0)'
+                  ? building.residence_shared_area != null && building.residence_shared_area > 0
+                    ? `פזר שטח משותף מגורים (${building.residence_shared_area.toLocaleString('he-IL')}) בין כל נכסי המגורים`
+                    : building.residence_shared_area != null && building.residence_shared_area === 0
+                    ? 'נקה פיזור קודם של שטח משותף מגורים (שטח משותף = 0)'
+                    : 'פזר שטח משותף מגורים בין כל נכסי המגורים'
                   : 'יש לשנות את שטח משותף מגורים כדי לאפשר פיזור'}
               >
                 <Download className="h-4 w-4" />
@@ -4988,7 +4990,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               </button>
             )}
             {/* Distribute business shared area button - always visible in business tabs, enabled when flag is on (blinking alert), hidden in error fixing mode */}
-            {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && building.business_shared_area != null && (
+            {!isErrorFixingMode && building && taxRegion && !isMultiTaxRegion && !isResidentTaxRegion && (building.business_shared_area != null || building.need_business_distribution === true) && (
               <button
                 type="button"
                 onClick={handleDistributeBusinessSharedArea}
@@ -5000,9 +5002,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 }
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 active:from-violet-700 active:to-violet-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-violet-700/20 disabled:border-gray-500/20"
                 title={building.need_business_distribution === true
-                  ? building.business_shared_area! > 0
-                    ? `פזר שטח משותף עסקים (${building.business_shared_area!.toLocaleString('he-IL')}) בין כל נכסי העסקים`
-                    : 'נקה פיזור קודם של שטח משותף עסקים (שטח משותף = 0)'
+                  ? building.business_shared_area != null && building.business_shared_area > 0
+                    ? `פזר שטח משותף עסקים (${building.business_shared_area.toLocaleString('he-IL')}) בין כל נכסי העסקים`
+                    : building.business_shared_area != null && building.business_shared_area === 0
+                    ? 'נקה פיזור קודם של שטח משותף עסקים (שטח משותף = 0)'
+                    : 'פזר שטח משותף עסקים בין כל נכסי העסקים'
                   : 'יש לשנות את שטח משותף עסקים כדי לאפשר פיזור'}
               >
                 <Download className="h-4 w-4" />

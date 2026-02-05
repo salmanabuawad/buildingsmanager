@@ -416,7 +416,10 @@ export interface Asset {
   is_latest?: boolean; // Flag from assets_with_history view: true for assets table, false for assets_history
   history_created_at?: string; // Only present for assets_history records
   is_new_measurement?: boolean; // Flag to mark as new measurement - when true, UPDATE will move old record to history
-  floor?: number; // קומה (Floor number)
+  apartment_number?: string; // מספר דירה (Apartment number)
+  apartment_floor?: string; // קומת דירה (Apartment floor)
+  storage_number?: string; // מספר מחסן (Storage number)
+  storage_floor?: string; // קומת מחסן (Storage floor)
   discount_type?: string; // סוג הנחה (Discount type)
   discount_date_from?: string; // תאריך הנחה מ (Discount date from)
   discount_date_to?: string; // תאריך הנחה עד (Discount date to)
@@ -649,7 +652,10 @@ export function sanitizeAssetInput(input: any): any {
     townhouses: (preConverted.townhouses === true || preConverted.townhouses === 'כן' || preConverted.townhouses === 'true' || preConverted.townhouses === 'TRUE' || preConverted.townhouses === '1') ? true : false,
     penthouse: (preConverted.penthouse === true || preConverted.penthouse === 'כן' || preConverted.penthouse === 'true' || preConverted.penthouse === 'TRUE' || preConverted.penthouse === '1') ? true : false,
     structure_drawing_url: preConverted.structure_drawing_url != null ? sanitizeText(preConverted.structure_drawing_url) : undefined,
-    floor: preConverted.floor != null ? sanitizeInteger(preConverted.floor) : undefined,
+    apartment_number: preConverted.apartment_number != null && preConverted.apartment_number !== '' ? sanitizeText(preConverted.apartment_number) : undefined,
+    apartment_floor: preConverted.apartment_floor != null && preConverted.apartment_floor !== '' ? sanitizeText(preConverted.apartment_floor) : undefined,
+    storage_number: preConverted.storage_number != null && preConverted.storage_number !== '' ? sanitizeText(preConverted.storage_number) : undefined,
+    storage_floor: preConverted.storage_floor != null && preConverted.storage_floor !== '' ? sanitizeText(preConverted.storage_floor) : undefined,
     discount_type: preConverted.discount_type != null ? sanitizeText(preConverted.discount_type) : undefined,
     discount_date_from: preConverted.discount_date_from != null ? sanitizeDate(preConverted.discount_date_from) : undefined,
     discount_date_to: preConverted.discount_date_to != null ? sanitizeDate(preConverted.discount_date_to) : undefined,

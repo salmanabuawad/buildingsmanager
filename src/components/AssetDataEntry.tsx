@@ -34,7 +34,10 @@ interface AssetRow {
   sub_asset_type_6: string;
   sub_asset_size_6: number;
   penthouse?: string;
-  floor?: number;
+  apartment_number?: string;
+  apartment_floor?: string;
+  storage_number?: string;
+  storage_floor?: string;
   discount_type?: string;
   discount_date_from?: string;
   discount_date_to?: string;
@@ -943,19 +946,40 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
       headerClass: 'text-center'
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      type: 'numericColumn',
-      valueParser: (params) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
+      cellStyle: (params) => getCellStyle(params, 'apartment_number', false)
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
       },
-      cellStyle: (params) => getCellStyle(params, 'floor', false)
+      cellStyle: (params) => getCellStyle(params, 'apartment_floor', false)
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'storage_number', false)
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'storage_floor', false)
     },
     {
       field: 'discount_type',

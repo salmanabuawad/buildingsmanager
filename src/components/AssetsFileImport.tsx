@@ -38,7 +38,10 @@ interface ImportAssetRow {
   sub_asset_type_6: string;
   sub_asset_size_6: number;
   penthouse?: string;
-  floor?: number;
+  apartment_number?: string;
+  apartment_floor?: string;
+  storage_number?: string;
+  storage_floor?: string;
   discount_type?: string;
   discount_date_from?: string;
   discount_date_to?: string;
@@ -263,7 +266,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         'sub_asset_type_6': 'סוג נכס משנה 6',
         'sub_asset_size_6': 'גודל נכס משנה 6',
         'penthouse': 'דירת גג',
-        'floor': 'קומה',
+        'apartment_number': 'מספר דירה',
+        'apartment_floor': 'קומת דירה',
+        'storage_number': 'מספר מחסן',
+        'storage_floor': 'קומת מחסן',
         'discount_type': 'סוג הנחה',
         'discount_date_from': 'תאריך הנחה מ',
         'discount_date_to': 'תאריך הנחה עד',
@@ -356,7 +362,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           sub_asset_type_6: '',
           sub_asset_size_6: 0,
           tax_region: undefined,
-          floor: undefined,
+          apartment_number: undefined,
+          apartment_floor: undefined,
+          storage_number: undefined,
+          storage_floor: undefined,
           discount_type: undefined,
           discount_date_from: undefined,
           discount_date_to: undefined,
@@ -438,9 +447,17 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
             asset.penthouse = false;
           }
         }
-        if (headerMap['floor'] !== undefined) {
-          const value = values[headerMap['floor']] || '';
-          asset.floor = value ? (isNaN(parseInt(value)) ? undefined : parseInt(value)) : undefined;
+        if (headerMap['apartment_number'] !== undefined) {
+          asset.apartment_number = values[headerMap['apartment_number']] || undefined;
+        }
+        if (headerMap['apartment_floor'] !== undefined) {
+          asset.apartment_floor = values[headerMap['apartment_floor']] || undefined;
+        }
+        if (headerMap['storage_number'] !== undefined) {
+          asset.storage_number = values[headerMap['storage_number']] || undefined;
+        }
+        if (headerMap['storage_floor'] !== undefined) {
+          asset.storage_floor = values[headerMap['storage_floor']] || undefined;
         }
         if (headerMap['discount_type'] !== undefined) {
           asset.discount_type = values[headerMap['discount_type']] || undefined;
@@ -1319,7 +1336,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
         sub_asset_size_5: 0,
         sub_asset_type_6: null,
         sub_asset_size_6: 0,
-        floor: null,
+        apartment_number: null,
+        apartment_floor: null,
+        storage_number: null,
+        storage_floor: null,
         discount_type: null,
         discount_date_from: null,
         discount_date_to: null,
@@ -1853,7 +1873,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
           sub_asset_size_5: asset.sub_asset_size_5 || 0,
           sub_asset_type_6: asset.sub_asset_type_6 || null,
           sub_asset_size_6: asset.sub_asset_size_6 || 0,
-          floor: asset.floor || null,
+          apartment_number: asset.apartment_number || null,
+          apartment_floor: asset.apartment_floor || null,
+          storage_number: asset.storage_number || null,
+          storage_floor: asset.storage_floor || null,
           discount_type: asset.discount_type || null,
           discount_date_from: asset.discount_date_from || null,
           discount_date_to: asset.discount_date_to || null,
@@ -3019,15 +3042,27 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       cellStyle: getCellStyle
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
       editable: true,
-      type: 'numericColumn',
-      valueParser: (params) => {
-        if (!params.newValue || params.newValue === '') return null;
-        const num = parseInt(params.newValue, 10);
-        return isNaN(num) ? null : num;
-      },
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      editable: true,
+      cellStyle: getCellStyle
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
+      editable: true,
       cellStyle: getCellStyle
     },
     {
@@ -3141,7 +3176,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
       'סוג נכס משנה 6',
       'גודל נכס משנה 6',
       'דירת גג',
-      'קומה',
+      'מספר דירה',
+      'קומת דירה',
+      'מספר מחסן',
+      'קומת מחסן',
       'סוג הנחה',
       'תאריך הנחה מ',
       'תאריך הנחה עד',
@@ -3722,7 +3760,10 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                         <option value="sub_asset_type_6">סוג נכס משנה 6</option>
                         <option value="sub_asset_size_6">גודל נכס משנה 6</option>
                         <option value="penthouse">דירת גג</option>
-                        <option value="floor">קומה</option>
+                        <option value="apartment_number">מספר דירה</option>
+                        <option value="apartment_floor">קומת דירה</option>
+                        <option value="storage_number">מספר מחסן</option>
+                        <option value="storage_floor">קומת מחסן</option>
                         <option value="discount_type">סוג הנחה</option>
                         <option value="discount_date_from">תאריך הנחה מ</option>
                         <option value="discount_date_to">תאריך הנחה עד</option>

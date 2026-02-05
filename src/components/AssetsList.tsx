@@ -794,7 +794,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const isNumericField = colDef.type === 'numericColumn' || 
           field === 'asset_size' || 
           field?.startsWith('sub_asset_size_') || 
-          field === 'floor' || 
           field === 'tax_region';
         
         if (isNumericField) {
@@ -843,7 +842,6 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         const isNumericField = colDef.type === 'numericColumn' || 
           field === 'asset_size' || 
           field?.startsWith('sub_asset_size_') || 
-          field === 'floor' || 
           field === 'tax_region';
         
         if (isNumericField) {
@@ -2309,7 +2307,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       measurement_date: dateStr,
       tax_region: taxRegionValue,
       penthouse: null,
-      floor: undefined,
+      apartment_number: undefined,
+      apartment_floor: undefined,
+      storage_number: undefined,
+      storage_floor: undefined,
       discount_type: undefined,
       discount_date_from: undefined,
       discount_date_to: undefined,

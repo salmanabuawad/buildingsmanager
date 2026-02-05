@@ -44,7 +44,7 @@ export interface AssetsListRef {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AssetsList = React.forwardRef<AssetsListRef, AssetsListProps>(
+const AssetsListComponent = React.forwardRef<AssetsListRef, AssetsListProps>(
   ({ buildingNumber, taxRegion, onSelectAsset, onOpenTransferAreas, onOpenNewAsset, selectedAssetIds, onOpenAssetsTab, onCloseTabAndOpenMultiTax, onCloseTab, isErrorFixingMode = false }, ref) => {
   const { t } = useTranslation();
   const { validationRules } = useValidationRules(); // Get validation rules from context
@@ -5480,3 +5480,7 @@ export const AssetsList = React.forwardRef<AssetsListRef, AssetsListProps>(
     </>
   );
 });
+
+AssetsListComponent.displayName = 'AssetsList';
+
+export const AssetsList = AssetsListComponent;

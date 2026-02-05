@@ -153,7 +153,7 @@ sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
 sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse,
 structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-business_distribution_area, exported_to_automation, comment, created_at, updated_at, is_new_measurement
+area_from_distribution, exported_to_automation, comment, created_at, updated_at, is_new_measurement
 FROM assets 
 WHERE building_number = v_first_building_number
 ORDER BY asset_id
@@ -218,7 +218,7 @@ asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_si
 sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2, sub_asset_type_3, sub_asset_size_3,
 sub_asset_type_4, sub_asset_size_4, sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse, structure_drawing_url,
-discount_type, discount_date_from, discount_date_to, business_distribution_area, exported_to_automation, comment
+discount_type, discount_date_from, discount_date_to, area_from_distribution, exported_to_automation, comment
 )
 VALUES (
 v_asset_id, v_building_number, (v_asset_data->>'payer_id')::TEXT,
@@ -237,13 +237,34 @@ extract_boolean_from_jsonb(v_asset_data->'townhouses', false),
 extract_boolean_from_jsonb(v_asset_data->'penthouse', false),
 (v_asset_data->>'structure_drawing_url')::TEXT,
 (v_asset_data->>'discount_type')::TEXT, (v_asset_data->>'discount_date_from')::TEXT,
-(v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'business_distribution_area')::NUMERIC,
+(v_asset_data->>'discount_date_to')::TEXT, (v_asset_data->>'area_from_distribution')::NUMERIC,
 extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false), (v_asset_data->>'comment')::TEXT
 );
 ELSE
 -- UPDATE existing asset (fixed type casts: tax_region to INTEGER)
 IF extract_boolean_from_jsonb(v_asset_data->'is_new_measurement', false) = true THEN
-INSERT INTO assets_history SELECT * FROM assets WHERE asset_id = v_asset_id;
+INSERT INTO assets_history (
+  asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+  sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+  sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+  sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+  elevator, single_double_family, condo, townhouses, penthouse,
+  structure_drawing_url, discount_type, discount_date_from, discount_date_to,
+  area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+  apartment_number, apartment_floor, storage_number, storage_floor, is_new_measurement,
+  data_from_automation
+)
+SELECT 
+  asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+  sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+  sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+  sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+  elevator, single_double_family, condo, townhouses, penthouse,
+  structure_drawing_url, discount_type, discount_date_from, discount_date_to,
+  area_from_distribution, exported_to_automation, comment, created_at, updated_at,
+  apartment_number, apartment_floor, storage_number, storage_floor, is_new_measurement,
+  data_from_automation
+FROM assets WHERE asset_id = v_asset_id;
 END IF;
 
 UPDATE assets SET
@@ -274,7 +295,7 @@ structure_drawing_url = COALESCE((v_asset_data->>'structure_drawing_url')::TEXT,
 discount_type = COALESCE((v_asset_data->>'discount_type')::TEXT, discount_type),
 discount_date_from = COALESCE((v_asset_data->>'discount_date_from')::TEXT, discount_date_from),
 discount_date_to = COALESCE((v_asset_data->>'discount_date_to')::TEXT, discount_date_to),
-business_distribution_area = COALESCE((v_asset_data->>'business_distribution_area')::NUMERIC, business_distribution_area),
+area_from_distribution = COALESCE((v_asset_data->>'area_from_distribution')::NUMERIC, area_from_distribution),
 exported_to_automation = CASE WHEN v_asset_data ? 'exported_to_automation' THEN extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false) ELSE exported_to_automation END,
 comment = COALESCE((v_asset_data->>'comment')::TEXT, comment),
 updated_at = NOW()
@@ -303,7 +324,7 @@ sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
 sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
 elevator, single_double_family, condo, townhouses, penthouse,
 structure_drawing_url, discount_type, discount_date_from, discount_date_to,
-business_distribution_area, exported_to_automation, comment, created_at, updated_at
+area_from_distribution, exported_to_automation, comment, created_at, updated_at
 FROM assets 
 WHERE building_number = v_first_building_number
 ORDER BY asset_id

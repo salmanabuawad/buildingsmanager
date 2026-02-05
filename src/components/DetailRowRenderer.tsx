@@ -253,8 +253,7 @@ export function DetailRowRenderer(params: DetailRowParams) {
     // Check if numeric field
     const isNumericField = fieldName.includes('size') || 
       fieldName.includes('area') || 
-      fieldName === 'overload_ratio' ||
-      fieldName === 'floor';
+      fieldName === 'overload_ratio';
 
     if (isNumericField) {
       const formatted = formatNumberToTwoDecimals(value, false);

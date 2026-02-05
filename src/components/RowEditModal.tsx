@@ -263,17 +263,59 @@ export function RowEditModal({ isOpen, onClose, rowData, assetTypes, onSave }: R
               </div>
             </div>
 
-            {/* Floor */}
+            {/* Apartment Number */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                קומה
+                מספר דירה
               </label>
               <input
-                type="number"
-                value={formData.floor ?? ''}
-                onChange={(e) => handleFieldChange('floor', e.target.value === '' ? undefined : parseInt(e.target.value) || undefined)}
+                type="text"
+                value={formData.apartment_number ?? ''}
+                onChange={(e) => handleFieldChange('apartment_number', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                placeholder="קומה"
+                placeholder="מספר דירה"
+              />
+            </div>
+
+            {/* Apartment Floor */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                קומת דירה
+              </label>
+              <input
+                type="text"
+                value={formData.apartment_floor ?? ''}
+                onChange={(e) => handleFieldChange('apartment_floor', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                placeholder="קומת דירה"
+              />
+            </div>
+
+            {/* Storage Number */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                מספר מחסן
+              </label>
+              <input
+                type="text"
+                value={formData.storage_number ?? ''}
+                onChange={(e) => handleFieldChange('storage_number', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                placeholder="מספר מחסן"
+              />
+            </div>
+
+            {/* Storage Floor */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                קומת מחסן
+              </label>
+              <input
+                type="text"
+                value={formData.storage_floor ?? ''}
+                onChange={(e) => handleFieldChange('storage_floor', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                placeholder="קומת מחסן"
               />
             </div>
 

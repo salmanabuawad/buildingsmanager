@@ -390,8 +390,26 @@ export function AuditDetailsModal({ isOpen, onClose, actionId }: AuditDetailsMod
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
+      width: 100,
+      sortable: true,
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      width: 100,
+      sortable: true,
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      width: 100,
+      sortable: true,
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
       width: 100,
       sortable: true,
       filter: true,

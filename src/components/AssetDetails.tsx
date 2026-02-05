@@ -610,7 +610,7 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
     if (newValue === '' || newValue === null || newValue === undefined) {
       const isNumericField = colDef?.type === 'numericColumn' ||
         field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
-        field === 'floor' || field === 'tax_region';
+        field === 'tax_region';
       newValue = isNumericField ? 0 : null;
     }
     setDirtyAssets(prev => {
@@ -1113,7 +1113,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           sub_asset_type_6: currentAssetData.sub_asset_type_6 || undefined,
           sub_asset_size_6: currentAssetData.sub_asset_size_6 || 0,
           penthouse: currentAssetData.penthouse || undefined,
-          floor: currentAssetData.floor != null && currentAssetData.floor !== '' ? currentAssetData.floor : undefined,
+          apartment_number: currentAssetData.apartment_number || undefined,
+          apartment_floor: currentAssetData.apartment_floor || undefined,
+          storage_number: currentAssetData.storage_number || undefined,
+          storage_floor: currentAssetData.storage_floor || undefined,
           discount_type: currentAssetData.discount_type || undefined,
           discount_date_from: currentAssetData.discount_date_from || undefined,
           discount_date_to: currentAssetData.discount_date_to || undefined,
@@ -2247,8 +2250,26 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       cellStyle: { textAlign: 'right' }
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
+      width: 100,
+      sortable: true,
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      width: 100,
+      sortable: true,
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      width: 100,
+      sortable: true,
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
       width: 100,
       sortable: true,
       filter: true,
@@ -2692,15 +2713,40 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
       headerClass: 'text-center'
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
       editable: (params) => {
         const fieldName = params.colDef?.field || '';
         return isFieldEditable(params, fieldName);
       },
-      type: 'numericColumn',
-      valueParser: (params) => numericValueParserInt(params, 10),
-      cellStyle: (params) => getCellStyle(params, 'floor')
+      cellStyle: (params) => getCellStyle(params, 'apartment_number')
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'apartment_floor')
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'storage_number')
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
+      editable: (params) => {
+        const fieldName = params.colDef?.field || '';
+        return isFieldEditable(params, fieldName);
+      },
+      cellStyle: (params) => getCellStyle(params, 'storage_floor')
     },
     {
       field: 'discount_type',
@@ -3198,7 +3244,10 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
           sub_asset_size_6: 0,
           measurement_date: dateStr,
           penthouse: undefined,
-          floor: undefined,
+          apartment_number: undefined,
+          apartment_floor: undefined,
+          storage_number: undefined,
+          storage_floor: undefined,
           discount_type: undefined,
           discount_date_from: undefined,
           discount_date_to: undefined,
@@ -3628,9 +3677,26 @@ export const AssetDetails = forwardRef<AssetDetailsRef, AssetDetailsProps>(({ as
                       כתובת: {buildingAddress || '-'}
                     </p>
                   )}
-                  <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
-                    קומה: {asset?.floor != null ? asset.floor : '-'}
-                  </p>
+                  {asset?.apartment_number && (
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
+                      מספר דירה: {asset.apartment_number}
+                    </p>
+                  )}
+                  {asset?.apartment_floor && (
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
+                      קומת דירה: {asset.apartment_floor}
+                    </p>
+                  )}
+                  {asset?.storage_number && (
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
+                      מספר מחסן: {asset.storage_number}
+                    </p>
+                  )}
+                  {asset?.storage_floor && (
+                    <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
+                      קומת מחסן: {asset.storage_floor}
+                    </p>
+                  )}
                   {asset?.discount_type && (
                     <p className="text-[10px] sm:text-xs text-teal-50 font-medium bg-white/20 px-1.5 py-0.5 rounded">
                       סוג הנחה: {asset.discount_type}

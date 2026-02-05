@@ -400,10 +400,24 @@ export const MeasuredNotExportedAssets = ({ onSelectAsset }: MeasuredNotExported
       }
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
       editable: false,
-      type: 'numericColumn',
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      editable: false,
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      editable: false,
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
+      editable: false,
       headerClass: 'ag-right-aligned-header',
       cellStyle: { textAlign: 'right' }
     },

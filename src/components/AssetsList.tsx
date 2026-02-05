@@ -3297,7 +3297,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         'מזהה משלם',
         'אזור מס',
         'דירת גג',
-        'קומה',
+        'מספר דירה',
+        'קומת דירה',
+        'מספר מחסן',
+        'קומת מחסן',
         'סוג הנחה',
         'תאריך הנחה מ',
         'תאריך הנחה עד',
@@ -3327,7 +3330,10 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
         asset.payer_id || '',
         asset.tax_region || '',
         asset.penthouse || '',
-        asset.floor || '',
+        asset.apartment_number || '',
+        asset.apartment_floor || '',
+        asset.storage_number || '',
+        asset.storage_floor || '',
         asset.discount_type || '',
         formatDateToDDMMYYYY(asset.discount_date_from) || '',
         formatDateToDDMMYYYY(asset.discount_date_to) || '',
@@ -3643,8 +3649,23 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       cellStyle: (params: any) => getCellStyle(params)
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      cellStyle: { textAlign: 'right' }
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
       cellStyle: { textAlign: 'right' }
     },
     {
@@ -4215,12 +4236,33 @@ export const AssetsList = forwardRef<AssetsListRef, AssetsListProps>(({ building
       hide: !isResidentTaxRegion // Hide penthouse for business assets (only show for residence)
     },
     {
-      field: 'floor',
-      headerName: 'קומה',
-      editable: (params) => isFieldEditable(params, 'floor'),
-      type: 'numericColumn',
-      valueParser: (params) => numericValueParserInt(params, 10),
+      field: 'apartment_number',
+      headerName: 'מספר דירה',
+      editable: (params) => isFieldEditable(params, 'apartment_number'),
       headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'apartment_floor',
+      headerName: 'קומת דירה',
+      editable: (params) => isFieldEditable(params, 'apartment_floor'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'storage_number',
+      headerName: 'מספר מחסן',
+      editable: (params) => isFieldEditable(params, 'storage_number'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
+    {
+      field: 'storage_floor',
+      headerName: 'קומת מחסן',
+      editable: (params) => isFieldEditable(params, 'storage_floor'),
+      headerClass: 'ag-right-aligned-header',
+      cellStyle: (params: any) => getCellStyle(params)
+    },
       cellStyle: (params: any) => getCellStyle(params)
     },
     {

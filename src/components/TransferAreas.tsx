@@ -661,7 +661,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
     if (newValue === '' || newValue === null || newValue === undefined) {
       const isNumericField = colDef?.type === 'numericColumn' ||
         field === 'asset_size' || field?.startsWith('sub_asset_size_') ||
-        field === 'floor' || field === 'tax_region';
+        field === 'tax_region';
       newValue = isNumericField ? 0 : null;
     }
     setDirtyAssets(prev => {
@@ -1395,7 +1395,10 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
       sub_asset_type_6: '',
       sub_asset_size_6: 0,
       penthouse: null,
-      floor: undefined,
+      apartment_number: undefined,
+      apartment_floor: undefined,
+      storage_number: undefined,
+      storage_floor: undefined,
       discount_type: undefined,
       discount_date_from: undefined,
       discount_date_to: undefined,

@@ -816,6 +816,25 @@ export function AddressListComponent() {
             }}
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
+              
+              // Prevent text selection rectangle on cell click
+              const gridElement = params.api.getGridElement();
+              if (gridElement) {
+                // Prevent text selection on selectstart event (most reliable way)
+                gridElement.addEventListener('selectstart', (e: Event) => {
+                  const target = e.target as HTMLElement;
+                  // Only prevent selection if clicking on cell content, not on input/textarea/button
+                  if (target && target.closest('.ag-cell') && 
+                      !target.closest('input') && 
+                      !target.closest('textarea') && 
+                      !target.closest('button') &&
+                      !target.closest('a')) {
+                    e.preventDefault();
+                    return false;
+                  }
+                }, false);
+              }
+              
               setTimeout(() => {
                 detectAndApplyTextOverflow(params.api);
               }, 200);

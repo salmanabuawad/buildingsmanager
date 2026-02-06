@@ -157,6 +157,8 @@ input[type="number"] {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+  -webkit-touch-callout: none !important; /* Prevent iOS callout */
+  -webkit-tap-highlight-color: transparent !important; /* Remove tap highlight */
 }
 
 /* Prevent text selection on all cell content */
@@ -164,18 +166,25 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-wrapper,
 .ag-theme-alpine .ag-cell-content,
 .ag-theme-alpine .ag-cell span,
-.ag-theme-alpine .ag-cell div:not(input):not(textarea):not(button):not(a) {
+.ag-theme-alpine .ag-cell div:not(input):not(textarea):not(button):not(a),
+.ag-theme-alpine .ag-cell *:not(input):not(textarea):not(button):not(a) {
   user-select: none !important;
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
-/* Prevent selection highlight */
+/* Completely prevent selection highlight on all cell content */
 .ag-theme-alpine .ag-cell::selection,
 .ag-theme-alpine .ag-cell ::selection,
 .ag-theme-alpine .ag-cell-value::selection,
-.ag-theme-alpine .ag-cell-wrapper::selection {
+.ag-theme-alpine .ag-cell-wrapper::selection,
+.ag-theme-alpine .ag-cell-content::selection,
+.ag-theme-alpine .ag-cell span::selection,
+.ag-theme-alpine .ag-cell div::selection,
+.ag-theme-alpine .ag-cell *::selection {
   background: transparent !important;
   color: inherit !important;
 }
@@ -183,7 +192,11 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell::-moz-selection,
 .ag-theme-alpine .ag-cell ::-moz-selection,
 .ag-theme-alpine .ag-cell-value::-moz-selection,
-.ag-theme-alpine .ag-cell-wrapper::-moz-selection {
+.ag-theme-alpine .ag-cell-wrapper::-moz-selection,
+.ag-theme-alpine .ag-cell-content::-moz-selection,
+.ag-theme-alpine .ag-cell span::-moz-selection,
+.ag-theme-alpine .ag-cell div::-moz-selection,
+.ag-theme-alpine .ag-cell *::-moz-selection {
   background: transparent !important;
   color: inherit !important;
 }
@@ -194,6 +207,22 @@ input[type="number"] {
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2) !important;
   outline: none !important;
   /* Don't select text when cell gets focus - AG Grid default behavior */
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Prevent text selection on focused cell content */
+.ag-theme-alpine .ag-cell-focus .ag-cell-value,
+.ag-theme-alpine .ag-cell-focus .ag-cell-wrapper,
+.ag-theme-alpine .ag-cell-focus .ag-cell-content,
+.ag-theme-alpine .ag-cell-focus span,
+.ag-theme-alpine .ag-cell-focus div:not(input):not(textarea):not(button):not(a) {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
 /* Prevent text selection when clicking on non-editing cells (AG Grid default) */

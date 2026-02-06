@@ -253,10 +253,10 @@ input[type="number"] {
   color: inherit !important;
 }
 
-/* Focused cell styling - AG Grid best practice (matches ag-grid.com/example behavior) */
+/* Focused cell styling - no border on focus */
 .ag-theme-alpine .ag-cell-focus {
-  border: 2px solid #0d9488 !important;
-  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2) !important;
+  border: none !important;
+  box-shadow: none !important;
   outline: none !important;
   /* Don't select text when cell gets focus - AG Grid default behavior */
   user-select: none !important;
@@ -308,10 +308,10 @@ input[type="number"] {
   outline: none !important;
 }
 
-/* Ensure focused cell is visible even when editing */
+/* Ensure focused cell has no border even when editing */
 .ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
-  border: 2px solid #0d9488 !important;
-  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2) !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* Chrome-style fade effect for cell content - only when text overflows */

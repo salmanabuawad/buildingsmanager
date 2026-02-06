@@ -159,6 +159,28 @@ input[type="number"] {
   -ms-user-select: none !important;
   -webkit-touch-callout: none !important; /* Prevent iOS callout */
   -webkit-tap-highlight-color: transparent !important; /* Remove tap highlight */
+  -webkit-user-drag: none !important; /* Prevent dragging */
+  -khtml-user-select: none !important; /* Older browsers */
+}
+
+/* Global rule to prevent selection on all AG Grid cells */
+.ag-theme-alpine .ag-cell,
+.ag-theme-alpine .ag-cell * {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Re-enable selection only for input/textarea/button/a elements */
+.ag-theme-alpine .ag-cell input,
+.ag-theme-alpine .ag-cell textarea,
+.ag-theme-alpine .ag-cell button,
+.ag-theme-alpine .ag-cell a {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Prevent text selection on all cell content */
@@ -211,6 +233,8 @@ input[type="number"] {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* Prevent text selection on focused cell content */
@@ -218,11 +242,14 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus .ag-cell-wrapper,
 .ag-theme-alpine .ag-cell-focus .ag-cell-content,
 .ag-theme-alpine .ag-cell-focus span,
-.ag-theme-alpine .ag-cell-focus div:not(input):not(textarea):not(button):not(a) {
+.ag-theme-alpine .ag-cell-focus div:not(input):not(textarea):not(button):not(a),
+.ag-theme-alpine .ag-cell-focus *:not(input):not(textarea):not(button):not(a) {
   user-select: none !important;
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* Prevent text selection when clicking on non-editing cells (AG Grid default) */

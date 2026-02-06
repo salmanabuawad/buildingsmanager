@@ -821,7 +821,7 @@ export function AddressListComponent() {
               const gridElement = params.api.getGridElement();
               if (gridElement) {
                 // Prevent text selection on selectstart event (most reliable way)
-                gridElement.addEventListener('selectstart', (e: Event) => {
+                const preventSelection = (e: Event) => {
                   const target = e.target as HTMLElement;
                   // Only prevent selection if clicking on cell content, not on input/textarea/button
                   if (target && target.closest('.ag-cell') && 
@@ -830,9 +830,48 @@ export function AddressListComponent() {
                       !target.closest('button') &&
                       !target.closest('a')) {
                     e.preventDefault();
+                    e.stopPropagation();
                     return false;
                   }
-                }, false);
+                };
+                
+                gridElement.addEventListener('selectstart', preventSelection, true); // Capture phase
+                gridElement.addEventListener('mousedown', (e: MouseEvent) => {
+                  const target = e.target as HTMLElement;
+                  if (target && target.closest('.ag-cell') && 
+                      !target.closest('input') && 
+                      !target.closest('textarea') && 
+                      !target.closest('button') &&
+                      !target.closest('a')) {
+                    // Clear any selection immediately
+                    if (window.getSelection) {
+                      const selection = window.getSelection();
+                      if (selection) {
+                        selection.removeAllRanges();
+                      }
+                    }
+                  }
+                }, true); // Capture phase
+                
+                // Also clear selection on mouseup
+                gridElement.addEventListener('mouseup', (e: MouseEvent) => {
+                  const target = e.target as HTMLElement;
+                  if (target && target.closest('.ag-cell') && 
+                      !target.closest('input') && 
+                      !target.closest('textarea') && 
+                      !target.closest('button') &&
+                      !target.closest('a')) {
+                    // Clear any selection that might have been created
+                    setTimeout(() => {
+                      if (window.getSelection) {
+                        const selection = window.getSelection();
+                        if (selection && selection.toString().length > 0) {
+                          selection.removeAllRanges();
+                        }
+                      }
+                    }, 0);
+                  }
+                }, true); // Capture phase
               }
               
               setTimeout(() => {

@@ -5136,15 +5136,18 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
-              rowBuffer: 10,
+              rowBuffer: 20, // Increase buffer for smoother vertical scrolling
               debounceVerticalScrollbar: true,
+              suppressRowVirtualisation: false, // Keep row virtualization enabled for better performance
               suppressCellFocus: false,
               suppressRowClickSelection: false,
               suppressScrollOnNewData: true,
               enableCellTextSelection: false, // Disable text selection for better performance
               suppressAnimationFrame: false, // Use animation frame for smoother updates
+              // Don't set rowHeight - let AG Grid use default for better performance
             }}
             domLayout="normal"
+            suppressRowVirtualisation={false}
             getRowId={(params) => String(params.data.asset_id)}
             onCellValueChanged={onCellValueChanged}
             onCellEditingStopped={onCellEditingStopped}

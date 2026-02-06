@@ -817,140 +817,110 @@ export function AddressListComponent() {
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
               
-              // Prevent text selection rectangle on cell click - use document-level listener
-              const preventSelection = (e: Event) => {
-                const target = e.target as HTMLElement;
-                const cell = target?.closest('.ag-cell');
-                const isInCell = !!cell;
-                const isInput = !!target.closest('input');
-                const isTextarea = !!target.closest('textarea');
-                const isButton = !!target.closest('button');
-                const isLink = !!target.closest('a');
-                const computedStyle = target ? window.getComputedStyle(target) : null;
+              // Function to add event listeners directly to cells
+              const addListenersToCells = () => {
+                const gridElement = params.api.getGridElement();
+                if (!gridElement) return;
                 
-                console.log('[AddressList] selectstart event:', {
-                  target: target?.tagName,
-                  targetClass: target?.className,
-                  cell: cell ? 'found' : 'not found',
-                  isInCell,
-                  isInput,
-                  isTextarea,
-                  isButton,
-                  isLink,
-                  shouldPrevent: isInCell && !isInput && !isTextarea && !isButton && !isLink,
-                  userSelect: computedStyle?.userSelect,
-                  webkitUserSelect: computedStyle?.webkitUserSelect,
-                  mozUserSelect: computedStyle?.mozUserSelect,
-                  msUserSelect: computedStyle?.msUserSelect,
-                  allComputedStyles: computedStyle ? {
-                    userSelect: computedStyle.userSelect,
-                    webkitUserSelect: computedStyle.webkitUserSelect,
-                    mozUserSelect: computedStyle.mozUserSelect,
-                    msUserSelect: computedStyle.msUserSelect,
-                    getPropertyValue: computedStyle.getPropertyValue('user-select'),
-                    getPropertyValueWebkit: computedStyle.getPropertyValue('-webkit-user-select')
-                  } : null
+                const cells = gridElement.querySelectorAll('.ag-cell');
+                cells.forEach((cell) => {
+                  const cellEl = cell as HTMLElement;
+                  
+                  // Set unselectable attribute
+                  cellEl.setAttribute('unselectable', 'on');
+                  cellEl.style.userSelect = 'none';
+                  cellEl.style.webkitUserSelect = 'none';
+                  cellEl.style.mozUserSelect = 'none';
+                  cellEl.style.msUserSelect = 'none';
+                  
+                  // Add selectstart listener directly to cell
+                  const preventSelect = (e: Event) => {
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('input') && !target.closest('textarea') && 
+                        !target.closest('button') && !target.closest('a')) {
+                      console.log('[AddressList] Preventing selection on cell:', cellEl);
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      return false;
+                    }
+                  };
+                  
+                  cellEl.addEventListener('selectstart', preventSelect, true);
+                  
+                  // Add mousedown listener to clear selection
+                  const clearOnMouseDown = (e: MouseEvent) => {
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('input') && !target.closest('textarea') && 
+                        !target.closest('button') && !target.closest('a')) {
+                      console.log('[AddressList] mousedown on cell - clearing selection');
+                      if (window.getSelection) {
+                        const selection = window.getSelection();
+                        if (selection) {
+                          selection.removeAllRanges();
+                        }
+                      }
+                    }
+                  };
+                  
+                  cellEl.addEventListener('mousedown', clearOnMouseDown, true);
+                });
+              };
+              
+              // Add listeners to existing cells
+              addListenersToCells();
+              
+              // Use MutationObserver to add listeners to new cells as they're created
+              const gridElement = params.api.getGridElement();
+              if (gridElement) {
+                const observer = new MutationObserver(() => {
+                  addListenersToCells();
                 });
                 
-                // Only prevent selection if clicking on cell content, not on input/textarea/button
-                if (isInCell && !isInput && !isTextarea && !isButton && !isLink) {
-                  console.log('[AddressList] Preventing selection in selectstart');
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.stopImmediatePropagation();
-                  return false;
-                }
-              };
-              
-              // Add listener to document for maximum coverage - use capture phase
-              document.addEventListener('selectstart', preventSelection, true);
-              
-              // Also prevent on mousedown
-              const preventOnMouseDown = (e: MouseEvent) => {
-                const target = e.target as HTMLElement;
-                const cell = target?.closest('.ag-cell');
-                if (cell && !target.closest('input') && !target.closest('textarea') && 
-                    !target.closest('button') && !target.closest('a')) {
-                  console.log('[AddressList] mousedown - clearing selection immediately');
-                  if (window.getSelection) {
-                    const selection = window.getSelection();
-                    if (selection) {
-                      selection.removeAllRanges();
-                    }
-                  }
-                }
-              };
-              
-              document.addEventListener('mousedown', preventOnMouseDown, true);
-              
-              // Also clear selection on mouseup globally
-              const clearSelection = (e: MouseEvent) => {
-                const target = e.target as HTMLElement;
-                const cell = target?.closest('.ag-cell');
-                const isInCell = !!cell;
-                const isInput = !!target.closest('input');
-                const isTextarea = !!target.closest('textarea');
-                const isButton = !!target.closest('button');
-                const isLink = !!target.closest('a');
-                const selection = window.getSelection();
-                
-                console.log('[AddressList] mouseup event:', {
-                  target: target?.tagName,
-                  targetClass: target?.className,
-                  cell: cell ? 'found' : 'not found',
-                  isInCell,
-                  hasSelection: selection?.toString().length > 0,
-                  selectionText: selection?.toString()
+                observer.observe(gridElement, {
+                  childList: true,
+                  subtree: true
                 });
                 
-                if (isInCell && !isInput && !isTextarea && !isButton && !isLink) {
-                  // Clear any selection that might have been created - use multiple attempts
-                  requestAnimationFrame(() => {
-                    if (window.getSelection) {
-                      const selection = window.getSelection();
-                      if (selection && selection.toString().length > 0) {
-                        console.log('[AddressList] Clearing selection in mouseup (requestAnimationFrame):', selection.toString());
-                        selection.removeAllRanges();
-                      }
-                    }
-                  });
-                  
-                  setTimeout(() => {
-                    if (window.getSelection) {
-                      const selection = window.getSelection();
-                      if (selection && selection.toString().length > 0) {
-                        console.log('[AddressList] Clearing selection in mouseup (setTimeout):', selection.toString());
-                        selection.removeAllRanges();
-                      }
-                    }
-                  }, 0);
-                  
-                  setTimeout(() => {
-                    if (window.getSelection) {
-                      const selection = window.getSelection();
-                      if (selection && selection.toString().length > 0) {
-                        console.log('[AddressList] Clearing selection in mouseup (setTimeout 10ms):', selection.toString());
-                        selection.removeAllRanges();
-                      }
-                    }
-                  }, 10);
-                }
-              };
-              
-              document.addEventListener('mouseup', clearSelection, true);
-              
-              // Store cleanup function
-              (params.api as any).__preventSelectionCleanup = () => {
-                document.removeEventListener('selectstart', preventSelection, true);
-                document.removeEventListener('mousedown', preventOnMouseDown, true);
-                document.removeEventListener('mouseup', clearSelection, true);
-              };
+                // Store observer for cleanup
+                (params.api as any).__selectionObserver = observer;
+              }
               
               setTimeout(() => {
                 detectAndApplyTextOverflow(params.api);
               }, 200);
             }}
             onFirstDataRendered={async (params) => {
+              // Add listeners to cells after data is rendered
+              const gridElement = params.api.getGridElement();
+              if (gridElement) {
+                const cells = gridElement.querySelectorAll('.ag-cell');
+                cells.forEach((cell) => {
+                  const cellEl = cell as HTMLElement;
+                  
+                  // Set unselectable attribute and styles
+                  cellEl.setAttribute('unselectable', 'on');
+                  cellEl.style.userSelect = 'none';
+                  cellEl.style.webkitUserSelect = 'none';
+                  cellEl.style.mozUserSelect = 'none';
+                  cellEl.style.msUserSelect = 'none';
+                  
+                  // Add selectstart listener
+                  const preventSelect = (e: Event) => {
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('input') && !target.closest('textarea') && 
+                        !target.closest('button') && !target.closest('a')) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      return false;
+                    }
+                  };
+                  
+                  cellEl.addEventListener('selectstart', preventSelect, true);
+                });
+              }
+              
               setTimeout(() => {
                 detectAndApplyTextOverflow(params.api);
                 setupTextOverflowObserver(params.api);

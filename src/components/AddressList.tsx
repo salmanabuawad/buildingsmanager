@@ -817,62 +817,52 @@ export function AddressListComponent() {
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
               
-              // Prevent text selection rectangle on cell click
-              const gridElement = params.api.getGridElement();
-              if (gridElement) {
-                // Prevent text selection on selectstart event (most reliable way)
-                const preventSelection = (e: Event) => {
-                  const target = e.target as HTMLElement;
-                  // Only prevent selection if clicking on cell content, not on input/textarea/button
-                  if (target && target.closest('.ag-cell') && 
-                      !target.closest('input') && 
-                      !target.closest('textarea') && 
-                      !target.closest('button') &&
-                      !target.closest('a')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                  }
-                };
-                
-                gridElement.addEventListener('selectstart', preventSelection, true); // Capture phase
-                gridElement.addEventListener('mousedown', (e: MouseEvent) => {
-                  const target = e.target as HTMLElement;
-                  if (target && target.closest('.ag-cell') && 
-                      !target.closest('input') && 
-                      !target.closest('textarea') && 
-                      !target.closest('button') &&
-                      !target.closest('a')) {
-                    // Clear any selection immediately
+              // Prevent text selection rectangle on cell click - use document-level listener
+              const preventSelection = (e: Event) => {
+                const target = e.target as HTMLElement;
+                // Only prevent selection if clicking on cell content, not on input/textarea/button
+                if (target && target.closest('.ag-cell') && 
+                    !target.closest('input') && 
+                    !target.closest('textarea') && 
+                    !target.closest('button') &&
+                    !target.closest('a')) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.stopImmediatePropagation();
+                  return false;
+                }
+              };
+              
+              // Add listener to document for maximum coverage
+              document.addEventListener('selectstart', preventSelection, true);
+              
+              // Also clear selection on mouseup globally
+              const clearSelection = (e: MouseEvent) => {
+                const target = e.target as HTMLElement;
+                if (target && target.closest('.ag-cell') && 
+                    !target.closest('input') && 
+                    !target.closest('textarea') && 
+                    !target.closest('button') &&
+                    !target.closest('a')) {
+                  // Clear any selection that might have been created
+                  requestAnimationFrame(() => {
                     if (window.getSelection) {
                       const selection = window.getSelection();
-                      if (selection) {
+                      if (selection && selection.toString().length > 0) {
                         selection.removeAllRanges();
                       }
                     }
-                  }
-                }, true); // Capture phase
-                
-                // Also clear selection on mouseup
-                gridElement.addEventListener('mouseup', (e: MouseEvent) => {
-                  const target = e.target as HTMLElement;
-                  if (target && target.closest('.ag-cell') && 
-                      !target.closest('input') && 
-                      !target.closest('textarea') && 
-                      !target.closest('button') &&
-                      !target.closest('a')) {
-                    // Clear any selection that might have been created
-                    setTimeout(() => {
-                      if (window.getSelection) {
-                        const selection = window.getSelection();
-                        if (selection && selection.toString().length > 0) {
-                          selection.removeAllRanges();
-                        }
-                      }
-                    }, 0);
-                  }
-                }, true); // Capture phase
-              }
+                  });
+                }
+              };
+              
+              document.addEventListener('mouseup', clearSelection, true);
+              
+              // Store cleanup function
+              (params.api as any).__preventSelectionCleanup = () => {
+                document.removeEventListener('selectstart', preventSelection, true);
+                document.removeEventListener('mouseup', clearSelection, true);
+              };
               
               setTimeout(() => {
                 detectAndApplyTextOverflow(params.api);

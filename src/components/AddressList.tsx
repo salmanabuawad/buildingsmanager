@@ -891,6 +891,28 @@ export function AddressListComponent() {
             onColumnMoved={gridPreferences.handleColumnMoved}
             onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
+            onCellFocused={(event: any) => {
+              // Clear text selection when cell gets focus
+              setTimeout(() => {
+                if (window.getSelection) {
+                  const selection = window.getSelection();
+                  if (selection && selection.toString().length > 0) {
+                    selection.removeAllRanges();
+                  }
+                }
+              }, 0);
+            }}
+            onCellClicked={(event: any) => {
+              // Clear text selection when cell is clicked
+              setTimeout(() => {
+                if (window.getSelection) {
+                  const selection = window.getSelection();
+                  if (selection && selection.toString().length > 0) {
+                    selection.removeAllRanges();
+                  }
+                }
+              }, 0);
+            }}
             onCellMouseDown={(event: any) => {
               // Prevent text selection completely
               const mouseEvent = event.event as MouseEvent;
@@ -899,23 +921,12 @@ export function AddressListComponent() {
                 mouseEvent.preventDefault();
                 mouseEvent.stopPropagation();
                 
-                // Clear any existing selection
+                // Clear any existing selection immediately
                 if (window.getSelection) {
                   const selection = window.getSelection();
                   if (selection) {
                     selection.removeAllRanges();
                   }
-                }
-                
-                // Also prevent selection on the cell element itself
-                const cellElement = event.event?.target?.closest('.ag-cell');
-                if (cellElement && !cellElement.closest('input') && !cellElement.closest('textarea')) {
-                  // Add unselectable attribute
-                  (cellElement as HTMLElement).setAttribute('unselectable', 'on');
-                  (cellElement as HTMLElement).style.userSelect = 'none';
-                  (cellElement as HTMLElement).style.webkitUserSelect = 'none';
-                  (cellElement as HTMLElement).style.mozUserSelect = 'none';
-                  (cellElement as HTMLElement).style.msUserSelect = 'none';
                 }
               }
             }}

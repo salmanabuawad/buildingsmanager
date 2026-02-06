@@ -170,17 +170,30 @@ input[type="number"] {
   -moz-user-select: none !important;
   -ms-user-select: none !important;
   user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
-/* Re-enable selection only for input/textarea/button/a elements */
-.ag-theme-alpine .ag-cell input,
-.ag-theme-alpine .ag-cell textarea,
-.ag-theme-alpine .ag-cell button,
-.ag-theme-alpine .ag-cell a {
+/* Re-enable selection only for input/textarea/button/a elements when focused */
+.ag-theme-alpine .ag-cell input:focus,
+.ag-theme-alpine .ag-cell textarea:focus,
+.ag-theme-alpine .ag-cell button:focus,
+.ag-theme-alpine .ag-cell a:focus {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
   user-select: text !important;
+}
+
+/* Make sure selection highlight is invisible even if selection happens */
+.ag-theme-alpine .ag-cell *::selection {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.ag-theme-alpine .ag-cell *::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 /* Prevent text selection on all cell content */

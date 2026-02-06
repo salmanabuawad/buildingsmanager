@@ -793,6 +793,16 @@ export function AddressListComponent() {
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
+              rowBuffer: 20, // Increase buffer for smoother vertical scrolling
+              debounceVerticalScrollbar: true,
+              suppressRowVirtualisation: false, // Keep row virtualization enabled for better performance
+              suppressCellFocus: false, // Allow cell focus for keyboard navigation
+              suppressRowClickSelection: false,
+              suppressScrollOnNewData: true,
+              enableCellTextSelection: true, // Allow AG Grid default text selection behavior
+              suppressAnimationFrame: false, // Use animation frame for smoother updates
+              enableRangeSelection: false, // Disable range selection for better keyboard navigation
+              enableRangeHandle: false, // Disable range handle for better keyboard navigation
             }}
             suppressHorizontalScroll={false}
             suppressRowVirtualisation={false}

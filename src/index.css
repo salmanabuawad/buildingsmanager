@@ -153,13 +153,34 @@ input[type="number"] {
   text-overflow: clip !important; /* Use clip instead of ellipsis */
   cursor: default !important; /* Don't show pointer cursor on cells */
   outline: none !important; /* Remove focus outline */
+  /* Don't prevent text selection - allow AG Grid default behavior */
 }
 
-/* Focused cell styling - AG Grid best practice */
+/* Focused cell styling - AG Grid best practice (matches ag-grid.com/example behavior) */
 .ag-theme-alpine .ag-cell-focus {
   border: 2px solid #0d9488 !important;
   box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2) !important;
   outline: none !important;
+  /* Don't select text when cell gets focus - AG Grid default behavior */
+}
+
+/* Prevent text selection when clicking on non-editing cells (AG Grid default) */
+.ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing) {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Allow text selection only when editing (AG Grid default) */
+.ag-theme-alpine .ag-cell-inline-editing input,
+.ag-theme-alpine .ag-cell-editing input,
+.ag-theme-alpine .ag-cell-inline-editing textarea,
+.ag-theme-alpine .ag-cell-editing textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
 }
 
 /* Remove default focus outline but keep our custom border */
@@ -190,6 +211,9 @@ input[type="number"] {
   direction: rtl !important;
   text-align: right !important;
 }
+
+/* AG Grid default behavior - text selection is handled by AG Grid itself */
+/* We don't override user-select to allow AG Grid's native behavior */
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-start !important;

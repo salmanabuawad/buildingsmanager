@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddressList, api } from '../lib/api';
 import { Upload, Save, X, Loader2, MapPin, Download } from 'lucide-react';
@@ -142,11 +142,14 @@ export function AddressListComponent() {
 
     if (newValue === oldValue) return;
 
-    setDirtyAddresses(prev => {
-      const next = new Map(prev);
-      const existing = next.get(address.street_code) || {};
-      next.set(address.street_code, { ...existing, [field]: newValue });
-      return next;
+    // Use startTransition to prevent blocking the UI during navigation
+    startTransition(() => {
+      setDirtyAddresses(prev => {
+        const next = new Map(prev);
+        const existing = next.get(address.street_code) || {};
+        next.set(address.street_code, { ...existing, [field]: newValue });
+        return next;
+      });
     });
   }, []);
 
@@ -792,7 +795,15 @@ export function AddressListComponent() {
               suppressColumnMoveAnimation: true,
             }}
             suppressHorizontalScroll={false}
+            suppressRowVirtualisation={false}
             getRowId={(params) => String(params.data.street_code)}
+            enterNavigatesVertically={true}
+            enterNavigatesVerticallyAfterEdit={true}
+            suppressKeyboardEvent={(params) => {
+              // Allow arrow keys to navigate between cells
+              // Don't suppress any keyboard events - let AG Grid handle navigation
+              return false;
+            }}
             onGridReady={async (params) => {
               await gridPreferences.loadColumnState(params.api);
               setTimeout(() => {

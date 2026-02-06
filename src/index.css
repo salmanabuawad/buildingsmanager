@@ -135,7 +135,7 @@ input[type="number"] {
 }
 
 .ag-theme-alpine .ag-row {
-  transition: all 0.2s;
+  transition: none;
 }
 
 .ag-theme-alpine .ag-row-hover {
@@ -157,6 +157,7 @@ input[type="number"] {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+  transition: none !important; /* No animation on cell focus */
   -webkit-touch-callout: none !important; /* Prevent iOS callout */
   -webkit-tap-highlight-color: transparent !important; /* Remove tap highlight */
   -webkit-user-drag: none !important; /* Prevent dragging */
@@ -258,6 +259,7 @@ input[type="number"] {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
+  transition: none !important;
   /* Don't select text when cell gets focus - AG Grid default behavior */
   user-select: none !important;
   -webkit-user-select: none !important;

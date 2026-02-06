@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback, forwardRef, useImperativeHandle, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Asset, Building, AssetType, AddressList, api, validateAndSaveBulkAssets } from '../lib/api';
@@ -97,8 +97,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const cellEditStartValues = useRef<Map<string, any>>(new Map());
   // Track if user actually interacted with the editor (typed, selected, etc.) - not just clicked
   const cellEditUserInteracted = useRef<Map<string, boolean>>(new Map());
-  // Debounce timer for assets state updates to prevent re-renders on every keystroke
-  const assetsUpdateTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
@@ -117,16 +115,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirtyAssets, newAssets, deletedAssets]);
 
-  // Cleanup debounce timers on unmount
-  useEffect(() => {
-    return () => {
-      // Clear all pending timers
-      assetsUpdateTimerRef.current.forEach((timer) => {
-        clearTimeout(timer);
-      });
-      assetsUpdateTimerRef.current.clear();
-    };
-  }, []);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -789,13 +777,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     // This is critical - when fetchData updates assets state, AG Grid may trigger this event
     // for cells that have changed values, even though the user didn't edit them
     if (isRefreshingAfterSaveRef.current) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AssetsList.onCellValueChanged] Skipping validation - refreshing after save', {
-          assetId: event.data?.asset_id,
-          field: event.colDef?.field,
-          newValue: event.newValue
-        });
-      }
       // Still update the local state to reflect the change, but skip validation
       const { data, colDef } = event;
       const field = colDef.field;
@@ -886,15 +867,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       // CRITICAL: If user didn't interact and values are the same, skip entirely
       // This prevents dirty state from being set when just clicking a cell without editing
       if (userInteracted === false && valuesAreSame && !isNew) {
-        console.log('[AssetsList.onCellValueChanged] User did not interact and value unchanged - skipping:', {
-          field,
-          cellKey,
-          oldValue,
-          newValue,
-          normOld,
-          normNew,
-          userInteracted
-        });
         cellEditStartValues.current.delete(cellKey);
         cellEditUserInteracted.current.delete(cellKey);
         return; // EARLY RETURN - don't mark dirty, don't update state
@@ -971,37 +943,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         });
       }
 
-      // Debounce assets state update to prevent re-renders on every keystroke
-      // Clear existing timer for this asset
-      const existingTimer = assetsUpdateTimerRef.current.get(assetId);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
-      }
-      
-      // Set new timer to update assets state after 100ms of no typing
-      const timer = setTimeout(() => {
-        setAssets(prevAssets =>
-          prevAssets.map(asset =>
-            String(asset.asset_id) === String(assetId) ? updatedAsset : asset
-          )
-        );
-        assetsUpdateTimerRef.current.delete(assetId);
-      }, 100);
-      
-      assetsUpdateTimerRef.current.set(assetId, timer);
-
-      // If business_distribution_area was automatically set to 0 due to non_accountable_for_distribution change, refresh that cell
-      if (field === 'main_asset_type' && updatedAsset.business_distribution_area !== data.business_distribution_area && event.api) {
-        event.api.refreshCells({ 
-          rowNodes: [event.node!], 
-          columns: ['business_distribution_area'],
-          force: true 
-        });
-      }
+      // Don't update assets state here - wait until editing stops to prevent re-renders on every keystroke
+      // The grid will show the updated value immediately via its internal state
+      // We'll update our state in onCellEditingStopped
+      // Also don't refresh cells here - wait until editing stops to prevent re-renders during typing
 
       // No online validation on edit: user must click Validate.
-      setIsValidatedForSave(false);
-      setValidationErrors(new Map());
+      // Use startTransition to prevent blocking the UI during typing
+      startTransition(() => {
+        setIsValidatedForSave(false);
+        setValidationErrors(new Map());
+      });
 
     } catch (error) {
       console.error('Error tracking change:', error);
@@ -1043,14 +995,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     // Store initial value and mark that editing started (but user hasn't interacted yet)
     cellEditStartValues.current.set(cellKey, initialValue);
     cellEditUserInteracted.current.set(cellKey, false); // User hasn't interacted yet
-    
-    console.log('[AssetsList.onCellEditingStarted] Tracking edit start:', {
-      cellKey,
-      field,
-      initialValue,
-      isNumericField,
-      userInteracted: false
-    });
   }, []);
 
   // Ensure clearing a cell (e.g. numeric → 0) always triggers dirty. onCellValueChanged may not
@@ -1104,16 +1048,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     
     // CRITICAL: If user didn't interact (just clicked without typing) OR value didn't change, skip entirely
     if (!isNew && (userInteracted === false || !valueChanged)) {
-      console.log('[AssetsList.onCellEditingStopped] Skipping - user did not interact or value unchanged:', {
-        field,
-        cellKey,
-        userInteracted,
-        valueChanged,
-        editStartValue,
-        newValue,
-        normalizedStartValue,
-        normalizedNewValue
-      });
       // Clean up tracking
       cellEditStartValues.current.delete(cellKey);
       cellEditUserInteracted.current.delete(cellKey);
@@ -1132,11 +1066,16 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         next.set(assetId, { ...existing, [field]: newValue });
         return next;
       });
-      setAssets(prev => prev.map(a =>
-        String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
-      ));
-      setIsValidatedForSave(false);
-      setValidationErrors(new Map());
+      // Update assets state only when editing stops (not on every keystroke)
+      // This prevents re-renders during typing and improves performance
+      // Use startTransition to prevent blocking the UI
+      startTransition(() => {
+        setAssets(prev => prev.map(a =>
+          String(a.asset_id) === assetId ? { ...a, [field]: newValue } : a
+        ));
+        setIsValidatedForSave(false);
+        setValidationErrors(new Map());
+      });
     }
   }, [newAssets, originalAssets]);
 

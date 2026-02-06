@@ -799,7 +799,7 @@ export function AddressListComponent() {
               suppressCellFocus: false, // Allow cell focus for keyboard navigation
               suppressRowClickSelection: false,
               suppressScrollOnNewData: true,
-              enableCellTextSelection: true, // Allow AG Grid default text selection behavior
+              enableCellTextSelection: false, // Disable text selection to prevent selection rectangle
               suppressAnimationFrame: false, // Use animation frame for smoother updates
               enableRangeSelection: false, // Disable range selection for better keyboard navigation
               enableRangeHandle: false, // Disable range handle for better keyboard navigation
@@ -917,17 +917,16 @@ export function AddressListComponent() {
               // Prevent text selection completely
               const mouseEvent = event.event as MouseEvent;
               if (mouseEvent) {
-                // Prevent default selection behavior
-                mouseEvent.preventDefault();
-                mouseEvent.stopPropagation();
-                
-                // Clear any existing selection immediately
-                if (window.getSelection) {
-                  const selection = window.getSelection();
-                  if (selection) {
-                    selection.removeAllRanges();
+                // Don't prevent default - let AG Grid handle the click
+                // Just clear selection after AG Grid processes the click
+                setTimeout(() => {
+                  if (window.getSelection) {
+                    const selection = window.getSelection();
+                    if (selection && selection.toString().length > 0) {
+                      selection.removeAllRanges();
+                    }
                   }
-                }
+                }, 10);
               }
             }}
             singleClickEdit={true}

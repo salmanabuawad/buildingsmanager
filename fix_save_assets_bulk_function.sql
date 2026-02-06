@@ -243,6 +243,7 @@ extract_boolean_from_jsonb(v_asset_data->'exported_to_automation', false), (v_as
 );
 ELSE
 -- UPDATE existing asset (fixed type casts: tax_region to INTEGER)
+-- Copy to history BEFORE update if is_new_measurement is true (to save old values)
 IF extract_boolean_from_jsonb(v_asset_data->'is_new_measurement', false) = true THEN
 INSERT INTO assets_history (
   asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
@@ -303,6 +304,31 @@ storage_number = CASE WHEN v_asset_data ? 'storage_number' THEN NULLIF((v_asset_
 storage_floor = CASE WHEN v_asset_data ? 'storage_floor' THEN NULLIF((v_asset_data->>'storage_floor')::TEXT, '') ELSE storage_floor END,
 updated_at = NOW()
 WHERE asset_id = v_asset_id;
+
+-- Copy to history AFTER update if is_new_measurement is true (to include updated apartment/storage fields)
+-- This ensures the history has the latest values including apartment/storage fields that were just updated
+IF extract_boolean_from_jsonb(v_asset_data->'is_new_measurement', false) = true THEN
+INSERT INTO assets_history (
+  asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+  sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+  sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+  sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+  elevator, single_double_family, condo, townhouses, penthouse,
+  structure_drawing_url, discount_type, discount_date_from, discount_date_to,
+  business_distribution_area, exported_to_automation, comment, created_at, updated_at,
+  apartment_number, apartment_floor, storage_number, storage_floor
+)
+SELECT 
+  asset_id, building_number, payer_id, measurement_date, main_asset_type, asset_size, tax_region,
+  sub_asset_type_1, sub_asset_size_1, sub_asset_type_2, sub_asset_size_2,
+  sub_asset_type_3, sub_asset_size_3, sub_asset_type_4, sub_asset_size_4,
+  sub_asset_type_5, sub_asset_size_5, sub_asset_type_6, sub_asset_size_6,
+  elevator, single_double_family, condo, townhouses, penthouse,
+  structure_drawing_url, discount_type, discount_date_from, discount_date_to,
+  business_distribution_area, exported_to_automation, comment, created_at, updated_at,
+  apartment_number, apartment_floor, storage_number, storage_floor
+FROM assets WHERE asset_id = v_asset_id;
+END IF;
 END IF;
 
 v_affected_asset_ids := array_append(v_affected_asset_ids, v_asset_id);

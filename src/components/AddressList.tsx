@@ -841,7 +841,15 @@ export function AddressListComponent() {
                   userSelect: computedStyle?.userSelect,
                   webkitUserSelect: computedStyle?.webkitUserSelect,
                   mozUserSelect: computedStyle?.mozUserSelect,
-                  msUserSelect: computedStyle?.msUserSelect
+                  msUserSelect: computedStyle?.msUserSelect,
+                  allComputedStyles: computedStyle ? {
+                    userSelect: computedStyle.userSelect,
+                    webkitUserSelect: computedStyle.webkitUserSelect,
+                    mozUserSelect: computedStyle.mozUserSelect,
+                    msUserSelect: computedStyle.msUserSelect,
+                    getPropertyValue: computedStyle.getPropertyValue('user-select'),
+                    getPropertyValueWebkit: computedStyle.getPropertyValue('-webkit-user-select')
+                  } : null
                 });
                 
                 // Only prevent selection if clicking on cell content, not on input/textarea/button
@@ -854,8 +862,26 @@ export function AddressListComponent() {
                 }
               };
               
-              // Add listener to document for maximum coverage
+              // Add listener to document for maximum coverage - use capture phase
               document.addEventListener('selectstart', preventSelection, true);
+              
+              // Also prevent on mousedown
+              const preventOnMouseDown = (e: MouseEvent) => {
+                const target = e.target as HTMLElement;
+                const cell = target?.closest('.ag-cell');
+                if (cell && !target.closest('input') && !target.closest('textarea') && 
+                    !target.closest('button') && !target.closest('a')) {
+                  console.log('[AddressList] mousedown - clearing selection immediately');
+                  if (window.getSelection) {
+                    const selection = window.getSelection();
+                    if (selection) {
+                      selection.removeAllRanges();
+                    }
+                  }
+                }
+              };
+              
+              document.addEventListener('mousedown', preventOnMouseDown, true);
               
               // Also clear selection on mouseup globally
               const clearSelection = (e: MouseEvent) => {
@@ -878,16 +904,36 @@ export function AddressListComponent() {
                 });
                 
                 if (isInCell && !isInput && !isTextarea && !isButton && !isLink) {
-                  // Clear any selection that might have been created
+                  // Clear any selection that might have been created - use multiple attempts
                   requestAnimationFrame(() => {
                     if (window.getSelection) {
                       const selection = window.getSelection();
                       if (selection && selection.toString().length > 0) {
-                        console.log('[AddressList] Clearing selection in mouseup:', selection.toString());
+                        console.log('[AddressList] Clearing selection in mouseup (requestAnimationFrame):', selection.toString());
                         selection.removeAllRanges();
                       }
                     }
                   });
+                  
+                  setTimeout(() => {
+                    if (window.getSelection) {
+                      const selection = window.getSelection();
+                      if (selection && selection.toString().length > 0) {
+                        console.log('[AddressList] Clearing selection in mouseup (setTimeout):', selection.toString());
+                        selection.removeAllRanges();
+                      }
+                    }
+                  }, 0);
+                  
+                  setTimeout(() => {
+                    if (window.getSelection) {
+                      const selection = window.getSelection();
+                      if (selection && selection.toString().length > 0) {
+                        console.log('[AddressList] Clearing selection in mouseup (setTimeout 10ms):', selection.toString());
+                        selection.removeAllRanges();
+                      }
+                    }
+                  }, 10);
                 }
               };
               
@@ -896,6 +942,7 @@ export function AddressListComponent() {
               // Store cleanup function
               (params.api as any).__preventSelectionCleanup = () => {
                 document.removeEventListener('selectstart', preventSelection, true);
+                document.removeEventListener('mousedown', preventOnMouseDown, true);
                 document.removeEventListener('mouseup', clearSelection, true);
               };
               

@@ -5145,6 +5145,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               enableCellTextSelection: false, // Disable text selection for better performance
               suppressAnimationFrame: false, // Use animation frame for smoother updates
               // Don't set rowHeight - let AG Grid use default for better performance
+              enableRangeSelection: false, // Disable range selection for better keyboard navigation
+              enableRangeHandle: false, // Disable range handle for better keyboard navigation
             }}
             domLayout="normal"
             suppressRowVirtualisation={false}
@@ -5224,6 +5226,13 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             suppressHorizontalScroll={false}
             singleClickEdit={true}
             stopEditingWhenCellsLoseFocus={true}
+            enterNavigatesVertically={true}
+            enterNavigatesVerticallyAfterEdit={true}
+            suppressKeyboardEvent={(params) => {
+              // Allow arrow keys to navigate between cells
+              // Don't suppress any keyboard events - let AG Grid handle navigation
+              return false;
+            }}
           />
           </div>
         )}

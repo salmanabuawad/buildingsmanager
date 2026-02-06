@@ -820,12 +820,33 @@ export function AddressListComponent() {
               // Prevent text selection rectangle on cell click - use document-level listener
               const preventSelection = (e: Event) => {
                 const target = e.target as HTMLElement;
+                const cell = target?.closest('.ag-cell');
+                const isInCell = !!cell;
+                const isInput = !!target.closest('input');
+                const isTextarea = !!target.closest('textarea');
+                const isButton = !!target.closest('button');
+                const isLink = !!target.closest('a');
+                const computedStyle = target ? window.getComputedStyle(target) : null;
+                
+                console.log('[AddressList] selectstart event:', {
+                  target: target?.tagName,
+                  targetClass: target?.className,
+                  cell: cell ? 'found' : 'not found',
+                  isInCell,
+                  isInput,
+                  isTextarea,
+                  isButton,
+                  isLink,
+                  shouldPrevent: isInCell && !isInput && !isTextarea && !isButton && !isLink,
+                  userSelect: computedStyle?.userSelect,
+                  webkitUserSelect: computedStyle?.webkitUserSelect,
+                  mozUserSelect: computedStyle?.mozUserSelect,
+                  msUserSelect: computedStyle?.msUserSelect
+                });
+                
                 // Only prevent selection if clicking on cell content, not on input/textarea/button
-                if (target && target.closest('.ag-cell') && 
-                    !target.closest('input') && 
-                    !target.closest('textarea') && 
-                    !target.closest('button') &&
-                    !target.closest('a')) {
+                if (isInCell && !isInput && !isTextarea && !isButton && !isLink) {
+                  console.log('[AddressList] Preventing selection in selectstart');
                   e.preventDefault();
                   e.stopPropagation();
                   e.stopImmediatePropagation();
@@ -839,16 +860,30 @@ export function AddressListComponent() {
               // Also clear selection on mouseup globally
               const clearSelection = (e: MouseEvent) => {
                 const target = e.target as HTMLElement;
-                if (target && target.closest('.ag-cell') && 
-                    !target.closest('input') && 
-                    !target.closest('textarea') && 
-                    !target.closest('button') &&
-                    !target.closest('a')) {
+                const cell = target?.closest('.ag-cell');
+                const isInCell = !!cell;
+                const isInput = !!target.closest('input');
+                const isTextarea = !!target.closest('textarea');
+                const isButton = !!target.closest('button');
+                const isLink = !!target.closest('a');
+                const selection = window.getSelection();
+                
+                console.log('[AddressList] mouseup event:', {
+                  target: target?.tagName,
+                  targetClass: target?.className,
+                  cell: cell ? 'found' : 'not found',
+                  isInCell,
+                  hasSelection: selection?.toString().length > 0,
+                  selectionText: selection?.toString()
+                });
+                
+                if (isInCell && !isInput && !isTextarea && !isButton && !isLink) {
                   // Clear any selection that might have been created
                   requestAnimationFrame(() => {
                     if (window.getSelection) {
                       const selection = window.getSelection();
                       if (selection && selection.toString().length > 0) {
+                        console.log('[AddressList] Clearing selection in mouseup:', selection.toString());
                         selection.removeAllRanges();
                       }
                     }
@@ -882,30 +917,50 @@ export function AddressListComponent() {
             onSortChanged={() => {}}
             onCellValueChanged={onCellValueChanged}
             onCellFocused={(event: any) => {
+              console.log('[AddressList] onCellFocused:', {
+                cell: event.node?.data,
+                column: event.column?.getColId(),
+                hasSelection: window.getSelection()?.toString().length > 0,
+                selectionText: window.getSelection()?.toString()
+              });
               // Clear text selection when cell gets focus
               setTimeout(() => {
                 if (window.getSelection) {
                   const selection = window.getSelection();
                   if (selection && selection.toString().length > 0) {
+                    console.log('[AddressList] Clearing selection in onCellFocused:', selection.toString());
                     selection.removeAllRanges();
                   }
                 }
               }, 0);
             }}
             onCellClicked={(event: any) => {
+              console.log('[AddressList] onCellClicked:', {
+                cell: event.node?.data,
+                column: event.column?.getColId(),
+                hasSelection: window.getSelection()?.toString().length > 0,
+                selectionText: window.getSelection()?.toString()
+              });
               // Clear text selection when cell is clicked
               setTimeout(() => {
                 if (window.getSelection) {
                   const selection = window.getSelection();
                   if (selection && selection.toString().length > 0) {
+                    console.log('[AddressList] Clearing selection in onCellClicked:', selection.toString());
                     selection.removeAllRanges();
                   }
                 }
               }, 0);
             }}
             onCellMouseDown={(event: any) => {
-              // Prevent text selection completely
               const mouseEvent = event.event as MouseEvent;
+              console.log('[AddressList] onCellMouseDown:', {
+                target: mouseEvent?.target,
+                cellElement: mouseEvent?.target?.closest('.ag-cell'),
+                hasSelection: window.getSelection()?.toString().length > 0,
+                selectionText: window.getSelection()?.toString(),
+                computedStyle: mouseEvent?.target ? window.getComputedStyle(mouseEvent.target as HTMLElement).userSelect : null
+              });
               if (mouseEvent) {
                 // Don't prevent default - let AG Grid handle the click
                 // Just clear selection after AG Grid processes the click
@@ -913,6 +968,7 @@ export function AddressListComponent() {
                   if (window.getSelection) {
                     const selection = window.getSelection();
                     if (selection && selection.toString().length > 0) {
+                      console.log('[AddressList] Clearing selection in onCellMouseDown:', selection.toString());
                       selection.removeAllRanges();
                     }
                   }

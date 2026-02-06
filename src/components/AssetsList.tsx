@@ -97,6 +97,8 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const cellEditStartValues = useRef<Map<string, any>>(new Map());
   // Track if user actually interacted with the editor (typed, selected, etc.) - not just clicked
   const cellEditUserInteracted = useRef<Map<string, boolean>>(new Map());
+  // Debounce timer for assets state updates to prevent re-renders on every keystroke
+  const assetsUpdateTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const [distributionModalOpen, setDistributionModalOpen] = useState(false);
   const [distributionResult, setDistributionResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assets' | 'distribution-history' | 'transfer-history'>('assets');
@@ -114,6 +116,17 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirtyAssets, newAssets, deletedAssets]);
+
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all pending timers
+      assetsUpdateTimerRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      assetsUpdateTimerRef.current.clear();
+    };
+  }, []);
   
   // Save tax region in a variable for validation handler
   // This ensures the validation handler uses the tax region from the tab, not the building's tax regions
@@ -958,12 +971,24 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         });
       }
 
-      // Update the assets state immediately (no debounce)
-      setAssets(prevAssets =>
-        prevAssets.map(asset =>
-          String(asset.asset_id) === String(assetId) ? updatedAsset : asset
-        )
-      );
+      // Debounce assets state update to prevent re-renders on every keystroke
+      // Clear existing timer for this asset
+      const existingTimer = assetsUpdateTimerRef.current.get(assetId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      
+      // Set new timer to update assets state after 100ms of no typing
+      const timer = setTimeout(() => {
+        setAssets(prevAssets =>
+          prevAssets.map(asset =>
+            String(asset.asset_id) === String(assetId) ? updatedAsset : asset
+          )
+        );
+        assetsUpdateTimerRef.current.delete(assetId);
+      }, 100);
+      
+      assetsUpdateTimerRef.current.set(assetId, timer);
 
       // If business_distribution_area was automatically set to 0 due to non_accountable_for_distribution change, refresh that cell
       if (field === 'main_asset_type' && updatedAsset.business_distribution_area !== data.business_distribution_area && event.api) {
@@ -5174,6 +5199,11 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               suppressColumnMoveAnimation: true,
               rowBuffer: 10,
               debounceVerticalScrollbar: true,
+              suppressCellFocus: false,
+              suppressRowClickSelection: false,
+              suppressScrollOnNewData: true,
+              enableCellTextSelection: false, // Disable text selection for better performance
+              suppressAnimationFrame: false, // Use animation frame for smoother updates
             }}
             domLayout="normal"
             getRowId={(params) => String(params.data.asset_id)}

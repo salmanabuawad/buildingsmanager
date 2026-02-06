@@ -155,13 +155,24 @@ input[type="number"] {
   outline: none !important; /* Remove focus outline */
 }
 
-/* Remove focus outline from AG Grid cells */
+/* Focused cell styling - AG Grid best practice */
+.ag-theme-alpine .ag-cell-focus {
+  border: 2px solid #0d9488 !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2) !important;
+  outline: none !important;
+}
+
+/* Remove default focus outline but keep our custom border */
 .ag-theme-alpine .ag-cell:focus,
 .ag-theme-alpine .ag-cell:focus-visible,
 .ag-theme-alpine .ag-cell:focus-within {
   outline: none !important;
-  box-shadow: none !important;
-  border: none !important;
+}
+
+/* Ensure focused cell is visible even when editing */
+.ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
+  border: 2px solid #0d9488 !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2) !important;
 }
 
 /* Chrome-style fade effect for cell content - only when text overflows */

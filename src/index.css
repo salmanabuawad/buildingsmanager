@@ -31,7 +31,12 @@ input[type="number"] {
   --ag-borders: solid 1px #dee2e6;
   --ag-row-border-color: #dee2e6;
   --ag-range-selection-border-color: transparent;
+  --ag-range-selection-border-style: none;
+  --ag-range-selection-background-color: transparent;
+  --ag-range-selection-highlight-color: transparent;
   --ag-input-focus-box-shadow: none;
+  --ag-focus-shadow: none;
+  --ag-input-focus-border-color: transparent;
 }
 
 /* Override AG Grid's internal box-shadow */
@@ -192,15 +197,7 @@ input[type="number"] {
   animation: none !important;
 }
 
-/* Prominent active/pressed state on cells */
-.ag-theme-alpine .ag-cell:active {
-  background-color: #eff6ff !important;
-  border: 2px solid #2563eb !important;
-  box-shadow: none !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
-  margin: 0 !important;
-  transform: none !important;
-}
+/* Active/pressed state handled by ag-cell-focus rule above */
 
 /* Completely disable all transitions and animations on all cell states */
 .ag-theme-alpine .ag-cell,
@@ -306,18 +303,17 @@ input[type="number"] {
   color: inherit !important;
 }
 
-/* Focused cell styling - prominent border on focus */
-.ag-theme-alpine .ag-cell-focus {
+/* Focused cell styling - clean single border, no inner rectangles */
+.ag-theme-alpine .ag-cell-focus,
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:active,
+.ag-theme-alpine .ag-cell-focus:focus,
+.ag-theme-alpine .ag-cell-focus:active {
   border: 2px solid #2563eb !important;
+  background-color: #eff6ff !important;
   outline: none !important;
   box-shadow: none !important;
-  background-color: #eff6ff !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent !important;
+  -webkit-box-shadow: none !important;
   padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
@@ -325,21 +321,16 @@ input[type="number"] {
   animation: none !important;
 }
 
-/* Prominent visual for focused cells */
-.ag-theme-alpine .ag-cell:focus,
-.ag-theme-alpine .ag-cell:active,
-.ag-theme-alpine .ag-cell-focus:focus,
-.ag-theme-alpine .ag-cell-focus:active {
-  background-color: #eff6ff !important;
-  border: 2px solid #2563eb !important;
-  box-shadow: none !important;
+/* Remove borders/outlines from ALL inner elements of cells */
+.ag-theme-alpine .ag-cell-wrapper,
+.ag-theme-alpine .ag-cell-value,
+.ag-theme-alpine .ag-cell > *,
+.ag-theme-alpine .ag-cell-focus > *,
+.ag-theme-alpine .ag-cell-focus .ag-cell-wrapper,
+.ag-theme-alpine .ag-cell-focus .ag-cell-value {
+  border: none !important;
   outline: none !important;
-  opacity: 1 !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
-  margin: 0 !important;
-  transform: none !important;
-  transition: none !important;
-  animation: none !important;
+  box-shadow: none !important;
 }
 
 /* Prevent text selection on focused cell content */
@@ -451,12 +442,9 @@ input[type="number"] {
   color: inherit !important;
 }
 
-/* Ensure selected/focused cells have same vertical and horizontal alignment as normal cells */
+/* Ensure range-selected cells have normal appearance */
 .ag-theme-alpine .ag-cell-range-selected,
-.ag-theme-alpine .ag-cell-range-single-cell,
-.ag-theme-alpine .ag-cell-focus,
-.ag-theme-alpine .ag-cell:focus,
-.ag-theme-alpine .ag-cell:active {
+.ag-theme-alpine .ag-cell-range-single-cell {
   padding: 0 var(--ag-cell-horizontal-padding) !important;
   line-height: 32px !important;
   text-align: right !important;
@@ -468,8 +456,6 @@ input[type="number"] {
   animation: none !important;
   transform: none !important;
   box-shadow: none !important;
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
   outline: none !important;
 }
 

@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, ClipboardCheck, ArrowDown } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -3738,7 +3738,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   className="flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors duration-200"
                   title="בטל בחירת מקור"
                 >
-                  <ClipboardCheck className="w-4 h-4" />
+                  <Copy className="w-4 h-4" />
                 </button>
               ) : (
                 <button
@@ -3760,7 +3760,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                   }`}
                   title={sourceAssetId ? 'העתק סוג נכס ותת-סוגים מהמקור' : 'סמן כמקור סוג נכס'}
                 >
-                  {sourceAssetId ? <ArrowDown className="w-4 h-4" /> : <ClipboardCheck className="w-4 h-4" />}
+                  {sourceAssetId ? <ArrowRightLeft className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               )
             )}

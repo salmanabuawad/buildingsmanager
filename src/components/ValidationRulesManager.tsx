@@ -938,8 +938,9 @@ export function ValidationRulesManager() {
             <div className="mb-2 text-sm text-slate-600">
               מציג {rules.length} כללי תקינות
             </div>
-            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
-              <AgGridReact
+            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+              <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+                <AgGridReact
                 ref={gridRef}
                 rowData={rules}
                 columnDefs={columnDefs}
@@ -996,6 +997,7 @@ export function ValidationRulesManager() {
                 animateRows={false}
                 getRowId={(params) => params.data.id}
               />
+              </div>
             </div>
           </div>
         )}

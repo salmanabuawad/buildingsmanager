@@ -2183,7 +2183,7 @@ export const TransferAreas = forwardRef<TransferAreasRef, TransferAreasProps>(({
 
       <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100">
         <div className="p-3">
-          <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg border border-blue-100" style={{ width: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
+          <div className="ag-theme-alpine" style={{ width: '100%', minWidth: '100%', height: '50vh', direction: 'ltr', overflowX: 'auto' }}>
             <AgGridReact<Asset>
               ref={gridRef}
               rowData={sortedAssets}

@@ -1549,8 +1549,9 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
             </div>
           </div>
         </div>
-        <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
-          <AgGridReact
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+            <AgGridReact
             ref={gridRef}
             rowData={filteredRowData}
             columnDefs={columnDefs}
@@ -1626,6 +1627,7 @@ export const AssetDataEntry = forwardRef<AssetDataEntryRef, {}>((props, ref) => 
             animateRows={false}
             theme="legacy"
           />
+          </div>
         </div>
       </div>
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">

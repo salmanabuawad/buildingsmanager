@@ -769,8 +769,9 @@ export function AddressListComponent() {
           </button>
         </div>
 
-        <div className="ag-theme-alpine rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-200 border border-blue-100" style={{ height: '60vh', width: '100%', overflowX: 'auto' }}>
-          <AgGridReact<AddressList>
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+            <AgGridReact<AddressList>
             ref={gridRef}
             rowData={addresses}
             columnDefs={columnDefs}
@@ -963,6 +964,7 @@ export function AddressListComponent() {
             tooltipShowDelay={200}
             tooltipHideDelay={10000}
           />
+          </div>
         </div>
       </div>
     </div>

@@ -786,8 +786,9 @@ export function FieldConfigManager() {
           הגדר רוחב ותפיחה לכל שדה במערכת. כל הטבלאות ישתמשו בהגדרות אלה.
         </p>
 
-        <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%' }}>
-          <AgGridReact<FieldConfiguration>
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+          <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+            <AgGridReact<FieldConfiguration>
             ref={gridRef}
             rowData={filteredConfigurations}
             columnDefs={columnDefs}
@@ -826,6 +827,7 @@ export function FieldConfigManager() {
             enableRtl={true}
             animateRows={false}
           />
+          </div>
         </div>
 
         {filteredConfigurations.length === 0 && (

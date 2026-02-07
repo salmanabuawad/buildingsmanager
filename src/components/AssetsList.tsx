@@ -4961,7 +4961,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {/* Tab Content */}
         {activeTab === 'assets' && (
           <div className="bg-white rounded-b-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
-            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
+            <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
               <AgGridReact
             ref={gridRef}
             rowData={sortedAssets}

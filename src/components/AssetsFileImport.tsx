@@ -3550,8 +3550,9 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
               </div>
             </div>
 
-            <div className="ag-theme-alpine rounded-xl shadow-lg border border-blue-100" style={{ height: '60vh', width: '100%', minWidth: '100%' }}>
-              <AgGridReact
+            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden border-2 border-blue-400 w-full">
+              <div className="ag-theme-alpine" style={{ height: '60vh', width: '100%', minWidth: '100%', overflowX: 'auto' }}>
+                <AgGridReact
                 ref={gridRef}
                 rowData={displayedImportedAssets}
                 columnDefs={configuredColumnDefs}
@@ -3600,6 +3601,7 @@ export function AssetsFileImport({ mode = 'regular' }: AssetsFileImportProps) {
                 suppressHorizontalScroll={false}
                 stopEditingWhenCellsLoseFocus={true}
               />
+              </div>
             </div>
           </div>
         )}

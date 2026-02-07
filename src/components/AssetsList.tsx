@@ -6,7 +6,7 @@ import { assetValidators, validateAll, inputValidators, validateEntity } from '.
 import { AssetValidationHandler } from '../lib/assetValidationHandler';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, IDetailCellRendererParams } from 'ag-grid-community';
-import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3 } from 'lucide-react';
+import { Building as BuildingIcon, AlertCircle, ChevronDown, ChevronRight, Loader2, Save, X, Plus, Trash2, CheckCircle2, Download, ArrowRightLeft, Upload, FileSpreadsheet, History, Share2, MapPin, MessageSquare, FileText, BarChart3, ClipboardCheck, ArrowDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ValidationResultModal, BatchValidationResults, ValidationProgress } from './ValidationResultModal';
 import { DistributionHistoryModal } from './DistributionHistoryModal';
@@ -103,6 +103,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [transferHistoryCount, setTransferHistoryCount] = useState<number>(0);
   const [changeTaxRegionModalOpen, setChangeTaxRegionModalOpen] = useState(false);
   const [showAssetStatisticsModal, setShowAssetStatisticsModal] = useState(false);
+  const [sourceAssetId, setSourceAssetId] = useState<string | null>(null);
 
   // Any change invalidates the last validation snapshot (user must re-validate).
   useEffect(() => {
@@ -2206,6 +2207,46 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     }
   }, []);
 
+  const sourceTypeFields = [
+    'main_asset_type', 'asset_size',
+    'sub_asset_type_1', 'sub_asset_size_1',
+    'sub_asset_type_2', 'sub_asset_size_2',
+    'sub_asset_type_3', 'sub_asset_size_3',
+    'sub_asset_type_4', 'sub_asset_size_4',
+    'sub_asset_type_5', 'sub_asset_size_5',
+    'sub_asset_type_6', 'sub_asset_size_6',
+  ] as const;
+
+  const applySourceValues = useCallback((targetAssetId: string) => {
+    if (!sourceAssetId) return;
+    const sourceAsset = assets.find(a => String(a.asset_id) === sourceAssetId);
+    if (!sourceAsset) return;
+
+    const changes: Partial<Asset> = {};
+    for (const field of sourceTypeFields) {
+      (changes as any)[field] = (sourceAsset as any)[field] ?? (field.includes('size') ? 0 : '');
+    }
+
+    setAssets(prev => prev.map(a => {
+      if (String(a.asset_id) !== targetAssetId) return a;
+      return { ...a, ...changes };
+    }));
+
+    setDirtyAssets(prev => {
+      const next = new Map(prev);
+      const existing = next.get(targetAssetId) || {};
+      next.set(targetAssetId, { ...existing, ...changes });
+      return next;
+    });
+
+    setIsValidatedForSave(false);
+    setValidationErrors(new Map());
+
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
+  }, [sourceAssetId, assets]);
+
   const handleCancelAll = () => {
     // Restore original assets completely (deep copy)
     // This includes restoring deleted assets and removing new assets
@@ -2217,6 +2258,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     setDeletedAssets(new Set());
     setNewAssets(new Set());
     setValidationErrors(new Map());
+    setSourceAssetId(null);
     setToast({ message: 'השינויים בוטלו', type: 'info' });
     setTimeout(() => setToast(null), 3000);
 
@@ -3683,6 +3725,45 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                 title={!taxRegion && hasMultipleTaxRegions ? "בחר לשינוי אזור מס" : "בחר להעברת שטחים"}
               />
             )}
+            {!isErrorFixingMode && !isNew && taxRegion && !isMultiTaxRegion && (
+              sourceAssetId === assetId ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSourceAssetId(null);
+                    if (gridRef.current?.api) {
+                      gridRef.current.api.refreshCells({ columns: ['actions'], force: true });
+                    }
+                  }}
+                  className="flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors duration-200"
+                  title="בטל בחירת מקור"
+                >
+                  <ClipboardCheck className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (sourceAssetId) {
+                      applySourceValues(assetId);
+                    } else {
+                      setSourceAssetId(assetId);
+                      if (gridRef.current?.api) {
+                        gridRef.current.api.refreshCells({ columns: ['actions'], force: true });
+                      }
+                    }
+                  }}
+                  className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200 ${
+                    sourceAssetId
+                      ? 'text-blue-600 hover:bg-blue-100 hover:text-blue-700'
+                      : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                  }`}
+                  title={sourceAssetId ? 'העתק סוג נכס ותת-סוגים מהמקור' : 'סמן כמקור סוג נכס'}
+                >
+                  {sourceAssetId ? <ArrowDown className="w-4 h-4" /> : <ClipboardCheck className="w-4 h-4" />}
+                </button>
+              )
+            )}
             {hasValidationError && safeValidationErrors && safeValidationErrors.has(assetId) && (() => {
               // Validation tooltip component
               const ValidationTooltipButton = ({ errorMessage, onErrorClick }: { errorMessage: string, onErrorClick: () => void }) => {
@@ -4365,7 +4446,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
       }
       return colDef;
     });
-  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles]);
+  }, [t, onSelectAsset, buildingNumber, assetTypes, newAssets, dirtyAssets, building, taxRegion, selectedAssets, deletedAssets, validationErrors, getCellStyle, isResidentTaxRegion, isMultiTaxRegion, isFieldEditable, penthouseCellRenderer, assetsWithFiles, sourceAssetId, applySourceValues]);
 
   // Apply field configurations to column definitions (must be after columnDefs is defined)
   const configuredColumnDefs = useFieldConfig(columnDefs, 'assets-list');

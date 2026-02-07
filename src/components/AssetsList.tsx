@@ -4861,7 +4861,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
                       className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-indigo-700/20 disabled:border-gray-500/20"
                       title={canTransferAreas ? `העברת שטחים (${selectedAssets.size} נכסים נבחרו)` : 'בחר לפחות 2 נכסים להעברת שטחים'}
                     >
-                      <ArrowRightLeft className="h-4 w-4" />
+                      <MoveLeft className="h-4 w-4" />
                       העברת שטחים {selectedAssets.size > 0 ? `(${selectedAssets.size})` : ''}
                     </button>
                   )}

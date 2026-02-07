@@ -97,7 +97,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [assetsWithFiles, setAssetsWithFiles] = useState<Set<number>>(new Set()); // Track which assets have files
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const isRefreshingAfterSaveRef = useRef<boolean>(false);
-  const lastFocusedCellRef = useRef<{ rowIndex: number; column: string } | null>(null);
   // Track assets that were just saved to prevent re-marking them as dirty in fetchData
   const recentlySavedAssetsRef = useRef<Set<string>>(new Set());
   // Track cell values when editing starts - only mark dirty if value actually changed during edit
@@ -4929,27 +4928,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             onCellValueChanged={onCellValueChanged}
             onCellEditingStopped={onCellEditingStopped}
             onCellEditingStarted={onCellEditingStarted}
-            onCellFocused={(params) => {
-              // Remove previous focused cell styling
-              if (lastFocusedCellRef.current && gridRef.current?.api) {
-                const previousRowNode = gridRef.current.api.getRowNode(String(lastFocusedCellRef.current.rowIndex));
-                if (previousRowNode) {
-                  gridRef.current.api.refreshCells({
-                    rowNodes: [previousRowNode],
-                    columns: [lastFocusedCellRef.current.column],
-                    force: true
-                  });
-                }
-              }
-
-              // Store new focused cell
-              if (params.rowIndex !== null && params.column) {
-                lastFocusedCellRef.current = {
-                  rowIndex: params.rowIndex,
-                  column: params.column.getColId()
-                };
-              }
-            }}
             onGridReady={async (params) => {
               // Load saved column state first
               await gridPreferences.loadColumnState(params.api);

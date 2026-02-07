@@ -30,9 +30,6 @@ input[type="number"] {
   --ag-cell-horizontal-border: solid #dee2e6;
   --ag-borders: solid 1px #dee2e6;
   --ag-row-border-color: #dee2e6;
-  --ag-range-selection-border-color: #2563eb;
-  --ag-range-selection-border-style: solid;
-  --ag-range-selection-background-color: rgba(37, 99, 235, 0.1);
 }
 
 .ag-theme-alpine .ag-header {
@@ -186,14 +183,12 @@ input[type="number"] {
 
 /* Prominent active/pressed state on cells */
 .ag-theme-alpine .ag-cell:active {
-  background-color: #dbeafe !important;
-  border: 3px solid #2563eb !important;
-  box-shadow: 0 0 0 2px #2563eb inset !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 2px) !important;
+  background-color: #eff6ff !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 1px #2563eb inset !important;
+  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
-  z-index: 1 !important;
-  position: relative !important;
 }
 
 /* Completely disable all transitions and animations on all cell states */
@@ -301,25 +296,22 @@ input[type="number"] {
 }
 
 /* Focused cell styling - prominent border on focus */
-.ag-theme-alpine .ag-cell-focus,
-.ag-theme-alpine .ag-cell.ag-cell-focus {
-  border: 3px solid #2563eb !important;
-  box-shadow: 0 0 0 2px #2563eb inset !important;
+.ag-theme-alpine .ag-cell-focus {
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 1px #2563eb inset !important;
   outline: none !important;
-  background-color: #dbeafe !important;
+  background-color: #eff6ff !important;
   user-select: none !important;
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
   -webkit-touch-callout: none !important;
   -webkit-tap-highlight-color: transparent !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 2px) !important;
+  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
   transition: none !important;
   animation: none !important;
-  z-index: 1 !important;
-  position: relative !important;
 }
 
 /* Prominent visual for focused cells */
@@ -327,18 +319,16 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell:active,
 .ag-theme-alpine .ag-cell-focus:focus,
 .ag-theme-alpine .ag-cell-focus:active {
-  background-color: #dbeafe !important;
-  border: 3px solid #2563eb !important;
-  box-shadow: 0 0 0 2px #2563eb inset !important;
+  background-color: #eff6ff !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 1px #2563eb inset !important;
   outline: none !important;
   opacity: 1 !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 2px) !important;
+  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
   transition: none !important;
   animation: none !important;
-  z-index: 1 !important;
-  position: relative !important;
 }
 
 /* Prevent text selection on focused cell content */
@@ -375,35 +365,23 @@ input[type="number"] {
   -ms-user-select: text !important;
 }
 
-/* Remove default focus outline */
-.ag-theme-alpine .ag-cell:focus-visible {
-  outline: none !important;
-}
-
-/* Focus-within styling for cells that contain focused elements */
+/* Remove default focus outline but keep our custom border */
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:focus-visible,
 .ag-theme-alpine .ag-cell:focus-within {
   outline: none !important;
-  border: 3px solid #2563eb !important;
-  background-color: #dbeafe !important;
-  box-shadow: 0 0 0 2px #2563eb inset !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 2px) !important;
-  z-index: 1 !important;
-  position: relative !important;
 }
 
 /* Prominent focused cell border when editing */
-.ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing,
-.ag-theme-alpine .ag-cell.ag-cell-inline-editing {
-  border: 3px solid #2563eb !important;
-  background-color: #dbeafe !important;
-  box-shadow: 0 0 0 2px #2563eb inset !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 2px) !important;
+.ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
+  border: 2px solid #2563eb !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 0 0 1px #2563eb inset !important;
+  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   margin: 0 !important;
   transform: none !important;
   transition: none !important;
   animation: none !important;
-  z-index: 1 !important;
-  position: relative !important;
 }
 
 /* Cell range selection with continuous border around selection */
@@ -462,19 +440,17 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus,
 .ag-theme-alpine .ag-cell:focus,
 .ag-theme-alpine .ag-cell:active {
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 2px) !important;
+  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
   line-height: 32px !important;
   text-align: right !important;
   direction: rtl !important;
-  border-width: 3px !important;
+  border-width: 2px !important;
   border-color: #2563eb !important;
-  background-color: #dbeafe !important;
+  background-color: #eff6ff !important;
   box-sizing: border-box !important;
   transition: none !important;
   animation: none !important;
   transform: none !important;
-  z-index: 1 !important;
-  position: relative !important;
 }
 
 /* Disable range handle */

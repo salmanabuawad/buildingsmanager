@@ -1739,8 +1739,6 @@ export function AssetTypes() {
                   checkboxes: false,
                   hideDisabledCheckboxes: true
                 }}
-                enableRangeSelection={true}
-                enableRangeHandle={true}
                 singleClickEdit={true}
                 stopEditingWhenCellsLoseFocus={true}
               />

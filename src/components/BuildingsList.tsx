@@ -3588,8 +3588,6 @@ export const BuildingsList = forwardRef<BuildingsListRef, BuildingsListProps>(({
                 checkboxes: false,
                 hideDisabledCheckboxes: true
               }}
-              enableRangeSelection={true}
-              enableRangeHandle={true}
               singleClickEdit={true}
               stopEditingWhenCellsLoseFocus={true}
             />

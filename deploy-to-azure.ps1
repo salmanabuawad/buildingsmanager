@@ -10,7 +10,7 @@ Write-Host ""
 
 # Configuration
 $RESOURCE_GROUP = "assetflow-rg"
-$LOCATION = "eastus"
+$LOCATION = "israelcentral"
 $TIMESTAMP = [int](Get-Date -UFormat %s)
 $DB_SERVER_NAME = "assetflow-db-$TIMESTAMP"
 $DB_ADMIN = "assetflowadmin"
@@ -110,7 +110,7 @@ Write-Host "Step 6: Creating Frontend Static Web App..." -ForegroundColor Green
 az staticwebapp create `
   --name $FRONTEND_APP_NAME `
   --resource-group $RESOURCE_GROUP `
-  --location eastus2
+  --location westeurope
 
 $FRONTEND_URL = "https://$FRONTEND_APP_NAME.azurestaticapps.net"
 

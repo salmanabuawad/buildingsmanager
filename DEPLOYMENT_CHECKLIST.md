@@ -2,6 +2,8 @@
 
 Use this checklist to track your deployment progress.
 
+> **🇮🇱 Israel Region Deployment**: This deployment is configured for Azure's Israel Central region (Tel Aviv). See [AZURE_ISRAEL_DEPLOYMENT.md](./AZURE_ISRAEL_DEPLOYMENT.md) for region-specific information.
+
 ## Pre-Deployment
 
 - [ ] Azure account created and verified

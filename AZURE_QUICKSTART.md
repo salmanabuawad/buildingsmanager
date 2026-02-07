@@ -51,7 +51,7 @@ az login
 ```bash
 # Set variables
 RESOURCE_GROUP="assetflow-rg"
-LOCATION="eastus"
+LOCATION="israelcentral"
 DB_SERVER="assetflow-db-$(date +%s)"
 STORAGE="assetflowstorage$(date +%s)"
 BACKEND_APP="assetflow-api-$(date +%s)"
@@ -150,7 +150,7 @@ cd ..
 az staticwebapp create \
   --name $FRONTEND_APP \
   --resource-group $RESOURCE_GROUP \
-  --location eastus2
+  --location israelcentral2
 
 # Build frontend
 echo "VITE_API_URL=https://$BACKEND_APP.azurewebsites.net/api" > .env.production

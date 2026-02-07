@@ -22,13 +22,13 @@ This guide will help you deploy AssetFlow to Azure using:
 az login
 
 # Create resource group
-az group create --name assetflow-rg --location eastus
+az group create --name assetflow-rg --location israelcentral
 
 # Create PostgreSQL server
 az postgres flexible-server create \
   --resource-group assetflow-rg \
   --name assetflow-db-server \
-  --location eastus \
+  --location israelcentral \
   --admin-user assetflowadmin \
   --admin-password "YourSecurePassword123!" \
   --sku-name Standard_B2s \
@@ -77,7 +77,7 @@ postgresql://assetflowadmin:YourSecurePassword123!@assetflow-db-server.postgres.
 az storage account create \
   --name assetflowstorage \
   --resource-group assetflow-rg \
-  --location eastus \
+  --location israelcentral \
   --sku Standard_LRS \
   --kind StorageV2
 
@@ -105,7 +105,7 @@ Save the connection string for later use.
 az appservice plan create \
   --name assetflow-backend-plan \
   --resource-group assetflow-rg \
-  --location eastus \
+  --location israelcentral \
   --sku B1 \
   --is-linux
 
@@ -185,7 +185,7 @@ npm run build
 az staticwebapp create \
   --name assetflow-frontend \
   --resource-group assetflow-rg \
-  --location eastus2
+  --location israelcentral2
 
 # Get deployment token
 az staticwebapp secrets list \
@@ -265,7 +265,7 @@ az webapp log tail \
 ```bash
 az monitor app-insights component create \
   --app assetflow-insights \
-  --location eastus \
+  --location israelcentral \
   --resource-group assetflow-rg
 
 # Connect to web app

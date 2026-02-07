@@ -16,17 +16,20 @@ powershell -ExecutionPolicy Bypass -File deploy-to-azure.ps1
 ```
 
 This automated script will:
-- Create all Azure resources
+- Create all Azure resources **in Israel Central region** 🇮🇱
 - Set up PostgreSQL database with schema
 - Configure Blob Storage
 - Deploy FastAPI backend
 - Deploy React frontend
 - **Time**: ~15-20 minutes
 
+> **Note**: The deployment is configured for Azure's **Israel Central** region (Tel Aviv) for optimal performance and data residency in Israel. See [AZURE_ISRAEL_DEPLOYMENT.md](./AZURE_ISRAEL_DEPLOYMENT.md) for details.
+
 ## 📚 Documentation
 
 | Document | Purpose | When to Use |
 |----------|---------|-------------|
+| [AZURE_ISRAEL_DEPLOYMENT.md](./AZURE_ISRAEL_DEPLOYMENT.md) | 🇮🇱 Israel region deployment | **START HERE** for Israel deployment |
 | [AZURE_QUICKSTART.md](./AZURE_QUICKSTART.md) | Fast deployment guide | When you want to deploy quickly |
 | [AZURE_DEPLOYMENT_GUIDE.md](./AZURE_DEPLOYMENT_GUIDE.md) | Detailed deployment steps | When you need complete control |
 | [AZURE_MIGRATION_SUMMARY.md](./AZURE_MIGRATION_SUMMARY.md) | What was created | To understand the architecture |

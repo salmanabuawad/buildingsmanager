@@ -12,7 +12,7 @@ echo ""
 
 # Configuration
 RESOURCE_GROUP="assetflow-rg"
-LOCATION="eastus"
+LOCATION="israelcentral"
 DB_SERVER_NAME="assetflow-db-$(date +%s)"
 DB_ADMIN="assetflowadmin"
 DB_NAME="assetflow"
@@ -109,7 +109,7 @@ echo "Step 6: Creating Frontend Static Web App..."
 az staticwebapp create \
   --name $FRONTEND_APP_NAME \
   --resource-group $RESOURCE_GROUP \
-  --location eastus2
+  --location westeurope
 
 FRONTEND_URL="https://$FRONTEND_APP_NAME.azurestaticapps.net"
 

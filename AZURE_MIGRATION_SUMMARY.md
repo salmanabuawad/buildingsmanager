@@ -2,6 +2,8 @@
 
 Your AssetFlow application is now ready to deploy on Azure with a FastAPI backend!
 
+> **🇮🇱 Deployed to Israel**: The application is configured to deploy to Azure's **Israel Central** region (Tel Aviv) for optimal performance and data residency in Israel. All your data stays in Israel!
+
 ## What Was Created
 
 ### Backend (FastAPI)

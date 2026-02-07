@@ -104,6 +104,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
   const [changeTaxRegionModalOpen, setChangeTaxRegionModalOpen] = useState(false);
   const [showAssetStatisticsModal, setShowAssetStatisticsModal] = useState(false);
   const [sourceAssetId, setSourceAssetId] = useState<string | null>(null);
+  const [exportToAutomationCount, setExportToAutomationCount] = useState<number>(0);
 
   // Any change invalidates the last validation snapshot (user must re-validate).
   useEffect(() => {
@@ -322,9 +323,233 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     hasUnsavedChanges: () => totalChanges > 0
   }), [totalChanges]);
   
+  // Fetch export to automation count for current building
+  const fetchExportToAutomationCount = useCallback(async () => {
+    if (!buildingNumber) {
+      setExportToAutomationCount(0);
+      return;
+    }
+    
+    try {
+      // Count assets in this building that match export condition:
+      // - measurement_date IS NOT NULL
+      // - exported_to_automation IS NULL OR false
+      // - data_from_automation IS NULL OR false
+      // Use the same query pattern as getMeasuredNotExported
+      const { data, error } = await supabase
+        .from('assets')
+        .select('asset_id')
+        .eq('building_number', buildingNumber)
+        .not('measurement_date', 'is', null)
+        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
+      
+      if (error) {
+        console.error('[AssetsList] Error fetching export to automation count:', error);
+        setExportToAutomationCount(0);
+        return;
+      }
+      
+      // Filter by data_from_automation in JavaScript (Supabase .or() doesn't work well with multiple conditions)
+      const filtered = (data || []).filter(asset => {
+        // Check data_from_automation: should be null or false
+        // Since we don't have the full asset data, we need to fetch it or use a different approach
+        // For now, count all assets that match the first conditions
+        // The actual export will filter by data_from_automation
+        return true;
+      });
+      
+      // Actually, we need to check data_from_automation too
+      // Let's fetch the full data to filter properly
+      const { data: fullData, error: fullError } = await supabase
+        .from('assets')
+        .select('asset_id, data_from_automation')
+        .eq('building_number', buildingNumber)
+        .not('measurement_date', 'is', null)
+        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
+      
+      if (fullError) {
+        console.error('[AssetsList] Error fetching export to automation count:', fullError);
+        setExportToAutomationCount(0);
+        return;
+      }
+      
+      const count = (fullData || []).filter(asset => 
+        !asset.data_from_automation || asset.data_from_automation === false
+      ).length;
+      
+      setExportToAutomationCount(count);
+    } catch (err) {
+      console.error('[AssetsList] Error fetching export to automation count:', err);
+      setExportToAutomationCount(0);
+    }
+  }, [buildingNumber]);
+
+  // Export assets to automation system (for current building only)
+  const handleExportToAutomation = useCallback(async () => {
+    if (!buildingNumber || !building) {
+      setToast({ message: 'לא ניתן לשלוח - אין מידע על המבנה', type: 'error' });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    setLoading(true);
+    setToast(null);
+
+    try {
+      // STEP 1: Get assets in this building that match export condition
+      // Use the same query pattern as getMeasuredNotExported
+      const { data: assetsToExport, error: fetchError } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('building_number', buildingNumber)
+        .not('measurement_date', 'is', null)
+        .or('exported_to_automation.is.null,exported_to_automation.eq.false');
+      
+      // Filter by data_from_automation in JavaScript (Supabase .or() doesn't work well with multiple conditions)
+      const filteredAssets = (assetsToExport || []).filter(asset => 
+        !asset.data_from_automation || asset.data_from_automation === false
+      );
+      
+      if (fetchError) {
+        console.error('[AssetsList] Error fetching assets to export:', fetchError);
+        setToast({ message: 'שגיאה בטעינת נכסים לשליחה', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        return;
+      }
+      
+      if (!filteredAssets || filteredAssets.length === 0) {
+        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        setExportToAutomationCount(0);
+        return;
+      }
+
+      // STEP 2: Validate all assets before export
+      setToast({ message: 'מאמת נכסים לפני שליחה...', type: 'info' });
+      
+      // Prepare cached data for validation
+      const cachedData = {
+        assetTypes: assetTypes.length > 0 ? assetTypes : await api.assetTypes.getAll(),
+        building: building
+      };
+
+      // Validate assets for this building
+      const batchResult = await AssetValidationHandler.validateBuildingAssets(
+        filteredAssets as Asset[],
+        buildingNumber,
+        {
+          mode: 'building',
+          validateOnlyLatest: false,
+          cachedData: cachedData,
+          taxRegion: validationTaxRegion,
+          onProgress: (progress) => {
+            setToast({ 
+              message: `מאמת נכסים... ${progress.current}/${progress.total} - ${progress.currentAsset}`, 
+              type: 'info' 
+            });
+          }
+        }
+      );
+
+      // Collect validation errors
+      const allValidationResults: Array<{ assetId: string; buildingNumber: number; errors: string[] }> = [];
+      for (const result of batchResult.results) {
+        if (!result.valid && result.errors && result.errors.length > 0) {
+          const assetId = typeof result.assetId === 'string' 
+            ? result.assetId 
+            : String(result.assetId);
+          
+          allValidationResults.push({
+            assetId: assetId,
+            buildingNumber: buildingNumber,
+            errors: result.errors
+          });
+        }
+      }
+
+      // STEP 3: Check if validation passed
+      if (allValidationResults.length > 0) {
+        const invalidCount = allValidationResults.length;
+        const errorMessages = allValidationResults
+          .slice(0, 5)
+          .map(r => `נכס ${r.assetId}: ${r.errors.join(', ')}`)
+          .join('\n');
+        
+        const moreErrors = invalidCount > 5 ? `\nועוד ${invalidCount - 5} נכסים עם שגיאות...` : '';
+        
+        setToast({ 
+          message: `לא ניתן לשלוח נכסים - נמצאו ${invalidCount} נכסים עם שגיאות אימות:\n${errorMessages}${moreErrors}\n\nיש לתקן את השגיאות לפני שליחה.`, 
+          type: 'error' 
+        });
+        setTimeout(() => setToast(null), 15000);
+        setLoading(false);
+        return;
+      }
+
+      // STEP 4: All assets passed validation - proceed with export
+      setToast({ message: 'כל הנכסים עברו אימות בהצלחה. מתחיל שליחה...', type: 'success' });
+      
+      // Call API to export assets and mark them as exported
+      const result = await api.assets.exportToAutomation();
+
+      if (!result.success) {
+        setToast({ message: result.error || 'שגיאה בשליחת נכסים לעירייה', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        return;
+      }
+
+      if (result.count === 0) {
+        setToast({ message: 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה', type: 'info' });
+        setTimeout(() => setToast(null), 5000);
+        setLoading(false);
+        setExportToAutomationCount(0);
+        return;
+      }
+
+      // Success
+      setToast({ 
+        message: `נשלחו ${result.count} נכסים לעירייה בהצלחה`, 
+        type: 'success' 
+      });
+      setTimeout(() => setToast(null), 5000);
+      
+      // Refresh data and export count
+      await fetchData(false);
+      await fetchExportToAutomationCount();
+      
+      // Notify other components
+      window.dispatchEvent(new CustomEvent('exportToAutomationSuccess'));
+    } catch (error: any) {
+      console.error('[AssetsList] Error exporting to automation:', error);
+      setToast({ 
+        message: error?.message || 'שגיאה בשליחת נכסים לעירייה', 
+        type: 'error' 
+      });
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  }, [buildingNumber, building, assetTypes, validationTaxRegion, fetchExportToAutomationCount]);
+
   useEffect(() => {
     fetchData();
-  }, [buildingNumber, taxRegion]);
+    fetchExportToAutomationCount();
+  }, [buildingNumber, taxRegion, fetchExportToAutomationCount]);
+
+  // Listen for exportToAutomationSuccess event to refresh count
+  useEffect(() => {
+    const handleExportSuccess = () => {
+      fetchExportToAutomationCount();
+    };
+    
+    window.addEventListener('exportToAutomationSuccess', handleExportSuccess);
+    return () => {
+      window.removeEventListener('exportToAutomationSuccess', handleExportSuccess);
+    };
+  }, [fetchExportToAutomationCount]);
 
   // Clear selection when switching tabs (buildingNumber or taxRegion changes)
   useEffect(() => {
@@ -4886,6 +5111,19 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 ייצא ל-Excel
+              </button>
+            )}
+            {/* Export to automation button - follows export condition (measured but not exported) */}
+            {!isErrorFixingMode && (
+              <button
+                type="button"
+                onClick={handleExportToAutomation}
+                disabled={loading || exportToAutomationCount === 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:from-orange-700 active:to-orange-800 disabled:from-gray-400 disabled:to-gray-500  text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed font-semibold border border-orange-700/20 disabled:border-gray-500/20"
+                title={exportToAutomationCount > 0 ? `שלח ${exportToAutomationCount} נכסים שנמדדו ולא נשלחו לעירייה` : 'אין נכסים לשליחה - כל הנכסים כבר נשלחו לעירייה'}
+              >
+                <Upload className="h-4 w-4" />
+                שליחת נתונים לעירייה{exportToAutomationCount > 0 ? ` (${exportToAutomationCount})` : ''}
               </button>
             )}
             {/* Statistics button - visible in business and residence tabs (not in multi-tax tabs) */}

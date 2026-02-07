@@ -30,21 +30,12 @@ input[type="number"] {
   --ag-cell-horizontal-border: solid #dee2e6;
   --ag-borders: solid 1px #dee2e6;
   --ag-row-border-color: #dee2e6;
-  --ag-range-selection-border-color: transparent;
-  --ag-range-selection-border-style: none;
-  --ag-range-selection-background-color: transparent;
-  --ag-range-selection-highlight-color: transparent;
+  --ag-range-selection-border-color: #2563eb;
+  --ag-range-selection-border-style: solid;
+  --ag-range-selection-background-color: rgba(37, 99, 235, 0.08);
+  --ag-range-selection-highlight-color: rgba(37, 99, 235, 0.08);
   --ag-input-focus-box-shadow: none;
-  --ag-focus-shadow: none;
-  --ag-input-focus-border-color: transparent;
-}
-
-/* Override AG Grid's internal box-shadow */
-.ag-theme-alpine .ag-cell,
-.ag-theme-alpine .ag-cell *,
-.ag-theme-alpine .ag-cell::before,
-.ag-theme-alpine .ag-cell::after {
-  box-shadow: none !important;
+  --ag-input-focus-border-color: #2563eb;
 }
 
 .ag-theme-alpine .ag-header {
@@ -67,7 +58,6 @@ input[type="number"] {
   min-width: 100% !important;
 }
 
-/* Grid container should be fixed width, scrolling happens inside */
 .ag-theme-alpine {
   width: 100% !important;
 }
@@ -82,7 +72,6 @@ input[type="number"] {
   height: 100% !important;
 }
 
-/* Ensure the grid body container can expand for columns */
 .ag-theme-alpine .ag-body-viewport {
   overflow-x: auto !important;
   overflow-y: auto !important;
@@ -93,7 +82,6 @@ input[type="number"] {
   min-width: fit-content !important;
 }
 
-/* Ensure horizontal scrollbar appears inside grid */
 .ag-theme-alpine .ag-body-horizontal-scroll {
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
@@ -109,7 +97,6 @@ input[type="number"] {
   padding: 0 !important;
 }
 
-/* Ensure header text is always visible */
 .ag-theme-alpine .ag-header-cell-label,
 .ag-theme-alpine .ag-header-cell-text,
 .ag-theme-alpine .ag-header-cell-label span,
@@ -163,7 +150,6 @@ input[type="number"] {
   background-color: #f1f3f5 !important;
 }
 
-/* Disable AG Grid cell flash animation */
 .ag-theme-alpine .ag-cell-data-changed,
 .ag-theme-alpine .ag-cell-data-changed-animation {
   background-color: transparent !important;
@@ -179,303 +165,29 @@ input[type="number"] {
   white-space: nowrap !important;
   line-height: 32px !important;
   text-overflow: clip !important;
-  cursor: default !important;
-  outline: none !important;
-  box-shadow: none !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent !important;
-  -webkit-user-drag: none !important;
-  -khtml-user-select: none !important;
   padding: 0 var(--ag-cell-horizontal-padding) !important;
   border-width: 1px !important;
   box-sizing: border-box !important;
-  transition: none !important;
-  animation: none !important;
 }
 
-/* Active/pressed state handled by ag-cell-focus rule above */
-
-/* Completely disable all transitions and animations on all cell states */
-.ag-theme-alpine .ag-cell,
-.ag-theme-alpine .ag-cell *,
-.ag-theme-alpine .ag-cell:hover,
-.ag-theme-alpine .ag-cell:focus,
-.ag-theme-alpine .ag-cell:active,
-.ag-theme-alpine .ag-cell-focus,
-.ag-theme-alpine .ag-cell-range-selected,
-.ag-theme-alpine .ag-cell-range-single-cell {
-  transition: none !important;
-  animation: none !important;
-  transform: none !important;
-}
-
-/* Global rule to prevent selection on all AG Grid cells - use !important and be very specific */
-.ag-theme-alpine .ag-cell,
-.ag-theme-alpine .ag-cell *,
-.ag-theme-alpine .ag-cell-value,
-.ag-theme-alpine .ag-cell-wrapper,
-.ag-theme-alpine .ag-cell-content,
-.ag-theme-alpine .ag-cell span,
-.ag-theme-alpine .ag-cell div,
-.ag-theme-alpine .ag-cell p {
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent !important;
-  -khtml-user-select: none !important;
-  -o-user-select: none !important;
-}
-
-/* Force unselectable attribute on all cell content */
-.ag-theme-alpine .ag-cell,
-.ag-theme-alpine .ag-cell * {
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-}
-
-/* Re-enable selection only for input/textarea/button/a elements when focused */
-.ag-theme-alpine .ag-cell input:focus,
-.ag-theme-alpine .ag-cell textarea:focus,
-.ag-theme-alpine .ag-cell button:focus,
-.ag-theme-alpine .ag-cell a:focus {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
-}
-
-/* Make sure selection highlight is invisible even if selection happens */
-.ag-theme-alpine .ag-cell *::selection {
-  background: transparent !important;
-  color: inherit !important;
-}
-
-.ag-theme-alpine .ag-cell *::-moz-selection {
-  background: transparent !important;
-  color: inherit !important;
-}
-
-/* Prevent text selection on all cell content */
-.ag-theme-alpine .ag-cell-value,
-.ag-theme-alpine .ag-cell-wrapper,
-.ag-theme-alpine .ag-cell-content,
-.ag-theme-alpine .ag-cell span,
-.ag-theme-alpine .ag-cell div:not(input):not(textarea):not(button):not(a),
-.ag-theme-alpine .ag-cell *:not(input):not(textarea):not(button):not(a) {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
-
-/* Completely prevent selection highlight on all cell content */
-.ag-theme-alpine .ag-cell::selection,
-.ag-theme-alpine .ag-cell ::selection,
-.ag-theme-alpine .ag-cell-value::selection,
-.ag-theme-alpine .ag-cell-wrapper::selection,
-.ag-theme-alpine .ag-cell-content::selection,
-.ag-theme-alpine .ag-cell span::selection,
-.ag-theme-alpine .ag-cell div::selection,
-.ag-theme-alpine .ag-cell *::selection {
-  background: transparent !important;
-  color: inherit !important;
-}
-
-.ag-theme-alpine .ag-cell::-moz-selection,
-.ag-theme-alpine .ag-cell ::-moz-selection,
-.ag-theme-alpine .ag-cell-value::-moz-selection,
-.ag-theme-alpine .ag-cell-wrapper::-moz-selection,
-.ag-theme-alpine .ag-cell-content::-moz-selection,
-.ag-theme-alpine .ag-cell span::-moz-selection,
-.ag-theme-alpine .ag-cell div::-moz-selection,
-.ag-theme-alpine .ag-cell *::-moz-selection {
-  background: transparent !important;
-  color: inherit !important;
-}
-
-/* Focused cell styling - clean single border, no inner rectangles */
-.ag-theme-alpine .ag-cell-focus,
-.ag-theme-alpine .ag-cell:focus,
-.ag-theme-alpine .ag-cell:active,
-.ag-theme-alpine .ag-cell-focus:focus,
-.ag-theme-alpine .ag-cell-focus:active {
-  border: 2px solid #2563eb !important;
-  background-color: #eff6ff !important;
-  outline: none !important;
-  box-shadow: none !important;
-  -webkit-box-shadow: none !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
-  margin: 0 !important;
-  transform: none !important;
-  transition: none !important;
-  animation: none !important;
-}
-
-/* Remove borders/outlines from ALL inner elements of cells */
-.ag-theme-alpine .ag-cell-wrapper,
-.ag-theme-alpine .ag-cell-value,
-.ag-theme-alpine .ag-cell > *,
-.ag-theme-alpine .ag-cell-focus > *,
-.ag-theme-alpine .ag-cell-focus .ag-cell-wrapper,
-.ag-theme-alpine .ag-cell-focus .ag-cell-value {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* Prevent text selection on focused cell content */
-.ag-theme-alpine .ag-cell-focus .ag-cell-value,
-.ag-theme-alpine .ag-cell-focus .ag-cell-wrapper,
-.ag-theme-alpine .ag-cell-focus .ag-cell-content,
-.ag-theme-alpine .ag-cell-focus span,
-.ag-theme-alpine .ag-cell-focus div:not(input):not(textarea):not(button):not(a),
-.ag-theme-alpine .ag-cell-focus *:not(input):not(textarea):not(button):not(a) {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
-
-/* Prevent text selection when clicking on non-editing cells (AG Grid default) */
 .ag-theme-alpine .ag-cell:not(.ag-cell-inline-editing):not(.ag-cell-editing) {
   user-select: none !important;
   -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
 }
 
-/* Allow text selection only when editing (AG Grid default) */
 .ag-theme-alpine .ag-cell-inline-editing input,
 .ag-theme-alpine .ag-cell-editing input,
 .ag-theme-alpine .ag-cell-inline-editing textarea,
 .ag-theme-alpine .ag-cell-editing textarea {
   user-select: text !important;
   -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
 }
 
-/* Remove default focus outline but keep our custom border */
-.ag-theme-alpine .ag-cell:focus,
-.ag-theme-alpine .ag-cell:focus-visible,
-.ag-theme-alpine .ag-cell:focus-within {
-  outline: none !important;
-}
-
-/* Prominent focused cell border when editing - minimal styling */
-.ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
-  border: 2px solid #2563eb !important;
-  box-shadow: none !important;
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
-  background-color: #eff6ff !important;
-  padding: 0 calc(var(--ag-cell-horizontal-padding) - 1px) !important;
-  margin: 0 !important;
-  transform: none !important;
-  transition: none !important;
-  animation: none !important;
-  outline: none !important;
-}
-
-/* Cell range selection - NO special styling to prevent rectangles */
-.ag-theme-alpine .ag-cell-range-selected,
-.ag-theme-alpine .ag-cell-range-single-cell,
-.ag-theme-alpine .ag-cell-range-selected-1,
-.ag-theme-alpine .ag-cell-range-selected-2,
-.ag-theme-alpine .ag-cell-range-selected-3,
-.ag-theme-alpine .ag-cell-range-selected-4,
-.ag-theme-alpine .ag-cell-highlight,
-.ag-theme-alpine .ag-cell-highlight-animation,
-.ag-theme-alpine .ag-cell-range-top,
-.ag-theme-alpine .ag-cell-range-bottom,
-.ag-theme-alpine .ag-cell-range-left,
-.ag-theme-alpine .ag-cell-range-right {
-  background-color: inherit !important;
-  border: none !important;
-  border-top: 1px solid #dee2e6 !important;
-  border-bottom: 1px solid #dee2e6 !important;
-  border-left: 1px solid #dee2e6 !important;
-  border-right: 1px solid #dee2e6 !important;
-  box-shadow: none !important;
-  outline: none !important;
-  animation: none !important;
-  padding: 0 var(--ag-cell-horizontal-padding) !important;
-  margin: 0 !important;
-  transform: none !important;
-  transition: none !important;
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
-}
-
-/* Range border styles - DISABLED to prevent internal rectangles */
-.ag-theme-alpine .ag-cell-range-top,
-.ag-theme-alpine .ag-cell-range-bottom,
-.ag-theme-alpine .ag-cell-range-left,
-.ag-theme-alpine .ag-cell-range-right {
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-/* Ensure text in selected/range cells remains fully visible and readable */
-.ag-theme-alpine .ag-cell-range-selected *,
-.ag-theme-alpine .ag-cell-range-single-cell *,
-.ag-theme-alpine .ag-cell-range-selected-1 *,
-.ag-theme-alpine .ag-cell-range-selected-2 *,
-.ag-theme-alpine .ag-cell-range-selected-3 *,
-.ag-theme-alpine .ag-cell-range-selected-4 *,
-.ag-theme-alpine .ag-cell-highlight *,
-.ag-theme-alpine .ag-cell-focus * {
-  opacity: 1 !important;
-  color: inherit !important;
-}
-
-/* Ensure range-selected cells have normal appearance */
-.ag-theme-alpine .ag-cell-range-selected,
-.ag-theme-alpine .ag-cell-range-single-cell {
-  padding: 0 var(--ag-cell-horizontal-padding) !important;
-  line-height: 32px !important;
-  text-align: right !important;
-  direction: rtl !important;
-  border: 1px solid #dee2e6 !important;
-  background-color: inherit !important;
-  box-sizing: border-box !important;
-  transition: none !important;
-  animation: none !important;
-  transform: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-/* Disable range handle */
-.ag-theme-alpine .ag-range-handle {
-  display: none !important;
-}
-
-/* Disable fill handle */
-.ag-theme-alpine .ag-fill-handle {
-  display: none !important;
-}
-
-/* Chrome-style fade effect for cell content - only when text overflows */
 .ag-theme-alpine .ag-cell.text-overflow {
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
 }
 
-/* Fix RTL for ag-grid cell editors */
 .ag-theme-alpine .ag-cell-inline-editing input[type="text"],
 .ag-theme-alpine .ag-cell-inline-editing input[type="number"],
 .ag-theme-alpine .ag-text-field-input,
@@ -484,9 +196,6 @@ input[type="number"] {
   direction: rtl !important;
   text-align: right !important;
 }
-
-/* AG Grid default behavior - text selection is handled by AG Grid itself */
-/* We don't override user-select to allow AG Grid's native behavior */
 
 .ag-theme-alpine .ag-header-cell-label {
   justify-content: flex-start !important;
@@ -521,7 +230,7 @@ input[type="number"] {
   white-space: normal !important;
   overflow: hidden !important;
   max-width: 100% !important;
-  text-overflow: clip !important; /* Use clip instead of ellipsis */
+  text-overflow: clip !important;
   font-size: 11px !important;
   line-height: 1.2 !important;
   display: -webkit-box !important;
@@ -536,7 +245,6 @@ input[type="number"] {
   direction: rtl !important;
 }
 
-/* Chrome-style fade effect for headers - only when text overflows */
 .ag-theme-alpine .ag-header-cell-label.text-overflow .ag-header-cell-text {
   mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
   -webkit-mask-image: linear-gradient(to left, black 0%, black calc(100% - 20px), transparent 100%);
@@ -583,7 +291,6 @@ input[type="number"] {
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Standardized tooltip styles */
 .tooltip-container {
   position: fixed;
   z-index: 9999;
@@ -591,8 +298,8 @@ input[type="number"] {
 }
 
 .tooltip-content {
-  background-color: #f9fafb; /* Lighter background */
-  color: #1f2937; /* Darker text for contrast */
+  background-color: #f9fafb;
+  color: #1f2937;
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
@@ -602,17 +309,15 @@ input[type="number"] {
   text-align: right;
   line-height: 1.6;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 3px solid #9ca3af; /* Bold border */
+  border: 3px solid #9ca3af;
   white-space: pre-line;
   font-weight: 400;
 }
 
-/* Margin for multiple messages in a tooltip */
 .tooltip-message-item:not(:last-child) {
   margin-bottom: 8px;
 }
 
-/* AG Grid tooltips - use same style */
 .ag-theme-alpine .ag-tooltip {
   background-color: #f9fafb !important;
   color: #1f2937 !important;
@@ -630,18 +335,14 @@ input[type="number"] {
   white-space: pre-line !important;
 }
 
-/* Style for validation error tooltips - note: native title tooltips cannot be styled */
-/* This rule helps if AG-Grid tooltips are used for validation errors */
 [title] {
   cursor: pointer;
 }
 
-/* Attempt to style tooltips via data attribute if using custom tooltip library */
 [data-tooltip] {
   position: relative;
 }
 
-/* Increase font size for validation error tooltips if using a custom tooltip component */
 .validation-error-tooltip,
 .ag-tooltip.validation-error {
   font-size: 18px !important;
@@ -665,33 +366,27 @@ input[type="number"] {
   border: 2px solid #ef4444 !important;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Better focus styles - exclude AG Grid cells */
 *:focus-visible:not(.ag-cell):not(.ag-cell *) {
   outline: 2px solid #228be6;
   outline-offset: 2px;
 }
 
-/* Improved button transitions */
 button {
   transition: all 0.25s ease-in-out;
 }
 
-/* Better card shadows */
 .shadow-lg {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* Improved input focus */
 input:focus, textarea:focus, select:focus {
   transition: all 0.2s ease-in-out;
 }
 
-/* Mobile responsive utilities */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -701,60 +396,26 @@ input:focus, textarea:focus, select:focus {
   display: none;
 }
 
-/* Mobile responsive grid adjustments */
 @media (max-width: 640px) {
   .ag-theme-alpine {
     --ag-font-size: 10px;
     --ag-row-height: 32px;
     --ag-header-height: 48px;
   }
-  
+
   .ag-theme-alpine.buildings-list-grid .ag-header {
     font-size: 8px !important;
   }
-  
+
   .ag-theme-alpine.buildings-list-grid .ag-header-cell-label {
     font-size: 8px !important;
   }
-  
+
   .ag-theme-alpine.buildings-list-grid .ag-cell {
     font-size: 12px !important;
   }
-  
-  /* Ensure horizontal scrolling on mobile */
-  .ag-theme-alpine .ag-body-horizontal-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .ag-theme-alpine .ag-body-viewport {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
 }
 
-/* Ensure horizontal scrolling works properly for all screen sizes */
-.ag-theme-alpine .ag-body-horizontal-scroll {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ag-theme-alpine .ag-body-viewport {
-  overflow-x: auto !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ag-theme-alpine .ag-center-cols-container {
-  min-width: fit-content !important;
-}
-
-.ag-theme-alpine .ag-body-horizontal-scroll-viewport {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Ensure pinned columns don't interfere with horizontal scrolling */
 .ag-theme-alpine .ag-pinned-right-cols-container {
   position: sticky !important;
   right: 0 !important;
@@ -767,7 +428,6 @@ input:focus, textarea:focus, select:focus {
   z-index: 10 !important;
 }
 
-/* Fix filter panel z-index to appear above pinned columns */
 .ag-theme-alpine .ag-filter-wrapper,
 .ag-theme-alpine .ag-popup,
 .ag-theme-alpine .ag-popup-child {
@@ -784,12 +444,10 @@ input:focus, textarea:focus, select:focus {
   z-index: 1002 !important;
 }
 
-/* Ensure the main grid body can scroll independently */
 .ag-theme-alpine .ag-body-viewport-wrapper {
   overflow-x: auto !important;
 }
 
-/* Touch-friendly targets on mobile */
 @media (max-width: 640px) {
   button {
     min-height: 44px;
@@ -797,12 +455,10 @@ input:focus, textarea:focus, select:focus {
   }
 }
 
-/* Button styles */
 .btn {
   @apply flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-semibold;
 }
 
-/* Global disabled button cursor */
 button:disabled,
 button[disabled],
 input[type="button"]:disabled,
@@ -810,7 +466,6 @@ input[type="submit"]:disabled {
   cursor: not-allowed !important;
 }
 
-/* Button sizes */
 .btn-sm {
   @apply px-2 py-1 text-xs;
 }
@@ -821,32 +476,26 @@ input[type="submit"]:disabled {
   @apply px-5 py-2.5 text-base;
 }
 
-/* Primary button (e.g., Save, Add, Create) */
 .btn-primary {
   @apply bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
-/* Secondary button (e.g., Edit, Validate) */
 .btn-secondary {
   @apply bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white border border-cyan-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
-/* Danger button (e.g., Delete, Remove) */
 .btn-danger {
   @apply bg-red-600 hover:bg-red-700 active:bg-red-800 text-white border border-red-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
-/* Cancel button */
 .btn-cancel {
   @apply bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white border border-gray-600/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
-/* Export button */
 .btn-export {
   @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white border border-blue-700/20 disabled:bg-gray-400 disabled:border-gray-500/20 disabled:shadow-none disabled:cursor-not-allowed;
 }
 
-/* Icon buttons (small, no text) */
 .btn-icon {
   @apply p-1 rounded-md transition-colors hover:scale-110 active:scale-100;
 }
@@ -855,7 +504,6 @@ input[type="submit"]:disabled {
   @apply p-1 rounded-md transition-colors text-red-600 hover:text-red-700 hover:bg-red-100 active:bg-red-200;
 }
 
-/* Menu buttons (sidebar main items) */
 .btn-menu {
   @apply w-full flex items-center justify-between px-4 py-2.5 text-right bg-white rounded-lg transition-all duration-200 shadow-sm border border-purple-100 hover:shadow-md;
 }
@@ -872,7 +520,6 @@ input[type="submit"]:disabled {
   @apply text-purple-600 group-hover:text-purple-700;
 }
 
-/* Menu item buttons (sidebar sub-items) */
 .btn-menu-item {
   @apply w-full flex items-center gap-2 px-3 py-2 text-right bg-purple-50 hover:bg-purple-100 hover:scale-[1.02] active:bg-purple-200 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md;
 }
@@ -882,87 +529,15 @@ input[type="submit"]:disabled {
 .btn-menu-item svg {
   @apply text-purple-600;
 }
-/* Specific color for primary menu item */
 .btn-menu-item.btn-primary {
   @apply bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200;
 }
 .btn-menu-item.btn-primary svg {
   @apply text-emerald-600;
 }
-/* Specific color for export menu item */
 .btn-menu-item.btn-export {
   @apply bg-blue-50 hover:bg-blue-100 active:bg-blue-200;
 }
 .btn-menu-item.btn-export svg {
   @apply text-blue-600;
-}
-
-/* AG Grid Fill Handle */
-.ag-fill-handle {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: #2563eb !important;
-  border: 2px solid white !important;
-  cursor: crosshair !important;
-  z-index: 99999 !important;
-  pointer-events: auto !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
-  border-radius: 2px;
-  transition: transform 0.15s ease, background 0.15s ease;
-  display: none;
-}
-
-.ag-fill-handle:hover {
-  transform: scale(1.3);
-  background: #1d4ed8 !important;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.5) !important;
-}
-
-.ag-fill-handle:active {
-  transform: scale(1.15);
-  background: #1e40af !important;
-}
-
-/* Highlight cells during fill operation */
-.ag-cell.ag-cell-fill-range {
-  background-color: rgba(25, 118, 210, 0.1) !important;
-  border: 1px solid rgba(25, 118, 210, 0.3) !important;
-}
-
-/* CRITICAL: Nuclear option - remove ALL box-shadows from EVERYTHING in grid */
-.ag-theme-alpine *,
-.ag-theme-alpine *::before,
-.ag-theme-alpine *::after,
-.ag-theme-alpine [class*="ag-"],
-.ag-theme-alpine [class*="ag-"]::before,
-.ag-theme-alpine [class*="ag-"]::after {
-  box-shadow: none !important;
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
-}
-
-/* CRITICAL: Remove all box-shadows from all cell states - final override */
-.ag-theme-alpine .ag-cell,
-.ag-theme-alpine .ag-cell *,
-.ag-theme-alpine .ag-cell:hover,
-.ag-theme-alpine .ag-cell:focus,
-.ag-theme-alpine .ag-cell:active,
-.ag-theme-alpine .ag-cell.ag-cell-focus,
-.ag-theme-alpine .ag-cell-focus,
-.ag-theme-alpine .ag-cell-focus *,
-.ag-theme-alpine .ag-cell-range-selected,
-.ag-theme-alpine .ag-cell-range-single-cell,
-.ag-theme-alpine .ag-cell.ag-cell-inline-editing,
-.ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing,
-.ag-theme-alpine .ag-cell::before,
-.ag-theme-alpine .ag-cell::after,
-.ag-theme-alpine .ag-ltr .ag-cell,
-.ag-theme-alpine .ag-rtl .ag-cell,
-.ag-theme-alpine .ag-cell-wrapper,
-.ag-theme-alpine .ag-cell-value,
-.ag-theme-alpine [class*="ag-cell"] {
-  box-shadow: none !important;
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
 }

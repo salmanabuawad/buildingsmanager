@@ -92,6 +92,7 @@ console.log = (...args: any[]) => {
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import { CellSelectionModule } from 'ag-grid-enterprise';
 import App from './App.tsx';
 import './index.css';
 import './i18n/i18n';
@@ -173,7 +174,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // Console methods are already overridden above (before imports)
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+ModuleRegistry.registerModules([AllCommunityModule, CellSelectionModule]);
 
 // Preload field configurations on application startup and persist in memory
 import('./lib/fieldConfigUtils').then(({ loadFieldConfigurations }) => {

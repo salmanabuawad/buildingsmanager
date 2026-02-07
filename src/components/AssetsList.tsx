@@ -75,7 +75,6 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
     'default'
   );
 
-  // Fill handle hook for drag-to-fill functionality
   useFillHandle({
     gridRef,
     enabled: false
@@ -4903,19 +4902,21 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
               cellStyle: { textAlign: 'right' },
               minWidth: 40
             }}
+            cellSelection={{
+              handle: { mode: 'fill' },
+            }}
             gridOptions={{
-              suppressColumnVirtualisation: false, // Enable column virtualization for better horizontal scrolling
+              suppressColumnVirtualisation: false,
               alwaysShowHorizontalScroll: true,
               suppressMovableColumns: true,
               suppressColumnMoveAnimation: true,
-              rowBuffer: 10, // Use AG Grid default for optimal performance
-              debounceVerticalScrollbar: false, // No delay for responsive scrolling
-              suppressRowVirtualisation: false, // Keep row virtualization enabled for better performance
-              suppressCellFocus: true,
+              rowBuffer: 10,
+              debounceVerticalScrollbar: false,
+              suppressRowVirtualisation: false,
+              suppressCellFocus: false,
               suppressScrollOnNewData: true,
-              enableCellTextSelection: false, // Disable text selection for better performance
-              suppressAnimationFrame: false, // Use animation frame for smoother updates
-              // Don't set rowHeight - let AG Grid use default for better performance
+              enableCellTextSelection: false,
+              suppressAnimationFrame: false,
             }}
             rowSelection={{
               mode: 'singleRow',

@@ -629,7 +629,7 @@ export function AssetTypes() {
       field: 'non_accountable_for_total_area',
       headerName: 'לא נספר בחישוב שטח מבנה',
       editable: false,
-      tooltipValueGetter: () => 'נכסים מסוג זה לא נספרים בחישוב שטח המבנה הכולל',
+      tooltipValueGetter: () => 'לא נספר בשטח מבנה',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -661,7 +661,7 @@ export function AssetTypes() {
       field: 'non_accountable_for_distribution',
       headerName: 'לא נספר בפיזור',
       editable: false,
-      tooltipValueGetter: () => 'נכסים מסוג זה לא נכללים בפיזור שטח משותף. שינוי ערך זה יאפס את דגלי הפיזור במבנים מושפעים',
+      tooltipValueGetter: () => 'לא נכלל בפיזור',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -693,7 +693,7 @@ export function AssetTypes() {
       field: 'not_accountable_for_statistics',
       headerName: 'לא נספר בסטטיסטיקה',
       editable: false,
-      tooltipValueGetter: () => 'נכסים מסוג זה לא יופיעו בסטטיסטיקות נכסים',
+      tooltipValueGetter: () => 'לא נכלל בסטטיסטיקה',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;
@@ -720,7 +720,7 @@ export function AssetTypes() {
       field: 'use_shared_area',
       headerName: 'שימוש בשטח משותף',
       editable: false,
-      tooltipValueGetter: () => 'סוג נכס זה משמש לפיזור שטח משותף מגורים. שטח משותף יווסף כנכס משנה מסוג זה',
+      tooltipValueGetter: () => 'משמש לפיזור שטח משותף',
       cellRenderer: (params: any) => {
         const assetType = params.data as AssetType;
         if (!assetType) return null;

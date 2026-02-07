@@ -4993,7 +4993,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
         {!isMultiTaxRegion && (
           <>
             {activeTab === 'distribution-history' && (
-              <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+              <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
                 <DistributionHistoryModal
                   isOpen={true}
                   onClose={() => setActiveTab('assets')}
@@ -5005,7 +5005,7 @@ function AssetsListInner(props: AssetsListProps, ref: React.ForwardedRef<AssetsL
             )}
             
             {activeTab === 'transfer-history' && !isResidentTaxRegion && (
-              <div className="rounded-xl shadow-lg border border-gray-200 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
+              <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 border-2 border-blue-400 bg-white overflow-hidden" style={{ height: '60vh', width: '100%' }}>
                 <TransferHistoryModal
                   isOpen={true}
                   onClose={() => setActiveTab('assets')}

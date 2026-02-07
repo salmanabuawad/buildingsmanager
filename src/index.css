@@ -802,26 +802,28 @@ input[type="submit"]:disabled {
 /* AG Grid Fill Handle */
 .ag-fill-handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #1976d2;
-  border: 2px solid white;
-  cursor: crosshair;
-  z-index: 10000;
-  pointer-events: auto;
-  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  width: 10px;
+  height: 10px;
+  background: #2563eb !important;
+  border: 2px solid white !important;
+  cursor: crosshair !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
   border-radius: 2px;
-  transition: transform 0.1s ease;
+  transition: transform 0.15s ease, background 0.15s ease;
+  display: none;
 }
 
 .ag-fill-handle:hover {
-  transform: scale(1.2);
-  background: #1565c0;
+  transform: scale(1.3);
+  background: #1d4ed8 !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5) !important;
 }
 
 .ag-fill-handle:active {
-  transform: scale(1.1);
-  background: #0d47a1;
+  transform: scale(1.15);
+  background: #1e40af !important;
 }
 
 /* Highlight cells during fill operation */

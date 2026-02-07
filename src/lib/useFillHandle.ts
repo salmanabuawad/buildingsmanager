@@ -33,15 +33,18 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     handle.className = 'ag-fill-handle';
     handle.style.cssText = `
       position: absolute;
-      width: 8px;
-      height: 8px;
-      background: #1976d2;
-      border: 1px solid white;
+      width: 10px;
+      height: 10px;
+      background: #2563eb;
+      border: 2px solid white;
       cursor: crosshair;
-      z-index: 10000;
+      z-index: 99999;
       pointer-events: auto;
-      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      border-radius: 2px;
+      display: none;
     `;
+    handle.title = 'Drag to fill cells';
     return handle;
   }, [enabled]);
 
@@ -252,7 +255,14 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
   }, [isDragging, fillRange, gridRef, getFillValues, onFillComplete]);
 
   const updateHandlePosition = useCallback(() => {
-    if (!enabled || !gridRef.current || !handleElement.current) return;
+    if (!enabled || !gridRef.current || !handleElement.current) {
+      console.log('[FillHandle] updateHandlePosition early return:', {
+        enabled,
+        hasGridRef: !!gridRef.current,
+        hasHandle: !!handleElement.current
+      });
+      return;
+    }
 
     const api = gridRef.current.api;
     if (!api) return;
@@ -260,16 +270,29 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     const focusedCell = api.getFocusedCell();
     if (!focusedCell) {
       handleElement.current.style.display = 'none';
+      console.log('[FillHandle] No focused cell, hiding handle');
       return;
     }
 
-    const cellElement = api.getCellRendererInstances({
-      rowNodes: [api.getDisplayedRowAtIndex(focusedCell.rowIndex)!],
-      columns: [focusedCell.column]
-    })[0]?.getGui?.()?.parentElement;
+    console.log('[FillHandle] Focused cell:', focusedCell);
 
+    const rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex);
+    if (!rowNode) {
+      handleElement.current.style.display = 'none';
+      console.log('[FillHandle] No row node found');
+      return;
+    }
+
+    // Get the cell element directly using the grid API
+    const cellRenderers = api.getCellRendererInstances({
+      rowNodes: [rowNode],
+      columns: [focusedCell.column]
+    });
+
+    const cellElement = cellRenderers[0]?.getGui?.();
     if (!cellElement) {
       handleElement.current.style.display = 'none';
+      console.log('[FillHandle] No cell element found');
       return;
     }
 
@@ -279,31 +302,68 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
     const gridRect = gridElement.getBoundingClientRect();
     const cellRect = cellElement.getBoundingClientRect();
 
+    // Position at bottom-right corner of the cell
+    const left = cellRect.right - gridRect.left - 4;
+    const top = cellRect.bottom - gridRect.top - 4;
+
     handleElement.current.style.display = 'block';
-    handleElement.current.style.left = `${cellRect.right - gridRect.left - 4}px`;
-    handleElement.current.style.top = `${cellRect.bottom - gridRect.top - 4}px`;
+    handleElement.current.style.left = `${left}px`;
+    handleElement.current.style.top = `${top}px`;
+
+    console.log('[FillHandle] Handle positioned at:', { left, top, cellRect, gridRect });
 
   }, [enabled, gridRef]);
 
   useEffect(() => {
-    if (!enabled || !gridRef.current) return;
+    if (!enabled || !gridRef.current) {
+      console.log('[FillHandle] Not initializing:', { enabled, hasGridRef: !!gridRef.current });
+      return;
+    }
+
+    const api = gridRef.current.api;
+    if (!api) {
+      console.log('[FillHandle] No API available yet');
+      return;
+    }
 
     const handle = createFillHandle();
-    if (!handle) return;
+    if (!handle) {
+      console.log('[FillHandle] Failed to create handle');
+      return;
+    }
 
     const gridElement = gridRef.current.eGridDiv;
-    if (!gridElement) return;
+    if (!gridElement) {
+      console.log('[FillHandle] No grid element found');
+      return;
+    }
 
-    gridElement.style.position = 'relative';
+    // Ensure the grid has relative positioning
+    const currentPosition = window.getComputedStyle(gridElement).position;
+    if (currentPosition === 'static') {
+      gridElement.style.position = 'relative';
+    }
+
+    // Append handle to grid
     gridElement.appendChild(handle);
     handleElement.current = handle;
+
+    console.log('[FillHandle] Handle created and appended to grid');
+
+    // Initial position update
+    setTimeout(() => {
+      updateHandlePosition();
+      console.log('[FillHandle] Initial position update complete');
+    }, 100);
 
     return () => {
       if (handle.parentElement) {
         handle.parentElement.removeChild(handle);
       }
+      handleElement.current = null;
+      console.log('[FillHandle] Handle cleaned up');
     };
-  }, [enabled, gridRef, createFillHandle]);
+  }, [enabled, gridRef, createFillHandle, updateHandlePosition]);
 
   useEffect(() => {
     if (!enabled || !gridRef.current) return;
@@ -319,12 +379,24 @@ export function useFillHandle<T = any>({ gridRef, onFillComplete, enabled = true
       updateHandlePosition();
     };
 
+    const onCellClicked = () => {
+      setTimeout(() => updateHandlePosition(), 50);
+    };
+
+    const onSelectionChanged = () => {
+      setTimeout(() => updateHandlePosition(), 50);
+    };
+
     api.addEventListener('cellFocused', onCellFocusChanged);
     api.addEventListener('bodyScroll', onBodyScroll);
+    api.addEventListener('cellClicked', onCellClicked);
+    api.addEventListener('selectionChanged', onSelectionChanged);
 
     return () => {
       api.removeEventListener('cellFocused', onCellFocusChanged);
       api.removeEventListener('bodyScroll', onBodyScroll);
+      api.removeEventListener('cellClicked', onCellClicked);
+      api.removeEventListener('selectionChanged', onSelectionChanged);
     };
   }, [enabled, gridRef, updateHandlePosition]);
 

@@ -30,12 +30,13 @@ input[type="number"] {
   --ag-cell-horizontal-border: solid #dee2e6;
   --ag-borders: solid 1px #dee2e6;
   --ag-row-border-color: #dee2e6;
-  --ag-range-selection-border-color: #2563eb;
-  --ag-range-selection-border-style: solid;
+  --ag-range-selection-border-color: transparent;
+  --ag-range-selection-border-style: none;
+  --ag-range-selection-border-width: 0;
   --ag-range-selection-background-color: rgba(37, 99, 235, 0.08);
   --ag-range-selection-highlight-color: rgba(37, 99, 235, 0.08);
   --ag-input-focus-box-shadow: none;
-  --ag-input-focus-border-color: #2563eb;
+  --ag-input-focus-border-color: transparent;
 }
 
 .ag-theme-alpine .ag-header {
@@ -171,27 +172,7 @@ input[type="number"] {
 
 .ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-range-single-cell) {
   background-color: rgba(37, 99, 235, 0.08) !important;
-}
-
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-top {
-  border-top: 2px solid #2563eb !important;
-}
-
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-bottom {
-  border-bottom: 2px solid #2563eb !important;
-}
-
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-left {
-  border-left: 2px solid #2563eb !important;
-}
-
-.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-right {
-  border-right: 2px solid #2563eb !important;
-}
-
-.ag-theme-alpine .ag-cell-range-single-cell {
-  border: 2px solid #2563eb !important;
-  background-color: rgba(37, 99, 235, 0.08) !important;
+  border: none !important;
 }
 
 .ag-theme-alpine .ag-fill-handle {
@@ -573,7 +554,15 @@ input[type="submit"]:disabled {
 .ag-theme-alpine .ag-cell.ag-cell-focus:not(.ag-cell-range-selected),
 .ag-theme-alpine .ag-cell.ag-cell-not-inline-editing:focus,
 .ag-theme-alpine .ag-cell-focus,
-.ag-theme-alpine .ag-cell.ag-cell-focus {
+.ag-theme-alpine .ag-cell.ag-cell-focus,
+.ag-theme-alpine .ag-cell[tabindex="0"]:focus,
+.ag-theme-alpine .ag-cell[tabindex="0"],
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-top,
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-bottom,
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-left,
+.ag-theme-alpine .ag-cell-range-selected.ag-cell-range-right,
+.ag-theme-alpine .ag-cell-range-single-cell {
   border: none !important;
   border-top: none !important;
   border-bottom: none !important;
@@ -586,13 +575,11 @@ input[type="submit"]:disabled {
 .ag-theme-alpine .ag-cell-focus::before,
 .ag-theme-alpine .ag-cell-focus::after,
 .ag-theme-alpine .ag-cell:focus::before,
-.ag-theme-alpine .ag-cell:focus::after {
+.ag-theme-alpine .ag-cell:focus::after,
+.ag-theme-alpine .ag-cell-range-selected::before,
+.ag-theme-alpine .ag-cell-range-selected::after {
   display: none !important;
   content: none !important;
   border: none !important;
   outline: none !important;
-}
-
-.ag-theme-alpine {
-  --ag-range-selection-border-color: transparent !important;
 }

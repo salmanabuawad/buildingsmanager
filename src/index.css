@@ -297,6 +297,7 @@ input[type="number"] {
   box-shadow: none !important;
   outline: none !important;
   transition: none !important;
+  background-color: inherit !important;
   /* Don't select text when cell gets focus - AG Grid default behavior */
   user-select: none !important;
   -webkit-user-select: none !important;
@@ -304,6 +305,19 @@ input[type="number"] {
   -ms-user-select: none !important;
   -webkit-touch-callout: none !important;
   -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Prevent any visual change when cell is clicked or focused */
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:active,
+.ag-theme-alpine .ag-cell-focus:focus,
+.ag-theme-alpine .ag-cell-focus:active {
+  background-color: inherit !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* Prevent text selection on focused cell content */
@@ -351,6 +365,33 @@ input[type="number"] {
 .ag-theme-alpine .ag-cell-focus.ag-cell-inline-editing {
   border: none !important;
   box-shadow: none !important;
+}
+
+/* Completely disable all cell range selection visual feedback */
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-single-cell,
+.ag-theme-alpine .ag-cell-range-selected-1,
+.ag-theme-alpine .ag-cell-range-selected-2,
+.ag-theme-alpine .ag-cell-range-selected-3,
+.ag-theme-alpine .ag-cell-range-selected-4,
+.ag-theme-alpine .ag-cell-highlight,
+.ag-theme-alpine .ag-cell-highlight-animation {
+  background-color: inherit !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Disable range handle */
+.ag-theme-alpine .ag-range-handle {
+  display: none !important;
+}
+
+/* Disable fill handle */
+.ag-theme-alpine .ag-fill-handle {
+  display: none !important;
 }
 
 /* Chrome-style fade effect for cell content - only when text overflows */
